@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.ServerLauncher
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Core.Tests", "OpenGarrison.Core.Tests\OpenGarrison.Core.Tests.csproj", "{35C7A382-308F-4BAE-97F5-0002D02CEF8E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -121,6 +123,18 @@ Global
 		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x64.Build.0 = Release|Any CPU
 		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x86.ActiveCfg = Release|Any CPU
 		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x86.Build.0 = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|x64.Build.0 = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|x86.Build.0 = Debug|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|x64.ActiveCfg = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|x64.Build.0 = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|x86.ActiveCfg = Release|Any CPU
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

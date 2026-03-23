@@ -32,6 +32,17 @@ internal sealed class ServerAdminOperations(
         log($"[server] system message: {text.Trim()}");
     }
 
+    public void SendSystemMessage(byte slot, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !clientsGetter().TryGetValue(slot, out var client))
+        {
+            return;
+        }
+
+        sendMessage(client.EndPoint, new ChatRelayMessage(0, "[server]", text.Trim()));
+        log($"[server] system message to slot {slot}: {text.Trim()}");
+    }
+
     public bool TryDisconnect(byte slot, string reason)
     {
         if (!clientsGetter().TryGetValue(slot, out var client))
@@ -90,6 +101,7 @@ internal sealed class ServerAdminOperations(
         }
 
         notifyMapChanging?.Invoke(changingEvent);
+        mapRotationManagerGetter().ClearQueuedNextRoundMap();
         mapRotationManagerGetter().AlignCurrentMap(levelName);
         snapshotBroadcasterGetter().ResetTransientEvents();
         notifyMapChanged?.Invoke(new MapChangedEvent(
@@ -99,5 +111,10 @@ internal sealed class ServerAdminOperations(
             world.MatchRules.Mode));
         log($"[server] admin changed map to {world.Level.Name} area {world.Level.MapAreaIndex}/{world.Level.MapAreaCount}");
         return true;
+    }
+
+    public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
+    {
+        return mapRotationManagerGetter().TrySetNextRoundMap(levelName, mapAreaIndex);
     }
 }

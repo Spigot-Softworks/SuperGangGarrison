@@ -16,9 +16,12 @@ public partial class Game1
             return;
         }
 
-        var spriteName = stabAnimation.Team == PlayerTeam.Blue ? "BackstabBlueS" : "BackstabRedS";
-        var sprite = _runtimeAssets.GetSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
+        var owner = FindPlayerById(stabAnimation.OwnerId);
+        var renderPosition = owner is null
+            ? new Vector2(stabAnimation.X, stabAnimation.Y)
+            : GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _world.LocalPlayer));
+        var torsoSprite = _runtimeAssets.GetSprite(stabAnimation.Team == PlayerTeam.Blue ? "SpyBlueBackstabTorsoS" : "SpyRedBackstabTorsoS");
+        if (torsoSprite is null || torsoSprite.Frames.Count == 0)
         {
             var directionRadians = MathF.PI * stabAnimation.DirectionDegrees / 180f;
             var directionX = MathF.Cos(directionRadians);
@@ -37,24 +40,39 @@ public partial class Game1
             return;
         }
 
-        var frameIndex = Math.Clamp(stabAnimation.FrameIndex, 0, sprite.Frames.Count - 1);
+        var frameIndex = Math.Clamp(stabAnimation.FrameIndex, 0, torsoSprite.Frames.Count - 1);
         var facingLeft = stabAnimation.FacingLeft;
-        var spySprite = _runtimeAssets.GetSprite(stabAnimation.Team == PlayerTeam.Blue ? "SpyBlueS" : "SpyRedS");
-        var originOffsetX = 0f;
-        if (spySprite is not null)
-        {
-            originOffsetX = (sprite.Origin.X - spySprite.Origin.X) * (facingLeft ? -1f : 1f);
-        }
-
-        var anchorNudgeX = facingLeft ? 4f : 0f;
+        var position = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y);
+        var scale = new Vector2(facingLeft ? -1f : 1f, 1f);
         _spriteBatch.Draw(
-            sprite.Frames[frameIndex],
-            new Vector2(stabAnimation.X + originOffsetX + anchorNudgeX - cameraPosition.X, stabAnimation.Y - cameraPosition.Y),
+            torsoSprite.Frames[frameIndex],
+            position,
             null,
             Color.White * stabAnimation.Alpha,
             0f,
-            sprite.Origin.ToVector2(),
-            new Vector2(facingLeft ? -1f : 1f, 1f),
+            torsoSprite.Origin.ToVector2(),
+            scale,
+            SpriteEffects.None,
+            0f);
+
+        var legsSprite = _runtimeAssets.GetSprite("BackstabLegsS");
+        if (legsSprite is null || legsSprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var legFrameIndex = Math.Clamp(
+            (stabAnimation.Team == PlayerTeam.Blue ? 1 : 0) + ((owner is not null && !GetPlayerRenderIsGrounded(owner)) ? 2 : 0),
+            0,
+            legsSprite.Frames.Count - 1);
+        _spriteBatch.Draw(
+            legsSprite.Frames[legFrameIndex],
+            position,
+            null,
+            Color.White * stabAnimation.Alpha,
+            0f,
+            legsSprite.Origin.ToVector2(),
+            scale,
             SpriteEffects.None,
             0f);
     }

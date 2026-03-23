@@ -300,6 +300,7 @@ sealed class GameServer
                 var now = _clock.Elapsed;
                 var elapsedSeconds = (now - _previous).TotalSeconds;
                 _previous = now;
+                _pluginHost?.NotifyServerHeartbeat(now);
 
                 var ticks = ServerSimulationBatch.Advance(
                     _simulator,
@@ -714,17 +715,23 @@ sealed class GameServer
         var team = SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot) && _world.TryGetNetworkPlayer(client.Slot, out var player)
             ? (byte)player.Team
             : (byte)0;
+        var chatEvent = new ChatReceivedEvent(
+            client.Slot,
+            client.Name,
+            sanitized,
+            team == 0 ? null : (PlayerTeam)team);
+        if (_pluginHost?.TryHandleChatMessage(chatEvent) == true)
+        {
+            return;
+        }
+
         LogServerEvent(
             "chat_received",
             ("slot", client.Slot),
             ("player_name", client.Name),
             ("team", team == 0 ? null : ((PlayerTeam)team).ToString()),
             ("text", sanitized));
-        _pluginHost?.NotifyChatReceived(new ChatReceivedEvent(
-            client.Slot,
-            client.Name,
-            sanitized,
-            team == 0 ? null : (PlayerTeam)team));
+        _pluginHost?.NotifyChatReceived(chatEvent);
         var relay = new ChatRelayMessage(team, client.Name, sanitized);
         foreach (var session in _clientsBySlot.Values)
         {

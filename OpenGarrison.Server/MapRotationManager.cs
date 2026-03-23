@@ -19,6 +19,7 @@ sealed class MapRotationManager
     private readonly Action<string> _log;
     private readonly List<string> _mapRotation;
     private int _mapRotationIndex;
+    private QueuedNextRoundMap? _queuedNextRoundMap;
 
     public MapRotationManager(SimulationWorld world, string? requestedMap, string? mapRotationFile, IReadOnlyList<string> stockMapRotation, Action<string> log)
     {
@@ -53,7 +54,14 @@ sealed class MapRotationManager
         string nextMap;
         var nextArea = 1;
 
-        if (winner == PlayerTeam.Red && currentArea < totalAreas)
+        if (_queuedNextRoundMap is { } queuedNextRoundMap)
+        {
+            nextMap = queuedNextRoundMap.LevelName;
+            nextArea = queuedNextRoundMap.AreaIndex;
+            _queuedNextRoundMap = null;
+            _log($"[server] advancing to voted next round map {nextMap} area {nextArea}");
+        }
+        else if (winner == PlayerTeam.Red && currentArea < totalAreas)
         {
             nextMap = currentLevelName;
             nextArea = currentArea + 1;
@@ -97,6 +105,24 @@ sealed class MapRotationManager
 
     public int CurrentRotationIndex => _mapRotationIndex;
 
+    public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
+    {
+        var nextLevel = SimpleLevelFactory.CreateImportedLevel(levelName, mapAreaIndex);
+        if (nextLevel is null)
+        {
+            return false;
+        }
+
+        _queuedNextRoundMap = new QueuedNextRoundMap(nextLevel.Name, nextLevel.MapAreaIndex);
+        _log($"[server] queued next round map {nextLevel.Name} area {nextLevel.MapAreaIndex}");
+        return true;
+    }
+
+    public void ClearQueuedNextRoundMap()
+    {
+        _queuedNextRoundMap = null;
+    }
+
     public void AlignCurrentMap(string levelName)
     {
         var index = FindMapRotationIndex(_mapRotation, levelName);
@@ -111,6 +137,7 @@ sealed class MapRotationManager
 
     private void InitializeWorldLevel(string? requestedMap)
     {
+        _queuedNextRoundMap = null;
         if (!string.IsNullOrWhiteSpace(requestedMap))
         {
             var loadedRequestedMap = _world.TryLoadLevel(requestedMap, mapAreaIndex: 1, preservePlayerStats: false);
@@ -140,4 +167,6 @@ sealed class MapRotationManager
 
         _mapRotationIndex = Math.Max(0, FindMapRotationIndex(_mapRotation, _world.Level.Name));
     }
+
+    private readonly record struct QueuedNextRoundMap(string LevelName, int AreaIndex);
 }

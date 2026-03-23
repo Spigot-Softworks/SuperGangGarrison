@@ -29,7 +29,10 @@ public partial class Game1
         var viewportWidth = _graphics.PreferredBackBufferWidth;
         var viewportHeight = _graphics.PreferredBackBufferHeight;
         var centerX = viewportWidth / 2f;
-        DrawCenteredHudSprite("ScorePanelS", 0, new Vector2(centerX, viewportHeight - 57.5f), Color.White, new Vector2(3f, 3f));
+        if (!TryDrawScreenSprite("CTFHUDS", 0, new Vector2(centerX + 1f, viewportHeight + 100f), Color.White, new Vector2(3f, 3f)))
+        {
+            DrawCenteredHudSprite("ScorePanelS", 0, new Vector2(centerX, viewportHeight - 57.5f), Color.White, new Vector2(3f, 3f));
+        }
 
         DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), Color.Black, 2f);
         DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), Color.Black, 2f);

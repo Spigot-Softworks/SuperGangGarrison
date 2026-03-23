@@ -11,9 +11,7 @@ public sealed partial class PlayerEntity
         }
 
         IsTaunting = true;
-        TauntFrameIndex = Team == PlayerTeam.Blue
-            ? ClassDefinition.TauntLengthFrames + 1f
-            : 0f;
+        TauntFrameIndex = 0f;
         return true;
     }
 
@@ -38,9 +36,7 @@ public sealed partial class PlayerEntity
         }
 
         TauntFrameIndex += TauntFrameStepPerTick;
-        var tauntEndFrame = Team == PlayerTeam.Blue
-            ? (ClassDefinition.TauntLengthFrames * 2f) + 1f
-            : ClassDefinition.TauntLengthFrames;
+        var tauntEndFrame = ClassDefinition.TauntLengthFrames;
         if (TauntFrameIndex < tauntEndFrame)
         {
             return;

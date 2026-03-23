@@ -51,15 +51,14 @@ public partial class Game1
     private void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-        var spriteName = GetPlayerSpriteName(deadBody.ClassId, deadBody.Team);
+        var spriteName = GetDeadBodySpriteName(deadBody.ClassId, deadBody.Team);
         if (spriteName is not null)
         {
             var sprite = _runtimeAssets.GetSprite(spriteName);
             if (sprite is not null && sprite.Frames.Count > 0)
             {
-                var frameIndex = Math.Clamp(5, 0, sprite.Frames.Count - 1);
                 _spriteBatch.Draw(
-                    sprite.Frames[frameIndex],
+                    sprite.Frames[0],
                     new Vector2(
                         renderPosition.X - cameraPosition.X + GetPlayerSpriteOffset(deadBody.ClassId).X,
                         renderPosition.Y - cameraPosition.Y + GetPlayerSpriteOffset(deadBody.ClassId).Y),
@@ -85,7 +84,11 @@ public partial class Game1
     private bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint)
     {
         var isHeavyEating = GetPlayerIsHeavyEating(player);
-        var spriteName = isHeavyEating ? "OmnomnomnomS" : player.IsTaunting ? GetTauntSpriteName(player) : GetPlayerSpriteName(player);
+        var spriteName = isHeavyEating
+            ? GetHeavyEatSpriteName(player)
+            : player.IsTaunting
+                ? GetTauntSpriteName(player)
+                : GetPlayerSpriteName(player);
         if (spriteName is null)
         {
             return false;
@@ -302,20 +305,14 @@ public partial class Game1
 
     private static string? GetTauntSpriteName(PlayerEntity player)
     {
-        return player.ClassId switch
-        {
-            PlayerClass.Scout => "ScoutTauntS",
-            PlayerClass.Engineer => "EngiTauntS",
-            PlayerClass.Pyro => "PyroTauntS",
-            PlayerClass.Soldier => "SoldierTauntS",
-            PlayerClass.Demoman => "DemoTauntS",
-            PlayerClass.Heavy => "HeavyTauntS",
-            PlayerClass.Sniper => "SniperTauntS",
-            PlayerClass.Medic => "MedicTauntS",
-            PlayerClass.Spy => "SpyTauntS",
-            PlayerClass.Quote => "QuoteTauntS",
-            _ => null,
-        };
+        return GetTeamSpriteName(player.ClassId, player.Team, "TauntS");
+    }
+
+    private static string? GetHeavyEatSpriteName(PlayerEntity player)
+    {
+        return player.ClassId == PlayerClass.Heavy
+            ? GetTeamSpriteName(player.ClassId, player.Team, "OmnomnomnomS")
+            : null;
     }
 
     private static string? GetPlayerSpriteName(PlayerEntity player)
@@ -325,28 +322,48 @@ public partial class Game1
 
     private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)
     {
-        return (classId, team) switch
+        return GetTeamSpriteName(classId, team, "S");
+    }
+
+    private static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team)
+    {
+        return GetTeamSpriteName(classId, team, "DeadS");
+    }
+
+    private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)
+    {
+        var prefix = GetPlayerSpritePrefix(classId);
+        if (prefix is null)
         {
-            (PlayerClass.Scout, PlayerTeam.Red) => "ScoutRedS",
-            (PlayerClass.Scout, PlayerTeam.Blue) => "ScoutBlueS",
-            (PlayerClass.Engineer, PlayerTeam.Red) => "EngineerRedS",
-            (PlayerClass.Engineer, PlayerTeam.Blue) => "EngineerBlueS",
-            (PlayerClass.Pyro, PlayerTeam.Red) => "PyroRedS",
-            (PlayerClass.Pyro, PlayerTeam.Blue) => "PyroBlueS",
-            (PlayerClass.Soldier, PlayerTeam.Red) => "SoldierRedS",
-            (PlayerClass.Soldier, PlayerTeam.Blue) => "SoldierBlueS",
-            (PlayerClass.Demoman, PlayerTeam.Red) => "DemomanRedS",
-            (PlayerClass.Demoman, PlayerTeam.Blue) => "DemomanBlueS",
-            (PlayerClass.Heavy, PlayerTeam.Red) => "HeavyRedS",
-            (PlayerClass.Heavy, PlayerTeam.Blue) => "HeavyBlueS",
-            (PlayerClass.Sniper, PlayerTeam.Red) => "SniperRedS",
-            (PlayerClass.Sniper, PlayerTeam.Blue) => "SniperBlueS",
-            (PlayerClass.Medic, PlayerTeam.Red) => "MedicRedS",
-            (PlayerClass.Medic, PlayerTeam.Blue) => "MedicBlueS",
-            (PlayerClass.Spy, PlayerTeam.Red) => "SpyRedS",
-            (PlayerClass.Spy, PlayerTeam.Blue) => "SpyBlueS",
-            (PlayerClass.Quote, PlayerTeam.Red) => "QuoteRedS",
-            (PlayerClass.Quote, PlayerTeam.Blue) => "CurlyBlueS",
+            return null;
+        }
+
+        var teamName = team switch
+        {
+            PlayerTeam.Red => "Red",
+            PlayerTeam.Blue => "Blue",
+            _ => null,
+        };
+
+        return teamName is null
+            ? null
+            : $"{prefix}{teamName}{suffix}";
+    }
+
+    private static string? GetPlayerSpritePrefix(PlayerClass classId)
+    {
+        return classId switch
+        {
+            PlayerClass.Scout => "Scout",
+            PlayerClass.Engineer => "Engineer",
+            PlayerClass.Pyro => "Pyro",
+            PlayerClass.Soldier => "Soldier",
+            PlayerClass.Demoman => "Demoman",
+            PlayerClass.Heavy => "Heavy",
+            PlayerClass.Sniper => "Sniper",
+            PlayerClass.Medic => "Medic",
+            PlayerClass.Spy => "Spy",
+            PlayerClass.Quote => "Querly",
             _ => null,
         };
     }

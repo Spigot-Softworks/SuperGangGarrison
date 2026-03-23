@@ -1,21 +1,34 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 RID="${1:-linux-x64}"
-OUT="./dist/$RID"
-FLAGS="-c Release -r $RID --self-contained false -o $OUT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_SCRIPT="$SCRIPT_DIR/package.ps1"
 
-PROJECTS=(
-  "OpenGarrison.Core/OpenGarrison.Core.csproj"
-  "OpenGarrison.Protocol/OpenGarrison.Protocol.csproj"
-  "OpenGarrison.Client/OpenGarrison.Client.csproj"
-  "OpenGarrison.Server/OpenGarrison.Server.csproj"
-  "OpenGarrison.ServerLauncher/OpenGarrison.ServerLauncher.csproj"
-)
+to_windows_path() {
+  local path="$1"
 
-for proj in "${PROJECTS[@]}"; do
-  dotnet publish "$proj" $FLAGS
-done
+  if [[ "$path" =~ ^/mnt/([a-zA-Z])/(.*)$ ]]; then
+    local drive="${BASH_REMATCH[1]^^}"
+    local remainder="${BASH_REMATCH[2]//\//\\}"
+    printf '%s:\\%s' "$drive" "$remainder"
+    return 0
+  fi
 
-cp -r "./OpenGarrison.Core/Content/." "$OUT/Content/"
-cp -r "./OpenGarrison.Client/Content/." "$OUT/Content/"
+  printf '%s' "$path"
+}
+
+if command -v pwsh >/dev/null 2>&1; then
+  PS_CMD=(pwsh -NoProfile -File)
+elif command -v powershell.exe >/dev/null 2>&1; then
+  PS_CMD=(powershell.exe -NoProfile -ExecutionPolicy Bypass -File)
+  PACKAGE_SCRIPT="$(to_windows_path "$PACKAGE_SCRIPT")"
+elif command -v powershell >/dev/null 2>&1; then
+  PS_CMD=(powershell -NoProfile -ExecutionPolicy Bypass -File)
+  PACKAGE_SCRIPT="$(to_windows_path "$PACKAGE_SCRIPT")"
+else
+  echo "PowerShell is required to package OpenGarrison."
+  exit 1
+fi
+
+"${PS_CMD[@]}" "$PACKAGE_SCRIPT" -Platforms "$RID" -SkipTests

@@ -6,6 +6,8 @@ public interface IOpenGarrisonServerAdminOperations
 {
     void BroadcastSystemMessage(string text);
 
+    void SendSystemMessage(byte slot, string text);
+
     bool TryDisconnect(byte slot, string reason);
 
     bool TryMoveToSpectator(byte slot);
@@ -19,4 +21,6 @@ public interface IOpenGarrisonServerAdminOperations
     bool TrySetCapLimit(int capLimit);
 
     bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false);
+
+    bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1);
 }

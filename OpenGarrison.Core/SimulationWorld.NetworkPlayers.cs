@@ -35,6 +35,21 @@ public sealed partial class SimulationWorld
         }
     }
 
+    public IEnumerable<(byte Slot, PlayerEntity Player)> EnumerateReplicatedNetworkPlayers()
+    {
+        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        {
+            var slot = NetworkPlayerSlots[index];
+            if (!IsNetworkPlayerEnabled(slot)
+                || !TryGetNetworkPlayer(slot, out var player))
+            {
+                continue;
+            }
+
+            yield return (slot, player);
+        }
+    }
+
     public int GetNetworkPlayerRespawnTicks(byte slot)
     {
         return slot switch

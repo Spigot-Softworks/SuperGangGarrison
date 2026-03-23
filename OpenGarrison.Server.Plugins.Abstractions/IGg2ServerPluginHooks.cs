@@ -1,3 +1,5 @@
+using System;
+
 namespace OpenGarrison.Server.Plugins;
 
 public interface IOpenGarrisonServerLifecycleHooks
@@ -9,6 +11,11 @@ public interface IOpenGarrisonServerLifecycleHooks
     void OnServerStopping();
 
     void OnServerStopped();
+}
+
+public interface IOpenGarrisonServerUpdateHooks
+{
+    void OnServerHeartbeat(TimeSpan uptime);
 }
 
 public interface IOpenGarrisonServerClientHooks
@@ -29,6 +36,11 @@ public interface IOpenGarrisonServerClientHooks
 public interface IOpenGarrisonServerChatHooks
 {
     void OnChatReceived(ChatReceivedEvent e);
+}
+
+public interface IOpenGarrisonServerChatCommandHooks
+{
+    bool TryHandleChatMessage(OpenGarrisonServerChatMessageContext context, ChatReceivedEvent e);
 }
 
 public interface IOpenGarrisonServerMapHooks

@@ -395,11 +395,7 @@ public partial class Game1
     private void DrawIntelPanelElement(TeamIntelligenceState intelState, Vector2 position)
     {
         var isEnemyIntelForLocalPlayer = intelState.Team != _world.LocalPlayer.Team;
-        if (isEnemyIntelForLocalPlayer && _world.LocalPlayer.IsCarryingIntel)
-        {
-            return;
-        }
-
+        var localPlayerCarryingEnemyIntel = isEnemyIntelForLocalPlayer && _world.LocalPlayer.IsCarryingIntel;
         var sourcePosition = _world.LocalPlayer.IsAlive
             ? GetLocalViewPosition()
             : position;
@@ -408,9 +404,21 @@ public partial class Game1
         var targetX = intelState.X;
         var targetY = intelState.Y;
         var directionDegrees = MathF.Atan2(targetY - sourceY, targetX - sourceX) * 180f / MathF.PI;
-        var statusFrame = intelState.IsAtBase ? 2 : intelState.IsDropped ? 0 : 1;
+        var statusFrame = localPlayerCarryingEnemyIntel
+            ? 3
+            : intelState.IsAtBase
+                ? 2
+                : intelState.IsDropped
+                    ? 0
+                    : 1;
         var arrowFrame = intelState.Team == PlayerTeam.Blue ? 1 : 0;
 
+        TryDrawScreenSprite(
+            "IntelReturnTimeS",
+            GetIntelReturnTimerFrameIndex(intelState),
+            new Vector2(position.X + (intelState.Team == PlayerTeam.Blue ? -26f : -27f), position.Y - 27f),
+            Color.White,
+            new Vector2(3f, 3f));
         TryDrawScreenSprite(
             "IntelArrowS",
             arrowFrame,
@@ -424,5 +432,19 @@ public partial class Game1
             position,
             Color.White,
             new Vector2(2f, 2f));
+    }
+
+    private static int GetIntelReturnTimerFrameIndex(TeamIntelligenceState intelState)
+    {
+        if (!intelState.IsDropped)
+        {
+            return intelState.Team == PlayerTeam.Blue ? 16 : 33;
+        }
+
+        const float totalReturnTicks = 900f;
+        var frame = Math.Clamp((int)MathF.Floor((intelState.ReturnTicksRemaining / totalReturnTicks) * 17f), 1, 17);
+        return intelState.Team == PlayerTeam.Blue
+            ? frame
+            : Math.Clamp(frame + 17, 18, 33);
     }
 }

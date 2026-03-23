@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj" />
     <ProjectReference Include="..\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\\OpenGarrison.Server\\OpenGarrison.Server.csproj" />
   </ItemGroup>

@@ -74,11 +74,13 @@ public sealed class PluginHostTests
 
         host.NotifyServerStarting();
         host.NotifyServerStarted();
+        host.NotifyServerHeartbeat(TimeSpan.FromSeconds(5));
         host.NotifyHelloReceived(new HelloReceivedEvent("Alice", "127.0.0.1:8190", 1));
         host.NotifyClientConnected(new ClientConnectedEvent(1, "Alice", "127.0.0.1:8190", true, false));
         host.NotifyPasswordAccepted(new PasswordAcceptedEvent(1, "Alice", "127.0.0.1:8190"));
         host.NotifyPlayerTeamChanged(new PlayerTeamChangedEvent(1, "Alice", PlayerTeam.Red));
         host.NotifyPlayerClassChanged(new PlayerClassChangedEvent(1, "Alice", PlayerClass.Scout));
+        Assert.True(host.TryHandleChatMessage(new ChatReceivedEvent(1, "Alice", "!handled", PlayerTeam.Red)));
         host.NotifyChatReceived(new ChatReceivedEvent(1, "Alice", "hello", PlayerTeam.Red));
         host.NotifyMapChanging(new MapChangingEvent("ctf_truefort", 1, 1, "cp_egypt", 1, false, PlayerTeam.Red));
         host.NotifyMapChanged(new MapChangedEvent("cp_egypt", 1, 1, GameModeKind.ControlPoint));
@@ -93,11 +95,13 @@ public sealed class PluginHostTests
         Assert.Equal("recording.plugin", plugin!.Context?.PluginId);
         Assert.Contains(plugin.Events, entry => entry == "lifecycle:starting");
         Assert.Contains(plugin.Events, entry => entry == "lifecycle:started");
+        Assert.Contains(plugin.Events, entry => entry == "heartbeat:00:00:05");
         Assert.Contains(plugin.Events, entry => entry == "hello:Alice");
         Assert.Contains(plugin.Events, entry => entry == "connected:1");
         Assert.Contains(plugin.Events, entry => entry == "password:1");
         Assert.Contains(plugin.Events, entry => entry == "team:1:Red");
         Assert.Contains(plugin.Events, entry => entry == "class:1:Scout");
+        Assert.Contains(plugin.Events, entry => entry == "chat-command:!handled");
         Assert.Contains(plugin.Events, entry => entry == "chat:hello");
         Assert.Contains(plugin.Events, entry => entry == "map-changing:cp_egypt:1");
         Assert.Contains(plugin.Events, entry => entry == "map-changed:cp_egypt:ControlPoint");
@@ -145,6 +149,10 @@ public sealed class PluginHostTests
         {
         }
 
+        public void SendSystemMessage(byte slot, string text)
+        {
+        }
+
         public bool TryDisconnect(byte slot, string reason) => true;
 
         public bool TryMoveToSpectator(byte slot) => true;
@@ -158,6 +166,8 @@ public sealed class PluginHostTests
         public bool TrySetCapLimit(int capLimit) => true;
 
         public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
+
+        public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
     }
 
     private sealed class TestCommand : IOpenGarrisonServerCommand
@@ -207,8 +217,10 @@ public sealed class PluginHostTests
     public sealed class RecordingPlugin :
         IOpenGarrisonServerPlugin,
         IOpenGarrisonServerLifecycleHooks,
+        IOpenGarrisonServerUpdateHooks,
         IOpenGarrisonServerClientHooks,
         IOpenGarrisonServerChatHooks,
+        IOpenGarrisonServerChatCommandHooks,
         IOpenGarrisonServerMapHooks,
         IOpenGarrisonServerGameplayHooks
     {
@@ -248,6 +260,8 @@ public sealed class PluginHostTests
 
         public void OnServerStarted() => Events.Add("lifecycle:started");
 
+        public void OnServerHeartbeat(TimeSpan uptime) => Events.Add($"heartbeat:{uptime}");
+
         public void OnServerStopping() => Events.Add("lifecycle:stopping");
 
         public void OnServerStopped() => Events.Add("lifecycle:stopped");
@@ -263,6 +277,17 @@ public sealed class PluginHostTests
         public void OnPlayerTeamChanged(PlayerTeamChangedEvent e) => Events.Add($"team:{e.Slot}:{e.Team}");
 
         public void OnPlayerClassChanged(PlayerClassChangedEvent e) => Events.Add($"class:{e.Slot}:{e.PlayerClass}");
+
+        public bool TryHandleChatMessage(OpenGarrisonServerChatMessageContext context, ChatReceivedEvent e)
+        {
+            if (!string.Equals(e.Text, "!handled", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            Events.Add($"chat-command:{e.Text}");
+            return true;
+        }
 
         public void OnChatReceived(ChatReceivedEvent e) => Events.Add($"chat:{e.Text}");
 

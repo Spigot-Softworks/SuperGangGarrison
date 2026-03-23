@@ -135,6 +135,39 @@ public sealed class SnapshotBroadcasterTests
         Assert.True(ProtocolCodec.Serialize(snapshot).Length <= 1200);
     }
 
+    [Fact]
+    public void BroadcastSnapshot_WhenPlayableClientIsAwaitingJoin_IncludesTheirSnapshotState()
+    {
+        var world = new SimulationWorld();
+        var config = world.Config;
+        world.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
+        var clientsBySlot = new Dictionary<byte, ClientSession>
+        {
+            [SimulationWorld.LocalPlayerSlot] = new(
+                SimulationWorld.LocalPlayerSlot,
+                new IPEndPoint(IPAddress.Loopback, 8190),
+                "Player",
+                TimeSpan.Zero),
+        };
+        var sentSnapshots = new List<SnapshotMessage>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            transientEventReplayTicks: 4,
+            (_, snapshot, _) => sentSnapshots.Add(snapshot));
+        var simulator = new FixedStepSimulator(world);
+
+        simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        var snapshot = Assert.Single(sentSnapshots);
+        var player = Assert.Single(snapshot.Players);
+        Assert.Equal(SimulationWorld.LocalPlayerSlot, player.Slot);
+        Assert.True(player.IsAwaitingJoin);
+        Assert.False(player.IsAlive);
+        Assert.Equal(0, player.RespawnTicks);
+    }
+
     private static SnapshotMessage CreateSnapshot(SimulationWorld world, IReadOnlyList<SnapshotShotState>? shots = null)
     {
         return new SnapshotMessage(

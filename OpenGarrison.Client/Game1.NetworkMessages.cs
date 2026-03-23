@@ -336,6 +336,9 @@ public partial class Game1
 
         var snapshot = _queuedAuthoritativeSnapshots.Dequeue();
         var applySnapshotStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var previousLevelName = _world.Level.Name;
+        var previousMapAreaIndex = _world.Level.MapAreaIndex;
+        var wasAwaitingJoin = _world.LocalPlayerAwaitingJoin;
         if (!_world.ApplySnapshot(snapshot, _networkClient.LocalPlayerSlot))
         {
             if (_networkDiagnosticsEnabled)
@@ -367,6 +370,33 @@ public partial class Game1
             {
                 RecordReconcileDuration(GetDiagnosticsElapsedMilliseconds(reconcileStartTimestamp));
             }
+
+            ReopenJoinMenusAfterMapTransition(previousLevelName, previousMapAreaIndex, wasAwaitingJoin);
         }
+    }
+
+    private void ReopenJoinMenusAfterMapTransition(string previousLevelName, int previousMapAreaIndex, bool wasAwaitingJoin)
+    {
+        if (_networkClient.IsSpectator)
+        {
+            _teamSelectOpen = false;
+            _classSelectOpen = false;
+            return;
+        }
+
+        var mapChanged = !string.Equals(previousLevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
+            || previousMapAreaIndex != _world.Level.MapAreaIndex;
+        if (!_world.LocalPlayerAwaitingJoin || (!mapChanged && wasAwaitingJoin))
+        {
+            return;
+        }
+
+        _networkClient.ClearPendingTeamSelection();
+        _networkClient.ClearPendingClassSelection();
+        _teamSelectOpen = true;
+        _classSelectOpen = false;
+        _chatOpen = false;
+        _consoleOpen = false;
+        _menuStatusMessage = string.Empty;
     }
 }

@@ -1,47 +1,40 @@
 how to build
 
-from `Source\OpenGarrison.CSharp`:
+from the repo root:
 
-windows (all default platforms):
+windows (default packaged platforms):
 powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1
 
-linux/macOS (all default platforms):
+linux/macOS (default packaged platforms):
 pwsh ./scripts/package.ps1
 
 windows only:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('win-x64')
+powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64
 
-windows only, skip tests:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('win-x64') -SkipTests
-
-from windows, build linux distro:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('linux-x64')
-
-from windows, build linux distro and skip tests:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('linux-x64') -SkipTests
-
-from windows, build macOS distro:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('osx-x64','osx-arm64')
-
-from windows, build macOS distro and skip tests:
-powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms @('osx-x64','osx-arm64') -SkipTests
+windows only, include tests:
+powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Platforms win-x64 -RunTests
 
 linux only:
-pwsh ./scripts/package.ps1 -Platforms @('linux-x64')
+pwsh ./scripts/package.ps1 -Platforms linux-x64
 
-linux only, skip tests:
-pwsh ./scripts/package.ps1 -Platforms @('linux-x64') -SkipTests
+linux only, include tests:
+pwsh ./scripts/package.ps1 -Platforms linux-x64 -RunTests
 
 macOS only:
-pwsh ./scripts/package.ps1 -Platforms @('osx-x64','osx-arm64')
+pwsh ./scripts/package.ps1 -Platforms osx-x64,osx-arm64
 
-macOS only, skip tests:
-pwsh ./scripts/package.ps1 -Platforms @('osx-x64','osx-arm64') -SkipTests
+macOS only, include tests:
+pwsh ./scripts/package.ps1 -Platforms osx-x64,osx-arm64 -RunTests
+
+CI/local bash wrapper:
+bash ./scripts/build.sh win-x64
 
 output:
-Source\OpenGarrison.CSharp\dist\opengarrison-*
+dist\<runtime-id>\
+dist\OpenGarrison-*.zip
 
 notes:
-- the script restores local tools once, restores tests once if enabled, restores once per requested runtime, then publishes with `--no-restore`
-- use `-SkipTests` if you want to skip the upfront `dotnet test`
-- it publishes OpenGarrison.Client, OpenGarrison.ServerLauncher, and OpenGarrison.Server, then copies assets/configs and archives them
+- the package script stages publishes under `dist\_staging` before copying the finished package into `dist\<runtime-id>`
+- the package includes client/server content, default config files, `sampleMapRotation.txt`, packaging README, and bundled server plugins
+- add `-RunTests` if you want packaging to run `dotnet test` before publishing
+- `-SkipTests` is still accepted for compatibility with older commands and CI wrappers

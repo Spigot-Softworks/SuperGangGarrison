@@ -64,6 +64,8 @@ internal sealed class PluginHost
 
     public void NotifyServerStopped() => Dispatch<IOpenGarrisonServerLifecycleHooks>(hook => hook.OnServerStopped());
 
+    public void NotifyServerHeartbeat(TimeSpan uptime) => Dispatch<IOpenGarrisonServerUpdateHooks>(hook => hook.OnServerHeartbeat(uptime));
+
     public void NotifyHelloReceived(HelloReceivedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnHelloReceived(e));
 
     public void NotifyClientConnected(ClientConnectedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnClientConnected(e));
@@ -77,6 +79,32 @@ internal sealed class PluginHost
     public void NotifyPlayerClassChanged(PlayerClassChangedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnPlayerClassChanged(e));
 
     public void NotifyChatReceived(ChatReceivedEvent e) => Dispatch<IOpenGarrisonServerChatHooks>(hook => hook.OnChatReceived(e));
+
+    public bool TryHandleChatMessage(ChatReceivedEvent e)
+    {
+        var context = new OpenGarrisonServerChatMessageContext(_serverState, _adminOperations);
+        foreach (var loadedPlugin in _loadedPlugins)
+        {
+            if (loadedPlugin.Plugin is not IOpenGarrisonServerChatCommandHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                if (hook.TryHandleChatMessage(context, e))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] chat hook failed for {loadedPlugin.Plugin.Id}: {ex.Message}");
+            }
+        }
+
+        return false;
+    }
 
     public void NotifyMapChanging(MapChangingEvent e) => Dispatch<IOpenGarrisonServerMapHooks>(hook => hook.OnMapChanging(e));
 

@@ -16,17 +16,8 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build Linux
-        run: bash scripts/build.sh linux-x64
-
-      - name: Build Windows
-        run: bash scripts/build.sh win-x64
-
-      - name: Zip artifacts
-        run: |
-          cd dist
-          (cd linux-x64 && zip -r ../OpenGarrison-Linux-x64.zip .)
-          (cd win-x64 && zip -r ../OpenGarrison-Windows-x64.zip .)
+      - name: Package Linux and Windows
+        run: pwsh ./scripts/package.ps1 -Platforms linux-x64,win-x64 -SkipTests
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj" />
     <ProjectReference Include="..\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />
@@ -11,5 +12,29 @@
     <TargetFramework>net10.0</TargetFramework>
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
+
+  <Target Name="CopyBundledPluginAssembliesForBuild" AfterTargets="Build">
+    <ItemGroup>
+      <BundledPluginAssemblies Include="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'OpenGarrison.Server.Plugins.ChatVoting'" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(TargetDir)Plugins" />
+    <Copy SourceFiles="@(BundledPluginAssemblies)"
+          DestinationFolder="$(TargetDir)Plugins"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBundledPluginAssembliesForPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <BundledPluginAssemblies Include="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'OpenGarrison.Server.Plugins.ChatVoting'" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(PublishDir)Plugins" />
+    <Copy SourceFiles="@(BundledPluginAssemblies)"
+          DestinationFolder="$(PublishDir)Plugins"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

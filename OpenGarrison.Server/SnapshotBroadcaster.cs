@@ -112,7 +112,7 @@ sealed class SnapshotBroadcaster
         SnapshotSoundEvent[] soundEvents)
     {
         var players = _world
-            .EnumerateActiveNetworkPlayers()
+            .EnumerateReplicatedNetworkPlayers()
             .Select(entry => ToSnapshotPlayerState(_world, entry.Slot, entry.Player))
             .ToList();
 
