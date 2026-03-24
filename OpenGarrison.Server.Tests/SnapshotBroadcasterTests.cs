@@ -168,6 +168,46 @@ public sealed class SnapshotBroadcasterTests
         Assert.Equal(0, player.RespawnTicks);
     }
 
+    [Fact]
+    public void BroadcastSnapshot_AfterAwaitingJoinClassSelection_SendsSpawnedPlayerState()
+    {
+        var world = new SimulationWorld();
+        var config = world.Config;
+        world.DespawnEnemyDummy();
+        Assert.True(world.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(SimulationWorld.LocalPlayerSlot, PlayerClass.Scout));
+
+        var clientsBySlot = new Dictionary<byte, ClientSession>
+        {
+            [SimulationWorld.LocalPlayerSlot] = new(
+                SimulationWorld.LocalPlayerSlot,
+                new IPEndPoint(IPAddress.Loopback, 8190),
+                "Player",
+                TimeSpan.Zero),
+        };
+        var sentSnapshots = new List<SnapshotMessage>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            transientEventReplayTicks: 4,
+            (_, snapshot, _) => sentSnapshots.Add(snapshot));
+        var simulator = new FixedStepSimulator(world);
+
+        var ticks = simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        Assert.Equal(1, ticks);
+        var snapshot = Assert.Single(sentSnapshots);
+        var player = Assert.Single(snapshot.Players);
+        Assert.False(player.IsAwaitingJoin);
+        Assert.True(player.IsAlive);
+        Assert.Equal((byte)PlayerClass.Scout, player.ClassId);
+        Assert.Equal((byte)PlayerTeam.Red, player.Team);
+        Assert.True(player.X > 0f);
+        Assert.True(player.Y > 0f);
+    }
+
     private static SnapshotMessage CreateSnapshot(SimulationWorld world, IReadOnlyList<SnapshotShotState>? shots = null)
     {
         return new SnapshotMessage(

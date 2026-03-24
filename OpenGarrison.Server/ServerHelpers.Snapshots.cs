@@ -45,7 +45,13 @@ internal static partial class ServerHelpers
             player.TauntFrameIndex,
             player.IsChatBubbleVisible,
             player.ChatBubbleFrameIndex,
-            player.ChatBubbleAlpha);
+            player.ChatBubbleAlpha,
+            player.BurnIntensity,
+            player.BurnDurationSourceTicks,
+            player.BurnDecayDelaySourceTicksRemaining,
+            player.BurnIntensityDecayPerSourceTick,
+            player.BurnedByPlayerId ?? -1,
+            (byte)player.MovementState);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -109,7 +115,30 @@ internal static partial class ServerHelpers
 
     internal static SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
     {
-        return new SnapshotRocketState(rocket.Id, (byte)rocket.Team, rocket.OwnerId, rocket.X, rocket.Y, rocket.PreviousX, rocket.PreviousY, rocket.DirectionRadians, rocket.Speed, rocket.TicksRemaining);
+        var passedFriendlyPlayerIds = rocket.PassedFriendlyPlayerIds.Count == 0
+            ? Array.Empty<int>()
+            : [.. rocket.PassedFriendlyPlayerIds.OrderBy(static id => id)];
+
+        return new SnapshotRocketState(
+            rocket.Id,
+            (byte)rocket.Team,
+            rocket.OwnerId,
+            rocket.X,
+            rocket.Y,
+            rocket.PreviousX,
+            rocket.PreviousY,
+            rocket.DirectionRadians,
+            rocket.Speed,
+            rocket.TicksRemaining,
+            rocket.ReducedKnockbackSourceTicksRemaining,
+            rocket.ZeroKnockbackSourceTicksRemaining,
+            rocket.RangeAnchorOwnerId,
+            rocket.LastKnownRangeOriginX,
+            rocket.LastKnownRangeOriginY,
+            rocket.DistanceToTravel,
+            rocket.IsFading,
+            rocket.FadeSourceTicksRemaining,
+            passedFriendlyPlayerIds);
     }
 
     internal static SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)

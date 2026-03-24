@@ -115,6 +115,23 @@ public static partial class ProtocolCodec
             writer.Write(rocket.DirectionRadians);
             writer.Write(rocket.Speed);
             writer.Write(rocket.TicksRemaining);
+            writer.Write(rocket.ReducedKnockbackSourceTicksRemaining);
+            writer.Write(rocket.ZeroKnockbackSourceTicksRemaining);
+            writer.Write(rocket.RangeAnchorOwnerId);
+            writer.Write(rocket.LastKnownRangeOriginX);
+            writer.Write(rocket.LastKnownRangeOriginY);
+            writer.Write(rocket.DistanceToTravel);
+            writer.Write(rocket.IsFading);
+            writer.Write(rocket.FadeSourceTicksRemaining);
+            var passedFriendlyPlayerIds = rocket.PassedFriendlyPlayerIds;
+            writer.Write((ushort)(passedFriendlyPlayerIds?.Count ?? 0));
+            if (passedFriendlyPlayerIds is not null)
+            {
+                for (var passedIndex = 0; passedIndex < passedFriendlyPlayerIds.Count; passedIndex += 1)
+                {
+                    writer.Write(passedFriendlyPlayerIds[passedIndex]);
+                }
+            }
         }
     }
 
@@ -124,17 +141,51 @@ public static partial class ProtocolCodec
         var rockets = new List<SnapshotRocketState>(count);
         for (var index = 0; index < count; index += 1)
         {
+            var id = reader.ReadInt32();
+            var team = reader.ReadByte();
+            var ownerId = reader.ReadInt32();
+            var x = reader.ReadSingle();
+            var y = reader.ReadSingle();
+            var previousX = reader.ReadSingle();
+            var previousY = reader.ReadSingle();
+            var directionRadians = reader.ReadSingle();
+            var speed = reader.ReadSingle();
+            var ticksRemaining = reader.ReadInt32();
+            var reducedKnockbackSourceTicksRemaining = reader.ReadSingle();
+            var zeroKnockbackSourceTicksRemaining = reader.ReadSingle();
+            var rangeAnchorOwnerId = reader.ReadInt32();
+            var lastKnownRangeOriginX = reader.ReadSingle();
+            var lastKnownRangeOriginY = reader.ReadSingle();
+            var distanceToTravel = reader.ReadSingle();
+            var isFading = reader.ReadBoolean();
+            var fadeSourceTicksRemaining = reader.ReadSingle();
+            var passedFriendlyCount = reader.ReadUInt16();
+            var passedFriendlyPlayerIds = new int[passedFriendlyCount];
+            for (var passedIndex = 0; passedIndex < passedFriendlyCount; passedIndex += 1)
+            {
+                passedFriendlyPlayerIds[passedIndex] = reader.ReadInt32();
+            }
+
             rockets.Add(new SnapshotRocketState(
-                reader.ReadInt32(),
-                reader.ReadByte(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadInt32()));
+                id,
+                team,
+                ownerId,
+                x,
+                y,
+                previousX,
+                previousY,
+                directionRadians,
+                speed,
+                ticksRemaining,
+                reducedKnockbackSourceTicksRemaining,
+                zeroKnockbackSourceTicksRemaining,
+                rangeAnchorOwnerId,
+                lastKnownRangeOriginX,
+                lastKnownRangeOriginY,
+                distanceToTravel,
+                isFading,
+                fadeSourceTicksRemaining,
+                passedFriendlyPlayerIds));
         }
 
         return rockets;

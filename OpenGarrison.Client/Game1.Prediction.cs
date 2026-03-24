@@ -166,9 +166,19 @@ public partial class Game1
 
     private void ApplyPredictedInputStep(PlayerEntity player, PredictedLocalInput predictedInput)
     {
-        player.Advance(predictedInput.Input, predictedInput.JumpPressed, _world.Level, player.Team, _config.FixedDeltaSeconds);
+        var afterburn = player.AdvanceTickState(predictedInput.Input, _config.FixedDeltaSeconds);
+        if (afterburn.IsFatal)
+        {
+            player.Kill();
+            SyncPredictedLocalPlayerState(player);
+            return;
+        }
+
         ApplyPredictedPrimaryFire(player, predictedInput);
+        var startedGrounded = player.PrepareMovement(predictedInput.Input, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
+        var jumped = player.TryJumpIfPossible(canMove, predictedInput.JumpPressed);
         ApplyPredictedSecondaryFire(player, predictedInput);
+        player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped);
         SyncPredictedLocalPlayerState(player);
     }
 

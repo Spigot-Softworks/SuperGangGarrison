@@ -28,6 +28,8 @@ public sealed class PlayerEntityPredictionStateTests
             RemainingAirJumps: 1,
             FacingDirectionX: -1f,
             AimDirectionDegrees: 137.5f,
+            SourceFacingDirectionX: -1f,
+            PreviousSourceFacingDirectionX: 1f,
             CurrentShells: 4,
             PrimaryCooldownTicks: 9,
             ReloadTicksUntilNextShell: 7,
@@ -59,6 +61,11 @@ public sealed class PlayerEntityPredictionStateTests
             SpyBackstabDirectionDegrees: 215f,
             SpyBackstabHitboxPending: true,
             IsSpyVisibleToEnemies: true,
+            BurnIntensity: 6.75f,
+            BurnDurationSourceTicks: 42f,
+            BurnDecayDelaySourceTicksRemaining: 18f,
+            BurnIntensityDecayPerSourceTick: 0.075f,
+            BurnedByPlayerId: 91,
             Kills: 9,
             Deaths: 4,
             Caps: 1,
@@ -77,5 +84,8 @@ public sealed class PlayerEntityPredictionStateTests
         Assert.True(player.IsSpyCloaked);
         Assert.Equal(1, player.RemainingAirJumps);
         Assert.Equal(44, player.MedicHealTargetId);
+        Assert.Equal(6.75f, player.BurnIntensity);
+        Assert.Equal(42f, player.BurnDurationSourceTicks);
+        Assert.Equal(91, player.BurnedByPlayerId);
     }
 }

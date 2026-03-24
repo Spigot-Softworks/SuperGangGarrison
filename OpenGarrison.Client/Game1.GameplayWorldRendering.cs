@@ -237,6 +237,7 @@ public partial class Game1
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha);
         }
 
+        DrawAfterburnOverlay(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer, allowInterpolation: false), cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
     }
 

@@ -16,6 +16,7 @@ public partial class Game1
     private readonly List<BackstabVisual> _backstabVisuals = new();
     private readonly List<BloodVisual> _bloodVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
+    private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
@@ -148,6 +149,7 @@ public partial class Game1
     {
         if (_particleMode == 1)
         {
+            _blastJumpFlameVisuals.Clear();
             _flameSmokeVisuals.Clear();
             return;
         }
@@ -163,6 +165,48 @@ public partial class Game1
             _flameSmokeVisuals.Add(new FlameSmokeVisual(flame.X, flame.Y - 8f));
         }
 
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || !IsBlastJumpVisualState(player.MovementState))
+            {
+                continue;
+            }
+
+            var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+            if (_visualRandom.NextSingle() < GetBlastJumpFlameProbability())
+            {
+                _blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
+                    renderPosition.X,
+                    renderPosition.Y + (player.Height * 0.5f) + 1f,
+                    _visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
+                    _visualRandom.Next()));
+            }
+
+            if (_particleMode != 0)
+            {
+                continue;
+            }
+
+            var smokeProbability = GetBlastJumpSmokeProbability(player);
+            if (_visualRandom.NextSingle() >= smokeProbability)
+            {
+                continue;
+            }
+
+            var smokeX = renderPosition.X - (player.HorizontalSpeed * (float)_config.FixedDeltaSeconds * 1.2f);
+            var smokeY = renderPosition.Y - (player.VerticalSpeed * (float)_config.FixedDeltaSeconds * 1.2f) + (player.Height * 0.5f) + 2f;
+            _flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
+        }
+
+        for (var index = _blastJumpFlameVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            _blastJumpFlameVisuals[index].TicksRemaining -= 1;
+            if (_blastJumpFlameVisuals[index].TicksRemaining <= 0)
+            {
+                _blastJumpFlameVisuals.RemoveAt(index);
+            }
+        }
+
         for (var index = _flameSmokeVisuals.Count - 1; index >= 0; index -= 1)
         {
             _flameSmokeVisuals[index].TicksRemaining -= 1;
@@ -170,6 +214,41 @@ public partial class Game1
             {
                 _flameSmokeVisuals.RemoveAt(index);
             }
+        }
+    }
+
+    private void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
+    {
+        var sprite = _runtimeAssets.GetSprite("FlameS");
+        for (var index = 0; index < _blastJumpFlameVisuals.Count; index += 1)
+        {
+            var flame = _blastJumpFlameVisuals[index];
+            var progress = 1f - (flame.TicksRemaining / (float)flame.InitialTicks);
+            var alpha = 1f - (progress * 0.7f);
+            var scale = MathF.Max(0.25f, 0.7f - (progress * 0.35f));
+            if (sprite is not null && sprite.Frames.Count > 0)
+            {
+                var frameIndex = Math.Abs(flame.FrameSeed + ((int)(_world.Frame + index))) % sprite.Frames.Count;
+                _spriteBatch.Draw(
+                    sprite.Frames[frameIndex],
+                    new Vector2(flame.X - cameraPosition.X, flame.Y - cameraPosition.Y),
+                    null,
+                    Color.White * alpha,
+                    0f,
+                    sprite.Origin.ToVector2(),
+                    new Vector2(scale, scale),
+                    SpriteEffects.None,
+                    0f);
+                continue;
+            }
+
+            var flameSize = Math.Max(2, (int)MathF.Round(8f * scale));
+            var flameRectangle = new Rectangle(
+                (int)(flame.X - (flameSize / 2f) - cameraPosition.X),
+                (int)(flame.Y - (flameSize / 2f) - cameraPosition.Y),
+                flameSize,
+                flameSize);
+            _spriteBatch.Draw(_pixel, flameRectangle, new Color(255, 170, 90) * alpha);
         }
     }
 
@@ -441,6 +520,40 @@ public partial class Game1
         return (deltaX * deltaX) + (deltaY * deltaY);
     }
 
+    private static bool IsBlastJumpVisualState(LegacyMovementState movementState)
+    {
+        return movementState == LegacyMovementState.ExplosionRecovery
+            || movementState == LegacyMovementState.RocketJuggle
+            || movementState == LegacyMovementState.FriendlyJuggle;
+    }
+
+    private static float GetBlastJumpSmokeProbability(PlayerEntity player)
+    {
+        var sourceTickProbability = player.MovementState switch
+        {
+            LegacyMovementState.ExplosionRecovery => 0.175f,
+            LegacyMovementState.RocketJuggle => 0.25f,
+            LegacyMovementState.FriendlyJuggle => float.Clamp(1f - ((player.RunPower + 1f) * 0.5f), 0f, 1f),
+            _ => 0f,
+        };
+        return sourceTickProbability * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond);
+    }
+
+    private static float GetBlastJumpFlameProbability()
+    {
+        return (5f / 8f) * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond);
+    }
+
+    private static int GetBlastJumpFlameMinimumLifetimeTicks()
+    {
+        return (int)MathF.Ceiling(2f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
+    }
+
+    private static int GetBlastJumpFlameMaximumLifetimeTicks()
+    {
+        return (int)MathF.Ceiling(5f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
+    }
+
     private sealed class ExplosionVisual
     {
         public const int LifetimeTicks = 13;
@@ -526,6 +639,28 @@ public partial class Game1
         public float Y { get; }
 
         public int TicksRemaining { get; set; }
+    }
+
+    private sealed class BlastJumpFlameVisual
+    {
+        public BlastJumpFlameVisual(float x, float y, int initialTicks, int frameSeed)
+        {
+            X = x;
+            Y = y;
+            InitialTicks = Math.Max(1, initialTicks);
+            TicksRemaining = InitialTicks;
+            FrameSeed = frameSeed;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int InitialTicks { get; }
+
+        public int TicksRemaining { get; set; }
+
+        public int FrameSeed { get; }
     }
 
     private sealed class RocketSmokeVisual

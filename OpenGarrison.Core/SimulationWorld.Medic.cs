@@ -62,8 +62,10 @@ public sealed partial class SimulationWorld
         return HasObstacleLineOfSight(medic.X, medic.Y, target.X, target.Y);
     }
 
-    private static void ApplyMedicHealing(PlayerEntity medic, PlayerEntity target)
+    private void ApplyMedicHealing(PlayerEntity medic, PlayerEntity target)
     {
+        target.ReduceBurnDuration((float)Config.FixedDeltaSeconds * LegacyMovementModel.SourceTicksPerSecond);
+
         var healAmount = target.Health < target.MaxHealth / 2f
             ? 1f
             : target.Health < target.MaxHealth

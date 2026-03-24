@@ -21,6 +21,8 @@ public sealed partial class PlayerEntity
         int RemainingAirJumps,
         float FacingDirectionX,
         float AimDirectionDegrees,
+        float SourceFacingDirectionX,
+        float PreviousSourceFacingDirectionX,
         int CurrentShells,
         int PrimaryCooldownTicks,
         int ReloadTicksUntilNextShell,
@@ -52,6 +54,11 @@ public sealed partial class PlayerEntity
         float SpyBackstabDirectionDegrees,
         bool SpyBackstabHitboxPending,
         bool IsSpyVisibleToEnemies,
+        float BurnIntensity,
+        float BurnDurationSourceTicks,
+        float BurnDecayDelaySourceTicksRemaining,
+        float BurnIntensityDecayPerSourceTick,
+        int? BurnedByPlayerId,
         int Kills,
         int Deaths,
         int Caps,
@@ -83,6 +90,8 @@ public sealed partial class PlayerEntity
             RemainingAirJumps,
             FacingDirectionX,
             AimDirectionDegrees,
+            SourceFacingDirectionX,
+            PreviousSourceFacingDirectionX,
             CurrentShells,
             PrimaryCooldownTicks,
             ReloadTicksUntilNextShell,
@@ -114,6 +123,11 @@ public sealed partial class PlayerEntity
             SpyBackstabDirectionDegrees,
             SpyBackstabHitboxPending,
             IsSpyVisibleToEnemies,
+            BurnIntensity,
+            BurnDurationSourceTicks,
+            BurnDecayDelaySourceTicksRemaining,
+            BurnIntensityDecayPerSourceTick,
+            BurnedByPlayerId,
             Kills,
             Deaths,
             Caps,
@@ -145,6 +159,8 @@ public sealed partial class PlayerEntity
         RemainingAirJumps = state.RemainingAirJumps;
         FacingDirectionX = state.FacingDirectionX;
         AimDirectionDegrees = state.AimDirectionDegrees;
+        SourceFacingDirectionX = state.SourceFacingDirectionX;
+        PreviousSourceFacingDirectionX = state.PreviousSourceFacingDirectionX;
         CurrentShells = state.CurrentShells;
         PrimaryCooldownTicks = state.PrimaryCooldownTicks;
         ReloadTicksUntilNextShell = state.ReloadTicksUntilNextShell;
@@ -176,6 +192,11 @@ public sealed partial class PlayerEntity
         SpyBackstabDirectionDegrees = state.SpyBackstabDirectionDegrees;
         SpyBackstabHitboxPending = state.SpyBackstabHitboxPending;
         IsSpyVisibleToEnemies = state.IsSpyVisibleToEnemies;
+        BurnIntensity = float.Clamp(state.BurnIntensity, 0f, BurnMaxIntensity);
+        BurnDurationSourceTicks = float.Max(0f, state.BurnDurationSourceTicks);
+        BurnDecayDelaySourceTicksRemaining = float.Max(0f, state.BurnDecayDelaySourceTicksRemaining);
+        BurnIntensityDecayPerSourceTick = float.Max(0f, state.BurnIntensityDecayPerSourceTick);
+        BurnedByPlayerId = state.BurnedByPlayerId;
         Kills = state.Kills;
         Deaths = state.Deaths;
         Caps = state.Caps;
@@ -217,7 +238,13 @@ public sealed partial class PlayerEntity
         float tauntFrameIndex,
         bool isChatBubbleVisible,
         int chatBubbleFrameIndex,
-        float chatBubbleAlpha)
+        float chatBubbleAlpha,
+        float burnIntensity = 0f,
+        float burnDurationSourceTicks = 0f,
+        float burnDecayDelaySourceTicksRemaining = 0f,
+        float burnIntensityDecayPerSourceTick = 0f,
+        int burnedByPlayerId = -1,
+        byte movementState = (byte)LegacyMovementState.None)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -226,7 +253,9 @@ public sealed partial class PlayerEntity
         HorizontalSpeed = horizontalSpeed;
         VerticalSpeed = verticalSpeed;
         LegacyStateTickAccumulator = 0f;
-        MovementState = LegacyMovementState.None;
+        MovementState = movementState <= (byte)LegacyMovementState.FriendlyJuggle
+            ? (LegacyMovementState)movementState
+            : LegacyMovementState.None;
         IsGrounded = isGrounded;
         IsAlive = isAlive;
         Health = int.Clamp(health, 0, MaxHealth);
@@ -245,6 +274,11 @@ public sealed partial class PlayerEntity
         SpyBackstabDirectionDegrees = 0f;
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = IsSpyCloaked && SpyCloakAlpha > 0f;
+        BurnIntensity = float.Clamp(burnIntensity, 0f, BurnMaxIntensity);
+        BurnDurationSourceTicks = float.Max(0f, burnDurationSourceTicks);
+        BurnDecayDelaySourceTicksRemaining = float.Max(0f, burnDecayDelaySourceTicksRemaining);
+        BurnIntensityDecayPerSourceTick = float.Max(0f, burnIntensityDecayPerSourceTick);
+        BurnedByPlayerId = burnedByPlayerId > 0 ? burnedByPlayerId : null;
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
@@ -265,6 +299,7 @@ public sealed partial class PlayerEntity
         }
         FacingDirectionX = facingDirectionX;
         AimDirectionDegrees = aimDirectionDegrees;
+        ResetSourceFacingDirectionState();
         IsTaunting = isTaunting;
         TauntFrameIndex = tauntFrameIndex;
         IsChatBubbleVisible = isChatBubbleVisible;
@@ -285,6 +320,13 @@ public sealed partial class PlayerEntity
             IsCarryingIntel = false;
             IsSniperScoped = false;
             SniperChargeTicks = 0;
+            MovementState = LegacyMovementState.None;
+            ExtinguishAfterburn();
+        }
+
+        if (IsUbered)
+        {
+            ExtinguishAfterburn();
         }
     }
 }

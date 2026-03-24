@@ -209,7 +209,13 @@ public sealed record SnapshotPlayerState(
     float TauntFrameIndex,
     bool IsChatBubbleVisible,
     int ChatBubbleFrameIndex,
-    float ChatBubbleAlpha);
+    float ChatBubbleAlpha,
+    float BurnIntensity = 0f,
+    float BurnDurationSourceTicks = 0f,
+    float BurnDecayDelaySourceTicksRemaining = 0f,
+    float BurnIntensityDecayPerSourceTick = 0f,
+    int BurnedByPlayerId = -1,
+    byte MovementState = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -259,7 +265,16 @@ public sealed record SnapshotRocketState(
     float PreviousY,
     float DirectionRadians,
     float Speed,
-    int TicksRemaining);
+    int TicksRemaining,
+    float ReducedKnockbackSourceTicksRemaining = 20f,
+    float ZeroKnockbackSourceTicksRemaining = 30f,
+    int RangeAnchorOwnerId = -1,
+    float LastKnownRangeOriginX = 0f,
+    float LastKnownRangeOriginY = 0f,
+    float DistanceToTravel = 800f,
+    bool IsFading = false,
+    float FadeSourceTicksRemaining = 0f,
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
 
 public sealed record SnapshotFlameState(
     int Id,

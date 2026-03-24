@@ -192,6 +192,10 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public LegacyMovementState MovementState { get; private set; }
 
+    private float SourceFacingDirectionX { get; set; } = 1f;
+
+    private float PreviousSourceFacingDirectionX { get; set; } = 1f;
+
     public float RunPower => ClassDefinition.RunPower;
 
     public float JumpStrength => ClassDefinition.JumpStrength;
@@ -233,6 +237,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         FacingDirectionX = team == PlayerTeam.Blue ? -1f : 1f;
         AimDirectionDegrees = team == PlayerTeam.Blue ? 180f : 0f;
         ContinuousDamageAccumulator = 0f;
+        ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
@@ -263,6 +268,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         SpyBackstabHitboxPending = false;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
+        ResetSourceFacingDirectionState();
         ClearChatBubble();
     }
 
@@ -273,6 +279,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         RemainingAirJumps = int.Min(RemainingAirJumps, MaxAirJumps);
         ContinuousDamageAccumulator = 0f;
+        ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
@@ -302,6 +309,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         SpyBackstabHitboxPending = false;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
+        ResetSourceFacingDirectionState();
         ClearChatBubble();
     }
 
@@ -314,6 +322,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsGrounded = false;
         IsCarryingIntel = false;
         ContinuousDamageAccumulator = 0f;
+        ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
@@ -342,12 +351,20 @@ public sealed partial class PlayerEntity : SimulationEntity
         SpyBackstabHitboxPending = false;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
+        ResetSourceFacingDirectionState();
         ClearChatBubble();
     }
 
     public void SetSpawnRoomState(bool isInSpawnRoom)
     {
         IsInSpawnRoom = isInSpawnRoom;
+    }
+
+    private void ResetSourceFacingDirectionState()
+    {
+        var sourceFacingDirectionX = GetSourceFacingDirectionX(AimDirectionDegrees);
+        SourceFacingDirectionX = sourceFacingDirectionX;
+        PreviousSourceFacingDirectionX = sourceFacingDirectionX;
     }
 
     private int ConsumeLegacyStateTicks(float deltaSeconds)

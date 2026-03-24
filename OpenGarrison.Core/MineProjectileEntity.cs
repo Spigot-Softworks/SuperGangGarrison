@@ -2,12 +2,15 @@ namespace OpenGarrison.Core;
 
 public sealed class MineProjectileEntity : SimulationEntity
 {
-    public const float BlastRadius = 60f;
-    public const float BaseExplosionDamage = 25f;
-    public const float MaxExplosionDamage = 50f;
+    public const float BlastRadius = 40f;
+    public const float AffectRadius = 65f;
+    public const float BaseExplosionDamage = 45f;
     public const float GravityPerTick = 0.2f;
     public const float MaxFallSpeed = 8f;
     public const float BlastImpulse = 10f;
+    public const float SelfDamageScale = 5f / 9f;
+    public const float SplashThresholdFactor = 0.25f;
+    public const float SentryDamageMultiplier = 1.5f;
 
     public MineProjectileEntity(
         int id,
@@ -52,7 +55,6 @@ public sealed class MineProjectileEntity : SimulationEntity
     {
         PreviousX = X;
         PreviousY = Y;
-        ExplosionDamage = float.Min(MaxExplosionDamage, ExplosionDamage + 1f);
         if (IsStickied)
         {
             return;
@@ -85,6 +87,12 @@ public sealed class MineProjectileEntity : SimulationEntity
     {
         VelocityX += velocityX;
         VelocityY += velocityY;
+    }
+
+    public void SetVelocity(float velocityX, float velocityY)
+    {
+        VelocityX = velocityX;
+        VelocityY = velocityY;
     }
 
     public void Destroy()

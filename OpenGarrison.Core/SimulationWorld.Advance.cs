@@ -55,6 +55,8 @@ public sealed partial class SimulationWorld
             ApplyRoomHazards(FriendlyDummy);
         }
 
+        AdvanceAfterburnAlertBubbles();
+
         switch (MatchRules.Mode)
         {
             case GameModeKind.Arena:

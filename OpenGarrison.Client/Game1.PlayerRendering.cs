@@ -41,6 +41,7 @@ public partial class Game1
             TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha);
         }
 
+        DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
         DrawChatBubble(player, cameraPosition);
         if (_showHealthBarEnabled && visibilityAlpha > 0f)
         {
@@ -376,6 +377,56 @@ public partial class Game1
     private static Color GetUberOverlayColor(PlayerTeam team)
     {
         return team == PlayerTeam.Blue ? Color.Blue : Color.Red;
+    }
+
+    private void DrawAfterburnOverlay(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha)
+    {
+        if (!player.IsAlive || !player.IsBurning)
+        {
+            return;
+        }
+
+        var alpha = player.BurnVisualAlpha * visibilityAlpha;
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        var count = player.BurnVisualCount;
+        if (count <= 0)
+        {
+            return;
+        }
+
+        var sprite = _runtimeAssets.GetSprite("FlameS");
+        var sourceFrame = (int)((_world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _config.TicksPerSecond);
+        var flameColor = Color.White * alpha;
+        for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
+        {
+            player.GetBurnVisualOffset(flameIndex, sourceFrame, out var offsetX, out var offsetY);
+            if (sprite is not null && sprite.Frames.Count > 0)
+            {
+                var frameIndex = player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count);
+                _spriteBatch.Draw(
+                    sprite.Frames[frameIndex],
+                    new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y),
+                    null,
+                    flameColor,
+                    0f,
+                    sprite.Origin.ToVector2(),
+                    Vector2.One,
+                    SpriteEffects.None,
+                    0f);
+                continue;
+            }
+
+            var flameRectangle = new Rectangle(
+                (int)(renderPosition.X + offsetX - 2f - cameraPosition.X),
+                (int)(renderPosition.Y + offsetY - 2f - cameraPosition.Y),
+                4,
+                4);
+            _spriteBatch.Draw(_pixel, flameRectangle, flameColor);
+        }
     }
 
     private IEnumerable<PlayerEntity> EnumerateRenderablePlayers()

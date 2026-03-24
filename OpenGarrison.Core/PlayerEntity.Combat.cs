@@ -130,6 +130,7 @@ public sealed partial class PlayerEntity
         IsGrounded = false;
         IsCarryingIntel = false;
         ContinuousDamageAccumulator = 0f;
+        ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
@@ -177,6 +178,7 @@ public sealed partial class PlayerEntity
         CurrentShells = PrimaryWeapon.MaxAmmo;
         ReloadTicksUntilNextShell = 0;
         MedicNeedleRefillTicks = 0;
+        ExtinguishAfterburn();
     }
 
     public void AdvanceEngineerResources()

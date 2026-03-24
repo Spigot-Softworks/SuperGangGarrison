@@ -195,8 +195,10 @@ public sealed class SimulationWorldTests
     public void DestroyingGenerator_AwardsCapAndEndsRound()
     {
         var world = CreateWorld();
+        var redGenerator = new RoomObjectMarker(RoomObjectType.Generator, 80f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Red);
+        var blueGenerator = new RoomObjectMarker(RoomObjectType.Generator, 180f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Blue);
+        world.CombatTestSetLevel(CreateLevel(mode: GameModeKind.Generator, roomObjects: [redGenerator, blueGenerator]));
 
-        Assert.True(world.TryLoadLevel("destroy"));
         world.CombatTestSetGeneratorHealth(PlayerTeam.Blue, 4);
 
         var destroyed = world.CombatTestDamageGenerator(PlayerTeam.Blue, 10f);
@@ -208,6 +210,34 @@ public sealed class SimulationWorldTests
         Assert.True(world.MatchState.IsEnded);
         Assert.Equal(PlayerTeam.Red, world.MatchState.WinnerTeam);
         Assert.True(world.IsMapChangePending);
+    }
+
+    [Fact]
+    public void DestroyingGenerator_ExplodesNearbyPlayersProjectilesAndStructures()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        var redGenerator = new RoomObjectMarker(RoomObjectType.Generator, 80f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Red);
+        var blueGenerator = new RoomObjectMarker(RoomObjectType.Generator, 180f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Blue);
+        world.CombatTestSetLevel(CreateLevel(mode: GameModeKind.Generator, roomObjects: [redGenerator, blueGenerator], solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Engineer);
+        world.TeleportLocalPlayer(blueGenerator.CenterX + 12f, 220f);
+        world.CombatTestAddSentry(new SentryEntity(900, world.LocalPlayer.Id, PlayerTeam.Red, blueGenerator.CenterX + 20f, 220f, 1f));
+        world.CombatTestSpawnRocket(world.LocalPlayer, blueGenerator.CenterX + 5f, blueGenerator.CenterY);
+        world.CombatTestSpawnMine(world.LocalPlayer, blueGenerator.CenterX + 15f, blueGenerator.CenterY);
+        world.CombatTestSpawnBubble(world.LocalPlayer, blueGenerator.CenterX + 25f, blueGenerator.CenterY);
+        world.CombatTestSetGeneratorHealth(PlayerTeam.Blue, 4);
+
+        var destroyed = world.CombatTestDamageGenerator(PlayerTeam.Blue, 10f);
+
+        Assert.True(destroyed);
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Empty(world.Rockets);
+        Assert.Empty(world.Mines);
+        Assert.Empty(world.Bubbles);
+        Assert.Empty(world.Sentries);
+        Assert.NotEmpty(world.PlayerGibs);
+        Assert.True(ConsumePendingExplosion(world));
     }
 
     [Fact]
@@ -228,6 +258,22 @@ public sealed class SimulationWorldTests
 
         Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
         Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    [Fact]
+    public void DestroyingLocalSentry_BlastsAirborneOwner()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Engineer);
+
+        Assert.True(world.TryBuildLocalSentry());
+        var sentry = Assert.Single(world.Sentries);
+        world.TeleportLocalPlayer(sentry.X, sentry.Y - 30f);
+
+        Assert.True(world.TryDestroyLocalSentry());
+
+        Assert.True(world.LocalPlayer.VerticalSpeed < 0f);
     }
 
     [Fact]
@@ -262,11 +308,300 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void RocketSelfBlast_EntersRecoveryStateUntilUpwardMotionEnds()
+    public void RocketExplosion_GibsInheritVictimVelocity()
     {
         var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
         SetLocalClassAndRespawn(world, PlayerClass.Soldier);
-        world.TeleportLocalPlayer(30f, world.LocalPlayer.Y);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(320f, 200f);
+        target.AddImpulse(240f, 0f);
+        target.ForceSetHealth(1);
+
+        world.CombatTestExplodeRocket(world.LocalPlayer, target.X, target.Y);
+
+        Assert.NotEmpty(world.PlayerGibs);
+        Assert.True(world.PlayerGibs.Average(static gib => gib.VelocityX) > 3f);
+    }
+
+    [Fact]
+    public void RocketLauncher_FiresFromPreMovePositionBeforeMovement()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(200f, 220f);
+        var playerXBeforeTick = world.LocalPlayer.X;
+        var playerYBeforeTick = world.LocalPlayer.Y;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: playerXBeforeTick + 200f,
+            AimWorldY: playerYBeforeTick,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var rocket = Assert.Single(world.Rockets);
+        Assert.Equal(playerXBeforeTick + 20f, rocket.X, 3);
+        Assert.Equal(playerYBeforeTick, rocket.Y, 3);
+        Assert.True(world.LocalPlayer.X > playerXBeforeTick);
+    }
+
+    [Fact]
+    public void QuoteBubble_FiresFromSourceOffsetWithFixedSpeedAndOwnerInheritance()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Quote);
+        world.TeleportLocalPlayer(200f, 220f);
+        world.LocalPlayer.AddImpulse(60f, -30f);
+        var playerXBeforeTick = world.LocalPlayer.X;
+        var playerYBeforeTick = world.LocalPlayer.Y;
+        var horizontalSpeedBeforeTick = world.LocalPlayer.HorizontalSpeed;
+        var verticalSpeedBeforeTick = world.LocalPlayer.VerticalSpeed;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: playerXBeforeTick + 200f,
+            AimWorldY: playerYBeforeTick,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var bubble = Assert.Single(world.Bubbles);
+        Assert.Equal(playerXBeforeTick + 8f, bubble.X, 3);
+        Assert.Equal(playerYBeforeTick, bubble.Y, 3);
+        Assert.Equal(10f + (horizontalSpeedBeforeTick / LegacyMovementModel.SourceTicksPerSecond), bubble.VelocityX, 3);
+        Assert.Equal(verticalSpeedBeforeTick / LegacyMovementModel.SourceTicksPerSecond, bubble.VelocityY, 3);
+    }
+
+    [Fact]
+    public void Bubble_ExpiresWhenTooFarFromOwner()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Quote);
+
+        world.CombatTestSpawnBubble(
+            world.LocalPlayer,
+            world.LocalPlayer.X + BubbleProjectileEntity.MaxDistanceFromOwner + 1f,
+            world.LocalPlayer.Y);
+
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Bubbles);
+    }
+
+    [Fact]
+    public void Bubble_HittingEnemyPlayerDestroysBubbleAndAccumulatesSourceDamage()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Quote);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        world.LocalPlayer.TeleportTo(200f, 200f);
+        target.TeleportTo(220f, 200f);
+        var healthBeforeHits = target.Health;
+
+        world.CombatTestSpawnBubble(world.LocalPlayer, target.X, target.Y);
+        world.AdvanceOneTick();
+        Assert.Empty(world.Bubbles);
+
+        world.CombatTestSpawnBubble(world.LocalPlayer, target.X, target.Y);
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Bubbles);
+        Assert.Equal(healthBeforeHits - 1, target.Health);
+    }
+
+    [Fact]
+    public void Bubble_HittingEnemyRocketDestroysOnlyBubble()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Quote);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemy));
+
+        enemy.TeleportTo(260f, 200f);
+        var rocket = world.CombatTestSpawnRocket(enemy, 220f, 200f);
+        world.CombatTestSpawnBubble(world.LocalPlayer, 220f, 200f);
+
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Bubbles);
+        var remainingRocket = Assert.Single(world.Rockets);
+        Assert.Equal(rocket.Id, remainingRocket.Id);
+    }
+
+    [Fact]
+    public void PyroFlame_FiresFromSourceOffsetWithSourceSpreadRangeAndOwnerInheritance()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(200f, 220f);
+        world.LocalPlayer.AddImpulse(60f, -30f);
+        var playerXBeforeTick = world.LocalPlayer.X;
+        var playerYBeforeTick = world.LocalPlayer.Y;
+        var horizontalSpeedBeforeTick = world.LocalPlayer.HorizontalSpeed;
+        var verticalSpeedBeforeTick = world.LocalPlayer.VerticalSpeed;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: playerXBeforeTick + 200f,
+            AimWorldY: playerYBeforeTick,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var flame = Assert.Single(world.Flames);
+        Assert.Equal(playerXBeforeTick + 25f, flame.X, 3);
+        Assert.Equal(playerYBeforeTick, flame.Y, 3);
+        var inheritedVelocityX = horizontalSpeedBeforeTick / LegacyMovementModel.SourceTicksPerSecond;
+        var inheritedVelocityY = verticalSpeedBeforeTick / LegacyMovementModel.SourceTicksPerSecond;
+        var sourceVelocityX = flame.VelocityX - inheritedVelocityX;
+        var sourceVelocityY = flame.VelocityY - inheritedVelocityY;
+        var sourceSpeed = MathF.Sqrt((sourceVelocityX * sourceVelocityX) + (sourceVelocityY * sourceVelocityY));
+        var sourceAngleDegrees = MathF.Atan2(sourceVelocityY, sourceVelocityX) * (180f / MathF.PI);
+        var maxSpreadDegrees = MathF.Abs(1f - (horizontalSpeedBeforeTick / world.LocalPlayer.MaxRunSpeed)) * MathF.Pow(3f, 1.8f);
+
+        Assert.InRange(sourceSpeed, 6.5f, 10f);
+        Assert.InRange(sourceAngleDegrees, -maxSpreadDegrees, maxSpreadDegrees);
+    }
+
+    [Fact]
+    public void Flame_HitAppliesSourceAfterburnWithoutAttachedFlames()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var target));
+
+        world.LocalPlayer.TeleportTo(200f, 200f);
+        target.TeleportTo(226f, 200f);
+        var flame = world.CombatTestSpawnFlame(world.LocalPlayer, 210f, 200f, velocityX: 8f, velocityY: 0f);
+
+        AdvanceTicks(world, 3);
+
+        Assert.DoesNotContain(world.Flames, activeFlame => activeFlame.Id == flame.Id);
+        Assert.True(target.BurnIntensity > 0f);
+        Assert.True(target.BurnDurationSourceTicks > 0f);
+    }
+
+    [Fact]
+    public void Afterburn_UsesSourceDelayBeforeIntensityDecay()
+    {
+        var world = CreateWorld();
+
+        world.LocalPlayer.IgniteAfterburn(ownerPlayerId: 99, durationIncreaseSourceTicks: 120f, intensityIncrease: 6f, afterburnFalloff: false, burnFalloffAmount: 0f);
+        var initialIntensity = world.LocalPlayer.BurnIntensity;
+        var delayTicks = (int)MathF.Ceiling(PlayerEntity.BurnDecayDelaySourceTicks * world.Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
+
+        AdvanceTicks(world, delayTicks);
+
+        Assert.Equal(initialIntensity, world.LocalPlayer.BurnIntensity, 3);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.BurnIntensity < initialIntensity);
+    }
+
+    [Fact]
+    public void Afterburn_UsesSourceVisualCountScaling()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Engineer);
+
+        world.LocalPlayer.IgniteAfterburn(ownerPlayerId: 99, durationIncreaseSourceTicks: 210f, intensityIncrease: 6f, afterburnFalloff: false, burnFalloffAmount: 0f);
+        Assert.Equal(3, world.LocalPlayer.BurnVisualCount);
+
+        world.LocalPlayer.ReduceBurnDuration(209f);
+        Assert.Equal(1, world.LocalPlayer.BurnVisualCount);
+
+        world.LocalPlayer.IgniteAfterburn(ownerPlayerId: 99, durationIncreaseSourceTicks: 209f, intensityIncrease: 6f, afterburnFalloff: false, burnFalloffAmount: 0f);
+        Assert.Equal(3, world.LocalPlayer.BurnVisualCount);
+
+        world.LocalPlayer.ReduceBurnDuration(70f);
+        Assert.Equal(2, world.LocalPlayer.BurnVisualCount);
+
+        world.LocalPlayer.ReduceBurnDuration(70f);
+        Assert.Equal(1, world.LocalPlayer.BurnVisualCount);
+
+        world.LocalPlayer.ReduceBurnDuration(70f);
+        Assert.Equal(0, world.LocalPlayer.BurnVisualCount);
+    }
+
+    [Fact]
+    public void MedicHealing_ReducesAfterburnInAdditionToNaturalDecay()
+    {
+        var world = CreateWorld();
+        const byte teammateSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Medic);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(teammateSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(teammateSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(teammateSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(teammateSlot, out var target));
+
+        world.LocalPlayer.TeleportTo(200f, 200f);
+        target.TeleportTo(240f, 200f);
+        target.IgniteAfterburn(world.LocalPlayer.Id, durationIncreaseSourceTicks: 100f, intensityIncrease: 5f, afterburnFalloff: false, burnFalloffAmount: 0f);
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -278,12 +613,186 @@ public sealed class SimulationWorldTests
             Taunt: false,
             FirePrimary: true,
             FireSecondary: false,
-            AimWorldX: -100f,
-            AimWorldY: world.LocalPlayer.Y,
+            AimWorldX: target.X,
+            AimWorldY: target.Y,
             DebugKill: false));
         world.AdvanceOneTick();
         world.SetLocalInput(default);
-        Assert.True(AdvanceUntilExplosion(world));
+
+        Assert.Equal(98f, target.BurnDurationSourceTicks, 3);
+    }
+
+    [Fact]
+    public void PyroAirblast_ExtinguishesFriendlyAfterburn()
+    {
+        var world = CreateWorld();
+        const byte teammateSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(teammateSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(teammateSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(teammateSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(teammateSlot, out var target));
+
+        world.LocalPlayer.TeleportTo(200f, 200f);
+        target.TeleportTo(245f, 200f);
+        target.IgniteAfterburn(world.LocalPlayer.Id, durationIncreaseSourceTicks: 100f, intensityIncrease: 5f, afterburnFalloff: false, burnFalloffAmount: 0f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: target.X,
+            AimWorldY: target.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.False(target.IsBurning);
+        Assert.Equal(0f, target.BurnIntensity);
+        Assert.Equal(0f, target.BurnDurationSourceTicks);
+    }
+
+    [Fact]
+    public void PyroAirblast_ExtinguishesFriendlyAfterburnAndReemitsFlames()
+    {
+        var world = CreateWorld();
+        const byte teammateSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(teammateSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(teammateSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(teammateSlot, PlayerClass.Heavy));
+        Assert.True(world.TryGetNetworkPlayer(teammateSlot, out var target));
+
+        world.LocalPlayer.TeleportTo(200f, 200f);
+        target.TeleportTo(245f, 200f);
+        target.IgniteAfterburn(world.LocalPlayer.Id, durationIncreaseSourceTicks: 210f, intensityIncrease: 10f, afterburnFalloff: false, burnFalloffAmount: 0f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: target.X,
+            AimWorldY: target.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.False(target.IsBurning);
+        Assert.NotEmpty(world.Flames);
+        Assert.All(world.Flames, flame =>
+        {
+            Assert.Equal(world.LocalPlayer.Id, flame.OwnerId);
+            Assert.Equal(world.LocalPlayer.Team, flame.Team);
+        });
+    }
+
+    [Fact]
+    public void Afterburn_KillCreditsBurnerWithFlamethrowerIcon()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var target));
+
+        target.ForceSetHealth(1);
+        target.IgniteAfterburn(world.LocalPlayer.Id, durationIncreaseSourceTicks: 30f, intensityIncrease: 60f, afterburnFalloff: false, burnFalloffAmount: 0f);
+
+        AdvanceTicks(world, 3);
+
+        Assert.False(target.IsAlive);
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal(world.LocalPlayer.DisplayName, entry.KillerName);
+        Assert.Equal("FlamethrowerS", entry.WeaponSpriteName);
+    }
+
+    [Fact]
+    public void UberedPlayer_ExtinguishesAfterburnBeforeItDealsDamage()
+    {
+        var world = CreateWorld();
+        var healthBeforeTick = world.LocalPlayer.Health;
+
+        world.LocalPlayer.IgniteAfterburn(ownerPlayerId: 99, durationIncreaseSourceTicks: 60f, intensityIncrease: 12f, afterburnFalloff: false, burnFalloffAmount: 0f);
+        world.LocalPlayer.RefreshUber();
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(healthBeforeTick, world.LocalPlayer.Health);
+        Assert.False(world.LocalPlayer.IsBurning);
+    }
+
+    [Fact]
+    public void BurningNonPyro_EventuallyTriggersMedicAlertChatBubble()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Engineer);
+        world.LocalPlayer.IgniteAfterburn(ownerPlayerId: 99, durationIncreaseSourceTicks: 210f, intensityIncrease: 6f, afterburnFalloff: false, burnFalloffAmount: 0f);
+
+        var bubbleTriggered = false;
+        var simulationTicksToCheck = (int)MathF.Ceiling(90f * world.Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
+        for (var tick = 0; tick < simulationTicksToCheck; tick += 1)
+        {
+            world.AdvanceOneTick();
+            if (world.LocalPlayer.IsChatBubbleVisible && world.LocalPlayer.ChatBubbleFrameIndex == 49)
+            {
+                bubbleTriggered = true;
+                break;
+            }
+        }
+
+        Assert.True(bubbleTriggered);
+    }
+
+    [Fact]
+    public void RocketSelfBlast_EntersRecoveryStateUntilUpwardMotionEnds()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 500f, 1000f, 40f);
+        var wall = new LevelSolid(46f, 120f, 8f, 220f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(20f, world.LocalPlayer.Y);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        var exploded = ConsumePendingExplosion(world);
+        world.SetLocalInput(default);
+        Assert.True(exploded || AdvanceUntilExplosion(world));
 
         Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
 
@@ -308,7 +817,7 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void RocketSelfBlast_UsesReducedOwnerSplashDamage()
+    public void RocketSelfBlast_UsesFullSourceSplashDamage()
     {
         var world = CreateWorld();
         var floor = new LevelSolid(0f, 500f, 1000f, 40f);
@@ -317,6 +826,8 @@ public sealed class SimulationWorldTests
         SetLocalClassAndRespawn(world, PlayerClass.Soldier);
         world.TeleportLocalPlayer(20f, world.LocalPlayer.Y);
         var healthBeforeExplosion = world.LocalPlayer.Health;
+        var localXAtShot = world.LocalPlayer.X;
+        var localYAtShot = world.LocalPlayer.Y;
 
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
@@ -332,21 +843,268 @@ public sealed class SimulationWorldTests
             AimWorldY: world.LocalPlayer.Y,
             DebugKill: false));
         world.AdvanceOneTick();
+        var explosion = ConsumePendingExplosionWithVisual(world);
         world.SetLocalInput(default);
-
-        var explosion = AdvanceUntilExplosionWithVisual(world);
+        if (!explosion.Exploded)
+        {
+            explosion = AdvanceUntilExplosionWithVisual(world);
+        }
 
         Assert.True(explosion.Exploded);
         var distance = DistanceBetween(
             explosion.X,
             explosion.Y,
-            world.LocalPlayer.X,
-            world.LocalPlayer.Y);
+            localXAtShot,
+            localYAtShot);
         var fullSplashDamage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
         var damageTaken = healthBeforeExplosion - world.LocalPlayer.Health;
 
-        Assert.True(damageTaken > 0);
-        Assert.True(damageTaken < (int)fullSplashDamage);
+        Assert.InRange(damageTaken, Math.Max(0, (int)fullSplashDamage - 1), (int)MathF.Ceiling(fullSplashDamage));
+    }
+
+    [Fact]
+    public void RocketExplosion_DoesNotJuggleGroundedFriendlyTeammate()
+    {
+        var world = CreateWorld();
+        const byte teammateSlot = 3;
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        var wall = new LevelSolid(346f, 120f, 8f, 220f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(320f, 220f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(teammateSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(teammateSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(teammateSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(teammateSlot, out var teammate));
+
+        teammate.TeleportTo(350f, 220f);
+        var teammateHealthBefore = teammate.Health;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: 420f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.True(AdvanceUntilExplosion(world));
+        Assert.Equal(teammateHealthBefore, teammate.Health);
+        Assert.Equal(0f, teammate.HorizontalSpeed);
+        Assert.Equal(0f, teammate.VerticalSpeed);
+        Assert.Equal(LegacyMovementState.None, teammate.MovementState);
+    }
+
+    [Fact]
+    public void RocketExplosion_UsesSourceMineTriggerRadius()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(200f, 200f);
+
+        var nearMine = world.CombatTestSpawnMine(world.LocalPlayer, 220f, 200f, stickied: true);
+        var farMine = world.CombatTestSpawnMine(world.LocalPlayer, 200f, 230f, stickied: true);
+
+        world.CombatTestExplodeRocket(world.LocalPlayer, 200f, 200f);
+
+        var remainingMine = Assert.Single(world.Mines);
+        Assert.Equal(farMine.Id, remainingMine.Id);
+        Assert.DoesNotContain(world.Mines, mine => mine.Id == nearMine.Id);
+    }
+
+    [Fact]
+    public void RocketExplosion_FromBelowUsesSourceLiftBonusAndSpeedScale()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(320f, 200f);
+        world.CombatTestExplodeRocket(world.LocalPlayer, 320f, 225f);
+
+        Assert.Equal(0f, target.HorizontalSpeed, 3);
+        Assert.Equal(-288f, target.VerticalSpeed, 3);
+        Assert.Equal(LegacyMovementState.RocketJuggle, target.MovementState);
+    }
+
+    [Fact]
+    public void RocketExplosion_LongFlightUsesReducedSourceKnockback()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(320f, 200f);
+        var rocket = world.CombatTestSpawnRocket(world.LocalPlayer, target.X, target.Y);
+        AdvanceRocketTicks(rocket, 21, (float)world.Config.FixedDeltaSeconds);
+        rocket.MoveTo(target.X, target.Y);
+
+        world.CombatTestExplodeRocket(rocket);
+
+        Assert.Equal(0f, target.HorizontalSpeed, 3);
+        Assert.Equal(-150f, target.VerticalSpeed, 3);
+        Assert.Equal(LegacyMovementState.RocketJuggle, target.MovementState);
+    }
+
+    [Fact]
+    public void RocketExplosion_VeryLateFlightUsesZeroSourceKnockback()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(320f, 200f);
+        var rocket = world.CombatTestSpawnRocket(world.LocalPlayer, target.X, target.Y);
+        AdvanceRocketTicks(rocket, 31, (float)world.Config.FixedDeltaSeconds);
+        rocket.MoveTo(target.X, target.Y);
+
+        world.CombatTestExplodeRocket(rocket);
+
+        Assert.Equal(0f, target.HorizontalSpeed, 3);
+        Assert.Equal(0f, target.VerticalSpeed, 3);
+        Assert.Equal(LegacyMovementState.RocketJuggle, target.MovementState);
+    }
+
+    [Fact]
+    public void Rocket_LongRangeEntersFadeAndDespawnsWithoutExplosion()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(100f, 200f);
+
+        var rocket = world.CombatTestSpawnRocket(
+            world.LocalPlayer,
+            world.LocalPlayer.X + RocketProjectileEntity.MaxDistanceToTravel + 20f,
+            world.LocalPlayer.Y,
+            speed: 0f,
+            directionRadians: 0f);
+
+        world.AdvanceOneTick();
+        Assert.True(rocket.IsFading);
+        Assert.False(ConsumePendingExplosion(world));
+
+        for (var tick = 0; tick < 12 && world.Rockets.Count > 0; tick += 1)
+        {
+            world.AdvanceOneTick();
+            Assert.False(ConsumePendingExplosion(world));
+        }
+
+        Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
+    public void Rocket_FadingEnvironmentHitDoesNotExplode()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1400f, 40f);
+        var wall = new LevelSolid(935f, 0f, 12f, 400f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(100f, 220f);
+
+        world.CombatTestSpawnRocket(
+            world.LocalPlayer,
+            world.LocalPlayer.X + RocketProjectileEntity.MaxDistanceToTravel + 20f,
+            world.LocalPlayer.Y,
+            speed: 15f,
+            directionRadians: 0f);
+
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Rockets);
+        Assert.False(ConsumePendingExplosion(world));
+    }
+
+    [Fact]
+    public void Rocket_PassingFriendlyTeammateReducesRemainingSourceRangeOnce()
+    {
+        var world = CreateWorld();
+        const byte teammateSlot = 3;
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(160f, 220f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(teammateSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(teammateSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(teammateSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(teammateSlot, out var teammate));
+
+        teammate.TeleportTo(200f, 220f);
+        var rocket = world.CombatTestSpawnRocket(world.LocalPlayer, 188f, 220f, speed: 4f, directionRadians: 0f);
+
+        for (var tick = 0; tick < 4; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        Assert.Equal(700f, rocket.DistanceToTravel, 3);
+        Assert.Contains(teammate.Id, rocket.PassedFriendlyPlayerIds);
+    }
+
+    [Fact]
+    public void RocketSelfBlast_UsesSourceSpeedBoost()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(260f, 200f);
+
+        world.CombatTestExplodeRocket(world.LocalPlayer, world.LocalPlayer.X, world.LocalPlayer.Y);
+
+        Assert.Equal(0f, world.LocalPlayer.HorizontalSpeed, 3);
+        Assert.Equal(-254.4f, world.LocalPlayer.VerticalSpeed, 3);
+        Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
+    }
+
+    [Fact]
+    public void RocketSelfBlast_UberedUsesReducedSourceSpeedBoost()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(260f, 200f);
+        world.LocalPlayer.RefreshUber(60);
+
+        world.CombatTestExplodeRocket(world.LocalPlayer, world.LocalPlayer.X, world.LocalPlayer.Y);
+
+        Assert.Equal(0f, world.LocalPlayer.HorizontalSpeed, 3);
+        Assert.Equal(-253.2f, world.LocalPlayer.VerticalSpeed, 3);
+        Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
     }
 
     [Fact]
@@ -397,6 +1155,556 @@ public sealed class SimulationWorldTests
 
         Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
         Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    [Fact]
+    public void MineDetonation_UsesSourceSelfDamageResistance()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+        world.TeleportLocalPlayer(300f, 220f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 80f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var mine = Assert.Single(world.Mines);
+        mine.MoveTo(world.LocalPlayer.X, world.LocalPlayer.Y);
+        mine.Stick();
+        var healthBeforeExplosion = world.LocalPlayer.Health;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var damageTaken = healthBeforeExplosion - world.LocalPlayer.Health;
+        Assert.InRange(damageTaken, 24, 25);
+        Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
+    }
+
+    [Fact]
+    public void MineDetonation_UsesPreMovePositionBeforePlayerMovement()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+        world.TeleportLocalPlayer(200f, 220f);
+        world.CombatTestSpawnMine(world.LocalPlayer, 171f, 220f, stickied: true);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.True(world.LocalPlayer.Health < world.LocalPlayer.MaxHealth);
+        Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
+    }
+
+    [Fact]
+    public void MineDetonation_EnemyVictimUsesSourceJuggleState()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+        world.TeleportLocalPlayer(200f, 220f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+        target.TeleportTo(320f, 220f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 80f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var mine = Assert.Single(world.Mines);
+        mine.MoveTo(300f, 220f);
+        mine.Stick();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.True(target.Health < target.MaxHealth);
+        Assert.Equal(LegacyMovementState.FriendlyJuggle, target.MovementState);
+    }
+
+    [Fact]
+    public void MineDetonation_UsesFullAffectRadiusForDeadBodyAndGibFalloff()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        var deadBody = world.CombatTestSpawnDeadBody(world.LocalPlayer, 248f, 200f);
+        var gib = world.CombatTestSpawnPlayerGib("GibS", 0, 248f, 200f);
+        var mine = world.CombatTestSpawnMine(world.LocalPlayer, 200f, 200f);
+
+        world.CombatTestExplodeMine(mine);
+
+        Assert.True(deadBody.HorizontalSpeed > 1f);
+        Assert.True(gib.VelocityX > 2f);
+    }
+
+    [Fact]
+    public void MineDetonation_BeyondSourceThresholdDoesNotAffectEnemy()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+        world.TeleportLocalPlayer(200f, 220f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+        target.TeleportTo(331f, 220f);
+        var healthBeforeExplosion = target.Health;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 80f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var mine = Assert.Single(world.Mines);
+        mine.MoveTo(300f, 220f);
+        mine.Stick();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(healthBeforeExplosion, target.Health);
+        Assert.Equal(0f, target.HorizontalSpeed);
+        Assert.Equal(0f, target.VerticalSpeed);
+        Assert.Equal(LegacyMovementState.None, target.MovementState);
+    }
+
+    [Fact]
+    public void MineExplosion_PopsNearbyRocketAtCloseRange()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+
+        var mine = world.CombatTestSpawnMine(world.LocalPlayer, 200f, 200f, stickied: true);
+        world.CombatTestSpawnRocket(world.LocalPlayer, 212f, 200f);
+
+        world.CombatTestExplodeMine(mine);
+
+        Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
+    public void RocketLauncher_BlockedSpawnExplodesNextTickAtSpawnPoint()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        var wall = new LevelSolid(210f, 190f, 6f, 60f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(200f, 220f);
+        var playerXBeforeTick = world.LocalPlayer.X;
+        var playerYBeforeTick = world.LocalPlayer.Y;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var rocket = Assert.Single(world.Rockets);
+        Assert.Equal(playerXBeforeTick + 20f, rocket.X, 3);
+        Assert.Equal(playerYBeforeTick, rocket.Y, 3);
+
+        var explosion = AdvanceUntilExplosionWithVisual(world, maxTicks: 1);
+        Assert.True(explosion.Exploded);
+        Assert.Equal(playerXBeforeTick + 20f, explosion.X, 3);
+        Assert.Equal(playerYBeforeTick, explosion.Y, 3);
+    }
+
+    [Fact]
+    public void MineExplosion_ShovesRocketWithinAffectRadius()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+
+        var mine = world.CombatTestSpawnMine(world.LocalPlayer, 200f, 200f, stickied: true);
+        world.CombatTestSpawnRocket(world.LocalPlayer, 230f, 200f);
+
+        world.CombatTestExplodeMine(mine);
+
+        var rocket = Assert.Single(world.Rockets);
+        var rocketVelocityX = MathF.Cos(rocket.DirectionRadians) * rocket.Speed;
+        var rocketVelocityY = MathF.Sin(rocket.DirectionRadians) * rocket.Speed;
+        Assert.True(rocketVelocityX > 5f);
+        Assert.Equal(0f, rocketVelocityY, 3);
+    }
+
+    [Fact]
+    public void PyroAirblast_UsesSourceDirectionalPushAndFixedLift()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(300f, world.LocalPlayer.Y);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(world.LocalPlayer.X + 70f, world.LocalPlayer.Y);
+        var localXBeforeAirblast = world.LocalPlayer.X;
+        var localYBeforeAirblast = world.LocalPlayer.Y;
+        var targetXBeforeAirblast = target.X;
+        var targetYBeforeAirblast = target.Y;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var dt = (float)world.Config.FixedDeltaSeconds;
+        var scale = 1f - (DistanceBetween(localXBeforeAirblast, localYBeforeAirblast, targetXBeforeAirblast, targetYBeforeAirblast) / 150f);
+        var expectedHorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+            15f * LegacyMovementModel.SourceTicksPerSecond * scale,
+            target.RunPower,
+            movementScale: 1f,
+            hasHorizontalInput: false,
+            horizontalDirection: 0f,
+            state: LegacyMovementState.Airblast,
+            isCarryingIntel: false,
+            deltaSeconds: dt);
+        var expectedVerticalBeforeFallbackGravity = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(
+            -2f * LegacyMovementModel.SourceTicksPerSecond,
+            LegacyMovementModel.GravityPerTick,
+            dt);
+        var expectedVerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(
+            expectedVerticalBeforeFallbackGravity,
+            LegacyMovementModel.GravityPerTick,
+            dt);
+
+        Assert.Equal(expectedHorizontalSpeed, target.HorizontalSpeed, 2);
+        Assert.Equal(expectedVerticalSpeed, target.VerticalSpeed, 2);
+        Assert.Equal(LegacyMovementState.Airblast, target.MovementState);
+    }
+
+    [Fact]
+    public void PyroAirblast_ReflectedRocketKeepsItsCurrentSpeed()
+    {
+        var world = CreateWorld();
+        const byte soldierSlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(300f, world.LocalPlayer.Y);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(soldierSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(soldierSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(soldierSlot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(soldierSlot, out var soldier));
+
+        soldier.TeleportTo(world.LocalPlayer.X + 110f, world.LocalPlayer.Y);
+        Assert.True(world.TrySetNetworkPlayerInput(
+            soldierSlot,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: true,
+                FireSecondary: false,
+                AimWorldX: world.LocalPlayer.X,
+                AimWorldY: world.LocalPlayer.Y,
+                DebugKill: false)));
+        world.AdvanceOneTick();
+        Assert.True(world.TrySetNetworkPlayerInput(soldierSlot, default));
+        Assert.Single(world.Rockets);
+
+        world.AdvanceOneTick();
+        var rocketBeforeReflect = Assert.Single(world.Rockets);
+        var speedBeforeReflect = rocketBeforeReflect.Speed;
+        var expectedSpeedAfterReflectedAdvance = (speedBeforeReflect + 1f) * 0.92f;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: rocketBeforeReflect.X,
+            AimWorldY: rocketBeforeReflect.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var reflectedRocket = Assert.Single(world.Rockets);
+        Assert.Equal(world.LocalPlayer.Id, reflectedRocket.OwnerId);
+        Assert.Equal(world.LocalPlayer.Team, reflectedRocket.Team);
+        Assert.Equal(expectedSpeedAfterReflectedAdvance, reflectedRocket.Speed, 3);
+    }
+
+    [Fact]
+    public void PyroAirblast_UsesSourceMaskInsteadOfWideCone()
+    {
+        var world = CreateWorld();
+        const byte targetSlot = 3;
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(300f, 220f);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(targetSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(targetSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(targetSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(targetSlot, out var target));
+
+        target.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y + 40f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(0f, target.HorizontalSpeed);
+        Assert.Equal(0f, target.VerticalSpeed);
+        Assert.Equal(LegacyMovementState.None, target.MovementState);
+    }
+
+    [Fact]
+    public void Movement_ClampsHorizontalSpeedToSourceStepMaximum()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.TeleportLocalPlayer(200f, 220f);
+        world.LocalPlayer.AddImpulse(900f, 0f);
+
+        world.AdvanceOneTick();
+
+        Assert.Equal(LegacyMovementModel.MaxStepSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, world.LocalPlayer.HorizontalSpeed, 3);
+    }
+
+    [Fact]
+    public void Movement_SpinjumpCancelsSourceGravityAfterTurnedWallRub()
+    {
+        var dt = (float)(1d / SimulationConfig.DefaultTicksPerSecond);
+        var spinjumpVerticalSpeed = RunWallRubSpinjumpSequence(LegacyMovementState.None, turnBeforeWallRub: true);
+        var controlVerticalSpeed = RunWallRubSpinjumpSequence(LegacyMovementState.None, turnBeforeWallRub: false);
+        var expectedSingleGravityTick = AdvanceAirborneVerticalSpeedForTick(0f, LegacyMovementModel.GravityPerTick, dt);
+        var expectedDoubleGravityTick = AdvanceAirborneVerticalSpeedForTick(expectedSingleGravityTick, LegacyMovementModel.GravityPerTick, dt);
+
+        Assert.Equal(expectedSingleGravityTick, spinjumpVerticalSpeed, 3);
+        Assert.Equal(expectedDoubleGravityTick, controlVerticalSpeed, 3);
+    }
+
+    [Fact]
+    public void Movement_BlastStateSpinjumpUsesSourceBlastGravityVariant()
+    {
+        var dt = (float)(1d / SimulationConfig.DefaultTicksPerSecond);
+        var spinjumpVerticalSpeed = RunWallRubSpinjumpSequence(LegacyMovementState.ExplosionRecovery, turnBeforeWallRub: true);
+        var controlVerticalSpeed = RunWallRubSpinjumpSequence(LegacyMovementState.ExplosionRecovery, turnBeforeWallRub: false);
+        var expectedSingleGravityTick = AdvanceAirborneVerticalSpeedForTick(0f, LegacyMovementModel.BlastGravityPerTick, dt);
+        var expectedDoubleGravityTick = AdvanceAirborneVerticalSpeedForTick(expectedSingleGravityTick, LegacyMovementModel.BlastGravityPerTick, dt);
+
+        Assert.Equal(expectedSingleGravityTick, spinjumpVerticalSpeed, 3);
+        Assert.Equal(expectedDoubleGravityTick, controlVerticalSpeed, 3);
+    }
+
+    [Fact]
+    public void Movement_SnapsDownSixPixelDropInSourceEndStep()
+    {
+        var world = CreateWorld();
+        var leftFloor = new LevelSolid(0f, 240f, 220f, 24f);
+        var rightFloor = new LevelSolid(220f, 246f, 380f, 24f);
+        world.CombatTestSetLevel(CreateLevel(solids: [leftFloor, rightFloor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(224f, leftFloor.Top - (world.LocalPlayer.Height / 2f));
+        world.LocalPlayer.AddImpulse(450f, 0f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 100f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(rightFloor.Top - (world.LocalPlayer.Height / 2f), world.LocalPlayer.Y, 3);
+        Assert.True(world.LocalPlayer.IsGrounded);
+    }
+
+    [Fact]
+    public void Movement_FastRunSnapsDownTwelvePixelDropInSourceEndStep()
+    {
+        var world = CreateWorld();
+        var leftFloor = new LevelSolid(0f, 240f, 220f, 24f);
+        var rightFloor = new LevelSolid(220f, 252f, 380f, 24f);
+        world.CombatTestSetLevel(CreateLevel(solids: [leftFloor, rightFloor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(224f, leftFloor.Top - (world.LocalPlayer.Height / 2f));
+        world.LocalPlayer.AddImpulse(450f, 0f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 100f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(rightFloor.Top - (world.LocalPlayer.Height / 2f), world.LocalPlayer.Y, 3);
+        Assert.True(world.LocalPlayer.IsGrounded);
     }
 
     [Fact]
@@ -1121,28 +2429,90 @@ public sealed class SimulationWorldTests
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
     }
 
-    private static float TriggerPointBlankRocketJump(SimulationWorld world)
+    private static float RunWallRubSpinjumpSequence(LegacyMovementState movementState, bool turnBeforeWallRub)
     {
+        var world = CreateWorld();
         SetLocalClassAndRespawn(world, PlayerClass.Soldier);
-        world.TeleportLocalPlayer(30f, world.LocalPlayer.Y);
 
+        const float playerX = 200f;
+        const float playerY = 120f;
+        var wall = new LevelSolid(playerX + (world.LocalPlayer.Width / 2f), playerY - 120f, 12f, 240f);
+        world.CombatTestSetLevel(CreateLevel(solids: [wall]));
+        world.TeleportLocalPlayer(playerX, playerY);
+        world.LocalPlayer.SetMovementState(movementState);
+
+        AdvanceWallRubTick(world, aimLeft: turnBeforeWallRub);
+        AdvanceWallRubTick(world, aimLeft: turnBeforeWallRub);
+
+        return world.LocalPlayer.VerticalSpeed;
+    }
+
+    private static void AdvanceWallRubTick(SimulationWorld world, bool aimLeft)
+    {
         world.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
-            Right: false,
+            Right: true,
             Up: false,
             Down: false,
             BuildSentry: false,
             DestroySentry: false,
             Taunt: false,
-            FirePrimary: true,
+            FirePrimary: false,
             FireSecondary: false,
-            AimWorldX: -100f,
+            AimWorldX: world.LocalPlayer.X + (aimLeft ? -100f : 100f),
             AimWorldY: world.LocalPlayer.Y,
             DebugKill: false));
         world.AdvanceOneTick();
         world.SetLocalInput(default);
-        Assert.True(AdvanceUntilExplosion(world));
+    }
+
+    private static float AdvanceAirborneVerticalSpeedForTick(float currentVerticalSpeed, float gravityPerTick, float deltaSeconds)
+    {
+        var nextVerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(currentVerticalSpeed, gravityPerTick, deltaSeconds);
+        return LegacyMovementModel.AdvanceVerticalSpeedHalfStep(nextVerticalSpeed, gravityPerTick, deltaSeconds);
+    }
+
+    private static float TriggerPointBlankRocketJump(SimulationWorld world)
+    {
+        var floor = new LevelSolid(0f, 500f, 1000f, 40f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+        world.TeleportLocalPlayer(300f, world.LocalPlayer.Y);
+
+        world.CombatTestExplodeRocket(world.LocalPlayer, world.LocalPlayer.X, world.LocalPlayer.Y);
+        Assert.True(ConsumePendingExplosion(world));
         return world.LocalPlayer.VerticalSpeed;
+    }
+
+    private static void AdvanceRocketTicks(RocketProjectileEntity rocket, int tickCount, float deltaSeconds)
+    {
+        for (var tick = 0; tick < tickCount; tick += 1)
+        {
+            rocket.AdvanceOneTick(deltaSeconds);
+        }
+    }
+
+    private static bool ConsumePendingExplosion(SimulationWorld world)
+    {
+        var soundEvents = world.DrainPendingSoundEvents();
+        var visualEvents = world.DrainPendingVisualEvents();
+        return soundEvents.Any(soundEvent => soundEvent.SoundName == "ExplosionSnd")
+            && visualEvents.Any(visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    private static (bool Exploded, float X, float Y) ConsumePendingExplosionWithVisual(SimulationWorld world)
+    {
+        var soundEvents = world.DrainPendingSoundEvents();
+        var visualEvents = world.DrainPendingVisualEvents();
+        if (!soundEvents.Any(soundEvent => soundEvent.SoundName == "ExplosionSnd"))
+        {
+            return (false, 0f, 0f);
+        }
+
+        var visual = visualEvents.FirstOrDefault(visualEvent => visualEvent.EffectName == "Explosion");
+        return visual is null
+            ? (false, 0f, 0f)
+            : (true, visual.X, visual.Y);
     }
 
     private static bool AdvanceUntilExplosion(SimulationWorld world, int maxTicks = 60)

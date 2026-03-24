@@ -31,6 +31,9 @@ public sealed partial class SimulationWorld
         PlayerTeam team,
         bool allowDebugKill)
     {
+        var preAdvanceX = player.X;
+        var preAdvanceY = player.Y;
+
         if (IsPlayerHumiliated(player))
         {
             input = input with
@@ -50,30 +53,44 @@ public sealed partial class SimulationWorld
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var secondaryPressed = input.FireSecondary && !previousInput.FireSecondary;
 
+        var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
+        if (afterburn.IsFatal)
+        {
+            var burner = afterburn.BurnedByPlayerId.HasValue
+                ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
+                : null;
+            KillPlayer(player, killer: burner, weaponSpriteName: "FlamethrowerS");
+            return;
+        }
+
+        TryHandleNetworkPrimaryFire(player, input);
+
         if (tauntPressed)
         {
             player.TryStartTaunt();
         }
 
-        var jumped = player.Advance(input, jumpPressed, Level, team, Config.FixedDeltaSeconds);
+        var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove);
+        var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         if (jumped)
         {
             RegisterWorldSoundEvent("JumpSnd", player.X, player.Y);
         }
-        UpdateSpawnRoomState(player);
-        TryActivatePendingSpyBackstab(player);
-        TryHandleNetworkPrimaryFire(player, input);
         if (player.ClassId == PlayerClass.Medic)
         {
             if (input.FireSecondary)
             {
-                TryHandleNetworkSecondaryFire(player, input);
+                TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
             }
         }
         else if (secondaryPressed)
         {
-            TryHandleNetworkSecondaryFire(player, input);
+            TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
         }
+
+        player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped);
+        UpdateSpawnRoomState(player);
+        TryActivatePendingSpyBackstab(player);
 
         if (dropPressed)
         {
@@ -177,7 +194,7 @@ public sealed partial class SimulationWorld
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
     }
 
-    private void TryHandleNetworkSecondaryFire(PlayerEntity player, PlayerInputSnapshot input)
+    private void TryHandleNetworkSecondaryFire(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
     {
         if (player.IsTaunting)
         {
@@ -200,7 +217,7 @@ public sealed partial class SimulationWorld
         {
             if (player.TryFirePyroAirblast())
             {
-                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY);
+                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, sourceX, sourceY);
             }
 
             return;

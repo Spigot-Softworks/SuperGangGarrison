@@ -125,6 +125,68 @@ public sealed class ProtocolAndSnapshotTests
     }
 
     [Fact]
+    public void ProtocolCodec_RoundTripsSnapshotPlayerBurnState()
+    {
+        var snapshot = CreateSnapshot() with
+        {
+            Players =
+            [
+                CreateSnapshot().Players[0] with
+                {
+                    BurnIntensity = 4.5f,
+                    BurnDurationSourceTicks = 72f,
+                    BurnDecayDelaySourceTicksRemaining = 24f,
+                    BurnIntensityDecayPerSourceTick = 0.05f,
+                    BurnedByPlayerId = 2,
+                    MovementState = (byte)LegacyMovementState.RocketJuggle,
+                },
+                CreateSnapshot().Players[1],
+            ],
+        };
+
+        var payload = ProtocolCodec.Serialize(snapshot);
+        var success = ProtocolCodec.TryDeserialize(payload, out var decoded);
+
+        Assert.True(success);
+        var decodedSnapshot = Assert.IsType<SnapshotMessage>(decoded);
+        var player = decodedSnapshot.Players[0];
+        Assert.Equal(4.5f, player.BurnIntensity);
+        Assert.Equal(72f, player.BurnDurationSourceTicks);
+        Assert.Equal(24f, player.BurnDecayDelaySourceTicksRemaining);
+        Assert.Equal(0.05f, player.BurnIntensityDecayPerSourceTick);
+        Assert.Equal(2, player.BurnedByPlayerId);
+        Assert.Equal((byte)LegacyMovementState.RocketJuggle, player.MovementState);
+    }
+
+    [Fact]
+    public void ProtocolCodec_RoundTripsSnapshotRocketDecayState()
+    {
+        var snapshot = CreateSnapshot() with
+        {
+            Rockets =
+            [
+                new SnapshotRocketState(604, (byte)PlayerTeam.Red, 1, 340f, 280f, 338f, 279f, 0.5f, 13f, 20, 4f, 11f, 1, 120f, 220f, 700f, true, 6f, new[] { 3, 5 }),
+            ],
+        };
+
+        var payload = ProtocolCodec.Serialize(snapshot);
+        var success = ProtocolCodec.TryDeserialize(payload, out var decoded);
+
+        Assert.True(success);
+        var decodedSnapshot = Assert.IsType<SnapshotMessage>(decoded);
+        var rocket = Assert.Single(decodedSnapshot.Rockets);
+        Assert.Equal(4f, rocket.ReducedKnockbackSourceTicksRemaining);
+        Assert.Equal(11f, rocket.ZeroKnockbackSourceTicksRemaining);
+        Assert.Equal(1, rocket.RangeAnchorOwnerId);
+        Assert.Equal(120f, rocket.LastKnownRangeOriginX);
+        Assert.Equal(220f, rocket.LastKnownRangeOriginY);
+        Assert.Equal(700f, rocket.DistanceToTravel);
+        Assert.True(rocket.IsFading);
+        Assert.Equal(6f, rocket.FadeSourceTicksRemaining);
+        Assert.Equal(new[] { 3, 5 }, rocket.PassedFriendlyPlayerIds);
+    }
+
+    [Fact]
     public void ProtocolCodec_TryDeserialize_RejectsOversizedHelloName()
     {
         using var stream = new MemoryStream();
@@ -200,12 +262,17 @@ public sealed class ProtocolAndSnapshotTests
     public void ApplySnapshot_UpdatesWorldStateUsingLocalPlayerSlot()
     {
         var world = new SimulationWorld();
-        var snapshot = CreateSnapshot();
+        var snapshot = CreateSnapshot() with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+        };
 
         var applied = world.ApplySnapshot(snapshot, localPlayerSlot: 2);
 
         Assert.True(applied);
-        Assert.Equal("Waterway", world.Level.Name);
+        Assert.Equal(snapshot.LevelName, world.Level.Name);
         Assert.Equal(GameModeKind.CaptureTheFlag, world.MatchRules.Mode);
         Assert.Equal(MatchPhase.Running, world.MatchState.Phase);
         Assert.Equal(PlayerTeam.Blue, world.LocalPlayer.Team);
@@ -226,6 +293,41 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(701UL, world.PendingSoundEvents[0].EventId);
         Assert.Equal(2, world.KillFeed.Count);
         Assert.Equal("RemoteBlue bid farewell, cruel world!", world.KillFeed[1].MessageText);
+    }
+
+    [Fact]
+    public void ApplySnapshot_RestoresLocalPlayerAfterburnState()
+    {
+        var world = new SimulationWorld();
+        var snapshot = CreateSnapshot() with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players =
+            [
+                CreateSnapshot().Players[0] with
+                {
+                    BurnIntensity = 3.5f,
+                    BurnDurationSourceTicks = 40f,
+                    BurnDecayDelaySourceTicksRemaining = 15f,
+                    BurnIntensityDecayPerSourceTick = 0.02f,
+                    BurnedByPlayerId = 2,
+                    MovementState = (byte)LegacyMovementState.ExplosionRecovery,
+                },
+                CreateSnapshot().Players[1],
+            ],
+        };
+
+        var applied = world.ApplySnapshot(snapshot, localPlayerSlot: 1);
+
+        Assert.True(applied);
+        Assert.Equal(3.5f, world.LocalPlayer.BurnIntensity);
+        Assert.Equal(40f, world.LocalPlayer.BurnDurationSourceTicks);
+        Assert.Equal(15f, world.LocalPlayer.BurnDecayDelaySourceTicksRemaining);
+        Assert.Equal(0.02f, world.LocalPlayer.BurnIntensityDecayPerSourceTick);
+        Assert.Equal(2, world.LocalPlayer.BurnedByPlayerId);
+        Assert.Equal(LegacyMovementState.ExplosionRecovery, world.LocalPlayer.MovementState);
     }
 
     [Fact]
@@ -463,6 +565,9 @@ public sealed class ProtocolAndSnapshotTests
         var world = new SimulationWorld();
         var initialSnapshot = CreateSnapshot() with
         {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
             Shots =
             [
                 new SnapshotShotState(601, (byte)PlayerTeam.Red, 1, 310f, 255f, 4f, 0f, 10),
@@ -521,11 +626,68 @@ public sealed class ProtocolAndSnapshotTests
     }
 
     [Fact]
+    public void ApplySnapshot_RocketsRestoreKnockbackDecayState()
+    {
+        var world = new SimulationWorld();
+        var snapshot = CreateSnapshot() with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Rockets =
+            [
+                new SnapshotRocketState(604, (byte)PlayerTeam.Red, 1, 340f, 280f, 338f, 279f, 0.5f, 13f, 20, 1f, 2f),
+            ],
+        };
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        var rocket = Assert.Single(world.Rockets);
+        Assert.Equal(RocketProjectileEntity.InitialKnockback, rocket.CurrentKnockback);
+
+        world.AdvanceOneTick();
+        Assert.Equal(RocketProjectileEntity.ReducedKnockback, rocket.CurrentKnockback);
+
+        world.AdvanceOneTick();
+        Assert.Equal(0f, rocket.CurrentKnockback);
+    }
+
+    [Fact]
+    public void ApplySnapshot_RocketsRestoreTravelFadeState()
+    {
+        var world = new SimulationWorld();
+        var snapshot = CreateSnapshot() with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Rockets =
+            [
+                new SnapshotRocketState(604, (byte)PlayerTeam.Red, 1, 340f, 280f, 340f, 280f, 0f, 0f, 20, 4f, 11f, 1, 150f, 260f, 700f, true, 2f, new[] { 44 }),
+            ],
+        };
+
+        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        var rocket = Assert.Single(world.Rockets);
+        Assert.True(rocket.IsFading);
+        Assert.Equal(700f, rocket.DistanceToTravel);
+        Assert.Equal(new[] { 44 }, rocket.PassedFriendlyPlayerIds);
+
+        world.AdvanceOneTick();
+        Assert.Single(world.Rockets);
+
+        world.AdvanceOneTick();
+        Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
     public void ApplySnapshot_RecreatesTransientEntitiesWhenIdentityChangesForExistingId()
     {
         var world = new SimulationWorld();
         var initialSnapshot = CreateSnapshot() with
         {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
             Rockets =
             [
                 new SnapshotRocketState(604, (byte)PlayerTeam.Red, 1, 340f, 280f, 338f, 279f, 0.5f, 13f, 20),

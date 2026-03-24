@@ -239,6 +239,58 @@ public sealed partial class SimulationWorld
             return true;
         }
 
+        public bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
+        {
+            var distance = DistanceBetween(originX, originY, targetX, targetY);
+            if (distance <= 0.0001f)
+            {
+                return false;
+            }
+
+            var directionX = (targetX - originX) / distance;
+            var directionY = (targetY - originY) / distance;
+            foreach (var solid in Level.Solids)
+            {
+                if (GetRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    solid.Left,
+                    solid.Top,
+                    solid.Right,
+                    solid.Bottom,
+                    distance).HasValue)
+                {
+                    return true;
+                }
+            }
+
+            foreach (var roomObject in Level.RoomObjects)
+            {
+                if (!IsBlockingProjectileRoomObject(roomObject))
+                {
+                    continue;
+                }
+
+                if (GetRayIntersectionDistanceWithRectangle(
+                    originX,
+                    originY,
+                    directionX,
+                    directionY,
+                    roomObject.Left,
+                    roomObject.Top,
+                    roomObject.Right,
+                    roomObject.Bottom,
+                    distance).HasValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool IsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
         {
             var distance = DistanceBetween(attacker.X, attacker.Y, spawnX, spawnY);

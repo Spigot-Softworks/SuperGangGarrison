@@ -3,7 +3,8 @@ namespace OpenGarrison.Core;
 public sealed partial class PlayerEntity
 {
     private const int MaxCollisionResolutionIterations = 10;
-    private const float CollisionMoveStep = 1f;
+    private const float CollisionResolutionEpsilon = 0.1f;
+    private const float CollisionSubpixelPrecision = 8f;
 
     public void TeleportTo(float x, float y)
     {
@@ -18,12 +19,27 @@ public sealed partial class PlayerEntity
 
     public bool Advance(PlayerInputSnapshot input, bool jumpPressed, SimpleLevel level, PlayerTeam team, double deltaSeconds)
     {
+        var afterburn = AdvanceTickState(input, deltaSeconds);
+        if (afterburn.IsFatal)
+        {
+            Kill();
+            return false;
+        }
+
+        var startedGrounded = PrepareMovement(input, level, team, deltaSeconds, out var canMove);
+        var jumped = TryJumpIfPossible(canMove, jumpPressed);
+        CompleteMovement(level, team, deltaSeconds, startedGrounded, jumped);
+        return jumped;
+    }
+
+    public AfterburnTickResult AdvanceTickState(PlayerInputSnapshot input, double deltaSeconds)
+    {
         var dt = (float)deltaSeconds;
         UpdateAimDirection(input);
 
         if (!IsAlive)
         {
-            return false;
+            return default;
         }
 
         var legacyStateTicks = ConsumeLegacyStateTicks(dt);
@@ -44,7 +60,19 @@ public sealed partial class PlayerEntity
             AdvanceSpyState();
         }
 
-        var canMove = !IsHeavyEating && !IsTaunting;
+        return AdvanceAfterburn(dt);
+    }
+
+    public bool PrepareMovement(PlayerInputSnapshot input, SimpleLevel level, PlayerTeam team, double deltaSeconds, out bool canMove)
+    {
+        var dt = (float)deltaSeconds;
+        if (!IsAlive)
+        {
+            canMove = false;
+            return false;
+        }
+
+        canMove = !IsHeavyEating && !IsTaunting;
 
         var horizontalDirection = 0f;
         if (canMove && input.Left)
@@ -65,28 +93,75 @@ public sealed partial class PlayerEntity
             HorizontalSpeed,
             RunPower,
             GetMovementScale(input),
+            canMove && (input.Left || input.Right),
             horizontalDirection,
             MovementState,
             IsCarryingIntel,
             dt);
 
-        var jumped = false;
-        if (canMove && jumpPressed)
+        ClampMovementSpeedsToSourceStepMaximum();
+
+        var startedGrounded = !CanOccupy(level, team, X, Y + 1f);
+        if (startedGrounded)
         {
-            jumped = TryJump();
+            IsGrounded = true;
+            RemainingAirJumps = MaxAirJumps;
+            if (VerticalSpeed > 0f)
+            {
+                VerticalSpeed = 0f;
+            }
+        }
+        else
+        {
+            IsGrounded = false;
         }
 
-        var movementState = MovementState;
-        VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeed(
-            VerticalSpeed,
-            CanOccupy(level, team, X, Y + 1f),
-            dt,
-            ref movementState);
-        MovementState = movementState;
+        return startedGrounded;
+    }
+
+    public bool TryJumpIfPossible(bool canMove, bool jumpPressed)
+    {
+        if (!IsAlive || !canMove || !jumpPressed)
+        {
+            return false;
+        }
+
+        return TryJump();
+    }
+
+    public void CompleteMovement(SimpleLevel level, PlayerTeam team, double deltaSeconds, bool startedGrounded, bool jumped)
+    {
+        var dt = (float)deltaSeconds;
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        var gravityPerTick = 0f;
+        if (!startedGrounded || jumped)
+        {
+            gravityPerTick = LegacyMovementModel.GetAirborneGravityPerTick(MovementState);
+            if (ShouldCancelGravityForSourceSpinjump(level, team, gravityPerTick))
+            {
+                gravityPerTick = 0f;
+            }
+
+            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
+        }
 
         MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt);
+        if (gravityPerTick > 0f && CanOccupy(level, team, X, Y + 1f))
+        {
+            VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
+        }
+
+        if (TryApplySourceStepDown(level, team))
+        {
+            RefreshGroundSupport(level, team);
+        }
+
         ClampTo(level.Bounds);
-        return jumped;
+        AdvanceSourceFacingDirectionForNextStep();
     }
 
     public void ClampTo(WorldBounds bounds)
@@ -126,7 +201,9 @@ public sealed partial class PlayerEntity
         var remainingY = moveY;
         IsGrounded = false;
 
-        for (var iteration = 0; iteration < MaxCollisionResolutionIterations && (MathF.Abs(remainingX) >= 1f || MathF.Abs(remainingY) >= 1f); iteration += 1)
+        for (var iteration = 0;
+            iteration < MaxCollisionResolutionIterations && (MathF.Abs(remainingX) > CollisionResolutionEpsilon || MathF.Abs(remainingY) > CollisionResolutionEpsilon);
+            iteration += 1)
         {
             var previousX = X;
             var previousY = Y;
@@ -141,10 +218,10 @@ public sealed partial class PlayerEntity
                 {
                     IsGrounded = true;
                     RemainingAirJumps = MaxAirJumps;
+                    MovementState = LegacyMovementState.None;
                 }
 
                 VerticalSpeed = 0f;
-                MovementState = LegacyMovementState.None;
                 remainingY = 0f;
                 collisionRectified = true;
             }
@@ -153,6 +230,12 @@ public sealed partial class PlayerEntity
             {
                 if (TryStepUpForObstacle(level, team, MathF.Sign(remainingX)))
                 {
+                    MovementState = LegacyMovementState.None;
+                    collisionRectified = true;
+                }
+                else if (TryStepDownForCeilingSlope(level, team, MathF.Sign(remainingX)))
+                {
+                    MovementState = LegacyMovementState.None;
                     collisionRectified = true;
                 }
                 else
@@ -170,7 +253,6 @@ public sealed partial class PlayerEntity
             }
         }
 
-        TryApplyResidualMovement(level, team, remainingX, remainingY);
         RefreshGroundSupport(level, team);
     }
 
@@ -254,6 +336,16 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public void ScaleVelocity(float scale)
+    {
+        HorizontalSpeed *= scale;
+        VerticalSpeed *= scale;
+        if (VerticalSpeed < 0f)
+        {
+            IsGrounded = false;
+        }
+    }
+
     private void UpdateAimDirection(PlayerInputSnapshot input)
     {
         var aimDeltaX = input.AimWorldX - X;
@@ -269,12 +361,111 @@ public sealed partial class PlayerEntity
 
     private static float NormalizeDegrees(float degrees)
     {
-        if (degrees < 0f)
+        while (degrees < 0f)
         {
             degrees += 360f;
         }
 
+        while (degrees >= 360f)
+        {
+            degrees -= 360f;
+        }
+
         return degrees;
+    }
+
+    private static float GetSourceFacingDirectionX(float aimDirectionDegrees)
+    {
+        return NormalizeDegrees(aimDirectionDegrees + 270f) > 180f ? 1f : -1f;
+    }
+
+    private bool ShouldCancelGravityForSourceSpinjump(SimpleLevel level, PlayerTeam team, float gravityPerTick)
+    {
+        if (gravityPerTick <= 0f)
+        {
+            return false;
+        }
+
+        var horizontalDirection = MathF.Sign(HorizontalSpeed);
+        if (horizontalDirection == 0f)
+        {
+            return false;
+        }
+
+        if (!DidSourceFacingSpinForHorizontalDirection(horizontalDirection))
+        {
+            return false;
+        }
+
+        if (!CanOccupy(level, team, X, Y))
+        {
+            return false;
+        }
+
+        if (CanOccupy(level, team, X + horizontalDirection, Y))
+        {
+            return false;
+        }
+
+        if (!CanOccupy(level, team, X, Y - gravityPerTick))
+        {
+            return false;
+        }
+
+        return CanOccupy(level, team, X, Y + 1f) || VerticalSpeed < 0f;
+    }
+
+    private bool DidSourceFacingSpinForHorizontalDirection(float horizontalDirection)
+    {
+        if (horizontalDirection > 0f)
+        {
+            return PreviousSourceFacingDirectionX > SourceFacingDirectionX;
+        }
+
+        return PreviousSourceFacingDirectionX < SourceFacingDirectionX;
+    }
+
+    private void AdvanceSourceFacingDirectionForNextStep()
+    {
+        PreviousSourceFacingDirectionX = SourceFacingDirectionX;
+        SourceFacingDirectionX = GetSourceFacingDirectionX(AimDirectionDegrees);
+    }
+
+    private bool TryApplySourceStepDown(SimpleLevel level, PlayerTeam team)
+    {
+        if (VerticalSpeed != 0f || !CanOccupy(level, team, X, Y))
+        {
+            return false;
+        }
+
+        if (CanOccupy(level, team, X, Y + 6f) && !CanOccupy(level, team, X, Y + 7f))
+        {
+            Y += 6f;
+            return true;
+        }
+
+        if (GetSourceMovementSpeedPerTick() > 6f
+            && CanOccupy(level, team, X, Y + 12f)
+            && !CanOccupy(level, team, X, Y + 13f))
+        {
+            Y += 12f;
+            return true;
+        }
+
+        return false;
+    }
+
+    private float GetSourceMovementSpeedPerTick()
+    {
+        return MathF.Sqrt((HorizontalSpeed * HorizontalSpeed) + (VerticalSpeed * VerticalSpeed))
+            / LegacyMovementModel.SourceTicksPerSecond;
+    }
+
+    private void ClampMovementSpeedsToSourceStepMaximum()
+    {
+        var maxSpeed = LegacyMovementModel.MaxStepSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond;
+        HorizontalSpeed = float.Clamp(HorizontalSpeed, -maxSpeed, maxSpeed);
+        VerticalSpeed = float.Clamp(VerticalSpeed, -maxSpeed, maxSpeed);
     }
 
     private void MoveContact(SimpleLevel level, PlayerTeam team, float deltaX, float deltaY)
@@ -284,26 +475,48 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-        if (distance <= 0f)
+        var maxDistance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        if (maxDistance <= 0f)
         {
             return;
         }
 
-        var steps = Math.Max(1, (int)MathF.Ceiling(distance / CollisionMoveStep));
-        var stepX = deltaX / steps;
-        var stepY = deltaY / steps;
-        for (var step = 0; step < steps; step += 1)
+        var scaleFactor = MathF.Max(MathF.Abs(deltaX), MathF.Abs(deltaY));
+        if (scaleFactor <= 0f)
         {
-            var nextX = X + stepX;
-            var nextY = Y + stepY;
+            return;
+        }
+
+        var subpixel = CollisionSubpixelPrecision;
+        var totalMoved = 0f;
+        while (totalMoved < maxDistance && subpixel > 0f)
+        {
+            var remainingDistance = MathF.Min(1f, maxDistance - totalMoved);
+            var fraction = subpixel / CollisionSubpixelPrecision;
+            var moveX = (deltaX / scaleFactor) * fraction * remainingDistance;
+            var moveY = (deltaY / scaleFactor) * fraction * remainingDistance;
+            var nextX = X + (moveX * fraction);
+            var nextY = Y + (moveY * fraction);
             if (!CanOccupy(level, team, nextX, nextY))
+            {
+                subpixel -= 1f;
+                continue;
+            }
+
+            var advancedX = nextX - X;
+            var advancedY = nextY - Y;
+            if (advancedX == 0f && advancedY == 0f)
             {
                 break;
             }
 
+            totalMoved += MathF.Sqrt((advancedX * advancedX) + (advancedY * advancedY));
             X = nextX;
             Y = nextY;
+            if (subpixel < CollisionSubpixelPrecision)
+            {
+                break;
+            }
         }
     }
 
@@ -314,23 +527,81 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        for (var offset = 1; offset <= 8; offset += 1)
+        var originalX = X;
+        var originalY = Y;
+        var bestDistance = float.PositiveInfinity;
+        var bestX = X;
+        var bestY = Y;
+
+        ConsiderOutsideBlockingGeometry(level, team, 0f, -1f, Height / 2f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, 0f, 1f, Height / 2f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, 1f, 0f, Width / 2f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, -1f, 0f, Width / 2f, ref bestDistance, ref bestX, ref bestY);
+
+        if (bestDistance < float.PositiveInfinity)
         {
-            if (CanOccupy(level, team, X + offset, Y))
+            X = bestX;
+            Y = bestY;
+            return;
+        }
+
+        X = originalX;
+        Y = originalY;
+    }
+
+    private void ConsiderOutsideBlockingGeometry(
+        SimpleLevel level,
+        PlayerTeam team,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        ref float bestDistance,
+        ref float bestX,
+        ref float bestY)
+    {
+        if (!TryFindOutsideBlockingPosition(level, team, directionX, directionY, maxDistance, out var candidateX, out var candidateY, out var distance))
+        {
+            return;
+        }
+
+        if (distance >= bestDistance)
+        {
+            return;
+        }
+
+        bestDistance = distance;
+        bestX = candidateX;
+        bestY = candidateY;
+    }
+
+    private bool TryFindOutsideBlockingPosition(
+        SimpleLevel level,
+        PlayerTeam team,
+        float directionX,
+        float directionY,
+        float maxDistance,
+        out float candidateX,
+        out float candidateY,
+        out float distance)
+    {
+        candidateX = X;
+        candidateY = Y;
+        distance = 0f;
+
+        for (var offset = 1f; offset <= maxDistance + 0.001f; offset += 1f)
+        {
+            var nextX = X + (directionX * offset);
+            var nextY = Y + (directionY * offset);
+            if (CanOccupy(level, team, nextX, nextY))
             {
-                X += offset;
-                return;
+                candidateX = nextX;
+                candidateY = nextY;
+                distance = offset;
+                return true;
             }
         }
 
-        for (var offset = 1; offset <= 16; offset += 1)
-        {
-            if (CanOccupy(level, team, X - offset, Y))
-            {
-                X -= offset;
-                return;
-            }
-        }
+        return false;
     }
 
     private bool Intersects(LevelSolid solid)
@@ -363,32 +634,6 @@ public sealed partial class PlayerEntity
             && bottom > gateTop;
     }
 
-    private void TryApplyResidualMovement(SimpleLevel level, PlayerTeam team, float remainingX, float remainingY)
-    {
-        if (MathF.Abs(remainingX) <= 0f && MathF.Abs(remainingY) <= 0f)
-        {
-            return;
-        }
-
-        if (CanOccupy(level, team, X + remainingX, Y + remainingY))
-        {
-            X += remainingX;
-            Y += remainingY;
-            return;
-        }
-
-        if (MathF.Abs(remainingX) > 0f && MathF.Abs(remainingY) <= 0f && CanOccupy(level, team, X + remainingX, Y))
-        {
-            X += remainingX;
-            return;
-        }
-
-        if (MathF.Abs(remainingY) > 0f && MathF.Abs(remainingX) <= 0f && CanOccupy(level, team, X, Y + remainingY))
-        {
-            Y += remainingY;
-        }
-    }
-
     private void RefreshGroundSupport(SimpleLevel level, PlayerTeam team)
     {
         if (VerticalSpeed < 0f || !CanOccupy(level, team, X, Y))
@@ -396,7 +641,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (CanOccupy(level, team, X, Y + StepSupportEpsilon))
+        if (CanOccupy(level, team, X, Y + 1f))
         {
             return;
         }
@@ -413,21 +658,25 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        var obstacleTop = FindBlockingObstacleTop(level, team, X + horizontalDirection, Y);
-        if (!obstacleTop.HasValue)
+        var targetY = Y - StepUpHeight;
+        if (!CanOccupy(level, team, X + horizontalDirection, targetY))
         {
             return false;
         }
 
-        var bottom = Y + (Height / 2f);
-        var stepDelta = bottom - obstacleTop.Value;
-        if (stepDelta < 0f || stepDelta > StepUpHeight)
+        Y = targetY;
+        return true;
+    }
+
+    private bool TryStepDownForCeilingSlope(SimpleLevel level, PlayerTeam team, float horizontalDirection)
+    {
+        if (horizontalDirection == 0f || MathF.Abs(HorizontalSpeed) < MathF.Abs(VerticalSpeed))
         {
             return false;
         }
 
-        var targetY = Y - stepDelta;
-        if (!CanOccupy(level, team, X, targetY))
+        var targetY = Y + StepUpHeight;
+        if (!CanOccupy(level, team, X + horizontalDirection, targetY))
         {
             return false;
         }

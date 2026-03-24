@@ -4,6 +4,8 @@ public sealed partial class SimulationWorld
 {
     private const float SentryBuildCost = 100f;
     private const float SentryBuildProximityRadius = 50f;
+    private const float SentryDestroyBlastRadius = 65f;
+    private const float SentryDestroyKnockbackPerTick = 4f;
     private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, float X, float Y, int? PlayerId);
 
     public bool TryBuildLocalSentry()
@@ -210,6 +212,7 @@ public sealed partial class SimulationWorld
             }
 
             ReleaseMinesFromSentry(sentry);
+            ApplySentryDestroyBlastToOwner(sentry);
             _entities.Remove(sentry.Id);
             _sentries.RemoveAt(sentryIndex);
             RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
@@ -240,6 +243,38 @@ public sealed partial class SimulationWorld
 
             mine.Unstick();
         }
+    }
+
+    private void ApplySentryDestroyBlastToOwner(SentryEntity sentry)
+    {
+        var owner = FindPlayerById(sentry.OwnerPlayerId);
+        if (owner is null
+            || !owner.IsAlive
+            || !owner.CanOccupy(Level, owner.Team, owner.X, owner.Y + 1f))
+        {
+            return;
+        }
+
+        var distance = DistanceBetween(sentry.X, sentry.Y, owner.X, owner.Y);
+        if (distance >= SentryDestroyBlastRadius)
+        {
+            return;
+        }
+
+        var distanceFactor = 1f - (distance / SentryDestroyBlastRadius);
+        if (distanceFactor <= RocketProjectileEntity.SplashThresholdFactor)
+        {
+            return;
+        }
+
+        var impulse = GetExplosionImpulseMagnitude(
+            owner,
+            sentry.X,
+            sentry.Y,
+            SentryDestroyKnockbackPerTick,
+            distanceFactor,
+            useMineVectorProfile: false);
+        ApplyExplosionImpulse(owner, sentry.X, sentry.Y, impulse);
     }
 
     private void SpawnSentryGibs(PlayerTeam team, float x, float y)

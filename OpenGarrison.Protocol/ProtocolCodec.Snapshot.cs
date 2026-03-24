@@ -241,6 +241,12 @@ public static partial class ProtocolCodec
             writer.Write(player.IsChatBubbleVisible);
             writer.Write(player.ChatBubbleFrameIndex);
             writer.Write(player.ChatBubbleAlpha);
+            writer.Write(player.BurnIntensity);
+            writer.Write(player.BurnDurationSourceTicks);
+            writer.Write(player.BurnDecayDelaySourceTicksRemaining);
+            writer.Write(player.BurnIntensityDecayPerSourceTick);
+            writer.Write(player.BurnedByPlayerId);
+            writer.Write(player.MovementState);
         }
     }
 
@@ -288,7 +294,13 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadByte()));
         }
 
         return players;

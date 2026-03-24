@@ -86,9 +86,9 @@ public sealed partial class SimulationWorld
             _world.SpawnFlame(owner, x, y, velocityX, velocityY);
         }
 
-        private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians)
+        private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
         {
-            _world.SpawnRocket(owner, x, y, speed, directionRadians);
+            _world.SpawnRocket(owner, x, y, speed, directionRadians, explodeImmediately);
         }
 
         private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -269,7 +269,7 @@ public sealed partial class SimulationWorld
             {
                 aimDeltaX = attacker.FacingDirectionX;
             }
-    
+
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
             var directionX = MathF.Cos(baseAngle);
             var directionY = MathF.Sin(baseAngle);
@@ -279,15 +279,19 @@ public sealed partial class SimulationWorld
             {
                 return;
             }
-    
-            var flameAngle = baseAngle + DegreesToRadians((_random.NextSingle() * 10f) - 5f);
-            var flameSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
+
+            var spreadSign = MathF.Sign((_random.NextSingle() * 2f) - 1f);
+            var spreadDegrees = spreadSign * MathF.Pow(_random.NextSingle() * 3f, 1.8f);
+            var maxRunSpeed = MathF.Max(0.0001f, attacker.MaxRunSpeed);
+            spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
+            var flameAngle = baseAngle + DegreesToRadians(spreadDegrees);
+            var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
             SpawnFlame(
                 attacker,
                 spawnX,
                 spawnY,
-                MathF.Cos(flameAngle) * flameSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                MathF.Sin(flameAngle) * flameSpeed + (attacker.VerticalSpeed * (float)Config.FixedDeltaSeconds));
+                MathF.Cos(flameAngle) * flameSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                MathF.Sin(flameAngle) * flameSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
         }
 
         private void FireBladeBubble(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -300,15 +304,15 @@ public sealed partial class SimulationWorld
             }
 
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spreadRadians = DegreesToRadians((_random.NextSingle() * 8f) - 4f);
-            var bubbleAngle = directionRadians + spreadRadians;
-            var bubbleSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
+            var directionX = MathF.Cos(directionRadians);
+            var directionY = MathF.Sin(directionRadians);
+            var bubbleSpeed = 10f;
             SpawnBubble(
                 attacker,
-                attacker.X,
-                attacker.Y,
-                MathF.Cos(bubbleAngle) * bubbleSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                MathF.Sin(bubbleAngle) * bubbleSpeed + (attacker.VerticalSpeed * (float)Config.FixedDeltaSeconds));
+                attacker.X + directionX * 8f,
+                attacker.Y + directionY * 8f,
+                directionX * bubbleSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                directionY * bubbleSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
         }
     
         private void FireRocketLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -319,11 +323,12 @@ public sealed partial class SimulationWorld
             {
                 aimDeltaX = attacker.FacingDirectionX;
             }
-    
+
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spawnX = attacker.X + MathF.Cos(directionRadians) * 20f;
             var spawnY = attacker.Y + MathF.Sin(directionRadians) * 20f;
-            SpawnRocket(attacker, spawnX, spawnY, attacker.PrimaryWeapon.MinShotSpeed, directionRadians);
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(attacker.X, attacker.Y, spawnX, spawnY);
+            SpawnRocket(attacker, spawnX, spawnY, attacker.PrimaryWeapon.MinShotSpeed, directionRadians, explodeImmediately);
         }
     
         private void FireRevolver(PlayerEntity attacker, float aimWorldX, float aimWorldY)

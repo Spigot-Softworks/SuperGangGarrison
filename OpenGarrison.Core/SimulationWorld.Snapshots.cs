@@ -152,7 +152,13 @@ public sealed partial class SimulationWorld
             snapshotPlayer.TauntFrameIndex,
             snapshotPlayer.IsChatBubbleVisible,
             snapshotPlayer.ChatBubbleFrameIndex,
-            snapshotPlayer.ChatBubbleAlpha);
+            snapshotPlayer.ChatBubbleAlpha,
+            snapshotPlayer.BurnIntensity,
+            snapshotPlayer.BurnDurationSourceTicks,
+            snapshotPlayer.BurnDecayDelaySourceTicksRemaining,
+            snapshotPlayer.BurnIntensityDecayPerSourceTick,
+            snapshotPlayer.BurnedByPlayerId,
+            snapshotPlayer.MovementState);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
@@ -268,7 +274,16 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 state.Speed,
-                state.DirectionRadians),
+                state.DirectionRadians,
+                state.ReducedKnockbackSourceTicksRemaining,
+                state.ZeroKnockbackSourceTicksRemaining,
+                state.RangeAnchorOwnerId,
+                state.LastKnownRangeOriginX,
+                state.LastKnownRangeOriginY,
+                state.DistanceToTravel,
+                state.IsFading,
+                state.FadeSourceTicksRemaining,
+                state.PassedFriendlyPlayerIds),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
@@ -276,7 +291,16 @@ public sealed partial class SimulationWorld
                 state.PreviousY,
                 state.DirectionRadians,
                 state.Speed,
-                state.TicksRemaining));
+                state.TicksRemaining,
+                state.ReducedKnockbackSourceTicksRemaining,
+                state.ZeroKnockbackSourceTicksRemaining,
+                state.RangeAnchorOwnerId,
+                state.LastKnownRangeOriginX,
+                state.LastKnownRangeOriginY,
+                state.DistanceToTravel,
+                state.IsFading,
+                state.FadeSourceTicksRemaining,
+                state.PassedFriendlyPlayerIds));
     }
 
     private void ApplySnapshotFlames(IReadOnlyList<SnapshotFlameState> flames)

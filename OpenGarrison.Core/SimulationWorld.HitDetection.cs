@@ -23,6 +23,144 @@ public sealed partial class SimulationWorld
         _entities[sentry.Id] = sentry;
     }
 
+    internal DeadBodyEntity CombatTestSpawnDeadBody(PlayerEntity sourcePlayer, float x, float y, float horizontalSpeed = 0f, float verticalSpeed = 0f, bool? facingLeft = null)
+    {
+        var deadBody = new DeadBodyEntity(
+            AllocateEntityId(),
+            sourcePlayer.ClassId,
+            sourcePlayer.Team,
+            x,
+            y,
+            sourcePlayer.Width,
+            sourcePlayer.Height,
+            horizontalSpeed,
+            verticalSpeed,
+            facingLeft ?? sourcePlayer.FacingDirectionX < 0f);
+        _deadBodies.Add(deadBody);
+        _entities[deadBody.Id] = deadBody;
+        return deadBody;
+    }
+
+    internal PlayerGibEntity CombatTestSpawnPlayerGib(
+        string spriteName,
+        int frameIndex,
+        float x,
+        float y,
+        float velocityX = 0f,
+        float velocityY = 0f,
+        float rotationSpeedDegrees = 0f,
+        int lifetimeTicks = 250,
+        float bloodChance = PlayerGibEntity.DefaultBloodChance)
+    {
+        var gib = new PlayerGibEntity(
+            AllocateEntityId(),
+            spriteName,
+            frameIndex,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            rotationSpeedDegrees,
+            horizontalFriction: 0.4f,
+            rotationFriction: 0.6f,
+            lifetimeTicks,
+            bloodChance);
+        _playerGibs.Add(gib);
+        _entities[gib.Id] = gib;
+        return gib;
+    }
+
+    internal void CombatTestExplodeRocket(PlayerEntity owner, float x, float y)
+    {
+        var rocket = new RocketProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            0f,
+            0f,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+        _rockets.Add(rocket);
+        _entities[rocket.Id] = rocket;
+        ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+    }
+
+    internal void CombatTestExplodeRocket(RocketProjectileEntity rocket)
+    {
+        ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+    }
+
+    internal RocketProjectileEntity CombatTestSpawnRocket(PlayerEntity owner, float x, float y, float speed = 0f, float directionRadians = 0f)
+    {
+        var rocket = new RocketProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            speed,
+            directionRadians,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+        _rockets.Add(rocket);
+        _entities[rocket.Id] = rocket;
+        return rocket;
+    }
+
+    internal MineProjectileEntity CombatTestSpawnMine(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f, bool stickied = false)
+    {
+        var mine = new MineProjectileEntity(AllocateEntityId(), owner.Team, owner.Id, x, y, velocityX, velocityY);
+        if (stickied)
+        {
+            mine.Stick();
+        }
+
+        _mines.Add(mine);
+        _entities[mine.Id] = mine;
+        return mine;
+    }
+
+    internal BubbleProjectileEntity CombatTestSpawnBubble(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
+    {
+        var bubble = new BubbleProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            GetSimulationTicksFromSourceTicks(BubbleProjectileEntity.LifetimeTicks));
+        _bubbles.Add(bubble);
+        _entities[bubble.Id] = bubble;
+        return bubble;
+    }
+
+    internal FlameProjectileEntity CombatTestSpawnFlame(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
+    {
+        var flame = new FlameProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY,
+            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks));
+        _flames.Add(flame);
+        _entities[flame.Id] = flame;
+        return flame;
+    }
+
+    internal void CombatTestExplodeMine(MineProjectileEntity mine)
+    {
+        ExplodeMine(mine);
+    }
+
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)
         => Combat.HasLineOfSight(attacker, target);
 
@@ -37,6 +175,9 @@ public sealed partial class SimulationWorld
 
     internal bool CombatTestIsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
         => Combat.IsFlameSpawnBlocked(attacker, spawnX, spawnY);
+
+    internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
+        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
 
     internal static float? CombatTestGetLineIntersectionDistanceToPlayer(
         float originX,
@@ -166,6 +307,9 @@ public sealed partial class SimulationWorld
 
     private bool IsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
         => Combat.IsFlameSpawnBlocked(attacker, spawnX, spawnY);
+
+    private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
+        => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
 
     private static float? GetLineIntersectionDistanceToPlayer(
         float originX,

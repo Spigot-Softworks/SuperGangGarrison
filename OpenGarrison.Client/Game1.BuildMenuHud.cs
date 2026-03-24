@@ -48,32 +48,22 @@ public partial class Game1
         var specialPressed = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
         if (specialPressed)
         {
-            ToggleBuildMenu();
-        }
-
-        if (_buildMenuOpen && !_buildMenuClosing)
-        {
-            var closePressed = IsKeyPressed(keyboard, Keys.D0) || IsKeyPressed(keyboard, Keys.NumPad0);
-            var buildPressed = IsKeyPressed(keyboard, Keys.D1) || IsKeyPressed(keyboard, Keys.NumPad1);
-            var destroyPressed = IsKeyPressed(keyboard, Keys.D2) || IsKeyPressed(keyboard, Keys.NumPad2);
-
-            if (closePressed)
-            {
-                BeginClosingBuildMenu();
-            }
-            else if (buildPressed)
-            {
-                BeginClosingBuildMenu();
-                TryQueueBuildSentry(player);
-            }
-            else if (destroyPressed)
-            {
-                BeginClosingBuildMenu();
-                TryQueueDestroySentry();
-            }
+            BeginClosingBuildMenu();
+            TryQueueEngineerSpecial(player);
         }
 
         AdvanceBuildMenuAnimation();
+    }
+
+    private void TryQueueEngineerSpecial(PlayerEntity player)
+    {
+        if (GetLocalOwnedSentry() is not null)
+        {
+            TryQueueDestroySentry();
+            return;
+        }
+
+        TryQueueBuildSentry(player);
     }
 
     private void TryQueueBuildSentry(PlayerEntity player)

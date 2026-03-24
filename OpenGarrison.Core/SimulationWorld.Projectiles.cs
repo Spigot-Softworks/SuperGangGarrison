@@ -25,7 +25,8 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            GetSimulationTicksFromSourceTicks(BubbleProjectileEntity.LifetimeTicks));
         owner.IncrementQuoteBubbleCount();
         _bubbles.Add(bubble);
         _entities.Add(bubble.Id, bubble);
@@ -116,12 +117,13 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks));
         _flames.Add(flame);
         _entities.Add(flame.Id, flame);
     }
 
-    private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians)
+    private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
     {
         var rocket = new RocketProjectileEntity(
             AllocateEntityId(),
@@ -130,7 +132,15 @@ public sealed partial class SimulationWorld
             x,
             y,
             speed,
-            directionRadians);
+            directionRadians,
+            rangeAnchorOwnerId: owner.Id,
+            lastKnownRangeOriginX: owner.X,
+            lastKnownRangeOriginY: owner.Y);
+        if (explodeImmediately)
+        {
+            rocket.DelayExplosionUntilNextTick();
+        }
+
         _rockets.Add(rocket);
         _entities.Add(rocket.Id, rocket);
     }
@@ -147,5 +157,10 @@ public sealed partial class SimulationWorld
             velocityY);
         _mines.Add(mine);
         _entities.Add(mine.Id, mine);
+    }
+
+    private int GetSimulationTicksFromSourceTicks(float sourceTicks)
+    {
+        return Math.Max(1, (int)MathF.Ceiling(sourceTicks * Config.TicksPerSecond / LegacyMovementModel.SourceTicksPerSecond));
     }
 }

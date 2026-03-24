@@ -56,6 +56,7 @@ public partial class Game1
         if (_particleMode != 1)
         {
             DrawRocketSmokeVisuals(cameraPosition);
+            DrawBlastJumpFlameVisuals(cameraPosition);
             DrawFlameSmokeVisuals(cameraPosition);
         }
 

@@ -63,6 +63,7 @@ public sealed partial class SimulationWorld
 
     private void AdvanceBubbles()
     {
+        var deltaSeconds = (float)Config.FixedDeltaSeconds;
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
             var bubble = _bubbles[bubbleIndex];
@@ -73,39 +74,34 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            bubble.AdvanceOneTick(owner.X, owner.Y, owner.HorizontalSpeed * (float)Config.FixedDeltaSeconds, owner.VerticalSpeed * (float)Config.FixedDeltaSeconds, owner.AimDirectionDegrees);
+            if (DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
+            {
+                RemoveBubbleAt(bubbleIndex);
+                continue;
+            }
+
+            bubble.AdvanceOneTick(owner.X, owner.Y, owner.HorizontalSpeed, owner.VerticalSpeed, owner.AimDirectionDegrees, deltaSeconds);
             if (bubble.IsExpired || DistanceBetween(bubble.X, bubble.Y, owner.X, owner.Y) > BubbleProjectileEntity.MaxDistanceFromOwner)
             {
                 RemoveBubbleAt(bubbleIndex);
                 continue;
             }
 
-            if (IsBubbleTouchingEnvironment(bubble))
+            if (TryResolveBubbleEnvironmentCollision(bubble) || bubble.IsExpired)
             {
-                bubble.Bounce();
+                RemoveBubbleAt(bubbleIndex);
+                continue;
             }
 
-            var touchedEnemy = false;
-            foreach (var player in EnumerateSimulatedPlayers())
+            if (TryDamageBubbleEnemyPlayer(bubble, owner))
             {
-                if (!player.IsAlive || player.Team == bubble.Team || player.Id == bubble.OwnerId || !CircleIntersectsPlayer(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, player))
-                {
-                    continue;
-                }
-
-                touchedEnemy = true;
-                if (player.ApplyContinuousDamage(BubbleProjectileEntity.DamagePerTouch))
-                {
-                    KillPlayer(player, killer: owner, weaponSpriteName: "BladeS");
-                }
+                RemoveBubbleAt(bubbleIndex);
+                continue;
             }
 
-            if (touchedEnemy)
-            {
-                bubble.OnCharacterHit();
-            }
+            ApplyBubbleSameTeamRepulsion(bubble);
 
-            if (TryDestroyBubbleOnProjectileCollision(bubble) || TryDamageBubbleStructureTarget(bubble, owner))
+            if (TryHandleBubbleProjectileCollision(bubble) || TryDamageBubbleStructureTarget(bubble, owner))
             {
                 RemoveBubbleAt(bubbleIndex);
                 continue;
@@ -353,33 +349,12 @@ public sealed partial class SimulationWorld
 
     private void AdvanceFlames()
     {
+        var deltaSeconds = (float)Config.FixedDeltaSeconds;
+        var flameAirLifetimeTicks = GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks);
         for (var flameIndex = _flames.Count - 1; flameIndex >= 0; flameIndex -= 1)
         {
             var flame = _flames[flameIndex];
-            if (flame.IsAttached)
-            {
-                var attachedPlayer = FindPlayerById(flame.AttachedPlayerId!.Value);
-                if (attachedPlayer is null || !attachedPlayer.IsAlive)
-                {
-                    RemoveFlameAt(flameIndex);
-                    continue;
-                }
-
-                flame.AdvanceOneTick();
-                if (flame.ApplyAttachedBurn(attachedPlayer) && attachedPlayer.IsAlive)
-                {
-                    KillPlayer(attachedPlayer, killer: FindPlayerById(flame.OwnerId), weaponSpriteName: "FlamethrowerS");
-                }
-
-                if (flame.IsExpired)
-                {
-                    RemoveFlameAt(flameIndex);
-                }
-
-                continue;
-            }
-
-            flame.AdvanceOneTick();
+            flame.AdvanceOneTick(deltaSeconds);
             var movementX = flame.X - flame.PreviousX;
             var movementY = flame.Y - flame.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -403,25 +378,28 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
-                    var playerDied = hitPlayer.ApplyDamage(FlameProjectileEntity.DirectHitDamage);
+                    var playerDied = hitPlayer.ApplyContinuousDamage(FlameProjectileEntity.DirectHitDamage);
                     if (playerDied)
                     {
                         KillPlayer(hitPlayer, killer: FindPlayerById(flame.OwnerId), weaponSpriteName: "FlamethrowerS");
                     }
-                    else if (hitPlayer.ClassId != PlayerClass.Pyro && CountAttachedFlames(hitPlayer.Id) <= 7)
+                    else
                     {
-                        flame.AttachToPlayer(hitPlayer);
-                        RegisterCombatTrace(flame.PreviousX, flame.PreviousY, directionX, directionY, hitResult.Distance, true);
-                        continue;
+                        hitPlayer.IgniteAfterburn(
+                            flame.OwnerId,
+                            FlameProjectileEntity.BurnDurationIncreaseSourceTicks,
+                            FlameProjectileEntity.BurnIntensityIncrease,
+                            FlameProjectileEntity.AfterburnFalloff,
+                            flame.GetAfterburnFalloffAmount(flameAirLifetimeTicks));
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(FlameProjectileEntity.DirectHitDamage))
+                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage((int)FlameProjectileEntity.DirectHitDamage))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, FlameProjectileEntity.DirectHitDamage);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)FlameProjectileEntity.DirectHitDamage);
                 }
 
                 RegisterCombatTrace(flame.PreviousX, flame.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
@@ -441,10 +419,45 @@ public sealed partial class SimulationWorld
 
     private void AdvanceRockets()
     {
+        var deltaSeconds = (float)Config.FixedDeltaSeconds;
         for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
         {
             var rocket = _rockets[rocketIndex];
-            rocket.AdvanceOneTick();
+            if (FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
+            {
+                rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);
+            }
+
+            if (rocket.IsFading)
+            {
+                rocket.AdvanceFade(deltaSeconds);
+                if (rocket.IsExpired)
+                {
+                    RemoveRocketAt(rocketIndex);
+                    continue;
+                }
+            }
+            else
+            {
+                rocket.TryBeginFadeFromSourceRange();
+            }
+
+            if (rocket.ExplodeImmediately)
+            {
+                rocket.ClearDelayedExplosion();
+                if (rocket.IsFading)
+                {
+                    RemoveRocketAt(rocketIndex);
+                }
+                else
+                {
+                    ExplodeRocket(rocket, directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                }
+
+                continue;
+            }
+
+            rocket.AdvanceOneTick(deltaSeconds);
             var movementX = rocket.X - rocket.PreviousX;
             var movementY = rocket.Y - rocket.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -466,12 +479,71 @@ public sealed partial class SimulationWorld
                 var hitResult = hit.Value;
                 rocket.MoveTo(hitResult.HitX, hitResult.HitY);
                 RegisterCombatTrace(rocket.PreviousX, rocket.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                ExplodeRocket(rocket, hitResult.HitPlayer, hitResult.HitSentry, hitResult.HitGenerator);
+                if (rocket.IsFading
+                    && hitResult.HitPlayer is null
+                    && hitResult.HitSentry is null
+                    && hitResult.HitGenerator is null)
+                {
+                    RemoveRocketAt(rocketIndex);
+                }
+                else
+                {
+                    ExplodeRocket(rocket, hitResult.HitPlayer, hitResult.HitSentry, hitResult.HitGenerator);
+                }
             }
-            else if (rocket.IsExpired)
+            else
             {
-                RemoveRocketAt(rocketIndex);
+                RegisterRocketFriendlyPassThroughs(rocket, directionX, directionY, movementDistance);
+                if (rocket.IsExpired)
+                {
+                    RemoveRocketAt(rocketIndex);
+                }
             }
+        }
+    }
+
+    private void RegisterRocketFriendlyPassThroughs(RocketProjectileEntity rocket, float directionX, float directionY, float maxDistance)
+    {
+        if (rocket.IsFading || maxDistance <= 0.0001f)
+        {
+            return;
+        }
+
+        var endX = rocket.PreviousX + (directionX * maxDistance);
+        var endY = rocket.PreviousY + (directionY * maxDistance);
+        List<(int PlayerId, float Distance)>? passThroughs = null;
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || player.Team != rocket.Team || player.Id == rocket.OwnerId)
+            {
+                continue;
+            }
+
+            var distance = GetLineIntersectionDistanceToPlayer(
+                rocket.PreviousX,
+                rocket.PreviousY,
+                endX,
+                endY,
+                player,
+                maxDistance);
+            if (!distance.HasValue)
+            {
+                continue;
+            }
+
+            passThroughs ??= [];
+            passThroughs.Add((player.Id, distance.Value));
+        }
+
+        if (passThroughs is null)
+        {
+            return;
+        }
+
+        passThroughs.Sort(static (left, right) => left.Distance.CompareTo(right.Distance));
+        for (var index = 0; index < passThroughs.Count; index += 1)
+        {
+            rocket.TryRegisterFriendlyPassThrough(passThroughs[index].PlayerId);
         }
     }
 
@@ -694,20 +766,6 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private int CountAttachedFlames(int playerId)
-    {
-        var count = 0;
-        foreach (var flame in _flames)
-        {
-            if (flame.AttachedPlayerId == playerId)
-            {
-                count += 1;
-            }
-        }
-
-        return count;
-    }
-
     private int CountOwnedMines(int ownerId)
     {
         var count = 0;
@@ -724,9 +782,14 @@ public sealed partial class SimulationWorld
 
     private bool IsBubbleTouchingEnvironment(BubbleProjectileEntity bubble)
     {
+        return IsBubbleTouchingEnvironmentAt(bubble.X, bubble.Y);
+    }
+
+    private bool IsBubbleTouchingEnvironmentAt(float x, float y)
+    {
         foreach (var solid in Level.Solids)
         {
-            if (CircleIntersectsRectangle(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, solid.Left, solid.Top, solid.Right, solid.Bottom))
+            if (CircleIntersectsRectangle(x, y, BubbleProjectileEntity.Radius, solid.Left, solid.Top, solid.Right, solid.Bottom))
             {
                 return true;
             }
@@ -739,13 +802,52 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (CircleIntersectsRectangle(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
+            if (CircleIntersectsRectangle(x, y, BubbleProjectileEntity.Radius, roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private bool TryResolveBubbleEnvironmentCollision(BubbleProjectileEntity bubble)
+    {
+        if (!IsBubbleTouchingEnvironment(bubble))
+        {
+            return false;
+        }
+
+        if (!IsBubbleTouchingEnvironmentAt(bubble.X, bubble.Y + 6f))
+        {
+            bubble.MoveTo(bubble.X, bubble.Y + 6f);
+            return false;
+        }
+
+        if (!IsBubbleTouchingEnvironmentAt(bubble.X, bubble.Y - 6f))
+        {
+            bubble.MoveTo(bubble.X, bubble.Y - 6f);
+            return false;
+        }
+
+        var canKeepHorizontalMove = !IsBubbleTouchingEnvironmentAt(bubble.X, bubble.PreviousY);
+        var canKeepVerticalMove = !IsBubbleTouchingEnvironmentAt(bubble.PreviousX, bubble.Y);
+        if (canKeepHorizontalMove && !canKeepVerticalMove)
+        {
+            bubble.MoveTo(bubble.X, bubble.PreviousY);
+            bubble.SetVelocity(bubble.VelocityX, 0f);
+            return false;
+        }
+
+        if (canKeepVerticalMove && !canKeepHorizontalMove)
+        {
+            bubble.MoveTo(bubble.PreviousX, bubble.Y);
+            bubble.SetVelocity(0f, bubble.VelocityY);
+            return false;
+        }
+
+        bubble.Destroy();
+        return true;
     }
 
     private bool IsBubbleBlockingRoomObject(RoomObjectMarker roomObject)
@@ -759,6 +861,45 @@ public sealed partial class SimulationWorld
         };
     }
 
+    private bool TryDamageBubbleEnemyPlayer(BubbleProjectileEntity bubble, PlayerEntity owner)
+    {
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive || player.Team == bubble.Team || player.Id == bubble.OwnerId || !CircleIntersectsPlayer(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, player))
+            {
+                continue;
+            }
+
+            if (player.ApplyContinuousDamage(BubbleProjectileEntity.DamagePerHit))
+            {
+                KillPlayer(player, killer: owner, weaponSpriteName: "BladeS");
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ApplyBubbleSameTeamRepulsion(BubbleProjectileEntity bubble)
+    {
+        for (var bubbleIndex = 0; bubbleIndex < _bubbles.Count; bubbleIndex += 1)
+        {
+            var otherBubble = _bubbles[bubbleIndex];
+            if (otherBubble.Id == bubble.Id || otherBubble.Team != bubble.Team)
+            {
+                continue;
+            }
+
+            if (DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) > BubbleProjectileEntity.Radius * 2f)
+            {
+                continue;
+            }
+
+            bubble.AddRepulsionFrom(otherBubble.X, otherBubble.Y);
+        }
+    }
+
     private bool TryDamageBubbleStructureTarget(BubbleProjectileEntity bubble, PlayerEntity owner)
     {
         foreach (var sentry in _sentries)
@@ -768,7 +909,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (sentry.ApplyDamage(1))
+            if (sentry.ApplyDamage((int)MathF.Ceiling(BubbleProjectileEntity.DamagePerHit)))
             {
                 DestroySentry(sentry);
             }
@@ -786,21 +927,20 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            TryDamageGenerator(generator.Team, 1f);
+            TryDamageGenerator(generator.Team, BubbleProjectileEntity.DamagePerHit);
             return true;
         }
 
         return false;
     }
 
-    private bool TryDestroyBubbleOnProjectileCollision(BubbleProjectileEntity bubble)
+    private bool TryHandleBubbleProjectileCollision(BubbleProjectileEntity bubble)
     {
         for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
         {
             var rocket = _rockets[rocketIndex];
             if (rocket.Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, rocket.X, rocket.Y) <= 10f)
             {
-                RemoveRocketAt(rocketIndex);
                 return true;
             }
         }
@@ -810,8 +950,13 @@ public sealed partial class SimulationWorld
             var mine = _mines[mineIndex];
             if (mine.Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, mine.X, mine.Y) <= 10f)
             {
-                RemoveMineAt(mineIndex);
-                return true;
+                if (!mine.IsStickied)
+                {
+                    mine.SetVelocity(-mine.VelocityX, -mine.VelocityY);
+                }
+
+                bubble.HalveLifetimeOrDestroy(GetSimulationTicksFromSourceTicks(10f));
+                return bubble.IsExpired;
             }
         }
 
@@ -820,7 +965,6 @@ public sealed partial class SimulationWorld
             var flame = _flames[flameIndex];
             if (flame.Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, flame.X, flame.Y) <= 8f)
             {
-                RemoveFlameAt(flameIndex);
                 return true;
             }
         }
@@ -829,7 +973,6 @@ public sealed partial class SimulationWorld
         {
             if (_shots[shotIndex].Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, _shots[shotIndex].X, _shots[shotIndex].Y) <= 8f)
             {
-                RemoveShotAt(shotIndex);
                 return true;
             }
         }
@@ -838,7 +981,6 @@ public sealed partial class SimulationWorld
         {
             if (_needles[needleIndex].Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, _needles[needleIndex].X, _needles[needleIndex].Y) <= 8f)
             {
-                RemoveNeedleAt(needleIndex);
                 return true;
             }
         }
@@ -847,16 +989,30 @@ public sealed partial class SimulationWorld
         {
             if (_revolverShots[revolverIndex].Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, _revolverShots[revolverIndex].X, _revolverShots[revolverIndex].Y) <= 8f)
             {
-                RemoveRevolverShotAt(revolverIndex);
                 return true;
             }
         }
 
         for (var bladeIndex = _blades.Count - 1; bladeIndex >= 0; bladeIndex -= 1)
         {
-            if (_blades[bladeIndex].Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, _blades[bladeIndex].X, _blades[bladeIndex].Y) <= 10f)
+            var blade = _blades[bladeIndex];
+            if ((blade.Team != bubble.Team || blade.OwnerId == bubble.OwnerId)
+                && DistanceBetween(bubble.X, bubble.Y, blade.X, blade.Y) <= 10f)
             {
-                RemoveBladeAt(bladeIndex);
+                return true;
+            }
+        }
+
+        for (var bubbleIndex = 0; bubbleIndex < _bubbles.Count; bubbleIndex += 1)
+        {
+            var otherBubble = _bubbles[bubbleIndex];
+            if (otherBubble.Id == bubble.Id || otherBubble.Team == bubble.Team)
+            {
+                continue;
+            }
+
+            if (DistanceBetween(bubble.X, bubble.Y, otherBubble.X, otherBubble.Y) <= BubbleProjectileEntity.Radius * 2f)
+            {
                 return true;
             }
         }
@@ -868,12 +1024,13 @@ public sealed partial class SimulationWorld
     {
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {
-            if (_bubbles[bubbleIndex].Team == blade.Team)
+            var bubble = _bubbles[bubbleIndex];
+            if (bubble.Team == blade.Team && bubble.OwnerId != blade.OwnerId)
             {
                 continue;
             }
 
-            if (DistanceBetween(blade.X, blade.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) > 10f)
+            if (DistanceBetween(blade.X, blade.Y, bubble.X, bubble.Y) > 10f)
             {
                 continue;
             }

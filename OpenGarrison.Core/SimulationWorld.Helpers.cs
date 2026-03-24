@@ -87,7 +87,8 @@ public sealed partial class SimulationWorld
         float RotationRange,
         int LifetimeTicks,
         float HorizontalFriction,
-        float RotationFriction);
+        float RotationFriction,
+        bool InheritPlayerVelocity = false);
 
     private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
     {

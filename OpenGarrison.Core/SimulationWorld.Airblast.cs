@@ -3,157 +3,159 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     private const float PyroAirblastDistance = 150f;
-    private const float PyroAirblastHalfAngleDegrees = 37.5f;
-    private const float PyroAirblastRocketSpeed = 12f;
-    private const float PyroAirblastMineImpulse = 8f;
-    private const float PyroAirblastPlayerImpulse = 180f;
-    private const float PyroAirblastPlayerLift = -120f;
+    private const float PyroAirblastProjectileRadius = 5f;
+    private const float PyroAirblastTargetRadius = 25f;
+    private const float PyroAirblastMaskLeft = 8f;
+    private const float PyroAirblastMaskRight = 96f;
+    private const float PyroAirblastMaskTop = -13f;
+    private const float PyroAirblastMaskBottom = 14f;
+    private const float PyroAirblastMineSpeedFloor = 28f / 3f;
+    private const float PyroAirblastLooseBodyImpulse = 28f;
+    private const float PyroAirblastPlayerImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
+    private const float PyroAirblastPlayerLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
 
-    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY)
+    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, float sourceX, float sourceY)
     {
-        var aimDegrees = PointDirectionDegrees(player.X, player.Y, aimWorldX, aimWorldY);
+        var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
         var aimRadians = DegreesToRadians(aimDegrees);
-        var originX = player.X + MathF.Cos(aimRadians) * 25f;
-        var originY = player.Y + MathF.Sin(aimRadians) * 25f;
+        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
+        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
 
         RegisterSoundEvent(player, "CompressionBlastSnd");
-        RegisterVisualEffect("AirBlast", originX, originY, aimDegrees);
+        RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
 
-        DestroyFriendlyFlamesInAirblast(player.Team, originX, originY, aimDegrees);
-        ReflectEnemyRockets(player, aimDegrees, originX, originY);
-        PushEnemyMines(player.Team, originX, originY, aimDegrees);
-        PushEnemyPlayers(player, originX, originY, aimDegrees);
-        PushLooseBodies(originX, originY, aimDegrees);
+        ReflectEnemyRockets(player, aimRadians, poofX, poofY);
+        PushEnemyMines(player.Team, aimRadians, poofX, poofY);
+        ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
+        PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
-    private void DestroyFriendlyFlamesInAirblast(PlayerTeam team, float originX, float originY, float aimDegrees)
+    private void ReflectEnemyRockets(PlayerEntity player, float aimRadians, float poofX, float poofY)
     {
-        for (var flameIndex = _flames.Count - 1; flameIndex >= 0; flameIndex -= 1)
-        {
-            var flame = _flames[flameIndex];
-            if (flame.Team != team || !IsWithinAirblastCone(originX, originY, flame.X, flame.Y, aimDegrees))
-            {
-                continue;
-            }
-
-            RemoveFlameAt(flameIndex);
-        }
-    }
-
-    private void ReflectEnemyRockets(PlayerEntity player, float aimDegrees, float originX, float originY)
-    {
-        var aimRadians = DegreesToRadians(aimDegrees);
         for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
         {
             var rocket = _rockets[rocketIndex];
-            if (rocket.Team == player.Team || !IsWithinAirblastCone(originX, originY, rocket.X, rocket.Y, aimDegrees))
+            if (rocket.Team == player.Team
+                || !IsWithinAirblastMask(poofX, poofY, aimRadians, rocket.X, rocket.Y, PyroAirblastProjectileRadius))
             {
                 continue;
             }
 
-            rocket.Reflect(player.Id, player.Team, aimRadians, PyroAirblastRocketSpeed);
+            rocket.Reflect(player.Id, player.Team, aimRadians);
         }
     }
 
-    private void PushEnemyMines(PlayerTeam team, float originX, float originY, float aimDegrees)
+    private void PushEnemyMines(PlayerTeam team, float aimRadians, float poofX, float poofY)
     {
-        var aimRadians = DegreesToRadians(aimDegrees);
-        var impulseX = MathF.Cos(aimRadians) * PyroAirblastMineImpulse;
-        var impulseY = MathF.Sin(aimRadians) * PyroAirblastMineImpulse;
         for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
         {
             var mine = _mines[mineIndex];
-            if (mine.Team == team || !IsWithinAirblastCone(originX, originY, mine.X, mine.Y, aimDegrees))
+            if (mine.Team == team
+                || !IsWithinAirblastMask(poofX, poofY, aimRadians, mine.X, mine.Y, PyroAirblastProjectileRadius))
             {
                 continue;
             }
 
+            var currentSpeed = MathF.Sqrt((mine.VelocityX * mine.VelocityX) + (mine.VelocityY * mine.VelocityY));
+            var reflectedSpeed = MathF.Max(currentSpeed, PyroAirblastMineSpeedFloor);
             mine.Unstick();
-            mine.ApplyImpulse(impulseX, impulseY);
+            mine.SetVelocity(MathF.Cos(aimRadians) * reflectedSpeed, MathF.Sin(aimRadians) * reflectedSpeed);
         }
     }
 
-    private void PushEnemyPlayers(PlayerEntity player, float originX, float originY, float aimDegrees)
+    private void ApplyAirblastToPlayers(PlayerEntity player, float sourceX, float sourceY, float aimRadians, float poofX, float poofY)
     {
-        var aimRadians = DegreesToRadians(aimDegrees);
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
+        foreach (var target in EnumerateSimulatedPlayers())
         {
-            if (!TryGetNetworkPlayer(NetworkPlayerSlots[index], out var target)
-                || !target.IsAlive
-                || target.Team == player.Team
+            if (!target.IsAlive
                 || target.Id == player.Id
-                || !IsWithinAirblastCone(originX, originY, target.X, target.Y, aimDegrees))
+                || !IsWithinAirblastMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
             {
                 continue;
             }
 
-            var distance = Math.Max(1f, DistanceBetween(originX, originY, target.X, target.Y));
-            var scale = 1f - (distance / PyroAirblastDistance);
+            if (target.Team == player.Team)
+            {
+                SpawnAirblastExtinguishFlames(player, target, aimRadians);
+                target.ExtinguishAfterburn();
+                continue;
+            }
+
+            var scale = GetAirblastScale(sourceX, sourceY, target.X, target.Y);
+            if (scale <= 0f)
+            {
+                continue;
+            }
+
             target.AddImpulse(
                 MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
-                MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift * scale);
+                MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);
             target.SetMovementState(LegacyMovementState.Airblast);
-        }
-
-        if (EnemyPlayerEnabled
-            && EnemyPlayer.IsAlive
-            && EnemyPlayer.Team != player.Team
-            && EnemyPlayer.Id != player.Id
-            && IsWithinAirblastCone(originX, originY, EnemyPlayer.X, EnemyPlayer.Y, aimDegrees))
-        {
-            var distance = Math.Max(1f, DistanceBetween(originX, originY, EnemyPlayer.X, EnemyPlayer.Y));
-            var scale = 1f - (distance / PyroAirblastDistance);
-            EnemyPlayer.AddImpulse(
-                MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
-                MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift * scale);
-            EnemyPlayer.SetMovementState(LegacyMovementState.Airblast);
         }
     }
 
-    private void PushLooseBodies(float originX, float originY, float aimDegrees)
+    private void PushLooseBodies(float sourceX, float sourceY, float aimRadians, float poofX, float poofY)
     {
-        var aimRadians = DegreesToRadians(aimDegrees);
         foreach (var body in _deadBodies)
         {
-            if (!IsWithinAirblastCone(originX, originY, body.X, body.Y, aimDegrees))
+            if (!IsWithinAirblastMask(poofX, poofY, aimRadians, body.X, body.Y, PyroAirblastTargetRadius))
             {
                 continue;
             }
 
-            body.AddImpulse(MathF.Cos(aimRadians) * 6f, MathF.Sin(aimRadians) * 6f);
+            var scale = GetAirblastScale(sourceX, sourceY, body.X, body.Y);
+            if (scale <= 0f)
+            {
+                continue;
+            }
+
+            body.AddImpulse(
+                MathF.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                MathF.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale);
         }
 
         foreach (var gib in _playerGibs)
         {
-            if (!IsWithinAirblastCone(originX, originY, gib.X, gib.Y, aimDegrees))
+            if (!IsWithinAirblastMask(poofX, poofY, aimRadians, gib.X, gib.Y, PyroAirblastTargetRadius))
             {
                 continue;
             }
 
-            gib.AddImpulse(MathF.Cos(aimRadians) * 6f, MathF.Sin(aimRadians) * 6f, 0f);
+            var scale = GetAirblastScale(sourceX, sourceY, gib.X, gib.Y);
+            if (scale <= 0f)
+            {
+                continue;
+            }
+
+            gib.AddImpulse(
+                MathF.Cos(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                MathF.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale,
+                0f);
         }
     }
 
-    private static float GetAirblastAngleDelta(float fromDegrees, float toDegrees)
+    private static float GetAirblastScale(float sourceX, float sourceY, float targetX, float targetY)
     {
-        var delta = NormalizeAngleDegrees(toDegrees - fromDegrees);
-        if (delta > 180f)
-        {
-            delta -= 360f;
-        }
-
-        return MathF.Abs(delta);
+        var distance = DistanceBetween(sourceX, sourceY, targetX, targetY);
+        return MathF.Max(0f, 1f - (distance / PyroAirblastDistance));
     }
 
-    private static bool IsWithinAirblastCone(float originX, float originY, float targetX, float targetY, float aimDegrees)
+    private static bool IsWithinAirblastMask(float poofX, float poofY, float aimRadians, float targetX, float targetY, float radius)
     {
-        var distance = DistanceBetween(originX, originY, targetX, targetY);
-        if (distance > PyroAirblastDistance)
-        {
-            return false;
-        }
+        var deltaX = targetX - poofX;
+        var deltaY = targetY - poofY;
+        var cosine = MathF.Cos(aimRadians);
+        var sine = MathF.Sin(aimRadians);
+        var localX = (deltaX * cosine) + (deltaY * sine);
+        var localY = (-deltaX * sine) + (deltaY * cosine);
 
-        var targetDegrees = PointDirectionDegrees(originX, originY, targetX, targetY);
-        return GetAirblastAngleDelta(aimDegrees, targetDegrees) <= PyroAirblastHalfAngleDegrees;
+        return CircleIntersectsRectangle(
+            localX,
+            localY,
+            radius,
+            PyroAirblastMaskLeft,
+            PyroAirblastMaskTop,
+            PyroAirblastMaskRight,
+            PyroAirblastMaskBottom);
     }
 }

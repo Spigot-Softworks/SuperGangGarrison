@@ -4,7 +4,10 @@ public sealed class FlameProjectileEntity : SimulationEntity
 {
     public const int AirLifetimeTicks = 15;
     public const int AttachedLifetimeTicks = 150;
-    public const int DirectHitDamage = 3;
+    public const float DirectHitDamage = 3.14f;
+    public const float BurnIntensityIncrease = 1.35f;
+    public const float BurnDurationIncreaseSourceTicks = 30f;
+    public const bool AfterburnFalloff = true;
     public const float BurnDamagePerTick = 0.06f;
     public const float GravityPerTick = 0.15f;
 
@@ -17,7 +20,8 @@ public sealed class FlameProjectileEntity : SimulationEntity
         float x,
         float y,
         float velocityX,
-        float velocityY) : base(id)
+        float velocityY,
+        int ticksRemaining = AirLifetimeTicks) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -25,7 +29,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
-        TicksRemaining = AirLifetimeTicks;
+        TicksRemaining = ticksRemaining;
     }
 
     public PlayerTeam Team { get; }
@@ -56,28 +60,39 @@ public sealed class FlameProjectileEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
-    public void AdvanceOneTick()
+    public void AdvanceOneTick(float deltaSeconds)
     {
         PreviousX = X;
         PreviousY = Y;
         if (!IsAttached)
         {
-            X += VelocityX;
-            Y += VelocityY;
-            VelocityY += GravityPerTick;
+            var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
+            X += VelocityX * sourceDelta;
+            Y += VelocityY * sourceDelta;
+            VelocityY += GravityPerTick * sourceDelta;
         }
 
         TicksRemaining -= 1;
     }
 
-    public void AttachToPlayer(PlayerEntity player)
+    public float GetAfterburnFalloffAmount(int airLifetimeSimulationTicks)
+    {
+        if (airLifetimeSimulationTicks <= 0)
+        {
+            return 0f;
+        }
+
+        return 1f - float.Clamp(TicksRemaining / (float)airLifetimeSimulationTicks, 0f, 1f);
+    }
+
+    public void AttachToPlayer(PlayerEntity player, int attachedLifetimeTicks)
     {
         AttachedPlayerId = player.Id;
         AttachedOffsetX = X - player.X;
         AttachedOffsetY = Y - player.Y;
         VelocityX = 0f;
         VelocityY = 0f;
-        TicksRemaining = AttachedLifetimeTicks;
+        TicksRemaining = attachedLifetimeTicks;
         _burnDamageAccumulator = 0f;
     }
 

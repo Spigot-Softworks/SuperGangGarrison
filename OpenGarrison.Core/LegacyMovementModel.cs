@@ -8,26 +8,31 @@ public enum LegacyMovementState : byte
     ExplosionRecovery = 1,
     RocketJuggle = 2,
     Airblast = 3,
+    FriendlyJuggle = 4,
 }
 
 public static class LegacyMovementModel
 {
     public const float SourceTicksPerSecond = 30f;
+    public const float MaxStepSpeedPerTick = 15f;
+    public const float BaseControlFactor = 0.85f;
+    public const float BaseFrictionFactor = 1.15f;
     public const float JumpStrengthToJumpSpeed = SourceTicksPerSecond;
+    public const float DefaultJumpStrength = 8f + (GravityPerTick / 2f);
     public const float GravityPerTick = 0.6f;
-    public const float RisingBlastLiftPerTick = -0.1f;
+    public const float BlastGravityPerTick = 0.54f;
     public const float MaxFallSpeedPerTick = 10f;
-    public const float StopSpeedThresholdPerTick = 0.2f;
-    public const float IntelSpeedFactorCap = 0.75f;
+    public const float StopSpeedThresholdPerTick = 0.195f;
 
-    private const float NormalSpeedFactor = 0.85f;
-    private const float ExplosionRecoverySpeedFactor = 0.65f;
-    private const float RocketJuggleSpeedFactor = 0.17f;
-    private const float AirblastSpeedFactor = 0.1f;
-
-    private const float NormalHorizontalDivisor = 1.15f;
-    private const float RocketJuggleHorizontalDivisor = 1.04f;
-    private const float AirblastHorizontalDivisor = 1.002f;
+    private const float HalfSourceTick = 0.5f;
+    private const float SelfBlastControlFactor = 0.65f;
+    private const float EnemyBlastControlFactor = 0.45f;
+    private const float AirblastControlFactor = 0.35f;
+    private const float IntelControlFactor = BaseControlFactor - 0.1f;
+    private const float SelfBlastFrictionFactor = 1f;
+    private const float EnemyBlastFrictionFactor = 1.05f;
+    private const float AirblastFrictionFactor = 1.05f;
+    private const float FriendlyBlastFrictionFactor = 1f;
 
     public static float GetGravityPerSecondSquared()
     {
@@ -41,16 +46,17 @@ public static class LegacyMovementModel
 
     public static float GetMaxRunSpeed(float runPower)
     {
-        var steadyStatePerTick = (runPower * NormalSpeedFactor / NormalHorizontalDivisor) / (1f - (1f / NormalHorizontalDivisor));
-        return steadyStatePerTick * SourceTicksPerSecond;
+        return GetMaxRunSpeedPerSourceTick(runPower) * SourceTicksPerSecond;
     }
 
     public static float GetContinuousRunDrive(float runPower)
     {
-        var divisor = NormalHorizontalDivisor;
-        var decayPerSourceTick = 1f / divisor;
-        var drivePerSecond = (runPower * NormalSpeedFactor * SourceTicksPerSecond) / divisor;
-        return drivePerSecond * GetDecayRatio(divisor) / (1f - decayPerSourceTick);
+        var divisor = GetDeltaMultiplier(BaseFrictionFactor, HalfSourceTick);
+        var perHalfTickDrive = runPower * BaseControlFactor * HalfSourceTick;
+        var steadyStatePerSourceTick = GetMaxRunSpeedPerSourceTick(runPower);
+        return steadyStatePerSourceTick <= 0f
+            ? 0f
+            : (perHalfTickDrive / divisor) * SourceTicksPerSecond * 2f;
     }
 
     public static float AdvanceHorizontalSpeed(
@@ -62,31 +68,70 @@ public static class LegacyMovementModel
         bool isCarryingIntel,
         float deltaSeconds)
     {
+        return AdvanceHorizontalSpeed(
+            currentSpeed,
+            runPower,
+            movementScale,
+            horizontalDirection != 0f,
+            horizontalDirection,
+            state,
+            isCarryingIntel,
+            deltaSeconds);
+    }
+
+    public static float AdvanceHorizontalSpeed(
+        float currentSpeed,
+        float runPower,
+        float movementScale,
+        bool hasHorizontalInput,
+        float horizontalDirection,
+        LegacyMovementState state,
+        bool isCarryingIntel,
+        float deltaSeconds)
+    {
         if (deltaSeconds <= 0f)
         {
             return currentSpeed;
         }
 
-        var divisor = GetHorizontalDivisor(state);
-        var decayPerSourceTick = 1f / divisor;
-        var decay = MathF.Pow(decayPerSourceTick, SourceTicksPerSecond * deltaSeconds);
-        var speedFactor = GetSpeedFactor(state);
-        if (isCarryingIntel && speedFactor > IntelSpeedFactorCap)
+        var controlling = horizontalDirection != 0f && movementScale > 0f;
+        var speedPerTick = currentSpeed / SourceTicksPerSecond;
+        var baseMaxSpeedPerTick = GetMaxRunSpeedPerSourceTick(runPower);
+        var remainingSourceTicks = SourceTicksPerSecond * deltaSeconds;
+        while (remainingSourceTicks > 0f)
         {
-            speedFactor = IntelSpeedFactorCap;
+            var stepSourceTicks = MathF.Min(HalfSourceTick, remainingSourceTicks);
+            if (controlling)
+            {
+                speedPerTick += horizontalDirection
+                    * runPower
+                    * movementScale
+                    * GetControlFactor(state, isCarryingIntel)
+                    * stepSourceTicks;
+            }
+
+            var frictionFactor = GetAppliedFrictionFactor(speedPerTick, baseMaxSpeedPerTick, hasHorizontalInput, state);
+            speedPerTick /= GetDeltaMultiplier(frictionFactor, stepSourceTicks);
+            remainingSourceTicks -= stepSourceTicks;
         }
 
-        var nextSpeed = currentSpeed * decay;
-        if (horizontalDirection != 0f && movementScale > 0f)
+        if (!controlling && MathF.Abs(speedPerTick) < StopSpeedThresholdPerTick)
         {
-            var perSourceTickInput = horizontalDirection * runPower * movementScale * speedFactor;
-            var sourceTickContribution = (perSourceTickInput * SourceTicksPerSecond) / divisor;
-            nextSpeed += sourceTickContribution * GetDecayBlend(decay, divisor);
+            return 0f;
         }
 
-        return MathF.Abs(nextSpeed) < StopSpeedThresholdPerTick * SourceTicksPerSecond
-            ? 0f
-            : nextSpeed;
+        return speedPerTick * SourceTicksPerSecond;
+    }
+
+    public static float AdvanceVerticalSpeedHalfStep(float currentSpeed, float gravityPerTick, float deltaSeconds)
+    {
+        if (deltaSeconds <= 0f || gravityPerTick <= 0f)
+        {
+            return currentSpeed;
+        }
+
+        var nextSpeed = currentSpeed + (gravityPerTick * SourceTicksPerSecond * SourceTicksPerSecond * deltaSeconds * 0.5f);
+        return MathF.Min(nextSpeed, MaxFallSpeedPerTick * SourceTicksPerSecond);
     }
 
     public static float AdvanceVerticalSpeed(
@@ -95,55 +140,69 @@ public static class LegacyMovementModel
         float deltaSeconds,
         ref LegacyMovementState state)
     {
-        if (state != LegacyMovementState.None && currentSpeed >= 0f)
-        {
-            state = LegacyMovementState.None;
-        }
-
-        if (deltaSeconds <= 0f || !isAirborne)
+        if (!isAirborne || deltaSeconds <= 0f)
         {
             return currentSpeed;
         }
 
-        var gravityPerSecondSquared = GetGravityPerSecondSquared();
-        if (state != LegacyMovementState.None && currentSpeed < 0f)
+        var gravityPerTick = GetAirborneGravityPerTick(state);
+        var nextSpeed = AdvanceVerticalSpeedHalfStep(currentSpeed, gravityPerTick, deltaSeconds);
+        return AdvanceVerticalSpeedHalfStep(nextSpeed, gravityPerTick, deltaSeconds);
+    }
+
+    public static float GetAirborneGravityPerTick(LegacyMovementState state)
+    {
+        return state switch
         {
-            gravityPerSecondSquared += RisingBlastLiftPerTick * SourceTicksPerSecond * SourceTicksPerSecond;
+            LegacyMovementState.ExplosionRecovery => BlastGravityPerTick,
+            LegacyMovementState.RocketJuggle => BlastGravityPerTick,
+            LegacyMovementState.FriendlyJuggle => BlastGravityPerTick,
+            _ => GravityPerTick,
+        };
+    }
+
+    private static float GetMaxRunSpeedPerSourceTick(float runPower)
+    {
+        return MathF.Abs(runPower * BaseControlFactor / (BaseFrictionFactor - 1f));
+    }
+
+    private static float GetControlFactor(LegacyMovementState state, bool isCarryingIntel)
+    {
+        return state switch
+        {
+            LegacyMovementState.ExplosionRecovery => SelfBlastControlFactor,
+            LegacyMovementState.RocketJuggle => EnemyBlastControlFactor,
+            LegacyMovementState.Airblast => AirblastControlFactor,
+            LegacyMovementState.FriendlyJuggle => BaseControlFactor,
+            _ => isCarryingIntel ? IntelControlFactor : BaseControlFactor,
+        };
+    }
+
+    private static float GetAppliedFrictionFactor(
+        float speedPerTick,
+        float baseMaxSpeedPerTick,
+        bool hasHorizontalInput,
+        LegacyMovementState state)
+    {
+        var absoluteSpeed = MathF.Abs(speedPerTick);
+        if (absoluteSpeed > baseMaxSpeedPerTick * 2f
+            || (hasHorizontalInput && absoluteSpeed < baseMaxSpeedPerTick))
+        {
+            return BaseFrictionFactor;
         }
 
-        var nextSpeed = currentSpeed + gravityPerSecondSquared * deltaSeconds;
-        return MathF.Min(nextSpeed, MaxFallSpeedPerTick * SourceTicksPerSecond);
-    }
-
-    private static float GetDecayBlend(float decay, float divisor)
-    {
-        var decayPerSourceTick = 1f / divisor;
-        return (1f - decay) / (1f - decayPerSourceTick);
-    }
-
-    private static float GetDecayRatio(float divisor)
-    {
-        return SourceTicksPerSecond * MathF.Log(divisor);
-    }
-
-    private static float GetSpeedFactor(LegacyMovementState state)
-    {
         return state switch
         {
-            LegacyMovementState.ExplosionRecovery => ExplosionRecoverySpeedFactor,
-            LegacyMovementState.RocketJuggle => RocketJuggleSpeedFactor,
-            LegacyMovementState.Airblast => AirblastSpeedFactor,
-            _ => NormalSpeedFactor,
+            LegacyMovementState.ExplosionRecovery => SelfBlastFrictionFactor,
+            LegacyMovementState.RocketJuggle => EnemyBlastFrictionFactor,
+            LegacyMovementState.Airblast => AirblastFrictionFactor,
+            LegacyMovementState.FriendlyJuggle => FriendlyBlastFrictionFactor,
+            _ => BaseFrictionFactor,
         };
     }
 
-    private static float GetHorizontalDivisor(LegacyMovementState state)
+    private static float GetDeltaMultiplier(float factor, float sourceTickFraction)
     {
-        return state switch
-        {
-            LegacyMovementState.RocketJuggle => RocketJuggleHorizontalDivisor,
-            LegacyMovementState.Airblast => AirblastHorizontalDivisor,
-            _ => NormalHorizontalDivisor,
-        };
+        return (factor * sourceTickFraction) + (1f - sourceTickFraction);
     }
 }

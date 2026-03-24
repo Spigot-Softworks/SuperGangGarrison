@@ -140,7 +140,7 @@ public static class CharacterClassCatalog
         Scattergun,
         maxHealth: 100,
         runPower: 1.4f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 1,
         tauntLengthFrames: 8);
 
@@ -150,7 +150,7 @@ public static class CharacterClassCatalog
         Shotgun,
         maxHealth: 120,
         runPower: 1f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 12);
 
@@ -160,7 +160,7 @@ public static class CharacterClassCatalog
         Flamethrower,
         maxHealth: 120,
         runPower: 1.1f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 9);
 
@@ -170,7 +170,7 @@ public static class CharacterClassCatalog
         RocketLauncher,
         maxHealth: 175,
         runPower: 0.9f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 15);
 
@@ -180,7 +180,7 @@ public static class CharacterClassCatalog
         MineLauncher,
         maxHealth: 120,
         runPower: 1f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 10);
 
@@ -190,7 +190,7 @@ public static class CharacterClassCatalog
         Minigun,
         maxHealth: 200,
         runPower: 0.8f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 11);
 
@@ -200,7 +200,7 @@ public static class CharacterClassCatalog
         Rifle,
         maxHealth: 120,
         runPower: 0.9f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 12);
 
@@ -210,7 +210,7 @@ public static class CharacterClassCatalog
         Medigun,
         maxHealth: 120,
         runPower: 1.09f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 10);
 
@@ -220,7 +220,7 @@ public static class CharacterClassCatalog
         Revolver,
         maxHealth: 100,
         runPower: 1.08f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 10);
 
@@ -230,7 +230,7 @@ public static class CharacterClassCatalog
         Blade,
         maxHealth: 140,
         runPower: 1.07f,
-        jumpStrength: 8f,
+        jumpStrength: LegacyMovementModel.DefaultJumpStrength,
         maxAirJumps: 0,
         tauntLengthFrames: 16);
 

@@ -10,8 +10,10 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f);
+        var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
+        var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
+        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
 
         SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f);
 
@@ -27,7 +29,9 @@ public sealed partial class SimulationWorld
                 rotationRange: gibPart.RotationRange,
                 lifetimeTicks: gibPart.LifetimeTicks,
                 horizontalFriction: gibPart.HorizontalFriction,
-                rotationFriction: gibPart.RotationFriction);
+                rotationFriction: gibPart.RotationFriction,
+                inheritedVelocityX: gibPart.InheritPlayerVelocity ? inheritedVelocityX : 0f,
+                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f);
         }
     }
 
@@ -43,13 +47,15 @@ public sealed partial class SimulationWorld
         int lifetimeTicks = 250,
         float horizontalFriction = 0.4f,
         float rotationFriction = 0.5f,
-        float bloodChance = PlayerGibEntity.DefaultBloodChance)
+        float bloodChance = PlayerGibEntity.DefaultBloodChance,
+        float inheritedVelocityX = 0f,
+        float inheritedVelocityY = 0f)
     {
         for (var index = 0; index < count; index += 1)
         {
             var resolvedFrameIndex = frameIndex ?? _random.Next(randomFrameCount);
-            var velocityX = (_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
-            var velocityY = (_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
+            var velocityX = inheritedVelocityX + ((_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX);
+            var velocityY = inheritedVelocityY + ((_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY);
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
             var gib = new PlayerGibEntity(
                 AllocateEntityId(),
@@ -76,51 +82,51 @@ public sealed partial class SimulationWorld
             case PlayerClass.Scout:
                 yield return new PlayerGibPartDefinition("HeadS", 6, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 0, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Pyro:
                 yield return new PlayerGibPartDefinition("HeadS", 7, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
-                yield return new PlayerGibPartDefinition("AccesoryS", 4, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f);
+                yield return new PlayerGibPartDefinition("AccesoryS", 4, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true);
                 yield return new PlayerGibPartDefinition("FeetS", 1, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Soldier:
                 yield return new PlayerGibPartDefinition("HeadS", 1, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 2, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
-                yield return new PlayerGibPartDefinition("AccesoryS", player.Team == PlayerTeam.Blue ? 2 : 1, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f);
+                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
+                yield return new PlayerGibPartDefinition("AccesoryS", player.Team == PlayerTeam.Blue ? 2 : 1, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Heavy:
                 yield return new PlayerGibPartDefinition("HeadS", 2, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 3, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 1, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Demoman:
                 yield return new PlayerGibPartDefinition("HeadS", 4, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 4, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Medic:
                 yield return new PlayerGibPartDefinition("HeadS", 5, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 4, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", player.Team == PlayerTeam.Blue ? 3 : 2, 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", player.Team == PlayerTeam.Blue ? 3 : 2, 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Engineer:
                 yield return new PlayerGibPartDefinition("HeadS", 8, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
-                yield return new PlayerGibPartDefinition("AccesoryS", 3, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f);
+                yield return new PlayerGibPartDefinition("AccesoryS", 3, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true);
                 yield return new PlayerGibPartDefinition("FeetS", 5, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Spy:
                 yield return new PlayerGibPartDefinition("HeadS", 3, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
                 yield return new PlayerGibPartDefinition("FeetS", 6, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
             case PlayerClass.Sniper:
                 yield return new PlayerGibPartDefinition("HeadS", 0, 1, 8f, 9f, 52f, 250, 0.5f, 0.5f);
-                yield return new PlayerGibPartDefinition("AccesoryS", 0, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f);
+                yield return new PlayerGibPartDefinition("AccesoryS", 0, 1, 8f, 9f, 52f, 250, 0.4f, 0.2f, InheritPlayerVelocity: true);
                 yield return new PlayerGibPartDefinition("FeetS", 6, DefaultGibLevel - 1, 2f, 0f, 6f, 250, 0.3f, 0.4f);
-                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f);
+                yield return new PlayerGibPartDefinition("HandS", 0, DefaultGibLevel - 1, 8f, 9f, 52f, 250, 0.4f, 0.5f, InheritPlayerVelocity: true);
                 break;
         }
     }

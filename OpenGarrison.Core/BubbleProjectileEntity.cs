@@ -2,10 +2,18 @@ namespace OpenGarrison.Core;
 
 public sealed class BubbleProjectileEntity : SimulationEntity
 {
-    public const int LifetimeTicks = 390;
-    public const float DamagePerTouch = 0.35f;
+    public const int LifetimeTicks = 155;
+    public const float DamagePerHit = 0.75f;
     public const float MaxDistanceFromOwner = 160f;
     public const float Radius = 6f;
+    public const float SelfPopRadius = 4f;
+    private const float OwnerVelocityCarryFactor = 0.2f;
+    private const float AimAccelerationPerSourceTick = 2f;
+    private const float HomeDistance = 90f;
+    private const float HomeDistanceResponseDivisor = 4f;
+    private const float StabilizeBoostPerSourceTick = 2.2f;
+    private const float StabilizeFactor = 0.6f;
+    private const float SameTeamRepelSpeed = 0.5f;
 
     public BubbleProjectileEntity(
         int id,
@@ -14,7 +22,8 @@ public sealed class BubbleProjectileEntity : SimulationEntity
         float x,
         float y,
         float velocityX,
-        float velocityY) : base(id)
+        float velocityY,
+        int ticksRemaining = LifetimeTicks) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -22,7 +31,7 @@ public sealed class BubbleProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
-        TicksRemaining = LifetimeTicks;
+        TicksRemaining = ticksRemaining;
     }
 
     public PlayerTeam Team { get; }
@@ -45,44 +54,63 @@ public sealed class BubbleProjectileEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
-    public void AdvanceOneTick(float ownerX, float ownerY, float ownerVelocityX, float ownerVelocityY, float aimDirectionDegrees)
+    public void AdvanceOneTick(float ownerX, float ownerY, float ownerHorizontalSpeed, float ownerVerticalSpeed, float aimDirectionDegrees, float deltaSeconds)
     {
         PreviousX = X;
         PreviousY = Y;
+        var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
 
         var aimRadians = aimDirectionDegrees * (MathF.PI / 180f);
-        VelocityX += MathF.Cos(aimRadians) * 0.3f;
-        VelocityY += MathF.Sin(aimRadians) * 0.3f;
-        VelocityX += ownerVelocityX * 0.015f;
-        VelocityY += ownerVelocityY * 0.015f;
+        VelocityX += MathF.Cos(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
+        VelocityY += MathF.Sin(aimRadians) * AimAccelerationPerSourceTick * sourceDelta;
+        VelocityX += (ownerHorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond) * OwnerVelocityCarryFactor * sourceDelta;
+        VelocityY += (ownerVerticalSpeed / LegacyMovementModel.SourceTicksPerSecond) * OwnerVelocityCarryFactor * sourceDelta;
 
-        var deltaX = ownerX - X;
-        var deltaY = ownerY - Y;
+        var deltaX = X - ownerX;
+        var deltaY = Y - ownerY;
         var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
         if (distance > 0.001f)
         {
-            var pull = distance < 90f ? -1.5f : 1.2f;
+            var pull = -AimAccelerationPerSourceTick * MathF.Atan((distance - HomeDistance) / HomeDistanceResponseDivisor) * sourceDelta;
             VelocityX += (deltaX / distance) * pull;
             VelocityY += (deltaY / distance) * pull;
         }
 
-        VelocityX *= 0.6f;
-        VelocityY *= 0.6f;
-        X += VelocityX;
-        Y += VelocityY;
+        StabilizeSpeed(sourceDelta);
+        X += VelocityX * sourceDelta;
+        Y += VelocityY * sourceDelta;
         TicksRemaining -= 1;
     }
 
-    public void Bounce()
+    public void AddRepulsionFrom(float otherX, float otherY)
     {
-        VelocityX *= -0.8f;
-        VelocityY *= -0.8f;
-        TicksRemaining -= 8;
+        var deltaX = otherX - X;
+        var deltaY = otherY - Y;
+        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        if (distance <= 0.001f)
+        {
+            return;
+        }
+
+        VelocityX += (deltaX / distance) * -SameTeamRepelSpeed;
+        VelocityY += (deltaY / distance) * -SameTeamRepelSpeed;
     }
 
-    public void OnCharacterHit()
+    public void SetVelocity(float velocityX, float velocityY)
     {
-        TicksRemaining -= 70;
+        VelocityX = velocityX;
+        VelocityY = velocityY;
+    }
+
+    public void HalveLifetimeOrDestroy(int thresholdTicks)
+    {
+        if (TicksRemaining > thresholdTicks)
+        {
+            TicksRemaining /= 2;
+            return;
+        }
+
+        Destroy();
     }
 
     public void MoveTo(float x, float y)
@@ -105,5 +133,24 @@ public sealed class BubbleProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
+    }
+
+    private void StabilizeSpeed(float sourceDelta)
+    {
+        var speed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
+        if (speed <= 0.0001f)
+        {
+            return;
+        }
+
+        var stabilizedSpeed = (speed + (StabilizeBoostPerSourceTick * sourceDelta)) * GetDeltaMultiplier(StabilizeFactor, sourceDelta);
+        var speedScale = stabilizedSpeed / speed;
+        VelocityX *= speedScale;
+        VelocityY *= speedScale;
+    }
+
+    private static float GetDeltaMultiplier(float factor, float sourceTickFraction)
+    {
+        return (factor * sourceTickFraction) + (1f - sourceTickFraction);
     }
 }
