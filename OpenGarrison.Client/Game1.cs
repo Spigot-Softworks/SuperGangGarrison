@@ -119,6 +119,7 @@ public partial class Game1 : Game
     private bool _scoreboardOpen;
     private float _scoreboardAlpha = 0.02f;
     private bool _chatOpen;
+    private bool _chatTeamOnly;
     private bool _chatSubmitAwaitingOpenKeyRelease;
     private string _chatInput = string.Empty;
     private BubbleMenuKind _bubbleMenuKind;
@@ -205,6 +206,7 @@ public partial class Game1 : Game
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _gibLevel = 3;
+    private int _corpseDurationMode;
     private bool _healerRadarEnabled = true;
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
@@ -298,7 +300,7 @@ public partial class Game1 : Game
         var clientTicks = ConsumeClientTickCount(gameTime);
         var windowActive = IsActive;
         var keyboard = windowActive ? Keyboard.GetState() : default;
-        var mouse = windowActive ? GetScaledMouseState(Mouse.GetState()) : default;
+        var mouse = windowActive ? GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState())) : default;
         if (!_wasWindowActive && windowActive)
         {
             _previousKeyboard = keyboard;
@@ -389,11 +391,12 @@ public partial class Game1 : Game
 
     private sealed class ChatLine
     {
-        public ChatLine(string playerName, string text, byte team)
+        public ChatLine(string playerName, string text, byte team, bool teamOnly)
         {
             PlayerName = playerName;
             Text = text;
             Team = team;
+            TeamOnly = teamOnly;
             TicksRemaining = 600;
         }
 
@@ -402,6 +405,8 @@ public partial class Game1 : Game
         public string Text { get; }
 
         public byte Team { get; }
+
+        public bool TeamOnly { get; }
 
         public int TicksRemaining { get; set; }
     }

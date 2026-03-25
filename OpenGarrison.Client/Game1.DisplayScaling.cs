@@ -115,6 +115,37 @@ public partial class Game1
             rawMouse.XButton2);
     }
 
+    private MouseState GetConstrainedMouseState(MouseState rawMouse)
+    {
+        if (!_graphics.IsFullScreen || !IsActive)
+        {
+            return rawMouse;
+        }
+
+        var destination = GetPresentationDestinationRectangle();
+        if (destination.Width <= 0 || destination.Height <= 0)
+        {
+            return rawMouse;
+        }
+
+        var clampedX = Math.Clamp(rawMouse.X, destination.Left, destination.Right - 1);
+        var clampedY = Math.Clamp(rawMouse.Y, destination.Top, destination.Bottom - 1);
+        if (clampedX != rawMouse.X || clampedY != rawMouse.Y)
+        {
+            Mouse.SetPosition(clampedX, clampedY);
+        }
+
+        return new MouseState(
+            clampedX,
+            clampedY,
+            rawMouse.ScrollWheelValue,
+            rawMouse.LeftButton,
+            rawMouse.MiddleButton,
+            rawMouse.RightButton,
+            rawMouse.XButton1,
+            rawMouse.XButton2);
+    }
+
     private void ApplyPreferredBackBufferSize(bool fullscreen, IngameResolutionKind ingameResolution)
     {
         var preferredDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution);

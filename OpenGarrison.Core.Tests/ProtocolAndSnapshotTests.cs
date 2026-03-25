@@ -66,9 +66,32 @@ public sealed class ProtocolAndSnapshotTests
     }
 
     [Fact]
+    public void ProtocolCodec_RoundTripsTeamOnlyChatMessages()
+    {
+        var submit = new ChatSubmitMessage("Need help left", TeamOnly: true);
+        var relay = new ChatRelayMessage((byte)PlayerTeam.Blue, "Alice", "Incoming right", TeamOnly: true);
+
+        var submitPayload = ProtocolCodec.Serialize(submit);
+        var submitSuccess = ProtocolCodec.TryDeserialize(submitPayload, out var decodedSubmit);
+        var relayPayload = ProtocolCodec.Serialize(relay);
+        var relaySuccess = ProtocolCodec.TryDeserialize(relayPayload, out var decodedRelay);
+
+        Assert.True(submitSuccess);
+        Assert.True(relaySuccess);
+        Assert.Equal(submit, Assert.IsType<ChatSubmitMessage>(decodedSubmit));
+        Assert.Equal(relay, Assert.IsType<ChatRelayMessage>(decodedRelay));
+    }
+
+    [Fact]
     public void ProtocolCodec_RoundTripsSnapshotMessage()
     {
-        var snapshot = CreateSnapshot();
+        var snapshot = CreateSnapshot() with
+        {
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(901, (byte)PlayerTeam.Red, 412f, 318f, 22),
+            ],
+        };
 
         var payload = ProtocolCodec.Serialize(snapshot);
         var success = ProtocolCodec.TryDeserialize(payload, out var decoded);
@@ -97,6 +120,8 @@ public sealed class ProtocolAndSnapshotTests
         Assert.True(decodedSnapshot.CombatTraces[0].IsSniperTracer);
         Assert.Equal(snapshot.ControlPoints.Count, decodedSnapshot.ControlPoints.Count);
         Assert.Equal(snapshot.Generators.Count, decodedSnapshot.Generators.Count);
+        Assert.Single(decodedSnapshot.SentryGibs);
+        Assert.Equal(901, decodedSnapshot.SentryGibs[0].Id);
     }
 
     [Fact]
@@ -110,7 +135,12 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotSentryState(501, 1, (byte)PlayerTeam.Red, 300f, 250f, 60, false, 1f, 1f, 15f, 2, 1, 1, true, true, 2, 330f, 255f),
             ],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(901, (byte)PlayerTeam.Blue, 410f, 320f, 18),
+            ],
             RemovedShotIds = [601, 602],
+            RemovedSentryGibIds = [900],
         };
 
         var payload = ProtocolCodec.Serialize(snapshot);
@@ -122,6 +152,8 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(41UL, decodedSnapshot.BaselineFrame);
         Assert.Single(decodedSnapshot.Sentries);
         Assert.Equal(new[] { 601, 602 }, decodedSnapshot.RemovedShotIds);
+        Assert.Single(decodedSnapshot.SentryGibs);
+        Assert.Equal(new[] { 900 }, decodedSnapshot.RemovedSentryGibIds);
     }
 
     [Fact]
@@ -139,12 +171,15 @@ public sealed class ProtocolAndSnapshotTests
                     BurnIntensityDecayPerSourceTick = 0.05f,
                     BurnedByPlayerId = 2,
                     MovementState = (byte)LegacyMovementState.RocketJuggle,
+                    MedicNeedleCooldownTicks = 3,
+                    MedicNeedleRefillTicks = 41,
                     PyroAirblastCooldownTicks = 12,
                     PyroFlareCooldownTicks = 27,
                     PyroPrimaryFuelScaled = 182,
                     IsPyroPrimaryRefilling = true,
                     PyroFlameLoopTicksRemaining = 2,
                     PyroPrimaryRequiresReleaseAfterEmpty = true,
+                    HeavyEatCooldownTicksRemaining = 412,
                 },
                 CreateSnapshot().Players[1],
             ],
@@ -162,12 +197,47 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(0.05f, player.BurnIntensityDecayPerSourceTick);
         Assert.Equal(2, player.BurnedByPlayerId);
         Assert.Equal((byte)LegacyMovementState.RocketJuggle, player.MovementState);
+        Assert.Equal(3, player.MedicNeedleCooldownTicks);
+        Assert.Equal(41, player.MedicNeedleRefillTicks);
         Assert.Equal(12, player.PyroAirblastCooldownTicks);
         Assert.Equal(27, player.PyroFlareCooldownTicks);
         Assert.Equal(182, player.PyroPrimaryFuelScaled);
         Assert.True(player.IsPyroPrimaryRefilling);
         Assert.Equal(2, player.PyroFlameLoopTicksRemaining);
         Assert.True(player.PyroPrimaryRequiresReleaseAfterEmpty);
+        Assert.Equal(412, player.HeavyEatCooldownTicksRemaining);
+    }
+
+    [Fact]
+    public void ApplySnapshot_RestoresLocalPlayerMedicNeedleReloadState()
+    {
+        var world = new SimulationWorld();
+        var snapshot = CreateSnapshot() with
+        {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
+            Players =
+            [
+                CreateSnapshot().Players[0] with
+                {
+                    ClassId = (byte)PlayerClass.Medic,
+                    Ammo = 39,
+                    MaxAmmo = 40,
+                    MedicNeedleCooldownTicks = 2,
+                    MedicNeedleRefillTicks = 37,
+                },
+                CreateSnapshot().Players[1],
+            ],
+        };
+
+        var applied = world.ApplySnapshot(snapshot, localPlayerSlot: 1);
+
+        Assert.True(applied);
+        Assert.Equal(PlayerClass.Medic, world.LocalPlayer.ClassId);
+        Assert.Equal(39, world.LocalPlayer.CurrentShells);
+        Assert.Equal(2, world.LocalPlayer.MedicNeedleCooldownTicks);
+        Assert.Equal(37, world.LocalPlayer.MedicNeedleRefillTicks);
     }
 
     [Fact]
@@ -580,6 +650,10 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotDeadBodyState(609, (byte)PlayerTeam.Red, (byte)PlayerClass.Soldier, 390f, 305f, 24f, 36f, 0f, 1f, false, 25),
             ],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(611, (byte)PlayerTeam.Blue, 396f, 307f, 24),
+            ],
         };
 
         var applied = world.ApplySnapshot(snapshot, localPlayerSlot: 1);
@@ -596,6 +670,7 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Single(world.PlayerGibs);
         Assert.Single(world.BloodDrops);
         Assert.Single(world.DeadBodies);
+        Assert.Single(world.SentryGibs);
         Assert.Equal(1.6f, world.BloodDrops[0].Scale);
     }
 
@@ -620,12 +695,17 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotDeadBodyState(609, (byte)PlayerTeam.Red, (byte)PlayerClass.Soldier, 390f, 305f, 24f, 36f, 0f, 1f, false, 25),
             ],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(611, (byte)PlayerTeam.Blue, 396f, 307f, 24),
+            ],
         };
 
         Assert.True(world.ApplySnapshot(initialSnapshot, localPlayerSlot: 1));
         var initialShot = Assert.Single(world.Shots);
         var initialRocket = Assert.Single(world.Rockets);
         var initialDeadBody = Assert.Single(world.DeadBodies);
+        var initialSentryGib = Assert.Single(world.SentryGibs);
 
         var updatedSnapshot = initialSnapshot with
         {
@@ -642,12 +722,17 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotDeadBodyState(609, (byte)PlayerTeam.Red, (byte)PlayerClass.Soldier, 402f, 311f, 24f, 36f, 1.5f, -0.5f, false, 22),
             ],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(611, (byte)PlayerTeam.Blue, 399f, 309f, 19),
+            ],
         };
 
         Assert.True(world.ApplySnapshot(updatedSnapshot, localPlayerSlot: 1));
         var updatedShot = Assert.Single(world.Shots);
         var updatedRocket = Assert.Single(world.Rockets);
         var updatedDeadBody = Assert.Single(world.DeadBodies);
+        var updatedSentryGib = Assert.Single(world.SentryGibs);
 
         Assert.Same(initialShot, updatedShot);
         Assert.Equal(324f, updatedShot.X);
@@ -663,6 +748,11 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(402f, updatedDeadBody.X);
         Assert.Equal(311f, updatedDeadBody.Y);
         Assert.Equal(22, updatedDeadBody.TicksRemaining);
+
+        Assert.Same(initialSentryGib, updatedSentryGib);
+        Assert.Equal(399f, updatedSentryGib.X);
+        Assert.Equal(309f, updatedSentryGib.Y);
+        Assert.Equal(19, updatedSentryGib.TicksRemaining);
     }
 
     [Fact]
@@ -803,6 +893,10 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotBloodDropState(701, 380f, 300f, 0.5f, 1.5f, false, 11, 1.6f),
             ],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(901, (byte)PlayerTeam.Red, 392f, 308f, 21),
+            ],
         };
         var delta = CreateSnapshot() with
         {
@@ -818,6 +912,11 @@ public sealed class ProtocolAndSnapshotTests
             RemovedShotIds = [601],
             BloodDrops = [],
             RemovedBloodDropIds = [701],
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(901, (byte)PlayerTeam.Red, 396f, 310f, 17),
+                new SnapshotSentryGibState(902, (byte)PlayerTeam.Blue, 430f, 320f, 12),
+            ],
             DeadBodies =
             [
                 new SnapshotDeadBodyState(801, (byte)PlayerTeam.Blue, (byte)PlayerClass.Scout, 390f, 305f, 24f, 36f, 0f, 1f, false, 25),
@@ -831,8 +930,10 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(2, merged.Sentries.Count);
         Assert.Empty(merged.Shots);
         Assert.Empty(merged.BloodDrops);
+        Assert.Equal(2, merged.SentryGibs.Count);
         Assert.Single(merged.DeadBodies);
         Assert.Equal(502, merged.Sentries[1].Id);
+        Assert.Equal(902, merged.SentryGibs[1].Id);
         Assert.Equal(801, merged.DeadBodies[0].Id);
     }
 

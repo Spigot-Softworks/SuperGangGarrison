@@ -133,12 +133,6 @@ public partial class Game1
             return;
         }
 
-        if (_predictedLocalActionState.MedicNeedleCooldownTicks > 0)
-        {
-            _predictedLocalActionState.MedicNeedleRefillTicks = 0;
-            return;
-        }
-
         if (_predictedLocalActionState.MedicNeedleRefillTicks <= 0)
         {
             _predictedLocalActionState.MedicNeedleRefillTicks = PlayerEntity.MedicNeedleRefillTicksDefault;
@@ -148,10 +142,8 @@ public partial class Game1
         _predictedLocalActionState.MedicNeedleRefillTicks -= 1;
         if (_predictedLocalActionState.MedicNeedleRefillTicks <= 0)
         {
-            _predictedLocalActionState.CurrentShells = int.Min(maxShells, _predictedLocalActionState.CurrentShells + 1);
-            _predictedLocalActionState.MedicNeedleRefillTicks = _predictedLocalActionState.CurrentShells < maxShells
-                ? PlayerEntity.MedicNeedleRefillTicksDefault
-                : 0;
+            _predictedLocalActionState.CurrentShells = maxShells;
+            _predictedLocalActionState.MedicNeedleRefillTicks = 0;
         }
     }
 
@@ -282,6 +274,11 @@ public partial class Game1
         {
             if (player.TryFirePyroAirblast())
             {
+                if (predictedInput.Input.FirePrimary)
+                {
+                    player.TryFirePyroFlare();
+                }
+
                 SyncPredictedLocalPlayerState(player);
             }
 
@@ -312,6 +309,11 @@ public partial class Game1
 
     private bool TryPredictedFirePrimaryWeapon(PlayerEntity player)
     {
+        if (player.ClassId == PlayerClass.Demoman && CountPredictedLocalOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
+        {
+            return false;
+        }
+
         if (!player.TryFirePrimaryWeapon())
         {
             return false;
@@ -319,6 +321,20 @@ public partial class Game1
 
         SyncPredictedLocalPlayerState(player);
         return true;
+    }
+
+    private int CountPredictedLocalOwnedMines(int ownerId)
+    {
+        var count = 0;
+        foreach (var mine in _world.Mines)
+        {
+            if (mine.OwnerId == ownerId)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
     }
 
     private bool TryPredictedStartHeavySelfHeal(PlayerEntity player)

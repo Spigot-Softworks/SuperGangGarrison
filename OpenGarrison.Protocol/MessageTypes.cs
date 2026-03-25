@@ -90,7 +90,7 @@ public sealed record PasswordResultMessage(bool Accepted, string Reason) : IProt
     public MessageType Type => MessageType.PasswordResult;
 }
 
-public sealed record ChatSubmitMessage(string Text) : IProtocolMessage
+public sealed record ChatSubmitMessage(string Text, bool TeamOnly = false) : IProtocolMessage
 {
     public MessageType Type => MessageType.ChatSubmit;
 }
@@ -98,7 +98,8 @@ public sealed record ChatSubmitMessage(string Text) : IProtocolMessage
 public sealed record ChatRelayMessage(
     byte Team,
     string PlayerName,
-    string Text) : IProtocolMessage
+    string Text,
+    bool TeamOnly = false) : IProtocolMessage
 {
     public MessageType Type => MessageType.ChatRelay;
 }
@@ -222,12 +223,15 @@ public sealed record SnapshotPlayerState(
     byte MovementState = 0,
     int PrimaryCooldownTicks = 0,
     int ReloadTicksUntilNextShell = 0,
+    int MedicNeedleCooldownTicks = 0,
+    int MedicNeedleRefillTicks = 0,
     int PyroAirblastCooldownTicks = 0,
     int PyroFlareCooldownTicks = 0,
     int PyroPrimaryFuelScaled = 0,
     bool IsPyroPrimaryRefilling = false,
     int PyroFlameLoopTicksRemaining = 0,
-    bool PyroPrimaryRequiresReleaseAfterEmpty = false);
+    bool PyroPrimaryRequiresReleaseAfterEmpty = false,
+    int HeavyEatCooldownTicksRemaining = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -340,6 +344,13 @@ public sealed record SnapshotDeadBodyState(
     float HorizontalSpeed,
     float VerticalSpeed,
     bool FacingLeft,
+    int TicksRemaining);
+
+public sealed record SnapshotSentryGibState(
+    int Id,
+    byte Team,
+    float X,
+    float Y,
     int TicksRemaining);
 
 public sealed record SnapshotPlayerGibState(
@@ -470,6 +481,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedPlayerGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedBloodDropIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedDeadBodyIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
 
     public MessageType Type => MessageType.Snapshot;
 }

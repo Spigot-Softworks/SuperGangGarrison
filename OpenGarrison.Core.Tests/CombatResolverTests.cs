@@ -41,8 +41,8 @@ public sealed class CombatResolverTests
         var y = Midpoint(gate.Top, gate.Bottom);
         world.EnemyPlayer.TeleportTo(gate.Left - 12f, y);
 
-        Assert.True(world.CombatTestIsFlameSpawnBlocked(world.EnemyPlayer, gate.Right + 12f, y));
-        Assert.False(world.CombatTestIsFlameSpawnBlocked(world.EnemyPlayer, gate.Left - 24f, y));
+        Assert.True(world.CombatTestIsFlameSpawnBlocked(world.EnemyPlayer.X, world.EnemyPlayer.Y, gate.Right + 12f, y, world.EnemyPlayer.Team));
+        Assert.False(world.CombatTestIsFlameSpawnBlocked(world.EnemyPlayer.X, world.EnemyPlayer.Y, gate.Left - 24f, y, world.EnemyPlayer.Team));
     }
 
     [Fact]

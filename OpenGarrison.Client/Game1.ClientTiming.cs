@@ -132,11 +132,13 @@ public partial class Game1
             AdvanceChatHud();
             UpdateNoticeState();
             AdvanceExplosionVisuals();
+            AdvanceImpactVisuals();
             AdvanceBloodVisuals();
             AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
+            AdvanceLooseSheetVisuals();
 
             if (_autoBalanceNoticeTicks > 0)
             {

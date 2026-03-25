@@ -24,7 +24,7 @@ public readonly record struct PlayerTeamChangedEvent(byte Slot, string PlayerNam
 
 public readonly record struct PlayerClassChangedEvent(byte Slot, string PlayerName, PlayerClass PlayerClass);
 
-public readonly record struct ChatReceivedEvent(byte Slot, string PlayerName, string Text, PlayerTeam? Team);
+public readonly record struct ChatReceivedEvent(byte Slot, string PlayerName, string Text, PlayerTeam? Team, bool TeamOnly = false);
 
 public readonly record struct MapChangingEvent(
     string CurrentLevelName,

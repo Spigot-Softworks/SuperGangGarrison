@@ -52,14 +52,13 @@ public partial class Game1
 
     private bool IsChatShortcutHeld(KeyboardState keyboard)
     {
-        return keyboard.IsKeyDown(Keys.Enter)
-            || (!IsGameplayBindingKey(Keys.T) && keyboard.IsKeyDown(Keys.T));
+        return keyboard.IsKeyDown(Keys.Y)
+            || keyboard.IsKeyDown(Keys.U);
     }
 
-    private bool IsChatShortcutPressed(KeyboardState keyboard)
+    private bool IsChatShortcutPressed(KeyboardState keyboard, Keys key)
     {
-        return IsKeyPressed(keyboard, Keys.Enter)
-            || (!IsGameplayBindingKey(Keys.T) && IsKeyPressed(keyboard, Keys.T));
+        return IsKeyPressed(keyboard, key);
     }
 
     private void UpdateGameplayScreenState(KeyboardState keyboard)
@@ -73,22 +72,22 @@ public partial class Game1
             _chatSubmitAwaitingOpenKeyRelease = false;
         }
 
-        var openChatPressed = !_chatSubmitAwaitingOpenKeyRelease
-            && !IsGameplayMenuOpen()
-            && IsChatShortcutPressed(keyboard);
+        var canOpenChat = !_chatSubmitAwaitingOpenKeyRelease
+            && !IsGameplayMenuOpen();
+        var openPublicChatPressed = canOpenChat && IsChatShortcutPressed(keyboard, Keys.Y);
+        var openTeamChatPressed = canOpenChat && IsChatShortcutPressed(keyboard, Keys.U);
         var pausePressed = GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || escapePressed;
 
-        if (!_passwordPromptOpen && !_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_chatOpen && openChatPressed)
+        if (!_passwordPromptOpen && !_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_chatOpen
+            && (openPublicChatPressed || openTeamChatPressed))
         {
-            _chatOpen = true;
-            _chatInput = string.Empty;
+            OpenChat(teamOnly: openTeamChatPressed);
             return;
         }
 
         if (_chatOpen && escapePressed)
         {
-            _chatOpen = false;
-            _chatInput = string.Empty;
+            ResetChatInputState();
             return;
         }
 
@@ -122,8 +121,7 @@ public partial class Game1
         }
         else if (_chatOpen && escapePressed)
         {
-            _chatOpen = false;
-            _chatInput = string.Empty;
+            ResetChatInputState();
         }
         else if (_teamSelectOpen && escapePressed && !_world.LocalPlayerAwaitingJoin)
         {

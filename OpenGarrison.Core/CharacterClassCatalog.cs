@@ -70,7 +70,7 @@ public static class CharacterClassCatalog
         AmmoPerShot: 1,
         ProjectilesPerShot: 1,
         ReloadDelayTicks: 26,
-        AmmoReloadTicks: 20,
+        AmmoReloadTicks: 15,
         SpreadDegrees: 0f,
         MinShotSpeed: 12f,
         AdditionalRandomShotSpeed: 0f);

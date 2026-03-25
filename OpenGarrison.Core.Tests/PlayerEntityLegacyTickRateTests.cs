@@ -48,6 +48,20 @@ public sealed class PlayerEntityLegacyTickRateTests
     }
 
     [Fact]
+    public void MedicNeedleReload_StartsImmediatelyWhenNeedleIsFired()
+    {
+        var player = CreatePlayer(CharacterClassCatalog.Medic);
+
+        Assert.True(player.TryFireMedicNeedle());
+        Assert.Equal(PlayerEntity.MedicNeedleRefillTicksDefault, player.MedicNeedleRefillTicks);
+
+        AdvanceTicks(player, 6, 1d / 60d);
+
+        Assert.True(player.MedicNeedleRefillTicks < PlayerEntity.MedicNeedleRefillTicksDefault);
+        Assert.Equal(PlayerEntity.MedicNeedleRefillTicksDefault - 3, player.MedicNeedleRefillTicks);
+    }
+
+    [Fact]
     public void SixtyTickRate_ShotgunReloadWaitsForPrimaryCooldown()
     {
         var player = CreatePlayer(CharacterClassCatalog.Engineer);
@@ -65,6 +79,16 @@ public sealed class PlayerEntityLegacyTickRateTests
 
         Assert.Equal(shellsAfterShot, player.CurrentShells);
         Assert.True(player.ReloadTicksUntilNextShell < reloadTicksAfterShot);
+    }
+
+    [Fact]
+    public void DemomanMineLauncher_UsesSourceFifteenTickReloadDelay()
+    {
+        var player = CreatePlayer(CharacterClassCatalog.Demoman);
+
+        Assert.True(player.TryFirePrimaryWeapon());
+
+        Assert.Equal(15, player.ReloadTicksUntilNextShell);
     }
 
     [Fact]

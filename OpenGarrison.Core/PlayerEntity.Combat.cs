@@ -216,6 +216,7 @@ public sealed partial class PlayerEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
+        HeavyEatCooldownTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -269,6 +270,7 @@ public sealed partial class PlayerEntity
         Health = MaxHealth;
         Metal = MaxMetal;
         CurrentShells = PrimaryWeapon.MaxAmmo;
+        HeavyEatCooldownTicksRemaining = 0;
         ResetPyroPrimaryStateFromCurrentAmmo();
         ReloadTicksUntilNextShell = 0;
         MedicNeedleRefillTicks = 0;

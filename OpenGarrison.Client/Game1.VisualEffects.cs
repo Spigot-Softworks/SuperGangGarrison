@@ -12,7 +12,9 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private readonly List<ExplosionVisual> _explosions = new();
+    private readonly List<ImpactVisual> _impactVisuals = new();
     private readonly List<AirBlastVisual> _airBlasts = new();
+    private readonly List<BubblePopVisual> _bubblePops = new();
     private readonly List<BackstabVisual> _backstabVisuals = new();
     private readonly List<BloodVisual> _bloodVisuals = new();
     private readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
@@ -23,16 +25,19 @@ public partial class Game1
     private readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
     private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
+    private readonly List<LooseSheetVisual> _looseSheetVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
     private int _nextClientBackstabVisualId = -1;
-    private float _pendingWallspinDustSourceTicks;
 
     private void ResetTransientPresentationEffects()
     {
         _explosions.Clear();
+        _impactVisuals.Clear();
         _airBlasts.Clear();
+        _bubblePops.Clear();
+        ResetRetainedDeadBodies();
         ResetBackstabVisuals();
         _bloodVisuals.Clear();
         _bloodSprayVisuals.Clear();
@@ -43,8 +48,8 @@ public partial class Game1
         _wallspinDustVisuals.Clear();
         _blastJumpFlameVisuals.Clear();
         _flameSmokeVisuals.Clear();
+        _looseSheetVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
-        _pendingWallspinDustSourceTicks = 0f;
     }
 
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
@@ -91,6 +96,22 @@ public partial class Game1
             return;
         }
 
+        for (var index = _bubblePops.Count - 1; index >= 0; index -= 1)
+        {
+            var bubblePop = _bubblePops[index];
+            bubblePop.PendingSourceTicks += sourceTickAdvance;
+            while (bubblePop.PendingSourceTicks >= 1f && bubblePop.ElapsedSourceTicks < BubblePopVisual.LifetimeSourceTicks)
+            {
+                bubblePop.PendingSourceTicks -= 1f;
+                bubblePop.ElapsedSourceTicks += 1;
+            }
+
+            if (bubblePop.ElapsedSourceTicks >= BubblePopVisual.LifetimeSourceTicks)
+            {
+                _bubblePops.RemoveAt(index);
+            }
+        }
+
         for (var index = _explosions.Count - 1; index >= 0; index -= 1)
         {
             var explosion = _explosions[index];
@@ -105,6 +126,51 @@ public partial class Game1
             {
                 _explosions.RemoveAt(index);
             }
+        }
+    }
+
+    private void AdvanceImpactVisuals()
+    {
+        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+        if (sourceTickAdvance <= 0f)
+        {
+            return;
+        }
+
+        for (var index = _impactVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var impact = _impactVisuals[index];
+            impact.PendingSourceTicks += sourceTickAdvance;
+            while (impact.PendingSourceTicks >= 1f && impact.ElapsedSourceTicks < ImpactVisual.LifetimeSourceTicks)
+            {
+                impact.PendingSourceTicks -= 1f;
+                impact.ElapsedSourceTicks += 1;
+            }
+
+            if (impact.ElapsedSourceTicks >= ImpactVisual.LifetimeSourceTicks)
+            {
+                _impactVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void AdvanceLooseSheetVisuals()
+    {
+        for (var index = _looseSheetVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var sheet = _looseSheetVisuals[index];
+            sheet.TicksRemaining -= 1;
+            if (sheet.TicksRemaining <= 0)
+            {
+                _looseSheetVisuals.RemoveAt(index);
+                continue;
+            }
+
+            sheet.X += sheet.VelocityX;
+            sheet.Y += sheet.VelocityY;
+            sheet.VelocityX *= 0.985f;
+            sheet.VelocityY = MathF.Min(1.4f, sheet.VelocityY + 0.035f);
+            sheet.RotationRadians += sheet.RotationSpeedRadians;
         }
     }
 
@@ -249,21 +315,20 @@ public partial class Game1
         {
             var visual = _backstabVisuals[index];
             visual.PendingSourceTicks += sourceTickAdvance;
+            var removeVisual = false;
             while (visual.PendingSourceTicks >= 1f && !visual.Animation.IsExpired)
             {
                 visual.PendingSourceTicks -= 1f;
-                var ownerX = visual.Animation.X;
-                var ownerY = visual.Animation.Y;
-                if (TryGetBackstabOwnerPosition(visual.Animation.OwnerId, out var ownerPosition))
+                if (!TryGetBackstabOwnerPosition(visual.Animation.OwnerId, out var ownerPosition))
                 {
-                    ownerX = ownerPosition.X;
-                    ownerY = ownerPosition.Y;
+                    removeVisual = true;
+                    break;
                 }
 
-                visual.Animation.AdvanceOneTick(ownerX, ownerY);
+                visual.Animation.AdvanceOneTick(ownerPosition.X, ownerPosition.Y);
             }
 
-            if (visual.Animation.IsExpired)
+            if (removeVisual || visual.Animation.IsExpired)
             {
                 _backstabVisuals.RemoveAt(index);
             }
@@ -303,6 +368,12 @@ public partial class Game1
             _rocketSmokeVisuals.Add(new RocketSmokeVisual(
                 rocket.X - (velocityX * 1.3f),
                 rocket.Y - (velocityY * 1.3f)));
+            if (_particleMode == 0)
+            {
+                _rocketSmokeVisuals.Add(new RocketSmokeVisual(
+                    rocket.X - (velocityX * 0.75f),
+                    rocket.Y - (velocityY * 0.75f)));
+            }
         }
 
         for (var index = _rocketSmokeVisuals.Count - 1; index >= 0; index -= 1)
@@ -323,7 +394,6 @@ public partial class Game1
             _wallspinDustVisuals.Clear();
             _blastJumpFlameVisuals.Clear();
             _flameSmokeVisuals.Clear();
-            _pendingWallspinDustSourceTicks = 0f;
             return;
         }
 
@@ -394,26 +464,6 @@ public partial class Game1
 
     private void AdvanceWallspinDustVisuals()
     {
-        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
-        if (sourceTickAdvance > 0f)
-        {
-            _pendingWallspinDustSourceTicks += sourceTickAdvance;
-            var emissionTicks = (int)MathF.Floor(_pendingWallspinDustSourceTicks);
-            if (emissionTicks > 0)
-            {
-                _pendingWallspinDustSourceTicks -= emissionTicks;
-                foreach (var player in EnumerateRenderablePlayers())
-                {
-                    if (!player.IsAlive || !player.IsPerformingSourceSpinjump(_world.Level))
-                    {
-                        continue;
-                    }
-
-                    SpawnWallspinDustVisual(player, emissionTicks);
-                }
-            }
-        }
-
         for (var index = _wallspinDustVisuals.Count - 1; index >= 0; index -= 1)
         {
             _wallspinDustVisuals[index].TicksRemaining -= 1;
@@ -424,18 +474,13 @@ public partial class Game1
         }
     }
 
-    private void SpawnWallspinDustVisual(PlayerEntity player, int emissionTicks)
+    private void SpawnWallspinDustVisual(float x, float y, int emissionTicks = 1)
     {
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var dustX = player.IsSourceFacingLeft
-            ? renderPosition.X + player.CollisionRightOffset + 1f
-            : renderPosition.X + player.CollisionLeftOffset + 2f;
-        var dustY = renderPosition.Y + player.CollisionBottomOffset - 4f;
         for (var emissionIndex = 0; emissionIndex < emissionTicks; emissionIndex += 1)
         {
             _wallspinDustVisuals.Add(new WallspinDustVisual(
-                dustX,
-                dustY,
+                x,
+                y,
                 _visualRandom.Next(GetWallspinDustMinimumLifetimeTicks(), GetWallspinDustMaximumLifetimeTicks() + 1)));
         }
     }
@@ -450,7 +495,7 @@ public partial class Game1
 
         foreach (var mine in _world.Mines)
         {
-            if (mine.IsStickied || ((_world.Frame + mine.Id) & 1) != 0)
+            if (mine.IsStickied || (_particleMode == 2 && ((_world.Frame + mine.Id) & 1) != 0))
             {
                 continue;
             }
@@ -516,9 +561,9 @@ public partial class Game1
         {
             var smoke = _rocketSmokeVisuals[index];
             var progress = 1f - (smoke.TicksRemaining / (float)RocketSmokeVisual.LifetimeTicks);
-            var alpha = 0.5f * (1f - progress);
-            var radius = 3f + (progress * 6f);
-            var color = new Color(160, 160, 160) * alpha;
+            var alpha = 0.7f * (1f - progress);
+            var radius = 4f + (progress * 8f);
+            var color = new Color(176, 176, 176) * alpha;
             var smokeRectangle = new Rectangle(
                 (int)(smoke.X - radius - cameraPosition.X),
                 (int)(smoke.Y - radius - cameraPosition.Y),
@@ -549,6 +594,7 @@ public partial class Game1
     private void DrawExplosionVisuals(Vector2 cameraPosition)
     {
         DrawAirBlastVisuals(cameraPosition);
+        DrawBubblePopVisuals(cameraPosition);
         var sprite = _runtimeAssets.GetSprite("ExplosionS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -569,6 +615,93 @@ public partial class Game1
                 0f,
                 sprite.Origin.ToVector2(),
                 new Vector2(2.2f, 2.2f),
+                SpriteEffects.None,
+                0f);
+        }
+    }
+
+    private void DrawImpactVisuals(Vector2 cameraPosition)
+    {
+        var sprite = _runtimeAssets.GetSprite("ImpactS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _impactVisuals.Count; index += 1)
+        {
+            var impact = _impactVisuals[index];
+            var secondStage = impact.ElapsedSourceTicks >= (ImpactVisual.LifetimeSourceTicks / 2);
+            var alpha = secondStage ? 0.5f : 1f;
+            var scale = secondStage ? 1f : 0.5f;
+            _spriteBatch.Draw(
+                sprite.Frames[0],
+                new Vector2(impact.X - cameraPosition.X, impact.Y - cameraPosition.Y),
+                null,
+                Color.White * alpha,
+                impact.RotationRadians,
+                sprite.Origin.ToVector2(),
+                new Vector2(scale, scale),
+                SpriteEffects.None,
+                0f);
+        }
+    }
+
+    private void DrawLooseSheetVisuals(Vector2 cameraPosition)
+    {
+        for (var index = 0; index < _looseSheetVisuals.Count; index += 1)
+        {
+            var sheet = _looseSheetVisuals[index];
+            var sprite = _runtimeAssets.GetSprite(sheet.SpriteName);
+            var alpha = sheet.TicksRemaining <= LooseSheetVisual.FadeTicks
+                ? sheet.TicksRemaining / (float)LooseSheetVisual.FadeTicks
+                : 1f;
+            if (sprite is not null && sprite.Frames.Count > 0)
+            {
+                _spriteBatch.Draw(
+                    sprite.Frames[0],
+                    new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y),
+                    null,
+                    Color.White * alpha,
+                    sheet.RotationRadians,
+                    sprite.Origin.ToVector2(),
+                    new Vector2(2f, 2f),
+                    SpriteEffects.None,
+                    0f);
+                continue;
+            }
+
+            var rectangle = new Rectangle(
+                (int)(sheet.X - 5f - cameraPosition.X),
+                (int)(sheet.Y - 5f - cameraPosition.Y),
+                10,
+                10);
+            _spriteBatch.Draw(_pixel, rectangle, new Color(230, 230, 220) * alpha);
+        }
+    }
+
+    private void DrawBubblePopVisuals(Vector2 cameraPosition)
+    {
+        var sprite = _runtimeAssets.GetSprite("PopS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var bubblePop in _bubblePops)
+        {
+            var frameIndex = Math.Clamp(
+                (int)MathF.Floor(bubblePop.ElapsedSourceTicks * sprite.Frames.Count / (float)BubblePopVisual.LifetimeSourceTicks),
+                0,
+                sprite.Frames.Count - 1);
+            _spriteBatch.Draw(
+                sprite.Frames[frameIndex],
+                new Vector2(bubblePop.X - cameraPosition.X, bubblePop.Y - cameraPosition.Y),
+                null,
+                Color.White,
+                0f,
+                sprite.Origin.ToVector2(),
+                Vector2.One,
                 SpriteEffects.None,
                 0f);
         }
@@ -888,9 +1021,33 @@ public partial class Game1
             return;
         }
 
+        if (string.Equals(effectName, "Impact", StringComparison.OrdinalIgnoreCase))
+        {
+            _impactVisuals.Add(new ImpactVisual(x, y, directionDegrees * (MathF.PI / 180f)));
+            return;
+        }
+
         if (string.Equals(effectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
         {
             _airBlasts.Add(new AirBlastVisual(x, y, directionDegrees * (MathF.PI / 180f)));
+            return;
+        }
+
+        if (string.Equals(effectName, "Pop", StringComparison.OrdinalIgnoreCase))
+        {
+            _bubblePops.Add(new BubblePopVisual(x, y));
+            return;
+        }
+
+        if (string.Equals(effectName, "WallspinDust", StringComparison.OrdinalIgnoreCase))
+        {
+            SpawnWallspinDustVisual(x, y);
+            return;
+        }
+
+        if (string.Equals(effectName, "LooseSheet", StringComparison.OrdinalIgnoreCase))
+        {
+            SpawnLooseSheetVisual(x, y, directionDegrees);
             return;
         }
 
@@ -928,6 +1085,20 @@ public partial class Game1
         }
 
         SpawnBloodImpactVisuals(x, y, directionDegrees, Math.Max(1, count));
+    }
+
+    private void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
+    {
+        string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
+        var horizontalVelocity = (initialHorizontalSpeed / ClientUpdateTicksPerSecond) + ((_visualRandom.NextSingle() * 0.6f) - 0.3f);
+        var verticalVelocity = -0.8f - (_visualRandom.NextSingle() * 0.45f);
+        _looseSheetVisuals.Add(new LooseSheetVisual(
+            x,
+            y,
+            horizontalVelocity,
+            verticalVelocity,
+            ((_visualRandom.NextSingle() * 0.12f) - 0.06f) * MathF.PI,
+            sheetSprites[_visualRandom.Next(sheetSprites.Length)]));
     }
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
@@ -972,7 +1143,7 @@ public partial class Game1
         }
 
         var owner = FindPlayerById(ownerId);
-        if (owner is null || !owner.IsAlive)
+        if (owner is null || !owner.IsAlive || owner.ClassId != PlayerClass.Spy)
         {
             ownerPosition = default;
             return false;
@@ -1133,6 +1304,47 @@ public partial class Game1
         public float PendingSourceTicks { get; set; }
     }
 
+    private sealed class BubblePopVisual
+    {
+        public const int LifetimeSourceTicks = 2;
+
+        public BubblePopVisual(float x, float y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int ElapsedSourceTicks { get; set; }
+
+        public float PendingSourceTicks { get; set; }
+    }
+
+    private sealed class ImpactVisual
+    {
+        public const int LifetimeSourceTicks = 4;
+
+        public ImpactVisual(float x, float y, float rotationRadians)
+        {
+            X = x;
+            Y = y;
+            RotationRadians = rotationRadians;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public float RotationRadians { get; }
+
+        public int ElapsedSourceTicks { get; set; }
+
+        public float PendingSourceTicks { get; set; }
+    }
+
     private sealed class BackstabVisual
     {
         public BackstabVisual(StabAnimEntity animation)
@@ -1198,6 +1410,39 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class LooseSheetVisual
+    {
+        public const int LifetimeTicks = 260;
+        public const int FadeTicks = 60;
+
+        public LooseSheetVisual(float x, float y, float velocityX, float velocityY, float rotationSpeedRadians, string spriteName)
+        {
+            X = x;
+            Y = y;
+            VelocityX = velocityX;
+            VelocityY = velocityY;
+            RotationSpeedRadians = rotationSpeedRadians;
+            SpriteName = spriteName;
+            TicksRemaining = LifetimeTicks;
+        }
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float VelocityX { get; set; }
+
+        public float VelocityY { get; set; }
+
+        public float RotationRadians { get; set; }
+
+        public float RotationSpeedRadians { get; }
+
+        public string SpriteName { get; }
 
         public int TicksRemaining { get; set; }
     }
@@ -1329,7 +1574,7 @@ public partial class Game1
 
     private sealed class RocketSmokeVisual
     {
-        public const int LifetimeTicks = 12;
+        public const int LifetimeTicks = 16;
 
         public RocketSmokeVisual(float x, float y)
         {

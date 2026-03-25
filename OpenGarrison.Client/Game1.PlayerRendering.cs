@@ -15,7 +15,18 @@ public partial class Game1
         float AnimationImage,
         float BodyYOffset,
         float EquipmentOffset,
-        bool DrawIntelUnderlay);
+        bool DrawIntelUnderlay,
+        bool IsHumiliated);
+
+    private readonly record struct RetainedDeadBodyVisual(
+        int Id,
+        PlayerClass ClassId,
+        PlayerTeam Team,
+        float X,
+        float Y,
+        float Width,
+        float Height,
+        bool FacingLeft);
 
     private readonly record struct WeaponRenderDefinition(
         string? NormalSpriteName,
@@ -34,6 +45,10 @@ public partial class Game1
         Left,
         Right,
     }
+
+    private readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
+    private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
+    private readonly List<int> _staleTrackedDeadBodyIds = new();
 
     private Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
@@ -77,7 +92,7 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, rectangle, fallbackColor);
         }
 
-        if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting)
+        if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
         {
             TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
         }
@@ -94,7 +109,93 @@ public partial class Game1
     private void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-        var spriteName = GetDeadBodySpriteName(deadBody.ClassId, deadBody.Team);
+        DrawDeadBodyVisual(
+            deadBody.ClassId,
+            deadBody.Team,
+            renderPosition.X,
+            renderPosition.Y,
+            deadBody.Width,
+            deadBody.Height,
+            deadBody.FacingLeft,
+            cameraPosition);
+    }
+
+    private void DrawRetainedDeadBodies(Vector2 cameraPosition)
+    {
+        for (var index = 0; index < _retainedDeadBodies.Count; index += 1)
+        {
+            var deadBody = _retainedDeadBodies[index];
+            DrawDeadBodyVisual(
+                deadBody.ClassId,
+                deadBody.Team,
+                deadBody.X,
+                deadBody.Y,
+                deadBody.Width,
+                deadBody.Height,
+                deadBody.FacingLeft,
+                cameraPosition);
+        }
+    }
+
+    private void SyncRetainedDeadBodies()
+    {
+        if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+        {
+            ResetRetainedDeadBodies();
+            return;
+        }
+
+        _staleTrackedDeadBodyIds.Clear();
+        foreach (var trackedId in _trackedDeadBodyVisuals.Keys)
+        {
+            _staleTrackedDeadBodyIds.Add(trackedId);
+        }
+
+        foreach (var deadBody in _world.DeadBodies)
+        {
+            var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
+            _trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(
+                deadBody.Id,
+                deadBody.ClassId,
+                deadBody.Team,
+                renderPosition.X,
+                renderPosition.Y,
+                deadBody.Width,
+                deadBody.Height,
+                deadBody.FacingLeft);
+            _staleTrackedDeadBodyIds.Remove(deadBody.Id);
+        }
+
+        for (var index = 0; index < _staleTrackedDeadBodyIds.Count; index += 1)
+        {
+            var deadBodyId = _staleTrackedDeadBodyIds[index];
+            if (_trackedDeadBodyVisuals.TryGetValue(deadBodyId, out var retainedDeadBody))
+            {
+                _retainedDeadBodies.Add(retainedDeadBody);
+                _trackedDeadBodyVisuals.Remove(deadBodyId);
+            }
+        }
+    }
+
+    private void ResetRetainedDeadBodies()
+    {
+        _trackedDeadBodyVisuals.Clear();
+        _retainedDeadBodies.Clear();
+        _staleTrackedDeadBodyIds.Clear();
+    }
+
+    private void DrawDeadBodyVisual(
+        PlayerClass classId,
+        PlayerTeam team,
+        float x,
+        float y,
+        float width,
+        float height,
+        bool facingLeft,
+        Vector2 cameraPosition)
+    {
+        var renderPosition = new Vector2(x, y);
+        var spriteName = GetDeadBodySpriteName(classId, team);
         if (spriteName is not null)
         {
             var sprite = _runtimeAssets.GetSprite(spriteName);
@@ -110,7 +211,7 @@ public partial class Game1
                     Color.White,
                     0f,
                     sprite.Origin.ToVector2(),
-                    new Vector2(deadBody.FacingLeft ? -1f : 1f, 1f),
+                    new Vector2(facingLeft ? -1f : 1f, 1f),
                     SpriteEffects.None,
                     0f);
                 return;
@@ -118,11 +219,11 @@ public partial class Game1
         }
 
         var rectangle = new Rectangle(
-            (int)(renderPosition.X - (deadBody.Width / 2f) - cameraPosition.X),
-            (int)(renderPosition.Y - (deadBody.Height / 2f) - cameraPosition.Y),
-            (int)deadBody.Width,
-            (int)deadBody.Height);
-        _spriteBatch.Draw(_pixel, rectangle, deadBody.Team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
+            (int)(renderPosition.X - (width / 2f) - cameraPosition.X),
+            (int)(renderPosition.Y - (height / 2f) - cameraPosition.Y),
+            (int)width,
+            (int)height);
+        _spriteBatch.Draw(_pixel, rectangle, team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
     }
 
     private bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
@@ -151,7 +252,9 @@ public partial class Game1
             ? GetHeavyEatSpriteFrameIndex(GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
             : player.IsTaunting
                 ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
-                : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
+                : bodySelection.IsHumiliated
+                    ? GetHumiliationSpriteFrameIndex(player, sprite.Frames.Count)
+                    : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
         var position = new Vector2(
@@ -232,6 +335,26 @@ public partial class Game1
         }
 
         return Math.Clamp((int)MathF.Floor(WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
+    }
+
+    private int GetHumiliationSpriteFrameIndex(PlayerEntity player, int frameCount)
+    {
+        if (frameCount <= 0)
+        {
+            return 0;
+        }
+
+        const int framesPerPose = 3;
+        if (frameCount <= framesPerPose)
+        {
+            var frame = (int)MathF.Floor((_world.Frame * LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond) / 6f);
+            return Math.Clamp(frame % frameCount, 0, frameCount - 1);
+        }
+
+        var poseCount = Math.Max(1, frameCount / framesPerPose);
+        var poseOffset = Math.Abs(GetPlayerStateKey(player)) % poseCount;
+        var cycleFrame = (int)MathF.Floor((_world.Frame * LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond) / 6f) % framesPerPose;
+        return Math.Clamp((poseOffset * framesPerPose) + cycleFrame, 0, frameCount - 1);
     }
 
     private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount)
@@ -356,6 +479,17 @@ public partial class Game1
         var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
         var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
         var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
+        if (_world.IsPlayerHumiliated(player))
+        {
+            return new PlayerBodySpriteSelection(
+                GetTeamSpriteName(player.ClassId, player.Team, "HS"),
+                0f,
+                0f,
+                0f,
+                false,
+                true);
+        }
+
         var noNewAnimation = player.ClassId == PlayerClass.Quote;
         if (noNewAnimation)
         {
@@ -364,6 +498,7 @@ public partial class Game1
                 animationImage,
                 0f,
                 0f,
+                false,
                 false);
         }
 
@@ -374,6 +509,7 @@ public partial class Game1
                 WrapAnimationImage(animationImage, 2f),
                 0f,
                 0f,
+                false,
                 false);
         }
 
@@ -427,7 +563,8 @@ public partial class Game1
             animationImage,
             bodyYOffset,
             equipmentOffset,
-            player.IsCarryingIntel);
+            player.IsCarryingIntel,
+            false);
     }
 
     private string? GetStandingSpriteName(PlayerEntity player)
@@ -532,6 +669,11 @@ public partial class Game1
 
         if (weaponAnimationMode == WeaponAnimationMode.Idle)
         {
+            if (player.ClassId == PlayerClass.Medic && player.IsMedicHealing && frameCount >= 4)
+            {
+                return player.Team == PlayerTeam.Blue ? 3 : 2;
+            }
+
             return Math.Clamp(player.Team == PlayerTeam.Blue ? 1 : 0, 0, frameCount - 1);
         }
 

@@ -7,38 +7,53 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private void OpenChat(bool teamOnly)
+    {
+        _chatOpen = true;
+        _chatTeamOnly = teamOnly;
+        _chatInput = string.Empty;
+    }
+
+    private void ResetChatInputState(bool requireOpenKeyRelease = false)
+    {
+        _chatOpen = false;
+        _chatTeamOnly = false;
+        _chatSubmitAwaitingOpenKeyRelease = requireOpenKeyRelease;
+        _chatInput = string.Empty;
+    }
+
     private void SubmitChatMessage()
     {
         var text = _chatInput.Trim();
+        var teamOnly = _chatTeamOnly;
         if (!string.IsNullOrWhiteSpace(text))
         {
             if (_networkClient.IsConnected)
             {
-                _networkClient.SendChat(text);
+                _networkClient.SendChat(text, teamOnly);
             }
             else
             {
-                AppendChatLine(_world.LocalPlayer.DisplayName, text, (byte)_world.LocalPlayer.Team);
+                AppendChatLine(_world.LocalPlayer.DisplayName, text, (byte)_world.LocalPlayer.Team, teamOnly);
             }
         }
 
-        _chatOpen = false;
-        _chatSubmitAwaitingOpenKeyRelease = true;
-        _chatInput = string.Empty;
+        ResetChatInputState(requireOpenKeyRelease: true);
     }
 
-    private void AppendChatLine(string playerName, string text, byte team)
+    private void AppendChatLine(string playerName, string text, byte team, bool teamOnly)
     {
+        var channelPrefix = teamOnly ? "(TEAM) " : string.Empty;
         var line = string.IsNullOrWhiteSpace(playerName)
-            ? text
-            : $"{playerName}: {text}";
-        _chatLines.Add(new ChatLine(playerName, text, team));
+            ? $"{channelPrefix}{text}"
+            : $"{channelPrefix}{playerName}: {text}";
+        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly));
         while (_chatLines.Count > 6)
         {
             _chatLines.RemoveAt(0);
         }
 
-        AddConsoleLine($"[chat] {line}");
+        AddConsoleLine(teamOnly ? $"[team chat] {line}" : $"[chat] {line}");
     }
 
     private void AdvanceChatHud()
@@ -75,18 +90,20 @@ public partial class Game1
             return;
         }
 
-        var promptText = $"> {_chatInput}_";
+        var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
+        var promptText = $"{promptPrefix}{_chatInput}_";
         promptRectangle.Width = Math.Max(promptRectangle.Width, (int)MathF.Ceiling(MeasureBitmapFontWidth(promptText, 1f) + 18f));
         DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
-        DrawBitmapFontText("> ", new Vector2(promptRectangle.X + 8, promptRectangle.Y + 6), new Color(255, 245, 210), 1f);
-        DrawBitmapFontText($"{_chatInput}_", new Vector2(promptRectangle.X + 18, promptRectangle.Y + 6), Color.White, 1f);
+        DrawBitmapFontText(promptPrefix, new Vector2(promptRectangle.X + 8, promptRectangle.Y + 6), new Color(255, 245, 210), 1f);
+        DrawBitmapFontText($"{_chatInput}_", new Vector2(promptRectangle.X + 8 + MeasureBitmapFontWidth(promptPrefix, 1f), promptRectangle.Y + 6), Color.White, 1f);
     }
 
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha)
     {
+        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
         var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
-            ? string.Empty
-            : $"{line.PlayerName}: ";
+            ? channelPrefix
+            : $"{channelPrefix}{line.PlayerName}: ";
         var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
         var messageWidth = MeasureBitmapFontWidth(line.Text, 1f);
         var width = Math.Max(96f, speakerWidth + messageWidth + 14f);

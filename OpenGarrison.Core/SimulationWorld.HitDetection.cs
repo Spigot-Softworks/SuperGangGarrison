@@ -188,8 +188,8 @@ public sealed partial class SimulationWorld
     internal bool CombatTestHasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
         => Combat.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
-    internal bool CombatTestIsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
-        => Combat.IsFlameSpawnBlocked(attacker, spawnX, spawnY);
+    internal bool CombatTestIsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
+        => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
 
     internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
@@ -320,8 +320,8 @@ public sealed partial class SimulationWorld
     private bool HasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
         => Combat.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
-    private bool IsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
-        => Combat.IsFlameSpawnBlocked(attacker, spawnX, spawnY);
+    private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
+        => Combat.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
 
     private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);

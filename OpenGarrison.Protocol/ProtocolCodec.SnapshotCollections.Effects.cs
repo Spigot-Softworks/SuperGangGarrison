@@ -5,6 +5,37 @@ namespace OpenGarrison.Protocol;
 
 public static partial class ProtocolCodec
 {
+    private static void WriteSentryGibStates(BinaryWriter writer, IReadOnlyList<SnapshotSentryGibState> sentryGibs)
+    {
+        writer.Write((ushort)sentryGibs.Count);
+        for (var index = 0; index < sentryGibs.Count; index += 1)
+        {
+            var sentryGib = sentryGibs[index];
+            writer.Write(sentryGib.Id);
+            writer.Write(sentryGib.Team);
+            writer.Write(sentryGib.X);
+            writer.Write(sentryGib.Y);
+            writer.Write(sentryGib.TicksRemaining);
+        }
+    }
+
+    private static List<SnapshotSentryGibState> ReadSentryGibStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var sentryGibs = new List<SnapshotSentryGibState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            sentryGibs.Add(new SnapshotSentryGibState(
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32()));
+        }
+
+        return sentryGibs;
+    }
+
     private static void WriteDeadBodyStates(BinaryWriter writer, IReadOnlyList<SnapshotDeadBodyState> deadBodies)
     {
         writer.Write((ushort)deadBodies.Count);

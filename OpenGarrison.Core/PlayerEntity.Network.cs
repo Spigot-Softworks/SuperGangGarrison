@@ -29,6 +29,7 @@ public sealed partial class PlayerEntity
         float ContinuousDamageAccumulator,
         bool IsHeavyEating,
         int HeavyEatTicksRemaining,
+        int HeavyEatCooldownTicksRemaining,
         float HeavyHealingAccumulator,
         bool IsTaunting,
         float TauntFrameIndex,
@@ -106,6 +107,7 @@ public sealed partial class PlayerEntity
             ContinuousDamageAccumulator,
             IsHeavyEating,
             HeavyEatTicksRemaining,
+            HeavyEatCooldownTicksRemaining,
             HeavyHealingAccumulator,
             IsTaunting,
             TauntFrameIndex,
@@ -183,6 +185,7 @@ public sealed partial class PlayerEntity
         ContinuousDamageAccumulator = state.ContinuousDamageAccumulator;
         IsHeavyEating = state.IsHeavyEating;
         HeavyEatTicksRemaining = state.HeavyEatTicksRemaining;
+        HeavyEatCooldownTicksRemaining = state.HeavyEatCooldownTicksRemaining;
         HeavyHealingAccumulator = state.HeavyHealingAccumulator;
         IsTaunting = state.IsTaunting;
         TauntFrameIndex = state.TauntFrameIndex;
@@ -275,12 +278,15 @@ public sealed partial class PlayerEntity
         byte movementState = (byte)LegacyMovementState.None,
         int primaryCooldownTicks = 0,
         int reloadTicksUntilNextShell = 0,
+        int medicNeedleCooldownTicks = 0,
+        int medicNeedleRefillTicks = 0,
         int pyroAirblastCooldownTicks = 0,
         int pyroFlareCooldownTicks = 0,
         int pyroPrimaryFuelScaled = 0,
         bool isPyroPrimaryRefilling = false,
         int pyroFlameLoopTicksRemaining = 0,
-        bool pyroPrimaryRequiresReleaseAfterEmpty = false)
+        bool pyroPrimaryRequiresReleaseAfterEmpty = false,
+        int heavyEatCooldownTicksRemaining = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -316,6 +322,12 @@ public sealed partial class PlayerEntity
         }
         PrimaryCooldownTicks = Math.Max(0, primaryCooldownTicks);
         ReloadTicksUntilNextShell = Math.Max(0, reloadTicksUntilNextShell);
+        MedicNeedleCooldownTicks = ClassId == PlayerClass.Medic
+            ? Math.Max(0, medicNeedleCooldownTicks)
+            : 0;
+        MedicNeedleRefillTicks = ClassId == PlayerClass.Medic
+            ? Math.Max(0, medicNeedleRefillTicks)
+            : 0;
         Kills = Math.Max(0, kills);
         Deaths = Math.Max(0, deaths);
         Caps = Math.Max(0, caps);
@@ -344,6 +356,9 @@ public sealed partial class PlayerEntity
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
+        HeavyEatCooldownTicksRemaining = ClassId == PlayerClass.Heavy
+            ? Math.Max(0, heavyEatCooldownTicksRemaining)
+            : 0;
         IsSniperScoped = isSniperScoped;
         SniperChargeTicks = Math.Max(0, sniperChargeTicks);
         if (!IsHeavyEating)
@@ -383,6 +398,8 @@ public sealed partial class PlayerEntity
             Health = 0;
             PrimaryCooldownTicks = 0;
             ReloadTicksUntilNextShell = 0;
+            MedicNeedleCooldownTicks = 0;
+            MedicNeedleRefillTicks = 0;
             IsPyroPrimaryRefilling = false;
             PyroFlameLoopTicksRemaining = 0;
             PyroPrimaryRequiresReleaseAfterEmpty = false;

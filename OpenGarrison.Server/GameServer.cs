@@ -420,7 +420,7 @@ sealed class GameServer
                             break;
                         }
 
-                        BroadcastChat(chatClient, chatSubmit.Text);
+                        BroadcastChat(chatClient, chatSubmit.Text, chatSubmit.TeamOnly);
                         break;
                     case SnapshotAckMessage snapshotAck:
                         var ackClient = FindClient(_clientsBySlot, remoteEndPoint);
@@ -699,7 +699,7 @@ sealed class GameServer
                 spectatorCount));
     }
 
-    private void BroadcastChat(ClientSession client, string text)
+    private void BroadcastChat(ClientSession client, string text, bool teamOnly)
     {
         var sanitized = text.Trim();
         if (string.IsNullOrWhiteSpace(sanitized))
@@ -712,14 +712,15 @@ sealed class GameServer
             sanitized = sanitized[..120];
         }
 
-        var team = SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot) && _world.TryGetNetworkPlayer(client.Slot, out var player)
-            ? (byte)player.Team
+        var team = TryGetClientChatTeam(client) is { } resolvedTeam
+            ? (byte)resolvedTeam
             : (byte)0;
         var chatEvent = new ChatReceivedEvent(
             client.Slot,
             client.Name,
             sanitized,
-            team == 0 ? null : (PlayerTeam)team);
+            team == 0 ? null : (PlayerTeam)team,
+            teamOnly);
         if (_pluginHost?.TryHandleChatMessage(chatEvent) == true)
         {
             return;
@@ -730,15 +731,42 @@ sealed class GameServer
             ("slot", client.Slot),
             ("player_name", client.Name),
             ("team", team == 0 ? null : ((PlayerTeam)team).ToString()),
+            ("team_only", teamOnly),
             ("text", sanitized));
         _pluginHost?.NotifyChatReceived(chatEvent);
-        var relay = new ChatRelayMessage(team, client.Name, sanitized);
+        var relay = new ChatRelayMessage(team, client.Name, sanitized, teamOnly);
         foreach (var session in _clientsBySlot.Values)
         {
+            if (teamOnly)
+            {
+                var sessionTeam = TryGetClientChatTeam(session);
+                if (team == 0)
+                {
+                    if (session.Slot != client.Slot)
+                    {
+                        continue;
+                    }
+                }
+                else if (sessionTeam != (PlayerTeam)team)
+                {
+                    continue;
+                }
+            }
+
             SendMessage(session.EndPoint, relay);
         }
 
-        Console.WriteLine($"[chat] {client.Name}: {sanitized}");
+        Console.WriteLine(teamOnly
+            ? $"[team chat] {client.Name}: {sanitized}"
+            : $"[chat] {client.Name}: {sanitized}");
+    }
+
+    private PlayerTeam? TryGetClientChatTeam(ClientSession client)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
+            && _world.TryGetNetworkPlayer(client.Slot, out var player)
+            ? player.Team
+            : null;
     }
 
     private void SendMessage(IPEndPoint remoteEndPoint, IProtocolMessage message)

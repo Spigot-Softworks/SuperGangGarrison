@@ -75,6 +75,7 @@ public sealed partial class SimulationWorld
 
         var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove);
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
+        var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
         if (jumped)
         {
             RegisterWorldSoundEvent("JumpSnd", player.X, player.Y);
@@ -91,7 +92,13 @@ public sealed partial class SimulationWorld
             TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
         }
 
+        if (emitWallspinDust)
+        {
+            RegisterWallspinDustEffect(player);
+        }
+
         player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped);
+        TryRegisterIntelTrailEffect(player);
         UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);
 
@@ -196,6 +203,11 @@ public sealed partial class SimulationWorld
                 WeaponHandler.TryFirePyroPrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
             }
 
+            return;
+        }
+
+        if (player.ClassId == PlayerClass.Demoman && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
+        {
             return;
         }
 

@@ -10,7 +10,8 @@ public sealed partial class SimulationWorld
         string? deathCamMessage = null,
         SentryEntity? deathCamSentry = null,
         string? killFeedMessage = null,
-        bool createDeathCam = true)
+        bool createDeathCam = true,
+        bool spawnRemains = true)
     {
         player.AddDeath();
         if (killer is not null && !ReferenceEquals(killer, player))
@@ -28,7 +29,10 @@ public sealed partial class SimulationWorld
             RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
         }
 
-        if (gibbed)
+        if (!spawnRemains)
+        {
+        }
+        else if (gibbed)
         {
             SpawnPlayerGibs(player);
             RegisterWorldSoundEvent("Gibbing", player.X, player.Y);

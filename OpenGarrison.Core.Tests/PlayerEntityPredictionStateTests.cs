@@ -36,6 +36,7 @@ public sealed class PlayerEntityPredictionStateTests
             ContinuousDamageAccumulator: 0.6f,
             IsHeavyEating: false,
             HeavyEatTicksRemaining: 0,
+            HeavyEatCooldownTicksRemaining: 0,
             HeavyHealingAccumulator: 0.2f,
             IsTaunting: false,
             TauntFrameIndex: 3.5f,
@@ -77,7 +78,8 @@ public sealed class PlayerEntityPredictionStateTests
             ChatBubbleFrameIndex: 2,
             ChatBubbleAlpha: 0.85f,
             IsChatBubbleFading: true,
-            ChatBubbleTicksRemaining: 18);
+            ChatBubbleTicksRemaining: 18,
+            PyroPrimaryFuelScaled: 40);
 
         player.RestorePredictionState(state);
 

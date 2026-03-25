@@ -105,14 +105,17 @@ public partial class Game1
         }
 
         var weaponDefinition = GetWeaponRenderDefinition(player);
-        var cooldownRestarted = player.PrimaryCooldownTicks > renderState.PreviousCooldownTicks;
-        var reloadRestarted = player.ReloadTicksUntilNextShell > renderState.PreviousReloadTicks;
-        var shotStarted = player.PrimaryCooldownTicks > 0
-            && (player.CurrentShells < renderState.PreviousAmmoCount
+        var currentAmmoCount = GetRenderWeaponAmmoCount(player);
+        var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
+        var currentReloadTicks = GetRenderWeaponReloadTicks(player);
+        var cooldownRestarted = currentCooldownTicks > renderState.PreviousCooldownTicks;
+        var reloadRestarted = currentReloadTicks > renderState.PreviousReloadTicks;
+        var shotStarted = currentCooldownTicks > 0
+            && (currentAmmoCount < renderState.PreviousAmmoCount
                 || renderState.PreviousCooldownTicks <= 0
                 || cooldownRestarted);
-        var ammoIncreased = player.CurrentShells > renderState.PreviousAmmoCount;
-        var shellReloaded = ammoIncreased && player.CurrentShells < player.MaxShells;
+        var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
+        var shellReloaded = ammoIncreased && currentAmmoCount < player.MaxShells;
         var preserveRecoilLoop = weaponDefinition.LoopRecoilWhileActive
             && renderState.WeaponAnimationMode == WeaponAnimationMode.Recoil;
         var useScopedRecoilSprite = player.ClassId == PlayerClass.Sniper
@@ -123,17 +126,13 @@ public partial class Game1
         {
             UpdateSniperWeaponAnimationState(player, renderState, weaponDefinition, shotStarted);
             QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
-            renderState.PreviousAmmoCount = player.CurrentShells;
-            renderState.PreviousCooldownTicks = player.PrimaryCooldownTicks;
-            renderState.PreviousReloadTicks = player.ReloadTicksUntilNextShell;
+            renderState.PreviousAmmoCount = currentAmmoCount;
+            renderState.PreviousCooldownTicks = currentCooldownTicks;
+            renderState.PreviousReloadTicks = currentReloadTicks;
             return;
         }
 
-        if (player.ClassId == PlayerClass.Medic && player.IsMedicHealing && weaponDefinition.RecoilSpriteName is not null)
-        {
-            StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponDefinition.RecoilDurationSeconds, preserveElapsed: preserveRecoilLoop);
-        }
-        else if (shotStarted)
+        if (shotStarted)
         {
             if (useScopedRecoilSprite)
             {
@@ -153,7 +152,7 @@ public partial class Game1
             switch (renderState.WeaponAnimationMode)
             {
                 case WeaponAnimationMode.Recoil when renderState.WeaponAnimationTimeRemainingSeconds <= 0f:
-                    if (ShouldShowReloadAnimation(player, weaponDefinition))
+                    if (ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
                     }
@@ -166,7 +165,7 @@ public partial class Game1
                     StopWeaponAnimation(renderState);
                     break;
                 case WeaponAnimationMode.Reload:
-                    if (!ShouldShowReloadAnimation(player, weaponDefinition))
+                    if (!ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
                     {
                         StopWeaponAnimation(renderState);
                     }
@@ -176,18 +175,7 @@ public partial class Game1
                     }
                     break;
                 case WeaponAnimationMode.Idle:
-                    if (player.PrimaryCooldownTicks > 0)
-                    {
-                        if (useScopedRecoilSprite)
-                        {
-                            StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponDefinition.ScopedRecoilDurationSeconds);
-                        }
-                        else if (weaponDefinition.RecoilSpriteName is not null)
-                        {
-                            StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponDefinition.RecoilDurationSeconds);
-                        }
-                    }
-                    else if (ShouldShowReloadAnimation(player, weaponDefinition))
+                    if (ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
                     }
@@ -196,9 +184,9 @@ public partial class Game1
         }
 
         QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
-        renderState.PreviousAmmoCount = player.CurrentShells;
-        renderState.PreviousCooldownTicks = player.PrimaryCooldownTicks;
-        renderState.PreviousReloadTicks = player.ReloadTicksUntilNextShell;
+        renderState.PreviousAmmoCount = currentAmmoCount;
+        renderState.PreviousCooldownTicks = currentCooldownTicks;
+        renderState.PreviousReloadTicks = currentReloadTicks;
     }
 
     private static void UpdateSniperWeaponAnimationState(
@@ -376,12 +364,53 @@ public partial class Game1
 
         renderState = new PlayerRenderState
         {
-            PreviousAmmoCount = player.CurrentShells,
-            PreviousCooldownTicks = player.PrimaryCooldownTicks,
-            PreviousReloadTicks = player.ReloadTicksUntilNextShell,
+            PreviousAmmoCount = GetRenderWeaponAmmoCount(player),
+            PreviousCooldownTicks = 0,
+            PreviousReloadTicks = GetRenderWeaponReloadTicks(player),
         };
         _playerRenderStates[playerStateKey] = renderState;
         return renderState;
+    }
+
+    private int GetRenderWeaponAmmoCount(PlayerEntity player)
+    {
+        return _networkClient.IsConnected
+            && ReferenceEquals(player, _world.LocalPlayer)
+            && _hasPredictedLocalActionState
+                ? _predictedLocalActionState.CurrentShells
+                : player.CurrentShells;
+    }
+
+    private int GetRenderWeaponCooldownTicks(PlayerEntity player)
+    {
+        if (_networkClient.IsConnected
+            && ReferenceEquals(player, _world.LocalPlayer)
+            && _hasPredictedLocalActionState)
+        {
+            return player.ClassId == PlayerClass.Medic
+                ? _predictedLocalActionState.MedicNeedleCooldownTicks
+                : _predictedLocalActionState.PrimaryCooldownTicks;
+        }
+
+        return player.ClassId == PlayerClass.Medic
+            ? player.MedicNeedleCooldownTicks
+            : player.PrimaryCooldownTicks;
+    }
+
+    private int GetRenderWeaponReloadTicks(PlayerEntity player)
+    {
+        if (_networkClient.IsConnected
+            && ReferenceEquals(player, _world.LocalPlayer)
+            && _hasPredictedLocalActionState)
+        {
+            return player.ClassId == PlayerClass.Medic
+                ? _predictedLocalActionState.MedicNeedleRefillTicks
+                : _predictedLocalActionState.ReloadTicksUntilNextShell;
+        }
+
+        return player.ClassId == PlayerClass.Medic
+            ? player.MedicNeedleRefillTicks
+            : player.ReloadTicksUntilNextShell;
     }
 
     private static float WrapAnimationImage(float animationImage, float length)
@@ -455,7 +484,7 @@ public partial class Game1
         renderState.WeaponAnimationElapsedSeconds = 0f;
     }
 
-    private static bool ShouldShowReloadAnimation(PlayerEntity player, WeaponRenderDefinition weaponDefinition)
+    private static bool ShouldShowReloadAnimation(PlayerEntity player, WeaponRenderDefinition weaponDefinition, int currentAmmoCount, int currentReloadTicks)
     {
         if (weaponDefinition.ReloadSpriteName is null)
         {
@@ -464,10 +493,12 @@ public partial class Game1
 
         if (!player.PrimaryWeapon.AutoReloads && !player.PrimaryWeapon.RefillsAllAtOnce)
         {
-            return false;
+            return player.ClassId == PlayerClass.Medic
+                && currentAmmoCount < player.MaxShells
+                && currentReloadTicks > 0;
         }
 
-        return player.CurrentShells < player.MaxShells
-            && player.ReloadTicksUntilNextShell > 0;
+        return currentAmmoCount < player.MaxShells
+            && currentReloadTicks > 0;
     }
 }

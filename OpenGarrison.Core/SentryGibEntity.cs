@@ -16,9 +16,9 @@ public sealed class SentryGibEntity : SimulationEntity
 
     public PlayerTeam Team { get; }
 
-    public float X { get; }
+    public float X { get; private set; }
 
-    public float Y { get; }
+    public float Y { get; private set; }
 
     public int TicksRemaining { get; private set; }
 
@@ -27,5 +27,12 @@ public sealed class SentryGibEntity : SimulationEntity
     public void AdvanceOneTick()
     {
         TicksRemaining -= 1;
+    }
+
+    public void ApplyNetworkState(float x, float y, int ticksRemaining)
+    {
+        X = x;
+        Y = y;
+        TicksRemaining = ticksRemaining;
     }
 }

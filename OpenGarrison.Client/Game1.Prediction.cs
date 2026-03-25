@@ -143,6 +143,7 @@ public partial class Game1
         {
             IsHeavyEating = player.IsHeavyEating,
             HeavyEatTicksRemaining = player.HeavyEatTicksRemaining,
+            HeavyEatCooldownTicksRemaining = player.HeavyEatCooldownTicksRemaining,
             IsSniperScoped = player.IsSniperScoped,
             SniperChargeTicks = player.SniperChargeTicks,
             IsSpyCloaked = player.IsSpyCloaked,
@@ -160,6 +161,7 @@ public partial class Game1
             CurrentShells = player.CurrentShells,
             PrimaryCooldownTicks = player.PrimaryCooldownTicks,
             ReloadTicksUntilNextShell = player.ReloadTicksUntilNextShell,
+            PyroFlareCooldownTicks = player.PyroFlareCooldownTicks,
         };
         _hasPredictedLocalActionState = true;
     }
@@ -186,6 +188,7 @@ public partial class Game1
     {
         public bool IsHeavyEating;
         public int HeavyEatTicksRemaining;
+        public int HeavyEatCooldownTicksRemaining;
         public bool IsSniperScoped;
         public int SniperChargeTicks;
         public bool IsSpyCloaked;
@@ -203,6 +206,7 @@ public partial class Game1
         public int CurrentShells;
         public int PrimaryCooldownTicks;
         public int ReloadTicksUntilNextShell;
+        public int PyroFlareCooldownTicks;
     }
 
     private readonly record struct PredictedLocalInput(

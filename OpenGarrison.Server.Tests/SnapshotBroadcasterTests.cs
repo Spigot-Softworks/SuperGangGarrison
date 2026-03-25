@@ -195,6 +195,48 @@ public sealed class SnapshotBroadcasterTests
     }
 
     [Fact]
+    public void BroadcastSnapshot_WithSentryGibs_IncludesSentryGibState()
+    {
+        var world = new SimulationWorld();
+        var config = world.Config;
+        var clientsBySlot = new Dictionary<byte, ClientSession>
+        {
+            [SimulationWorld.LocalPlayerSlot] = new(
+                SimulationWorld.LocalPlayerSlot,
+                new IPEndPoint(IPAddress.Loopback, 8190),
+                "Player",
+                TimeSpan.Zero),
+        };
+        var sentSnapshots = new List<SnapshotMessage>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            transientEventReplayTicks: 4,
+            (_, snapshot, _) => sentSnapshots.Add(snapshot));
+
+        Assert.True(world.ApplySnapshot(
+            CreateSnapshot(world) with
+            {
+                SentryGibs =
+                [
+                    new SnapshotSentryGibState(911, (byte)PlayerTeam.Red, 402f, 310f, 23),
+                ],
+            },
+            localPlayerSlot: SimulationWorld.LocalPlayerSlot));
+
+        var simulator = new FixedStepSimulator(world);
+
+        simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        var snapshot = Assert.Single(sentSnapshots);
+        var sentryGib = Assert.Single(snapshot.SentryGibs);
+        Assert.Equal(911, sentryGib.Id);
+        Assert.Equal((byte)PlayerTeam.Red, sentryGib.Team);
+        Assert.Equal(22, sentryGib.TicksRemaining);
+    }
+
+    [Fact]
     public void BroadcastSnapshot_WithSpectatorClient_IncludesOnlySpectatorSnapshotState()
     {
         var world = new SimulationWorld();

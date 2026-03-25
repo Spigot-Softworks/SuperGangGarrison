@@ -158,14 +158,14 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new PasswordSubmitMessage(password));
     }
 
-    public void SendChat(string text)
+    public void SendChat(string text, bool teamOnly)
     {
         if (!IsConnected || string.IsNullOrWhiteSpace(text))
         {
             return;
         }
 
-        Send(new ChatSubmitMessage(text));
+        Send(new ChatSubmitMessage(text, teamOnly));
     }
 
     public uint SendInput(PlayerInputSnapshot input)

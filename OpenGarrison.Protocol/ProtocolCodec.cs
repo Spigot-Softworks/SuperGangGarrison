@@ -54,11 +54,13 @@ public static partial class ProtocolCodec
                 break;
             case ChatSubmitMessage chatSubmit:
                 WriteString(writer, chatSubmit.Text, MaxChatBytes, nameof(chatSubmit.Text));
+                writer.Write(chatSubmit.TeamOnly);
                 break;
             case ChatRelayMessage chatRelay:
                 writer.Write(chatRelay.Team);
                 WriteString(writer, chatRelay.PlayerName, MaxPlayerNameBytes, nameof(chatRelay.PlayerName));
                 WriteString(writer, chatRelay.Text, MaxChatBytes, nameof(chatRelay.Text));
+                writer.Write(chatRelay.TeamOnly);
                 break;
             case AutoBalanceNoticeMessage notice:
                 writer.Write((byte)notice.Kind);
@@ -141,11 +143,12 @@ public static partial class ProtocolCodec
                 MessageType.PasswordRequest => new PasswordRequestMessage(),
                 MessageType.PasswordSubmit => new PasswordSubmitMessage(ReadString(reader, MaxPasswordBytes)),
                 MessageType.PasswordResult => new PasswordResultMessage(reader.ReadBoolean(), ReadString(reader, MaxReasonBytes)),
-                MessageType.ChatSubmit => new ChatSubmitMessage(ReadString(reader, MaxChatBytes)),
+                MessageType.ChatSubmit => new ChatSubmitMessage(ReadString(reader, MaxChatBytes), reader.ReadBoolean()),
                 MessageType.ChatRelay => new ChatRelayMessage(
                     reader.ReadByte(),
                     ReadString(reader, MaxPlayerNameBytes),
-                    ReadString(reader, MaxChatBytes)),
+                    ReadString(reader, MaxChatBytes),
+                    reader.ReadBoolean()),
                 MessageType.AutoBalanceNotice => new AutoBalanceNoticeMessage(
                     (AutoBalanceNoticeKind)reader.ReadByte(),
                     ReadString(reader, MaxPlayerNameBytes),

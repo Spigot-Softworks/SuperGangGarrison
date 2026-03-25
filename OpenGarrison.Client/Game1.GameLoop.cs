@@ -96,7 +96,7 @@ public partial class Game1
         DrawMainMenu();
         if (ShouldDrawSoftwareMenuCursor())
         {
-            DrawSoftwareMenuCursor(GetScaledMouseState(Mouse.GetState()));
+            DrawSoftwareMenuCursor(GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState())));
         }
         EndLogicalFrame();
         return true;
@@ -106,7 +106,7 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        var mouse = GetScaledMouseState(Mouse.GetState());
+        var mouse = GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState()));
         var cameraPosition = GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
         PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
 

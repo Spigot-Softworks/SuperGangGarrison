@@ -17,13 +17,18 @@ public sealed partial class PlayerEntity
 
     public bool TryStartHeavySelfHeal()
     {
-        if (!IsAlive || ClassId != PlayerClass.Heavy || IsHeavyEating || IsTaunting)
+        if (!IsAlive || ClassId != PlayerClass.Heavy || IsHeavyEating || IsTaunting || HeavyEatCooldownTicksRemaining > 0)
         {
             return false;
         }
 
         IsHeavyEating = true;
         HeavyEatTicksRemaining = HeavyEatDurationTicks;
+        if (Health < MaxHealth)
+        {
+            HeavyEatCooldownTicksRemaining = HeavySandvichCooldownTicks;
+        }
+
         HeavyHealingAccumulator = 0f;
         return true;
     }
@@ -47,9 +52,19 @@ public sealed partial class PlayerEntity
 
     private void AdvanceHeavyState()
     {
+        if (HeavyEatCooldownTicksRemaining > 0 && (!IsHeavyEating || Health >= MaxHealth))
+        {
+            HeavyEatCooldownTicksRemaining -= 1;
+        }
+
         if (!IsHeavyEating)
         {
             return;
+        }
+
+        if (Health < MaxHealth)
+        {
+            HeavyEatCooldownTicksRemaining = HeavySandvichCooldownTicks;
         }
 
         HeavyEatTicksRemaining -= 1;
@@ -130,6 +145,7 @@ public sealed partial class PlayerEntity
         SpyBackstabVisualTicksRemaining = SpyBackstabVisualTicksDefault;
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = true;
+        HorizontalSpeed = 0f;
         return true;
     }
 
@@ -211,7 +227,7 @@ public sealed partial class PlayerEntity
 
         CurrentShells -= 1;
         MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
-        MedicNeedleRefillTicks = 0;
+        MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;
         return true;
     }
 
@@ -350,12 +366,6 @@ public sealed partial class PlayerEntity
         }
 
         if (CurrentShells >= MaxShells)
-        {
-            MedicNeedleRefillTicks = 0;
-            return;
-        }
-
-        if (MedicNeedleCooldownTicks > 0 || IsMedicHealing || IsMedicUbering)
         {
             MedicNeedleRefillTicks = 0;
             return;

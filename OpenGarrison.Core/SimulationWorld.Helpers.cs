@@ -128,6 +128,78 @@ public sealed partial class SimulationWorld
         _pendingVisualEvents.Add(new WorldVisualEvent(effectName, x, y, NormalizeAngleDegrees(directionDegrees), Math.Max(1, count)));
     }
 
+    private void RegisterImpactEffect(float x, float y, float directionDegrees)
+    {
+        RegisterVisualEffect("Impact", x, y, directionDegrees);
+    }
+
+    private void RegisterWallspinDustEffect(PlayerEntity player)
+    {
+        var dustX = player.IsSourceFacingLeft
+            ? player.X + player.CollisionRightOffset + 1f
+            : player.X + player.CollisionLeftOffset + 2f;
+        var dustY = player.Y + player.CollisionBottomOffset - 4f;
+        RegisterVisualEffect("WallspinDust", dustX, dustY);
+    }
+
+    private void RegisterIntelTrailEffect(float x, float y, float horizontalSpeed)
+    {
+        RegisterVisualEffect("LooseSheet", x, y, horizontalSpeed);
+    }
+
+    private bool ShouldEmitSourceTickChance(float sourceTickChance)
+    {
+        if (sourceTickChance <= 0f)
+        {
+            return false;
+        }
+
+        var sourceTicksPerSimulationTick = LegacyMovementModel.SourceTicksPerSecond / (float)Config.TicksPerSecond;
+        if (sourceTicksPerSimulationTick <= 0f)
+        {
+            return false;
+        }
+
+        var wholeSourceTicks = (int)MathF.Floor(sourceTicksPerSimulationTick);
+        for (var tick = 0; tick < wholeSourceTicks; tick += 1)
+        {
+            if (_random.NextSingle() < sourceTickChance)
+            {
+                return true;
+            }
+        }
+
+        var fractionalSourceTick = sourceTicksPerSimulationTick - wholeSourceTicks;
+        if (fractionalSourceTick <= 0f)
+        {
+            return false;
+        }
+
+        var fractionalChance = 1f - MathF.Pow(1f - sourceTickChance, fractionalSourceTick);
+        return _random.NextSingle() < fractionalChance;
+    }
+
+    private void TryRegisterIntelTrailEffect(PlayerEntity player)
+    {
+        if (!player.IsAlive || !player.IsCarryingIntel)
+        {
+            return;
+        }
+
+        var sourceTickChance = MathF.Abs(player.HorizontalSpeed) > 0.195f * LegacyMovementModel.SourceTicksPerSecond
+            ? 0.1f
+            : 0.025f;
+        if (!ShouldEmitSourceTickChance(sourceTickChance))
+        {
+            return;
+        }
+
+        RegisterIntelTrailEffect(
+            player.X,
+            player.Y - 11f + (_random.NextSingle() * 9f),
+            player.HorizontalSpeed);
+    }
+
     private void RegisterSoundEvent(PlayerEntity attacker, string soundName)
     {
         if (string.IsNullOrWhiteSpace(soundName))

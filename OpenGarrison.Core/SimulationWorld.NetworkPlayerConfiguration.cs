@@ -261,11 +261,13 @@ public sealed partial class SimulationWorld
 
         if (player.IsAlive)
         {
+            RemoveOwnedSpyArtifacts(player.Id);
             KillPlayer(
                 player,
                 weaponSpriteName: "DeadKL",
                 killFeedMessage: player.DisplayName + ClassChangeKillFeedSuffix,
-                createDeathCam: false);
+                createDeathCam: false,
+                spawnRemains: !player.IsInSpawnRoom);
         }
 
         player.SetClassDefinition(definition);

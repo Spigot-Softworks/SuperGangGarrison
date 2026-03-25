@@ -36,6 +36,13 @@ public partial class Game1
             return;
         }
 
+        if (TryGetClassSelectHotkeySelection(keyboard, out var hotkeyClass))
+        {
+            ApplyDirectClassSelection(hotkeyClass);
+            _classSelectOpen = false;
+            return;
+        }
+
         if (_classSelectAlpha < 0.99f)
         {
             _classSelectAlpha = AdvanceOpeningAlpha(_classSelectAlpha, 0.01f, 0.99f);
@@ -169,6 +176,32 @@ public partial class Game1
     {
         int[] drawX = [24, 64, 104, 156, 196, 236, 288, 328, 368, 420];
         return drawX[Math.Clamp(hoverIndex, 0, drawX.Length - 1)];
+    }
+
+    private bool TryGetClassSelectHotkeySelection(KeyboardState keyboard, out PlayerClass selectedClass)
+    {
+        selectedClass = default;
+        var pressedDigit = GetPressedDigit(keyboard);
+        if (!pressedDigit.HasValue)
+        {
+            return false;
+        }
+
+        selectedClass = pressedDigit.Value switch
+        {
+            1 => PlayerClass.Scout,
+            2 => PlayerClass.Pyro,
+            3 => PlayerClass.Soldier,
+            4 => PlayerClass.Heavy,
+            5 => PlayerClass.Demoman,
+            6 => PlayerClass.Medic,
+            7 => PlayerClass.Engineer,
+            8 => PlayerClass.Spy,
+            9 => PlayerClass.Sniper,
+            0 => GetRandomPlayableClass(),
+            _ => default,
+        };
+        return true;
     }
 
     private static string[] GetClassSelectDescription(int hoverIndex)

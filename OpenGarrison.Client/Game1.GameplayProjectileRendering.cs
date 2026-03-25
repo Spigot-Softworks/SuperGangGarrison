@@ -2,6 +2,7 @@
 
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 
 namespace OpenGarrison.Client;
@@ -48,6 +49,8 @@ public partial class Game1
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
     {
         DrawExplosionVisuals(cameraPosition);
+        DrawImpactVisuals(cameraPosition);
+        DrawLooseSheetVisuals(cameraPosition);
         if (_gibLevel > 0)
         {
             DrawBloodVisuals(cameraPosition);
@@ -204,20 +207,39 @@ public partial class Game1
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
         var flameColor = Color.White;
-
-        if (!TryDrawSprite("FlameS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flameColor, GetVelocityRotation(flame.VelocityX, flame.VelocityY)))
+        var flameSprite = _runtimeAssets.GetSprite("FlameS");
+        if (flameSprite is not null && flameSprite.Frames.Count > 0)
         {
-            var flameSize = flame.IsAttached ? 8 : 6;
-            var fallbackColor = flame.IsAttached
-                ? new Color(255, 120, 60)
-                : new Color(255, 170, 90);
-            var flameRectangle = new Rectangle(
-                (int)(renderPosition.X - flameSize / 2f - cameraPosition.X),
-                (int)(renderPosition.Y - flameSize / 2f - cameraPosition.Y),
-                flameSize,
-                flameSize);
-            _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
+            var flameAgeTicks = flame.IsAttached
+                ? FlameProjectileEntity.AttachedLifetimeTicks - flame.TicksRemaining
+                : FlameProjectileEntity.AirLifetimeTicks - flame.TicksRemaining;
+            var frameIndex = Math.Clamp(
+                Math.Abs(flameAgeTicks) % flameSprite.Frames.Count,
+                0,
+                flameSprite.Frames.Count - 1);
+            _spriteBatch.Draw(
+                flameSprite.Frames[frameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null,
+                flameColor,
+                0f,
+                flameSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+            return;
         }
+
+        var flameSize = flame.IsAttached ? 8 : 6;
+        var fallbackColor = flame.IsAttached
+            ? new Color(255, 120, 60)
+            : new Color(255, 170, 90);
+        var flameRectangle = new Rectangle(
+            (int)(renderPosition.X - flameSize / 2f - cameraPosition.X),
+            (int)(renderPosition.Y - flameSize / 2f - cameraPosition.Y),
+            flameSize,
+            flameSize);
+        _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
     }
 
     private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)

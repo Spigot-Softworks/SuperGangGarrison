@@ -204,6 +204,7 @@ public partial class Game1
         _editingConnectPort = false;
         _consoleOpen = false;
         _scoreboardOpen = false;
+        ResetChatInputState();
         _bubbleMenuKind = BubbleMenuKind.None;
         _bubbleMenuClosing = false;
         _passwordPromptOpen = false;

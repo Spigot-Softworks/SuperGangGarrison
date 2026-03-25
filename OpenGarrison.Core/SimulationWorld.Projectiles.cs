@@ -106,6 +106,7 @@ public sealed partial class SimulationWorld
             directionDegrees);
         _stabMasks.Add(stabMask);
         _entities.Add(stabMask.Id, stabMask);
+        RegisterWorldSoundEvent("KnifeSnd", stabMask.X, stabMask.Y);
     }
 
     private void SpawnFlame(PlayerEntity owner, float x, float y, float velocityX, float velocityY)

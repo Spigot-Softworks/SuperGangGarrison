@@ -36,6 +36,11 @@ public sealed partial class SimulationWorld
             _world.RegisterBloodEffect(x, y, directionDegrees, count);
         }
 
+        private void RegisterImpactEffect(float x, float y, float directionDegrees)
+        {
+            _world.RegisterImpactEffect(x, y, directionDegrees);
+        }
+
         private void RegisterSoundEvent(PlayerEntity attacker, string soundName)
         {
             _world.RegisterSoundEvent(attacker, soundName);
@@ -56,9 +61,9 @@ public sealed partial class SimulationWorld
             return _world.CountOwnedMines(ownerId);
         }
 
-        private bool IsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
+        private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
         {
-            return _world.IsFlameSpawnBlocked(attacker, spawnX, spawnY);
+            return _world.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
         }
 
         private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
@@ -345,6 +350,13 @@ public sealed partial class SimulationWorld
             {
                 _world.TryDamageGenerator(result.HitGenerator.Team, damage);
             }
+            else if (result.Distance < rifleDistance)
+            {
+                RegisterImpactEffect(
+                    weaponOrigin.BaseX + directionX * result.Distance,
+                    weaponOrigin.BaseY + directionY * result.Distance,
+                    PointDirectionDegrees(0f, 0f, directionX, directionY));
+            }
         }
 
         public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -415,7 +427,7 @@ public sealed partial class SimulationWorld
             var directionY = MathF.Sin(baseAngle);
             var spawnX = weaponOrigin.BaseX + directionX * 25f;
             var spawnY = weaponOrigin.BaseY + directionY * 25f + weaponOrigin.EquipmentOffset;
-            if (IsFlameSpawnBlocked(attacker, spawnX, spawnY))
+            if (IsFlameSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team))
             {
                 return false;
             }

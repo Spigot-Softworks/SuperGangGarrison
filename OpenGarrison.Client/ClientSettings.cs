@@ -9,6 +9,8 @@ public sealed class ClientSettings
 {
     public const string DefaultFileName = OpenGarrisonPreferencesDocument.DefaultFileName;
     private const string LegacyFileName = "client.settings.json";
+    public const int CorpseDurationDefault = 0;
+    public const int CorpseDurationInfinite = 1;
 
     public string PlayerName { get; set; } = "Player";
 
@@ -31,6 +33,8 @@ public sealed class ClientSettings
     public int ParticleMode { get; set; }
 
     public int GibLevel { get; set; } = 3;
+
+    public int CorpseDurationMode { get; set; }
 
     public bool HealerRadarEnabled { get; set; } = true;
 
@@ -86,6 +90,7 @@ public sealed class ClientSettings
             IngameResolution = document.IngameResolution,
             ParticleMode = document.ParticleMode,
             GibLevel = document.GibLevel,
+            CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
             VSync = document.VSync,
             HealerRadarEnabled = document.HealerRadarEnabled,
@@ -111,6 +116,7 @@ public sealed class ClientSettings
         preferences.KillCamEnabled = KillCamEnabled;
         preferences.ParticleMode = ParticleMode;
         preferences.GibLevel = GibLevel;
+        preferences.CorpseDurationMode = CorpseDurationMode;
         preferences.HealerRadarEnabled = HealerRadarEnabled;
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;

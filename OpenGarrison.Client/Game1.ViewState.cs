@@ -186,6 +186,13 @@ public partial class Game1
             : player.HeavyEatTicksRemaining;
     }
 
+    private int GetPlayerHeavyEatCooldownTicksRemaining(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.HeavyEatCooldownTicksRemaining
+            : player.HeavyEatCooldownTicksRemaining;
+    }
+
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)
@@ -372,6 +379,41 @@ public partial class Game1
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.Metal
             : player.Metal;
+    }
+
+    private int GetPlayerCurrentShells(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.CurrentShells
+            : player.CurrentShells;
+    }
+
+    private int GetPlayerPrimaryCooldownTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.PrimaryCooldownTicks
+            : player.PrimaryCooldownTicks;
+    }
+
+    private int GetPlayerReloadTicksUntilNextShell(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.ReloadTicksUntilNextShell
+            : player.ReloadTicksUntilNextShell;
+    }
+
+    private int GetPlayerPyroFlareCooldownTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.PyroFlareCooldownTicks
+            : player.PyroFlareCooldownTicks;
+    }
+
+    private int GetPlayerMedicNeedleRefillTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.MedicNeedleRefillTicks
+            : player.MedicNeedleRefillTicks;
     }
 
     private PlayerEntity? GetSpectatorFocusPlayer()

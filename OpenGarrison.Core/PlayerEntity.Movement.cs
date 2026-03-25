@@ -52,6 +52,10 @@ public sealed partial class PlayerEntity
         var dt = (float)deltaSeconds;
         UpdateAimDirection(input);
         UpdatePyroPrimaryHoldState(input.FirePrimary);
+        if (HealingCabinetSoundCooldownSecondsRemaining > 0f)
+        {
+            HealingCabinetSoundCooldownSecondsRemaining = float.Max(0f, HealingCabinetSoundCooldownSecondsRemaining - dt);
+        }
 
         if (!IsAlive)
         {
@@ -88,7 +92,7 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        canMove = !IsHeavyEating && !IsTaunting;
+        canMove = !IsHeavyEating && !IsTaunting && !IsSpyBackstabAnimating;
 
         var horizontalDirection = 0f;
         if (canMove && input.Left)

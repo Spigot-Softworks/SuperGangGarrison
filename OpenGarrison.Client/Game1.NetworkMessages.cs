@@ -133,7 +133,7 @@ public partial class Game1
                     AddConsoleLine($"password rejected: {passwordResult.Reason}");
                     break;
                 case ChatRelayMessage chatRelay:
-                    AppendChatLine(chatRelay.PlayerName, chatRelay.Text, chatRelay.Team);
+                    AppendChatLine(chatRelay.PlayerName, chatRelay.Text, chatRelay.Team, chatRelay.TeamOnly);
                     break;
                 case AutoBalanceNoticeMessage notice:
                     if (notice.Kind == AutoBalanceNoticeKind.Pending)
@@ -396,7 +396,7 @@ public partial class Game1
         _networkClient.ClearPendingClassSelection();
         _teamSelectOpen = true;
         _classSelectOpen = false;
-        _chatOpen = false;
+        ResetChatInputState();
         _consoleOpen = false;
         _menuStatusMessage = string.Empty;
     }

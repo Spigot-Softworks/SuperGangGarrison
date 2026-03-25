@@ -46,6 +46,10 @@ public sealed partial class SimulationWorld
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, ShotProjectileEntity.DamagePerHit);
                 }
+                else
+                {
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                }
 
                 shot.Destroy();
             }
@@ -133,11 +137,11 @@ public sealed partial class SimulationWorld
                     var hitResult = hit.Value;
                     blade.MoveTo(hitResult.HitX, hitResult.HitY);
                     RegisterCombatTrace(blade.PreviousX, blade.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                    if (hitResult.HitPlayer is not null)
-                    {
-                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
-                        hitResult.HitPlayer.AddImpulse(blade.VelocityX * 0.4f, blade.VelocityY * 0.4f);
-                        if (hitResult.HitPlayer.ApplyDamage(blade.HitDamage, PlayerEntity.SpyDamageRevealAlpha))
+                if (hitResult.HitPlayer is not null)
+                {
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
+                    hitResult.HitPlayer.AddImpulse(blade.VelocityX * 0.4f, blade.VelocityY * 0.4f);
+                    if (hitResult.HitPlayer.ApplyDamage(blade.HitDamage, PlayerEntity.SpyDamageRevealAlpha))
                         {
                             KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(blade.OwnerId), weaponSpriteName: "BladeKL");
                         }
@@ -146,13 +150,17 @@ public sealed partial class SimulationWorld
                     {
                         DestroySentry(hitResult.HitSentry);
                     }
-                    else if (hitResult.HitGenerator is not null)
-                    {
-                        TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage);
-                    }
-
-                    blade.Destroy();
+                else if (hitResult.HitGenerator is not null)
+                {
+                    TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage);
                 }
+                else
+                {
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                }
+
+                blade.Destroy();
+            }
             }
 
             if (TryCutBubbleWithBlade(blade))
@@ -209,6 +217,10 @@ public sealed partial class SimulationWorld
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit);
+                }
+                else
+                {
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
 
                 needle.Destroy();
@@ -267,6 +279,10 @@ public sealed partial class SimulationWorld
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, RevolverProjectileEntity.DamagePerHit);
+                }
+                else
+                {
+                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
                 }
 
                 shot.Destroy();
@@ -342,6 +358,10 @@ public sealed partial class SimulationWorld
 
             if (mask.IsExpired)
             {
+                RegisterImpactEffect(
+                    mask.X + MathF.Sign(directionX) * 15f,
+                    mask.Y - 12f,
+                    mask.DirectionDegrees);
                 RemoveStabMaskAt(maskIndex);
             }
         }
@@ -679,6 +699,7 @@ public sealed partial class SimulationWorld
             owner.DecrementQuoteBubbleCount();
         }
 
+        RegisterVisualEffect("Pop", bubble.X, bubble.Y);
         _entities.Remove(bubble.Id);
         _bubbles.RemoveAt(bubbleIndex);
     }

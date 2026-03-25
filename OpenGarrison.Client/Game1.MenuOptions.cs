@@ -197,7 +197,7 @@ public partial class Game1
 
     private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        const int items = 14;
+        const int items = 15;
         GetOptionsMenuLayout(out var xbegin, out var ybegin, out var spacing, out var width, out _);
 
         if (IsKeyPressed(keyboard, Keys.Escape))
@@ -273,33 +273,44 @@ public partial class Game1
                 PersistClientSettings();
                 break;
             case 6:
-                _healerRadarEnabled = !_healerRadarEnabled;
+                _corpseDurationMode = _corpseDurationMode == ClientSettings.CorpseDurationInfinite
+                    ? ClientSettings.CorpseDurationDefault
+                    : ClientSettings.CorpseDurationInfinite;
+                if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+                {
+                    ResetRetainedDeadBodies();
+                }
+
                 PersistClientSettings();
                 break;
             case 7:
-                _showHealerEnabled = !_showHealerEnabled;
+                _healerRadarEnabled = !_healerRadarEnabled;
                 PersistClientSettings();
                 break;
             case 8:
-                _showHealingEnabled = !_showHealingEnabled;
+                _showHealerEnabled = !_showHealerEnabled;
                 PersistClientSettings();
                 break;
             case 9:
-                _showHealthBarEnabled = !_showHealthBarEnabled;
+                _showHealingEnabled = !_showHealingEnabled;
                 PersistClientSettings();
                 break;
             case 10:
-                _killCamEnabled = !_killCamEnabled;
+                _showHealthBarEnabled = !_showHealthBarEnabled;
                 PersistClientSettings();
                 break;
             case 11:
+                _killCamEnabled = !_killCamEnabled;
+                PersistClientSettings();
+                break;
+            case 12:
                 _clientSettings.VSync = !_clientSettings.VSync;
                 ApplyGraphicsSettings();
                 break;
-            case 12:
+            case 13:
                 OpenControlsMenu(_optionsMenuOpenedFromGameplay);
                 break;
-            case 13:
+            case 14:
                 CloseOptionsMenu();
                 break;
         }
@@ -322,6 +333,7 @@ public partial class Game1
             "Ingame Aspect Ratio:",
             "Particles:",
             "Gibs:",
+            "Corpses:",
             "Healer Radar:",
             "Show Healer:",
             "Show Healing:",
@@ -339,6 +351,7 @@ public partial class Game1
             GetIngameResolutionLabel(_ingameResolution),
             GetParticleModeLabel(_particleMode),
             GetGibLevelLabel(_gibLevel),
+            GetCorpseDurationLabel(_corpseDurationMode),
             _healerRadarEnabled ? "Enabled" : "Disabled",
             _showHealerEnabled ? "Enabled" : "Disabled",
             _showHealingEnabled ? "Enabled" : "Disabled",
@@ -590,6 +603,13 @@ public partial class Game1
             2 => "2, Blood and medium gibs",
             _ => $"{gibLevel.ToString(CultureInfo.InvariantCulture)}, Full blood and gibs",
         };
+    }
+
+    private static string GetCorpseDurationLabel(int corpseDurationMode)
+    {
+        return corpseDurationMode == ClientSettings.CorpseDurationInfinite
+            ? "Infinite"
+            : "300 ticks";
     }
 
     private void GetOptionsMenuLayout(out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)

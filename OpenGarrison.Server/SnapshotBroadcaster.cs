@@ -178,7 +178,10 @@ sealed class SnapshotBroadcaster
             soundEvents,
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
-            mapMetadata.MapContentHash);
+            mapMetadata.MapContentHash)
+        {
+            SentryGibs = _world.SentryGibs.Select(ToSnapshotSentryGibState).ToArray(),
+        };
     }
 
     private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(ClientSession client)
@@ -446,6 +449,17 @@ sealed class SnapshotBroadcaster
             static (builder, id) => builder.RemovedDeadBodyIds.Add(id));
         AddEntityDelta(
             contributions,
+            fullSnapshot.SentryGibs,
+            baseline?.SentryGibs,
+            priority: 360,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.SentryGibs.Add(state),
+            static (builder, id) => builder.RemovedSentryGibIds.Add(id));
+        AddEntityDelta(
+            contributions,
             fullSnapshot.PlayerGibs,
             baseline?.PlayerGibs,
             priority: 320,
@@ -669,6 +683,7 @@ sealed class SnapshotBroadcaster
             Flames = new List<SnapshotFlameState>(other.Flames);
             Flares = new List<SnapshotShotState>(other.Flares);
             Mines = new List<SnapshotMineState>(other.Mines);
+            SentryGibs = new List<SnapshotSentryGibState>(other.SentryGibs);
             PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
             BloodDrops = new List<SnapshotBloodDropState>(other.BloodDrops);
             DeadBodies = new List<SnapshotDeadBodyState>(other.DeadBodies);
@@ -682,6 +697,7 @@ sealed class SnapshotBroadcaster
             RemovedFlameIds = new List<int>(other.RemovedFlameIds);
             RemovedFlareIds = new List<int>(other.RemovedFlareIds);
             RemovedMineIds = new List<int>(other.RemovedMineIds);
+            RemovedSentryGibIds = new List<int>(other.RemovedSentryGibIds);
             RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
             RemovedBloodDropIds = new List<int>(other.RemovedBloodDropIds);
             RemovedDeadBodyIds = new List<int>(other.RemovedDeadBodyIds);
@@ -702,6 +718,7 @@ sealed class SnapshotBroadcaster
         public List<SnapshotFlameState> Flames { get; } = new();
         public List<SnapshotShotState> Flares { get; } = new();
         public List<SnapshotMineState> Mines { get; } = new();
+        public List<SnapshotSentryGibState> SentryGibs { get; } = new();
         public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
         public List<SnapshotBloodDropState> BloodDrops { get; } = new();
         public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
@@ -715,6 +732,7 @@ sealed class SnapshotBroadcaster
         public List<int> RemovedFlameIds { get; } = new();
         public List<int> RemovedFlareIds { get; } = new();
         public List<int> RemovedMineIds { get; } = new();
+        public List<int> RemovedSentryGibIds { get; } = new();
         public List<int> RemovedPlayerGibIds { get; } = new();
         public List<int> RemovedBloodDropIds { get; } = new();
         public List<int> RemovedDeadBodyIds { get; } = new();
@@ -741,6 +759,7 @@ sealed class SnapshotBroadcaster
                 Flames = Flames.ToArray(),
                 Flares = Flares.ToArray(),
                 Mines = Mines.ToArray(),
+                SentryGibs = SentryGibs.ToArray(),
                 PlayerGibs = PlayerGibs.ToArray(),
                 BloodDrops = BloodDrops.ToArray(),
                 DeadBodies = DeadBodies.ToArray(),
@@ -757,6 +776,7 @@ sealed class SnapshotBroadcaster
                 RemovedFlameIds = RemovedFlameIds.ToArray(),
                 RemovedFlareIds = RemovedFlareIds.ToArray(),
                 RemovedMineIds = RemovedMineIds.ToArray(),
+                RemovedSentryGibIds = RemovedSentryGibIds.ToArray(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
                 RemovedBloodDropIds = RemovedBloodDropIds.ToArray(),
                 RemovedDeadBodyIds = RemovedDeadBodyIds.ToArray(),

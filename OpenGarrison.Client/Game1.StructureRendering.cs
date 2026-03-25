@@ -11,11 +11,6 @@ public partial class Game1
 {
     private void DrawStabAnimation(StabAnimEntity stabAnimation, Vector2 cameraPosition)
     {
-        if (IsSpyHiddenFromLocalViewer(stabAnimation.OwnerId, stabAnimation.Team, stabAnimation.X))
-        {
-            return;
-        }
-
         var owner = FindPlayerById(stabAnimation.OwnerId);
         var renderPosition = owner is null
             ? new Vector2(stabAnimation.X, stabAnimation.Y)
@@ -292,11 +287,6 @@ public partial class Game1
 
     private bool TryDrawSentryGib(SentryGibEntity gib, Vector2 cameraPosition)
     {
-        if (_gibLevel < 2)
-        {
-            return true;
-        }
-
         var sprite = _runtimeAssets.GetSprite("SentryGibsS");
         if (sprite is null || sprite.Frames.Count == 0)
         {

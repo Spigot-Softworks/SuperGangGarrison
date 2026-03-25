@@ -82,11 +82,6 @@ public partial class Game1
 
         foreach (var gib in _world.SentryGibs)
         {
-            if (_gibLevel < 2)
-            {
-                continue;
-            }
-
             if (!TryDrawSentryGib(gib, cameraPosition))
             {
                 var gibRectangle = new Rectangle(
@@ -122,6 +117,11 @@ public partial class Game1
 
         foreach (var intelBase in _world.Level.IntelBases)
         {
+            if (TryDrawSprite("IntelligenceBaseS", 0, intelBase.X, intelBase.Y, cameraPosition, Color.White))
+            {
+                continue;
+            }
+
             var markerRectangle = new Rectangle(
                 (int)(intelBase.X - 14f - cameraPosition.X),
                 (int)(intelBase.Y - 14f - cameraPosition.Y),
@@ -159,6 +159,9 @@ public partial class Game1
 
     private void DrawGameplayRemains(Vector2 cameraPosition)
     {
+        SyncRetainedDeadBodies();
+        DrawRetainedDeadBodies(cameraPosition);
+
         foreach (var playerGib in _world.PlayerGibs)
         {
             if (_gibLevel == 0 || (_gibLevel == 1) || (_gibLevel == 2 && (playerGib.FrameIndex % 2 != 0)))
@@ -229,7 +232,7 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
         }
 
-        if (!GetPlayerIsHeavyEating(_world.LocalPlayer) && !_world.LocalPlayer.IsTaunting)
+        if (!GetPlayerIsHeavyEating(_world.LocalPlayer) && !_world.LocalPlayer.IsTaunting && !_world.IsPlayerHumiliated(_world.LocalPlayer))
         {
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }

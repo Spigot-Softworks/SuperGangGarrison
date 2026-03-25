@@ -608,10 +608,13 @@ public partial class Game1
 
     private void CaptureProjectileInterpolationTarget(int entityId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
     {
-        var extrapolationDurationSeconds = Math.Clamp(
+        var desiredExtrapolationDurationSeconds = MathF.Max(
+            (_networkSnapshotInterpolationDurationSeconds * 4f) + (_smoothedSnapshotJitterSeconds * 4f),
             MathF.Max(
-                _networkSnapshotInterpolationDurationSeconds * 2f,
-                1f / LegacyMovementModel.SourceTicksPerSecond),
+                _smoothedSnapshotIntervalSeconds * 2f,
+                1f / LegacyMovementModel.SourceTicksPerSecond));
+        var extrapolationDurationSeconds = Math.Clamp(
+            desiredExtrapolationDurationSeconds,
             1f / LegacyMovementModel.SourceTicksPerSecond,
             ProjectileInterpolationExtrapolationCeilingSeconds);
         var projectileVelocityPerSecond = velocity * _config.TicksPerSecond;
@@ -753,12 +756,12 @@ public partial class Game1
 
         if (history.Count == 1)
         {
-            return EvaluateEntitySampleExtrapolation(history[0], renderTimeSeconds);
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
         }
 
         if (renderTimeSeconds <= history[0].TimeSeconds)
         {
-            return history[0].Position;
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
         }
 
         for (var index = 1; index < history.Count; index += 1)
@@ -774,6 +777,17 @@ public partial class Game1
         }
 
         return EvaluateEntitySampleExtrapolation(history[^1], renderTimeSeconds);
+    }
+
+    private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds)
+    {
+        var evaluationTimeSeconds = renderTimeSeconds;
+        if (sample.Velocity != Vector2.Zero)
+        {
+            evaluationTimeSeconds = Math.Max(renderTimeSeconds, GetEstimatedServerTimeSeconds());
+        }
+
+        return EvaluateEntitySampleExtrapolation(sample, evaluationTimeSeconds);
     }
 
     private static Vector2 InterpolateEntitySnapshotSample(EntitySnapshotSample older, EntitySnapshotSample newer, double renderTimeSeconds)

@@ -35,6 +35,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int GibLevel { get; set; } = 3;
 
+    public int CorpseDurationMode { get; set; }
+
     public bool HealerRadarEnabled { get; set; } = true;
 
     public bool ShowHealerEnabled { get; set; } = true;
@@ -75,6 +77,7 @@ public sealed class OpenGarrisonPreferencesDocument
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
+            CorpseDurationMode = ini.GetInt(SettingsSection, "Corpse Duration", 0),
             HealerRadarEnabled = ini.GetBool(SettingsSection, "Healer Radar", true),
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
@@ -104,6 +107,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
+        ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
         ini.SetBool(SettingsSection, "Monitor Sync", VSync);
         ini.SetBool(SettingsSection, "Healer Radar", HealerRadarEnabled);

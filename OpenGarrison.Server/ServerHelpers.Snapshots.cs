@@ -68,12 +68,15 @@ internal static partial class ServerHelpers
             (byte)player.MovementState,
             player.PrimaryCooldownTicks,
             player.ReloadTicksUntilNextShell,
+            player.MedicNeedleCooldownTicks,
+            player.MedicNeedleRefillTicks,
             player.PyroAirblastCooldownTicks,
             player.PyroFlareCooldownTicks,
             player.PyroPrimaryFuelScaled,
             player.IsPyroPrimaryRefilling,
             player.PyroFlameLoopTicksRemaining,
-            player.PyroPrimaryRequiresReleaseAfterEmpty);
+            player.PyroPrimaryRequiresReleaseAfterEmpty,
+            player.HeavyEatCooldownTicksRemaining);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -215,6 +218,16 @@ internal static partial class ServerHelpers
             deadBody.VerticalSpeed,
             deadBody.FacingLeft,
             deadBody.TicksRemaining);
+    }
+
+    internal static SnapshotSentryGibState ToSnapshotSentryGibState(SentryGibEntity sentryGib)
+    {
+        return new SnapshotSentryGibState(
+            sentryGib.Id,
+            (byte)sentryGib.Team,
+            sentryGib.X,
+            sentryGib.Y,
+            sentryGib.TicksRemaining);
     }
 
     internal static SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)

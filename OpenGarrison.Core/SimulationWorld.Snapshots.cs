@@ -186,12 +186,15 @@ public sealed partial class SimulationWorld
             snapshotPlayer.MovementState,
             snapshotPlayer.PrimaryCooldownTicks,
             snapshotPlayer.ReloadTicksUntilNextShell,
+            snapshotPlayer.MedicNeedleCooldownTicks,
+            snapshotPlayer.MedicNeedleRefillTicks,
             snapshotPlayer.PyroAirblastCooldownTicks,
             snapshotPlayer.PyroFlareCooldownTicks,
             snapshotPlayer.PyroPrimaryFuelScaled,
             snapshotPlayer.IsPyroPrimaryRefilling,
             snapshotPlayer.PyroFlameLoopTicksRemaining,
-            snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty);
+            snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty,
+            snapshotPlayer.HeavyEatCooldownTicksRemaining);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
@@ -257,6 +260,7 @@ public sealed partial class SimulationWorld
         ApplySnapshotPlayerGibs(snapshot.PlayerGibs);
         ApplySnapshotBloodDrops(snapshot.BloodDrops);
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
+        ApplySnapshotSentryGibs(snapshot.SentryGibs);
     }
 
     private void ApplySnapshotSentries(IReadOnlyList<SnapshotSentryState> sentries)
@@ -450,6 +454,25 @@ public sealed partial class SimulationWorld
                 state.Y,
                 state.HorizontalSpeed,
                 state.VerticalSpeed,
+                state.TicksRemaining));
+    }
+
+    private void ApplySnapshotSentryGibs(IReadOnlyList<SnapshotSentryGibState> sentryGibs)
+    {
+        SyncSnapshotEntities(
+            sentryGibs,
+            _sentryGibs,
+            static state => state.Id,
+            static (entity, state) =>
+                entity.Team == (PlayerTeam)state.Team,
+            state => new SentryGibEntity(
+                state.Id,
+                (PlayerTeam)state.Team,
+                state.X,
+                state.Y),
+            static (entity, state) => entity.ApplyNetworkState(
+                state.X,
+                state.Y,
                 state.TicksRemaining));
     }
 

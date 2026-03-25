@@ -55,6 +55,8 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedBloodDropIds);
         WriteDeadBodyStates(writer, snapshot.DeadBodies);
         WriteEntityIdList(writer, snapshot.RemovedDeadBodyIds);
+        WriteSentryGibStates(writer, snapshot.SentryGibs);
+        WriteEntityIdList(writer, snapshot.RemovedSentryGibIds);
         writer.Write(snapshot.ControlPointSetupTicksRemaining);
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
@@ -114,6 +116,8 @@ public static partial class ProtocolCodec
         var removedBloodDropIds = ReadEntityIdList(reader);
         var deadBodies = ReadDeadBodyStates(reader);
         var removedDeadBodyIds = ReadEntityIdList(reader);
+        var sentryGibs = ReadSentryGibStates(reader);
+        var removedSentryGibIds = ReadEntityIdList(reader);
         var controlPointSetupTicksRemaining = reader.ReadInt32();
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
@@ -179,6 +183,8 @@ public static partial class ProtocolCodec
             RemovedPlayerGibIds = removedPlayerGibIds,
             RemovedBloodDropIds = removedBloodDropIds,
             RemovedDeadBodyIds = removedDeadBodyIds,
+            SentryGibs = sentryGibs,
+            RemovedSentryGibIds = removedSentryGibIds,
         };
     }
 
@@ -259,12 +265,15 @@ public static partial class ProtocolCodec
             writer.Write(player.MovementState);
             writer.Write(player.PrimaryCooldownTicks);
             writer.Write(player.ReloadTicksUntilNextShell);
+            writer.Write(player.MedicNeedleCooldownTicks);
+            writer.Write(player.MedicNeedleRefillTicks);
             writer.Write(player.PyroAirblastCooldownTicks);
             writer.Write(player.PyroFlareCooldownTicks);
             writer.Write(player.PyroPrimaryFuelScaled);
             writer.Write(player.IsPyroPrimaryRefilling);
             writer.Write(player.PyroFlameLoopTicksRemaining);
             writer.Write(player.PyroPrimaryRequiresReleaseAfterEmpty);
+            writer.Write(player.HeavyEatCooldownTicksRemaining);
         }
     }
 
@@ -328,9 +337,12 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadInt32(),
                 reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
-                reader.ReadBoolean()));
+                reader.ReadBoolean(),
+                reader.ReadInt32()));
         }
 
         return players;

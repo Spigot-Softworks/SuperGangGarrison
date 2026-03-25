@@ -139,12 +139,19 @@ public sealed partial class SimulationWorld
                 || player.CurrentShells < player.PrimaryWeapon.MaxAmmo
                 || player.ReloadTicksUntilNextShell > 0
                 || player.MedicNeedleRefillTicks > 0
-                || player.IsBurning;
-            usingHealingCabinet = needsCabinet;
+                || player.IsBurning
+                || player.HeavyEatCooldownTicksRemaining > 0;
+            if (!needsCabinet)
+            {
+                continue;
+            }
+
+            usingHealingCabinet = true;
             player.HealAndResupply();
-            if (needsCabinet && !player.IsUsingHealingCabinet)
+            if (player.CanPlayHealingCabinetSound())
             {
                 RegisterWorldSoundEvent("CbntHealSnd", player.X, player.Y);
+                player.RestartHealingCabinetSoundCooldown();
             }
         }
 

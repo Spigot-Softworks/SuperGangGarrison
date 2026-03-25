@@ -54,6 +54,24 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void TrySetLocalClass_InSpawnRoomDoesNotLeaveCorpse()
+    {
+        var world = CreateWorld();
+
+        world.LocalPlayer.SetSpawnRoomState(true);
+        Assert.True(world.TrySetLocalClass(PlayerClass.Engineer));
+
+        Assert.Empty(world.DeadBodies);
+        Assert.Empty(world.PlayerGibs);
+        Assert.Equal(1, world.LocalPlayerRespawnTicks);
+
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.Equal(PlayerClass.Engineer, world.LocalPlayer.ClassId);
+    }
+
+    [Fact]
     public void EngineerCanOnlyBuildOneSentryAndSpendsMetal()
     {
         var world = CreateWorld();
@@ -438,6 +456,7 @@ public sealed class SimulationWorldTests
         var world = CreateWorld();
         SetLocalClassAndRespawn(world, PlayerClass.Quote);
 
+        world.DrainPendingVisualEvents();
         world.CombatTestSpawnBubble(
             world.LocalPlayer,
             world.LocalPlayer.X + BubbleProjectileEntity.MaxDistanceFromOwner + 1f,
@@ -446,6 +465,7 @@ public sealed class SimulationWorldTests
         world.AdvanceOneTick();
 
         Assert.Empty(world.Bubbles);
+        Assert.Contains(world.DrainPendingVisualEvents(), visualEvent => visualEvent.EffectName == "Pop");
     }
 
     [Fact]
@@ -546,6 +566,19 @@ public sealed class SimulationWorldTests
 
         Assert.InRange(sourceSpeed, 6.5f, 10f);
         Assert.InRange(sourceAngleDegrees, -maxSpreadDegrees, maxSpreadDegrees);
+    }
+
+    [Fact]
+    public void PyroFlame_SpawnTraceUsesRoundedWeaponOrigin()
+    {
+        var world = CreateWorld();
+        var wall = new LevelSolid(200.7f, 190f, 0.15f, 20f);
+        world.CombatTestSetLevel(CreateLevel(solids: [wall]));
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.LocalPlayer.TeleportTo(200.6f, 200f);
+
+        Assert.False(world.CombatTestIsFlameSpawnBlocked(201f, 200f, 226f, 200f, PlayerTeam.Red));
     }
 
     [Fact]
@@ -761,7 +794,7 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void HealingCabinet_OnlyPlaysHealSoundWhenNeedStarts()
+    public void HealingCabinet_UsesFourSecondPerPlayerSoundCooldown()
     {
         var world = CreateWorld();
         var cabinet = new RoomObjectMarker(RoomObjectType.HealingCabinet, 180f, 200f, 32f, 48f, "sprite74", null, "HealingCabinet");
@@ -783,7 +816,86 @@ public sealed class SimulationWorldTests
         world.AdvanceOneTick();
 
         var thirdTickSounds = world.DrainPendingSoundEvents();
-        Assert.Contains(thirdTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+        Assert.DoesNotContain(thirdTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+
+        AdvanceTicks(world, world.Config.TicksPerSecond * 4);
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+        world.SetLocalHealth(world.LocalPlayer.MaxHealth - 10);
+        world.AdvanceOneTick();
+
+        var cooldownExpiredSounds = world.DrainPendingSoundEvents();
+        Assert.Contains(cooldownExpiredSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+    }
+
+    [Fact]
+    public void HealingCabinet_PlaysHealSoundForAmmoOnlyStreamRefillsWithoutImmediateSpam()
+    {
+        var world = CreateWorld();
+        var cabinet = new RoomObjectMarker(RoomObjectType.HealingCabinet, 180f, 200f, 32f, 48f, "sprite74", null, "HealingCabinet");
+        world.CombatTestSetLevel(CreateLevel(roomObjects: [cabinet]));
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+        world.DrainPendingSoundEvents();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: cabinet.CenterX + 100f,
+            AimWorldY: cabinet.CenterY,
+            DebugKill: false));
+        world.AdvanceOneTick();
+
+        var firstTickSounds = world.DrainPendingSoundEvents();
+        Assert.Contains(firstTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+
+        AdvanceTicks(world, world.Config.TicksPerSecond * 2);
+        var cooldownSounds = world.DrainPendingSoundEvents();
+        Assert.DoesNotContain(cooldownSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+    }
+
+    [Fact]
+    public void HealingCabinet_ResetsHeavySandvichCooldown()
+    {
+        var world = CreateWorld();
+        var cabinet = new RoomObjectMarker(RoomObjectType.HealingCabinet, 180f, 200f, 32f, 48f, "sprite74", null, "HealingCabinet");
+        world.CombatTestSetLevel(CreateLevel(roomObjects: [cabinet]));
+        SetLocalClassAndRespawn(world, PlayerClass.Heavy);
+        world.TeleportLocalPlayer(60f, 200f);
+        world.SetLocalHealth(world.LocalPlayer.MaxHealth - 20);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: 120f,
+            AimWorldY: 200f,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.True(world.LocalPlayer.HeavyEatCooldownTicksRemaining > 0);
+        world.SetLocalHealth(world.LocalPlayer.MaxHealth);
+        world.DrainPendingSoundEvents();
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.AdvanceOneTick();
+
+        var soundEvents = world.DrainPendingSoundEvents();
+        Assert.Equal(0, world.LocalPlayer.HeavyEatCooldownTicksRemaining);
+        Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "CbntHealSnd");
     }
 
     [Fact]
@@ -1212,6 +1324,42 @@ public sealed class SimulationWorldTests
 
         Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
         Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    [Fact]
+    public void DemomanAtMaxMines_FiringPrimaryDoesNotConsumeAmmoOrCooldown()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+        world.TeleportLocalPlayer(200f, 200f);
+
+        for (var mineIndex = 0; mineIndex < world.LocalPlayer.PrimaryWeapon.MaxAmmo; mineIndex += 1)
+        {
+            world.CombatTestSpawnMine(world.LocalPlayer, 220f + (mineIndex * 8f), 200f);
+        }
+
+        var ammoBeforeShot = world.LocalPlayer.CurrentShells;
+        var cooldownBeforeShot = world.LocalPlayer.PrimaryCooldownTicks;
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 80f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(world.LocalPlayer.PrimaryWeapon.MaxAmmo, world.Mines.Count);
+        Assert.Equal(ammoBeforeShot, world.LocalPlayer.CurrentShells);
+        Assert.Equal(cooldownBeforeShot, world.LocalPlayer.PrimaryCooldownTicks);
     }
 
     [Fact]
@@ -2060,6 +2208,151 @@ public sealed class SimulationWorldTests
         var visualEvents = world.DrainPendingVisualEvents();
 
         Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "BackstabRed");
+    }
+
+    [Fact]
+    public void SpyBackstab_HitboxSpawnEmitsKnifeSound()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Spy);
+
+        Assert.True(world.LocalPlayer.TryToggleSpyCloak());
+        world.DrainPendingSoundEvents();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 32f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        AdvanceTicks(world, PlayerEntity.SpyBackstabWindupTicksDefault);
+        var soundEvents = world.DrainPendingSoundEvents();
+
+        Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "KnifeSnd");
+    }
+
+    [Fact]
+    public void EngineerShotHittingWall_EmitsImpactVisual()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        var wall = new LevelSolid(250f, 0f, 20f, 240f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        SetLocalClassAndRespawn(world, PlayerClass.Engineer);
+        world.TeleportLocalPlayer(200f, 220f);
+        world.DrainPendingVisualEvents();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: 400f,
+            AimWorldY: 220f,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        AdvanceTicks(world, 20);
+        var visualEvents = world.DrainPendingVisualEvents();
+
+        Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Impact");
+    }
+
+    [Fact]
+    public void MedicNeedleHittingWall_EmitsImpactVisual()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 1000f, 40f);
+        var wall = new LevelSolid(250f, 0f, 20f, 240f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor, wall]));
+        SetLocalClassAndRespawn(world, PlayerClass.Medic);
+        world.TeleportLocalPlayer(200f, 220f);
+        world.DrainPendingVisualEvents();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: 400f,
+            AimWorldY: 220f,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        AdvanceTicks(world, 20);
+        var visualEvents = world.DrainPendingVisualEvents();
+
+        Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Impact");
+    }
+
+    [Fact]
+    public void Movement_WallRubSpinjumpEmitsWallspinDustVisual()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Soldier);
+
+        const float playerX = 200f;
+        const float playerY = 120f;
+        var wall = new LevelSolid(playerX + (world.LocalPlayer.Width / 2f), playerY - 120f, 12f, 240f);
+        world.CombatTestSetLevel(CreateLevel(solids: [wall]));
+        world.TeleportLocalPlayer(playerX, playerY);
+        world.DrainPendingVisualEvents();
+
+        AdvanceWallRubTick(world, aimLeft: true);
+        AdvanceWallRubTick(world, aimLeft: true);
+
+        var visualEvents = world.DrainPendingVisualEvents();
+        Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "WallspinDust");
+    }
+
+    [Fact]
+    public void MovingIntelCarrier_EmitsLooseSheetTrailVisual()
+    {
+        var world = CreateWorld();
+
+        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+        world.DrainPendingVisualEvents();
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: true,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 100f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        AdvanceTicks(world, 60);
+        world.SetLocalInput(default);
+
+        var visualEvents = world.DrainPendingVisualEvents();
+        Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "LooseSheet");
     }
 
     [Fact]

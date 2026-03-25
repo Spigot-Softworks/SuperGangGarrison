@@ -8,6 +8,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const string DefaultDisplayName = "Player";
     public const float HeavyPrimaryMoveScale = 0.375f;
     public const int HeavyEatDurationTicks = 124;
+    public const int HeavySandvichCooldownTicks = 1350;
+    private const float HealingCabinetSoundCooldownSeconds = 4f;
     private const float HeavyEatHealPerTick = 0.4f;
     private const float StepUpHeight = 6f;
     private const float StepSupportEpsilon = 2f;
@@ -117,6 +119,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsUsingHealingCabinet { get; private set; }
 
+    public float HealingCabinetSoundCooldownSecondsRemaining { get; private set; }
+
     public int RemainingAirJumps { get; private set; }
 
     public float FacingDirectionX { get; private set; }
@@ -138,6 +142,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsHeavyEating { get; private set; }
 
     public int HeavyEatTicksRemaining { get; private set; }
+
+    public int HeavyEatCooldownTicksRemaining { get; private set; }
 
     public bool IsTaunting { get; private set; }
 
@@ -282,6 +288,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
+        HeavyEatCooldownTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -305,6 +312,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
+        HealingCabinetSoundCooldownSecondsRemaining = 0f;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -330,6 +338,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
+        HeavyEatCooldownTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -352,6 +361,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroFlameLoopTicksRemaining = 0;
         PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsUsingHealingCabinet = false;
+        HealingCabinetSoundCooldownSecondsRemaining = 0f;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -378,6 +388,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
+        HeavyEatCooldownTicksRemaining = 0;
         HeavyHealingAccumulator = 0f;
         IsTaunting = false;
         TauntFrameIndex = 0f;
@@ -399,6 +410,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
+        HealingCabinetSoundCooldownSecondsRemaining = 0f;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -428,6 +440,16 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetHealingCabinetState(bool isUsingHealingCabinet)
     {
         IsUsingHealingCabinet = isUsingHealingCabinet;
+    }
+
+    public bool CanPlayHealingCabinetSound()
+    {
+        return HealingCabinetSoundCooldownSecondsRemaining <= 0f;
+    }
+
+    public void RestartHealingCabinetSoundCooldown()
+    {
+        HealingCabinetSoundCooldownSecondsRemaining = HealingCabinetSoundCooldownSeconds;
     }
 
     private void ResetSourceFacingDirectionState()

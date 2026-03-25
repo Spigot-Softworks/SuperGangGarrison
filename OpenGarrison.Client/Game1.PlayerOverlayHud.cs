@@ -88,6 +88,7 @@ public partial class Game1
                 return;
             case PrimaryWeaponKind.Minigun:
                 DrawHeavyAmmoHud();
+                DrawHeavySandwichHud();
                 return;
             case PrimaryWeaponKind.Blade:
                 DrawQuoteAmmoHud();
@@ -112,7 +113,7 @@ public partial class Game1
             if (_world.LocalPlayer.ClassId != PlayerClass.Soldier)
             {
                 DrawHudTextLeftAligned(
-                    _world.LocalPlayer.CurrentShells.ToString(CultureInfo.InvariantCulture),
+                    GetPlayerCurrentShells(_world.LocalPlayer).ToString(CultureInfo.InvariantCulture),
                     GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f),
                     AmmoHudTextColor,
                     1f);
@@ -130,10 +131,11 @@ public partial class Game1
             return;
         }
 
-        var barColor = _world.LocalPlayer.CurrentShells <= (_world.LocalPlayer.MaxShells * 0.25f)
+        var currentShells = GetPlayerCurrentShells(_world.LocalPlayer);
+        var barColor = currentShells <= (_world.LocalPlayer.MaxShells * 0.25f)
             ? LowAmmoHudColor
             : AmmoHudBarColor;
-        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, barColor);
+        DrawSourceAmmoHudBar(689f, 34f, currentShells, _world.LocalPlayer.MaxShells, barColor);
         DrawPyroFlareHud(frameIndex);
     }
 
@@ -144,13 +146,44 @@ public partial class Game1
             return;
         }
 
+        var currentShells = GetPlayerCurrentShells(_world.LocalPlayer);
         var ammoFraction = _world.LocalPlayer.MaxShells <= 0
             ? 0f
-            : float.Clamp(_world.LocalPlayer.CurrentShells / (float)_world.LocalPlayer.MaxShells, 0f, 1f);
+            : float.Clamp(currentShells / (float)_world.LocalPlayer.MaxShells, 0f, 1f);
         var barColor = Color.Lerp(AmmoHudBarColor, LowAmmoHudColor, 1f - ammoFraction);
-        var cooldownFraction = float.Clamp(Math.Max(_world.LocalPlayer.PrimaryCooldownTicks, _world.LocalPlayer.ReloadTicksUntilNextShell) / 25f, 0f, 1f);
+        var cooldownFraction = float.Clamp(Math.Max(GetPlayerPrimaryCooldownTicks(_world.LocalPlayer), GetPlayerReloadTicksUntilNextShell(_world.LocalPlayer)) / 25f, 0f, 1f);
         barColor = Color.Lerp(barColor, HeavyCooldownHudColor, cooldownFraction);
-        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, barColor);
+        DrawSourceAmmoHudBar(689f, 34f, currentShells, _world.LocalPlayer.MaxShells, barColor);
+    }
+
+    private void DrawHeavySandwichHud()
+    {
+        if (_world.LocalPlayer.ClassId != PlayerClass.Heavy)
+        {
+            return;
+        }
+
+        if (!TryDrawScreenSprite(
+            "SandwichHudS",
+            _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0,
+            GetSourceHudPoint(730f, 515f),
+            Color.White,
+            new Vector2(2f, 2f)))
+        {
+            return;
+        }
+
+        var cooldownRemaining = Math.Clamp(
+            GetPlayerHeavyEatCooldownTicksRemaining(_world.LocalPlayer),
+            0,
+            PlayerEntity.HeavySandvichCooldownTicks);
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(715f, 528f, 35f, 5f),
+            PlayerEntity.HeavySandvichCooldownTicks - cooldownRemaining,
+            PlayerEntity.HeavySandvichCooldownTicks,
+            false,
+            AmmoHudBarColor,
+            Color.Black);
     }
 
     private void DrawQuoteAmmoHud()
@@ -160,18 +193,18 @@ public partial class Game1
             return;
         }
 
-        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, AmmoHudBarColor);
+        DrawSourceAmmoHudBar(689f, 34f, GetPlayerCurrentShells(_world.LocalPlayer), _world.LocalPlayer.MaxShells, AmmoHudBarColor);
     }
 
     private void DrawPyroFlareHud(int frameIndex)
     {
-        var flareCount = _world.LocalPlayer.CurrentShells / PlayerEntity.PyroFlareAmmoRequirement;
+        var flareCount = GetPlayerCurrentShells(_world.LocalPlayer) / PlayerEntity.PyroFlareAmmoRequirement;
         if (flareCount <= 0)
         {
             return;
         }
 
-        var flareTint = _world.LocalPlayer.PyroFlareCooldownTicks <= 0
+        var flareTint = GetPlayerPyroFlareCooldownTicks(_world.LocalPlayer) <= 0
             ? Color.White
             : DisabledAmmoHudColor;
         for (var flareIndex = 0; flareIndex < flareCount; flareIndex += 1)
@@ -643,7 +676,7 @@ public partial class Game1
     {
         return _world.LocalPlayer.ClassId switch
         {
-            PlayerClass.Soldier => _world.LocalPlayer.CurrentShells + (_world.LocalPlayerTeam == PlayerTeam.Blue ? 5 : 0),
+            PlayerClass.Soldier => GetPlayerCurrentShells(_world.LocalPlayer) + (_world.LocalPlayerTeam == PlayerTeam.Blue ? 5 : 0),
             PlayerClass.Scout or PlayerClass.Engineer or PlayerClass.Demoman or PlayerClass.Spy or PlayerClass.Medic or PlayerClass.Pyro or PlayerClass.Heavy or PlayerClass.Quote
                 => _world.LocalPlayerTeam == PlayerTeam.Blue ? 1 : 0,
             _ => 0,
@@ -652,20 +685,47 @@ public partial class Game1
 
     private void DrawAmmoReloadBar(Rectangle barRectangle)
     {
-        if (_world.LocalPlayer.ReloadTicksUntilNextShell <= 0)
+        DrawScreenHealthBar(
+            barRectangle,
+            GetAmmoReloadBarProgress(_world.LocalPlayer),
+            1f,
+            false,
+            AmmoHudBarColor,
+            Color.Black);
+    }
+
+    private float GetAmmoReloadBarProgress(PlayerEntity player)
+    {
+        var currentShells = GetPlayerCurrentShells(player);
+        if (currentShells >= player.MaxShells)
         {
-            return;
+            return 1f;
         }
 
-        var reloadTicks = Math.Max(1, _world.LocalPlayer.PrimaryWeapon.AmmoReloadTicks);
-        var reloadProgress = 1f - (_world.LocalPlayer.ReloadTicksUntilNextShell / (float)reloadTicks);
-        var reloadWidth = Math.Clamp((int)MathF.Round(barRectangle.Width * reloadProgress), 0, barRectangle.Width);
-        if (reloadWidth <= 0)
+        if (player.ClassId == PlayerClass.Medic)
         {
-            return;
+            var refillTicks = GetPlayerMedicNeedleRefillTicks(player);
+            if (refillTicks <= 0)
+            {
+                return currentShells < player.MaxShells ? 1f : 0f;
+            }
+
+            return Math.Clamp(
+                1f - (refillTicks / (float)PlayerEntity.MedicNeedleRefillTicksDefault),
+                0f,
+                1f);
         }
 
-        var reloadRectangle = new Rectangle(barRectangle.X, barRectangle.Y, reloadWidth, barRectangle.Height);
-        _spriteBatch.Draw(_pixel, reloadRectangle, AmmoHudBarColor);
+        var reloadTicksUntilNextShell = GetPlayerReloadTicksUntilNextShell(player);
+        if (reloadTicksUntilNextShell <= 0)
+        {
+            return 1f;
+        }
+
+        var reloadTicks = Math.Max(1, player.PrimaryWeapon.AmmoReloadTicks);
+        return Math.Clamp(
+            1f - (reloadTicksUntilNextShell / (float)reloadTicks),
+            0f,
+            1f);
     }
 }

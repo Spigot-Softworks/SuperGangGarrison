@@ -291,21 +291,21 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        public bool IsFlameSpawnBlocked(PlayerEntity attacker, float spawnX, float spawnY)
+        public bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
         {
-            var distance = DistanceBetween(attacker.X, attacker.Y, spawnX, spawnY);
+            var distance = DistanceBetween(originX, originY, spawnX, spawnY);
             if (distance <= 0.0001f)
             {
                 return false;
             }
 
-            var directionX = (spawnX - attacker.X) / distance;
-            var directionY = (spawnY - attacker.Y) / distance;
+            var directionX = (spawnX - originX) / distance;
+            var directionY = (spawnY - originY) / distance;
             foreach (var solid in Level.Solids)
             {
                 if (GetRayIntersectionDistanceWithRectangle(
-                    attacker.X,
-                    attacker.Y,
+                    originX,
+                    originY,
                     directionX,
                     directionY,
                     solid.Left,
@@ -320,14 +320,14 @@ public sealed partial class SimulationWorld
 
             foreach (var gate in Level.RoomObjects)
             {
-                if (!IsBlockingGateForTeam(gate, attacker.Team))
+                if (!IsBlockingGateForTeam(gate, team))
                 {
                     continue;
                 }
 
                 if (GetRayIntersectionDistanceWithRectangle(
-                    attacker.X,
-                    attacker.Y,
+                    originX,
+                    originY,
                     directionX,
                     directionY,
                     gate.Left,
