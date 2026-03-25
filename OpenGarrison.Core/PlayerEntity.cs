@@ -65,6 +65,22 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float Height => ClassDefinition.Height;
 
+    public float CollisionLeftOffset => ClassDefinition.CollisionLeft;
+
+    public float CollisionTopOffset => ClassDefinition.CollisionTop;
+
+    public float CollisionRightOffset => ClassDefinition.CollisionRight;
+
+    public float CollisionBottomOffset => ClassDefinition.CollisionBottom;
+
+    public float Left => X + CollisionLeftOffset;
+
+    public float Top => Y + CollisionTopOffset;
+
+    public float Right => X + CollisionRightOffset;
+
+    public float Bottom => Y + CollisionBottomOffset;
+
     public PlayerTeam Team { get; private set; }
 
     public float HorizontalSpeed { get; private set; }
@@ -396,10 +412,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     internal bool CanOccupy(SimpleLevel level, PlayerTeam team, float x, float y)
     {
-        var left = x - (Width / 2f);
-        var right = x + (Width / 2f);
-        var top = y - (Height / 2f);
-        var bottom = y + (Height / 2f);
+        GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
         foreach (var solid in level.Solids)
         {
@@ -426,6 +439,19 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
 
         return true;
+    }
+
+    public void GetCollisionBounds(out float left, out float top, out float right, out float bottom)
+    {
+        GetCollisionBoundsAt(X, Y, out left, out top, out right, out bottom);
+    }
+
+    public void GetCollisionBoundsAt(float x, float y, out float left, out float top, out float right, out float bottom)
+    {
+        left = x + CollisionLeftOffset;
+        top = y + CollisionTopOffset;
+        right = x + CollisionRightOffset;
+        bottom = y + CollisionBottomOffset;
     }
 
     private static string SanitizeDisplayName(string? displayName)

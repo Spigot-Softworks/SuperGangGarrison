@@ -7,6 +7,7 @@ public static class ContentRoot
     public static void Initialize(string rootDirectory)
     {
         Path = rootDirectory;
+        SimpleLevelFactory.ClearCachedCatalog();
     }
 
     public static string GetPath(params string[] parts)

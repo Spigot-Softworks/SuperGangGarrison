@@ -32,8 +32,8 @@ public partial class Game1
 
     private void DrawStartupSplash()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black);
 
         var sprite = _runtimeAssets.GetSprite("FaucetLogoS");

@@ -88,11 +88,34 @@ public sealed partial class SimulationWorld
         int LifetimeTicks,
         float HorizontalFriction,
         float RotationFriction,
-        bool InheritPlayerVelocity = false);
+        bool InheritPlayerVelocity = false,
+        float BloodChance = PlayerGibEntity.DefaultBloodChance);
 
     private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
     {
-        _pendingVisualEvents.Add(new WorldVisualEvent("Blood", x, y, NormalizeAngleDegrees(directionDegrees), Math.Max(1, count)));
+        var normalizedDirectionDegrees = NormalizeAngleDegrees(directionDegrees);
+        _pendingVisualEvents.Add(new WorldVisualEvent("Blood", x, y, normalizedDirectionDegrees, Math.Max(1, count)));
+        SpawnImpactBloodDrops(x, y, normalizedDirectionDegrees, count);
+    }
+
+    private void SpawnImpactBloodDrops(float x, float y, float directionDegrees, int count)
+    {
+        var dropCount = int.Clamp(4 + Math.Max(0, count - 1), 4, 7);
+        var directionRadians = DegreesToRadians(directionDegrees);
+        for (var index = 0; index < dropCount; index += 1)
+        {
+            var speed = _random.NextSingle() * 12f;
+            var spreadRadians = DegreesToRadians((_random.NextSingle() * 43f) - 22f);
+            var velocityRadians = directionRadians + spreadRadians;
+            var bloodDrop = new BloodDropEntity(
+                AllocateEntityId(),
+                x,
+                y,
+                MathF.Cos(velocityRadians) * speed,
+                MathF.Sin(velocityRadians) * speed);
+            _bloodDrops.Add(bloodDrop);
+            _entities.Add(bloodDrop.Id, bloodDrop);
+        }
     }
 
     private void RegisterVisualEffect(string effectName, float x, float y, float directionDegrees = 0f, int count = 1)

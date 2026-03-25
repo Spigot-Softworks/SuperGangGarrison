@@ -77,6 +77,7 @@ public partial class Game1 : Game
     private const int ProcessedNetworkEventHistoryLimit = 4096;
     private readonly GameStartupMode _startupMode;
     private readonly GraphicsDeviceManager _graphics;
+    private RenderTarget2D? _gameRenderTarget;
     private SimulationConfig _config = null!;
     private SimulationWorld _world = null!;
     private FixedStepSimulator _simulator = null!;
@@ -87,11 +88,9 @@ public partial class Game1 : Game
     private Texture2D? _menuBackgroundTexture;
     private SpriteFont _consoleFont = null!;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
+    private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
-    private readonly Dictionary<int, float> _playerAnimationImages = new();
-    private readonly Dictionary<int, float> _playerWeaponFlashTimes = new();
-    private readonly Dictionary<int, int> _playerPreviousAmmoCounts = new();
-    private readonly Dictionary<int, int> _playerPreviousCooldownTicks = new();
+    private readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
     private readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
     private readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
     private int? _localPlayerSnapshotEntityId;
@@ -100,6 +99,8 @@ public partial class Game1 : Game
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
     private MouseState _previousMouse;
+    private Vector2 _respawnCameraCenter;
+    private bool _respawnCameraDetached;
     private bool _teamSelectOpen;
     private float _teamSelectAlpha = 0.01f;
     private float _teamSelectPanelY = -120f;
@@ -109,6 +110,9 @@ public partial class Game1 : Game
     private float _classSelectAlpha = 0.01f;
     private float _classSelectPanelY = -120f;
     private int _classSelectHoverIndex = -1;
+    private int _classSelectPortraitAnimationHoverIndex = -1;
+    private PlayerTeam? _classSelectPortraitAnimationTeam;
+    private float _classSelectPortraitAnimationFrame;
     private bool _scoreboardOpen;
     private float _scoreboardAlpha = 0.02f;
     private bool _chatOpen;
@@ -138,8 +142,12 @@ public partial class Game1 : Game
     private bool _manualConnectOpen;
     private bool _hostSetupOpen;
     private bool _creditsOpen;
+    private bool _creditsScrollInitialized;
+    private float _creditsScrollY;
     private bool _inGameMenuOpen;
     private bool _inGameMenuAwaitingEscapeRelease;
+    private bool _quitPromptOpen;
+    private int _quitPromptHoverIndex = -1;
     private bool _controlsMenuOpen;
     private bool _controlsMenuOpenedFromGameplay;
     private bool _editingPlayerName;
@@ -193,6 +201,7 @@ public partial class Game1 : Game
     private string _autoBalanceNoticeText = string.Empty;
     private int _autoBalanceNoticeTicks;
     private bool _killCamEnabled = true;
+    private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _gibLevel = 3;
     private bool _healerRadarEnabled = true;
@@ -209,11 +218,12 @@ public partial class Game1 : Game
         _clientSettings = ClientSettings.Load();
         _inputBindings = InputBindingsSettings.Load();
         _graphics = new GraphicsDeviceManager(this);
+        _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
         ContentRoot.Initialize(Content.RootDirectory);
         IsMouseVisible = false;
-        _graphics.PreferredBackBufferWidth = 1280;
-        _graphics.PreferredBackBufferHeight = 720;
+        ApplyIngameResolution(_clientSettings.IngameResolution);
+        ApplyPreferredBackBufferSize(_clientSettings.Fullscreen, _ingameResolution);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = GameMakerAssetManifestImporter.ImportProjectAssets();
@@ -247,6 +257,7 @@ public partial class Game1 : Game
         _pixel.SetData(new[] { Color.White });
         _consoleFont = Content.Load<SpriteFont>("ConsoleFont");
         _runtimeAssets = new GameMakerRuntimeAssetCache(GraphicsDevice, _assetManifest);
+        _spriteFontOpaqueBoundsCache.Clear();
         LoadMenuMusic();
         LoadFaucetMusic();
         LoadIngameMusic();
@@ -264,7 +275,10 @@ public partial class Game1 : Game
         StopHostedServer();
         _networkClient.Dispose();
         _runtimeAssets?.Dispose();
+        _spriteFontOpaqueBoundsCache.Clear();
         _menuBackgroundTexture?.Dispose();
+        _gameRenderTarget?.Dispose();
+        _gameRenderTarget = null;
         _deathCamCaptureTarget?.Dispose();
         _deathCamCaptureTarget = null;
         _menuBackgroundTexture = null;
@@ -279,7 +293,7 @@ public partial class Game1 : Game
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = ConsumeClientTickCount(gameTime);
         var keyboard = Keyboard.GetState();
-        var mouse = Mouse.GetState();
+        var mouse = GetScaledMouseState(Mouse.GetState());
         if (TryHandlePasswordPromptCancel(keyboard, mouse))
         {
             FinalizeNetworkDiagnosticsFrame();
@@ -357,16 +371,19 @@ public partial class Game1 : Game
 
     private sealed class ChatLine
     {
-        public ChatLine(string text, Color color)
+        public ChatLine(string playerName, string text, byte team)
         {
+            PlayerName = playerName;
             Text = text;
-            Color = color;
+            Team = team;
             TicksRemaining = 600;
         }
 
+        public string PlayerName { get; }
+
         public string Text { get; }
 
-        public Color Color { get; }
+        public byte Team { get; }
 
         public int TicksRemaining { get; set; }
     }

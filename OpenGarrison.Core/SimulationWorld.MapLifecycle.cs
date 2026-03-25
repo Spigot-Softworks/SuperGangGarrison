@@ -74,7 +74,7 @@ public sealed partial class SimulationWorld
     {
         if (_pendingMapChangeTicks < 0)
         {
-            return _mapChangeReady;
+            return false;
         }
 
         if (_pendingMapChangeTicks == 0)
@@ -86,11 +86,11 @@ public sealed partial class SimulationWorld
             }
 
             _mapChangeReady = true;
-            return true;
+            return false;
         }
 
         _pendingMapChangeTicks -= 1;
-        return true;
+        return false;
     }
 
     private void QueuePendingMapChange()
@@ -116,6 +116,7 @@ public sealed partial class SimulationWorld
 
         if (!preservePlayerStats)
         {
+            ClearAllDominations();
             LocalPlayer.ResetRoundStats();
             EnemyPlayer.ResetRoundStats();
             FriendlyDummy.ResetRoundStats();
@@ -123,8 +124,6 @@ public sealed partial class SimulationWorld
             {
                 player.ResetRoundStats();
             }
-
-            ResetPlayersToAwaitingJoinForFreshMap();
         }
 
         MatchState = CreateInitialMatchState(MatchRules);
@@ -221,7 +220,7 @@ public sealed partial class SimulationWorld
         entities.Clear();
     }
 
-    private void ResetPlayersToAwaitingJoinForFreshMap()
+    public void ResetPlayersToAwaitingJoinForFreshMap()
     {
         for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
         {

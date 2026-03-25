@@ -41,10 +41,31 @@ function Get-ArchiveName {
 
     switch ($RuntimeIdentifier) {
         "win-x64" { return "OpenGarrison-Windows-x64.zip" }
-        "linux-x64" { return "OpenGarrison-Linux-x64.zip" }
-        "osx-x64" { return "OpenGarrison-macOS-x64.zip" }
-        "osx-arm64" { return "OpenGarrison-macOS-arm64.zip" }
-        default { return "OpenGarrison-$RuntimeIdentifier.zip" }
+        "linux-x64" { return "OpenGarrison-Linux-x64.tar.gz" }
+        "osx-x64" { return "OpenGarrison-macOS-x64.tar.gz" }
+        "osx-arm64" { return "OpenGarrison-macOS-arm64.tar.gz" }
+        default { return "OpenGarrison-$RuntimeIdentifier.tar.gz" }
+    }
+}
+
+function New-PackageArchive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier,
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$ArchivePath
+    )
+
+    if ($RuntimeIdentifier -eq "win-x64") {
+        Compress-Archive -Path (Join-Path $SourceDirectory "*") -DestinationPath $ArchivePath -Force
+        return
+    }
+
+    & tar -C $SourceDirectory -czf $ArchivePath .
+    if ($LASTEXITCODE -ne 0) {
+        throw "tar failed while creating '$ArchivePath' for runtime '$RuntimeIdentifier'."
     }
 }
 
@@ -137,12 +158,20 @@ foreach ($runtimeIdentifier in $Platforms) {
     New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
 
     foreach ($project in $projects) {
+        $projectPath = Join-Path $repoRoot $project
+        Invoke-DotNet -Arguments @(
+            "restore",
+            $projectPath,
+            "-r", $runtimeIdentifier
+        )
+
         Invoke-DotNet -Arguments @(
             "publish",
-            (Join-Path $repoRoot $project),
+            $projectPath,
             "-c", $configuration,
             "-r", $runtimeIdentifier,
             "--self-contained", "false",
+            "--no-restore",
             "-o", $stagingDirectory
         )
     }
@@ -163,7 +192,7 @@ foreach ($runtimeIdentifier in $Platforms) {
         Remove-Item $archivePath -Force
     }
 
-    Compress-Archive -Path (Join-Path $stagingDirectory "*") -DestinationPath $archivePath -Force
+    New-PackageArchive -RuntimeIdentifier $runtimeIdentifier -SourceDirectory $stagingDirectory -ArchivePath $archivePath
 
     $builtOutputs += [pscustomobject]@{
         Runtime = $runtimeIdentifier

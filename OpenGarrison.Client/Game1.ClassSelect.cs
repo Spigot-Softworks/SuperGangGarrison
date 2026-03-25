@@ -14,6 +14,7 @@ public partial class Game1
         if (!_classSelectOpen)
         {
             _classSelectHoverIndex = -1;
+            ResetClassSelectPortraitAnimation();
             if (_classSelectAlpha > 0.01f)
             {
                 _classSelectAlpha = AdvanceClosingAlpha(_classSelectAlpha, 0.01f);
@@ -45,8 +46,9 @@ public partial class Game1
             _classSelectPanelY = MathF.Min(120f, _classSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
-        var panelLeft = (_graphics.PreferredBackBufferWidth / 2f) - 400f;
+        var panelLeft = (ViewportWidth / 2f) - 400f;
         _classSelectHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        AdvanceClassSelectPortraitAnimation();
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed || _classSelectHoverIndex < 0)
         {
@@ -59,8 +61,8 @@ public partial class Game1
 
     private void DrawClassSelectHud()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var panelLeft = (viewportWidth / 2f) - 400f;
         var alpha = Math.Clamp(_classSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
@@ -76,7 +78,10 @@ public partial class Game1
         var drawX = GetClassSelectDrawX(_classSelectHoverIndex);
         var previewPosition = new Vector2(panelLeft + drawX, 0f);
         TryDrawScreenSprite("ClassSelectSpritesS", _classSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
-        TryDrawScreenSprite("ClassSelectPortraitS", _classSelectHoverIndex + teamOffset, new Vector2(panelLeft + 230f, 128f), Color.White * alpha, new Vector2(4f, 4f));
+        if (!TryDrawClassSelectPortraitAnimation(_classSelectHoverIndex, previewTeam, new Vector2(panelLeft + 230f, 128f), Color.White * alpha))
+        {
+            TryDrawScreenSprite("ClassSelectPortraitS", _classSelectHoverIndex + teamOffset, new Vector2(panelLeft + 230f, 128f), Color.White * alpha, new Vector2(4f, 4f));
+        }
 
         var lines = GetClassSelectDescription(_classSelectHoverIndex);
         float[] lineY = [80f, 100f, 120f, 130f, 140f];
@@ -181,5 +186,95 @@ public partial class Game1
             8 => ["Marksman", "Weapon: Sniper Rifle", "Picks enemies off from afar", "with charged shots and good", "positioning."],
             _ => ["Random", string.Empty, "Let fate decide your role", "for this life.", string.Empty],
         };
+    }
+
+    private void AdvanceClassSelectPortraitAnimation()
+    {
+        if (_classSelectHoverIndex < 0 || _classSelectPanelY < 120f)
+        {
+            ResetClassSelectPortraitAnimation();
+            return;
+        }
+
+        var previewTeam = _pendingClassSelectTeam ?? _world.LocalPlayerTeam;
+        if (_classSelectPortraitAnimationHoverIndex != _classSelectHoverIndex || _classSelectPortraitAnimationTeam != previewTeam)
+        {
+            _classSelectPortraitAnimationHoverIndex = _classSelectHoverIndex;
+            _classSelectPortraitAnimationTeam = previewTeam;
+            _classSelectPortraitAnimationFrame = 0f;
+            return;
+        }
+
+        var spriteName = GetClassSelectPortraitAnimationSpriteName(_classSelectPortraitAnimationHoverIndex);
+        if (spriteName is null)
+        {
+            return;
+        }
+
+        var sprite = _runtimeAssets.GetSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var perTeamFrames = Math.Max(1, sprite.Frames.Count / 2);
+        var maxFrame = perTeamFrames - 1;
+        if (maxFrame <= 0)
+        {
+            _classSelectPortraitAnimationFrame = 0f;
+            return;
+        }
+
+        _classSelectPortraitAnimationFrame = MathF.Min(maxFrame, _classSelectPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance());
+    }
+
+    private static float GetClassSelectPortraitAnimationAdvance()
+    {
+        return 0.4f * LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond;
+    }
+
+    private bool TryDrawClassSelectPortraitAnimation(int hoverIndex, PlayerTeam previewTeam, Vector2 position, Color tint)
+    {
+        var spriteName = GetClassSelectPortraitAnimationSpriteName(hoverIndex);
+        if (spriteName is null)
+        {
+            return false;
+        }
+
+        var sprite = _runtimeAssets.GetSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        var perTeamFrames = Math.Max(1, sprite.Frames.Count / 2);
+        var teamOffset = previewTeam == PlayerTeam.Blue ? perTeamFrames : 0;
+        var frameIndex = teamOffset + Math.Clamp((int)MathF.Floor(_classSelectPortraitAnimationFrame), 0, perTeamFrames - 1);
+        return TryDrawScreenSprite(spriteName, frameIndex, position, tint, new Vector2(4f, 4f));
+    }
+
+    private static string? GetClassSelectPortraitAnimationSpriteName(int hoverIndex)
+    {
+        return hoverIndex switch
+        {
+            0 => "ScoutPortraitAnimationS",
+            1 => "PyroPortraitAnimationS",
+            2 => "SoldierPortraitanimationS",
+            3 => "HeavyPortraitAnimationS",
+            4 => "DemomanPortraitAnimationS",
+            5 => "MedicPortraitAnimationS",
+            6 => "EngineerPortraitAnimationS",
+            7 => "SpyPortraitAnimationS",
+            8 => "SniperPortraitAnimationS",
+            9 => "RandomPortraitAnimationS",
+            _ => null,
+        };
+    }
+
+    private void ResetClassSelectPortraitAnimation()
+    {
+        _classSelectPortraitAnimationHoverIndex = -1;
+        _classSelectPortraitAnimationTeam = null;
+        _classSelectPortraitAnimationFrame = 0f;
     }
 }

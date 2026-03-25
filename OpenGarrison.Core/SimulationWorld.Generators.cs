@@ -149,7 +149,7 @@ public sealed partial class SimulationWorld
             var player = playersToKill[index];
             if (player.IsAlive)
             {
-                KillPlayer(player, gibbed: true, weaponSpriteName: "DeadS");
+                KillPlayer(player, gibbed: true, weaponSpriteName: "ExplodeKL");
             }
         }
 

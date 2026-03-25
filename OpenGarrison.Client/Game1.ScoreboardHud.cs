@@ -17,8 +17,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var alpha = Math.Clamp(_scoreboardAlpha, 0.02f, 0.99f);
         var redTeam = GetScoreboardPlayers(PlayerTeam.Red);
         var blueTeam = GetScoreboardPlayers(PlayerTeam.Blue);
@@ -64,8 +64,10 @@ public partial class Game1
         DrawBitmapFontTextCentered("BLU", new Vector2(blueBanner.Right - 56f, headerY + 9f), Color.White * alpha, 1.7f);
         DrawBitmapFontTextCentered(redCenterValue.ToString(CultureInfo.InvariantCulture), new Vector2(panel.Center.X - 38f, headerY + 6f), Color.White * alpha, 2.7f);
         DrawBitmapFontTextCentered(blueCenterValue.ToString(CultureInfo.InvariantCulture), new Vector2(panel.Center.X + 38f, headerY + 6f), Color.White * alpha, 2.7f);
-        DrawBitmapFontTextCentered($"{redTeam.Count} PLAYER{(redTeam.Count == 1 ? string.Empty : "S")}", new Vector2(redBanner.Center.X, redBanner.Center.Y + 15f), Color.White * alpha, 1f);
-        DrawBitmapFontTextCentered($"{blueTeam.Count} PLAYER{(blueTeam.Count == 1 ? string.Empty : "S")}", new Vector2(blueBanner.Center.X, blueBanner.Center.Y + 15f), Color.White * alpha, 1f);
+        DrawCountFontTextCentered(redTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(redBanner.Center.X - 34f, redBanner.Center.Y + 17f), Color.White * alpha, 1f);
+        DrawCountFontTextCentered(blueTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(blueBanner.Center.X - 34f, blueBanner.Center.Y + 17f), Color.White * alpha, 1f);
+        DrawBitmapFontTextCentered($"PLAYER{(redTeam.Count == 1 ? string.Empty : "S")}", new Vector2(redBanner.Center.X + 18f, redBanner.Center.Y + 15f), Color.White * alpha, 1f);
+        DrawBitmapFontTextCentered($"PLAYER{(blueTeam.Count == 1 ? string.Empty : "S")}", new Vector2(blueBanner.Center.X + 18f, blueBanner.Center.Y + 15f), Color.White * alpha, 1f);
 
         var metaY = panel.Y + topMargin + topBannerHeight + 10f;
         DrawBitmapFontText($"Server: {serverLabel}", new Vector2(panel.X + 16f, metaY), Color.White * alpha, 1.04f);
@@ -115,7 +117,9 @@ public partial class Game1
         var iconX = panel.X + 14f;
         var nameX = panel.X + 34f;
         var deadX = panel.Right - 14f;
-        var scoreRight = panel.Right - 36f;
+        var relationX = deadX - 19f;
+        var dominationX = relationX - 38f;
+        var scoreRight = dominationX - 12f;
         var capsRight = scoreRight - 44f;
         var deathsRight = capsRight - 44f;
         var killsRight = deathsRight - 44f;
@@ -152,11 +156,37 @@ public partial class Game1
             DrawBitmapFontTextRightAligned(player.Deaths.ToString(CultureInfo.InvariantCulture), new Vector2(deathsRight, rowY), Color.White * alpha, 1.1f);
             DrawBitmapFontTextRightAligned(player.Caps.ToString(CultureInfo.InvariantCulture), new Vector2(capsRight, rowY), Color.White * alpha, 1.1f);
             DrawBitmapFontTextRightAligned(GetScoreboardScore(player).ToString(CultureInfo.InvariantCulture), new Vector2(scoreRight, rowY), Color.White * alpha, 1.1f);
+            DrawScoreboardDominationBadges(player, team, rowY, alpha, dominationX, relationX);
 
             if (!player.IsAlive)
             {
                 TryDrawScreenSprite("DeadS", 0, new Vector2(deadX, rowY + 9f), Color.White * alpha, Vector2.One);
             }
+        }
+    }
+
+    private void DrawScoreboardDominationBadges(PlayerEntity player, PlayerTeam team, float rowY, float alpha, float dominationX, float relationX)
+    {
+        if (player.ActiveDominationCount > 0)
+        {
+            TryDrawScreenSprite("MedalS", 0, new Vector2(dominationX, rowY + 8f), Color.White * alpha, Vector2.One);
+            DrawBitmapFontText(
+                player.ActiveDominationCount.ToString(CultureInfo.InvariantCulture),
+                new Vector2(dominationX + 16f, rowY),
+                new Color(227, 226, 225) * alpha,
+                1f);
+        }
+
+        if (player.IsDominatedByLocalViewer)
+        {
+            TryDrawScreenSprite("MedalS", 3, new Vector2(relationX, rowY + 8f), Color.White * alpha, Vector2.One);
+            return;
+        }
+
+        if (player.IsDominatingLocalViewer)
+        {
+            var frameIndex = team == PlayerTeam.Red ? 5 : 6;
+            TryDrawScreenSprite("MedalS", frameIndex, new Vector2(relationX, rowY + 8f), Color.White * alpha, Vector2.One);
         }
     }
 

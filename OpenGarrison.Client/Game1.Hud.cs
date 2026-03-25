@@ -20,50 +20,6 @@ public partial class Game1
         DrawBitmapFontText(text, new Vector2(position.X - width, position.Y), color, scale);
     }
 
-    private float MeasureBitmapFontWidth(string text, float scale)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return 0f;
-        }
-
-        LoadedGameMakerSprite? fontSprite;
-        try
-        {
-            fontSprite = _runtimeAssets.GetSprite("gg2FontS");
-        }
-        catch
-        {
-            return _consoleFont.MeasureString(text).X * scale;
-        }
-
-        if (fontSprite is null)
-        {
-            return _consoleFont.MeasureString(text).X * scale;
-        }
-
-        var width = 0f;
-        foreach (var character in text)
-        {
-            if (character == ' ')
-            {
-                width += 4f * scale;
-                continue;
-            }
-
-            var frameIndex = character - 33;
-            if (frameIndex < 0 || frameIndex >= fontSprite.Frames.Count)
-            {
-                width += 4f * scale;
-                continue;
-            }
-
-            width += MathF.Max(1f, fontSprite.Frames[frameIndex].Width - 1f) * scale;
-        }
-
-        return width;
-    }
-
     private bool IsKeyPressed(KeyboardState keyboard, Keys key)
     {
         return keyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);

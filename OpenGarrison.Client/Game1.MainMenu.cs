@@ -60,28 +60,28 @@ public partial class Game1
             case 3:
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
-                _creditsOpen = false;
+                CloseCreditsMenu();
                 OpenOptionsMenu(fromGameplay: false);
                 break;
             case 4:
-                _creditsOpen = true;
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 _optionsMenuOpen = false;
                 _controlsMenuOpen = false;
                 _editingPlayerName = false;
                 _menuStatusMessage = string.Empty;
+                OpenCreditsMenu();
                 break;
             case 5:
-                Exit();
+                OpenQuitPrompt();
                 break;
         }
     }
 
     private void DrawMainMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
 
         if (_menuBackgroundTexture is null)
         {
@@ -154,14 +154,16 @@ public partial class Game1
         }
 
         DrawMenuStatusText();
+        DrawQuitPrompt();
         DrawDevMessagePopup();
     }
 
     private void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)
     {
+        EnsureCreditsViewState();
         if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
         {
-            _creditsOpen = false;
+            CloseCreditsMenu();
             return;
         }
 
@@ -170,43 +172,67 @@ public partial class Game1
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (clickPressed && backBounds.Contains(mouse.Position))
         {
-            _creditsOpen = false;
+            CloseCreditsMenu();
+            return;
+        }
+
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        var scrollStep = 30f;
+        if (wheelDelta > 0)
+        {
+            _creditsScrollY = Math.Min(GetCreditsInitialScrollY(), _creditsScrollY + scrollStep);
+        }
+        else if (wheelDelta < 0)
+        {
+            _creditsScrollY = Math.Max(GetCreditsMinimumScrollY(), _creditsScrollY - scrollStep);
+        }
+        else
+        {
+            _creditsScrollY = Math.Max(GetCreditsMinimumScrollY(), _creditsScrollY - 2f);
         }
     }
 
     private void DrawCreditsMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
 
         var panel = GetCreditsPanelBounds();
-        _spriteBatch.Draw(_pixel, panel, new Color(31, 33, 38, 238));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
-
-        DrawBitmapFontText("Credits", new Vector2(panel.X + 30f, panel.Y + 26f), Color.White, 1.35f);
-
-        string[] lines =
-        [
-            "Original Gang Garrison 2 Credit to Faucet Software",
-            string.Empty,
-            "Port (Alpha) by SenatorGraves"
-        ];
-
-        var drawY = panel.Y + 82f;
-        foreach (var line in lines)
+        var creditsSprite = _runtimeAssets.GetSprite("CreditsS");
+        if (creditsSprite is not null && creditsSprite.Frames.Count > 0)
         {
-            if (string.IsNullOrEmpty(line))
-            {
-                drawY += 16f;
-                continue;
-            }
+            var creditsFrame = creditsSprite.Frames[0];
+            const float creditsScale = 2f;
+            var creditsX = (viewportWidth - creditsFrame.Width * creditsScale) / 2f;
+            var additionalCreditsScale = viewportHeight < 540 ? 1.35f : 1.5f;
+            var additionalCreditsY = _creditsScrollY + creditsFrame.Height * creditsScale + 22f;
+            var additionalCreditsColor = new Color(240, 228, 196);
+            var lineHeight = MeasureBitmapFontHeight(additionalCreditsScale) + 4f;
+            _spriteBatch.Draw(
+                creditsFrame,
+                new Vector2(creditsX, _creditsScrollY),
+                null,
+                Color.White,
+                0f,
+                Vector2.Zero,
+                new Vector2(creditsScale, creditsScale),
+                SpriteEffects.None,
+                0f);
 
-            var scale = 0.98f;
-            var color = new Color(240, 228, 196);
-            DrawBitmapFontText(line, new Vector2(panel.X + 30f, drawY), color, scale);
-            drawY += 22f;
+            foreach (var line in GetAdditionalCreditsLines())
+            {
+                DrawBitmapFontTextCentered(
+                    line,
+                    new Vector2(viewportWidth / 2f, additionalCreditsY),
+                    additionalCreditsColor,
+                    additionalCreditsScale);
+                additionalCreditsY += lineHeight;
+            }
+        }
+        else
+        {
+            DrawBitmapFontTextCentered("Credits unavailable", new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, 1.2f);
         }
 
         DrawMenuButton(new Rectangle(panel.X + 30, panel.Bottom - 62, 180, 42), "Back", false);
@@ -224,10 +250,59 @@ public partial class Game1
 
     private Rectangle GetCreditsPanelBounds()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
-        var width = Math.Min(680, viewportWidth - 120);
-        var height = Math.Min(470, viewportHeight - 120);
-        return new Rectangle((viewportWidth - width) / 2, (viewportHeight - height) / 2, width, height);
+        return new Rectangle(0, 0, ViewportWidth, ViewportHeight);
+    }
+
+    private void OpenCreditsMenu()
+    {
+        _creditsOpen = true;
+        _creditsScrollInitialized = false;
+    }
+
+    private void CloseCreditsMenu()
+    {
+        _creditsOpen = false;
+        _creditsScrollInitialized = false;
+    }
+
+    private void EnsureCreditsViewState()
+    {
+        if (_creditsScrollInitialized)
+        {
+            return;
+        }
+
+        _creditsScrollY = GetCreditsInitialScrollY();
+        _creditsScrollInitialized = true;
+    }
+
+    private float GetCreditsInitialScrollY()
+    {
+        return MathF.Max(40f, ViewportHeight - 540f);
+    }
+
+    private float GetCreditsMinimumScrollY()
+    {
+        var creditsSprite = _runtimeAssets.GetSprite("CreditsS");
+        if (creditsSprite is null || creditsSprite.Frames.Count == 0)
+        {
+            return GetCreditsInitialScrollY();
+        }
+
+        const float creditsScale = 2f;
+        var additionalCreditsScale = ViewportHeight < 540 ? 1.35f : 1.5f;
+        var additionalCreditsHeight = GetAdditionalCreditsLines().Length * (MeasureBitmapFontHeight(additionalCreditsScale) + 4f);
+        var contentHeight = creditsSprite.Frames[0].Height * creditsScale + 22f + additionalCreditsHeight + 28f;
+        return Math.Min(GetCreditsInitialScrollY(), ViewportHeight - 100f - contentHeight);
+    }
+
+    private static string[] GetAdditionalCreditsLines()
+    {
+        return
+        [
+            "MonoGame Port by Graves",
+            "with help from Soumez",
+            "and KevinKuntz",
+        ];
     }
 }

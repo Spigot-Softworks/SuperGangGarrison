@@ -2,6 +2,29 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
+    {
+        player.Spawn(team, x, y);
+        player.ResolveBlockingOverlap(Level, team);
+        UpdateSpawnRoomState(player);
+        if (clearMedicHealingTarget)
+        {
+            player.ClearMedicHealingTarget();
+        }
+    }
+
+    private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, SpawnPoint spawn, bool clearMedicHealingTarget = true)
+    {
+        SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget);
+    }
+
+    private void RespawnConfiguredNetworkPlayer(byte slot, PlayerEntity player)
+    {
+        var team = GetNetworkPlayerConfiguredTeam(slot);
+        player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
+    }
+
     private void RespawnPlayersForNewRound()
     {
         for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
@@ -20,17 +43,13 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var spawn = ReserveSpawn(player, GetNetworkPlayerConfiguredTeam(slot));
-            player.Spawn(GetNetworkPlayerConfiguredTeam(slot), spawn.X, spawn.Y);
-            player.ClearMedicHealingTarget();
+            RespawnConfiguredNetworkPlayer(slot, player);
         }
 
         if (EnemyPlayerEnabled)
         {
             EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-            var enemySpawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            EnemyPlayer.Spawn(_enemyDummyTeam, enemySpawn.X, enemySpawn.Y);
-            EnemyPlayer.ClearMedicHealingTarget();
+            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam));
             _enemyDummyRespawnTicks = 0;
         }
         else
@@ -49,8 +68,7 @@ public sealed partial class SimulationWorld
             else
             {
                 var friendlySpawn = FindFriendlyDummySpawnNearLocalPlayer();
-                FriendlyDummy.Spawn(GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
-                FriendlyDummy.ClearMedicHealingTarget();
+                SpawnPlayerResolved(FriendlyDummy, GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
             }
         }
         else

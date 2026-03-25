@@ -224,8 +224,12 @@ public static partial class ProtocolCodec
             writer.Write(player.Deaths);
             writer.Write(player.Caps);
             writer.Write(player.HealPoints);
+            writer.Write(player.ActiveDominationCount);
+            writer.Write(player.IsDominatingLocalViewer);
+            writer.Write(player.IsDominatedByLocalViewer);
             writer.Write(player.Metal);
             writer.Write(player.IsGrounded);
+            writer.Write(player.RemainingAirJumps);
             writer.Write(player.IsCarryingIntel);
             writer.Write(player.IsSpyCloaked);
             writer.Write(player.SpyCloakAlpha);
@@ -247,6 +251,8 @@ public static partial class ProtocolCodec
             writer.Write(player.BurnIntensityDecayPerSourceTick);
             writer.Write(player.BurnedByPlayerId);
             writer.Write(player.MovementState);
+            writer.Write(player.PrimaryCooldownTicks);
+            writer.Write(player.ReloadTicksUntilNextShell);
         }
     }
 
@@ -278,8 +284,12 @@ public static partial class ProtocolCodec
                 reader.ReadInt16(),
                 reader.ReadInt16(),
                 reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
+                reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
@@ -300,7 +310,9 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
-                reader.ReadByte()));
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadInt32()));
         }
 
         return players;

@@ -197,7 +197,7 @@ public sealed partial class SimulationWorld
                 RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(attacker.X, attacker.Y, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
                 if (result.HitPlayer.ApplyDamage(damage, PlayerEntity.SpySniperRevealAlpha))
                 {
-                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleS");
+                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleKL");
                 }
             }
             else if (result.HitSentry is not null && result.HitSentry.ApplyDamage(damage))

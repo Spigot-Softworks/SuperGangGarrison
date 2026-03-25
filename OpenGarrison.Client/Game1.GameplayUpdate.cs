@@ -204,8 +204,10 @@ public partial class Game1
         AdvanceGameplayClientTicks(clientTicks);
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
+        UpdateLocalRapidFireWeaponAudio();
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
+        PlayKillFeedAnnouncementSounds();
         EnsureIngameMusicPlaying();
         UpdateTeamSelect(mouse);
         UpdateClassSelect(mouse);
@@ -213,7 +215,8 @@ public partial class Game1
 
     private void UpdateGameplayWindowState()
     {
-        IsMouseVisible = _passwordPromptOpen
+        var wantsMouseVisible = _passwordPromptOpen
+            || _quitPromptOpen
             || _teamSelectOpen
             || _teamSelectAlpha > 0.02f
             || _classSelectOpen
@@ -221,6 +224,7 @@ public partial class Game1
             || _inGameMenuOpen
             || _optionsMenuOpen
             || _controlsMenuOpen;
+        IsMouseVisible = wantsMouseVisible && !ShouldUseSoftwareMenuCursor();
 
         var sourceTag = _world.Level.ImportedFromSource ? "src" : "fallback";
         var lifeTag = _world.LocalPlayerAwaitingJoin ? "joining" : _world.LocalPlayer.IsAlive ? "alive" : $"respawn:{_world.LocalPlayerRespawnTicks}";
@@ -246,7 +250,10 @@ public partial class Game1
         _previousKeyboard = keyboard;
         _previousMouse = mouse;
         _wasLocalPlayerAlive = _world.LocalPlayer.IsAlive;
-        _wasDeathCamActive = !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null;
+        _wasDeathCamActive = _killCamEnabled
+            && !_world.LocalPlayer.IsAlive
+            && _world.LocalDeathCam is not null
+            && GetDeathCamElapsedTicks(_world.LocalDeathCam) >= DeathCamFocusDelayTicks;
         _wasMatchEnded = _world.MatchState.IsEnded;
     }
 }

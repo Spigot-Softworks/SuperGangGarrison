@@ -253,7 +253,7 @@ public sealed partial class SimulationWorld
 
     private void UpdateControlPointState()
     {
-        if (_controlPoints.Count == 0)
+        if (MatchState.IsEnded || _controlPoints.Count == 0)
         {
             return;
         }

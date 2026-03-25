@@ -22,15 +22,17 @@ public sealed partial class SimulationWorld
         }
 
         var probeDistance = 18f;
-        var probeLeft = player.X + moveDirection * (player.Width / 2f + probeDistance);
+        var probeLeft = moveDirection > 0f
+            ? player.Right + probeDistance
+            : player.Left - probeDistance;
         var probeRight = probeLeft + MathF.Sign(moveDirection) * 2f;
         if (probeRight < probeLeft)
         {
             (probeLeft, probeRight) = (probeRight, probeLeft);
         }
 
-        var probeTop = player.Y - player.Height / 2f;
-        var probeBottom = player.Y + player.Height / 2f - 4f;
+        var probeTop = player.Top;
+        var probeBottom = player.Bottom - 4f;
         foreach (var solid in Level.Solids)
         {
             if (probeLeft < solid.Right
@@ -131,7 +133,17 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            var needsCabinet = player.Health < player.MaxHealth
+                || player.Metal < player.MaxMetal
+                || player.CurrentShells < player.PrimaryWeapon.MaxAmmo
+                || player.ReloadTicksUntilNextShell > 0
+                || player.MedicNeedleRefillTicks > 0
+                || player.IsBurning;
             player.HealAndResupply();
+            if (needsCabinet)
+            {
+                RegisterWorldSoundEvent("CbntHealSnd", player.X, player.Y);
+            }
         }
     }
 
@@ -190,7 +202,7 @@ public sealed partial class SimulationWorld
                     }
 
                     RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
-                    KillPlayer(player, weaponSpriteName: "ExplosionS");
+                    KillPlayer(player, weaponSpriteName: "DeadKL");
                     return;
                 case RoomObjectType.KillBox:
                     if (!player.IntersectsMarker(

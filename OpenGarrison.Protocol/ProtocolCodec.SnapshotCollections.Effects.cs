@@ -104,6 +104,7 @@ public static partial class ProtocolCodec
             writer.Write(bloodDrop.VelocityY);
             writer.Write(bloodDrop.IsStuck);
             writer.Write(bloodDrop.TicksRemaining);
+            writer.Write(bloodDrop.Scale);
         }
     }
 
@@ -120,7 +121,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                reader.ReadSingle()));
         }
 
         return bloodDrops;

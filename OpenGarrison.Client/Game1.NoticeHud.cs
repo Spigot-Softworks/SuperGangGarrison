@@ -19,8 +19,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var alpha = Math.Clamp(_notice.Alpha, 0.01f, 0.99f);
         var tint = Color.White * alpha;
         var barRectangle = new Rectangle(0, viewportHeight - 110, viewportWidth, 18);

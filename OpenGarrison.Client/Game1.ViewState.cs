@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -19,35 +20,92 @@ public partial class Game1
         }
 
         var localViewPosition = GetLocalViewPosition();
-        if (GetPlayerIsSniperScoped(_world.LocalPlayer))
+        if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
-            x = Math.Clamp(
-                localViewPosition.X + mouseX - viewportWidth,
-                0f,
-                Math.Max(0f, _world.Bounds.Width - viewportWidth));
-            y = Math.Clamp(
-                localViewPosition.Y + mouseY - viewportHeight,
-                0f,
-                Math.Max(0f, _world.Bounds.Height - viewportHeight));
+            x = localViewPosition.X + mouseX - viewportWidth;
+            y = localViewPosition.Y + mouseY - viewportHeight;
         }
         else
         {
             var halfViewportWidth = viewportWidth / 2f;
             var halfViewportHeight = viewportHeight / 2f;
 
-            x = Math.Clamp(
-                localViewPosition.X - halfViewportWidth,
-                0f,
-                Math.Max(0f, _world.Bounds.Width - viewportWidth));
-            y = Math.Clamp(
-                localViewPosition.Y - halfViewportHeight,
-                0f,
-                Math.Max(0f, _world.Bounds.Height - viewportHeight));
+            x = localViewPosition.X - halfViewportWidth;
+            y = localViewPosition.Y - halfViewportHeight;
         }
 
         var cameraTopLeft = new Vector2(x, y);
         TrackLiveCamera(cameraTopLeft);
         return cameraTopLeft;
+    }
+
+    private bool IsRespawnFreeCameraActive()
+    {
+        return !_networkClient.IsSpectator
+            && !_world.LocalPlayerAwaitingJoin
+            && !_world.LocalPlayer.IsAlive
+            && _world.LocalDeathCam is null;
+    }
+
+    private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard)
+    {
+        if (!IsRespawnFreeCameraActive())
+        {
+            _respawnCameraDetached = false;
+            _respawnCameraCenter = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+            return;
+        }
+
+        if (!_respawnCameraDetached)
+        {
+            _respawnCameraCenter = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        }
+
+        if (!IsGameplayInputBlocked())
+        {
+            var moveAmount = 600f * deltaSeconds;
+            var moved = false;
+
+            if (keyboard.IsKeyDown(_inputBindings.MoveLeft))
+            {
+                _respawnCameraCenter.X -= moveAmount;
+                moved = true;
+            }
+            else if (keyboard.IsKeyDown(_inputBindings.MoveRight))
+            {
+                _respawnCameraCenter.X += moveAmount;
+                moved = true;
+            }
+
+            if (keyboard.IsKeyDown(_inputBindings.MoveUp))
+            {
+                _respawnCameraCenter.Y -= moveAmount;
+                moved = true;
+            }
+            else if (keyboard.IsKeyDown(_inputBindings.MoveDown))
+            {
+                _respawnCameraCenter.Y += moveAmount;
+                moved = true;
+            }
+
+            if (moved)
+            {
+                _respawnCameraDetached = true;
+            }
+        }
+
+        _respawnCameraCenter = ClampRespawnCameraCenter(_respawnCameraCenter);
+    }
+
+    private Vector2 ClampRespawnCameraCenter(Vector2 position)
+    {
+        var halfViewportWidth = ViewportWidth / 2f;
+        var halfViewportHeight = ViewportHeight / 2f;
+        var maxX = Math.Max(halfViewportWidth, _world.Bounds.Width - halfViewportWidth);
+        var maxY = Math.Max(halfViewportHeight, _world.Bounds.Height - halfViewportHeight);
+        return new Vector2(
+            Math.Clamp(position.X, halfViewportWidth, maxX),
+            Math.Clamp(position.Y, halfViewportHeight, maxY));
     }
 
     private Vector2 GetLocalViewPosition()
@@ -59,6 +117,11 @@ public partial class Game1
             {
                 return GetRenderPosition(spectatorFocus);
             }
+        }
+
+        if (IsRespawnFreeCameraActive())
+        {
+            return _respawnCameraCenter;
         }
 
         if (_networkClient.IsConnected && _world.LocalPlayer.IsAlive)

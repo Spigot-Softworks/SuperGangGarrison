@@ -103,6 +103,65 @@ public sealed class SnapshotBroadcasterTests
     }
 
     [Fact]
+    public void BroadcastSnapshot_WithAcknowledgedBaseline_ReaddsSoundEventsAfterBudgetTrim()
+    {
+        var world = new SimulationWorld();
+        var config = world.Config;
+        var client = new ClientSession(
+            SimulationWorld.LocalPlayerSlot,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Player",
+            TimeSpan.Zero);
+        var clientsBySlot = new Dictionary<byte, ClientSession>
+        {
+            [SimulationWorld.LocalPlayerSlot] = client,
+        };
+        var sentSnapshots = new List<SnapshotMessage>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            transientEventReplayTicks: 4,
+            (_, snapshot, _) => sentSnapshots.Add(snapshot));
+        var simulator = new FixedStepSimulator(world);
+
+        Assert.True(world.ApplySnapshot(CreateSnapshot(world), localPlayerSlot: SimulationWorld.LocalPlayerSlot));
+        simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        var baselineSnapshot = Assert.Single(sentSnapshots);
+        client.AcknowledgeSnapshot(baselineSnapshot.Frame);
+
+        var crowdedShots = Enumerable.Range(0, 160)
+            .Select(index => new SnapshotShotState(
+                900 + index,
+                (byte)(index % 2 == 0 ? PlayerTeam.Red : PlayerTeam.Blue),
+                1,
+                180f + (index * 4f),
+                240f + ((index % 6) * 8f),
+                3f + (index % 5),
+                (index % 3) - 1f,
+                18))
+            .ToArray();
+        var soundEvents = new[]
+        {
+            new SnapshotSoundEvent("ChaingunSnd", 280f, 220f, 41),
+            new SnapshotSoundEvent("FlamethrowerSnd", 296f, 224f, 42),
+        };
+
+        Assert.True(world.ApplySnapshot(
+            CreateSnapshot(world, shots: crowdedShots, soundEvents: soundEvents),
+            localPlayerSlot: SimulationWorld.LocalPlayerSlot));
+        simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        var deltaSnapshot = sentSnapshots[^1];
+        Assert.True(deltaSnapshot.IsDelta);
+        Assert.Equal(baselineSnapshot.Frame, deltaSnapshot.BaselineFrame);
+        Assert.True(ProtocolCodec.Serialize(deltaSnapshot).Length <= 1200);
+        Assert.NotEmpty(deltaSnapshot.SoundEvents);
+        Assert.Contains(deltaSnapshot.SoundEvents, soundEvent => soundEvent.SoundName == "ChaingunSnd");
+    }
+
+    [Fact]
     public void BroadcastSnapshot_WithSmallScene_SendsFullSnapshot()
     {
         var world = new SimulationWorld();
@@ -208,7 +267,10 @@ public sealed class SnapshotBroadcasterTests
         Assert.True(player.Y > 0f);
     }
 
-    private static SnapshotMessage CreateSnapshot(SimulationWorld world, IReadOnlyList<SnapshotShotState>? shots = null)
+    private static SnapshotMessage CreateSnapshot(
+        SimulationWorld world,
+        IReadOnlyList<SnapshotShotState>? shots = null,
+        IReadOnlyList<SnapshotSoundEvent>? soundEvents = null)
     {
         return new SnapshotMessage(
             Frame: (ulong)world.Frame,
@@ -250,8 +312,12 @@ public sealed class SnapshotBroadcasterTests
                     Deaths: (short)world.LocalPlayer.Deaths,
                     Caps: (short)world.LocalPlayer.Caps,
                     HealPoints: (short)world.LocalPlayer.HealPoints,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
                     Metal: world.LocalPlayer.Metal,
                     IsGrounded: world.LocalPlayer.IsGrounded,
+                    RemainingAirJumps: world.LocalPlayer.RemainingAirJumps,
                     IsCarryingIntel: world.LocalPlayer.IsCarryingIntel,
                     IsSpyCloaked: world.LocalPlayer.IsSpyCloaked,
                     SpyCloakAlpha: world.LocalPlayer.SpyCloakAlpha,
@@ -287,6 +353,6 @@ public sealed class SnapshotBroadcasterTests
             LocalDeathCam: null,
             KillFeed: [],
             VisualEvents: [],
-            SoundEvents: []);
+            SoundEvents: soundEvents ?? []);
     }
 }

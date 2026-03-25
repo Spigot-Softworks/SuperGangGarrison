@@ -18,6 +18,12 @@ public partial class Game1
             return;
         }
 
+        if (_quitPromptOpen)
+        {
+            UpdateQuitPrompt(keyboard, mouse);
+            return;
+        }
+
         if (_hostSetupOpen)
         {
             if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))

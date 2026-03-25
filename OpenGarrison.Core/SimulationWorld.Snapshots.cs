@@ -51,7 +51,11 @@ public sealed partial class SimulationWorld
                 entry.WeaponSpriteName,
                 entry.VictimName,
                 (PlayerTeam)entry.VictimTeam,
-                entry.MessageText));
+                entry.MessageText,
+                entry.KillerPlayerId,
+                entry.VictimPlayerId,
+                (KillFeedSpecialType)entry.SpecialType,
+                entry.EventId));
         }
         _killFeedTrimTicks = _killFeed.Count > 0 ? KillFeedLifetimeTicks : 0;
 
@@ -136,8 +140,12 @@ public sealed partial class SimulationWorld
             snapshotPlayer.Deaths,
             snapshotPlayer.Caps,
             snapshotPlayer.HealPoints,
+            snapshotPlayer.ActiveDominationCount,
+            snapshotPlayer.IsDominatingLocalViewer,
+            snapshotPlayer.IsDominatedByLocalViewer,
             snapshotPlayer.Metal,
             snapshotPlayer.IsGrounded,
+            snapshotPlayer.RemainingAirJumps,
             snapshotPlayer.IsCarryingIntel,
             snapshotPlayer.IsSpyCloaked,
             snapshotPlayer.SpyCloakAlpha,
@@ -158,7 +166,9 @@ public sealed partial class SimulationWorld
             snapshotPlayer.BurnDecayDelaySourceTicksRemaining,
             snapshotPlayer.BurnIntensityDecayPerSourceTick,
             snapshotPlayer.BurnedByPlayerId,
-            snapshotPlayer.MovementState);
+            snapshotPlayer.MovementState,
+            snapshotPlayer.PrimaryCooldownTicks,
+            snapshotPlayer.ReloadTicksUntilNextShell);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
@@ -343,14 +353,16 @@ public sealed partial class SimulationWorld
                 state.X,
                 state.Y,
                 state.VelocityX,
-                state.VelocityY),
+                state.VelocityY,
+                state.Scale),
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
                 state.VelocityX,
                 state.VelocityY,
                 state.IsStuck,
-                state.TicksRemaining));
+                state.TicksRemaining,
+                state.Scale));
     }
 
     private void ApplySnapshotMines(IReadOnlyList<SnapshotMineState> mines)

@@ -125,11 +125,12 @@ public partial class Game1
         var sprite = _runtimeAssets.GetSprite("BloodDropS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
+            var size = Math.Max(2, (int)MathF.Round(2f * bloodDrop.Scale));
             var rectangle = new Rectangle(
-                (int)(bloodDrop.X - cameraPosition.X),
-                (int)(bloodDrop.Y - cameraPosition.Y),
-                2,
-                2);
+                (int)(bloodDrop.X - (size / 2f) - cameraPosition.X),
+                (int)(bloodDrop.Y - (size / 2f) - cameraPosition.Y),
+                size,
+                size);
             _spriteBatch.Draw(_pixel, rectangle, Color.White * bloodDrop.Alpha);
             return;
         }
@@ -141,7 +142,7 @@ public partial class Game1
             Color.White * bloodDrop.Alpha,
             0f,
             sprite.Origin.ToVector2(),
-            Vector2.One,
+            new Vector2(bloodDrop.Scale, bloodDrop.Scale),
             SpriteEffects.None,
             0f);
     }

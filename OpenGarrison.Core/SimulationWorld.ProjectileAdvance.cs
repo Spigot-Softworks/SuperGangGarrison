@@ -139,7 +139,7 @@ public sealed partial class SimulationWorld
                         hitResult.HitPlayer.AddImpulse(blade.VelocityX * 0.4f, blade.VelocityY * 0.4f);
                         if (hitResult.HitPlayer.ApplyDamage(blade.HitDamage, PlayerEntity.SpyDamageRevealAlpha))
                         {
-                            KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(blade.OwnerId), weaponSpriteName: "BladeS");
+                            KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(blade.OwnerId), weaponSpriteName: "BladeKL");
                         }
                     }
                     else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(blade.HitDamage))
@@ -199,7 +199,7 @@ public sealed partial class SimulationWorld
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     if (hitResult.HitPlayer.ApplyDamage(NeedleProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(needle.OwnerId), weaponSpriteName: "MedigunS");
+                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(needle.OwnerId), weaponSpriteName: "NeedleKL");
                     }
                 }
                 else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(NeedleProjectileEntity.DamagePerHit))
@@ -257,7 +257,7 @@ public sealed partial class SimulationWorld
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     if (hitResult.HitPlayer.ApplyDamage(RevolverProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(shot.OwnerId), weaponSpriteName: "RevolverS");
+                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(shot.OwnerId), weaponSpriteName: "RevolverKL");
                     }
                 }
                 else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(RevolverProjectileEntity.DamagePerHit))
@@ -329,7 +329,7 @@ public sealed partial class SimulationWorld
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, mask.DirectionDegrees - 180f, 6);
                     if (hitResult.HitPlayer.ApplyDamage(StabMaskEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeS");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeKL");
                     }
                 }
                 else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(StabMaskEntity.DamagePerHit))
@@ -381,7 +381,7 @@ public sealed partial class SimulationWorld
                     var playerDied = hitPlayer.ApplyContinuousDamage(FlameProjectileEntity.DirectHitDamage);
                     if (playerDied)
                     {
-                        KillPlayer(hitPlayer, killer: FindPlayerById(flame.OwnerId), weaponSpriteName: "FlamethrowerS");
+                        KillPlayer(hitPlayer, killer: FindPlayerById(flame.OwnerId), weaponSpriteName: "FlameKL");
                     }
                     else
                     {
@@ -872,7 +872,7 @@ public sealed partial class SimulationWorld
 
             if (player.ApplyContinuousDamage(BubbleProjectileEntity.DamagePerHit))
             {
-                KillPlayer(player, killer: owner, weaponSpriteName: "BladeS");
+                    KillPlayer(player, killer: owner, weaponSpriteName: "BladeKL");
             }
 
             return true;
@@ -1044,14 +1044,15 @@ public sealed partial class SimulationWorld
 
     private static bool CircleIntersectsPlayer(float circleX, float circleY, float radius, PlayerEntity player)
     {
+        player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
         return CircleIntersectsRectangle(
             circleX,
             circleY,
             radius,
-            player.X - (player.Width / 2f),
-            player.Y - (player.Height / 2f),
-            player.X + (player.Width / 2f),
-            player.Y + (player.Height / 2f));
+            left,
+            top,
+            right,
+            bottom);
     }
 
     private static bool CircleIntersectsRectangle(float circleX, float circleY, float radius, float left, float top, float right, float bottom)

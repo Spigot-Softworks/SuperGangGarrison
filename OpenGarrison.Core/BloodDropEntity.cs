@@ -4,16 +4,20 @@ public sealed class BloodDropEntity : SimulationEntity
 {
     private const float BoundingSize = 2f;
     public const int LifetimeTicks = 250;
+    public const int MaxMergedLifetimeTicks = LifetimeTicks * 2;
     public const float GravityPerTick = 0.4f;
     public const float MaxSpeed = 11f;
+    public const float DefaultScale = 1f;
+    public const float MaxScale = 2f;
 
-    public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY) : base(id)
+    public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY, float scale = DefaultScale) : base(id)
     {
         X = x;
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = LifetimeTicks;
+        Scale = float.Clamp(scale, DefaultScale, MaxScale);
     }
 
     public float X { get; private set; }
@@ -30,9 +34,13 @@ public sealed class BloodDropEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
-    public float Alpha => float.Max(0f, TicksRemaining / (float)LifetimeTicks);
+    public float Scale { get; private set; }
 
-    public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, bool isStuck, int ticksRemaining)
+    public float Alpha => float.Clamp(TicksRemaining / (float)LifetimeTicks, 0f, 1f);
+
+    public bool IsMergeable => IsStuck && !IsExpired;
+
+    public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, bool isStuck, int ticksRemaining, float scale)
     {
         X = x;
         Y = y;
@@ -40,6 +48,7 @@ public sealed class BloodDropEntity : SimulationEntity
         VelocityY = velocityY;
         IsStuck = isStuck;
         TicksRemaining = ticksRemaining;
+        Scale = float.Clamp(scale, DefaultScale, MaxScale);
     }
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
@@ -83,6 +92,25 @@ public sealed class BloodDropEntity : SimulationEntity
                 IsStuck = true;
             }
         }
+    }
+
+    public bool CanMergeWith(BloodDropEntity other)
+    {
+        if (ReferenceEquals(this, other) || !IsMergeable || !other.IsMergeable)
+        {
+            return false;
+        }
+
+        var mergeDistance = 0.5f + Scale + other.Scale;
+        var deltaX = X - other.X;
+        var deltaY = Y - other.Y;
+        return (deltaX * deltaX) + (deltaY * deltaY) <= mergeDistance * mergeDistance;
+    }
+
+    public void Absorb(BloodDropEntity other)
+    {
+        Scale = float.Clamp(Scale + (other.Scale * 0.4f), DefaultScale, MaxScale);
+        TicksRemaining = int.Clamp(TicksRemaining + Math.Max(1, other.TicksRemaining / 3), 0, MaxMergedLifetimeTicks);
     }
 
     private void StickToSolid(LevelSolid solid)

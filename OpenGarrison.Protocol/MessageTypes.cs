@@ -193,8 +193,12 @@ public sealed record SnapshotPlayerState(
     short Deaths,
     short Caps,
     short HealPoints,
+    short ActiveDominationCount,
+    bool IsDominatingLocalViewer,
+    bool IsDominatedByLocalViewer,
     float Metal,
     bool IsGrounded,
+    int RemainingAirJumps,
     bool IsCarryingIntel,
     bool IsSpyCloaked,
     float SpyCloakAlpha,
@@ -215,7 +219,9 @@ public sealed record SnapshotPlayerState(
     float BurnDecayDelaySourceTicksRemaining = 0f,
     float BurnIntensityDecayPerSourceTick = 0f,
     int BurnedByPlayerId = -1,
-    byte MovementState = 0);
+    byte MovementState = 0,
+    int PrimaryCooldownTicks = 0,
+    int ReloadTicksUntilNextShell = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -350,7 +356,8 @@ public sealed record SnapshotBloodDropState(
     float VelocityX,
     float VelocityY,
     bool IsStuck,
-    int TicksRemaining);
+    int TicksRemaining,
+    float Scale);
 
 public sealed record SnapshotDeathCamState(
     float FocusX,
@@ -393,7 +400,11 @@ public sealed record SnapshotKillFeedEntry(
     string WeaponSpriteName,
     string VictimName,
     byte VictimTeam,
-    string MessageText = "");
+    string MessageText = "",
+    int KillerPlayerId = -1,
+    int VictimPlayerId = -1,
+    KillFeedSpecialType SpecialType = KillFeedSpecialType.None,
+    ulong EventId = 0);
 
 public sealed record SnapshotMessage(
     ulong Frame,

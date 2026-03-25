@@ -96,6 +96,11 @@ sealed class MapRotationManager
             return false;
         }
 
+        if (!preserveStats)
+        {
+            _world.ResetPlayersToAwaitingJoinForFreshMap();
+        }
+
         AlignCurrentMap(_world.Level.Name);
         _log($"[server] now running {_world.Level.Name} area {_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount}");
         return true;

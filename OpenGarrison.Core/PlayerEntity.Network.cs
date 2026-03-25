@@ -63,6 +63,9 @@ public sealed partial class PlayerEntity
         int Deaths,
         int Caps,
         int HealPoints,
+        int ActiveDominationCount,
+        bool IsDominatingLocalViewer,
+        bool IsDominatedByLocalViewer,
         bool IsChatBubbleVisible,
         int ChatBubbleFrameIndex,
         float ChatBubbleAlpha,
@@ -132,6 +135,9 @@ public sealed partial class PlayerEntity
             Deaths,
             Caps,
             HealPoints,
+            ActiveDominationCount,
+            IsDominatingLocalViewer,
+            IsDominatedByLocalViewer,
             IsChatBubbleVisible,
             ChatBubbleFrameIndex,
             ChatBubbleAlpha,
@@ -201,6 +207,9 @@ public sealed partial class PlayerEntity
         Deaths = state.Deaths;
         Caps = state.Caps;
         HealPoints = state.HealPoints;
+        ActiveDominationCount = state.ActiveDominationCount;
+        IsDominatingLocalViewer = state.IsDominatingLocalViewer;
+        IsDominatedByLocalViewer = state.IsDominatedByLocalViewer;
         IsChatBubbleVisible = state.IsChatBubbleVisible;
         ChatBubbleFrameIndex = state.ChatBubbleFrameIndex;
         ChatBubbleAlpha = state.ChatBubbleAlpha;
@@ -222,8 +231,12 @@ public sealed partial class PlayerEntity
         int deaths,
         int caps,
         int healPoints,
+        int activeDominationCount,
+        bool isDominatingLocalViewer,
+        bool isDominatedByLocalViewer,
         float metal,
         bool isGrounded,
+        int remainingAirJumps,
         bool isCarryingIntel,
         bool isSpyCloaked,
         float spyCloakAlpha,
@@ -244,7 +257,9 @@ public sealed partial class PlayerEntity
         float burnDecayDelaySourceTicksRemaining = 0f,
         float burnIntensityDecayPerSourceTick = 0f,
         int burnedByPlayerId = -1,
-        byte movementState = (byte)LegacyMovementState.None)
+        byte movementState = (byte)LegacyMovementState.None,
+        int primaryCooldownTicks = 0,
+        int reloadTicksUntilNextShell = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -260,11 +275,19 @@ public sealed partial class PlayerEntity
         IsAlive = isAlive;
         Health = int.Clamp(health, 0, MaxHealth);
         CurrentShells = int.Clamp(currentShells, 0, MaxShells);
+        PrimaryCooldownTicks = Math.Max(0, primaryCooldownTicks);
+        ReloadTicksUntilNextShell = Math.Max(0, reloadTicksUntilNextShell);
         Kills = Math.Max(0, kills);
         Deaths = Math.Max(0, deaths);
         Caps = Math.Max(0, caps);
         HealPoints = Math.Max(0, healPoints);
+        ActiveDominationCount = Math.Max(0, activeDominationCount);
+        IsDominatingLocalViewer = isDominatingLocalViewer;
+        IsDominatedByLocalViewer = isDominatedByLocalViewer;
         Metal = float.Clamp(metal, 0f, MaxMetal);
+        RemainingAirJumps = IsAlive
+            ? (isGrounded ? MaxAirJumps : int.Clamp(remainingAirJumps, 0, MaxAirJumps))
+            : MaxAirJumps;
         IsCarryingIntel = isCarryingIntel;
         IsSpyCloaked = isSpyCloaked;
         SpyCloakAlpha = float.Clamp(spyCloakAlpha, 0f, 1f);
@@ -317,6 +340,8 @@ public sealed partial class PlayerEntity
         if (!IsAlive)
         {
             Health = 0;
+            PrimaryCooldownTicks = 0;
+            ReloadTicksUntilNextShell = 0;
             IsCarryingIntel = false;
             IsSniperScoped = false;
             SniperChargeTicks = 0;

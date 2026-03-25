@@ -26,8 +26,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
         if (!TryDrawScreenSprite("CTFHUDS", 0, new Vector2(centerX + 1f, viewportHeight + 100f), Color.White, new Vector2(3f, 3f)))
         {

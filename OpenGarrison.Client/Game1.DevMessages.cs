@@ -138,8 +138,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.84f);
 
         var panel = GetDevMessagePanelBounds();
@@ -175,8 +175,8 @@ public partial class Game1
 
     private Rectangle GetDevMessagePanelBounds()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var width = Math.Min(720, viewportWidth - 120);
         var height = Math.Min(360, viewportHeight - 160);
         return new Rectangle((viewportWidth - width) / 2, (viewportHeight - height) / 2, width, height);

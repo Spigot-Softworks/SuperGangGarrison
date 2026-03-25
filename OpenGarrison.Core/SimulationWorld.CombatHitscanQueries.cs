@@ -110,14 +110,13 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Team == projectileTeam || player.Id == ownerId) { continue; }
-                var playerHalfWidth = player.Width / 2f;
-                var playerHalfHeight = player.Height / 2f;
+                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,
-                    player.X - playerHalfWidth,
-                    player.Y - playerHalfHeight,
-                    player.X + playerHalfWidth,
-                    player.Y + playerHalfHeight))
+                    left,
+                    top,
+                    right,
+                    bottom))
                 {
                     continue;
                 }

@@ -10,6 +10,7 @@ public partial class Game1
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
         var deathCamActive = _killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null;
+        var localPlayerAlive = _world.LocalPlayer.IsAlive;
         DrawKillFeedHud();
         DrawChatHud();
         DrawScorePanelHud();
@@ -17,7 +18,7 @@ public partial class Game1
         DrawRespawnHud();
         DrawDeathCamHud();
         DrawWinBannerHud();
-        if (!_networkClient.IsSpectator && !deathCamActive)
+        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
             DrawLocalHealthHud();
             DrawAmmoHud();
@@ -30,12 +31,17 @@ public partial class Game1
 
         if (!deathCamActive)
         {
+            DrawHoveredPlayerNameHud(mouse, cameraPosition);
+        }
+
+        if (!deathCamActive)
+        {
             DrawBuildMenuHud();
         }
 
         DrawNoticeHud();
         DrawScoreboardHud();
-        if (!_networkClient.IsSpectator && !deathCamActive)
+        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
             DrawBubbleMenuHud();
         }
@@ -60,6 +66,7 @@ public partial class Game1
         else if (!_teamSelectOpen
             && _teamSelectAlpha <= 0.02f
             && !_networkClient.IsSpectator
+            && _world.LocalPlayer.IsAlive
             && (!_killCamEnabled || _world.LocalDeathCam is null)
             && !_consoleOpen
             && !_inGameMenuOpen
@@ -87,6 +94,13 @@ public partial class Game1
         else if (_controlsMenuOpen)
         {
             DrawControlsMenu();
+        }
+
+        DrawQuitPrompt();
+
+        if (ShouldDrawSoftwareMenuCursor())
+        {
+            DrawSoftwareMenuCursor(mouse);
         }
     }
 }

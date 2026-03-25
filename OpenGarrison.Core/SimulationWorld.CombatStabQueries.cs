@@ -61,7 +61,8 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Team == mask.Team || player.Id == mask.OwnerId) { continue; }
-                var distance = GetThickRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, player.X - (player.Width / 2f), player.Y - (player.Height / 2f), player.X + (player.Width / 2f), player.Y + (player.Height / 2f), StabMaskEntity.ReachLength, thicknessRadius);
+                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+                var distance = GetThickRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, StabMaskEntity.ReachLength, thicknessRadius);
                 if (distance.HasValue) { UpdateNearestStabHit(ref nearestHit, originX, originY, directionX, directionY, distance.Value, player); }
             }
         }

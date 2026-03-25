@@ -15,7 +15,7 @@ public partial class Game1
             return;
         }
 
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportHeight = ViewportHeight;
         var spriteName = _bubbleMenuKind switch
         {
             BubbleMenuKind.Z => "BubbleMenuZS",
@@ -36,7 +36,7 @@ public partial class Game1
 
     private void UpdateBubbleMenuState(KeyboardState keyboard)
     {
-        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
+        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
         {
             BeginClosingBubbleMenu();
             AdvanceBubbleMenuAnimation();

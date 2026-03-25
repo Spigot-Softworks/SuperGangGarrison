@@ -100,6 +100,11 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
+        if (!preservePlayerStats)
+        {
+            world.ResetPlayersToAwaitingJoinForFreshMap();
+        }
+
         notifyMapChanging?.Invoke(changingEvent);
         mapRotationManagerGetter().ClearQueuedNextRoundMap();
         mapRotationManagerGetter().AlignCurrentMap(levelName);

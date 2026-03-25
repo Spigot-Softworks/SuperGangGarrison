@@ -51,10 +51,11 @@ public partial class Game1
         }
 
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var barWidth = (int)player.Width;
+        var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+        var barWidth = Math.Max(1, bounds.Width);
         var backRectangle = new Rectangle(
-            (int)(renderPosition.X - (player.Width / 2f) - cameraPosition.X),
-            (int)(renderPosition.Y - player.Height / 2f - 8f - cameraPosition.Y),
+            bounds.X,
+            bounds.Y - 8,
             barWidth,
             4);
         _spriteBatch.Draw(_pixel, backRectangle, backColor);

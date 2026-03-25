@@ -39,6 +39,9 @@ public sealed class SimulationWorldTests
         Assert.Equal(150, world.LocalPlayerRespawnTicks);
         Assert.Null(world.LocalDeathCam);
         var killFeedEntry = Assert.Single(world.KillFeed);
+        Assert.Equal(string.Empty, killFeedEntry.KillerName);
+        Assert.Equal(string.Empty, killFeedEntry.VictimName);
+        Assert.Equal("DeadKL", killFeedEntry.WeaponSpriteName);
         Assert.Equal("Player 1 bid farewell, cruel world!", killFeedEntry.MessageText);
 
         AdvanceTicks(world, 150);
@@ -92,7 +95,7 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void KillingLocalCarrier_DropsIntelAndCreatesDeathFeedback()
+    public void KillingLocalCarrier_DropsIntelWithoutCreatingSelfDeathCam()
     {
         var world = CreateWorld();
 
@@ -103,25 +106,53 @@ public sealed class SimulationWorldTests
         Assert.False(world.LocalPlayer.IsAlive);
         Assert.False(world.LocalPlayer.IsCarryingIntel);
         Assert.True(world.BlueIntel.IsDropped);
-        Assert.NotNull(world.LocalDeathCam);
+        Assert.Null(world.LocalDeathCam);
         Assert.Single(world.KillFeed);
         Assert.Equal(150, world.LocalPlayerRespawnTicks);
     }
 
     [Fact]
-    public void DeathFeedback_ExpiresAfterItsTickLifetime()
+    public void SelfKill_KillFeedExpiresAfterItsTickLifetime()
     {
         var world = CreateWorld();
 
         world.ForceKillLocalPlayer();
 
-        Assert.NotNull(world.LocalDeathCam);
-        Assert.Single(world.KillFeed);
+        Assert.Null(world.LocalDeathCam);
+        var killFeedEntry = Assert.Single(world.KillFeed);
+        Assert.Equal(string.Empty, killFeedEntry.KillerName);
+        Assert.Equal(world.LocalPlayer.DisplayName, killFeedEntry.VictimName);
+        Assert.Equal("DeadKL", killFeedEntry.WeaponSpriteName);
 
         AdvanceTicks(world, 150);
 
         Assert.Null(world.LocalDeathCam);
         Assert.Empty(world.KillFeed);
+    }
+
+    [Fact]
+    public void EnemyKill_CreatesDeathCamFocusedOnKiller()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemy));
+
+        enemy.TeleportTo(world.LocalPlayer.X + 40f, world.LocalPlayer.Y);
+        world.LocalPlayer.ForceSetHealth(1);
+
+        world.CombatTestExplodeRocket(enemy, world.LocalPlayer.X, world.LocalPlayer.Y);
+
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.NotNull(world.LocalDeathCam);
+        var deathCam = world.LocalDeathCam!;
+        Assert.Equal(enemy.X, deathCam.FocusX);
+        Assert.Equal(enemy.Y, deathCam.FocusY);
+        Assert.Equal("You were killed by", deathCam.KillMessage);
+        Assert.Equal(enemy.DisplayName, deathCam.KillerName);
     }
 
     [Fact]
@@ -1913,23 +1944,27 @@ public sealed class SimulationWorldTests
             deaths: 3,
             caps: 2,
             healPoints: 40,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
             metal: player.Metal,
-            player.IsGrounded,
-            player.IsCarryingIntel,
-            player.IsSpyCloaked,
-            player.SpyCloakAlpha,
-            player.IsUbered,
-            player.IsHeavyEating,
-            player.HeavyEatTicksRemaining,
-            player.IsSniperScoped,
-            player.SniperChargeTicks,
-            player.FacingDirectionX,
-            player.AimDirectionDegrees,
-            player.IsTaunting,
-            player.TauntFrameIndex,
-            player.IsChatBubbleVisible,
-            player.ChatBubbleFrameIndex,
-            player.ChatBubbleAlpha);
+            isGrounded: player.IsGrounded,
+            remainingAirJumps: player.RemainingAirJumps,
+            isCarryingIntel: player.IsCarryingIntel,
+            isSpyCloaked: player.IsSpyCloaked,
+            spyCloakAlpha: player.SpyCloakAlpha,
+            isUbered: player.IsUbered,
+            isHeavyEating: player.IsHeavyEating,
+            heavyEatTicksRemaining: player.HeavyEatTicksRemaining,
+            isSniperScoped: player.IsSniperScoped,
+            sniperChargeTicks: player.SniperChargeTicks,
+            facingDirectionX: player.FacingDirectionX,
+            aimDirectionDegrees: player.AimDirectionDegrees,
+            isTaunting: player.IsTaunting,
+            tauntFrameIndex: player.TauntFrameIndex,
+            isChatBubbleVisible: player.IsChatBubbleVisible,
+            chatBubbleFrameIndex: player.ChatBubbleFrameIndex,
+            chatBubbleAlpha: player.ChatBubbleAlpha);
 
         Assert.True(world.TryReleaseNetworkPlayerSlot(extraSlot));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(extraSlot, PlayerClass.Soldier));
@@ -2255,31 +2290,22 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void AdditionalPlayableSlot_RecordsOwnDeathCamState()
+    public void AdditionalPlayableSlot_SelfKillDoesNotRecordDeathCamState()
     {
         var world = CreateWorld();
         const byte victimSlot = 3;
-        const byte killerSlot = 4;
 
         Assert.True(world.TryPrepareNetworkPlayerJoin(victimSlot));
         Assert.True(world.TrySetNetworkPlayerTeam(victimSlot, PlayerTeam.Red));
         Assert.True(world.TryApplyNetworkPlayerClassSelection(victimSlot, PlayerClass.Scout));
         Assert.True(world.TryGetNetworkPlayer(victimSlot, out var victim));
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(killerSlot));
-        Assert.True(world.TrySetNetworkPlayerTeam(killerSlot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(killerSlot, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(killerSlot, out var killer));
-
         victim.TeleportTo(320f, 220f);
-        killer.TeleportTo(360f, 220f);
 
         Assert.True(world.ForceKillNetworkPlayer(victimSlot));
 
         var deathCam = world.GetNetworkPlayerDeathCam(victimSlot);
-        Assert.NotNull(deathCam);
-        Assert.Equal(victim.X, deathCam!.FocusX);
-        Assert.Equal("You were killed by the late", deathCam.KillMessage);
+        Assert.Null(deathCam);
     }
 
     [Fact]

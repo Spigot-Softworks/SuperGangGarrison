@@ -10,11 +10,7 @@ public partial class Game1
     private Rectangle GetLocalPlayerRectangle(Vector2 cameraPosition)
     {
         var player = _world.LocalPlayer;
-        return new Rectangle(
-            (int)(player.X - (player.Width / 2f) - cameraPosition.X),
-            (int)(player.Y - (player.Height / 2f) - cameraPosition.Y),
-            (int)player.Width,
-            (int)player.Height);
+        return GetPlayerScreenBounds(player, GetRenderPosition(player, allowInterpolation: false), cameraPosition);
     }
 
     private void DrawGameplayWorld(
@@ -227,14 +223,15 @@ public partial class Game1
             ? new Color(255, 180, 80)
             : Color.OrangeRed;
         var playerSpriteTint = GetPlayerColor(_world.LocalPlayer, Color.White);
-        if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint))
+        var bodySelection = GetPlayerBodySpriteSelection(_world.LocalPlayer);
+        if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
         }
 
         if (!GetPlayerIsHeavyEating(_world.LocalPlayer) && !_world.LocalPlayer.IsTaunting)
         {
-            TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha);
+            TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
         DrawAfterburnOverlay(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer, allowInterpolation: false), cameraPosition, visibilityAlpha);

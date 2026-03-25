@@ -59,7 +59,7 @@ public sealed partial class SimulationWorld
             var burner = afterburn.BurnedByPlayerId.HasValue
                 ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
                 : null;
-            KillPlayer(player, killer: burner, weaponSpriteName: "FlamethrowerS");
+            KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
             return;
         }
 

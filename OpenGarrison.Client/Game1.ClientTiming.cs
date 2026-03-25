@@ -133,7 +133,9 @@ public partial class Game1
             UpdateNoticeState();
             AdvanceExplosionVisuals();
             AdvanceBloodVisuals();
+            AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
+            AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
 
             if (_autoBalanceNoticeTicks > 0)

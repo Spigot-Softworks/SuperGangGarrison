@@ -15,7 +15,11 @@ public partial class Game1
     private readonly List<AirBlastVisual> _airBlasts = new();
     private readonly List<BackstabVisual> _backstabVisuals = new();
     private readonly List<BloodVisual> _bloodVisuals = new();
+    private readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
+    private readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
+    private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
+    private readonly List<MineTrailVisual> _mineTrailVisuals = new();
     private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
@@ -49,6 +53,7 @@ public partial class Game1
         if (_gibLevel == 0)
         {
             _bloodVisuals.Clear();
+            _bloodSprayVisuals.Clear();
             return;
         }
 
@@ -58,6 +63,111 @@ public partial class Game1
             if (_bloodVisuals[index].TicksRemaining <= 0)
             {
                 _bloodVisuals.RemoveAt(index);
+            }
+        }
+
+        for (var index = _bloodSprayVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var spray = _bloodSprayVisuals[index];
+            spray.TicksRemaining -= 1;
+            if (spray.TicksRemaining <= 0)
+            {
+                _bloodSprayVisuals.RemoveAt(index);
+                continue;
+            }
+
+            spray.VelocityY = MathF.Min(BloodDropEntity.MaxSpeed, spray.VelocityY + 0.35f);
+            spray.X += spray.VelocityX;
+            spray.Y += spray.VelocityY;
+            spray.VelocityX *= 0.97f;
+        }
+    }
+
+    private void AdvanceShellVisuals()
+    {
+        if (_particleMode != 0)
+        {
+            _pendingWeaponShellVisuals.Clear();
+            _shellVisuals.Clear();
+            return;
+        }
+
+        const float clientTickSeconds = 1f / ClientUpdateTicksPerSecond;
+        for (var index = _pendingWeaponShellVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var pendingShell = _pendingWeaponShellVisuals[index];
+            pendingShell.DelaySeconds -= clientTickSeconds;
+            if (pendingShell.DelaySeconds > 0f)
+            {
+                continue;
+            }
+
+            SpawnPendingWeaponShellVisual(pendingShell);
+            _pendingWeaponShellVisuals.RemoveAt(index);
+        }
+
+        var gravityPerTick = ScaleSourceTickDistance(0.7f);
+        var settleSpeed = ScaleSourceTickDistance(1f);
+        for (var index = _shellVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            var shell = _shellVisuals[index];
+            if (shell.TicksUntilFade > 0)
+            {
+                shell.TicksUntilFade -= 1;
+            }
+            else
+            {
+                shell.Fade = true;
+            }
+
+            if (shell.Fade)
+            {
+                shell.Alpha -= 0.05f;
+            }
+
+            if (shell.Alpha < 0.3f)
+            {
+                _shellVisuals.RemoveAt(index);
+                continue;
+            }
+
+            if (shell.Stuck)
+            {
+                continue;
+            }
+
+            shell.RotationDegrees += shell.RotationSpeedDegrees;
+
+            if (IsShellBlocked(shell.X + shell.VelocityX, shell.Y))
+            {
+                var normalizedAngle = (shell.RotationDegrees % 360f + 360f) % 360f;
+                shell.RotationDegrees = normalizedAngle > 0f && normalizedAngle < 180f ? 90f : 270f;
+                shell.VelocityX *= -0.6f;
+                shell.RotationSpeedDegrees *= 0.8f;
+            }
+
+            if (IsShellBlocked(shell.X, shell.Y + shell.VelocityY))
+            {
+                shell.VelocityY *= -0.7f;
+                shell.VelocityY = MathF.Max(-ScaleSourceTickDistance(2.5f), shell.VelocityY);
+                shell.VelocityX *= 0.7f;
+                shell.RotationSpeedDegrees *= 0.8f;
+
+                var normalizedAngle = (shell.RotationDegrees % 360f + 360f) % 360f;
+                shell.RotationDegrees = normalizedAngle > 90f && normalizedAngle < 270f ? 180f : 0f;
+                if (MathF.Abs(shell.VelocityY) < settleSpeed)
+                {
+                    shell.Stuck = true;
+                    shell.RotationSpeedDegrees = 0f;
+                    shell.VelocityY = 0f;
+                }
+            }
+
+            shell.X += shell.VelocityX;
+            shell.Y += shell.VelocityY;
+            if (!shell.Stuck)
+            {
+                shell.VelocityY += gravityPerTick;
             }
         }
     }
@@ -149,6 +259,7 @@ public partial class Game1
     {
         if (_particleMode == 1)
         {
+            _mineTrailVisuals.Clear();
             _blastJumpFlameVisuals.Clear();
             _flameSmokeVisuals.Clear();
             return;
@@ -213,6 +324,41 @@ public partial class Game1
             if (_flameSmokeVisuals[index].TicksRemaining <= 0)
             {
                 _flameSmokeVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void AdvanceMineTrailVisuals()
+    {
+        if (_particleMode == 1)
+        {
+            _mineTrailVisuals.Clear();
+            return;
+        }
+
+        foreach (var mine in _world.Mines)
+        {
+            if (mine.IsStickied || ((_world.Frame + mine.Id) & 1) != 0)
+            {
+                continue;
+            }
+
+            var velocityX = mine.X - mine.PreviousX;
+            var velocityY = mine.Y - mine.PreviousY;
+            if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
+            {
+                continue;
+            }
+
+            _mineTrailVisuals.Add(new MineTrailVisual(mine.X, mine.Y));
+        }
+
+        for (var index = _mineTrailVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            _mineTrailVisuals[index].TicksRemaining -= 1;
+            if (_mineTrailVisuals[index].TicksRemaining <= 0)
+            {
+                _mineTrailVisuals.RemoveAt(index);
             }
         }
     }
@@ -369,6 +515,212 @@ public partial class Game1
                 SpriteEffects.None,
                 0f);
         }
+
+        var bloodDropSprite = _runtimeAssets.GetSprite("BloodDropS");
+        for (var index = 0; index < _bloodSprayVisuals.Count; index += 1)
+        {
+            var spray = _bloodSprayVisuals[index];
+            var alpha = Math.Clamp(spray.TicksRemaining / (float)spray.InitialTicks, 0f, 1f);
+            if (bloodDropSprite is not null && bloodDropSprite.Frames.Count > 0)
+            {
+                _spriteBatch.Draw(
+                    bloodDropSprite.Frames[0],
+                    new Vector2(spray.X - cameraPosition.X, spray.Y - cameraPosition.Y),
+                    null,
+                    Color.White * alpha,
+                    0f,
+                    bloodDropSprite.Origin.ToVector2(),
+                    Vector2.One,
+                    SpriteEffects.None,
+                    0f);
+                continue;
+            }
+
+            var rectangle = new Rectangle(
+                (int)(spray.X - cameraPosition.X),
+                (int)(spray.Y - cameraPosition.Y),
+                2,
+                2);
+            _spriteBatch.Draw(_pixel, rectangle, Color.White * alpha);
+        }
+    }
+
+    private void DrawMineTrailVisuals(Vector2 cameraPosition)
+    {
+        var sprite = _runtimeAssets.GetSprite("MineTrailS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _mineTrailVisuals.Count; index += 1)
+        {
+            var trail = _mineTrailVisuals[index];
+            var progress = 1f - (trail.TicksRemaining / (float)MineTrailVisual.LifetimeTicks);
+            var frameIndex = Math.Clamp((int)MathF.Floor(progress * sprite.Frames.Count), 0, sprite.Frames.Count - 1);
+            _spriteBatch.Draw(
+                sprite.Frames[frameIndex],
+                new Vector2(trail.X - cameraPosition.X, trail.Y - cameraPosition.Y),
+                null,
+                Color.White,
+                0f,
+                sprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+        }
+    }
+
+    private void DrawShellVisuals(Vector2 cameraPosition)
+    {
+        if (_particleMode != 0)
+        {
+            return;
+        }
+
+        var shellSprite = _runtimeAssets.GetSprite("ShellS");
+        for (var index = 0; index < _shellVisuals.Count; index += 1)
+        {
+            var shell = _shellVisuals[index];
+            if (shellSprite is not null && shellSprite.Frames.Count > 0)
+            {
+                var frameIndex = Math.Clamp(shell.FrameIndex, 0, shellSprite.Frames.Count - 1);
+                _spriteBatch.Draw(
+                    shellSprite.Frames[frameIndex],
+                    new Vector2(shell.X - cameraPosition.X, shell.Y - cameraPosition.Y),
+                    null,
+                    Color.White * shell.Alpha,
+                    MathHelper.ToRadians(shell.RotationDegrees),
+                    shellSprite.Origin.ToVector2(),
+                    Vector2.One,
+                    SpriteEffects.None,
+                    0f);
+                continue;
+            }
+
+            var shellRectangle = new Rectangle(
+                (int)(shell.X - 2f - cameraPosition.X),
+                (int)(shell.Y - 2f - cameraPosition.Y),
+                4,
+                4);
+            _spriteBatch.Draw(_pixel, shellRectangle, new Color(230, 210, 160) * shell.Alpha);
+        }
+    }
+
+    private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
+    {
+        if (_particleMode != 0 || count <= 0)
+        {
+            return;
+        }
+
+        _pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(
+            GetPlayerStateKey(player),
+            player.ClassId,
+            player.Team,
+            Math.Max(0f, delaySeconds),
+            count));
+    }
+
+    private void SpawnPendingWeaponShellVisual(PendingWeaponShellVisual pendingShell)
+    {
+        var player = FindPlayerById(pendingShell.PlayerId);
+        if (player is null || !player.IsAlive)
+        {
+            return;
+        }
+
+        if (pendingShell.ClassId == PlayerClass.Spy && GetPlayerVisibilityAlpha(player) <= 0.1f)
+        {
+            return;
+        }
+
+        for (var shellIndex = 0; shellIndex < pendingShell.Count; shellIndex += 1)
+        {
+            SpawnWeaponShellVisual(player, pendingShell.ClassId, pendingShell.Team);
+        }
+    }
+
+    private void SpawnWeaponShellVisual(PlayerEntity player, PlayerClass classId, PlayerTeam team)
+    {
+        var spawnPosition = GetWeaponShellSpawnOrigin(player);
+        var facingScale = GetPlayerFacingScale(player);
+        var aimRadians = MathF.PI * player.AimDirectionDegrees / 180f;
+        var directionDegrees = player.AimDirectionDegrees;
+        var frameIndex = 0;
+        var speed = ScaleSourceTickDistance(2f + (_visualRandom.NextSingle() * 3f));
+        var velocityOffsetX = 0f;
+        var velocityOffsetY = 0f;
+
+        switch (classId)
+        {
+            case PlayerClass.Heavy:
+                spawnPosition.Y += 4f;
+                directionDegrees += (140f - (_visualRandom.NextSingle() * 40f)) * facingScale;
+                break;
+            case PlayerClass.Engineer:
+            case PlayerClass.Scout:
+                frameIndex = 1;
+                directionDegrees += (140f - (_visualRandom.NextSingle() * 40f)) * facingScale;
+                break;
+            case PlayerClass.Sniper:
+                frameIndex = 2;
+                directionDegrees += (100f + (_visualRandom.NextSingle() * 30f)) * facingScale;
+                velocityOffsetX -= ScaleSourceTickDistance(1f * facingScale);
+                velocityOffsetY -= ScaleSourceTickDistance(1f);
+                break;
+            case PlayerClass.Medic:
+                frameIndex = team == PlayerTeam.Blue ? 4 : 3;
+                directionDegrees += (100f + (_visualRandom.NextSingle() * 30f)) * facingScale;
+                break;
+            case PlayerClass.Spy:
+                spawnPosition.X += MathF.Cos(aimRadians) * 8f;
+                spawnPosition.Y += MathF.Sin(aimRadians) * 8f - 5f;
+                directionDegrees = 180f + player.AimDirectionDegrees + (70f - (_visualRandom.NextSingle() * 80f)) * facingScale;
+                speed *= 0.7f;
+                break;
+            default:
+                return;
+        }
+
+        var directionRadians = directionDegrees * (MathF.PI / 180f);
+        var rotationSpeed = ScaleSourceTickDistance(14f + (_visualRandom.NextSingle() * 18f))
+            * (_visualRandom.Next(2) == 0 ? -1f : 1f);
+        _shellVisuals.Add(new ShellVisual(
+            spawnPosition.X,
+            spawnPosition.Y,
+            (MathF.Cos(directionRadians) * speed) + velocityOffsetX,
+            (MathF.Sin(directionRadians) * speed) + velocityOffsetY,
+            frameIndex,
+            _visualRandom.NextSingle() * 360f,
+            rotationSpeed,
+            fadeDelayTicks: (int)MathF.Round(GetSourceTicksAsSeconds(45f) * ClientUpdateTicksPerSecond)));
+    }
+
+    private bool IsShellBlocked(float x, float y)
+    {
+        foreach (var solid in _world.Level.Solids)
+        {
+            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+            {
+                return true;
+            }
+        }
+
+        foreach (var wall in _world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
+        {
+            if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static float ScaleSourceTickDistance(float sourceDistance)
+    {
+        return sourceDistance * (LegacyMovementModel.SourceTicksPerSecond / (float)ClientUpdateTicksPerSecond);
     }
 
     private void PlayPendingVisualEvents()
@@ -412,6 +764,17 @@ public partial class Game1
             return;
         }
 
+        if (string.Equals(effectName, "GibBlood", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_gibLevel == 0)
+            {
+                return;
+            }
+
+            SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
+            return;
+        }
+
         if (!string.Equals(effectName, "Blood", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -422,16 +785,7 @@ public partial class Game1
             return;
         }
 
-        var burstCount = Math.Max(1, count);
-        for (var index = 0; index < burstCount; index += 1)
-        {
-            var spreadDegrees = directionDegrees + (_visualRandom.NextSingle() * 43f) - 22f;
-            var spreadRadians = spreadDegrees * (MathF.PI / 180f);
-            var distance = burstCount > 1 ? _visualRandom.NextSingle() * 6f : 0f;
-            _bloodVisuals.Add(new BloodVisual(
-                x + MathF.Cos(spreadRadians) * distance,
-                y + MathF.Sin(spreadRadians) * distance));
-        }
+        SpawnBloodImpactVisuals(x, y, directionDegrees, Math.Max(1, count));
     }
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
@@ -554,6 +908,60 @@ public partial class Game1
         return (int)MathF.Ceiling(5f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
     }
 
+    private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount)
+    {
+        for (var index = 0; index < burstCount; index += 1)
+        {
+            var spreadDegrees = directionDegrees + (_visualRandom.NextSingle() * 57f) - 28f;
+            var spreadRadians = spreadDegrees * (MathF.PI / 180f);
+            var distance = burstCount > 1 ? _visualRandom.NextSingle() * 8f : 0f;
+            _bloodVisuals.Add(new BloodVisual(
+                x + MathF.Cos(spreadRadians) * distance,
+                y + MathF.Sin(spreadRadians) * distance));
+        }
+
+        var sprayCount = Math.Clamp((burstCount * 2) + 4, 6, 14);
+        for (var index = 0; index < sprayCount; index += 1)
+        {
+            var spreadDegrees = directionDegrees + (_visualRandom.NextSingle() * 57f) - 28f;
+            var spreadRadians = spreadDegrees * (MathF.PI / 180f);
+            var speed = 4f + (_visualRandom.NextSingle() * 14f);
+            _bloodSprayVisuals.Add(new BloodSprayVisual(
+                x,
+                y,
+                MathF.Cos(spreadRadians) * speed,
+                MathF.Sin(spreadRadians) * speed,
+                _visualRandom.Next(24, 47)));
+        }
+    }
+
+    private void SpawnGibBloodImpactVisuals(float x, float y, int intensity)
+    {
+        var burstCount = Math.Max(6, intensity * 4);
+        for (var index = 0; index < burstCount; index += 1)
+        {
+            var directionRadians = _visualRandom.NextSingle() * MathF.Tau;
+            var distance = _visualRandom.NextSingle() * 11f;
+            _bloodVisuals.Add(new BloodVisual(
+                x + MathF.Cos(directionRadians) * distance,
+                y + MathF.Sin(directionRadians) * distance));
+        }
+
+        var sprayCount = Math.Max(14, intensity * 10);
+        for (var index = 0; index < sprayCount; index += 1)
+        {
+            var directionRadians = _visualRandom.NextSingle() * MathF.Tau;
+            var speed = 6f + (_visualRandom.NextSingle() * 16f);
+            var startRadius = _visualRandom.NextSingle() * 8f;
+            _bloodSprayVisuals.Add(new BloodSprayVisual(
+                x + MathF.Cos(directionRadians) * startRadius,
+                y + MathF.Sin(directionRadians) * startRadius,
+                MathF.Cos(directionRadians) * speed,
+                MathF.Sin(directionRadians) * speed,
+                _visualRandom.Next(28, 57)));
+        }
+    }
+
     private sealed class ExplosionVisual
     {
         public const int LifetimeTicks = 13;
@@ -641,6 +1049,90 @@ public partial class Game1
         public int TicksRemaining { get; set; }
     }
 
+    private sealed class BloodSprayVisual
+    {
+        public BloodSprayVisual(float x, float y, float velocityX, float velocityY, int initialTicks)
+        {
+            X = x;
+            Y = y;
+            VelocityX = velocityX;
+            VelocityY = velocityY;
+            InitialTicks = Math.Max(1, initialTicks);
+            TicksRemaining = InitialTicks;
+        }
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float VelocityX { get; set; }
+
+        public float VelocityY { get; set; }
+
+        public int InitialTicks { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class PendingWeaponShellVisual
+    {
+        public PendingWeaponShellVisual(int playerId, PlayerClass classId, PlayerTeam team, float delaySeconds, int count)
+        {
+            PlayerId = playerId;
+            ClassId = classId;
+            Team = team;
+            DelaySeconds = delaySeconds;
+            Count = count;
+        }
+
+        public int PlayerId { get; }
+
+        public PlayerClass ClassId { get; }
+
+        public PlayerTeam Team { get; }
+
+        public float DelaySeconds { get; set; }
+
+        public int Count { get; }
+    }
+
+    private sealed class ShellVisual
+    {
+        public ShellVisual(float x, float y, float velocityX, float velocityY, int frameIndex, float rotationDegrees, float rotationSpeedDegrees, int fadeDelayTicks)
+        {
+            X = x;
+            Y = y;
+            VelocityX = velocityX;
+            VelocityY = velocityY;
+            FrameIndex = frameIndex;
+            RotationDegrees = rotationDegrees;
+            RotationSpeedDegrees = rotationSpeedDegrees;
+            TicksUntilFade = fadeDelayTicks;
+        }
+
+        public float X { get; set; }
+
+        public float Y { get; set; }
+
+        public float VelocityX { get; set; }
+
+        public float VelocityY { get; set; }
+
+        public int FrameIndex { get; }
+
+        public float RotationDegrees { get; set; }
+
+        public float RotationSpeedDegrees { get; set; }
+
+        public int TicksUntilFade { get; set; }
+
+        public bool Fade { get; set; }
+
+        public bool Stuck { get; set; }
+
+        public float Alpha { get; set; } = 1f;
+    }
+
     private sealed class BlastJumpFlameVisual
     {
         public BlastJumpFlameVisual(float x, float y, int initialTicks, int frameSeed)
@@ -668,6 +1160,24 @@ public partial class Game1
         public const int LifetimeTicks = 12;
 
         public RocketSmokeVisual(float x, float y)
+        {
+            X = x;
+            Y = y;
+            TicksRemaining = LifetimeTicks;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class MineTrailVisual
+    {
+        public const int LifetimeTicks = 10;
+
+        public MineTrailVisual(float x, float y)
         {
             X = x;
             Y = y;

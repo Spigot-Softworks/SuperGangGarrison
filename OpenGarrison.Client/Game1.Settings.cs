@@ -14,11 +14,12 @@ public partial class Game1
 
     private void ApplyLoadedSettings()
     {
+        ApplyIngameResolution(_clientSettings.IngameResolution);
         _graphics.IsFullScreen = _clientSettings.Fullscreen;
         _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
+        ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution);
         _graphics.ApplyChanges();
-
-        _ingameMusicEnabled = _clientSettings.IngameMusicEnabled;
+        _musicMode = _clientSettings.MusicMode;
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
@@ -50,7 +51,8 @@ public partial class Game1
         _clientSettings.PlayerName = _world.LocalPlayer.DisplayName;
         _clientSettings.Fullscreen = _graphics.IsFullScreen;
         _clientSettings.VSync = _graphics.SynchronizeWithVerticalRetrace;
-        _clientSettings.IngameMusicEnabled = _ingameMusicEnabled;
+        _clientSettings.IngameResolution = _ingameResolution;
+        _clientSettings.MusicMode = _musicMode;
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
@@ -98,14 +100,6 @@ public partial class Game1
         _recentConnectPort = port;
         _connectHostBuffer = host;
         _connectPortBuffer = port.ToString(CultureInfo.InvariantCulture);
-        PersistClientSettings();
-    }
-
-    private void ApplyGraphicsSettings()
-    {
-        _graphics.IsFullScreen = _clientSettings.Fullscreen;
-        _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
-        _graphics.ApplyChanges();
         PersistClientSettings();
     }
 

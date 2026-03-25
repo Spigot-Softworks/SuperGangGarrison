@@ -2,7 +2,7 @@
 
 ### How to Play
 
-1. Download latest `.zip` or `.tar` from Releases
+1. Download latest `.zip` (Windows) or `.tar.gz` (Linux/macOS) from Releases
 2. Extract somewhere
 3. Run OpenGarrison.Client from that directory (linux/mac: `sh run-client.sh`)
 4. To host: Run OpenGarrison.ServerLauncher

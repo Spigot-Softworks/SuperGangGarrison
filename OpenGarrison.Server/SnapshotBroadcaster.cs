@@ -111,9 +111,17 @@ sealed class SnapshotBroadcaster
         SnapshotVisualEvent[] visualEvents,
         SnapshotSoundEvent[] soundEvents)
     {
+        PlayerEntity? viewer = null;
+        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
+            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && _world.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
+        {
+            viewer = viewerPlayer;
+        }
+
         var players = _world
             .EnumerateReplicatedNetworkPlayers()
-            .Select(entry => ToSnapshotPlayerState(_world, entry.Slot, entry.Player))
+            .Select(entry => ToSnapshotPlayerState(_world, entry.Slot, entry.Player, viewer))
             .ToList();
 
         var spectatorCount = _clientsBySlot.Keys.Count(IsSpectatorSlot);
@@ -389,6 +397,27 @@ sealed class SnapshotBroadcaster
             static state => state.Y,
             static (builder, state) => builder.BloodDrops.Add(state),
             static (builder, id) => builder.RemovedBloodDropIds.Add(id));
+        AddPointEventContributions(
+            contributions,
+            fullSnapshot.SoundEvents,
+            priority: 1300,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.SoundEvents.Add(state));
+        AddPointEventContributions(
+            contributions,
+            fullSnapshot.VisualEvents,
+            priority: 1290,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.VisualEvents.Add(state));
+        AddOrderedContributions(
+            contributions,
+            fullSnapshot.KillFeed,
+            priority: 1180,
+            static (builder, entry) => builder.KillFeed.Add(entry));
 
         return contributions;
     }
@@ -439,6 +468,41 @@ sealed class SnapshotBroadcaster
             contributions.Add(new SnapshotContribution(
                 priority,
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                builder => addState(builder, state)));
+        }
+    }
+
+    private static void AddPointEventContributions<T>(
+        List<SnapshotContribution> contributions,
+        IReadOnlyList<T> states,
+        int priority,
+        (float X, float Y) focus,
+        Func<T, float> xSelector,
+        Func<T, float> ySelector,
+        Action<SnapshotBuilder, T> addState)
+    {
+        for (var index = states.Count - 1; index >= 0; index -= 1)
+        {
+            var state = states[index];
+            contributions.Add(new SnapshotContribution(
+                priority - ((states.Count - 1) - index),
+                DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                builder => addState(builder, state)));
+        }
+    }
+
+    private static void AddOrderedContributions<T>(
+        List<SnapshotContribution> contributions,
+        IReadOnlyList<T> states,
+        int priority,
+        Action<SnapshotBuilder, T> addState)
+    {
+        for (var index = states.Count - 1; index >= 0; index -= 1)
+        {
+            var state = states[index];
+            contributions.Add(new SnapshotContribution(
+                priority - ((states.Count - 1) - index),
+                0f,
                 builder => addState(builder, state)));
         }
     }

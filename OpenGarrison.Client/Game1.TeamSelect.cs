@@ -38,7 +38,7 @@ public partial class Game1
             _teamSelectPanelY = MathF.Min(120f, _teamSelectPanelY + ScaleLegacyUiDistance(15f));
         }
 
-        var panelLeft = (_graphics.PreferredBackBufferWidth / 2f) - 400f;
+        var panelLeft = (ViewportWidth / 2f) - 400f;
         _teamSelectHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed || _teamSelectHoverIndex < 0)
@@ -51,8 +51,8 @@ public partial class Game1
 
     private void DrawTeamSelectHud()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var panelLeft = (viewportWidth / 2f) - 400f;
         var alpha = Math.Clamp(_teamSelectAlpha, 0.01f, 0.99f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));

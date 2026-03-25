@@ -122,15 +122,16 @@ public sealed partial class SimulationWorld
                 return null;
             }
 
+            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
             return GetRayIntersectionDistanceWithRectangle(
                 originX,
                 originY,
                 directionX,
                 directionY,
-                player.X - (player.Width / 2f),
-                player.Y - (player.Height / 2f),
-                player.X + (player.Width / 2f),
-                player.Y + (player.Height / 2f),
+                left,
+                top,
+                right,
+                bottom,
                 maxDistance);
         }
 

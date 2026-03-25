@@ -362,8 +362,12 @@ public sealed class ProtocolAndSnapshotTests
                     Deaths: 1,
                     Caps: 0,
                     HealPoints: 0,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
                     Metal: 100f,
                     IsGrounded: true,
+                    RemainingAirJumps: 0,
                     IsCarryingIntel: false,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,
@@ -428,8 +432,12 @@ public sealed class ProtocolAndSnapshotTests
                     Deaths: 1,
                     Caps: 0,
                     HealPoints: 0,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
                     Metal: 100f,
                     IsGrounded: true,
+                    RemainingAirJumps: 0,
                     IsCarryingIntel: false,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,
@@ -502,6 +510,9 @@ public sealed class ProtocolAndSnapshotTests
         var world = new SimulationWorld();
         var snapshot = CreateSnapshot() with
         {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
             Sentries =
             [
                 new SnapshotSentryState(501, 1, (byte)PlayerTeam.Red, 300f, 250f, 60, false, 1f, 1f, 15f, 2, 1, 1, true, true, 2, 330f, 255f),
@@ -536,7 +547,7 @@ public sealed class ProtocolAndSnapshotTests
             ],
             BloodDrops =
             [
-                new SnapshotBloodDropState(608, 380f, 300f, 0.5f, 1.5f, false, 11),
+                new SnapshotBloodDropState(608, 380f, 300f, 0.5f, 1.5f, false, 11, 1.6f),
             ],
             DeadBodies =
             [
@@ -557,6 +568,7 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Single(world.PlayerGibs);
         Assert.Single(world.BloodDrops);
         Assert.Single(world.DeadBodies);
+        Assert.Equal(1.6f, world.BloodDrops[0].Scale);
     }
 
     [Fact]
@@ -761,7 +773,7 @@ public sealed class ProtocolAndSnapshotTests
             ],
             BloodDrops =
             [
-                new SnapshotBloodDropState(701, 380f, 300f, 0.5f, 1.5f, false, 11),
+                new SnapshotBloodDropState(701, 380f, 300f, 0.5f, 1.5f, false, 11, 1.6f),
             ],
         };
         var delta = CreateSnapshot() with
@@ -838,8 +850,12 @@ public sealed class ProtocolAndSnapshotTests
                     Deaths: 2,
                     Caps: 1,
                     HealPoints: 0,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
                     Metal: 100f,
                     IsGrounded: true,
+                    RemainingAirJumps: 0,
                     IsCarryingIntel: false,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,
@@ -877,8 +893,12 @@ public sealed class ProtocolAndSnapshotTests
                     Deaths: 3,
                     Caps: 0,
                     HealPoints: 75,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
                     Metal: 100f,
                     IsGrounded: false,
+                    RemainingAirJumps: 0,
                     IsCarryingIntel: true,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,

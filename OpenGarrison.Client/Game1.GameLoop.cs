@@ -20,7 +20,7 @@ public partial class Game1
         ReturnToMainMenu("Password entry canceled.");
         _previousKeyboard = keyboard;
         _previousMouse = mouse;
-        IsMouseVisible = true;
+        IsMouseVisible = !ShouldUseSoftwareMenuCursor();
         return true;
     }
 
@@ -51,7 +51,7 @@ public partial class Game1
         _world.SetLocalInput(default);
         _previousKeyboard = keyboard;
         _previousMouse = mouse;
-        IsMouseVisible = true;
+        IsMouseVisible = !ShouldUseSoftwareMenuCursor();
         return true;
     }
 
@@ -64,7 +64,8 @@ public partial class Game1
 
         UpdateGameplayScreenState(keyboard);
         UpdateGameplayMenuState(keyboard, mouse);
-        var cameraPosition = GetCameraTopLeft(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight, mouse.X, mouse.Y);
+        UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
+        var cameraPosition = GetCameraTopLeft(ViewportWidth, ViewportHeight, mouse.X, mouse.Y);
         var (gameplayInput, networkInput) = BuildGameplayInputs(keyboard, mouse, cameraPosition);
         CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
         _world.SetLocalInput(gameplayInput);
@@ -80,9 +81,9 @@ public partial class Game1
     {
         if (_startupSplashOpen)
         {
-            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            BeginLogicalFrame(new Color(24, 32, 48));
             DrawStartupSplash();
-            _spriteBatch.End();
+            EndLogicalFrame();
             return true;
         }
 
@@ -91,28 +92,32 @@ public partial class Game1
             return false;
         }
 
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        BeginLogicalFrame(new Color(24, 32, 48));
         DrawMainMenu();
-        _spriteBatch.End();
+        if (ShouldDrawSoftwareMenuCursor())
+        {
+            DrawSoftwareMenuCursor(GetScaledMouseState(Mouse.GetState()));
+        }
+        EndLogicalFrame();
         return true;
     }
 
     private void DrawGameplayFrame(GameTime gameTime)
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
-        var mouse = Mouse.GetState();
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        var mouse = GetScaledMouseState(Mouse.GetState());
         var cameraPosition = GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
         PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
 
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        BeginLogicalFrame(new Color(24, 32, 48));
         if (!DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
         {
             DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight);
         }
         DrawGameplayHudLayers(mouse, cameraPosition);
         DrawGameplayModalOverlays(mouse);
-        _spriteBatch.End();
+        EndLogicalFrame();
     }
 
     private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight)

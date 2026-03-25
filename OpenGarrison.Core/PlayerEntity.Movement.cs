@@ -17,6 +17,21 @@ public sealed partial class PlayerEntity
         MovementState = LegacyMovementState.None;
     }
 
+    public void ResolveBlockingOverlap(SimpleLevel level, PlayerTeam team)
+    {
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        NudgeOutsideBlockingGeometry(level, team);
+        ClampTo(level.Bounds);
+        if (CanOccupy(level, team, X, Y))
+        {
+            RefreshGroundSupport(level, team);
+        }
+    }
+
     public bool Advance(PlayerInputSnapshot input, bool jumpPressed, SimpleLevel level, PlayerTeam team, double deltaSeconds)
     {
         var afterburn = AdvanceTickState(input, deltaSeconds);
@@ -166,13 +181,18 @@ public sealed partial class PlayerEntity
 
     public void ClampTo(WorldBounds bounds)
     {
-        X = bounds.ClampX(X, Width);
-        if (X <= Width / 2f || X >= bounds.Width - (Width / 2f))
+        var minX = -CollisionLeftOffset;
+        var maxX = bounds.Width - CollisionRightOffset;
+        var clampedX = float.Clamp(X, minX, maxX);
+        if (clampedX != X)
         {
             HorizontalSpeed = 0f;
+            X = clampedX;
         }
 
-        var clampedY = bounds.ClampY(Y, Height);
+        var minY = -CollisionTopOffset;
+        var maxY = bounds.Height - CollisionBottomOffset;
+        var clampedY = float.Clamp(Y, minY, maxY);
         if (clampedY != Y)
         {
             if (VerticalSpeed > 0f)
@@ -298,10 +318,7 @@ public sealed partial class PlayerEntity
 
     public bool IntersectsMarker(float markerX, float markerY, float markerWidth, float markerHeight)
     {
-        var left = X - (Width / 2f);
-        var right = X + (Width / 2f);
-        var top = Y - (Height / 2f);
-        var bottom = Y + (Height / 2f);
+        GetCollisionBounds(out var left, out var top, out var right, out var bottom);
         var markerLeft = markerX - (markerWidth / 2f);
         var markerRight = markerX + (markerWidth / 2f);
         var markerTop = markerY - (markerHeight / 2f);
@@ -606,10 +623,7 @@ public sealed partial class PlayerEntity
 
     private bool Intersects(LevelSolid solid)
     {
-        var left = X - (Width / 2f);
-        var right = X + (Width / 2f);
-        var top = Y - (Height / 2f);
-        var bottom = Y + (Height / 2f);
+        GetCollisionBounds(out var left, out var top, out var right, out var bottom);
 
         return left < solid.Right
             && right > solid.Left
@@ -619,10 +633,7 @@ public sealed partial class PlayerEntity
 
     private bool Intersects(RoomObjectMarker roomObject)
     {
-        var left = X - (Width / 2f);
-        var right = X + (Width / 2f);
-        var top = Y - (Height / 2f);
-        var bottom = Y + (Height / 2f);
+        GetCollisionBounds(out var left, out var top, out var right, out var bottom);
         var gateLeft = roomObject.Left;
         var gateRight = roomObject.Right;
         var gateTop = roomObject.Top;
@@ -687,10 +698,7 @@ public sealed partial class PlayerEntity
 
     private float? FindBlockingObstacleTop(SimpleLevel level, PlayerTeam team, float x, float y)
     {
-        var left = x - (Width / 2f);
-        var right = x + (Width / 2f);
-        var top = y - (Height / 2f);
-        var bottom = y + (Height / 2f);
+        GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
         float? obstacleTop = null;
 
         foreach (var solid in level.Solids)

@@ -4,6 +4,11 @@ public sealed partial class SimulationWorld
 {
     private void UpdateCaptureTheFlagState()
     {
+        if (MatchState.IsEnded)
+        {
+            return;
+        }
+
         RedIntel.AdvanceTick();
         BlueIntel.AdvanceTick();
 

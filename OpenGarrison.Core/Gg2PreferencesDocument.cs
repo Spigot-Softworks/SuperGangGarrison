@@ -19,7 +19,15 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool VSync { get; set; }
 
-    public bool IngameMusicEnabled { get; set; } = true;
+    public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
+
+    public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
+
+    public bool IngameMusicEnabled
+    {
+        get => MusicMode is MusicMode.MenuAndInGame or MusicMode.InGameOnly;
+        set => MusicMode = value ? MusicMode.MenuAndInGame : MusicMode.MenuOnly;
+    }
 
     public bool KillCamEnabled { get; set; } = true;
 
@@ -62,7 +70,8 @@ public sealed class OpenGarrisonPreferencesDocument
             PlayerName = ini.GetString(SettingsSection, "PlayerName", "Player"),
             Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
-            IngameMusicEnabled = ini.GetBool(SettingsSection, "IngameMusic", true),
+            IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
+            MusicMode = LoadMusicMode(ini),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
@@ -90,7 +99,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Fullscreen", Fullscreen);
         ini.SetBool(SettingsSection, "UseLobby", HostSettings.LobbyAnnounceEnabled);
         ini.SetInt(SettingsSection, "HostingPort", HostSettings.Port);
-        ini.SetBool(SettingsSection, "IngameMusic", IngameMusicEnabled);
+        ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
+        ini.SetInt(SettingsSection, "Music", (int)NormalizeMusicMode(MusicMode));
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
@@ -123,6 +133,43 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
 
         ini.Save(resolvedPath);
+    }
+
+    private static MusicMode LoadMusicMode(IniConfigurationFile ini)
+    {
+        if (ini.ContainsKey(SettingsSection, "Music"))
+        {
+            return NormalizeMusicMode((MusicMode)ini.GetInt(SettingsSection, "Music", (int)MusicMode.MenuAndInGame));
+        }
+
+        return ini.GetBool(SettingsSection, "IngameMusic", true)
+            ? MusicMode.MenuAndInGame
+            : MusicMode.MenuOnly;
+    }
+
+    private static MusicMode NormalizeMusicMode(MusicMode musicMode)
+    {
+        return musicMode switch
+        {
+            MusicMode.MenuOnly => MusicMode.MenuOnly,
+            MusicMode.MenuAndInGame => MusicMode.MenuAndInGame,
+            MusicMode.InGameOnly => MusicMode.InGameOnly,
+            MusicMode.None => MusicMode.None,
+            _ => MusicMode.MenuAndInGame,
+        };
+    }
+
+    private static IngameResolutionKind NormalizeIngameResolution(IngameResolutionKind ingameResolution)
+    {
+        return ingameResolution switch
+        {
+            IngameResolutionKind.Aspect5x4 => IngameResolutionKind.Aspect5x4,
+            IngameResolutionKind.Aspect4x3 => IngameResolutionKind.Aspect4x3,
+            IngameResolutionKind.Aspect16x9 => IngameResolutionKind.Aspect16x9,
+            IngameResolutionKind.Aspect16x10 => IngameResolutionKind.Aspect16x9,
+            IngameResolutionKind.Aspect2x1 => IngameResolutionKind.Aspect16x9,
+            _ => IngameResolutionKind.Aspect4x3,
+        };
     }
 }
 

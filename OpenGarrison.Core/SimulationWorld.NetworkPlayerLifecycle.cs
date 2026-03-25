@@ -64,6 +64,7 @@ public sealed partial class SimulationWorld
         RemoveOwnedSentries(player.Id);
         RemoveOwnedMines(player.Id);
         RemoveOwnedProjectiles(player.Id);
+        ClearDominationsForPlayer(player);
         TrySetNetworkPlayerAwaitingJoin(slot, true);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
         SetNetworkPlayerDeathCam(slot, null);
@@ -140,10 +141,8 @@ public sealed partial class SimulationWorld
         SetNetworkPlayerDeathCam(slot, null);
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
-        var spawn = ReserveSpawn(player, team);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        player.Spawn(team, spawn.X, spawn.Y);
-        player.ClearMedicHealingTarget();
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
         return true;
     }
 
@@ -164,6 +163,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerRespawnTicks(slot, 0);
         SetNetworkPlayerDeathCam(slot, null);
 
+        ClearDominationsForPlayer(player);
         player.ClearMedicHealingTarget();
         player.Kill();
 

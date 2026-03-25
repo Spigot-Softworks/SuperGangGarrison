@@ -73,6 +73,11 @@ public sealed partial class SimulationWorld
 
     public bool TrySetNetworkPlayerTeam(byte slot, PlayerTeam team)
     {
+        if (TryGetNetworkPlayer(slot, out var configuredPlayer) && configuredPlayer.Team != team)
+        {
+            ClearDominationsForPlayer(configuredPlayer);
+        }
+
         if (!TrySetNetworkPlayerConfiguredTeam(slot, team))
         {
             return false;
@@ -88,7 +93,6 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var otherSpawn = ReserveSpawn(otherPlayer, GetNetworkPlayerConfiguredTeam(otherSlot));
                 otherPlayer.SetClassDefinition(GetNetworkPlayerClassDefinition(otherSlot));
                 if (IsNetworkPlayerAwaitingJoin(otherSlot))
                 {
@@ -96,8 +100,8 @@ public sealed partial class SimulationWorld
                 }
                 else
                 {
-                    otherPlayer.Spawn(GetNetworkPlayerConfiguredTeam(otherSlot), otherSpawn.X, otherSpawn.Y);
-                    otherPlayer.ClearMedicHealingTarget();
+                    var otherTeam = GetNetworkPlayerConfiguredTeam(otherSlot);
+                    SpawnPlayerResolved(otherPlayer, otherTeam, ReserveSpawn(otherPlayer, otherTeam));
                 }
             }
 
@@ -105,8 +109,7 @@ public sealed partial class SimulationWorld
             {
                 var friendlySpawn = FindFriendlyDummySpawnNearLocalPlayer();
                 FriendlyDummy.SetClassDefinition(_friendlyDummyClassDefinition);
-                FriendlyDummy.Spawn(GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
-                FriendlyDummy.ClearMedicHealingTarget();
+                SpawnPlayerResolved(FriendlyDummy, GetNetworkPlayerConfiguredTeam(LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
             }
 
             return true;
@@ -124,9 +127,8 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        var spawn = ReserveSpawn(player, team);
-        player.Spawn(team, spawn.X, spawn.Y);
-        player.ClearMedicHealingTarget();
+        player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
         return true;
     }
 
@@ -261,7 +263,7 @@ public sealed partial class SimulationWorld
         {
             KillPlayer(
                 player,
-                weaponSpriteName: "DeadS",
+                weaponSpriteName: "DeadKL",
                 killFeedMessage: player.DisplayName + ClassChangeKillFeedSuffix,
                 createDeathCam: false);
         }

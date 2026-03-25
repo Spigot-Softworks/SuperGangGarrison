@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OpenGarrison.Server.Tests;
 
+[Collection("ContentRoot")]
 public sealed class MapRotationManagerTests
 {
     [Fact]
@@ -52,6 +53,33 @@ public sealed class MapRotationManagerTests
             _ => { });
 
         Assert.False(manager.TrySetNextRoundMap("definitely-not-a-map"));
+    }
+
+    [Fact]
+    public void TryApplyPendingMapChange_WhenAdvancingToFreshMap_ResetsPlayersToAwaitingJoin()
+    {
+        EnsureContentRootInitialized();
+        var world = new SimulationWorld();
+        world.AutoRestartOnMapChange = false;
+        var manager = new MapRotationManager(
+            world,
+            requestedMap: "Truefort",
+            mapRotationFile: null,
+            stockMapRotation: ["Truefort", "Waterway"],
+            _ => { });
+
+        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.LocalPlayer.IsAlive);
+        Assert.False(world.LocalPlayerAwaitingJoin);
+
+        QueueCaptureTheFlagRoundEnd(world);
+
+        Assert.True(manager.TryApplyPendingMapChange(out var transition));
+        Assert.Equal("Waterway", transition.NextLevelName, StringComparer.OrdinalIgnoreCase);
+        Assert.False(transition.PreservePlayerStats);
+        Assert.True(world.LocalPlayerAwaitingJoin);
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Equal(0, world.LocalPlayerRespawnTicks);
     }
 
     private static void QueueCaptureTheFlagRoundEnd(SimulationWorld world)

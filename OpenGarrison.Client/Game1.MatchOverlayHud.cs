@@ -11,8 +11,8 @@ public partial class Game1
 {
     private void DrawControlPointHud()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
 
         DrawControlPointTimer(centerX);
@@ -75,11 +75,8 @@ public partial class Game1
             var setupFrame = Math.Clamp((int)MathF.Floor((_world.ControlPointSetupTicksRemaining / 1800f) * 12f), 0, 12);
             TryDrawScreenSprite("TimerS", setupFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
-            var setupSeconds = Math.Max(0, _world.ControlPointSetupTicksRemaining / _config.TicksPerSecond);
-            DrawHudTextRightAlignedCenteredY("00", new Vector2(centerX - 14f, 35f), Color.White, 1.5f);
-            DrawHudTextRightAlignedCenteredY(":", new Vector2(centerX + 1f, 35f), Color.White, 1.5f);
-            DrawHudTextRightAlignedCenteredY(setupSeconds.ToString("00", CultureInfo.InvariantCulture), new Vector2(centerX + 24f, 35f), Color.White, 1.5f);
-            DrawHudTextCentered("Setup", new Vector2(centerX - 5f, 48f), Color.White, 1f);
+            DrawHudTimerText(centerX, FormatHudTimerText(_world.ControlPointSetupTicksRemaining), 20f);
+            DrawHudTextCentered("Setup", new Vector2(centerX - 3f, 40f), Color.White, 1f);
             return;
         }
 
@@ -88,19 +85,13 @@ public partial class Game1
         var timerFrame = Math.Clamp((int)MathF.Floor((_world.MatchState.TimeRemainingTicks / (float)timeLimitTicks) * 12f), 0, 12);
         TryDrawScreenSprite("TimerS", timerFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
-        var ticksPerSecond = _config.TicksPerSecond;
-        var totalSeconds = Math.Max(0, _world.MatchState.TimeRemainingTicks) / ticksPerSecond;
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-        DrawHudTextRightAlignedCenteredY(minutes.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 14f, 35f), Color.White, 1.5f);
-        DrawHudTextRightAlignedCenteredY(":", new Vector2(centerX + 1f, 35f), Color.White, 1.5f);
-        DrawHudTextRightAlignedCenteredY(seconds.ToString("00", CultureInfo.InvariantCulture), new Vector2(centerX + 24f, 35f), Color.White, 1.5f);
+        DrawHudTimerText(centerX, FormatHudTimerText(_world.MatchState.TimeRemainingTicks));
     }
 
     private void DrawArenaHud()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
         DrawMatchTimerHud(centerX);
 
@@ -135,8 +126,8 @@ public partial class Game1
 
     private void DrawGeneratorHud()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
         var hudY = viewportHeight - 50f;
         DrawMatchTimerHud(centerX);
@@ -208,66 +199,105 @@ public partial class Game1
         var timerFrame = Math.Clamp((int)MathF.Floor((_world.MatchState.TimeRemainingTicks / (float)timeLimitTicks) * 12f), 0, 12);
         TryDrawScreenSprite("TimerS", timerFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
-        var ticksPerSecond = _config.TicksPerSecond;
-        var totalSeconds = Math.Max(0, _world.MatchState.TimeRemainingTicks) / ticksPerSecond;
+        DrawHudTimerText(centerX, FormatHudTimerText(_world.MatchState.TimeRemainingTicks));
+    }
+
+    private string FormatHudTimerText(int timeRemainingTicks)
+    {
+        var totalSeconds = (int)MathF.Ceiling(Math.Max(0, timeRemainingTicks) / (float)_config.TicksPerSecond);
         var minutes = totalSeconds / 60;
         var seconds = totalSeconds % 60;
-        DrawHudTextRightAlignedCenteredY(minutes.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 14f, 35f), Color.White, 1.5f);
-        DrawHudTextRightAlignedCenteredY(":", new Vector2(centerX + 1f, 35f), Color.White, 1.5f);
-        DrawHudTextRightAlignedCenteredY(seconds.ToString("00", CultureInfo.InvariantCulture), new Vector2(centerX + 24f, 35f), Color.White, 1.5f);
+        return minutes.ToString(CultureInfo.InvariantCulture) + ":" + seconds.ToString("00", CultureInfo.InvariantCulture);
+    }
+
+    private void DrawHudTimerText(float centerX, string timeText, float timerTextY = 20f)
+    {
+        DrawTimerFontTextRightAligned(timeText, new Vector2(centerX + 20f, timerTextY), Color.White, 1f);
     }
 
     private void DrawKillFeedHud()
     {
-        const float rowHeight = 16f;
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var y = 16f;
+        const float rowHeight = 20f;
+        var viewportWidth = ViewportWidth;
+        var y = 59f;
+        KillFeedEntry? previousEntry = null;
         foreach (var entry in _world.KillFeed)
         {
+            if (previousEntry is not null && ShouldSuppressDuplicateSelfKillEntry(previousEntry, entry))
+            {
+                continue;
+            }
+
             DrawKillFeedEntry(entry, viewportWidth, y);
             y += rowHeight;
+            previousEntry = entry;
         }
     }
 
     private void DrawKillFeedEntry(KillFeedEntry entry, int viewportWidth, float y)
     {
-        if (!string.IsNullOrEmpty(entry.MessageText))
-        {
-            var messageWidth = _consoleFont.MeasureString(entry.MessageText).X;
-            var messageWeaponSprite = _runtimeAssets.GetSprite(entry.WeaponSpriteName);
-            var messageWeaponWidth = messageWeaponSprite?.Frames.Count > 0 ? messageWeaponSprite.Frames[0].Width : 0f;
-            var messageX = viewportWidth - messageWidth - 8f;
-            var iconCenterX = messageX - (messageWeaponWidth / 2f) - 4f;
-            if (messageWeaponSprite is not null && messageWeaponSprite.Frames.Count > 0)
-            {
-                var frameIndex = entry.KillerTeam == PlayerTeam.Blue ? 1 : 0;
-                DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 2f), Color.White, Vector2.One);
-            }
-
-            _spriteBatch.DrawString(_consoleFont, entry.MessageText, new Vector2(messageX, y), GetKillFeedTextColor(entry.VictimTeam));
-            return;
-        }
-
-        var killerWidth = string.IsNullOrEmpty(entry.KillerName) ? 0f : _consoleFont.MeasureString(entry.KillerName).X;
-        var victimWidth = _consoleFont.MeasureString(entry.VictimName).X;
+        var localPlayerId = _world.LocalPlayer.Id;
+        var isLocalInvolved = entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId;
+        var hideVictimName = ShouldSuppressKillFeedVictimName(entry);
+        var victimName = hideVictimName ? string.Empty : entry.VictimName;
+        var killerWidth = string.IsNullOrEmpty(entry.KillerName) ? 0f : MeasureBitmapFontWidth(entry.KillerName, 1f);
+        var messageWidth = string.IsNullOrEmpty(entry.MessageText) ? 0f : MeasureBitmapFontWidth(entry.MessageText, 1f);
+        var victimWidth = MeasureBitmapFontWidth(victimName, 1f);
         var weaponSprite = _runtimeAssets.GetSprite(entry.WeaponSpriteName);
         var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width : 0f;
-        var killerX = viewportWidth - (killerWidth + victimWidth) - 8f - weaponWidth;
-        var victimX = viewportWidth - victimWidth - 8f;
+        var backgroundLeft = viewportWidth - (killerWidth + messageWidth + victimWidth) - 12f - weaponWidth;
+        var backgroundWidth = killerWidth + messageWidth + victimWidth + weaponWidth + 4f;
+        var backgroundHeight = Math.Max(16f, MeasureBitmapFontHeight(1f) + 8f);
+        DrawInsetHudPanel(
+            new Rectangle(
+                (int)MathF.Floor(backgroundLeft),
+                (int)MathF.Floor(y - 3f),
+                (int)MathF.Ceiling(backgroundWidth),
+                (int)MathF.Ceiling(backgroundHeight)),
+            isLocalInvolved ? new Color(217, 217, 183) : new Color(49, 45, 26),
+            isLocalInvolved ? new Color(235, 232, 198) : new Color(68, 61, 38));
 
         if (!string.IsNullOrEmpty(entry.KillerName))
         {
-            _spriteBatch.DrawString(_consoleFont, entry.KillerName, new Vector2(killerX, y), GetKillFeedTextColor(entry.KillerTeam));
+            DrawBitmapFontText(entry.KillerName, new Vector2(backgroundLeft, y), GetKillFeedTextColor(entry.KillerTeam), 1f);
         }
 
         if (weaponSprite is not null && weaponSprite.Frames.Count > 0)
         {
-            var frameIndex = entry.KillerTeam == PlayerTeam.Blue ? 1 : 0;
-            var iconCenterX = viewportWidth - victimWidth - 8f - (weaponWidth / 2f);
-            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 2f), Color.White, Vector2.One);
+            var frameIndex = weaponSprite.Frames.Count > 1 && isLocalInvolved ? 1 : 0;
+            var iconCenterX = viewportWidth - (messageWidth + victimWidth) - 10f - (weaponWidth / 2f);
+            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 5f), Color.White, Vector2.One);
         }
 
-        _spriteBatch.DrawString(_consoleFont, entry.VictimName, new Vector2(victimX, y), GetKillFeedTextColor(entry.VictimTeam));
+        if (!string.IsNullOrEmpty(entry.MessageText))
+        {
+            var messageX = viewportWidth - (messageWidth + victimWidth) - 8f;
+            DrawBitmapFontText(entry.MessageText, new Vector2(messageX, y), isLocalInvolved ? Color.Black : Color.White, 1f);
+        }
+
+        if (!string.IsNullOrEmpty(victimName))
+        {
+            var victimX = viewportWidth - victimWidth - 8f;
+            DrawBitmapFontText(victimName, new Vector2(victimX, y), GetKillFeedTextColor(entry.VictimTeam), 1f);
+        }
+    }
+
+    private static bool ShouldSuppressKillFeedVictimName(KillFeedEntry entry)
+    {
+        return !string.IsNullOrEmpty(entry.MessageText)
+            && string.IsNullOrEmpty(entry.KillerName)
+            && string.Equals(entry.WeaponSpriteName, "DeadKL", StringComparison.Ordinal);
+    }
+
+    private static bool ShouldSuppressDuplicateSelfKillEntry(KillFeedEntry previousEntry, KillFeedEntry entry)
+    {
+        return previousEntry.KillerPlayerId == -1
+            && entry.KillerPlayerId == -1
+            && previousEntry.VictimPlayerId == entry.VictimPlayerId
+            && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
+            && previousEntry.VictimName == entry.VictimName
+            && previousEntry.MessageText == entry.MessageText
+            && previousEntry.SpecialType == entry.SpecialType;
     }
 
     private static Color GetKillFeedTextColor(PlayerTeam team)
@@ -284,8 +314,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, 100), Color.Black);
         _spriteBatch.Draw(_pixel, new Rectangle(0, viewportHeight - 100, viewportWidth, 100), Color.Black);
 
@@ -317,8 +347,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var frameIndex = _world.MatchState.WinnerTeam switch
         {
             PlayerTeam.Red => 0,
@@ -341,7 +371,7 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
+        var viewportWidth = ViewportWidth;
         var fadeSeconds = Math.Max(1, _config.TicksPerSecond);
         var alpha = Math.Clamp(_autoBalanceNoticeTicks / (float)fadeSeconds, 0.25f, 1f);
         var color = new Color(245, 210, 120) * alpha;
@@ -350,46 +380,32 @@ public partial class Game1
 
     private void DrawRespawnHud()
     {
-        if (_world.LocalDeathCam is not null)
+        if (_world.LocalDeathCam is not null
+            || _world.LocalPlayerAwaitingJoin
+            || _world.LocalPlayer.IsAlive)
         {
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
-        var isAlive = _world.LocalPlayer.IsAlive;
-        var frameIndex = isAlive ? 1 : 0;
-        if (!TryDrawScreenSprite(
-            "RespawnTimerS",
-            frameIndex,
-            new Vector2(viewportWidth - 150f, viewportHeight - 120f),
-            Color.White,
-            Vector2.One))
-        {
-            return;
-        }
-
-        if (isAlive)
-        {
-            return;
-        }
-
+        const float respawnTextX = 10f;
+        const float respawnTextY = 10f;
+        var respawnTextPosition = new Vector2(respawnTextX, respawnTextY - (MeasureBitmapFontHeight(1f) / 2f));
         if (_world.MatchRules.Mode == GameModeKind.Arena && !_world.MatchState.IsEnded)
         {
-            DrawHudTextCentered(
-                "You can spawn when the next round starts",
-                new Vector2(viewportWidth / 2f, viewportHeight / 2f),
+            DrawHudTextLeftAligned(
+                "No Respawning in Arena",
+                respawnTextPosition,
                 Color.White,
                 1f);
             return;
         }
 
-        var respawnSeconds = MathF.Ceiling(_world.LocalPlayerRespawnTicks / _config.TicksPerSecond);
-        DrawHudTextCentered(
-            $"Respawning in: {respawnSeconds:0}",
-            new Vector2(viewportWidth - 150f, viewportHeight - 78f),
+        var respawnSeconds = Math.Max(0f, MathF.Ceiling(_world.LocalPlayerRespawnTicks / (float)_config.TicksPerSecond));
+        DrawHudTextLeftAligned(
+            $"Respawn in {respawnSeconds:0} second(s).",
+            respawnTextPosition,
             Color.White,
-            0.9f);
+            1f);
     }
 
     private void DrawIntelPanelElement(TeamIntelligenceState intelState, Vector2 position)

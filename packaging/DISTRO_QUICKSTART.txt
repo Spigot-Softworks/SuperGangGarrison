@@ -32,6 +32,7 @@ bash ./scripts/build.sh win-x64
 output:
 dist\<runtime-id>\
 dist\OpenGarrison-*.zip
+dist\OpenGarrison-*.tar.gz
 
 notes:
 - the package script stages publishes under `dist\_staging` before copying the finished package into `dist\<runtime-id>`

@@ -346,7 +346,7 @@ public partial class Game1
         var lineHeight = 18;
         var padding = 10;
         var height = (_networkDiagnosticOverlayLines.Count * lineHeight) + (padding * 2);
-        var x = _graphics.PreferredBackBufferWidth - width - 18;
+        var x = ViewportWidth - width - 18;
         var y = 18;
         var rectangle = new Rectangle(x, y, width, height);
         _spriteBatch.Draw(_pixel, rectangle, new Color(12, 16, 20, 210));

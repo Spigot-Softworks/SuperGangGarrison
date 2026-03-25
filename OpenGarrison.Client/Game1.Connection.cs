@@ -171,6 +171,7 @@ public partial class Game1
     private void ReturnToMainMenu(string? statusMessage = null)
     {
         _networkClient.Disconnect();
+        StopLocalRapidFireWeaponAudio();
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         ResetClientTimingState();
         _lastAppliedSnapshotFrame = 0;
@@ -187,6 +188,8 @@ public partial class Game1
         _manualConnectOpen = false;
         _creditsOpen = false;
         _inGameMenuOpen = false;
+        _quitPromptOpen = false;
+        _quitPromptHoverIndex = -1;
         _controlsMenuOpen = false;
         _controlsMenuOpenedFromGameplay = false;
         _pendingControlsBinding = null;

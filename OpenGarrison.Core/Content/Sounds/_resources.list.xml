@@ -36,8 +36,10 @@
   <resource name="CPBeginCapSnd" type="RESOURCE"/>
   <resource name="CPCapturedSnd" type="RESOURCE"/>
   <resource name="CPDefendedSnd" type="RESOURCE"/>
+  <resource name="DominationSnd" type="RESOURCE"/>
   <resource name="CountDown1Snd" type="RESOURCE"/>
   <resource name="CountDown2Snd" type="RESOURCE"/>
+  <resource name="RevengeSnd" type="RESOURCE"/>
   <resource name="SirenSnd" type="RESOURCE"/>
   <resource name="SentryFloorSnd" type="RESOURCE"/>
   <resource name="SentryBuildSnd" type="RESOURCE"/>

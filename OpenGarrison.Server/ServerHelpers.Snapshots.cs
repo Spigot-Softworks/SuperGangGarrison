@@ -4,9 +4,15 @@ using OpenGarrison.Protocol;
 
 internal static partial class ServerHelpers
 {
-    internal static SnapshotPlayerState ToSnapshotPlayerState(SimulationWorld world, byte slot, PlayerEntity player)
+    internal static SnapshotPlayerState ToSnapshotPlayerState(SimulationWorld world, byte slot, PlayerEntity player, PlayerEntity? viewer)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+        var isDominatingLocalViewer = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && player.GetDominationKillCount(viewer.Id) > 3;
+        var isDominatedByLocalViewer = viewer is not null
+            && !ReferenceEquals(player, viewer)
+            && viewer.GetDominationKillCount(player.Id) > 3;
         return new SnapshotPlayerState(
             slot,
             player.Id,
@@ -29,8 +35,12 @@ internal static partial class ServerHelpers
             (short)player.Deaths,
             (short)player.Caps,
             (short)player.HealPoints,
+            (short)player.ActiveDominationCount,
+            isDominatingLocalViewer,
+            isDominatedByLocalViewer,
             player.Metal,
             player.IsGrounded,
+            player.RemainingAirJumps,
             player.IsCarryingIntel,
             player.IsSpyCloaked,
             player.SpyCloakAlpha,
@@ -51,7 +61,9 @@ internal static partial class ServerHelpers
             player.BurnDecayDelaySourceTicksRemaining,
             player.BurnIntensityDecayPerSourceTick,
             player.BurnedByPlayerId ?? -1,
-            (byte)player.MovementState);
+            (byte)player.MovementState,
+            player.PrimaryCooldownTicks,
+            player.ReloadTicksUntilNextShell);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -235,7 +247,8 @@ internal static partial class ServerHelpers
             bloodDrop.VelocityX,
             bloodDrop.VelocityY,
             bloodDrop.IsStuck,
-            bloodDrop.TicksRemaining);
+            bloodDrop.TicksRemaining,
+            bloodDrop.Scale);
     }
 
     internal static SnapshotCombatTraceState ToSnapshotCombatTraceState(CombatTrace trace)
@@ -269,7 +282,11 @@ internal static partial class ServerHelpers
             entry.WeaponSpriteName,
             entry.VictimName,
             (byte)entry.VictimTeam,
-            entry.MessageText);
+            entry.MessageText,
+            entry.KillerPlayerId,
+            entry.VictimPlayerId,
+            (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,
+            entry.EventId);
     }
 
     internal static SnapshotDeathCamState? ToSnapshotDeathCamState(LocalDeathCamState? deathCam)

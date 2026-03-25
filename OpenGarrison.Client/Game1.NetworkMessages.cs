@@ -62,6 +62,7 @@ public partial class Game1
                         AddConsoleLine(loadError);
                         break;
                     }
+                    _world.PrepareLocalPlayerJoin();
                     _pendingHostedConnectTicks = -1;
                     _lastAppliedSnapshotFrame = 0;
                     _lastBufferedSnapshotFrame = 0;

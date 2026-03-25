@@ -16,7 +16,7 @@ public partial class Game1
             return;
         }
 
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportHeight = ViewportHeight;
         var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         TryDrawScreenSprite("BuildMenuS", frameIndex, new Vector2(_buildMenuX, viewportHeight / 2f), Color.White * _buildMenuAlpha, Vector2.One);
     }

@@ -84,8 +84,8 @@ public partial class Game1
         };
 
         var pulseAlpha = 0.5f + (0.5f * MathF.Sin((float)_world.Frame * 0.1f));
-        TryDrawSprite(spriteName, 0, pointMarker.Value.CenterX, pointMarker.Value.CenterY, cameraPosition, Color.White);
-        TryDrawSprite(spriteName, 1, pointMarker.Value.CenterX, pointMarker.Value.CenterY, cameraPosition, Color.White * pulseAlpha);
+        TryDrawSprite(spriteName, 0, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, Color.White);
+        TryDrawSprite(spriteName, 1, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, Color.White * pulseAlpha);
     }
 
     private void DrawControlPoints(Vector2 cameraPosition)
@@ -106,10 +106,10 @@ public partial class Game1
                 _ => "ControlPointNeutralS",
             };
 
-            TryDrawSprite(spriteName, 0, point.Marker.CenterX, point.Marker.CenterY, cameraPosition, Color.White);
+            TryDrawSprite(spriteName, 0, point.Marker.X, point.Marker.Y, cameraPosition, Color.White);
             if (point.CappingTicks > 0f)
             {
-                TryDrawSprite(spriteName, 1, point.Marker.CenterX, point.Marker.CenterY, cameraPosition, Color.White * pulseAlpha);
+                TryDrawSprite(spriteName, 1, point.Marker.X, point.Marker.Y, cameraPosition, Color.White * pulseAlpha);
             }
         }
     }

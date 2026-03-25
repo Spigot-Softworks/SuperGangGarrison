@@ -53,9 +53,12 @@ public partial class Game1
             DrawBloodVisuals(cameraPosition);
         }
 
+        DrawShellVisuals(cameraPosition);
+
         if (_particleMode != 1)
         {
             DrawRocketSmokeVisuals(cameraPosition);
+            DrawMineTrailVisuals(cameraPosition);
             DrawBlastJumpFlameVisuals(cameraPosition);
             DrawFlameSmokeVisuals(cameraPosition);
         }

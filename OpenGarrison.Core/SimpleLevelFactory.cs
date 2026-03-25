@@ -157,6 +157,11 @@ public static class SimpleLevelFactory
         return _cachedCatalog;
     }
 
+    public static void ClearCachedCatalog()
+    {
+        _cachedCatalog = null;
+    }
+
     private static SimpleLevel CreateFallbackPrototypeLevel(string levelName)
     {
         var bounds = new WorldBounds(2400f, 1400f);

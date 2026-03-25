@@ -54,22 +54,47 @@ public partial class Game1
 
     private void DrawHudTextCentered(string text, Vector2 position, Color color, float scale)
     {
-        var origin = _consoleFont.MeasureString(text) / 2f;
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, origin, scale, SpriteEffects.None, 0f);
+        var width = MeasureBitmapFontWidth(text, scale);
+        var height = MeasureBitmapFontHeight(scale);
+        DrawBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y - (height / 2f)), color, scale);
     }
 
     private void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
-        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        DrawBitmapFontText(text, position, color, scale);
     }
 
     private void DrawHudTextRightAligned(string text, Vector2 position, Color color, float scale)
+    {
+        var width = MeasureBitmapFontWidth(text, scale);
+        DrawBitmapFontText(text, new Vector2(position.X - width, position.Y), color, scale);
+    }
+
+    private void DrawHudTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
+    {
+        var width = MeasureBitmapFontWidth(text, scale);
+        var height = MeasureBitmapFontHeight(scale);
+        DrawBitmapFontText(text, new Vector2(position.X - width, position.Y - (height / 2f)), color, scale);
+    }
+
+    private void DrawConsoleTextCentered(string text, Vector2 position, Color color, float scale)
+    {
+        var origin = _consoleFont.MeasureString(text) / 2f;
+        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, origin, scale, SpriteEffects.None, 0f);
+    }
+
+    private void DrawConsoleTextLeftAligned(string text, Vector2 position, Color color, float scale)
+    {
+        _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    }
+
+    private void DrawConsoleTextRightAligned(string text, Vector2 position, Color color, float scale)
     {
         var size = _consoleFont.MeasureString(text);
         _spriteBatch.DrawString(_consoleFont, text, position, color, 0f, size, scale, SpriteEffects.None, 0f);
     }
 
-    private void DrawHudTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
+    private void DrawConsoleTextRightAlignedCenteredY(string text, Vector2 position, Color color, float scale)
     {
         var size = _consoleFont.MeasureString(text);
         var origin = new Vector2(size.X, size.Y / 2f);
@@ -157,5 +182,24 @@ public partial class Game1
             SpriteEffects.None,
             0f);
         return true;
+    }
+
+    private void DrawInsetHudPanel(Rectangle rectangle, Color outerColor, Color innerColor)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, rectangle, outerColor);
+        if (rectangle.Width <= 4 || rectangle.Height <= 4)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(
+            _pixel,
+            new Rectangle(rectangle.X + 2, rectangle.Y + 2, rectangle.Width - 4, rectangle.Height - 4),
+            innerColor);
     }
 }

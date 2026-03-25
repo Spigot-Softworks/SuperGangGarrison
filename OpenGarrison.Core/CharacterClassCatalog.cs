@@ -2,8 +2,16 @@ namespace OpenGarrison.Core;
 
 public static class CharacterClassCatalog
 {
-    private const float LegacyWidth = 24f;
-    private const float LegacyHeight = 36f;
+    private static readonly CollisionBounds ScoutBounds = new(-6f, -10f, 7f, 24f);
+    private static readonly CollisionBounds EngineerBounds = new(-6f, -10f, 7f, 24f);
+    private static readonly CollisionBounds PyroBounds = new(-7f, -6f, 8f, 24f);
+    private static readonly CollisionBounds SoldierBounds = new(-6f, -8f, 7f, 24f);
+    private static readonly CollisionBounds DemomanBounds = new(-7f, -10f, 8f, 24f);
+    private static readonly CollisionBounds HeavyBounds = new(-9f, -12f, 10f, 24f);
+    private static readonly CollisionBounds SniperBounds = new(-6f, -8f, 7f, 24f);
+    private static readonly CollisionBounds MedicBounds = new(-7f, -8f, 8f, 24f);
+    private static readonly CollisionBounds SpyBounds = new(-6f, -10f, 7f, 24f);
+    private static readonly CollisionBounds QuoteBounds = new(-7f, -12f, 8f, 12f);
 
     public static PrimaryWeaponDefinition Scattergun { get; } = new(
         DisplayName: "Scattergun",
@@ -138,6 +146,7 @@ public static class CharacterClassCatalog
         PlayerClass.Scout,
         "Scout",
         Scattergun,
+        ScoutBounds,
         maxHealth: 100,
         runPower: 1.4f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -148,6 +157,7 @@ public static class CharacterClassCatalog
         PlayerClass.Engineer,
         "Engineer",
         Shotgun,
+        EngineerBounds,
         maxHealth: 120,
         runPower: 1f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -158,6 +168,7 @@ public static class CharacterClassCatalog
         PlayerClass.Pyro,
         "Pyro",
         Flamethrower,
+        PyroBounds,
         maxHealth: 120,
         runPower: 1.1f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -168,6 +179,7 @@ public static class CharacterClassCatalog
         PlayerClass.Soldier,
         "Soldier",
         RocketLauncher,
+        SoldierBounds,
         maxHealth: 175,
         runPower: 0.9f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -178,6 +190,7 @@ public static class CharacterClassCatalog
         PlayerClass.Demoman,
         "Demoman",
         MineLauncher,
+        DemomanBounds,
         maxHealth: 120,
         runPower: 1f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -188,6 +201,7 @@ public static class CharacterClassCatalog
         PlayerClass.Heavy,
         "Heavy",
         Minigun,
+        HeavyBounds,
         maxHealth: 200,
         runPower: 0.8f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -198,6 +212,7 @@ public static class CharacterClassCatalog
         PlayerClass.Sniper,
         "Sniper",
         Rifle,
+        SniperBounds,
         maxHealth: 120,
         runPower: 0.9f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -208,6 +223,7 @@ public static class CharacterClassCatalog
         PlayerClass.Medic,
         "Medic",
         Medigun,
+        MedicBounds,
         maxHealth: 120,
         runPower: 1.09f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -218,6 +234,7 @@ public static class CharacterClassCatalog
         PlayerClass.Spy,
         "Spy",
         Revolver,
+        SpyBounds,
         maxHealth: 100,
         runPower: 1.08f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -228,6 +245,7 @@ public static class CharacterClassCatalog
         PlayerClass.Quote,
         "Quote",
         Blade,
+        QuoteBounds,
         maxHealth: 140,
         runPower: 1.07f,
         jumpStrength: LegacyMovementModel.DefaultJumpStrength,
@@ -255,6 +273,7 @@ public static class CharacterClassCatalog
         PlayerClass id,
         string displayName,
         PrimaryWeaponDefinition primaryWeapon,
+        CollisionBounds collisionBounds,
         int maxHealth,
         float runPower,
         float jumpStrength,
@@ -266,8 +285,12 @@ public static class CharacterClassCatalog
             DisplayName: displayName,
             PrimaryWeapon: primaryWeapon,
             MaxHealth: maxHealth,
-            Width: LegacyWidth,
-            Height: LegacyHeight,
+            Width: collisionBounds.Width,
+            Height: collisionBounds.Height,
+            CollisionLeft: collisionBounds.Left,
+            CollisionTop: collisionBounds.Top,
+            CollisionRight: collisionBounds.Right,
+            CollisionBottom: collisionBounds.Bottom,
             RunPower: runPower,
             JumpStrength: jumpStrength,
             MaxRunSpeed: LegacyMovementModel.GetMaxRunSpeed(runPower),
@@ -277,5 +300,12 @@ public static class CharacterClassCatalog
             JumpSpeed: LegacyMovementModel.GetJumpSpeed(jumpStrength),
             MaxAirJumps: maxAirJumps,
             TauntLengthFrames: tauntLengthFrames);
+    }
+
+    private readonly record struct CollisionBounds(float Left, float Top, float Right, float Bottom)
+    {
+        public float Width => Right - Left;
+
+        public float Height => Bottom - Top;
     }
 }

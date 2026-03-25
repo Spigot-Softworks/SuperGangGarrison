@@ -9,6 +9,14 @@ public partial class Game1
 {
     private void UpdateManualConnectMenu(KeyboardState keyboard, MouseState mouse)
     {
+        GetManualConnectLayout(
+            out _,
+            out var hostBounds,
+            out var portBounds,
+            out var connectBounds,
+            out var backBounds,
+            out _);
+
         if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
         {
             CloseManualConnectMenu(clearStatus: false);
@@ -22,10 +30,11 @@ public partial class Game1
             _editingConnectPort = !editHost;
         }
 
-        var hostBounds = new Rectangle(420, 266, 440, 36);
-        var portBounds = new Rectangle(420, 346, 180, 36);
-        var connectBounds = new Rectangle(420, 426, 180, 42);
-        var backBounds = new Rectangle(620, 426, 180, 42);
+        if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
+        {
+            TryConnectFromMenu();
+            return;
+        }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed)
@@ -56,34 +65,74 @@ public partial class Game1
 
     private void DrawManualConnectMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
 
-        var panel = new Rectangle(360, 150, 560, 340);
+        GetManualConnectLayout(
+            out var panel,
+            out var hostBounds,
+            out var portBounds,
+            out var connectBounds,
+            out var backBounds,
+            out var compactLayout);
+        var titleScale = compactLayout ? 0.94f : 1f;
+        var labelScale = compactLayout ? 0.84f : 1f;
+        var buttonScale = compactLayout ? 0.9f : 1f;
+        var infoScale = compactLayout ? 0.78f : 0.9f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText("Join (manual)", new Vector2(panel.X + 28f, panel.Y + 24f), Color.White, 1f);
-        DrawBitmapFontText("Host", new Vector2(panel.X + 28f, panel.Y + 82f), Color.White, 1f);
-        DrawBitmapFontText("Port", new Vector2(panel.X + 28f, panel.Y + 162f), Color.White, 1f);
+        DrawBitmapFontText("Join (manual)", new Vector2(panel.X + 24f, panel.Y + 22f), Color.White, titleScale);
+        DrawBitmapFontText("Connect straight to a known server address.", new Vector2(panel.X + 24f, panel.Y + 48f), new Color(210, 210, 210), infoScale);
+        DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
+        DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);
 
-        DrawMenuInputBox(new Rectangle(panel.X + 60, panel.Y + 116, 440, 36), _connectHostBuffer, _editingConnectHost);
-        DrawMenuInputBox(new Rectangle(panel.X + 60, panel.Y + 196, 180, 36), _connectPortBuffer, _editingConnectPort);
-        DrawMenuButton(new Rectangle(panel.X + 60, panel.Y + 276, 180, 42), "Connect", false);
-        DrawMenuButton(new Rectangle(panel.X + 260, panel.Y + 276, 180, 42), "Back", false);
+        DrawMenuInputBoxScaled(hostBounds, _connectHostBuffer, _editingConnectHost, buttonScale);
+        DrawMenuInputBoxScaled(portBounds, _connectPortBuffer, _editingConnectPort, buttonScale);
+        DrawMenuButtonScaled(connectBounds, "Connect", false, buttonScale);
+        DrawMenuButtonScaled(backBounds, "Back", false, buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
-            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 28f, panel.Bottom - 38f), new Color(230, 220, 180), 1f);
+            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, panel.Bottom - (compactLayout ? 34f : 38f)), new Color(230, 220, 180), infoScale);
         }
+    }
+
+    private void GetManualConnectLayout(
+        out Rectangle panel,
+        out Rectangle hostBounds,
+        out Rectangle portBounds,
+        out Rectangle connectBounds,
+        out Rectangle backBounds,
+        out bool compactLayout)
+    {
+        var panelWidth = System.Math.Min(ViewportWidth - 32, 560);
+        var panelHeight = System.Math.Min(ViewportHeight - 32, ViewportHeight < 540 ? 260 : 320);
+        panel = new Rectangle(
+            (ViewportWidth - panelWidth) / 2,
+            (ViewportHeight - panelHeight) / 2,
+            panelWidth,
+            panelHeight);
+
+        compactLayout = panel.Height < 300 || panel.Width < 520;
+        var padding = compactLayout ? 20 : 28;
+        var fieldHeight = compactLayout ? 32 : 36;
+        var buttonHeight = compactLayout ? 36 : 42;
+        var buttonGap = compactLayout ? 12 : 20;
+        var buttonWidth = (panel.Width - (padding * 2) - buttonGap) / 2;
+        var contentTop = panel.Y + (compactLayout ? 92 : 116);
+        hostBounds = new Rectangle(panel.X + padding, contentTop, panel.Width - (padding * 2), fieldHeight);
+        portBounds = new Rectangle(panel.X + padding, hostBounds.Bottom + (compactLayout ? 42 : 52), System.Math.Min(220, hostBounds.Width), fieldHeight);
+        connectBounds = new Rectangle(panel.X + padding, panel.Bottom - padding - buttonHeight - 6, buttonWidth, buttonHeight);
+        backBounds = new Rectangle(connectBounds.Right + buttonGap, connectBounds.Y, buttonWidth, buttonHeight);
     }
 
     private void DrawPasswordPrompt()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
         var panelWidth = 520;

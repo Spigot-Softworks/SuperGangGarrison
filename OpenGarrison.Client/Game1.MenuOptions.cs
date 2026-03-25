@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -12,7 +13,7 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen;
+        return _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
     }
 
     private bool IsGameplayInputBlocked()
@@ -27,6 +28,12 @@ public partial class Game1
 
     private void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
     {
+        if (_quitPromptOpen)
+        {
+            UpdateQuitPrompt(keyboard, mouse);
+            return;
+        }
+
         if (_controlsMenuOpen)
         {
             UpdateControlsMenu(keyboard, mouse);
@@ -166,15 +173,15 @@ public partial class Game1
                 ReturnToMainMenu("Disconnected.");
                 break;
             case 3:
-                Exit();
+                OpenQuitPrompt();
                 break;
         }
     }
 
     private void DrawInGameMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
         string[] items = ["Options", "Return to Game", "Disconnect", "Quit Game"];
@@ -189,11 +196,8 @@ public partial class Game1
 
     private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        const float xbegin = 40f;
-        const float ybegin = 170f;
-        const float spacing = 30f;
-        const float width = 320f;
-        const int items = 13;
+        const int items = 14;
+        GetOptionsMenuLayout(out var xbegin, out var ybegin, out var spacing, out var width, out _);
 
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
@@ -243,18 +247,21 @@ public partial class Game1
                 ApplyGraphicsSettings();
                 break;
             case 2:
-                _ingameMusicEnabled = !_ingameMusicEnabled;
-                if (!_ingameMusicEnabled)
-                {
-                    StopIngameMusic();
-                }
+                _musicMode = GetNextMusicMode(_musicMode);
+                StopMenuMusic();
+                StopFaucetMusic();
+                StopIngameMusic();
                 PersistClientSettings();
                 break;
             case 3:
+                _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
+                ApplyGraphicsSettings();
+                break;
+            case 4:
                 _particleMode = (_particleMode + 2) % 3;
                 PersistClientSettings();
                 break;
-            case 4:
+            case 5:
                 _gibLevel = _gibLevel switch
                 {
                     0 => 1,
@@ -264,34 +271,34 @@ public partial class Game1
                 };
                 PersistClientSettings();
                 break;
-            case 5:
+            case 6:
                 _healerRadarEnabled = !_healerRadarEnabled;
                 PersistClientSettings();
                 break;
-            case 6:
+            case 7:
                 _showHealerEnabled = !_showHealerEnabled;
                 PersistClientSettings();
                 break;
-            case 7:
+            case 8:
                 _showHealingEnabled = !_showHealingEnabled;
                 PersistClientSettings();
                 break;
-            case 8:
+            case 9:
                 _showHealthBarEnabled = !_showHealthBarEnabled;
                 PersistClientSettings();
                 break;
-            case 9:
+            case 10:
                 _killCamEnabled = !_killCamEnabled;
                 PersistClientSettings();
                 break;
-            case 10:
+            case 11:
                 _clientSettings.VSync = !_clientSettings.VSync;
                 ApplyGraphicsSettings();
                 break;
-            case 11:
+            case 12:
                 OpenControlsMenu(_optionsMenuOpenedFromGameplay);
                 break;
-            case 12:
+            case 13:
                 CloseOptionsMenu();
                 break;
         }
@@ -299,15 +306,19 @@ public partial class Game1
 
     private void DrawOptionsMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.8f);
+        GetOptionsMenuLayout(out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
+        var compactLayout = ViewportHeight < 540;
+        var textScale = compactLayout ? 0.92f : 1f;
 
         string[] labels =
         [
             "Player name:",
             "Fullscreen:",
-            "Ingame Music:",
+            "Music:",
+            "Ingame Aspect Ratio:",
             "Particles:",
             "Gibs:",
             "Healer Radar:",
@@ -323,7 +334,8 @@ public partial class Game1
         [
             _editingPlayerName ? _playerNameEditBuffer + "_" : _world.LocalPlayer.DisplayName,
             _graphics.IsFullScreen ? "On" : "Off",
-            _ingameMusicEnabled ? "On" : "Off",
+            GetMusicModeLabel(_musicMode),
+            GetIngameResolutionLabel(_ingameResolution),
             GetParticleModeLabel(_particleMode),
             GetGibLevelLabel(_gibLevel),
             _healerRadarEnabled ? "Enabled" : "Disabled",
@@ -336,15 +348,15 @@ public partial class Game1
             string.Empty,
         ];
 
-        var labelPosition = new Vector2(40f, 170f);
+        var labelPosition = new Vector2(xbegin, ybegin);
         for (var index = 0; index < labels.Length; index += 1)
         {
             var color = _editingPlayerName && index == 0
                 ? Color.Orange
                 : index == _optionsHoverIndex ? Color.Red : Color.White;
-            DrawBitmapFontText(labels[index], labelPosition, color, 1f);
-            DrawBitmapFontText(values[index], new Vector2(240f, labelPosition.Y), color, 1f);
-            labelPosition.Y += 30f;
+            DrawBitmapFontText(labels[index], labelPosition, color, textScale);
+            DrawBitmapFontText(values[index], new Vector2(valueX, labelPosition.Y), color, textScale);
+            labelPosition.Y += spacing;
         }
     }
 
@@ -417,8 +429,8 @@ public partial class Game1
 
     private void DrawControlsMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
 
         var title = _pendingControlsBinding.HasValue
@@ -546,6 +558,28 @@ public partial class Game1
         };
     }
 
+    private static MusicMode GetNextMusicMode(MusicMode musicMode)
+    {
+        return musicMode switch
+        {
+            MusicMode.None => MusicMode.MenuOnly,
+            MusicMode.MenuOnly => MusicMode.InGameOnly,
+            MusicMode.InGameOnly => MusicMode.MenuAndInGame,
+            _ => MusicMode.None,
+        };
+    }
+
+    private static string GetMusicModeLabel(MusicMode musicMode)
+    {
+        return musicMode switch
+        {
+            MusicMode.None => "None",
+            MusicMode.MenuOnly => "Menu Only",
+            MusicMode.InGameOnly => "In-Game Only",
+            _ => "Menu and In-Game",
+        };
+    }
+
     private static string GetGibLevelLabel(int gibLevel)
     {
         return gibLevel switch
@@ -555,5 +589,23 @@ public partial class Game1
             2 => "2, Blood and medium gibs",
             _ => $"{gibLevel.ToString(CultureInfo.InvariantCulture)}, Full blood and gibs",
         };
+    }
+
+    private void GetOptionsMenuLayout(out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)
+    {
+        xbegin = 40f;
+        valueX = 240f;
+        width = 320f;
+        if (ViewportHeight < 540)
+        {
+            ybegin = 104f;
+            spacing = 26f;
+            width = 340f;
+            valueX = 232f;
+            return;
+        }
+
+        ybegin = 170f;
+        spacing = 30f;
     }
 }

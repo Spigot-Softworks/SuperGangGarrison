@@ -18,7 +18,7 @@ public partial class Game1
             return;
         }
 
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportHeight = ViewportHeight;
         var frameIndex = GetCharacterHudFrameIndex(_world.LocalPlayer);
         DrawScreenHealthBar(new Rectangle(45, viewportHeight - 53, 42, 38), _world.LocalPlayer.Health, _world.LocalPlayer.MaxHealth, false, fillDirection: HudFillDirection.VerticalBottomToTop);
         TryDrawScreenSprite(
@@ -95,8 +95,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var hudSpriteName = GetAmmoHudSpriteName();
         if (hudSpriteName is null)
         {
@@ -119,8 +119,8 @@ public partial class Game1
 
     private void DrawResourceHud(string spriteName, float barValue, float barMax, bool showCount, float barXOffset, float barWidth)
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         var baseX = viewportWidth * 0.91f;
         var baseY = viewportHeight * 0.935f;
@@ -150,8 +150,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var hudFrameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         var uberRectangle = new Rectangle(viewportWidth - 135, viewportHeight - 100, 120, 32);
         DrawScreenHealthBar(uberRectangle, GetPlayerMedicUberCharge(_world.LocalPlayer), 2000f, false, Color.White, Color.Black);
@@ -212,8 +212,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var hudFrameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         TryDrawScreenSprite(
             "NutsNBoltsHudS",
@@ -250,9 +250,9 @@ public partial class Game1
 
         var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
         var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
-        var textWidth = _consoleFont.MeasureString(label).X;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        var textWidth = MeasureBitmapFontWidth(label, 0.7f);
         var hudWidth = (int)MathF.Ceiling(textWidth) + 20;
         var hudHeight = 40;
         var hudX = (viewportWidth / 2) - (hudWidth / 2);
@@ -299,8 +299,8 @@ public partial class Game1
             return;
         }
 
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         var viewBounds = new Rectangle((int)cameraPosition.X, (int)cameraPosition.Y, viewportWidth, viewportHeight);
         var cornerRadians = MathF.Asin(0.6f);
         var localPlayer = _world.LocalPlayer;
@@ -449,6 +449,70 @@ public partial class Game1
             new Vector2(mouse.X + 15f * chargeScaleX, mouse.Y - 10f),
             Color.White * 0.8f,
             new Vector2(chargeScaleX, 1f));
+    }
+
+    private void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
+    {
+        var hoveredPlayer = GetHoveredPlayerForNameHud(mouse, cameraPosition);
+        if (hoveredPlayer is null)
+        {
+            return;
+        }
+
+        var label = GetHudPlayerLabel(hoveredPlayer);
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return;
+        }
+
+        var visibilityAlpha = GetPlayerVisibilityAlpha(hoveredPlayer);
+        if (visibilityAlpha <= 0f)
+        {
+            return;
+        }
+
+        var renderPosition = GetRenderPosition(hoveredPlayer, allowInterpolation: !ReferenceEquals(hoveredPlayer, _world.LocalPlayer));
+        var screenPosition = new Vector2(
+            MathF.Round(renderPosition.X - cameraPosition.X),
+            MathF.Round(renderPosition.Y - cameraPosition.Y));
+        var textHeight = MeasureBitmapFontHeight(1f);
+        var labelPosition = new Vector2(screenPosition.X, screenPosition.Y - 35f - textHeight);
+        var teamColor = hoveredPlayer.Team == PlayerTeam.Blue
+            ? new Color(80, 150, 240)
+            : new Color(210, 90, 90);
+        var alpha = Math.Clamp(visibilityAlpha, 0.55f, 1f);
+
+        DrawBitmapFontTextCentered(label, labelPosition + Vector2.One, Color.Black * alpha, 1f);
+        DrawBitmapFontTextCentered(label, labelPosition, teamColor * alpha, 1f);
+    }
+
+    private PlayerEntity? GetHoveredPlayerForNameHud(MouseState mouse, Vector2 cameraPosition)
+    {
+        const float hoverRadius = 25f;
+        var bestDistanceSquared = hoverRadius * hoverRadius;
+        PlayerEntity? hoveredPlayer = null;
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f || IsSpyHiddenFromLocalViewer(player))
+            {
+                continue;
+            }
+
+            var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+            var deltaX = (renderPosition.X - cameraPosition.X) - mouse.X;
+            var deltaY = (renderPosition.Y - cameraPosition.Y) - mouse.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+            if (distanceSquared > bestDistanceSquared)
+            {
+                continue;
+            }
+
+            bestDistanceSquared = distanceSquared;
+            hoveredPlayer = player;
+        }
+
+        return hoveredPlayer;
     }
 
     private void DrawCrosshair(MouseState mouse)

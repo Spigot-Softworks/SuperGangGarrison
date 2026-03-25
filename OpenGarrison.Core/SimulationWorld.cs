@@ -77,6 +77,8 @@ public sealed partial class SimulationWorld
     private int _enemyStrafeDirection = -1;
     private int _enemyStrafeTicksRemaining;
     private int _killFeedTrimTicks;
+    private ulong _nextKillFeedEventId = 1;
+    private long _lastKillFeedRecordedFrame = -1;
     private int _pendingMapChangeTicks = -1;
     private bool _mapChangeReady;
     private bool _autoRestartOnMapChange = true;
@@ -247,13 +249,13 @@ public sealed partial class SimulationWorld
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), _localPlayerClassDefinition, DefaultLocalPlayerName);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
-        LocalPlayer.Spawn(LocalPlayerTeam, initialSpawn.X, initialSpawn.Y);
+        SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         _entities.Add(LocalPlayer.Id, LocalPlayer);
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
             var enemySpawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            EnemyPlayer.Spawn(_enemyDummyTeam, enemySpawn.X, enemySpawn.Y);
+            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, enemySpawn);
             EnemyPlayerEnabled = true;
         }
         else
@@ -335,7 +337,7 @@ public sealed partial class SimulationWorld
         if (EnemyPlayerEnabled)
         {
             var spawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-            EnemyPlayer.Spawn(_enemyDummyTeam, spawn.X, spawn.Y);
+            SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, spawn);
         }
         return true;
     }

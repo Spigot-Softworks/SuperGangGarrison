@@ -88,6 +88,9 @@ public partial class Game1
             out var autoBalanceBounds,
             out var hostBounds,
             out var backBounds);
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        var listHeaderHeight = compactLayout ? 18 : 20;
+        var rowHeight = compactLayout ? 20 : 28;
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
 
         if (IsServerLauncherMode)
@@ -196,8 +199,6 @@ public partial class Game1
             return;
         }
 
-        const int listHeaderHeight = 20;
-        const int rowHeight = 28;
         var launchTerminalBounds = GetHostSetupTerminalButtonBounds(panel);
 
         _hostSetupHoverIndex = -1;
@@ -321,8 +322,8 @@ public partial class Game1
 
     private void DrawHostSetupMenu()
     {
-        var viewportWidth = _graphics.PreferredBackBufferWidth;
-        var viewportHeight = _graphics.PreferredBackBufferHeight;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
 
         GetHostSetupLayout(
@@ -343,12 +344,26 @@ public partial class Game1
             out var autoBalanceBounds,
             out var hostBounds,
             out var backBounds);
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        var titleScale = compactLayout ? 0.92f : 1f;
+        var subtitleScale = compactLayout ? 0.78f : 0.9f;
+        var headerScale = compactLayout ? 0.72f : 0.8f;
+        var rowScale = compactLayout ? 0.78f : 0.9f;
+        var fieldLabelScale = compactLayout ? 0.74f : 0.9f;
+        var infoScale = compactLayout ? 0.74f : 0.85f;
+        var inputScale = compactLayout ? 0.86f : 1f;
+        var buttonScale = compactLayout ? 0.84f : 1f;
+        var statusPosition = GetHostSetupStatusPosition(panel);
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText(GetHostSetupTitle(), new Vector2(panel.X + 28f, panel.Y + 22f), Color.White, 1f);
-        DrawBitmapFontText(GetHostSetupSubtitle(), new Vector2(panel.X + 28f, panel.Y + 50f), new Color(200, 200, 200), 0.9f);
+        DrawBitmapFontText(GetHostSetupTitle(), new Vector2(panel.X + 28f, panel.Y + 22f), Color.White, titleScale);
+        DrawBitmapFontText(GetHostSetupSubtitle(), new Vector2(panel.X + 28f, panel.Y + 48f), new Color(200, 200, 200), subtitleScale);
+        if (!string.IsNullOrWhiteSpace(_menuStatusMessage) && compactLayout)
+        {
+            DrawBitmapFontText(_menuStatusMessage, statusPosition, new Color(230, 220, 180), 0.82f);
+        }
 
         if (IsServerLauncherMode)
         {
@@ -363,14 +378,30 @@ public partial class Game1
             return;
         }
 
-        DrawBitmapFontText("Stock Map Rotation", new Vector2(listBounds.X, listBounds.Y - 24f), Color.White, 0.95f);
-        DrawBitmapFontText("ORDER", new Vector2(listBounds.X + 10f, listBounds.Y - 2f), new Color(210, 210, 210), 0.8f);
-        DrawBitmapFontText("MAP", new Vector2(listBounds.X + 78f, listBounds.Y - 2f), new Color(210, 210, 210), 0.8f);
-        DrawBitmapFontText("MODE", new Vector2(listBounds.Right - 112f, listBounds.Y - 2f), new Color(210, 210, 210), 0.8f);
-        DrawBitmapFontText("ON", new Vector2(listBounds.Right - 48f, listBounds.Y - 2f), new Color(210, 210, 210), 0.8f);
+        if (compactLayout)
+        {
+            var listSection = new Rectangle(
+                listBounds.X - 10,
+                listBounds.Y - 30,
+                listBounds.Width + 20,
+                moveDownBounds.Bottom - listBounds.Y + 52);
+            var settingsSection = new Rectangle(
+                serverNameBounds.X - 10,
+                listBounds.Y - 30,
+                serverNameBounds.Width + 20,
+                autoBalanceBounds.Bottom - listBounds.Y + 42);
+            _spriteBatch.Draw(_pixel, listSection, new Color(26, 28, 33, 170));
+            _spriteBatch.Draw(_pixel, settingsSection, new Color(26, 28, 33, 170));
+        }
 
-        const int listHeaderHeight = 20;
-        const int rowHeight = 28;
+        DrawBitmapFontText("Stock Map Rotation", new Vector2(listBounds.X, listBounds.Y - 24f), Color.White, compactLayout ? 0.88f : 0.95f);
+        DrawBitmapFontText("ORDER", new Vector2(listBounds.X + 10f, listBounds.Y - 2f), new Color(210, 210, 210), headerScale);
+        DrawBitmapFontText("MAP", new Vector2(listBounds.X + (compactLayout ? 54f : 78f), listBounds.Y - 2f), new Color(210, 210, 210), headerScale);
+        DrawBitmapFontText("MODE", new Vector2(listBounds.Right - (compactLayout ? 98f : 112f), listBounds.Y - 2f), new Color(210, 210, 210), headerScale);
+        DrawBitmapFontText("ON", new Vector2(listBounds.Right - (compactLayout ? 38f : 48f), listBounds.Y - 2f), new Color(210, 210, 210), headerScale);
+
+        var listHeaderHeight = compactLayout ? 18 : 20;
+        var rowHeight = compactLayout ? 20 : 28;
         for (var index = 0; index < _hostMapEntries.Count; index += 1)
         {
             var entry = _hostMapEntries[index];
@@ -399,58 +430,60 @@ public partial class Game1
             var enabledLabel = entry.Order > 0 ? "ON" : "OFF";
             var enabledColor = entry.Order > 0 ? new Color(178, 228, 155) : new Color(140, 140, 140);
 
-            DrawBitmapFontText(orderLabel, new Vector2(listBounds.X + 10f, rowBounds.Y + 6f), Color.White, 0.9f);
-            DrawBitmapFontText(entry.DisplayName, new Vector2(listBounds.X + 78f, rowBounds.Y + 6f), Color.White, 0.9f);
-            DrawBitmapFontText(modeLabel, new Vector2(listBounds.Right - 112f, rowBounds.Y + 6f), new Color(210, 210, 210), 0.9f);
-            DrawBitmapFontText(enabledLabel, new Vector2(listBounds.Right - 50f, rowBounds.Y + 6f), enabledColor, 0.9f);
+            var rowTextY = rowBounds.Y + (compactLayout ? 4f : 6f);
+            DrawBitmapFontText(orderLabel, new Vector2(listBounds.X + 10f, rowTextY), Color.White, rowScale);
+            DrawBitmapFontText(entry.DisplayName, new Vector2(listBounds.X + (compactLayout ? 54f : 78f), rowTextY), Color.White, rowScale);
+            DrawBitmapFontText(modeLabel, new Vector2(listBounds.Right - (compactLayout ? 98f : 112f), rowTextY), new Color(210, 210, 210), rowScale);
+            DrawBitmapFontText(enabledLabel, new Vector2(listBounds.Right - (compactLayout ? 40f : 50f), rowTextY), enabledColor, rowScale);
         }
 
         var selectedMap = GetSelectedHostMapEntry();
         var selectedIncluded = selectedMap is not null && selectedMap.Order > 0;
-        DrawMenuButton(toggleBounds, selectedIncluded ? "Exclude" : "Include", selectedIncluded);
-        DrawMenuButton(moveUpBounds, "Move Up", false);
-        DrawMenuButton(moveDownBounds, "Move Down", false);
+        DrawMenuButtonScaled(toggleBounds, selectedIncluded ? "Exclude" : "Include", selectedIncluded, buttonScale);
+        DrawMenuButtonScaled(moveUpBounds, "Move Up", false, buttonScale);
+        DrawMenuButtonScaled(moveDownBounds, "Move Down", false, buttonScale);
 
-        var stockRotationLabel = GetHostStockRotationSummary();
-        DrawBitmapFontText(stockRotationLabel, new Vector2(listBounds.X, toggleBounds.Bottom + 18f), new Color(220, 220, 220), 0.85f);
-        if (!string.IsNullOrWhiteSpace(_hostMapRotationFileBuffer))
+        var stockRotationLabel = GetHostStockRotationSummary(compactLayout ? 3 : 4);
+        DrawBitmapFontText(stockRotationLabel, new Vector2(listBounds.X, toggleBounds.Bottom + (compactLayout ? 12f : 18f)), new Color(220, 220, 220), compactLayout ? 0.74f : 0.85f);
+        if (!compactLayout && !string.IsNullOrWhiteSpace(_hostMapRotationFileBuffer))
         {
             DrawBitmapFontText("Custom rotation file overrides the stock list below.", new Vector2(listBounds.X, toggleBounds.Bottom + 40f), new Color(226, 204, 164), 0.82f);
         }
 
-        DrawBitmapFontText("Server Name", new Vector2(serverNameBounds.X, serverNameBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(serverNameBounds, _hostServerNameBuffer, _hostSetupEditField == HostSetupEditField.ServerName);
+        var labelColor = new Color(210, 210, 210);
+        DrawBitmapFontText("Server Name", new Vector2(serverNameBounds.X, serverNameBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(serverNameBounds, _hostServerNameBuffer, _hostSetupEditField == HostSetupEditField.ServerName, inputScale);
 
-        DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(portBounds, _hostPortBuffer, _hostSetupEditField == HostSetupEditField.Port);
-
-        DrawBitmapFontText("Slots", new Vector2(slotsBounds.X, slotsBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(slotsBounds, _hostSlotsBuffer, _hostSetupEditField == HostSetupEditField.Slots);
-
-        DrawBitmapFontText("Password", new Vector2(passwordBounds.X, passwordBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
+        DrawBitmapFontText(compactLayout ? "Password" : "Password", new Vector2(passwordBounds.X, passwordBounds.Y - 16f), labelColor, fieldLabelScale);
         var maskedPassword = string.IsNullOrEmpty(_hostPasswordBuffer) ? string.Empty : new string('*', _hostPasswordBuffer.Length);
-        DrawMenuInputBox(passwordBounds, maskedPassword, _hostSetupEditField == HostSetupEditField.Password);
+        DrawMenuInputBoxScaled(passwordBounds, maskedPassword, _hostSetupEditField == HostSetupEditField.Password, inputScale);
 
-        DrawBitmapFontText("Custom Rotation File", new Vector2(rotationFileBounds.X, rotationFileBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(rotationFileBounds, _hostMapRotationFileBuffer, _hostSetupEditField == HostSetupEditField.MapRotationFile);
+        DrawBitmapFontText(compactLayout ? "Rotation File" : "Custom Rotation File", new Vector2(rotationFileBounds.X, rotationFileBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(rotationFileBounds, _hostMapRotationFileBuffer, _hostSetupEditField == HostSetupEditField.MapRotationFile, inputScale);
 
-        DrawBitmapFontText("Time Limit (mins)", new Vector2(timeLimitBounds.X, timeLimitBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(timeLimitBounds, _hostTimeLimitBuffer, _hostSetupEditField == HostSetupEditField.TimeLimit);
+        DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(portBounds, _hostPortBuffer, _hostSetupEditField == HostSetupEditField.Port, inputScale);
 
-        DrawBitmapFontText("Cap Limit", new Vector2(capLimitBounds.X, capLimitBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(capLimitBounds, _hostCapLimitBuffer, _hostSetupEditField == HostSetupEditField.CapLimit);
+        DrawBitmapFontText("Slots", new Vector2(slotsBounds.X, slotsBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(slotsBounds, _hostSlotsBuffer, _hostSetupEditField == HostSetupEditField.Slots, inputScale);
 
-        DrawBitmapFontText("Respawn Time (secs)", new Vector2(respawnBounds.X, respawnBounds.Y - 18f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(respawnBounds, _hostRespawnSecondsBuffer, _hostSetupEditField == HostSetupEditField.RespawnSeconds);
+        DrawBitmapFontText(compactLayout ? "Time (mins)" : "Time Limit (mins)", new Vector2(timeLimitBounds.X, timeLimitBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(timeLimitBounds, _hostTimeLimitBuffer, _hostSetupEditField == HostSetupEditField.TimeLimit, inputScale);
 
-        DrawMenuButton(lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled);
-        DrawMenuButton(autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled);
+        DrawBitmapFontText("Cap Limit", new Vector2(capLimitBounds.X, capLimitBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(capLimitBounds, _hostCapLimitBuffer, _hostSetupEditField == HostSetupEditField.CapLimit, inputScale);
 
-        DrawMenuButton(hostBounds, GetHostSetupPrimaryButtonLabel(), false);
-        DrawMenuButton(backBounds, GetHostSetupSecondaryButtonLabel(), IsServerLauncherMode && IsHostedServerRunning);
+        DrawBitmapFontText(compactLayout ? "Respawn (sec)" : "Respawn Time (secs)", new Vector2(respawnBounds.X, respawnBounds.Y - 16f), labelColor, fieldLabelScale);
+        DrawMenuInputBoxScaled(respawnBounds, _hostRespawnSecondsBuffer, _hostSetupEditField == HostSetupEditField.RespawnSeconds, inputScale);
+
+        DrawMenuButtonScaled(lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled, buttonScale);
+        DrawMenuButtonScaled(autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled, buttonScale);
+
+        DrawMenuButtonScaled(hostBounds, GetHostSetupPrimaryButtonLabel(), false, buttonScale);
+        DrawMenuButtonScaled(backBounds, GetHostSetupSecondaryButtonLabel(), IsServerLauncherMode && IsHostedServerRunning, buttonScale);
         if (IsServerLauncherMode && !IsHostedServerRunning)
         {
-            DrawMenuButton(GetHostSetupTerminalButtonBounds(panel), "Run In Terminal", false);
+            DrawMenuButtonScaled(GetHostSetupTerminalButtonBounds(panel), "Run In Terminal", false, buttonScale);
         }
 
         if (IsServerLauncherMode && IsHostedServerRunning)
@@ -459,12 +492,12 @@ public partial class Game1
                 "Use Stop Server to end the active dedicated server session.",
                 new Vector2(panel.X + 28f, panel.Bottom - 62f),
                 new Color(210, 210, 210),
-                0.85f);
+                infoScale);
         }
 
-        if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
+        if (!compactLayout && !string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
-            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 28f, panel.Bottom - 38f), new Color(230, 220, 180), 1f);
+            DrawBitmapFontText(_menuStatusMessage, statusPosition, new Color(230, 220, 180), 1f);
         }
     }
 
@@ -518,10 +551,18 @@ public partial class Game1
             ("Runtime", _hostedServerStatusRuntime),
             ("World", _hostedServerStatusWorld),
         };
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        var summaryRowGap = compactLayout ? 4 : 5;
+        var availableSummaryHeight = Math.Max(1, summaryBounds.Height - 32 - (summaryRowGap * (summaryRows.Length - 1)));
+        var summaryRowHeight = Math.Max(compactLayout ? 24 : 40, availableSummaryHeight / summaryRows.Length);
 
         for (var index = 0; index < summaryRows.Length; index += 1)
         {
-            var rowBounds = new Rectangle(summaryBounds.X + 10, summaryBounds.Y + 32 + (index * 45), summaryBounds.Width - 20, 40);
+            var rowBounds = new Rectangle(
+                summaryBounds.X + 10,
+                summaryBounds.Y + 32 + (index * (summaryRowHeight + summaryRowGap)),
+                summaryBounds.Width - 20,
+                summaryRowHeight);
             DrawHostedServerSummaryRow(rowBounds, summaryRows[index].Label, summaryRows[index].Value);
         }
 
@@ -555,8 +596,10 @@ public partial class Game1
     private void DrawHostedServerSummaryRow(Rectangle bounds, string label, string value)
     {
         _spriteBatch.Draw(_pixel, bounds, new Color(44, 46, 52, 180));
-        DrawBitmapFontText(label.ToUpperInvariant(), new Vector2(bounds.X + 8f, bounds.Y + 6f), new Color(210, 210, 210), 0.82f);
-        _spriteBatch.DrawString(_consoleFont, TrimConsoleText(value, bounds.Width - 16f), new Vector2(bounds.X + 10f, bounds.Y + 20f), Color.White);
+        var compactBounds = bounds.Height < 34;
+        DrawBitmapFontText(label.ToUpperInvariant(), new Vector2(bounds.X + 8f, bounds.Y + 4f), new Color(210, 210, 210), compactBounds ? 0.7f : 0.82f);
+        var valueY = bounds.Y + MathF.Max(12f, bounds.Height - 18f);
+        _spriteBatch.DrawString(_consoleFont, TrimConsoleText(value, bounds.Width - 16f), new Vector2(bounds.X + 10f, valueY), Color.White);
     }
 
     private void ExecuteHostedServerCommandFromUi(string command)
@@ -608,25 +651,64 @@ public partial class Game1
         out Rectangle hostBounds,
         out Rectangle backBounds)
     {
-        logBounds = new Rectangle(panel.X + 28, panel.Y + 96, 574, 410);
-        summaryBounds = new Rectangle(logBounds.Right + 18, logBounds.Y, panel.Right - logBounds.Right - 46, 410);
-        commandBounds = new Rectangle(logBounds.X, logBounds.Bottom + 18, 390, 34);
-        sendBounds = new Rectangle(commandBounds.Right + 12, commandBounds.Y, 78, 34);
-        clearBounds = new Rectangle(sendBounds.Right + 10, commandBounds.Y, 78, 34);
-        statusCommandBounds = new Rectangle(summaryBounds.X, summaryBounds.Bottom + 18, 64, 34);
-        playersCommandBounds = new Rectangle(statusCommandBounds.Right + 8, statusCommandBounds.Y, 72, 34);
-        rotationCommandBounds = new Rectangle(playersCommandBounds.Right + 8, statusCommandBounds.Y, 78, 34);
-        helpCommandBounds = new Rectangle(rotationCommandBounds.Right + 8, statusCommandBounds.Y, 60, 34);
-        hostBounds = new Rectangle(panel.Right - 330, panel.Bottom - 62, 140, 42);
-        backBounds = new Rectangle(panel.Right - 170, panel.Bottom - 62, 140, 42);
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        var padding = compactLayout ? 20 : 28;
+        var sectionGap = compactLayout ? 12 : 18;
+        var actionGap = compactLayout ? 12 : 20;
+        var actionButtonHeight = compactLayout ? 38 : 42;
+        var actionPaddingBottom = compactLayout ? 12 : 20;
+        var actionButtonWidth = compactLayout ? 124 : 140;
+        var commandButtonHeight = compactLayout ? 30 : 34;
+        var commandButtonGap = compactLayout ? 8 : 10;
+        var contentTop = panel.Y + (compactLayout ? 84 : 96);
+
+        backBounds = new Rectangle(
+            panel.Right - padding - actionButtonWidth,
+            panel.Bottom - actionPaddingBottom - actionButtonHeight,
+            actionButtonWidth,
+            actionButtonHeight);
+        hostBounds = new Rectangle(
+            backBounds.X - actionGap - actionButtonWidth,
+            backBounds.Y,
+            actionButtonWidth,
+            actionButtonHeight);
+
+        var commandY = backBounds.Y - (compactLayout ? 46 : 52);
+        var availableWidth = panel.Width - (padding * 2) - sectionGap;
+        var logWidth = compactLayout
+            ? Math.Clamp((int)MathF.Floor(availableWidth * 0.62f), 360, Math.Max(360, availableWidth - 190))
+            : 574;
+        var summaryWidth = Math.Max(compactLayout ? 190 : 220, availableWidth - logWidth);
+        logWidth = availableWidth - summaryWidth;
+        var contentHeight = Math.Max(compactLayout ? 220 : 320, commandY - contentTop - 12);
+
+        logBounds = new Rectangle(panel.X + padding, contentTop, logWidth, contentHeight);
+        summaryBounds = new Rectangle(logBounds.Right + sectionGap, contentTop, summaryWidth, contentHeight);
+        commandBounds = new Rectangle(logBounds.X, commandY, Math.Max(180, logBounds.Width - (compactLayout ? 168 : 178)), commandButtonHeight);
+        sendBounds = new Rectangle(commandBounds.Right + commandButtonGap, commandBounds.Y, compactLayout ? 68 : 78, commandButtonHeight);
+        clearBounds = new Rectangle(sendBounds.Right + commandButtonGap, commandBounds.Y, compactLayout ? 68 : 78, commandButtonHeight);
+        statusCommandBounds = new Rectangle(summaryBounds.X, commandBounds.Y, compactLayout ? 58 : 64, commandButtonHeight);
+        playersCommandBounds = new Rectangle(statusCommandBounds.Right + 8, statusCommandBounds.Y, compactLayout ? 66 : 72, commandButtonHeight);
+        rotationCommandBounds = new Rectangle(playersCommandBounds.Right + 8, statusCommandBounds.Y, compactLayout ? 72 : 78, commandButtonHeight);
+        helpCommandBounds = new Rectangle(rotationCommandBounds.Right + 8, statusCommandBounds.Y, compactLayout ? 56 : 60, commandButtonHeight);
     }
 
     private static Rectangle GetHostSetupTerminalButtonBounds(Rectangle panel)
     {
-        return new Rectangle(panel.Right - 500, panel.Bottom - 62, 150, 42);
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        var padding = compactLayout ? 18 : 36;
+        var actionGap = compactLayout ? 12 : 20;
+        var actionButtonHeight = compactLayout ? 36 : 42;
+        var actionPaddingBottom = compactLayout ? 18 : 20;
+        var actionButtonWidth = compactLayout ? 120 : 140;
+        var terminalWidth = compactLayout ? 136 : 150;
+        var y = panel.Bottom - actionPaddingBottom - actionButtonHeight;
+        var backX = panel.Right - padding - actionButtonWidth;
+        var hostX = backX - actionGap - actionButtonWidth;
+        return new Rectangle(hostX - actionGap - terminalWidth, y, terminalWidth, actionButtonHeight);
     }
 
-    private static void GetHostSetupLayout(
+    private void GetHostSetupLayout(
         out Rectangle panel,
         out Rectangle listBounds,
         out Rectangle toggleBounds,
@@ -645,33 +727,123 @@ public partial class Game1
         out Rectangle hostBounds,
         out Rectangle backBounds)
     {
-        panel = new Rectangle(160, 50, 960, 620);
-        listBounds = new Rectangle(panel.X + 36, panel.Y + 96, 392, 328);
+        var compactViewport = ViewportWidth <= 864 || ViewportHeight <= 624;
+        var panelWidth = compactViewport
+            ? Math.Min(760, ViewportWidth - 40)
+            : Math.Min(960, ViewportWidth - 48);
+        var panelHeight = compactViewport
+            ? Math.Min(520, ViewportHeight - 40)
+            : Math.Min(620, ViewportHeight - 48);
+        panel = new Rectangle(
+            (ViewportWidth - panelWidth) / 2,
+            (ViewportHeight - panelHeight) / 2,
+            panelWidth,
+            panelHeight);
+
+        var compactLayout = IsCompactHostSetupLayout(panel);
+        if (compactLayout)
+        {
+            var padding = 18;
+            var listHeaderHeight = 18;
+            var rowHeight = 20;
+            var listWidth = Math.Min(288, Math.Max(248, (panel.Width - (padding * 2) - 20) / 2));
+            var listX = panel.X + padding;
+            var contentTop = panel.Y + (IsServerLauncherMode ? 92 : 84);
+            var availableListHeight = Math.Max(170, panel.Bottom - 156 - contentTop);
+            var maxListHeight = listHeaderHeight + (Math.Max(1, _hostMapEntries.Count) * rowHeight);
+            var listHeight = Math.Min(Math.Min(236, maxListHeight), availableListHeight);
+            listBounds = new Rectangle(listX, contentTop, listWidth, listHeight);
+
+            var listButtonGap = 8;
+            var listButtonHeight = 28;
+            var listButtonWidth = Math.Max(78, (listBounds.Width - (listButtonGap * 2)) / 3);
+            toggleBounds = new Rectangle(listBounds.X, listBounds.Bottom + 10, listButtonWidth, listButtonHeight);
+            moveUpBounds = new Rectangle(toggleBounds.Right + listButtonGap, toggleBounds.Y, listButtonWidth, listButtonHeight);
+            moveDownBounds = new Rectangle(moveUpBounds.Right + listButtonGap, toggleBounds.Y, listButtonWidth, listButtonHeight);
+
+            var fieldX = listBounds.Right + 20;
+            var fieldWidth = panel.Right - fieldX - padding;
+            var fieldHeight = 26;
+            var smallGap = 8;
+            var smallRowSpacing = 44;
+
+            serverNameBounds = new Rectangle(fieldX, contentTop, fieldWidth, fieldHeight);
+            passwordBounds = new Rectangle(fieldX, serverNameBounds.Bottom + 10, fieldWidth, fieldHeight);
+            rotationFileBounds = new Rectangle(fieldX, passwordBounds.Bottom + 10, fieldWidth, fieldHeight);
+
+            var tripleFieldWidth = Math.Max(70, (fieldWidth - (smallGap * 2)) / 3);
+            portBounds = new Rectangle(fieldX, rotationFileBounds.Bottom + 18, tripleFieldWidth, fieldHeight);
+            slotsBounds = new Rectangle(portBounds.Right + smallGap, portBounds.Y, tripleFieldWidth, fieldHeight);
+            timeLimitBounds = new Rectangle(slotsBounds.Right + smallGap, portBounds.Y, fieldWidth - (tripleFieldWidth * 2) - (smallGap * 2), fieldHeight);
+
+            var doubleFieldWidth = Math.Max(100, (fieldWidth - smallGap) / 2);
+            capLimitBounds = new Rectangle(fieldX, portBounds.Y + smallRowSpacing, doubleFieldWidth, fieldHeight);
+            respawnBounds = new Rectangle(capLimitBounds.Right + smallGap, capLimitBounds.Y, fieldWidth - doubleFieldWidth - smallGap, fieldHeight);
+
+            var listButtonScaleHeight = 28;
+            lobbyBounds = new Rectangle(fieldX, capLimitBounds.Bottom + 18, fieldWidth, listButtonScaleHeight);
+            autoBalanceBounds = new Rectangle(fieldX, lobbyBounds.Bottom + 6, fieldWidth, listButtonScaleHeight);
+
+            var actionButtonHeight = 36;
+            var actionButtonWidth = 120;
+            var actionGap = 12;
+            var actionPaddingBottom = 18;
+            backBounds = new Rectangle(
+                panel.Right - padding - actionButtonWidth,
+                panel.Bottom - actionPaddingBottom - actionButtonHeight,
+                actionButtonWidth,
+                actionButtonHeight);
+            hostBounds = new Rectangle(
+                backBounds.X - actionGap - actionButtonWidth,
+                backBounds.Y,
+                actionButtonWidth,
+                actionButtonHeight);
+            return;
+        }
+
+        var roomyPadding = 36;
+        var roomyInterColumnGap = 46;
+        var roomyListWidth = 392;
+        var roomyMinFieldWidth = 410;
+        var roomyMaxListWidth = panel.Width - (roomyPadding * 2) - roomyInterColumnGap - roomyMinFieldWidth;
+        if (roomyMaxListWidth < roomyListWidth)
+        {
+            roomyListWidth = Math.Max(320, roomyMaxListWidth);
+        }
+
+        listBounds = new Rectangle(panel.X + roomyPadding, panel.Y + 96, roomyListWidth, 328);
 
         toggleBounds = new Rectangle(listBounds.X, listBounds.Bottom + 14, 116, 34);
-        moveUpBounds = new Rectangle(toggleBounds.Right + 12, listBounds.Bottom + 14, 116, 34);
-        moveDownBounds = new Rectangle(moveUpBounds.Right + 12, listBounds.Bottom + 14, 116, 34);
+        moveUpBounds = new Rectangle(toggleBounds.Right + 12, toggleBounds.Y, 116, 34);
+        moveDownBounds = new Rectangle(moveUpBounds.Right + 12, toggleBounds.Y, 116, 34);
 
-        var fieldX = panel.X + 474;
-        var fieldWidth = panel.Right - fieldX - 36;
-        var fieldBoxY = panel.Y + 100;
-        const int fieldHeight = 32;
-        const int fieldSpacing = 50;
+        var roomyFieldX = listBounds.Right + roomyInterColumnGap;
+        var roomyFieldWidth = panel.Right - roomyFieldX - roomyPadding;
+        serverNameBounds = new Rectangle(roomyFieldX, panel.Y + 100, roomyFieldWidth, 32);
+        portBounds = new Rectangle(roomyFieldX, panel.Y + 150, roomyFieldWidth, 32);
+        slotsBounds = new Rectangle(roomyFieldX, panel.Y + 200, roomyFieldWidth, 32);
+        passwordBounds = new Rectangle(roomyFieldX, panel.Y + 250, roomyFieldWidth, 32);
+        rotationFileBounds = new Rectangle(roomyFieldX, panel.Y + 300, roomyFieldWidth, 32);
+        timeLimitBounds = new Rectangle(roomyFieldX, panel.Y + 350, roomyFieldWidth, 32);
+        capLimitBounds = new Rectangle(roomyFieldX, panel.Y + 400, roomyFieldWidth, 32);
+        respawnBounds = new Rectangle(roomyFieldX, panel.Y + 450, roomyFieldWidth, 32);
 
-        serverNameBounds = new Rectangle(fieldX, fieldBoxY, fieldWidth, fieldHeight);
-        portBounds = new Rectangle(fieldX, fieldBoxY + fieldSpacing, fieldWidth, fieldHeight);
-        slotsBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 2), fieldWidth, fieldHeight);
-        passwordBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 3), fieldWidth, fieldHeight);
-        rotationFileBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 4), fieldWidth, fieldHeight);
-        timeLimitBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 5), fieldWidth, fieldHeight);
-        capLimitBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 6), fieldWidth, fieldHeight);
-        respawnBounds = new Rectangle(fieldX, fieldBoxY + (fieldSpacing * 7), fieldWidth, fieldHeight);
+        backBounds = new Rectangle(panel.Right - roomyPadding - 140, panel.Bottom - 20 - 42, 140, 42);
+        hostBounds = new Rectangle(backBounds.X - 20 - 140, backBounds.Y, 140, 42);
+        lobbyBounds = new Rectangle(roomyFieldX, hostBounds.Y - 88, roomyFieldWidth, 34);
+        autoBalanceBounds = new Rectangle(roomyFieldX, lobbyBounds.Bottom + 6, roomyFieldWidth, 34);
+    }
 
-        lobbyBounds = new Rectangle(fieldX, panel.Bottom - 150, fieldWidth, 34);
-        autoBalanceBounds = new Rectangle(fieldX, panel.Bottom - 110, fieldWidth, 34);
+    private static bool IsCompactHostSetupLayout(Rectangle panel)
+    {
+        return panel.Width <= 760 || panel.Height <= 520;
+    }
 
-        hostBounds = new Rectangle(panel.Right - 330, panel.Bottom - 62, 140, 42);
-        backBounds = new Rectangle(panel.Right - 170, panel.Bottom - 62, 140, 42);
+    private static Vector2 GetHostSetupStatusPosition(Rectangle panel)
+    {
+        return IsCompactHostSetupLayout(panel)
+            ? new Vector2(panel.X + 28f, panel.Y + 62f)
+            : new Vector2(panel.X + 28f, panel.Bottom - 38f);
     }
 
     private void TryHostFromSetup(bool runInTerminal = false)
@@ -897,7 +1069,7 @@ public partial class Game1
             : null;
     }
 
-    private string GetHostStockRotationSummary()
+    private string GetHostStockRotationSummary(int previewCount = 4)
     {
         var orderedNames = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(_hostMapEntries);
         if (orderedNames.Count == 0)
@@ -905,8 +1077,8 @@ public partial class Game1
             return "Stock rotation: no maps selected.";
         }
 
-        var preview = string.Join(" -> ", orderedNames.Take(4));
-        if (orderedNames.Count > 4)
+        var preview = string.Join(" -> ", orderedNames.Take(Math.Max(1, previewCount)));
+        if (orderedNames.Count > Math.Max(1, previewCount))
         {
             preview += " ...";
         }

@@ -32,13 +32,7 @@ public partial class Game1
         var line = string.IsNullOrWhiteSpace(playerName)
             ? text
             : $"{playerName}: {text}";
-        var color = team switch
-        {
-            (byte)OpenGarrison.Core.PlayerTeam.Blue => new Color(150, 200, 255),
-            (byte)OpenGarrison.Core.PlayerTeam.Red => new Color(255, 180, 170),
-            _ => new Color(235, 235, 235),
-        };
-        _chatLines.Add(new ChatLine(line, color));
+        _chatLines.Add(new ChatLine(playerName, text, team));
         while (_chatLines.Count > 6)
         {
             _chatLines.RemoveAt(0);
@@ -62,17 +56,18 @@ public partial class Game1
     private void DrawChatHud()
     {
         var baseX = 18f;
+        var lineHeight = Math.Max(16f, MeasureBitmapFontHeight(1f) + 10f);
         var promptRectangle = new Rectangle(
             12,
-            _graphics.PreferredBackBufferHeight - 118,
-            Math.Max(280, _graphics.PreferredBackBufferWidth / 3),
+            ViewportHeight - 118,
+            Math.Max(280, ViewportWidth / 3),
             24);
-        var baseY = promptRectangle.Y - 14f - Math.Max(0, (_chatLines.Count - 1) * 18f);
+        var baseY = promptRectangle.Y - 14f - Math.Max(0f, (_chatLines.Count - 1) * lineHeight);
         for (var index = 0; index < _chatLines.Count; index += 1)
         {
             var line = _chatLines[index];
             var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
-            _spriteBatch.DrawString(_consoleFont, line.Text, new Vector2(baseX, baseY + index * 18f), line.Color * alpha);
+            DrawChatLine(line, new Vector2(baseX, baseY + index * lineHeight), alpha);
         }
 
         if (!_chatOpen)
@@ -80,7 +75,42 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(_pixel, promptRectangle, new Color(8, 10, 12, 200));
-        _spriteBatch.DrawString(_consoleFont, $"> {_chatInput}_", new Vector2(promptRectangle.X + 8, promptRectangle.Y + 3), new Color(255, 245, 210));
+        var promptText = $"> {_chatInput}_";
+        promptRectangle.Width = Math.Max(promptRectangle.Width, (int)MathF.Ceiling(MeasureBitmapFontWidth(promptText, 1f) + 18f));
+        DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
+        DrawBitmapFontText("> ", new Vector2(promptRectangle.X + 8, promptRectangle.Y + 6), new Color(255, 245, 210), 1f);
+        DrawBitmapFontText($"{_chatInput}_", new Vector2(promptRectangle.X + 18, promptRectangle.Y + 6), Color.White, 1f);
+    }
+
+    private void DrawChatLine(ChatLine line, Vector2 position, float alpha)
+    {
+        var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
+            ? string.Empty
+            : $"{line.PlayerName}: ";
+        var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
+        var messageWidth = MeasureBitmapFontWidth(line.Text, 1f);
+        var width = Math.Max(96f, speakerWidth + messageWidth + 14f);
+        var height = Math.Max(16f, MeasureBitmapFontHeight(1f) + 8f);
+        DrawInsetHudPanel(
+            new Rectangle((int)(position.X - 6f), (int)(position.Y - 2f), (int)MathF.Ceiling(width), (int)MathF.Ceiling(height)),
+            new Color(0, 0, 0) * (0.82f * alpha),
+            new Color(49, 45, 26) * (0.82f * alpha));
+
+        if (speakerPrefix.Length > 0)
+        {
+            DrawBitmapFontText(speakerPrefix, position, GetChatTeamColor(line.Team) * alpha, 1f);
+        }
+
+        DrawBitmapFontText(line.Text, new Vector2(position.X + speakerWidth, position.Y), new Color(235, 235, 235) * alpha, 1f);
+    }
+
+    private static Color GetChatTeamColor(byte team)
+    {
+        return team switch
+        {
+            (byte)OpenGarrison.Core.PlayerTeam.Blue => new Color(150, 200, 255),
+            (byte)OpenGarrison.Core.PlayerTeam.Red => new Color(255, 180, 170),
+            _ => new Color(255, 245, 210),
+        };
     }
 }

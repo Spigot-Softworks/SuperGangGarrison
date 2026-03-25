@@ -378,7 +378,7 @@ public partial class Game1
 
     private void DrawConsoleOverlay()
     {
-        var overlayRectangle = new Rectangle(18, 18, _graphics.PreferredBackBufferWidth - 36, 180);
+        var overlayRectangle = new Rectangle(18, 18, ViewportWidth - 36, 180);
         _spriteBatch.Draw(_pixel, overlayRectangle, new Color(10, 14, 18, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(overlayRectangle.X, overlayRectangle.Y, overlayRectangle.Width, 2), new Color(245, 215, 120));
 

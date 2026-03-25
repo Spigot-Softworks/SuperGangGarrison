@@ -8,6 +8,7 @@ using Xunit;
 
 namespace OpenGarrison.Server.Tests;
 
+[Collection("ContentRoot")]
 public sealed class ChatVotingPluginTests : IDisposable
 {
     private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "OpenGarrison-chat-voting-tests", Guid.NewGuid().ToString("N"));

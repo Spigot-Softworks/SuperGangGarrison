@@ -17,6 +17,10 @@ public static partial class ProtocolCodec
             WriteString(writer, entry.VictimName, MaxPlayerNameBytes, nameof(entry.VictimName));
             writer.Write(entry.VictimTeam);
             WriteString(writer, entry.MessageText, MaxKillMessageBytes, nameof(entry.MessageText));
+            writer.Write(entry.KillerPlayerId);
+            writer.Write(entry.VictimPlayerId);
+            writer.Write((byte)entry.SpecialType);
+            writer.Write(entry.EventId);
         }
     }
 
@@ -32,7 +36,11 @@ public static partial class ProtocolCodec
                 ReadString(reader, MaxAssetNameBytes),
                 ReadString(reader, MaxPlayerNameBytes),
                 reader.ReadByte(),
-                ReadString(reader, MaxKillMessageBytes)));
+                ReadString(reader, MaxKillMessageBytes),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                (KillFeedSpecialType)reader.ReadByte(),
+                reader.ReadUInt64()));
         }
 
         return killFeed;

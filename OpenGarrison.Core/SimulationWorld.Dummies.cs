@@ -12,9 +12,7 @@ public sealed partial class SimulationWorld
         EnemyPlayerEnabled = true;
         _enemyDummyRespawnTicks = 0;
         EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-        var spawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
-        EnemyPlayer.Spawn(_enemyDummyTeam, spawn.X, spawn.Y);
-        EnemyPlayer.ClearMedicHealingTarget();
+        SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam));
     }
 
     public void DespawnEnemyDummy()
@@ -42,7 +40,7 @@ public sealed partial class SimulationWorld
         FriendlyDummyEnabled = true;
         FriendlyDummy.SetClassDefinition(_friendlyDummyClassDefinition);
         var spawn = FindFriendlyDummySpawnNearLocalPlayer();
-        FriendlyDummy.Spawn(LocalPlayerTeam, spawn.X, spawn.Y);
+        SpawnPlayerResolved(FriendlyDummy, LocalPlayerTeam, spawn.X, spawn.Y, clearMedicHealingTarget: false);
     }
 
     public void DespawnFriendlyDummy()
@@ -87,10 +85,8 @@ public sealed partial class SimulationWorld
         _enemyDummyTeam = team;
         if (EnemyPlayerEnabled)
         {
-            var spawn = ReserveSpawn(EnemyPlayer, team);
             EnemyPlayer.SetClassDefinition(_enemyDummyClassDefinition);
-            EnemyPlayer.Spawn(team, spawn.X, spawn.Y);
-            EnemyPlayer.ClearMedicHealingTarget();
+            SpawnPlayerResolved(EnemyPlayer, team, ReserveSpawn(EnemyPlayer, team));
         }
     }
 

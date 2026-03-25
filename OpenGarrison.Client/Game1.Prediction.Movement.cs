@@ -183,14 +183,20 @@ public partial class Game1
         _predictedLocalPlayerVelocity.Y += player.Gravity * dt;
         MovePredictedWithCollisions(player, _predictedLocalPlayerVelocity.X * dt, _predictedLocalPlayerVelocity.Y * dt);
 
-        var clampedX = _world.Bounds.ClampX(_predictedLocalPlayerPosition.X, player.Width);
+        var clampedX = float.Clamp(
+            _predictedLocalPlayerPosition.X,
+            -player.CollisionLeftOffset,
+            _world.Bounds.Width - player.CollisionRightOffset);
         if (clampedX != _predictedLocalPlayerPosition.X)
         {
             _predictedLocalPlayerPosition.X = clampedX;
             _predictedLocalPlayerVelocity.X = 0f;
         }
 
-        var clampedY = _world.Bounds.ClampY(_predictedLocalPlayerPosition.Y, player.Height);
+        var clampedY = float.Clamp(
+            _predictedLocalPlayerPosition.Y,
+            -player.CollisionTopOffset,
+            _world.Bounds.Height - player.CollisionBottomOffset);
         if (clampedY != _predictedLocalPlayerPosition.Y)
         {
             if (_predictedLocalPlayerVelocity.Y > 0f)
@@ -383,10 +389,7 @@ public partial class Game1
 
     private bool CanOccupyPredicted(PlayerEntity player, float x, float y)
     {
-        var left = x - (player.Width / 2f);
-        var right = x + (player.Width / 2f);
-        var top = y - (player.Height / 2f);
-        var bottom = y + (player.Height / 2f);
+        player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
         foreach (var solid in _world.Level.Solids)
         {
@@ -428,7 +431,7 @@ public partial class Game1
             return false;
         }
 
-        var bottom = _predictedLocalPlayerPosition.Y + (player.Height / 2f);
+        var bottom = _predictedLocalPlayerPosition.Y + player.CollisionBottomOffset;
         var stepDelta = bottom - obstacleTop.Value;
         if (stepDelta < 0f || stepDelta > PredictedStepUpHeight)
         {
@@ -447,10 +450,7 @@ public partial class Game1
 
     private float? FindPredictedBlockingObstacleTop(PlayerEntity player, float x, float y)
     {
-        var left = x - (player.Width / 2f);
-        var right = x + (player.Width / 2f);
-        var top = y - (player.Height / 2f);
-        var bottom = y + (player.Height / 2f);
+        player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
         float? obstacleTop = null;
 
         foreach (var solid in _world.Level.Solids)

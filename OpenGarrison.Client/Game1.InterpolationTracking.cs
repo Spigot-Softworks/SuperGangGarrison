@@ -40,6 +40,8 @@ public partial class Game1
             _processedNetworkSoundEventOrder.Clear();
             _processedNetworkVisualEventIds.Clear();
             _processedNetworkVisualEventOrder.Clear();
+            _processedKillFeedEventIds.Clear();
+            _processedKillFeedEventOrder.Clear();
             _hasPredictedLocalPlayerPosition = false;
             _hasPredictedLocalActionState = false;
             _predictedLocalPlayerShadow = null;

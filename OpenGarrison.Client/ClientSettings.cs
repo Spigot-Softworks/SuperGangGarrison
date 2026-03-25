@@ -16,7 +16,15 @@ public sealed class ClientSettings
 
     public bool VSync { get; set; }
 
-    public bool IngameMusicEnabled { get; set; } = true;
+    public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
+
+    public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
+
+    public bool IngameMusicEnabled
+    {
+        get => MusicMode is MusicMode.MenuAndInGame or MusicMode.InGameOnly;
+        set => MusicMode = value ? MusicMode.MenuAndInGame : MusicMode.MenuOnly;
+    }
 
     public bool KillCamEnabled { get; set; } = true;
 
@@ -74,7 +82,8 @@ public sealed class ClientSettings
         {
             PlayerName = document.PlayerName,
             Fullscreen = document.Fullscreen,
-            IngameMusicEnabled = document.IngameMusicEnabled,
+            MusicMode = document.MusicMode,
+            IngameResolution = document.IngameResolution,
             ParticleMode = document.ParticleMode,
             GibLevel = document.GibLevel,
             KillCamEnabled = document.KillCamEnabled,
@@ -97,7 +106,8 @@ public sealed class ClientSettings
         preferences.PlayerName = PlayerName;
         preferences.Fullscreen = Fullscreen;
         preferences.VSync = VSync;
-        preferences.IngameMusicEnabled = IngameMusicEnabled;
+        preferences.IngameResolution = IngameResolution;
+        preferences.MusicMode = MusicMode;
         preferences.KillCamEnabled = KillCamEnabled;
         preferences.ParticleMode = ParticleMode;
         preferences.GibLevel = GibLevel;
