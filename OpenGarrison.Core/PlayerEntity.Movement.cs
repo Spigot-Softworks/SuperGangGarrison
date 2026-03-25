@@ -51,6 +51,7 @@ public sealed partial class PlayerEntity
     {
         var dt = (float)deltaSeconds;
         UpdateAimDirection(input);
+        UpdatePyroPrimaryHoldState(input.FirePrimary);
 
         if (!IsAlive)
         {

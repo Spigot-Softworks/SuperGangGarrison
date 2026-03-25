@@ -119,10 +119,20 @@ sealed class SnapshotBroadcaster
             viewer = viewerPlayer;
         }
 
-        var players = _world
-            .EnumerateReplicatedNetworkPlayers()
-            .Select(entry => ToSnapshotPlayerState(_world, entry.Slot, entry.Player, viewer))
-            .ToList();
+        var players = new List<SnapshotPlayerState>(_clientsBySlot.Count);
+        foreach (var entry in _clientsBySlot.OrderBy(static entry => entry.Key))
+        {
+            if (IsSpectatorSlot(entry.Key))
+            {
+                players.Add(CreateSpectatorSnapshotPlayerState(entry.Value));
+                continue;
+            }
+
+            if (_world.TryGetNetworkPlayer(entry.Key, out var player))
+            {
+                players.Add(ToSnapshotPlayerState(_world, entry.Key, player, viewer));
+            }
+        }
 
         var spectatorCount = _clientsBySlot.Keys.Count(IsSpectatorSlot);
         var mapAreaIndex = (byte)Math.Clamp(_world.Level.MapAreaIndex, 1, byte.MaxValue);
@@ -169,6 +179,53 @@ sealed class SnapshotBroadcaster
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
             mapMetadata.MapContentHash);
+    }
+
+    private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(ClientSession client)
+    {
+        return new SnapshotPlayerState(
+            Slot: client.Slot,
+            PlayerId: -(int)client.Slot,
+            Name: client.Name,
+            Team: 0,
+            ClassId: 0,
+            IsAlive: false,
+            IsAwaitingJoin: false,
+            IsSpectator: true,
+            RespawnTicks: 0,
+            X: 0f,
+            Y: 0f,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            Health: 0,
+            MaxHealth: 0,
+            Ammo: 0,
+            MaxAmmo: 0,
+            Kills: 0,
+            Deaths: 0,
+            Caps: 0,
+            HealPoints: 0,
+            ActiveDominationCount: 0,
+            IsDominatingLocalViewer: false,
+            IsDominatedByLocalViewer: false,
+            Metal: 0f,
+            IsGrounded: false,
+            RemainingAirJumps: 0,
+            IsCarryingIntel: false,
+            IsSpyCloaked: false,
+            SpyCloakAlpha: 1f,
+            IsUbered: false,
+            IsHeavyEating: false,
+            HeavyEatTicksRemaining: 0,
+            IsSniperScoped: false,
+            SniperChargeTicks: 0,
+            FacingDirectionX: 1f,
+            AimDirectionDegrees: 0f,
+            IsTaunting: false,
+            TauntFrameIndex: 0f,
+            IsChatBubbleVisible: false,
+            ChatBubbleFrameIndex: 0,
+            ChatBubbleAlpha: 0f);
     }
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()

@@ -37,6 +37,17 @@ public sealed partial class SimulationWorld
         RedCaps = snapshot.RedCaps;
         BlueCaps = snapshot.BlueCaps;
         SpectatorCount = Math.Max(0, snapshot.SpectatorCount);
+        _spectatorNames.Clear();
+        for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
+        {
+            var player = snapshot.Players[playerIndex];
+            if (!player.IsSpectator || string.IsNullOrWhiteSpace(player.Name))
+            {
+                continue;
+            }
+
+            _spectatorNames.Add(player.Name);
+        }
         ApplySnapshotControlPoints(snapshot);
         ApplySnapshotGenerators(snapshot);
         RedIntel.ApplyNetworkState(snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshot.RedIntel.IsAtBase, snapshot.RedIntel.IsDropped, snapshot.RedIntel.ReturnTicksRemaining);
@@ -60,13 +71,13 @@ public sealed partial class SimulationWorld
         _killFeedTrimTicks = _killFeed.Count > 0 ? KillFeedLifetimeTicks : 0;
 
         var localPlayerState = snapshot.Players.FirstOrDefault(player => player.Slot == localPlayerSlot);
-        var isSpectatorSnapshot = localPlayerState is null && !IsPlayableNetworkPlayerSlot(localPlayerSlot);
+        var isSpectatorSnapshot = localPlayerState?.IsSpectator ?? !IsPlayableNetworkPlayerSlot(localPlayerSlot);
         if (localPlayerState is null && !isSpectatorSnapshot)
         {
             return false;
         }
 
-        if (localPlayerState is not null)
+        if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
             ApplySnapshotPlayer(LocalPlayer, localPlayerState);
             TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
@@ -82,6 +93,7 @@ public sealed partial class SimulationWorld
         }
 
         var remotePlayerStates = snapshot.Players
+            .Where(player => !player.IsSpectator)
             .Where(player => IsPlayableNetworkPlayerSlot(player.Slot))
             .Where(player => isSpectatorSnapshot || player.Slot != localPlayerSlot)
             .OrderBy(player => player.Slot)
@@ -94,7 +106,7 @@ public sealed partial class SimulationWorld
         FriendlyDummy.Kill();
         SyncRemoteSnapshotPlayers(remotePlayerStates);
 
-        if (localPlayerState is not null)
+        if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
             TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, LocalPlayer.Team);
         }
@@ -178,7 +190,8 @@ public sealed partial class SimulationWorld
             snapshotPlayer.PyroFlareCooldownTicks,
             snapshotPlayer.PyroPrimaryFuelScaled,
             snapshotPlayer.IsPyroPrimaryRefilling,
-            snapshotPlayer.PyroFlameLoopTicksRemaining);
+            snapshotPlayer.PyroFlameLoopTicksRemaining,
+            snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)

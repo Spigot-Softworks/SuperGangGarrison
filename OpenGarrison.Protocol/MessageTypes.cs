@@ -226,7 +226,8 @@ public sealed record SnapshotPlayerState(
     int PyroFlareCooldownTicks = 0,
     int PyroPrimaryFuelScaled = 0,
     bool IsPyroPrimaryRefilling = false,
-    int PyroFlameLoopTicksRemaining = 0);
+    int PyroFlameLoopTicksRemaining = 0,
+    bool PyroPrimaryRequiresReleaseAfterEmpty = false);
 
 public sealed record SnapshotIntelState(
     byte Team,

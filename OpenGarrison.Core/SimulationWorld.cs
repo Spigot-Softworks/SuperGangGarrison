@@ -44,6 +44,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
+    private readonly List<string> _spectatorNames = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
@@ -121,6 +122,8 @@ public sealed partial class SimulationWorld
     public int BlueCaps { get; private set; }
 
     public int SpectatorCount { get; private set; }
+
+    public IReadOnlyList<string> SpectatorNames => _spectatorNames;
 
     public MatchRules MatchRules { get; private set; }
 

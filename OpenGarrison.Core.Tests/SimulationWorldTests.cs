@@ -1599,7 +1599,7 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
-    public void PyroPrimary_LowFuelHoldFireWaitsForSourceRefillBuffer()
+    public void PyroPrimary_HeldFireAfterEmptyRequiresReleaseBeforeNextBurst()
     {
         var world = CreateWorld();
         world.CombatTestSetLevel(CreateLevel());
@@ -1621,15 +1621,48 @@ public sealed class SimulationWorldTests
             AimWorldY: world.LocalPlayer.Y,
             DebugKill: false));
 
+        var flameSoundCount = 0;
         world.AdvanceOneTick();
+        flameSoundCount += world
+            .DrainPendingSoundEvents()
+            .Count(soundEvent => soundEvent.SoundName == "FlamethrowerSnd");
         Assert.Single(world.Flames);
 
         for (var tick = 0; tick < PlayerEntity.PyroPrimaryRefillBufferTicks; tick += 1)
         {
             world.AdvanceOneTick();
+            flameSoundCount += world
+                .DrainPendingSoundEvents()
+                .Count(soundEvent => soundEvent.SoundName == "FlamethrowerSnd");
             Assert.Single(world.Flames);
         }
 
+        world.AdvanceOneTick();
+        flameSoundCount += world
+            .DrainPendingSoundEvents()
+            .Count(soundEvent => soundEvent.SoundName == "FlamethrowerSnd");
+        Assert.Single(world.Flames);
+        Assert.True(world.LocalPlayer.PyroPrimaryRequiresReleaseAfterEmpty);
+        Assert.True(world.LocalPlayer.CurrentShells > 0);
+        Assert.Equal(1, flameSoundCount);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+        Assert.False(world.LocalPlayer.PyroPrimaryRequiresReleaseAfterEmpty);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
         world.AdvanceOneTick();
         world.SetLocalInput(default);
 
@@ -1664,6 +1697,40 @@ public sealed class SimulationWorldTests
         Assert.Equal(world.LocalPlayer.MaxShells - 40, world.LocalPlayer.CurrentShells);
         Assert.Equal(40, world.LocalPlayer.PyroAirblastCooldownTicks);
         Assert.Equal(15, world.LocalPlayer.PrimaryCooldownTicks);
+    }
+
+    [Fact]
+    public void PyroAirblast_PrimaryHeldWithoutReadyFlareDoesNotLeakPrimaryFlame()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+
+        Assert.True(world.LocalPlayer.PyroFlareCooldownTicks > 0);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        var soundEvents = world.DrainPendingSoundEvents();
+        world.SetLocalInput(default);
+
+        Assert.Empty(world.Flames);
+        Assert.Empty(world.Flares);
+        Assert.DoesNotContain(soundEvents, soundEvent => soundEvent.SoundName == "FlamethrowerSnd");
+        Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "CompressionBlastSnd");
     }
 
     [Fact]

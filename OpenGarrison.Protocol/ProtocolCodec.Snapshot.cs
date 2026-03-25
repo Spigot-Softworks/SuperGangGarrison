@@ -264,6 +264,7 @@ public static partial class ProtocolCodec
             writer.Write(player.PyroPrimaryFuelScaled);
             writer.Write(player.IsPyroPrimaryRefilling);
             writer.Write(player.PyroFlameLoopTicksRemaining);
+            writer.Write(player.PyroPrimaryRequiresReleaseAfterEmpty);
         }
     }
 
@@ -328,7 +329,8 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
         }
 
         return players;

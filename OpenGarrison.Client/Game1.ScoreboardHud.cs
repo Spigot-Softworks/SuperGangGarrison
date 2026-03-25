@@ -41,7 +41,7 @@ public partial class Game1
         var topBannerHeight = 52;
         var topMargin = 10;
         var metaLineHeight = 24;
-        var footerHeight = 28;
+        var footerHeight = 46;
         var contentGap = 8;
         var contentTop = panel.Y + topMargin + topBannerHeight + contentGap + metaLineHeight + 10;
         var contentBottom = panel.Bottom - footerHeight - 12;
@@ -78,7 +78,14 @@ public partial class Game1
         DrawScoreboardTeam(redTeam, leftTeamPanel, PlayerTeam.Red, alpha);
         DrawScoreboardTeam(blueTeam, rightTeamPanel, PlayerTeam.Blue, alpha);
 
-        DrawBitmapFontText($"{_world.SpectatorCount} spectator(s)", new Vector2(panel.X + 16f, panel.Bottom - footerHeight), Color.White * alpha, 1f);
+        var spectatorCountText = $"{_world.SpectatorCount} spectator(s)";
+        DrawBitmapFontText(spectatorCountText, new Vector2(panel.X + 16f, panel.Bottom - footerHeight + 2f), Color.White * alpha, 1f);
+        if (_world.SpectatorNames.Count > 0)
+        {
+            var spectatorNamesText = "Spectators: " + string.Join(", ", _world.SpectatorNames);
+            var trimmedSpectatorNames = TrimBitmapMenuText(spectatorNamesText, panel.Width - 32f, 0.9f);
+            DrawBitmapFontText(trimmedSpectatorNames, new Vector2(panel.X + 16f, panel.Bottom - 24f), new Color(215, 215, 215) * alpha, 0.9f);
+        }
     }
 
     private List<PlayerEntity> GetScoreboardPlayers(PlayerTeam team)

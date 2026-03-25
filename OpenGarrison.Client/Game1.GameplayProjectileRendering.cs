@@ -203,23 +203,20 @@ public partial class Game1
     private void DrawFlameProjectile(FlameProjectileEntity flame, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
-        var flameColor = flame.Team == PlayerTeam.Blue
-            ? new Color(120, 200, 255)
-            : new Color(255, 170, 90);
-        if (flame.IsAttached)
-        {
-            flameColor = new Color(255, 120, 60);
-        }
+        var flameColor = Color.White;
 
         if (!TryDrawSprite("FlameS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flameColor, GetVelocityRotation(flame.VelocityX, flame.VelocityY)))
         {
             var flameSize = flame.IsAttached ? 8 : 6;
+            var fallbackColor = flame.IsAttached
+                ? new Color(255, 120, 60)
+                : new Color(255, 170, 90);
             var flameRectangle = new Rectangle(
                 (int)(renderPosition.X - flameSize / 2f - cameraPosition.X),
                 (int)(renderPosition.Y - flameSize / 2f - cameraPosition.Y),
                 flameSize,
                 flameSize);
-            _spriteBatch.Draw(_pixel, flameRectangle, flameColor);
+            _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
         }
     }
 

@@ -52,6 +52,9 @@ public sealed partial class SimulationWorld
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var secondaryPressed = input.FireSecondary && !previousInput.FireSecondary;
+        var suppressPyroPrimaryThisTick = player.ClassId == PlayerClass.Pyro
+            && secondaryPressed
+            && player.CanFirePyroAirblast();
 
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
         if (afterburn.IsFatal)
@@ -63,7 +66,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        TryHandleNetworkPrimaryFire(player, input);
+        TryHandleNetworkPrimaryFire(player, input, suppressPyroPrimaryThisTick);
 
         if (tauntPressed)
         {
@@ -151,7 +154,7 @@ public sealed partial class SimulationWorld
     }
 
 
-    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
+    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
     {
         if (player.IsTaunting)
         {
@@ -188,7 +191,7 @@ public sealed partial class SimulationWorld
 
         if (player.ClassId == PlayerClass.Pyro)
         {
-            if (input.FirePrimary)
+            if (input.FirePrimary && !suppressPyroPrimaryThisTick)
             {
                 WeaponHandler.TryFirePyroPrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
             }

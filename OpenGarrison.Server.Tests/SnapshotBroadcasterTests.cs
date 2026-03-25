@@ -195,6 +195,41 @@ public sealed class SnapshotBroadcasterTests
     }
 
     [Fact]
+    public void BroadcastSnapshot_WithSpectatorClient_IncludesOnlySpectatorSnapshotState()
+    {
+        var world = new SimulationWorld();
+        var config = world.Config;
+        var spectatorSlot = SimulationWorld.FirstSpectatorSlot;
+        var clientsBySlot = new Dictionary<byte, ClientSession>
+        {
+            [spectatorSlot] = new(
+                spectatorSlot,
+                new IPEndPoint(IPAddress.Loopback, 8190),
+                "Watcher",
+                TimeSpan.Zero),
+        };
+        var sentSnapshots = new List<SnapshotMessage>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            transientEventReplayTicks: 4,
+            (_, snapshot, _) => sentSnapshots.Add(snapshot));
+        var simulator = new FixedStepSimulator(world);
+
+        simulator.Step(config.FixedDeltaSeconds * 1.1d, broadcaster.BroadcastSnapshot);
+
+        var snapshot = Assert.Single(sentSnapshots);
+        var spectator = Assert.Single(snapshot.Players);
+        Assert.Equal(1, snapshot.SpectatorCount);
+        Assert.Equal(spectatorSlot, spectator.Slot);
+        Assert.Equal("Watcher", spectator.Name);
+        Assert.True(spectator.IsSpectator);
+        Assert.False(spectator.IsAlive);
+        Assert.DoesNotContain(snapshot.Players, player => player.Slot == SimulationWorld.LocalPlayerSlot);
+    }
+
+    [Fact]
     public void BroadcastSnapshot_WhenPlayableClientIsAwaitingJoin_IncludesTheirSnapshotState()
     {
         var world = new SimulationWorld();

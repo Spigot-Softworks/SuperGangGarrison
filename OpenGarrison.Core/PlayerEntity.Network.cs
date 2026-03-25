@@ -74,7 +74,8 @@ public sealed partial class PlayerEntity
         int PyroFlareCooldownTicks = 0,
         int PyroPrimaryFuelScaled = 0,
         bool IsPyroPrimaryRefilling = false,
-        int PyroFlameLoopTicksRemaining = 0);
+        int PyroFlameLoopTicksRemaining = 0,
+        bool PyroPrimaryRequiresReleaseAfterEmpty = false);
 
     internal PredictionState CapturePredictionState()
     {
@@ -150,7 +151,8 @@ public sealed partial class PlayerEntity
             PyroFlareCooldownTicks,
             PyroPrimaryFuelScaled,
             IsPyroPrimaryRefilling,
-            PyroFlameLoopTicksRemaining);
+            PyroFlameLoopTicksRemaining,
+            PyroPrimaryRequiresReleaseAfterEmpty);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -227,6 +229,7 @@ public sealed partial class PlayerEntity
         PyroPrimaryFuelScaledValue = state.PyroPrimaryFuelScaled;
         IsPyroPrimaryRefilling = state.IsPyroPrimaryRefilling;
         PyroFlameLoopTicksRemaining = state.PyroFlameLoopTicksRemaining;
+        PyroPrimaryRequiresReleaseAfterEmpty = state.PyroPrimaryRequiresReleaseAfterEmpty;
     }
 
     public void ApplyNetworkState(
@@ -276,7 +279,8 @@ public sealed partial class PlayerEntity
         int pyroFlareCooldownTicks = 0,
         int pyroPrimaryFuelScaled = 0,
         bool isPyroPrimaryRefilling = false,
-        int pyroFlameLoopTicksRemaining = 0)
+        int pyroFlameLoopTicksRemaining = 0,
+        bool pyroPrimaryRequiresReleaseAfterEmpty = false)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -301,12 +305,14 @@ public sealed partial class PlayerEntity
             CurrentShells = int.Clamp(PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale, 0, MaxShells);
             IsPyroPrimaryRefilling = isPyroPrimaryRefilling;
             PyroFlameLoopTicksRemaining = Math.Max(0, pyroFlameLoopTicksRemaining);
+            PyroPrimaryRequiresReleaseAfterEmpty = pyroPrimaryRequiresReleaseAfterEmpty;
         }
         else
         {
             PyroPrimaryFuelScaledValue = 0;
             IsPyroPrimaryRefilling = false;
             PyroFlameLoopTicksRemaining = 0;
+            PyroPrimaryRequiresReleaseAfterEmpty = false;
         }
         PrimaryCooldownTicks = Math.Max(0, primaryCooldownTicks);
         ReloadTicksUntilNextShell = Math.Max(0, reloadTicksUntilNextShell);
@@ -379,6 +385,7 @@ public sealed partial class PlayerEntity
             ReloadTicksUntilNextShell = 0;
             IsPyroPrimaryRefilling = false;
             PyroFlameLoopTicksRemaining = 0;
+            PyroPrimaryRequiresReleaseAfterEmpty = false;
             IsCarryingIntel = false;
             IsSniperScoped = false;
             SniperChargeTicks = 0;

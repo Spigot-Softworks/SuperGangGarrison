@@ -68,7 +68,8 @@ internal static partial class ServerHelpers
             player.PyroFlareCooldownTicks,
             player.PyroPrimaryFuelScaled,
             player.IsPyroPrimaryRefilling,
-            player.PyroFlameLoopTicksRemaining);
+            player.PyroFlameLoopTicksRemaining,
+            player.PyroPrimaryRequiresReleaseAfterEmpty);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

@@ -181,6 +181,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int PyroFlameLoopTicksRemaining { get; private set; }
 
+    public bool PyroPrimaryRequiresReleaseAfterEmpty { get; private set; }
+
     public int PyroPrimaryFuelScaled => ClassId == PlayerClass.Pyro
         ? PyroPrimaryFuelScaledValue
         : CurrentShells * PyroPrimaryFuelScale;
@@ -300,6 +302,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
+        PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
         IsSpyCloaked = false;
@@ -347,6 +350,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
+        PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsUsingHealingCabinet = false;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
@@ -392,6 +396,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroFlareCooldownTicks = 0;
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
+        PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
         IsSpyCloaked = false;

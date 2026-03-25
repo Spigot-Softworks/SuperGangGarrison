@@ -144,6 +144,7 @@ public sealed class ProtocolAndSnapshotTests
                     PyroPrimaryFuelScaled = 182,
                     IsPyroPrimaryRefilling = true,
                     PyroFlameLoopTicksRemaining = 2,
+                    PyroPrimaryRequiresReleaseAfterEmpty = true,
                 },
                 CreateSnapshot().Players[1],
             ],
@@ -166,6 +167,7 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(182, player.PyroPrimaryFuelScaled);
         Assert.True(player.IsPyroPrimaryRefilling);
         Assert.Equal(2, player.PyroFlameLoopTicksRemaining);
+        Assert.True(player.PyroPrimaryRequiresReleaseAfterEmpty);
     }
 
     [Fact]
@@ -479,7 +481,17 @@ public sealed class ProtocolAndSnapshotTests
         var world = new SimulationWorld();
         var snapshot = CreateSnapshot() with
         {
+            LevelName = world.Level.Name,
+            MapAreaIndex = (byte)world.Level.MapAreaIndex,
+            MapAreaCount = (byte)world.Level.MapAreaCount,
             SpectatorCount = 3,
+            Players =
+            [
+                .. CreateSnapshot().Players,
+                CreateSpectatorSnapshotPlayerState(SimulationWorld.FirstSpectatorSlot, "WatcherOne"),
+                CreateSpectatorSnapshotPlayerState((byte)(SimulationWorld.FirstSpectatorSlot + 1), "WatcherTwo"),
+                CreateSpectatorSnapshotPlayerState((byte)(SimulationWorld.FirstSpectatorSlot + 2), "WatcherThree"),
+            ],
         };
 
         var applied = world.ApplySnapshot(snapshot, localPlayerSlot: SimulationWorld.FirstSpectatorSlot);
@@ -488,6 +500,7 @@ public sealed class ProtocolAndSnapshotTests
         Assert.True(world.LocalPlayerAwaitingJoin);
         Assert.False(world.LocalPlayer.IsAlive);
         Assert.Equal(3, world.SpectatorCount);
+        Assert.Equal(new[] { "WatcherOne", "WatcherTwo", "WatcherThree" }, world.SpectatorNames);
         Assert.False(world.EnemyPlayerEnabled);
         Assert.Equal(2, world.RemoteSnapshotPlayers.Count);
         Assert.Equal("RemoteRed", world.RemoteSnapshotPlayers[0].DisplayName);
@@ -991,5 +1004,52 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotSoundEvent("IntelGetSnd", 450f, 280f, 701UL, 699UL),
             ]);
+    }
+
+    private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(byte slot, string name)
+    {
+        return new SnapshotPlayerState(
+            Slot: slot,
+            PlayerId: -(int)slot,
+            Name: name,
+            Team: 0,
+            ClassId: 0,
+            IsAlive: false,
+            IsAwaitingJoin: false,
+            IsSpectator: true,
+            RespawnTicks: 0,
+            X: 0f,
+            Y: 0f,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            Health: 0,
+            MaxHealth: 0,
+            Ammo: 0,
+            MaxAmmo: 0,
+            Kills: 0,
+            Deaths: 0,
+            Caps: 0,
+            HealPoints: 0,
+            ActiveDominationCount: 0,
+            IsDominatingLocalViewer: false,
+            IsDominatedByLocalViewer: false,
+            Metal: 0f,
+            IsGrounded: false,
+            RemainingAirJumps: 0,
+            IsCarryingIntel: false,
+            IsSpyCloaked: false,
+            SpyCloakAlpha: 1f,
+            IsUbered: false,
+            IsHeavyEating: false,
+            HeavyEatTicksRemaining: 0,
+            IsSniperScoped: false,
+            SniperChargeTicks: 0,
+            FacingDirectionX: 1f,
+            AimDirectionDegrees: 0f,
+            IsTaunting: false,
+            TauntFrameIndex: 0f,
+            IsChatBubbleVisible: false,
+            ChatBubbleFrameIndex: 0,
+            ChatBubbleAlpha: 0f);
     }
 }

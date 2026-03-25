@@ -329,7 +329,7 @@ public partial class Game1
 
         foreach (var flame in _world.Flames)
         {
-            var smokeChance = _particleMode == 2 ? 9 : 5;
+            var smokeChance = _particleMode == 2 ? 4 : 2;
             if (flame.IsAttached || _visualRandom.Next(smokeChance) != 0)
             {
                 continue;
@@ -534,12 +534,12 @@ public partial class Game1
         {
             var smoke = _flameSmokeVisuals[index];
             var progress = 1f - (smoke.TicksRemaining / (float)FlameSmokeVisual.LifetimeTicks);
-            var alpha = 0.35f * (1f - progress);
-            var radius = 2f + (progress * 4f);
+            var alpha = 0.55f * (1f - progress);
+            var radius = 3f + (progress * 6f);
             var color = new Color(160, 160, 160) * alpha;
             var smokeRectangle = new Rectangle(
                 (int)(smoke.X - radius - cameraPosition.X),
-                (int)(smoke.Y - radius - (progress * 6f) - cameraPosition.Y),
+                (int)(smoke.Y - radius - (progress * 9f) - cameraPosition.Y),
                 (int)(radius * 2f),
                 (int)(radius * 2f));
             _spriteBatch.Draw(_pixel, smokeRectangle, color);
@@ -1186,7 +1186,7 @@ public partial class Game1
 
     private sealed class FlameSmokeVisual
     {
-        public const int LifetimeTicks = 10;
+        public const int LifetimeTicks = 14;
 
         public FlameSmokeVisual(float x, float y)
         {

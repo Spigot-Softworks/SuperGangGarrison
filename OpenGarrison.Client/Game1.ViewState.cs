@@ -43,10 +43,10 @@ public partial class Game1
 
     private bool IsRespawnFreeCameraActive()
     {
-        return !_networkClient.IsSpectator
-            && !_world.LocalPlayerAwaitingJoin
-            && !_world.LocalPlayer.IsAlive
-            && _world.LocalDeathCam is null;
+        return _networkClient.IsSpectator
+            || (!_world.LocalPlayerAwaitingJoin
+                && !_world.LocalPlayer.IsAlive
+                && _world.LocalDeathCam is null);
     }
 
     private void UpdateRespawnCameraState(float deltaSeconds, KeyboardState keyboard)
@@ -54,13 +54,13 @@ public partial class Game1
         if (!IsRespawnFreeCameraActive())
         {
             _respawnCameraDetached = false;
-            _respawnCameraCenter = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+            _respawnCameraCenter = GetDefaultFreeCameraCenter();
             return;
         }
 
         if (!_respawnCameraDetached)
         {
-            _respawnCameraCenter = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+            _respawnCameraCenter = GetDefaultFreeCameraCenter();
         }
 
         if (!IsGameplayInputBlocked())
@@ -114,11 +114,18 @@ public partial class Game1
     {
         if (_networkClient.IsSpectator)
         {
+            if (_respawnCameraDetached)
+            {
+                return _respawnCameraCenter;
+            }
+
             var spectatorFocus = GetSpectatorFocusPlayer();
             if (spectatorFocus is not null)
             {
                 return GetRenderPosition(spectatorFocus);
             }
+
+            return _respawnCameraCenter;
         }
 
         if (IsRespawnFreeCameraActive())
@@ -137,6 +144,22 @@ public partial class Game1
             {
                 return _predictedLocalPlayerPosition;
             }
+        }
+
+        return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+    }
+
+    private Vector2 GetDefaultFreeCameraCenter()
+    {
+        if (_networkClient.IsSpectator)
+        {
+            var spectatorFocus = GetSpectatorFocusPlayer();
+            if (spectatorFocus is not null)
+            {
+                return GetRenderPosition(spectatorFocus);
+            }
+
+            return _respawnCameraCenter;
         }
 
         return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
