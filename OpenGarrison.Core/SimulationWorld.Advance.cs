@@ -20,6 +20,7 @@ public sealed partial class SimulationWorld
         AdvanceStabAnimations();
         AdvanceStabMasks();
         AdvanceFlames();
+        AdvanceFlares();
         AdvanceRockets();
         AdvanceMines();
         AdvancePlayerGibs();

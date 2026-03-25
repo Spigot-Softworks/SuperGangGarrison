@@ -103,6 +103,12 @@ public partial class Game1
             _activeInterpolatedEntityIds.Add(flame.Id);
         }
 
+        foreach (var flare in _world.Flares)
+        {
+            UpdateInterpolatedEntityPosition(flare.Id, flare.X, flare.Y, entityRenderTimeSeconds);
+            _activeInterpolatedEntityIds.Add(flare.Id);
+        }
+
         foreach (var rocket in _world.Rockets)
         {
             UpdateInterpolatedEntityPosition(rocket.Id, rocket.X, rocket.Y, entityRenderTimeSeconds);
@@ -253,6 +259,12 @@ public partial class Game1
         {
             var flame = snapshot.Flames[flameIndex];
             CaptureProjectileInterpolationTarget(flame.Id, flame.X, flame.Y, new Vector2(flame.VelocityX, flame.VelocityY), 36f, snapshotServerTimeSeconds);
+        }
+
+        for (var flareIndex = 0; flareIndex < snapshot.Flares.Count; flareIndex += 1)
+        {
+            var flare = snapshot.Flares[flareIndex];
+            CaptureProjectileInterpolationTarget(flare.Id, flare.X, flare.Y, new Vector2(flare.VelocityX, flare.VelocityY), 15f, snapshotServerTimeSeconds);
         }
 
         for (var rocketIndex = 0; rocketIndex < snapshot.Rockets.Count; rocketIndex += 1)

@@ -70,7 +70,11 @@ public sealed partial class PlayerEntity
         int ChatBubbleFrameIndex,
         float ChatBubbleAlpha,
         bool IsChatBubbleFading,
-        int ChatBubbleTicksRemaining);
+        int ChatBubbleTicksRemaining,
+        int PyroFlareCooldownTicks = 0,
+        int PyroPrimaryFuelScaled = 0,
+        bool IsPyroPrimaryRefilling = false,
+        int PyroFlameLoopTicksRemaining = 0);
 
     internal PredictionState CapturePredictionState()
     {
@@ -142,7 +146,11 @@ public sealed partial class PlayerEntity
             ChatBubbleFrameIndex,
             ChatBubbleAlpha,
             IsChatBubbleFading,
-            ChatBubbleTicksRemaining);
+            ChatBubbleTicksRemaining,
+            PyroFlareCooldownTicks,
+            PyroPrimaryFuelScaled,
+            IsPyroPrimaryRefilling,
+            PyroFlameLoopTicksRemaining);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -190,6 +198,7 @@ public sealed partial class PlayerEntity
         QuoteBubbleCount = state.QuoteBubbleCount;
         QuoteBladesOut = state.QuoteBladesOut;
         PyroAirblastCooldownTicks = state.PyroAirblastCooldownTicks;
+        PyroFlareCooldownTicks = state.PyroFlareCooldownTicks;
         IsSpyCloaked = state.IsSpyCloaked;
         SpyCloakAlpha = float.Clamp(state.SpyCloakAlpha, 0f, 1f);
         SpyBackstabWindupTicksRemaining = state.SpyBackstabWindupTicksRemaining;
@@ -215,6 +224,9 @@ public sealed partial class PlayerEntity
         ChatBubbleAlpha = state.ChatBubbleAlpha;
         IsChatBubbleFading = state.IsChatBubbleFading;
         ChatBubbleTicksRemaining = state.ChatBubbleTicksRemaining;
+        PyroPrimaryFuelScaledValue = state.PyroPrimaryFuelScaled;
+        IsPyroPrimaryRefilling = state.IsPyroPrimaryRefilling;
+        PyroFlameLoopTicksRemaining = state.PyroFlameLoopTicksRemaining;
     }
 
     public void ApplyNetworkState(
@@ -259,7 +271,12 @@ public sealed partial class PlayerEntity
         int burnedByPlayerId = -1,
         byte movementState = (byte)LegacyMovementState.None,
         int primaryCooldownTicks = 0,
-        int reloadTicksUntilNextShell = 0)
+        int reloadTicksUntilNextShell = 0,
+        int pyroAirblastCooldownTicks = 0,
+        int pyroFlareCooldownTicks = 0,
+        int pyroPrimaryFuelScaled = 0,
+        bool isPyroPrimaryRefilling = false,
+        int pyroFlameLoopTicksRemaining = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -275,6 +292,22 @@ public sealed partial class PlayerEntity
         IsAlive = isAlive;
         Health = int.Clamp(health, 0, MaxHealth);
         CurrentShells = int.Clamp(currentShells, 0, MaxShells);
+        if (ClassId == PlayerClass.Pyro)
+        {
+            PyroPrimaryFuelScaledValue = int.Clamp(
+                pyroPrimaryFuelScaled > 0 ? pyroPrimaryFuelScaled : CurrentShells * PyroPrimaryFuelScale,
+                0,
+                GetPyroPrimaryFuelMaxScaled());
+            CurrentShells = int.Clamp(PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale, 0, MaxShells);
+            IsPyroPrimaryRefilling = isPyroPrimaryRefilling;
+            PyroFlameLoopTicksRemaining = Math.Max(0, pyroFlameLoopTicksRemaining);
+        }
+        else
+        {
+            PyroPrimaryFuelScaledValue = 0;
+            IsPyroPrimaryRefilling = false;
+            PyroFlameLoopTicksRemaining = 0;
+        }
         PrimaryCooldownTicks = Math.Max(0, primaryCooldownTicks);
         ReloadTicksUntilNextShell = Math.Max(0, reloadTicksUntilNextShell);
         Kills = Math.Max(0, kills);
@@ -316,10 +349,12 @@ public sealed partial class PlayerEntity
             QuoteBubbleCount = 0;
             QuoteBladesOut = 0;
         }
-        if (ClassId != PlayerClass.Pyro)
-        {
-            PyroAirblastCooldownTicks = 0;
-        }
+        PyroAirblastCooldownTicks = ClassId == PlayerClass.Pyro
+            ? Math.Max(0, pyroAirblastCooldownTicks)
+            : 0;
+        PyroFlareCooldownTicks = ClassId == PlayerClass.Pyro
+            ? Math.Max(0, pyroFlareCooldownTicks)
+            : 0;
         FacingDirectionX = facingDirectionX;
         AimDirectionDegrees = aimDirectionDegrees;
         ResetSourceFacingDirectionState();
@@ -342,6 +377,8 @@ public sealed partial class PlayerEntity
             Health = 0;
             PrimaryCooldownTicks = 0;
             ReloadTicksUntilNextShell = 0;
+            IsPyroPrimaryRefilling = false;
+            PyroFlameLoopTicksRemaining = 0;
             IsCarryingIntel = false;
             IsSniperScoped = false;
             SniperChargeTicks = 0;

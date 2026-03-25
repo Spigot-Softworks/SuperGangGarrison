@@ -502,6 +502,84 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private void AdvanceFlares()
+    {
+        for (var flareIndex = _flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
+        {
+            var flare = _flares[flareIndex];
+            flare.AdvanceOneTick();
+            var movementX = flare.X - flare.PreviousX;
+            var movementY = flare.Y - flare.PreviousY;
+            var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
+            if (movementDistance <= 0.0001f)
+            {
+                if (flare.IsExpired)
+                {
+                    RemoveFlareAt(flareIndex);
+                }
+
+                continue;
+            }
+
+            var directionX = movementX / movementDistance;
+            var directionY = movementY / movementDistance;
+            var hit = GetNearestFlareHit(flare, directionX, directionY, movementDistance);
+            var bubbleHit = GetNearestEnemyBubbleHit(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, flare.Team);
+            var bubbleDistance = bubbleHit?.Distance ?? float.MaxValue;
+            var hitDistance = hit?.Distance ?? float.MaxValue;
+            if (bubbleHit is not null && bubbleDistance <= hitDistance)
+            {
+                flare.MoveTo(bubbleHit.Value.HitX, bubbleHit.Value.HitY);
+                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, bubbleHit.Value.Distance, false);
+                RemoveBubbleAt(bubbleHit.Value.BubbleIndex);
+                flare.Destroy();
+            }
+            else if (hit.HasValue)
+            {
+                var hitResult = hit.Value;
+                flare.MoveTo(hitResult.HitX, hitResult.HitY);
+                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
+                if (hitResult.HitPlayer is not null)
+                {
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    var playerDied = hitResult.HitPlayer.ApplyDamage(FlareProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha);
+                    if (playerDied)
+                    {
+                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(flare.OwnerId), weaponSpriteName: "FlareKL");
+                    }
+                    else
+                    {
+                        hitResult.HitPlayer.IgniteAfterburn(
+                            flare.OwnerId,
+                            FlareProjectileEntity.BurnDurationIncreaseSourceTicks,
+                            FlareProjectileEntity.BurnIntensityIncrease,
+                            FlareProjectileEntity.AfterburnFalloff,
+                            burnFalloffAmount: 0f);
+                    }
+                }
+                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(FlareProjectileEntity.DamagePerHit))
+                {
+                    DestroySentry(hitResult.HitSentry);
+                }
+                else if (hitResult.HitGenerator is not null)
+                {
+                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit);
+                }
+
+                flare.Destroy();
+            }
+            else
+            {
+                RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, movementDistance, false);
+            }
+
+            if (flare.IsExpired)
+            {
+                RemoveFlareAt(flareIndex);
+            }
+        }
+    }
+
     private void RegisterRocketFriendlyPassThroughs(RocketProjectileEntity rocket, float directionX, float directionY, float maxDistance)
     {
         if (rocket.IsFading || maxDistance <= 0.0001f)
@@ -671,6 +749,13 @@ public sealed partial class SimulationWorld
         _flames.RemoveAt(flameIndex);
     }
 
+    private void RemoveFlareAt(int flareIndex)
+    {
+        var flare = _flares[flareIndex];
+        _entities.Remove(flare.Id);
+        _flares.RemoveAt(flareIndex);
+    }
+
     private void RemoveRocketAt(int rocketIndex)
     {
         var rocket = _rockets[rocketIndex];
@@ -762,6 +847,14 @@ public sealed partial class SimulationWorld
             if (_flames[flameIndex].OwnerId == ownerId)
             {
                 RemoveFlameAt(flameIndex);
+            }
+        }
+
+        for (var flareIndex = _flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
+        {
+            if (_flares[flareIndex].OwnerId == ownerId)
+            {
+                RemoveFlareAt(flareIndex);
             }
         }
     }
@@ -969,6 +1062,16 @@ public sealed partial class SimulationWorld
             }
         }
 
+        for (var flareIndex = _flares.Count - 1; flareIndex >= 0; flareIndex -= 1)
+        {
+            var flare = _flares[flareIndex];
+            if (flare.Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, flare.X, flare.Y) <= 8f)
+            {
+                RemoveFlareAt(flareIndex);
+                return true;
+            }
+        }
+
         for (var shotIndex = _shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
             if (_shots[shotIndex].Team != bubble.Team && DistanceBetween(bubble.X, bubble.Y, _shots[shotIndex].X, _shots[shotIndex].Y) <= 8f)
@@ -1062,6 +1165,65 @@ public sealed partial class SimulationWorld
         var deltaX = circleX - closestX;
         var deltaY = circleY - closestY;
         return (deltaX * deltaX) + (deltaY * deltaY) <= radius * radius;
+    }
+
+    private readonly record struct BubbleHitResult(int BubbleIndex, float Distance, float HitX, float HitY);
+
+    private BubbleHitResult? GetNearestEnemyBubbleHit(float originX, float originY, float directionX, float directionY, float maxDistance, PlayerTeam projectileTeam)
+    {
+        BubbleHitResult? nearestHit = null;
+        for (var bubbleIndex = 0; bubbleIndex < _bubbles.Count; bubbleIndex += 1)
+        {
+            var bubble = _bubbles[bubbleIndex];
+            if (bubble.Team == projectileTeam)
+            {
+                continue;
+            }
+
+            var distance = GetRayIntersectionDistanceWithCircle(originX, originY, directionX, directionY, bubble.X, bubble.Y, BubbleProjectileEntity.Radius, maxDistance);
+            if (!distance.HasValue)
+            {
+                continue;
+            }
+
+            if (nearestHit.HasValue && nearestHit.Value.Distance <= distance.Value)
+            {
+                continue;
+            }
+
+            nearestHit = new BubbleHitResult(
+                bubbleIndex,
+                distance.Value,
+                originX + directionX * distance.Value,
+                originY + directionY * distance.Value);
+        }
+
+        return nearestHit;
+    }
+
+    private static float? GetRayIntersectionDistanceWithCircle(float originX, float originY, float directionX, float directionY, float centerX, float centerY, float radius, float maxDistance)
+    {
+        var offsetX = originX - centerX;
+        var offsetY = originY - centerY;
+        var b = 2f * ((directionX * offsetX) + (directionY * offsetY));
+        var c = (offsetX * offsetX) + (offsetY * offsetY) - (radius * radius);
+        var discriminant = (b * b) - 4f * c;
+        if (discriminant < 0f)
+        {
+            return null;
+        }
+
+        var sqrtDiscriminant = MathF.Sqrt(discriminant);
+        var candidateA = (-b - sqrtDiscriminant) * 0.5f;
+        if (candidateA >= 0f && candidateA <= maxDistance)
+        {
+            return candidateA;
+        }
+
+        var candidateB = (-b + sqrtDiscriminant) * 0.5f;
+        return candidateB >= 0f && candidateB <= maxDistance
+            ? candidateB
+            : null;
     }
 }
 

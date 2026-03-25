@@ -62,6 +62,17 @@ public sealed partial class SimulationWorld
             return nearestHit;
         }
 
+        public ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance)
+        {
+            ShotHitResult? nearestHit = null;
+            UpdateNearestEnvironmentProjectileHitFromSolids(ref nearestHit, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
+            UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flare, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Standard, destroyOnHit: false, UpdateNearestFlareEnvironmentHit);
+            UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
+            UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, flare, flare.Team, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
+            UpdateNearestTargetProjectileHitFromPlayers(ref nearestHit, flare, flare.Team, flare.OwnerId, flare.PreviousX, flare.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlareHit);
+            return nearestHit;
+        }
+
         public ShotHitResult? GetNearestBladeHit(BladeProjectileEntity blade, float directionX, float directionY, float maxDistance)
         {
             ShotHitResult? nearestHit = null;
@@ -314,6 +325,11 @@ public sealed partial class SimulationWorld
             UpdateNearestFlameHit(ref nearestHit, flame, directionX, directionY, distance, null);
         }
 
+        private static void UpdateNearestFlareEnvironmentHit(ref ShotHitResult? nearestHit, FlareProjectileEntity flare, float directionX, float directionY, float distance, bool destroyOnHit)
+        {
+            UpdateNearestFlareHit(ref nearestHit, flare, directionX, directionY, distance, null);
+        }
+
         private static void UpdateNearestMineTargetHit(ref MineHitResult? nearestHit, MineProjectileEntity mine, float directionX, float directionY, float distance, PlayerEntity? player, SentryEntity? sentry, GeneratorState? generator)
         {
             UpdateNearestMineHit(ref nearestHit, mine, directionX, directionY, distance, destroyOnHit: false);
@@ -323,6 +339,12 @@ public sealed partial class SimulationWorld
         {
             if (nearestHit.HasValue && nearestHit.Value.Distance <= distance) { return; }
             nearestHit = new FlameHitResult(distance, flame.PreviousX + directionX * distance, flame.PreviousY + directionY * distance, player, sentry, generator);
+        }
+
+        private static void UpdateNearestFlareHit(ref ShotHitResult? nearestHit, FlareProjectileEntity flare, float directionX, float directionY, float distance, PlayerEntity? player, SentryEntity? sentry = null, GeneratorState? generator = null)
+        {
+            if (nearestHit.HasValue && nearestHit.Value.Distance <= distance) { return; }
+            nearestHit = new ShotHitResult(distance, flare.PreviousX + directionX * distance, flare.PreviousY + directionY * distance, player, sentry, generator);
         }
 
         private static void UpdateNearestBladeHit(ref ShotHitResult? nearestHit, BladeProjectileEntity blade, float directionX, float directionY, float distance, PlayerEntity? player, SentryEntity? sentry = null, GeneratorState? generator = null)

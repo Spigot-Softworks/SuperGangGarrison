@@ -221,7 +221,12 @@ public sealed record SnapshotPlayerState(
     int BurnedByPlayerId = -1,
     byte MovementState = 0,
     int PrimaryCooldownTicks = 0,
-    int ReloadTicksUntilNextShell = 0);
+    int ReloadTicksUntilNextShell = 0,
+    int PyroAirblastCooldownTicks = 0,
+    int PyroFlareCooldownTicks = 0,
+    int PyroPrimaryFuelScaled = 0,
+    bool IsPyroPrimaryRefilling = false,
+    int PyroFlameLoopTicksRemaining = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -433,6 +438,7 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotShotState> RevolverShots,
     IReadOnlyList<SnapshotRocketState> Rockets,
     IReadOnlyList<SnapshotFlameState> Flames,
+    IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
     IReadOnlyList<SnapshotBloodDropState> BloodDrops,
@@ -458,6 +464,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedRevolverShotIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedRocketIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedFlameIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<int> RemovedFlareIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedMineIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedPlayerGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedBloodDropIds { get; init; } = Array.Empty<int>();

@@ -14,20 +14,45 @@ public sealed partial class SimulationWorld
     private const float PyroAirblastPlayerImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
     private const float PyroAirblastPlayerLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
 
-    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, float sourceX, float sourceY)
+    private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
     {
+        var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
         var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
         var aimRadians = DegreesToRadians(aimDegrees);
         var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
         var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
 
+        TryFirePyroFlare(player, aimRadians, sourceX, sourceY, fireFlare);
         RegisterSoundEvent(player, "CompressionBlastSnd");
         RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
 
         ReflectEnemyRockets(player, aimRadians, poofX, poofY);
+        ReflectEnemyFlares(player, aimRadians, poofX, poofY);
         PushEnemyMines(player.Team, aimRadians, poofX, poofY);
         ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
+    }
+
+    private void TryFirePyroFlare(PlayerEntity player, float aimRadians, float sourceX, float sourceY, bool fireFlare)
+    {
+        if (!fireFlare)
+        {
+            return;
+        }
+
+        var spawnX = sourceX + MathF.Cos(aimRadians) * 25f;
+        var spawnY = sourceY + MathF.Sin(aimRadians) * 25f;
+        if (IsProjectileSpawnBlocked(sourceX, sourceY, spawnX, spawnY) || !player.TryFirePyroFlare())
+        {
+            return;
+        }
+
+        SpawnFlare(
+            player,
+            spawnX,
+            spawnY,
+            MathF.Cos(aimRadians) * 15f,
+            MathF.Sin(aimRadians) * 15f);
     }
 
     private void ReflectEnemyRockets(PlayerEntity player, float aimRadians, float poofX, float poofY)
@@ -42,6 +67,21 @@ public sealed partial class SimulationWorld
             }
 
             rocket.Reflect(player.Id, player.Team, aimRadians);
+        }
+    }
+
+    private void ReflectEnemyFlares(PlayerEntity player, float aimRadians, float poofX, float poofY)
+    {
+        for (var flareIndex = 0; flareIndex < _flares.Count; flareIndex += 1)
+        {
+            var flare = _flares[flareIndex];
+            if (flare.Team == player.Team
+                || !IsWithinAirblastMask(poofX, poofY, aimRadians, flare.X, flare.Y, PyroAirblastProjectileRadius))
+            {
+                continue;
+            }
+
+            flare.Reflect(player.Id, player.Team, aimRadians);
         }
     }
 

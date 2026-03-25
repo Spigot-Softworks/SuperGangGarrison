@@ -186,6 +186,16 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.ClassId == PlayerClass.Pyro)
+        {
+            if (input.FirePrimary)
+            {
+                WeaponHandler.TryFirePyroPrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+            }
+
+            return;
+        }
+
         if (!input.FirePrimary || !player.TryFirePrimaryWeapon())
         {
             return;
@@ -227,7 +237,7 @@ public sealed partial class SimulationWorld
         {
             if (player.TryFirePyroAirblast())
             {
-                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, sourceX, sourceY);
+                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
             }
 
             return;

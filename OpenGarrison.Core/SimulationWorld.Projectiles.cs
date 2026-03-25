@@ -123,6 +123,20 @@ public sealed partial class SimulationWorld
         _entities.Add(flame.Id, flame);
     }
 
+    private void SpawnFlare(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    {
+        var flare = new FlareProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY);
+        _flares.Add(flare);
+        _entities.Add(flare.Id, flare);
+    }
+
     private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
     {
         var rocket = new RocketProjectileEntity(

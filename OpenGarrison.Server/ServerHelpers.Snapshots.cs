@@ -63,7 +63,12 @@ internal static partial class ServerHelpers
             player.BurnedByPlayerId ?? -1,
             (byte)player.MovementState,
             player.PrimaryCooldownTicks,
-            player.ReloadTicksUntilNextShell);
+            player.ReloadTicksUntilNextShell,
+            player.PyroAirblastCooldownTicks,
+            player.PyroFlareCooldownTicks,
+            player.PyroPrimaryFuelScaled,
+            player.IsPyroPrimaryRefilling,
+            player.PyroFlameLoopTicksRemaining);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -169,6 +174,11 @@ internal static partial class ServerHelpers
             flame.AttachedPlayerId ?? -1,
             flame.AttachedOffsetX,
             flame.AttachedOffsetY);
+    }
+
+    internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
+    {
+        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining);
     }
 
     internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)

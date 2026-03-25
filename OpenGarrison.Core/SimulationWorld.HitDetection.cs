@@ -156,6 +156,21 @@ public sealed partial class SimulationWorld
         return flame;
     }
 
+    internal FlareProjectileEntity CombatTestSpawnFlare(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
+    {
+        var flare = new FlareProjectileEntity(
+            AllocateEntityId(),
+            owner.Team,
+            owner.Id,
+            x,
+            y,
+            velocityX,
+            velocityY);
+        _flares.Add(flare);
+        _entities[flare.Id] = flare;
+        return flare;
+    }
+
     internal void CombatTestExplodeMine(MineProjectileEntity mine)
     {
         ExplodeMine(mine);
@@ -343,6 +358,9 @@ public sealed partial class SimulationWorld
 
     private FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestFlameHit(flame, directionX, directionY, maxDistance);
+
+    private ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance)
+        => Combat.GetNearestFlareHit(flare, directionX, directionY, maxDistance);
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
         => Combat.ResolveRifleHit(attacker, directionX, directionY, maxDistance);

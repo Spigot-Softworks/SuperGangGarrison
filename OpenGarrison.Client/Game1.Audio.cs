@@ -519,6 +519,11 @@ public partial class Game1
             return false;
         }
 
+        if (weaponKind == PrimaryWeaponKind.FlameThrower)
+        {
+            return player.PyroFlameLoopTicksRemaining > 0;
+        }
+
         return player.PrimaryCooldownTicks > 0;
     }
 

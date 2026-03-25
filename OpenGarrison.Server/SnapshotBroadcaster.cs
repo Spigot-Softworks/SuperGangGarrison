@@ -154,6 +154,7 @@ sealed class SnapshotBroadcaster
             _world.RevolverShots.Select(ToSnapshotRevolverState).ToArray(),
             _world.Rockets.Select(ToSnapshotRocketState).ToArray(),
             _world.Flames.Select(ToSnapshotFlameState).ToArray(),
+            _world.Flares.Select(ToSnapshotFlareState).ToArray(),
             _world.Mines.Select(ToSnapshotMineState).ToArray(),
             _world.PlayerGibs.Select(ToSnapshotPlayerGibState).ToArray(),
             _world.BloodDrops.Select(ToSnapshotBloodDropState).ToArray(),
@@ -298,6 +299,17 @@ sealed class SnapshotBroadcaster
             static state => state.Y,
             static (builder, state) => builder.Flames.Add(state),
             static (builder, id) => builder.RemovedFlameIds.Add(id));
+        AddEntityDelta(
+            contributions,
+            fullSnapshot.Flares,
+            baseline?.Flares,
+            priority: 1105,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.Flares.Add(state),
+            static (builder, id) => builder.RemovedFlareIds.Add(id));
         AddEntityDelta(
             contributions,
             fullSnapshot.Mines,
@@ -598,6 +610,7 @@ sealed class SnapshotBroadcaster
             RevolverShots = new List<SnapshotShotState>(other.RevolverShots);
             Rockets = new List<SnapshotRocketState>(other.Rockets);
             Flames = new List<SnapshotFlameState>(other.Flames);
+            Flares = new List<SnapshotShotState>(other.Flares);
             Mines = new List<SnapshotMineState>(other.Mines);
             PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
             BloodDrops = new List<SnapshotBloodDropState>(other.BloodDrops);
@@ -610,6 +623,7 @@ sealed class SnapshotBroadcaster
             RemovedRevolverShotIds = new List<int>(other.RemovedRevolverShotIds);
             RemovedRocketIds = new List<int>(other.RemovedRocketIds);
             RemovedFlameIds = new List<int>(other.RemovedFlameIds);
+            RemovedFlareIds = new List<int>(other.RemovedFlareIds);
             RemovedMineIds = new List<int>(other.RemovedMineIds);
             RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
             RemovedBloodDropIds = new List<int>(other.RemovedBloodDropIds);
@@ -629,6 +643,7 @@ sealed class SnapshotBroadcaster
         public List<SnapshotShotState> RevolverShots { get; } = new();
         public List<SnapshotRocketState> Rockets { get; } = new();
         public List<SnapshotFlameState> Flames { get; } = new();
+        public List<SnapshotShotState> Flares { get; } = new();
         public List<SnapshotMineState> Mines { get; } = new();
         public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
         public List<SnapshotBloodDropState> BloodDrops { get; } = new();
@@ -641,6 +656,7 @@ sealed class SnapshotBroadcaster
         public List<int> RemovedRevolverShotIds { get; } = new();
         public List<int> RemovedRocketIds { get; } = new();
         public List<int> RemovedFlameIds { get; } = new();
+        public List<int> RemovedFlareIds { get; } = new();
         public List<int> RemovedMineIds { get; } = new();
         public List<int> RemovedPlayerGibIds { get; } = new();
         public List<int> RemovedBloodDropIds { get; } = new();
@@ -666,6 +682,7 @@ sealed class SnapshotBroadcaster
                 RevolverShots = RevolverShots.ToArray(),
                 Rockets = Rockets.ToArray(),
                 Flames = Flames.ToArray(),
+                Flares = Flares.ToArray(),
                 Mines = Mines.ToArray(),
                 PlayerGibs = PlayerGibs.ToArray(),
                 BloodDrops = BloodDrops.ToArray(),
@@ -681,6 +698,7 @@ sealed class SnapshotBroadcaster
                 RemovedRevolverShotIds = RemovedRevolverShotIds.ToArray(),
                 RemovedRocketIds = RemovedRocketIds.ToArray(),
                 RemovedFlameIds = RemovedFlameIds.ToArray(),
+                RemovedFlareIds = RemovedFlareIds.ToArray(),
                 RemovedMineIds = RemovedMineIds.ToArray(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
                 RemovedBloodDropIds = RemovedBloodDropIds.ToArray(),

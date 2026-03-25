@@ -45,6 +45,8 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedRocketIds);
         WriteFlameStates(writer, snapshot.Flames);
         WriteEntityIdList(writer, snapshot.RemovedFlameIds);
+        WriteShotStates(writer, snapshot.Flares);
+        WriteEntityIdList(writer, snapshot.RemovedFlareIds);
         WriteMineStates(writer, snapshot.Mines);
         WriteEntityIdList(writer, snapshot.RemovedMineIds);
         WritePlayerGibStates(writer, snapshot.PlayerGibs);
@@ -102,6 +104,8 @@ public static partial class ProtocolCodec
         var removedRocketIds = ReadEntityIdList(reader);
         var flames = ReadFlameStates(reader);
         var removedFlameIds = ReadEntityIdList(reader);
+        var flares = ReadShotStates(reader);
+        var removedFlareIds = ReadEntityIdList(reader);
         var mines = ReadMineStates(reader);
         var removedMineIds = ReadEntityIdList(reader);
         var playerGibs = ReadPlayerGibStates(reader);
@@ -144,6 +148,7 @@ public static partial class ProtocolCodec
             revolverShots,
             rockets,
             flames,
+            flares,
             mines,
             playerGibs,
             bloodDrops,
@@ -169,6 +174,7 @@ public static partial class ProtocolCodec
             RemovedRevolverShotIds = removedRevolverShotIds,
             RemovedRocketIds = removedRocketIds,
             RemovedFlameIds = removedFlameIds,
+            RemovedFlareIds = removedFlareIds,
             RemovedMineIds = removedMineIds,
             RemovedPlayerGibIds = removedPlayerGibIds,
             RemovedBloodDropIds = removedBloodDropIds,
@@ -253,6 +259,11 @@ public static partial class ProtocolCodec
             writer.Write(player.MovementState);
             writer.Write(player.PrimaryCooldownTicks);
             writer.Write(player.ReloadTicksUntilNextShell);
+            writer.Write(player.PyroAirblastCooldownTicks);
+            writer.Write(player.PyroFlareCooldownTicks);
+            writer.Write(player.PyroPrimaryFuelScaled);
+            writer.Write(player.IsPyroPrimaryRefilling);
+            writer.Write(player.PyroFlameLoopTicksRemaining);
         }
     }
 
@@ -312,6 +323,11 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadByte(),
                 reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadBoolean(),
                 reader.ReadInt32()));
         }
 

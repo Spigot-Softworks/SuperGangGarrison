@@ -343,6 +343,7 @@ public sealed class SnapshotBroadcasterTests
             RevolverShots: [],
             Rockets: [],
             Flames: [],
+            Flares: [],
             Mines: [],
             PlayerGibs: [],
             BloodDrops: [],

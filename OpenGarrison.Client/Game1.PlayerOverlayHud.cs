@@ -165,15 +165,15 @@ public partial class Game1
 
     private void DrawPyroFlareHud(int frameIndex)
     {
-        var flareCount = _world.LocalPlayer.CurrentShells / 75;
+        var flareCount = _world.LocalPlayer.CurrentShells / PlayerEntity.PyroFlareAmmoRequirement;
         if (flareCount <= 0)
         {
             return;
         }
 
-        var canAirblast = _world.LocalPlayer.PyroAirblastCooldownTicks <= 0
-            && _world.LocalPlayer.CurrentShells >= PlayerEntity.PyroAirblastCost;
-        var flareTint = canAirblast ? Color.White : DisabledAmmoHudColor;
+        var flareTint = _world.LocalPlayer.PyroFlareCooldownTicks <= 0
+            ? Color.White
+            : DisabledAmmoHudColor;
         for (var flareIndex = 0; flareIndex < flareCount; flareIndex += 1)
         {
             TryDrawScreenSprite(

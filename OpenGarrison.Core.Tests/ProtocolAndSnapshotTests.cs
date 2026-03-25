@@ -139,6 +139,11 @@ public sealed class ProtocolAndSnapshotTests
                     BurnIntensityDecayPerSourceTick = 0.05f,
                     BurnedByPlayerId = 2,
                     MovementState = (byte)LegacyMovementState.RocketJuggle,
+                    PyroAirblastCooldownTicks = 12,
+                    PyroFlareCooldownTicks = 27,
+                    PyroPrimaryFuelScaled = 182,
+                    IsPyroPrimaryRefilling = true,
+                    PyroFlameLoopTicksRemaining = 2,
                 },
                 CreateSnapshot().Players[1],
             ],
@@ -156,6 +161,11 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Equal(0.05f, player.BurnIntensityDecayPerSourceTick);
         Assert.Equal(2, player.BurnedByPlayerId);
         Assert.Equal((byte)LegacyMovementState.RocketJuggle, player.MovementState);
+        Assert.Equal(12, player.PyroAirblastCooldownTicks);
+        Assert.Equal(27, player.PyroFlareCooldownTicks);
+        Assert.Equal(182, player.PyroPrimaryFuelScaled);
+        Assert.True(player.IsPyroPrimaryRefilling);
+        Assert.Equal(2, player.PyroFlameLoopTicksRemaining);
     }
 
     [Fact]
@@ -537,6 +547,10 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotFlameState(605, (byte)PlayerTeam.Blue, 2, 350f, 285f, 349f, 284f, 1.5f, -0.5f, 5, -1, 0f, 0f),
             ],
+            Flares =
+            [
+                new SnapshotShotState(610, (byte)PlayerTeam.Red, 1, 355f, 287f, 15f, 0f, 9),
+            ],
             Mines =
             [
                 new SnapshotMineState(606, (byte)PlayerTeam.Red, 1, 360f, 290f, 0f, 0f, true, false, 75f),
@@ -564,6 +578,7 @@ public sealed class ProtocolAndSnapshotTests
         Assert.Single(world.RevolverShots);
         Assert.Single(world.Rockets);
         Assert.Single(world.Flames);
+        Assert.Single(world.Flares);
         Assert.Single(world.Mines);
         Assert.Single(world.PlayerGibs);
         Assert.Single(world.BloodDrops);
@@ -927,6 +942,7 @@ public sealed class ProtocolAndSnapshotTests
             RevolverShots: [],
             Rockets: [],
             Flames: [],
+            Flares: [],
             Mines: [],
             PlayerGibs: [],
             BloodDrops: [],

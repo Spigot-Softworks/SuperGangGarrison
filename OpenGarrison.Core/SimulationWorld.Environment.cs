@@ -117,6 +117,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyHealingCabinets(PlayerEntity player)
     {
+        var usingHealingCabinet = false;
         foreach (var roomObject in Level.RoomObjects)
         {
             if (roomObject.Type != RoomObjectType.HealingCabinet)
@@ -139,12 +140,15 @@ public sealed partial class SimulationWorld
                 || player.ReloadTicksUntilNextShell > 0
                 || player.MedicNeedleRefillTicks > 0
                 || player.IsBurning;
+            usingHealingCabinet = needsCabinet;
             player.HealAndResupply();
-            if (needsCabinet)
+            if (needsCabinet && !player.IsUsingHealingCabinet)
             {
                 RegisterWorldSoundEvent("CbntHealSnd", player.X, player.Y);
             }
         }
+
+        player.SetHealingCabinetState(usingHealingCabinet);
     }
 
     private void UpdateSpawnRoomState(PlayerEntity player)

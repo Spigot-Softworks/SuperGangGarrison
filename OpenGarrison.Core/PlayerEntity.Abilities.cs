@@ -304,12 +304,18 @@ public sealed partial class PlayerEntity
         if (ClassId != PlayerClass.Pyro)
         {
             PyroAirblastCooldownTicks = 0;
+            PyroFlareCooldownTicks = 0;
             return;
         }
 
         if (PyroAirblastCooldownTicks > 0)
         {
             PyroAirblastCooldownTicks -= 1;
+        }
+
+        if (PyroFlareCooldownTicks > 0)
+        {
+            PyroFlareCooldownTicks -= 1;
         }
     }
 

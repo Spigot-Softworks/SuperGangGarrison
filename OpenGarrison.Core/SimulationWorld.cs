@@ -32,6 +32,7 @@ public sealed partial class SimulationWorld
     private readonly List<StabAnimEntity> _stabAnimations = new();
     private readonly List<StabMaskEntity> _stabMasks = new();
     private readonly List<FlameProjectileEntity> _flames = new();
+    private readonly List<FlareProjectileEntity> _flares = new();
     private readonly List<RocketProjectileEntity> _rockets = new();
     private readonly List<MineProjectileEntity> _mines = new();
     private readonly List<SentryEntity> _sentries = new();
@@ -161,6 +162,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<StabMaskEntity> StabMasks => _stabMasks;
 
     public IReadOnlyList<FlameProjectileEntity> Flames => _flames;
+
+    public IReadOnlyList<FlareProjectileEntity> Flares => _flares;
 
     public IReadOnlyList<RocketProjectileEntity> Rockets => _rockets;
 

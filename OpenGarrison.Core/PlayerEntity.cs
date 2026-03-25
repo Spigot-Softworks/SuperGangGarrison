@@ -35,9 +35,18 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int QuoteBladeEnergyCost = 15;
     public const int QuoteBladeLifetimeTicks = 15;
     public const int QuoteBladeMaxOut = 1;
-    public const int PyroAirblastCost = 66;
-    public const int PyroAirblastReloadTicks = 50;
-    public const int PyroAirblastNoFlameTicks = 25;
+    public const int PyroAirblastCost = 40;
+    public const int PyroAirblastReloadTicks = 40;
+    public const int PyroAirblastNoFlameTicks = 15;
+    public const int PyroFlareCost = 35;
+    public const int PyroFlareReloadTicks = 55;
+    public const int PyroFlareAmmoRequirement = PyroAirblastCost + PyroFlareCost;
+    public const int PyroPrimaryFuelScale = 10;
+    public const int PyroPrimaryFlameCostScaled = 18;
+    public const int PyroPrimaryRefillScaledPerTick = 18;
+    public const int PyroPrimaryRefillBufferTicks = 7;
+    public const int PyroPrimaryEmptyCooldownTicks = PyroPrimaryRefillBufferTicks * 2;
+    public const int PyroFlameLoopMaintainTicks = 2;
     private const float TauntFrameStepPerTick = 0.3f;
     private const int ChatBubbleHoldTicks = 60;
     private const float ChatBubbleFadePerTick = 0.05f;
@@ -106,6 +115,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsInSpawnRoom { get; private set; }
 
+    public bool IsUsingHealingCabinet { get; private set; }
+
     public int RemainingAirJumps { get; private set; }
 
     public float FacingDirectionX { get; private set; }
@@ -164,6 +175,16 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int PyroAirblastCooldownTicks { get; private set; }
 
+    public int PyroFlareCooldownTicks { get; private set; }
+
+    public bool IsPyroPrimaryRefilling { get; private set; }
+
+    public int PyroFlameLoopTicksRemaining { get; private set; }
+
+    public int PyroPrimaryFuelScaled => ClassId == PlayerClass.Pyro
+        ? PyroPrimaryFuelScaledValue
+        : CurrentShells * PyroPrimaryFuelScale;
+
     public bool IsSpyCloaked { get; private set; }
 
     public float SpyCloakAlpha { get; private set; } = 1f;
@@ -203,6 +224,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int ChatBubbleTicksRemaining { get; private set; }
 
     private bool SpyBackstabHitboxPending { get; set; }
+
+    private int PyroPrimaryFuelScaledValue { get; set; }
 
     private float LegacyStateTickAccumulator { get; set; }
 
@@ -248,6 +271,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         RemainingAirJumps = MaxAirJumps;
         Metal = MaxMetal;
         CurrentShells = PrimaryWeapon.MaxAmmo;
+        ResetPyroPrimaryStateFromCurrentAmmo();
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
         FacingDirectionX = team == PlayerTeam.Blue ? -1f : 1f;
@@ -273,7 +297,11 @@ public sealed partial class PlayerEntity : SimulationEntity
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
         PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
+        IsPyroPrimaryRefilling = false;
+        PyroFlameLoopTicksRemaining = 0;
         IsInSpawnRoom = false;
+        IsUsingHealingCabinet = false;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -293,6 +321,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ClassDefinition = classDefinition;
         Health = int.Clamp(Health, 0, MaxHealth);
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
+        ResetPyroPrimaryStateFromCurrentAmmo();
         RemainingAirJumps = int.Min(RemainingAirJumps, MaxAirJumps);
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
@@ -315,6 +344,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
         PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
+        IsPyroPrimaryRefilling = false;
+        PyroFlameLoopTicksRemaining = 0;
+        IsUsingHealingCabinet = false;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -356,7 +389,11 @@ public sealed partial class PlayerEntity : SimulationEntity
         QuoteBubbleCount = 0;
         QuoteBladesOut = 0;
         PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = 0;
+        IsPyroPrimaryRefilling = false;
+        PyroFlameLoopTicksRemaining = 0;
         IsInSpawnRoom = false;
+        IsUsingHealingCabinet = false;
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -374,6 +411,18 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetSpawnRoomState(bool isInSpawnRoom)
     {
         IsInSpawnRoom = isInSpawnRoom;
+    }
+
+    private int GetInitialPyroFlareCooldownTicks()
+    {
+        return ClassId == PlayerClass.Pyro
+            ? PyroFlareReloadTicks
+            : 0;
+    }
+
+    public void SetHealingCabinetState(bool isUsingHealingCabinet)
+    {
+        IsUsingHealingCabinet = isUsingHealingCabinet;
     }
 
     private void ResetSourceFacingDirectionState()

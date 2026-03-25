@@ -6,14 +6,20 @@ namespace OpenGarrison.Core.Tests;
 public sealed class PlayerEntityLegacyTickRateTests
 {
     [Fact]
-    public void SixtyTickRate_PyroAmmoRegenMatchesSourceCadence()
+    public void ThirtyTickRate_PyroRefillWaitsForSourceBufferBeforeReachingNextFlameThreshold()
     {
         var player = CreatePlayer(CharacterClassCatalog.Pyro);
-        player.ForceSetAmmo(100);
+        player.ForceSetAmmo(2);
 
-        AdvanceTicks(player, 30, 1d / 60d);
+        Assert.True(player.TryFirePrimaryWeapon());
+        Assert.Equal(0, player.CurrentShells);
 
-        Assert.Equal(115, player.CurrentShells);
+        AdvanceTicks(player, PlayerEntity.PyroPrimaryRefillBufferTicks, 1d / 30d);
+        Assert.Equal(0, player.CurrentShells);
+
+        AdvanceTicks(player, 1, 1d / 30d);
+        Assert.Equal(2, player.CurrentShells);
+        Assert.True(player.TryPreparePyroPrimaryFireAttempt());
     }
 
     [Fact]

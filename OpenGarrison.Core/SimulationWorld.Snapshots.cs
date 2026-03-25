@@ -173,7 +173,12 @@ public sealed partial class SimulationWorld
             snapshotPlayer.BurnedByPlayerId,
             snapshotPlayer.MovementState,
             snapshotPlayer.PrimaryCooldownTicks,
-            snapshotPlayer.ReloadTicksUntilNextShell);
+            snapshotPlayer.ReloadTicksUntilNextShell,
+            snapshotPlayer.PyroAirblastCooldownTicks,
+            snapshotPlayer.PyroFlareCooldownTicks,
+            snapshotPlayer.PyroPrimaryFuelScaled,
+            snapshotPlayer.IsPyroPrimaryRefilling,
+            snapshotPlayer.PyroFlameLoopTicksRemaining);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
@@ -226,6 +231,15 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
         ApplySnapshotRockets(snapshot.Rockets);
         ApplySnapshotFlames(snapshot.Flames);
+        ApplySnapshotShots(
+            snapshot.Flares,
+            _flares,
+            static (entity, state) => entity.Team == (PlayerTeam)state.Team && entity.OwnerId == state.OwnerId,
+            state =>
+        {
+                return new FlareProjectileEntity(state.Id, (PlayerTeam)state.Team, state.OwnerId, state.X, state.Y, state.VelocityX, state.VelocityY);
+            },
+            static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
         ApplySnapshotMines(snapshot.Mines);
         ApplySnapshotPlayerGibs(snapshot.PlayerGibs);
         ApplySnapshotBloodDrops(snapshot.BloodDrops);

@@ -91,6 +91,11 @@ public sealed partial class SimulationWorld
             _world.SpawnFlame(owner, x, y, velocityX, velocityY);
         }
 
+        private void SpawnFlare(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        {
+            _world.SpawnFlare(owner, x, y, velocityX, velocityY);
+        }
+
         private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
         {
             _world.SpawnRocket(owner, x, y, speed, directionRadians, explodeImmediately);
@@ -130,6 +135,12 @@ public sealed partial class SimulationWorld
                 MathF.Round(attacker.Y),
                 GetSourceWeaponYOffset(attacker.ClassId),
                 GetSourceEquipmentOffset(attacker));
+        }
+
+        public (float X, float Y) GetPyroSecondaryOrigin(PlayerEntity attacker)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            return (weaponOrigin.BaseX, weaponOrigin.BaseY + weaponOrigin.EquipmentOffset);
         }
 
         private static float GetSourceWeaponYOffset(PlayerClass classId)
@@ -215,7 +226,11 @@ public sealed partial class SimulationWorld
 
         public void FirePrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            RegisterLocalPrimaryFireSound(attacker);
+            if (attacker.PrimaryWeapon.Kind != PrimaryWeaponKind.FlameThrower)
+            {
+                RegisterLocalPrimaryFireSound(attacker);
+            }
+
             switch (attacker.PrimaryWeapon.Kind)
             {
                 case PrimaryWeaponKind.FlameThrower:
@@ -243,6 +258,28 @@ public sealed partial class SimulationWorld
                     FirePelletWeapon(attacker, aimWorldX, aimWorldY);
                     break;
             }
+        }
+
+        public bool TryFirePyroPrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            if (!attacker.TryPreparePyroPrimaryFireAttempt())
+            {
+                return false;
+            }
+
+            var shouldStartLoopSound = attacker.PyroFlameLoopTicksRemaining <= 0;
+            if (!FireFlamethrower(attacker, aimWorldX, aimWorldY))
+            {
+                return false;
+            }
+
+            attacker.CommitPyroPrimaryWeaponShot();
+            if (shouldStartLoopSound)
+            {
+                RegisterSoundEvent(attacker, "FlamethrowerSnd");
+            }
+
+            return true;
         }
     
         private void FireMinigun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -363,7 +400,7 @@ public sealed partial class SimulationWorld
             }
         }
     
-        private void FireFlamethrower(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        private bool FireFlamethrower(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
@@ -380,7 +417,7 @@ public sealed partial class SimulationWorld
             var spawnY = weaponOrigin.BaseY + directionY * 25f + weaponOrigin.EquipmentOffset;
             if (IsFlameSpawnBlocked(attacker, spawnX, spawnY))
             {
-                return;
+                return false;
             }
 
             var spreadSign = MathF.Sign((_random.NextSingle() * 2f) - 1f);
@@ -395,6 +432,7 @@ public sealed partial class SimulationWorld
                 spawnY,
                 MathF.Cos(flameAngle) * flameSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
                 MathF.Sin(flameAngle) * flameSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
+            return true;
         }
 
         private void FireBladeBubble(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -512,9 +550,6 @@ public sealed partial class SimulationWorld
             {
                 case PrimaryWeaponKind.PelletGun:
                     RegisterSoundEvent(attacker, "ShotgunSnd");
-                    break;
-                case PrimaryWeaponKind.FlameThrower:
-                    RegisterSoundEvent(attacker, "FlamethrowerSnd");
                     break;
                 case PrimaryWeaponKind.RocketLauncher:
                     RegisterSoundEvent(attacker, "RocketSnd");

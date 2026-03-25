@@ -761,6 +761,32 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void HealingCabinet_OnlyPlaysHealSoundWhenNeedStarts()
+    {
+        var world = CreateWorld();
+        var cabinet = new RoomObjectMarker(RoomObjectType.HealingCabinet, 180f, 200f, 32f, 48f, "sprite74", null, "HealingCabinet");
+        world.CombatTestSetLevel(CreateLevel(roomObjects: [cabinet]));
+        world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
+
+        world.SetLocalHealth(world.LocalPlayer.MaxHealth - 20);
+        world.AdvanceOneTick();
+
+        var firstTickSounds = world.DrainPendingSoundEvents();
+        Assert.Contains(firstTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+
+        world.AdvanceOneTick();
+
+        var secondTickSounds = world.DrainPendingSoundEvents();
+        Assert.DoesNotContain(secondTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+
+        world.SetLocalHealth(world.LocalPlayer.MaxHealth - 10);
+        world.AdvanceOneTick();
+
+        var thirdTickSounds = world.DrainPendingSoundEvents();
+        Assert.Contains(thirdTickSounds, soundEvent => soundEvent.SoundName == "CbntHealSnd");
+    }
+
+    [Fact]
     public void UberedPlayer_ExtinguishesAfterburnBeforeItDealsDamage()
     {
         var world = CreateWorld();
@@ -1536,6 +1562,149 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void PyroPrimary_HeldFireStartsFlamethrowerSoundOncePerBurst()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+
+        var flameSoundCount = 0;
+        for (var tick = 0; tick < 3; tick += 1)
+        {
+            world.AdvanceOneTick();
+            flameSoundCount += world
+                .DrainPendingSoundEvents()
+                .Count(soundEvent => soundEvent.SoundName == "FlamethrowerSnd");
+        }
+
+        world.SetLocalInput(default);
+
+        Assert.Equal(1, flameSoundCount);
+    }
+
+    [Fact]
+    public void PyroPrimary_LowFuelHoldFireWaitsForSourceRefillBuffer()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.LocalPlayer.ForceSetAmmo(2);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: false,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+
+        world.AdvanceOneTick();
+        Assert.Single(world.Flames);
+
+        for (var tick = 0; tick < PlayerEntity.PyroPrimaryRefillBufferTicks; tick += 1)
+        {
+            world.AdvanceOneTick();
+            Assert.Single(world.Flames);
+        }
+
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(2, world.Flames.Count);
+    }
+
+    [Fact]
+    public void PyroAirblast_UsesSourceCostAndCooldownWindows()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Equal(world.LocalPlayer.MaxShells - 40, world.LocalPlayer.CurrentShells);
+        Assert.Equal(40, world.LocalPlayer.PyroAirblastCooldownTicks);
+        Assert.Equal(15, world.LocalPlayer.PrimaryCooldownTicks);
+    }
+
+    [Fact]
+    public void PyroAirblast_PrimaryHeldSpawnsFlareWhenSourceCooldownIsReady()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+
+        Assert.Equal(PlayerEntity.PyroFlareReloadTicks, world.LocalPlayer.PyroFlareCooldownTicks);
+        for (var tick = 0; tick < PlayerEntity.PyroFlareReloadTicks; tick += 1)
+        {
+            world.AdvanceOneTick();
+        }
+
+        world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: true,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var flare = Assert.Single(world.Flares);
+        Assert.Equal(world.LocalPlayer.Team, flare.Team);
+        Assert.Equal(world.LocalPlayer.Id, flare.OwnerId);
+        Assert.True(world.LocalPlayer.CurrentShells <= world.LocalPlayer.MaxShells - PlayerEntity.PyroFlareAmmoRequirement);
+        Assert.Equal(PlayerEntity.PyroFlareReloadTicks, world.LocalPlayer.PyroFlareCooldownTicks);
+    }
+
+    [Fact]
     public void PyroAirblast_ReflectedRocketKeepsItsCurrentSpeed()
     {
         var world = CreateWorld();
@@ -1595,6 +1764,65 @@ public sealed class SimulationWorldTests
         Assert.Equal(world.LocalPlayer.Id, reflectedRocket.OwnerId);
         Assert.Equal(world.LocalPlayer.Team, reflectedRocket.Team);
         Assert.Equal(expectedSpeedAfterReflectedAdvance, reflectedRocket.Speed, 3);
+    }
+
+    [Fact]
+    public void PyroAirblast_ReflectsEnemyFlare()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+        SetLocalClassAndRespawn(world, PlayerClass.Pyro);
+        world.TeleportLocalPlayer(300f, world.LocalPlayer.Y);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Pyro));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemyPyro));
+
+        enemyPyro.TeleportTo(world.LocalPlayer.X + 80f, world.LocalPlayer.Y);
+        var flare = world.CombatTestSpawnFlare(enemyPyro, world.LocalPlayer.X + 60f, world.LocalPlayer.Y, velocityX: -15f, velocityY: 0f);
+
+        world.SetLocalInput(new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 200f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false));
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        var reflectedFlare = Assert.Single(world.Flares);
+        Assert.Same(flare, reflectedFlare);
+        Assert.Equal(world.LocalPlayer.Id, reflectedFlare.OwnerId);
+        Assert.Equal(world.LocalPlayer.Team, reflectedFlare.Team);
+        Assert.True(reflectedFlare.VelocityX > 0f);
+        Assert.Equal(FlareProjectileEntity.LifetimeTicks, reflectedFlare.TicksRemaining);
+    }
+
+    [Fact]
+    public void Bubble_PopsEnemyFlare()
+    {
+        var world = CreateWorld();
+        world.CombatTestSetLevel(CreateLevel());
+        world.DespawnEnemyDummy();
+
+        world.CombatTestSpawnBubble(world.LocalPlayer, 200f, 200f);
+        world.EnemyPlayer.TeleportTo(160f, 200f);
+        world.CombatTestSpawnFlare(world.EnemyPlayer, 185f, 200f, velocityX: 15f, velocityY: 0f);
+
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Bubbles);
+        Assert.Empty(world.Flares);
     }
 
     [Fact]

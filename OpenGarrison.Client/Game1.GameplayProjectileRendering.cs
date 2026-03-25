@@ -102,6 +102,11 @@ public partial class Game1
             DrawFlameProjectile(flame, cameraPosition);
         }
 
+        foreach (var flare in _world.Flares)
+        {
+            DrawFlareProjectile(flare, cameraPosition);
+        }
+
         foreach (var rocket in _world.Rockets)
         {
             DrawRocketProjectile(rocket, cameraPosition);
@@ -215,6 +220,20 @@ public partial class Game1
                 flameSize,
                 flameSize);
             _spriteBatch.Draw(_pixel, flameRectangle, flameColor);
+        }
+    }
+
+    private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)
+    {
+        var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y);
+        if (!TryDrawSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, GetVelocityRotation(flare.VelocityX, flare.VelocityY)))
+        {
+            var flareRectangle = new Rectangle(
+                (int)(renderPosition.X - 4f - cameraPosition.X),
+                (int)(renderPosition.Y - 2f - cameraPosition.Y),
+                8,
+                4);
+            _spriteBatch.Draw(_pixel, flareRectangle, Color.White);
         }
     }
 
