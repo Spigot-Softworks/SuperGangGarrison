@@ -7,6 +7,10 @@ internal static partial class ServerHelpers
     internal static SnapshotPlayerState ToSnapshotPlayerState(SimulationWorld world, byte slot, PlayerEntity player, PlayerEntity? viewer)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+        var isAwaitingJoin = isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot);
+        var snapshotTeam = isAwaitingJoin
+            ? world.GetNetworkPlayerConfiguredTeam(slot)
+            : player.Team;
         var isDominatingLocalViewer = viewer is not null
             && !ReferenceEquals(player, viewer)
             && player.GetDominationKillCount(viewer.Id) > 3;
@@ -17,10 +21,10 @@ internal static partial class ServerHelpers
             slot,
             player.Id,
             player.DisplayName,
-            (byte)player.Team,
+            (byte)snapshotTeam,
             (byte)player.ClassId,
             player.IsAlive,
-            isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot),
+            isAwaitingJoin,
             slot >= SimulationWorld.FirstSpectatorSlot,
             isPlayableSlot ? world.GetNetworkPlayerRespawnTicks(slot) : 0,
             player.X,
