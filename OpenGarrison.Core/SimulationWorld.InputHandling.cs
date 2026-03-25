@@ -207,6 +207,16 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.ClassId == PlayerClass.Engineer)
+        {
+            if (!TryDestroySentry(player))
+            {
+                TryBuildSentry(player);
+            }
+
+            return;
+        }
+
         if (player.ClassId == PlayerClass.Heavy)
         {
             player.TryStartHeavySelfHeal();

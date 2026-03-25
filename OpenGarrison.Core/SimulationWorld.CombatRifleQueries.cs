@@ -21,14 +21,17 @@ public sealed partial class SimulationWorld
         }
 
         public RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
+            => ResolveRifleHit(attacker, attacker.X, attacker.Y, directionX, directionY, maxDistance);
+
+        public RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
         {
             var hitState = new RifleHitState(maxDistance);
 
-            UpdateNearestRifleHitFromSolids(ref hitState, attacker.X, attacker.Y, directionX, directionY);
-            UpdateNearestRifleHitFromRoomObjects(ref hitState, attacker.X, attacker.Y, directionX, directionY);
-            UpdateNearestRifleHitFromGenerators(ref hitState, attacker, directionX, directionY);
-            UpdateNearestRifleHitFromSentries(ref hitState, attacker, directionX, directionY);
-            UpdateNearestRifleHitFromPlayers(ref hitState, attacker, directionX, directionY);
+            UpdateNearestRifleHitFromSolids(ref hitState, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromRoomObjects(ref hitState, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromGenerators(ref hitState, attacker, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromSentries(ref hitState, attacker, originX, originY, directionX, directionY);
+            UpdateNearestRifleHitFromPlayers(ref hitState, attacker, originX, originY, directionX, directionY);
 
             return new RifleHitResult(hitState.NearestDistance, hitState.HitPlayer, hitState.HitSentry, hitState.HitGenerator);
         }
@@ -52,17 +55,17 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private void UpdateNearestRifleHitFromSentries(ref RifleHitState hitState, PlayerEntity attacker, float directionX, float directionY)
+        private void UpdateNearestRifleHitFromSentries(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
         {
             foreach (var sentry in _sentries)
             {
                 if (sentry.Team == attacker.Team) { continue; }
-                var distance = GetRayIntersectionDistanceWithSentry(attacker.X, attacker.Y, directionX, directionY, sentry, hitState.NearestDistance);
+                var distance = GetRayIntersectionDistanceWithSentry(originX, originY, directionX, directionY, sentry, hitState.NearestDistance);
                 if (distance.HasValue) { UpdateNearestRifleSentryHit(ref hitState, distance.Value, sentry); }
             }
         }
 
-        private void UpdateNearestRifleHitFromGenerators(ref RifleHitState hitState, PlayerEntity attacker, float directionX, float directionY)
+        private void UpdateNearestRifleHitFromGenerators(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
         {
             for (var index = 0; index < _generators.Count; index += 1)
             {
@@ -72,17 +75,17 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distance = GetRayIntersectionDistanceWithGenerator(attacker.X, attacker.Y, directionX, directionY, generator, hitState.NearestDistance);
+                var distance = GetRayIntersectionDistanceWithGenerator(originX, originY, directionX, directionY, generator, hitState.NearestDistance);
                 if (distance.HasValue) { UpdateNearestRifleGeneratorHit(ref hitState, distance.Value, generator); }
             }
         }
 
-        private void UpdateNearestRifleHitFromPlayers(ref RifleHitState hitState, PlayerEntity attacker, float directionX, float directionY)
+        private void UpdateNearestRifleHitFromPlayers(ref RifleHitState hitState, PlayerEntity attacker, float originX, float originY, float directionX, float directionY)
         {
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive || player.Team == attacker.Team || player.Id == attacker.Id) { continue; }
-                var distance = GetRayIntersectionDistanceWithPlayer(attacker.X, attacker.Y, directionX, directionY, player, hitState.NearestDistance);
+                var distance = GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, player, hitState.NearestDistance);
                 if (distance.HasValue) { UpdateNearestRiflePlayerHit(ref hitState, distance.Value, player); }
             }
         }

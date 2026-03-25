@@ -61,6 +61,21 @@ public sealed class PlayerEntityLegacyTickRateTests
         Assert.True(player.ReloadTicksUntilNextShell < reloadTicksAfterShot);
     }
 
+    [Fact]
+    public void RevolverReload_RestartsFromFullDelayWhenFiringMidReload()
+    {
+        var player = CreatePlayer(CharacterClassCatalog.Spy);
+        player.ForceSetAmmo(4);
+
+        AdvanceTicks(player, 10, 1d / 60d);
+        Assert.True(player.ReloadTicksUntilNextShell < player.PrimaryWeapon.AmmoReloadTicks);
+
+        Assert.True(player.TryFirePrimaryWeapon());
+
+        Assert.Equal(3, player.CurrentShells);
+        Assert.Equal(player.PrimaryWeapon.AmmoReloadTicks, player.ReloadTicksUntilNextShell);
+    }
+
     private static PlayerEntity CreatePlayer(CharacterClassDefinition definition)
     {
         var player = new PlayerEntity(42, definition, "TimerTest");

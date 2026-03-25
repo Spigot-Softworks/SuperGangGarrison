@@ -12,31 +12,33 @@ public partial class Game1
 {
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
-        float x;
-        float y;
+        Vector2 cameraTopLeft;
         if (_killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null)
         {
-            return GetDeathCamCameraTopLeft(viewportWidth, viewportHeight);
+            cameraTopLeft = GetDeathCamCameraTopLeft(viewportWidth, viewportHeight);
+            TrackLiveCamera(cameraTopLeft);
+            return RoundToSourcePixels(cameraTopLeft);
         }
 
         var localViewPosition = GetLocalViewPosition();
         if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
-            x = localViewPosition.X + mouseX - viewportWidth;
-            y = localViewPosition.Y + mouseY - viewportHeight;
+            cameraTopLeft = new Vector2(
+                localViewPosition.X + mouseX - viewportWidth,
+                localViewPosition.Y + mouseY - viewportHeight);
         }
         else
         {
             var halfViewportWidth = viewportWidth / 2f;
             var halfViewportHeight = viewportHeight / 2f;
 
-            x = localViewPosition.X - halfViewportWidth;
-            y = localViewPosition.Y - halfViewportHeight;
+            cameraTopLeft = new Vector2(
+                localViewPosition.X - halfViewportWidth,
+                localViewPosition.Y - halfViewportHeight);
         }
 
-        var cameraTopLeft = new Vector2(x, y);
         TrackLiveCamera(cameraTopLeft);
-        return cameraTopLeft;
+        return RoundToSourcePixels(cameraTopLeft);
     }
 
     private bool IsRespawnFreeCameraActive()

@@ -66,6 +66,11 @@ public sealed partial class SimulationWorld
             return _world.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
         }
 
+        private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
+        {
+            return _world.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
+        }
+
         private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
         {
             _world.SpawnShot(owner, x, y, velocityX, velocityY);
@@ -115,6 +120,99 @@ public sealed partial class SimulationWorld
         {
             return SimulationWorld.PointDirectionDegrees(x1, y1, x2, y2);
         }
+
+        private readonly record struct SourceWeaponOrigin(float BaseX, float BaseY, float WeaponYOffset, float EquipmentOffset);
+
+        private SourceWeaponOrigin GetSourceWeaponOrigin(PlayerEntity attacker)
+        {
+            return new SourceWeaponOrigin(
+                MathF.Round(attacker.X),
+                MathF.Round(attacker.Y),
+                GetSourceWeaponYOffset(attacker.ClassId),
+                GetSourceEquipmentOffset(attacker));
+        }
+
+        private static float GetSourceWeaponYOffset(PlayerClass classId)
+        {
+            return classId switch
+            {
+                PlayerClass.Scout => -4f,
+                PlayerClass.Engineer => -2f,
+                PlayerClass.Pyro => 4f,
+                PlayerClass.Soldier => -10f,
+                PlayerClass.Demoman => -2f,
+                PlayerClass.Heavy => 0f,
+                PlayerClass.Sniper => -8f,
+                PlayerClass.Medic => 0f,
+                PlayerClass.Spy => -6f,
+                PlayerClass.Quote => -3f,
+                _ => 0f,
+            };
+        }
+
+        private float GetSourceEquipmentOffset(PlayerEntity attacker)
+        {
+            var horizontalSourceStepSpeed = MathF.Abs(attacker.HorizontalSpeed) / LegacyMovementModel.SourceTicksPerSecond;
+            if (!attacker.IsGrounded
+                || attacker.IsTaunting
+                || attacker.ClassId == PlayerClass.Quote
+                || attacker.IsSniperScoped
+                || horizontalSourceStepSpeed >= 0.2f)
+            {
+                return 0f;
+            }
+
+            // The simulation does not track the body animation phase yet, so this keeps the stable pose-based
+            // portion of the source equipment offset aligned without introducing guessed run-bob phases.
+            return GetSourceLeanYOffset(attacker);
+        }
+
+        private float GetSourceLeanYOffset(PlayerEntity attacker)
+        {
+            var bottom = attacker.Bottom + 2f;
+            var openRight = !IsPointBlockedForPlayer(attacker, attacker.X + 6f, bottom)
+                && !IsPointBlockedForPlayer(attacker, attacker.X + 2f, bottom);
+            var openLeft = !IsPointBlockedForPlayer(attacker, attacker.X - 7f, bottom)
+                && !IsPointBlockedForPlayer(attacker, attacker.X - 3f, bottom);
+
+            if (openRight && openLeft)
+            {
+                openRight = !IsPointBlockedForPlayer(attacker, attacker.Right - 1f, bottom);
+                openLeft = !IsPointBlockedForPlayer(attacker, attacker.Left, bottom);
+            }
+
+            return openRight ^ openLeft ? 6f : 0f;
+        }
+
+        private bool IsPointBlockedForPlayer(PlayerEntity player, float x, float y)
+        {
+            foreach (var solid in _world.Level.Solids)
+            {
+                if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+                {
+                    return true;
+                }
+            }
+
+            foreach (var gate in _world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
+            {
+                if (x >= gate.Left && x < gate.Right && y >= gate.Top && y < gate.Bottom)
+                {
+                    return true;
+                }
+            }
+
+            foreach (var wall in _world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
+            {
+                if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public void FirePrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterLocalPrimaryFireSound(attacker);
@@ -149,8 +247,9 @@ public sealed partial class SimulationWorld
     
         private void FireMinigun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -164,8 +263,8 @@ public sealed partial class SimulationWorld
             var shotSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
             SpawnShot(
                 attacker,
-                attacker.X + directionX * 20f,
-                attacker.Y + 12f + directionY * 20f,
+                weaponOrigin.BaseX + directionX * 20f,
+                weaponOrigin.BaseY + 12f + directionY * 20f,
                 directionX * shotSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 directionY * shotSpeed);
         }
@@ -173,9 +272,10 @@ public sealed partial class SimulationWorld
         private void FireRifle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             const float rifleDistance = 2000f;
-    
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -189,12 +289,12 @@ public sealed partial class SimulationWorld
     
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
-            var result = ResolveRifleHit(attacker, directionX, directionY, rifleDistance);
-            RegisterCombatTrace(attacker.X, attacker.Y, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true);
+            var result = ResolveRifleHit(attacker, weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, rifleDistance);
+            RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true);
             var damage = attacker.GetSniperRifleDamage();
             if (result.HitPlayer is not null)
             {
-                RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(attacker.X, attacker.Y, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
+                RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
                 if (result.HitPlayer.ApplyDamage(damage, PlayerEntity.SpySniperRevealAlpha))
                 {
                     KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleKL");
@@ -213,8 +313,9 @@ public sealed partial class SimulationWorld
         public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "BladeSnd");
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -228,8 +329,8 @@ public sealed partial class SimulationWorld
             var hitDamage = 3 + bonusDamage;
             SpawnBlade(
                 attacker,
-                attacker.X + directionX * 10f,
-                attacker.Y + directionY * 10f,
+                weaponOrigin.BaseX + directionX * 5f,
+                weaponOrigin.BaseY + directionY * 5f,
                 directionX * 12f,
                 directionY * 12f,
                 hitDamage);
@@ -237,8 +338,9 @@ public sealed partial class SimulationWorld
     
         private void FirePelletWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -254,8 +356,8 @@ public sealed partial class SimulationWorld
                 var pelletSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
                 SpawnShot(
                     attacker,
-                    attacker.X,
-                    attacker.Y,
+                    weaponOrigin.BaseX + directionX * 15f,
+                    weaponOrigin.BaseY + directionY * 15f,
                     directionX * pelletSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                     directionY * pelletSpeed);
             }
@@ -263,8 +365,9 @@ public sealed partial class SimulationWorld
     
         private void FireFlamethrower(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -273,8 +376,8 @@ public sealed partial class SimulationWorld
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
             var directionX = MathF.Cos(baseAngle);
             var directionY = MathF.Sin(baseAngle);
-            var spawnX = attacker.X + directionX * 25f;
-            var spawnY = attacker.Y + directionY * 25f;
+            var spawnX = weaponOrigin.BaseX + directionX * 25f;
+            var spawnY = weaponOrigin.BaseY + directionY * 25f + weaponOrigin.EquipmentOffset;
             if (IsFlameSpawnBlocked(attacker, spawnX, spawnY))
             {
                 return;
@@ -296,8 +399,9 @@ public sealed partial class SimulationWorld
 
         private void FireBladeBubble(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -309,32 +413,35 @@ public sealed partial class SimulationWorld
             var bubbleSpeed = 10f;
             SpawnBubble(
                 attacker,
-                attacker.X + directionX * 8f,
-                attacker.Y + directionY * 8f,
+                weaponOrigin.BaseX + directionX * 8f,
+                weaponOrigin.BaseY + directionY * 8f,
                 directionX * bubbleSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
                 directionY * bubbleSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
         }
     
         private void FireRocketLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
             }
 
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spawnX = attacker.X + MathF.Cos(directionRadians) * 20f;
-            var spawnY = attacker.Y + MathF.Sin(directionRadians) * 20f;
-            var explodeImmediately = _world.IsProjectileSpawnBlocked(attacker.X, attacker.Y, spawnX, spawnY);
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
             SpawnRocket(attacker, spawnX, spawnY, attacker.PrimaryWeapon.MinShotSpeed, directionRadians, explodeImmediately);
         }
     
         private void FireRevolver(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y + 1f;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f;
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - shotOriginY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -345,8 +452,8 @@ public sealed partial class SimulationWorld
             var bulletAngle = directionRadians + spreadRadians;
             SpawnRevolverShot(
                 attacker,
-                attacker.X,
-                attacker.Y - 5f,
+                weaponOrigin.BaseX,
+                shotOriginY,
                 MathF.Cos(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 MathF.Sin(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed);
         }
@@ -358,16 +465,17 @@ public sealed partial class SimulationWorld
                 return;
             }
     
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
             }
     
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spawnX = attacker.X + MathF.Cos(directionRadians) * 10f;
-            var spawnY = attacker.Y + MathF.Sin(directionRadians) * 10f;
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
             SpawnMine(
                 attacker,
                 spawnX,
@@ -379,8 +487,10 @@ public sealed partial class SimulationWorld
         public void FireMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "MedichaingunSnd");
-            var aimDeltaX = aimWorldX - attacker.X;
-            var aimDeltaY = aimWorldY - attacker.Y;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f;
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - shotOriginY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -390,8 +500,8 @@ public sealed partial class SimulationWorld
             var speed = 7f + (_random.NextSingle() * 3f);
             SpawnNeedle(
                 attacker,
-                attacker.X,
-                attacker.Y + 1f,
+                weaponOrigin.BaseX,
+                shotOriginY,
                 MathF.Cos(directionRadians) * speed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 MathF.Sin(directionRadians) * speed);
         }

@@ -20,12 +20,14 @@ public partial class Game1
     private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
     private readonly List<MineTrailVisual> _mineTrailVisuals = new();
+    private readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
     private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
     private int _nextClientBackstabVisualId = -1;
+    private float _pendingWallspinDustSourceTicks;
 
     private void AdvanceExplosionVisuals()
     {
@@ -38,10 +40,23 @@ public partial class Game1
             }
         }
 
+        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+        if (sourceTickAdvance <= 0f)
+        {
+            return;
+        }
+
         for (var index = _explosions.Count - 1; index >= 0; index -= 1)
         {
-            _explosions[index].TicksRemaining -= 1;
-            if (_explosions[index].TicksRemaining <= 0)
+            var explosion = _explosions[index];
+            explosion.PendingSourceTicks += sourceTickAdvance;
+            while (explosion.PendingSourceTicks >= 1f && explosion.ElapsedSourceTicks < ExplosionVisual.LifetimeSourceTicks)
+            {
+                explosion.PendingSourceTicks -= 1f;
+                explosion.ElapsedSourceTicks += 1;
+            }
+
+            if (explosion.ElapsedSourceTicks >= ExplosionVisual.LifetimeSourceTicks)
             {
                 _explosions.RemoveAt(index);
             }
@@ -260,8 +275,10 @@ public partial class Game1
         if (_particleMode == 1)
         {
             _mineTrailVisuals.Clear();
+            _wallspinDustVisuals.Clear();
             _blastJumpFlameVisuals.Clear();
             _flameSmokeVisuals.Clear();
+            _pendingWallspinDustSourceTicks = 0f;
             return;
         }
 
@@ -309,6 +326,8 @@ public partial class Game1
             _flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
         }
 
+        AdvanceWallspinDustVisuals();
+
         for (var index = _blastJumpFlameVisuals.Count - 1; index >= 0; index -= 1)
         {
             _blastJumpFlameVisuals[index].TicksRemaining -= 1;
@@ -325,6 +344,54 @@ public partial class Game1
             {
                 _flameSmokeVisuals.RemoveAt(index);
             }
+        }
+    }
+
+    private void AdvanceWallspinDustVisuals()
+    {
+        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+        if (sourceTickAdvance > 0f)
+        {
+            _pendingWallspinDustSourceTicks += sourceTickAdvance;
+            var emissionTicks = (int)MathF.Floor(_pendingWallspinDustSourceTicks);
+            if (emissionTicks > 0)
+            {
+                _pendingWallspinDustSourceTicks -= emissionTicks;
+                foreach (var player in EnumerateRenderablePlayers())
+                {
+                    if (!player.IsAlive || !player.IsPerformingSourceSpinjump(_world.Level))
+                    {
+                        continue;
+                    }
+
+                    SpawnWallspinDustVisual(player, emissionTicks);
+                }
+            }
+        }
+
+        for (var index = _wallspinDustVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            _wallspinDustVisuals[index].TicksRemaining -= 1;
+            if (_wallspinDustVisuals[index].TicksRemaining <= 0)
+            {
+                _wallspinDustVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void SpawnWallspinDustVisual(PlayerEntity player, int emissionTicks)
+    {
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var dustX = player.IsSourceFacingLeft
+            ? renderPosition.X + player.CollisionRightOffset + 1f
+            : renderPosition.X + player.CollisionLeftOffset + 2f;
+        var dustY = renderPosition.Y + player.CollisionBottomOffset - 4f;
+        for (var emissionIndex = 0; emissionIndex < emissionTicks; emissionIndex += 1)
+        {
+            _wallspinDustVisuals.Add(new WallspinDustVisual(
+                dustX,
+                dustY,
+                _visualRandom.Next(GetWallspinDustMinimumLifetimeTicks(), GetWallspinDustMaximumLifetimeTicks() + 1)));
         }
     }
 
@@ -445,8 +512,10 @@ public partial class Game1
 
         foreach (var explosion in _explosions)
         {
-            var elapsedTicks = ExplosionVisual.LifetimeTicks - explosion.TicksRemaining;
-            var frameIndex = Math.Clamp((int)MathF.Floor(elapsedTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeTicks), 0, sprite.Frames.Count - 1);
+            var frameIndex = Math.Clamp(
+                (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks),
+                0,
+                sprite.Frames.Count - 1);
             _spriteBatch.Draw(
                 sprite.Frames[frameIndex],
                 new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
@@ -564,6 +633,34 @@ public partial class Game1
                 null,
                 Color.White,
                 0f,
+                sprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+        }
+    }
+
+    private void DrawWallspinDustVisuals(Vector2 cameraPosition)
+    {
+        var sprite = _runtimeAssets.GetSprite("SpeedBoostS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _wallspinDustVisuals.Count; index += 1)
+        {
+            var dust = _wallspinDustVisuals[index];
+            var progress = 1f - (dust.TicksRemaining / (float)dust.TotalLifetimeTicks);
+            var alpha = progress < 0.5f
+                ? MathHelper.Lerp(0.7f, 0.5f, progress * 2f)
+                : MathHelper.Lerp(0.5f, 0f, (progress - 0.5f) * 2f);
+            _spriteBatch.Draw(
+                sprite.Frames[0],
+                new Vector2(dust.X - cameraPosition.X, dust.Y - cameraPosition.Y),
+                null,
+                Color.White * alpha,
+                -MathHelper.PiOver2,
                 sprite.Origin.ToVector2(),
                 Vector2.One,
                 SpriteEffects.None,
@@ -908,6 +1005,16 @@ public partial class Game1
         return (int)MathF.Ceiling(5f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
     }
 
+    private static int GetWallspinDustMinimumLifetimeTicks()
+    {
+        return (int)MathF.Ceiling(GetSourceTicksAsSeconds(15f) * ClientUpdateTicksPerSecond);
+    }
+
+    private static int GetWallspinDustMaximumLifetimeTicks()
+    {
+        return (int)MathF.Ceiling(GetSourceTicksAsSeconds(30f) * ClientUpdateTicksPerSecond);
+    }
+
     private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount)
     {
         for (var index = 0; index < burstCount; index += 1)
@@ -964,20 +1071,21 @@ public partial class Game1
 
     private sealed class ExplosionVisual
     {
-        public const int LifetimeTicks = 13;
+        public const int LifetimeSourceTicks = 13;
 
         public ExplosionVisual(float x, float y)
         {
             X = x;
             Y = y;
-            TicksRemaining = LifetimeTicks;
         }
 
         public float X { get; }
 
         public float Y { get; }
 
-        public int TicksRemaining { get; set; }
+        public int ElapsedSourceTicks { get; set; }
+
+        public float PendingSourceTicks { get; set; }
     }
 
     private sealed class BackstabVisual
@@ -1045,6 +1153,25 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class WallspinDustVisual
+    {
+        public WallspinDustVisual(float x, float y, int totalLifetimeTicks)
+        {
+            X = x;
+            Y = y;
+            TotalLifetimeTicks = Math.Max(1, totalLifetimeTicks);
+            TicksRemaining = TotalLifetimeTicks;
+        }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int TotalLifetimeTicks { get; }
 
         public int TicksRemaining { get; set; }
     }

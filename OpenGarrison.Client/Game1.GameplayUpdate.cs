@@ -152,21 +152,6 @@ public partial class Game1
         }
 
         UpdateBuildMenuState(keyboard, mouse);
-        if (_pendingBuildSentry || _pendingDestroySentry)
-        {
-            gameplayInput = gameplayInput with
-            {
-                BuildSentry = _pendingBuildSentry,
-                DestroySentry = _pendingDestroySentry,
-            };
-            networkInput = networkInput with
-            {
-                BuildSentry = _pendingBuildSentry,
-                DestroySentry = _pendingDestroySentry,
-            };
-            _pendingBuildSentry = false;
-            _pendingDestroySentry = false;
-        }
 
         return (gameplayInput, networkInput);
     }

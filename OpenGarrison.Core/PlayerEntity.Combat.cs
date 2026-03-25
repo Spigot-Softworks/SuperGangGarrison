@@ -13,8 +13,7 @@ public sealed partial class PlayerEntity
         CurrentShells -= PrimaryWeapon.AmmoPerShot;
         PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
         if (PrimaryWeapon.AutoReloads
-            && CurrentShells < PrimaryWeapon.MaxAmmo
-            && ReloadTicksUntilNextShell <= 0)
+            && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             ReloadTicksUntilNextShell = PrimaryWeapon.AmmoReloadTicks;
         }

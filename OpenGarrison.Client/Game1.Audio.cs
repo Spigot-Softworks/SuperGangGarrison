@@ -20,6 +20,7 @@ public partial class Game1
     private SoundEffectInstance? _localChaingunSoundInstance;
     private SoundEffectInstance? _localFlamethrowerSoundInstance;
     private bool _audioAvailable = true;
+    private bool _audioMuted;
     private MusicMode _musicMode = MusicMode.MenuAndInGame;
     private readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
     private readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
@@ -473,6 +474,25 @@ public partial class Game1
         catch (Exception ex)
         {
             DisableAudio($"maintaining {soundName}", ex);
+        }
+    }
+
+    private void ToggleAudioMute()
+    {
+        _audioMuted = !_audioMuted;
+        ApplyAudioMuteState();
+        AddConsoleLine(_audioMuted ? "audio muted (F12)" : "audio unmuted (F12)");
+    }
+
+    private void ApplyAudioMuteState()
+    {
+        try
+        {
+            SoundEffect.MasterVolume = _audioMuted ? 0f : 1f;
+        }
+        catch (Exception ex)
+        {
+            DisableAudio("updating audio mute", ex);
         }
     }
 

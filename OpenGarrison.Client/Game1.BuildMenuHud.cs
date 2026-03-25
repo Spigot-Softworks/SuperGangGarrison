@@ -49,28 +49,16 @@ public partial class Game1
         if (specialPressed)
         {
             BeginClosingBuildMenu();
-            TryQueueEngineerSpecial(player);
+            HandleEngineerSpecialPressed(player);
         }
 
         AdvanceBuildMenuAnimation();
     }
 
-    private void TryQueueEngineerSpecial(PlayerEntity player)
+    private void HandleEngineerSpecialPressed(PlayerEntity player)
     {
         if (GetLocalOwnedSentry() is not null)
         {
-            TryQueueDestroySentry();
-            return;
-        }
-
-        TryQueueBuildSentry(player);
-    }
-
-    private void TryQueueBuildSentry(PlayerEntity player)
-    {
-        if (GetLocalOwnedSentry() is not null)
-        {
-            ShowNotice(NoticeKind.AutogunExists);
             return;
         }
 
@@ -93,18 +81,6 @@ public partial class Game1
         {
             return;
         }
-
-        _pendingBuildSentry = true;
-    }
-
-    private void TryQueueDestroySentry()
-    {
-        if (GetLocalOwnedSentry() is null)
-        {
-            return;
-        }
-
-        _pendingDestroySentry = true;
     }
 
     private void ToggleBuildMenu()

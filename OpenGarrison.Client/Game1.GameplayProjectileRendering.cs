@@ -59,6 +59,7 @@ public partial class Game1
         {
             DrawRocketSmokeVisuals(cameraPosition);
             DrawMineTrailVisuals(cameraPosition);
+            DrawWallspinDustVisuals(cameraPosition);
             DrawBlastJumpFlameVisuals(cameraPosition);
             DrawFlameSmokeVisuals(cameraPosition);
         }
@@ -238,24 +239,16 @@ public partial class Game1
     private void DrawMineProjectile(MineProjectileEntity mine, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(mine.Id, mine.X, mine.Y);
-        var mineColor = mine.Team == PlayerTeam.Blue
-            ? new Color(120, 180, 255)
-            : new Color(255, 190, 90);
-        if (mine.IsStickied)
-        {
-            mineColor = mine.Team == PlayerTeam.Blue
-                ? new Color(90, 150, 255)
-                : new Color(255, 150, 60);
-        }
-
-        if (!TryDrawSprite("MineS", 0, renderPosition.X, renderPosition.Y, cameraPosition, mineColor, GetTravelRotation(mine.PreviousX, mine.PreviousY, mine.X, mine.Y)))
+        var frameIndex = (mine.Team == PlayerTeam.Blue ? 2 : 0)
+            + (mine.IsStickied ? 1 : 0);
+        if (!TryDrawSprite("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White))
         {
             var mineRectangle = new Rectangle(
                 (int)(renderPosition.X - 5f - cameraPosition.X),
                 (int)(renderPosition.Y - 5f - cameraPosition.Y),
                 10,
                 10);
-            _spriteBatch.Draw(_pixel, mineRectangle, mineColor);
+            _spriteBatch.Draw(_pixel, mineRectangle, Color.White);
         }
     }
 }

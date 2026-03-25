@@ -346,4 +346,7 @@ public sealed partial class SimulationWorld
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
         => Combat.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
+
+    private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
+        => Combat.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
 }

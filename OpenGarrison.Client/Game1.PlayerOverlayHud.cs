@@ -65,6 +65,15 @@ public partial class Game1
         return classIndex + teamOffset;
     }
 
+    private static readonly Color AmmoHudBarColor = new(217, 217, 183);
+    private static readonly Color AmmoHudTextColor = new(245, 235, 210);
+    private static readonly Color LowAmmoHudColor = new(255, 0, 0);
+    private static readonly Color DisabledAmmoHudColor = new(128, 128, 128);
+    private static readonly Color HeavyCooldownHudColor = new(50, 50, 50);
+    private const float SourceHudWidth = 800f;
+    private const float SourceHudHeight = 600f;
+    private const float SourceAmmoHudBaseY = SourceHudHeight / 1.26f;
+
     private void DrawAmmoHud()
     {
         if (!_world.LocalPlayer.IsAlive)
@@ -72,75 +81,153 @@ public partial class Game1
             return;
         }
 
-        if (_world.LocalPlayer.PrimaryWeapon.Kind == PrimaryWeaponKind.FlameThrower)
+        switch (_world.LocalPlayer.PrimaryWeapon.Kind)
         {
-            DrawResourceHud("GasAmmoS", _world.LocalPlayer.CurrentShells / 2f, 100f, showCount: false, barXOffset: 689f, barWidth: 34f);
-            return;
+            case PrimaryWeaponKind.FlameThrower:
+                DrawPyroAmmoHud();
+                return;
+            case PrimaryWeaponKind.Minigun:
+                DrawHeavyAmmoHud();
+                return;
+            case PrimaryWeaponKind.Blade:
+                DrawQuoteAmmoHud();
+                return;
+            case PrimaryWeaponKind.Rifle:
+                return;
         }
 
-        if (_world.LocalPlayer.PrimaryWeapon.Kind == PrimaryWeaponKind.Minigun)
-        {
-            DrawResourceHud("MinigunAmmoS", _world.LocalPlayer.CurrentShells / 2f, 100f, showCount: false, barXOffset: 689f, barWidth: 34f);
-            return;
-        }
-
-        if (_world.LocalPlayer.PrimaryWeapon.Kind == PrimaryWeaponKind.Blade)
-        {
-            DrawResourceHud("BladeAmmoS", _world.LocalPlayer.CurrentShells, 100f, showCount: false, barXOffset: 689f, barWidth: 34f);
-            return;
-        }
-
-        if (_world.LocalPlayer.PrimaryWeapon.Kind == PrimaryWeaponKind.Rifle)
-        {
-            return;
-        }
-
-        var viewportWidth = ViewportWidth;
-        var viewportHeight = ViewportHeight;
         var hudSpriteName = GetAmmoHudSpriteName();
         if (hudSpriteName is null)
         {
             return;
         }
 
-        var baseX = viewportWidth * 0.91f;
-        var baseY = viewportHeight * 0.935f;
         if (TryDrawScreenSprite(
             hudSpriteName,
             GetAmmoHudFrameIndex(),
-            new Vector2(baseX, baseY),
+            GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f),
             Color.White,
             new Vector2(2.4f, 2.4f)))
         {
-            DrawHudTextLeftAligned(_world.LocalPlayer.CurrentShells.ToString(CultureInfo.InvariantCulture), new Vector2(baseX + 37f, baseY + 9f), new Color(245, 235, 210), 1f);
-            DrawAmmoReloadBar((int)(baseX - (viewportWidth * 0.022f)), (int)(baseY + 4f), _world.LocalPlayer.ClassId == PlayerClass.Soldier ? 34 : 50, 8);
+            if (_world.LocalPlayer.ClassId != PlayerClass.Soldier)
+            {
+                DrawHudTextLeftAligned(
+                    _world.LocalPlayer.CurrentShells.ToString(CultureInfo.InvariantCulture),
+                    GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f),
+                    AmmoHudTextColor,
+                    1f);
+            }
+
+            DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
         }
     }
 
-    private void DrawResourceHud(string spriteName, float barValue, float barMax, bool showCount, float barXOffset, float barWidth)
+    private void DrawPyroAmmoHud()
     {
-        var viewportWidth = ViewportWidth;
-        var viewportHeight = ViewportHeight;
-        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
-        var baseX = viewportWidth * 0.91f;
-        var baseY = viewportHeight * 0.935f;
-        if (!TryDrawScreenSprite(spriteName, frameIndex, new Vector2(baseX, baseY), Color.White, new Vector2(2.4f, 2.4f)))
+        var frameIndex = GetAmmoHudFrameIndex();
+        if (!TryDrawSourceAmmoHudSprite("GasAmmoS", frameIndex))
         {
             return;
         }
 
-        if (showCount)
+        var barColor = _world.LocalPlayer.CurrentShells <= (_world.LocalPlayer.MaxShells * 0.25f)
+            ? LowAmmoHudColor
+            : AmmoHudBarColor;
+        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, barColor);
+        DrawPyroFlareHud(frameIndex);
+    }
+
+    private void DrawHeavyAmmoHud()
+    {
+        if (!TryDrawSourceAmmoHudSprite("MinigunAmmoS", GetAmmoHudFrameIndex()))
         {
-            DrawHudTextLeftAligned(((int)MathF.Floor(barValue)).ToString(CultureInfo.InvariantCulture), new Vector2(baseX + 37f, baseY + 9f), new Color(245, 235, 210), 1f);
+            return;
         }
 
+        var ammoFraction = _world.LocalPlayer.MaxShells <= 0
+            ? 0f
+            : float.Clamp(_world.LocalPlayer.CurrentShells / (float)_world.LocalPlayer.MaxShells, 0f, 1f);
+        var barColor = Color.Lerp(AmmoHudBarColor, LowAmmoHudColor, 1f - ammoFraction);
+        var cooldownFraction = float.Clamp(Math.Max(_world.LocalPlayer.PrimaryCooldownTicks, _world.LocalPlayer.ReloadTicksUntilNextShell) / 25f, 0f, 1f);
+        barColor = Color.Lerp(barColor, HeavyCooldownHudColor, cooldownFraction);
+        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, barColor);
+    }
+
+    private void DrawQuoteAmmoHud()
+    {
+        if (!TryDrawSourceAmmoHudSprite("BladeAmmoS", GetAmmoHudFrameIndex()))
+        {
+            return;
+        }
+
+        DrawSourceAmmoHudBar(689f, 34f, _world.LocalPlayer.CurrentShells, _world.LocalPlayer.MaxShells, AmmoHudBarColor);
+    }
+
+    private void DrawPyroFlareHud(int frameIndex)
+    {
+        var flareCount = _world.LocalPlayer.CurrentShells / 75;
+        if (flareCount <= 0)
+        {
+            return;
+        }
+
+        var canAirblast = _world.LocalPlayer.PyroAirblastCooldownTicks <= 0
+            && _world.LocalPlayer.CurrentShells >= PlayerEntity.PyroAirblastCost;
+        var flareTint = canAirblast ? Color.White : DisabledAmmoHudColor;
+        for (var flareIndex = 0; flareIndex < flareCount; flareIndex += 1)
+        {
+            TryDrawScreenSprite(
+                "FlareS",
+                frameIndex,
+                GetSourceHudPoint(760f - (flareIndex * 20f), SourceAmmoHudBaseY + 93f),
+                flareTint,
+                Vector2.One);
+        }
+    }
+
+    private bool TryDrawSourceAmmoHudSprite(string spriteName, int frameIndex)
+    {
+        return TryDrawScreenSprite(
+            spriteName,
+            frameIndex,
+            GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f),
+            Color.White,
+            new Vector2(2.4f, 2.4f));
+    }
+
+    private void DrawSourceAmmoHudBar(float left, float width, float value, float maxValue, Color fillColor)
+    {
         DrawScreenHealthBar(
-            new Rectangle((int)(viewportWidth * (barXOffset / 800f)), (int)(viewportHeight * (518f / 600f)), (int)(viewportWidth * (barWidth / 800f)), 8),
-            barValue,
-            barMax,
+            GetSourceHudRectangle(left, SourceAmmoHudBaseY + 90f, width, 8f),
+            value,
+            maxValue,
             false,
-            new Color(217, 217, 183),
+            fillColor,
             Color.Black);
+    }
+
+    private Rectangle GetReloadAmmoHudBarRectangle()
+    {
+        return _world.LocalPlayer.ClassId == PlayerClass.Soldier
+            ? GetSourceHudRectangle(689f, SourceAmmoHudBaseY + 90f, 34f, 8f)
+            : GetSourceHudRectangle(700f, SourceAmmoHudBaseY + 90f, 50f, 8f);
+    }
+
+    private Vector2 GetSourceHudPoint(float sourceX, float sourceY)
+    {
+        return new Vector2(
+            ViewportWidth - SourceHudWidth + sourceX,
+            ViewportHeight - SourceHudHeight + sourceY);
+    }
+
+    private Rectangle GetSourceHudRectangle(float sourceX, float sourceY, float width, float height)
+    {
+        var position = GetSourceHudPoint(sourceX, sourceY);
+        return new Rectangle(
+            (int)MathF.Round(position.X),
+            (int)MathF.Round(position.Y),
+            (int)MathF.Round(width),
+            (int)MathF.Round(height));
     }
 
     private void DrawMedicHud()
@@ -563,7 +650,7 @@ public partial class Game1
         };
     }
 
-    private void DrawAmmoReloadBar(int x, int y, int width, int height = 5)
+    private void DrawAmmoReloadBar(Rectangle barRectangle)
     {
         if (_world.LocalPlayer.ReloadTicksUntilNextShell <= 0)
         {
@@ -572,7 +659,13 @@ public partial class Game1
 
         var reloadTicks = Math.Max(1, _world.LocalPlayer.PrimaryWeapon.AmmoReloadTicks);
         var reloadProgress = 1f - (_world.LocalPlayer.ReloadTicksUntilNextShell / (float)reloadTicks);
-        var reloadRectangle = new Rectangle(x, y, (int)(width * reloadProgress), height);
-        _spriteBatch.Draw(_pixel, reloadRectangle, new Color(217, 217, 183));
+        var reloadWidth = Math.Clamp((int)MathF.Round(barRectangle.Width * reloadProgress), 0, barRectangle.Width);
+        if (reloadWidth <= 0)
+        {
+            return;
+        }
+
+        var reloadRectangle = new Rectangle(barRectangle.X, barRectangle.Y, reloadWidth, barRectangle.Height);
+        _spriteBatch.Draw(_pixel, reloadRectangle, AmmoHudBarColor);
     }
 }

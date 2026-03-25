@@ -49,6 +49,12 @@ public partial class Game1
             Math.Max(1, screenBottom - screenTop));
     }
 
+    private static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition, PlayerClass classId)
+    {
+        var spriteOffset = GetPlayerSpriteOffset(classId);
+        return RoundToSourcePixels(renderPosition + spriteOffset);
+    }
+
     private void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
     {
         if (!player.IsAlive)
@@ -95,17 +101,18 @@ public partial class Game1
             var sprite = _runtimeAssets.GetSprite(spriteName);
             if (sprite is not null && sprite.Frames.Count > 0)
             {
+                var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, deadBody.ClassId);
                 _spriteBatch.Draw(
                     sprite.Frames[0],
                     new Vector2(
-                        renderPosition.X - cameraPosition.X + GetPlayerSpriteOffset(deadBody.ClassId).X,
-                        renderPosition.Y - cameraPosition.Y + GetPlayerSpriteOffset(deadBody.ClassId).Y),
+                        roundedOrigin.X - cameraPosition.X,
+                        roundedOrigin.Y - cameraPosition.Y),
                     null,
                     Color.White,
                     0f,
                     sprite.Origin.ToVector2(),
-                    Vector2.One,
-                    deadBody.FacingLeft ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+                    new Vector2(deadBody.FacingLeft ? -1f : 1f, 1f),
+                    SpriteEffects.None,
                     0f);
                 return;
             }
@@ -139,20 +146,22 @@ public partial class Game1
         }
 
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var effects = GetSpriteEffectsFromAim(player);
+        var facingScale = GetPlayerFacingScale(player);
+        var scale = new Vector2(facingScale, 1f);
         var frameIndex = isHeavyEating
             ? GetHeavyEatSpriteFrameIndex(GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
             : player.IsTaunting
                 ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-        var spriteOffset = GetPlayerSpriteOffset(player.ClassId);
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
+        var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
         var position = new Vector2(
-            renderPosition.X - cameraPosition.X + spriteOffset.X,
-            renderPosition.Y - cameraPosition.Y + spriteOffset.Y + bodySelection.BodyYOffset);
+            roundedOrigin.X - cameraPosition.X,
+            roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
 
         if (!isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
         {
-            DrawIntelUnderlaySprite(player, cameraPosition, tint, effects, bodySelection, renderPosition, spriteOffset);
+            DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
         }
 
         _spriteBatch.Draw(
@@ -162,8 +171,8 @@ public partial class Game1
             tint,
             0f,
             sprite.Origin.ToVector2(),
-            Vector2.One,
-            effects,
+            scale,
+            SpriteEffects.None,
             0f);
         if (player.IsUbered)
         {
@@ -174,8 +183,8 @@ public partial class Game1
                 GetUberOverlayColor(player.Team) * 0.7f,
                 0f,
                 sprite.Origin.ToVector2(),
-                Vector2.One,
-                effects,
+                scale,
+                SpriteEffects.None,
                 0f);
         }
 
@@ -186,10 +195,9 @@ public partial class Game1
         PlayerEntity player,
         Vector2 cameraPosition,
         Color tint,
-        SpriteEffects effects,
+        Vector2 scale,
         PlayerBodySpriteSelection bodySelection,
-        Vector2 renderPosition,
-        Vector2 spriteOffset)
+        Vector2 roundedOrigin)
     {
         var spriteName = GetTeamSpriteName(player.ClassId, player.Team, "IntelS");
         if (spriteName is null)
@@ -206,14 +214,14 @@ public partial class Game1
         _spriteBatch.Draw(
             sprite.Frames[0],
             new Vector2(
-                renderPosition.X - cameraPosition.X + spriteOffset.X,
-                renderPosition.Y - cameraPosition.Y + spriteOffset.Y + bodySelection.EquipmentOffset),
+                roundedOrigin.X - cameraPosition.X,
+                roundedOrigin.Y + bodySelection.EquipmentOffset - cameraPosition.Y),
             null,
             tint,
             0f,
             sprite.Origin.ToVector2(),
-            Vector2.One,
-            effects,
+            scale,
+            SpriteEffects.None,
             0f);
     }
 
@@ -288,12 +296,11 @@ public partial class Game1
         var facingScale = GetPlayerFacingScale(player);
         var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
         var rotation = GetWeaponRotation(player);
-        var leftFacingNudge = GetLeftFacingWeaponNudge(player, facingScale);
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var spriteOffset = GetPlayerSpriteOffset(player.ClassId);
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-        var drawX = renderPosition.X + spriteOffset.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale + leftFacingNudge;
-        var drawY = renderPosition.Y + spriteOffset.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
+        var drawX = roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale;
+        var drawY = roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
         var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
         var scale = new Vector2(facingScale, 1f);
         _spriteBatch.Draw(
@@ -340,7 +347,7 @@ public partial class Game1
     private Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
     {
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        return renderPosition + GetPlayerSpriteOffset(player.ClassId);
+        return GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
     }
 
     private PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
@@ -413,7 +420,7 @@ public partial class Game1
         else if (horizontalSourceStepSpeed < 3f && equipmentOffset < bodyYOffset)
         {
             bodyYOffset += 2f;
-            equipmentOffset = bodyYOffset;
+            equipmentOffset += 2f;
         }
 
         return new PlayerBodySpriteSelection(
@@ -577,11 +584,6 @@ public partial class Game1
         return IsFacingLeftByAim(player) ? -1f : 1f;
     }
 
-    private static SpriteEffects GetSpriteEffectsFromAim(PlayerEntity player)
-    {
-        return IsFacingLeftByAim(player) ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-    }
-
     private static bool IsFacingLeftByAim(PlayerEntity player)
     {
         var radians = MathF.PI * player.AimDirectionDegrees / 180f;
@@ -592,21 +594,6 @@ public partial class Game1
     {
         var radians = MathF.PI * player.AimDirectionDegrees / 180f;
         return IsFacingLeftByAim(player) ? radians + MathF.PI : radians;
-    }
-
-    private static float GetLeftFacingWeaponNudge(PlayerEntity player, float facingScale)
-    {
-        if (facingScale >= 0f)
-        {
-            return 0f;
-        }
-
-        return player.ClassId switch
-        {
-            PlayerClass.Heavy => 25f,
-            PlayerClass.Sniper => 5f,
-            _ => 1f,
-        };
     }
 
     private static string? GetTauntSpriteName(PlayerEntity player)

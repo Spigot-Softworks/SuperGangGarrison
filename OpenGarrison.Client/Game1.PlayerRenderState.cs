@@ -119,6 +119,16 @@ public partial class Game1
             && weaponDefinition.ReloadSpriteName is not null
             && player.IsSniperScoped;
 
+        if (player.ClassId == PlayerClass.Sniper)
+        {
+            UpdateSniperWeaponAnimationState(player, renderState, weaponDefinition, shotStarted);
+            QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
+            renderState.PreviousAmmoCount = player.CurrentShells;
+            renderState.PreviousCooldownTicks = player.PrimaryCooldownTicks;
+            renderState.PreviousReloadTicks = player.ReloadTicksUntilNextShell;
+            return;
+        }
+
         if (player.ClassId == PlayerClass.Medic && player.IsMedicHealing && weaponDefinition.RecoilSpriteName is not null)
         {
             StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponDefinition.RecoilDurationSeconds, preserveElapsed: preserveRecoilLoop);
@@ -189,6 +199,50 @@ public partial class Game1
         renderState.PreviousAmmoCount = player.CurrentShells;
         renderState.PreviousCooldownTicks = player.PrimaryCooldownTicks;
         renderState.PreviousReloadTicks = player.ReloadTicksUntilNextShell;
+    }
+
+    private static void UpdateSniperWeaponAnimationState(
+        PlayerEntity player,
+        PlayerRenderState renderState,
+        WeaponRenderDefinition weaponDefinition,
+        bool shotStarted)
+    {
+        if (shotStarted)
+        {
+            if (player.IsSniperScoped && weaponDefinition.ReloadSpriteName is not null)
+            {
+                StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponDefinition.ScopedRecoilDurationSeconds);
+            }
+            else if (weaponDefinition.RecoilSpriteName is not null)
+            {
+                StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponDefinition.RecoilDurationSeconds);
+            }
+            else
+            {
+                StopWeaponAnimation(renderState);
+            }
+
+            return;
+        }
+
+        if (renderState.WeaponAnimationMode == WeaponAnimationMode.Recoil
+            && renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        if (renderState.WeaponAnimationMode == WeaponAnimationMode.ScopedRecoil
+            && renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        if (renderState.WeaponAnimationMode == WeaponAnimationMode.Reload)
+        {
+            StopWeaponAnimation(renderState);
+        }
     }
 
     private void RemoveStalePlayerRenderState()

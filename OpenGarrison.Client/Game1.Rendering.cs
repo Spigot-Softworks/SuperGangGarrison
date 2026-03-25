@@ -9,6 +9,18 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private static float RoundToSourcePixel(float value)
+    {
+        return MathF.Round(value, MidpointRounding.AwayFromZero);
+    }
+
+    private static Vector2 RoundToSourcePixels(Vector2 value)
+    {
+        return new Vector2(
+            RoundToSourcePixel(value.X),
+            RoundToSourcePixel(value.Y));
+    }
+
     private void DrawSniperTracers(Vector2 cameraPosition)
     {
         foreach (var trace in _world.CombatTraces)

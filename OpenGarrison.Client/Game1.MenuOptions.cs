@@ -18,7 +18,8 @@ public partial class Game1
 
     private bool IsGameplayInputBlocked()
     {
-        return IsGameplayMenuOpen()
+        return !IsActive
+            || IsGameplayMenuOpen()
             || _consoleOpen
             || _chatOpen
             || _teamSelectOpen

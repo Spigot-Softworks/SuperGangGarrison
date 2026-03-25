@@ -116,6 +116,14 @@ public sealed partial class PlayerEntity
 
         ClampMovementSpeedsToSourceStepMaximum();
 
+        // Source wall-rub spinjump logic assumes we resolve incidental overlap
+        // before checking whether the player is standing on something.
+        if (!CanOccupy(level, team, X, Y))
+        {
+            NudgeOutsideBlockingGeometry(level, team);
+            ClampTo(level.Bounds);
+        }
+
         var startedGrounded = !CanOccupy(level, team, X, Y + 1f);
         if (startedGrounded)
         {
@@ -204,6 +212,18 @@ public sealed partial class PlayerEntity
             VerticalSpeed = 0f;
             MovementState = LegacyMovementState.None;
         }
+    }
+
+    public bool IsSourceFacingLeft => SourceFacingDirectionX < 0f;
+
+    public bool IsPerformingSourceSpinjump(SimpleLevel level)
+    {
+        if (!IsAlive)
+        {
+            return false;
+        }
+
+        return ShouldCancelGravityForSourceSpinjump(level, Team, LegacyMovementModel.GetAirborneGravityPerTick(MovementState));
     }
 
     private void MoveWithCollisions(SimpleLevel level, PlayerTeam team, float moveX, float moveY)

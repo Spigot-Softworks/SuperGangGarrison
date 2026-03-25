@@ -127,8 +127,6 @@ public partial class Game1 : Game
     private bool _buildMenuClosing;
     private float _buildMenuAlpha = 0.01f;
     private float _buildMenuX = -37f;
-    private bool _pendingBuildSentry;
-    private bool _pendingDestroySentry;
     private NoticeState? _notice;
     private bool _hadLocalSentry;
     private bool _wasCarryingIntel;
@@ -208,6 +206,7 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private ControlsMenuBinding? _pendingControlsBinding;
     private readonly List<ChatLine> _chatLines = new();
@@ -261,6 +260,7 @@ public partial class Game1 : Game
         LoadMenuMusic();
         LoadFaucetMusic();
         LoadIngameMusic();
+        ApplyAudioMuteState();
         AddConsoleLine($"gm assets sprites={_assetManifest.Sprites.Count} backgrounds={_assetManifest.Backgrounds.Count} sounds={_assetManifest.Sounds.Count}");
     }
 
@@ -292,13 +292,27 @@ public partial class Game1 : Game
         BeginNetworkDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = ConsumeClientTickCount(gameTime);
-        var keyboard = Keyboard.GetState();
-        var mouse = GetScaledMouseState(Mouse.GetState());
+        var windowActive = IsActive;
+        var keyboard = windowActive ? Keyboard.GetState() : default;
+        var mouse = windowActive ? GetScaledMouseState(Mouse.GetState()) : default;
+        if (!_wasWindowActive && windowActive)
+        {
+            _previousKeyboard = keyboard;
+            _previousMouse = mouse;
+        }
+
+        _wasWindowActive = windowActive;
         if (TryHandlePasswordPromptCancel(keyboard, mouse))
         {
             FinalizeNetworkDiagnosticsFrame();
             base.Update(gameTime);
             return;
+        }
+
+        var muteAudioPressed = keyboard.IsKeyDown(Keys.F12) && !_previousKeyboard.IsKeyDown(Keys.F12);
+        if (muteAudioPressed)
+        {
+            ToggleAudioMute();
         }
 
         var toggleConsolePressed = keyboard.IsKeyDown(_inputBindings.ToggleConsole) && !_previousKeyboard.IsKeyDown(_inputBindings.ToggleConsole);

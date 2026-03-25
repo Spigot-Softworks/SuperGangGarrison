@@ -48,6 +48,15 @@ function Get-ArchiveName {
     }
 }
 
+function Test-IsSelfContainedRuntime {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
+    )
+
+    return $RuntimeIdentifier -ne "win-x64"
+}
+
 function New-PackageArchive {
     param(
         [Parameter(Mandatory = $true)]
@@ -110,6 +119,38 @@ function Copy-DirectoryContents {
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
 }
 
+function New-UnixLauncherScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath,
+        [Parameter(Mandatory = $true)]
+        [string]$ExecutableName
+    )
+
+    $scriptContents = @'
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR"
+chmod +x "./__EXECUTABLE__"
+exec "./__EXECUTABLE__" "$@"
+'@.Replace("__EXECUTABLE__", $ExecutableName)
+
+    [System.IO.File]::WriteAllText($DestinationPath, $scriptContents, [System.Text.Encoding]::ASCII)
+}
+
+function Add-UnixLaunchers {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-client.sh") -ExecutableName "OpenGarrison.Client"
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server.sh") -ExecutableName "OpenGarrison.Server"
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server-launcher.sh") -ExecutableName "OpenGarrison.ServerLauncher"
+}
+
 function Move-PluginArtifactsToPluginDirectory {
     param(
         [Parameter(Mandatory = $true)]
@@ -159,6 +200,7 @@ foreach ($runtimeIdentifier in $Platforms) {
 
     foreach ($project in $projects) {
         $projectPath = Join-Path $repoRoot $project
+        $selfContained = if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) { "true" } else { "false" }
         Invoke-DotNet -Arguments @(
             "restore",
             $projectPath,
@@ -170,7 +212,7 @@ foreach ($runtimeIdentifier in $Platforms) {
             $projectPath,
             "-c", $configuration,
             "-r", $runtimeIdentifier,
-            "--self-contained", "false",
+            "--self-contained", $selfContained,
             "--no-restore",
             "-o", $stagingDirectory
         )
@@ -181,6 +223,10 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
+
+    if (Test-IsSelfContainedRuntime -RuntimeIdentifier $runtimeIdentifier) {
+        Add-UnixLaunchers -OutputDirectory $stagingDirectory
+    }
 
     Move-PluginArtifactsToPluginDirectory -OutputDirectory $stagingDirectory
 
