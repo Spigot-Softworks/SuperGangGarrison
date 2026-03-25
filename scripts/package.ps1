@@ -135,7 +135,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR"
 chmod +x "./__EXECUTABLE__"
 exec "./__EXECUTABLE__" "$@"
-'@.Replace("__EXECUTABLE__", $ExecutableName)
+'@.Replace("`r`n", "`n").Replace("__EXECUTABLE__", $ExecutableName)
 
     [System.IO.File]::WriteAllText($DestinationPath, $scriptContents, [System.Text.Encoding]::ASCII)
 }
