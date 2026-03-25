@@ -382,8 +382,6 @@ public partial class Game1
     {
         if (_networkClient.IsSpectator)
         {
-            _teamSelectOpen = false;
-            _classSelectOpen = false;
             return;
         }
 

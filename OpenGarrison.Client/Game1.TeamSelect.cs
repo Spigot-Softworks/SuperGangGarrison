@@ -156,6 +156,18 @@ public partial class Game1
         if (_networkClient.IsConnected)
         {
             _networkClient.QueueTeamSelection(selectedTeam);
+            if (_networkClient.IsSpectator)
+            {
+                _teamSelectOpen = false;
+                _classSelectOpen = false;
+                _menuStatusMessage = selectedTeam switch
+                {
+                    PlayerTeam.Red => "Joining RED team...",
+                    PlayerTeam.Blue => "Joining BLU team...",
+                    _ => "Joining team...",
+                };
+                return;
+            }
         }
         else
         {
