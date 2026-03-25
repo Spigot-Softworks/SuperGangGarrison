@@ -43,7 +43,7 @@ public partial class Game1
             return;
         }
 
-        var chosen = candidates[_visualRandom.Next(candidates.Length)];
+        var chosen = candidates[Random.Shared.Next(candidates.Length)];
         TryLoadLoopedMusic(Path.Combine("Music", chosen), out _menuMusic, out _menuMusicInstance, 0.8f);
     }
 

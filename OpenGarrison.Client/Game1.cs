@@ -86,6 +86,7 @@ public partial class Game1 : Game
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
     private Texture2D? _menuBackgroundTexture;
+    private string? _menuBackgroundTexturePath;
     private SpriteFont _consoleFont = null!;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
@@ -284,6 +285,7 @@ public partial class Game1 : Game
         _deathCamCaptureTarget?.Dispose();
         _deathCamCaptureTarget = null;
         _menuBackgroundTexture = null;
+        _menuBackgroundTexturePath = null;
         PersistClientSettings();
         PersistInputBindings();
         base.UnloadContent();

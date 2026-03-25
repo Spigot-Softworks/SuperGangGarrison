@@ -49,10 +49,9 @@ public partial class Game1
             Math.Max(1, screenBottom - screenTop));
     }
 
-    private static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition, PlayerClass classId)
+    private static Vector2 GetRoundedPlayerSpriteOrigin(Vector2 renderPosition)
     {
-        var spriteOffset = GetPlayerSpriteOffset(classId);
-        return RoundToSourcePixels(renderPosition + spriteOffset);
+        return RoundToSourcePixels(renderPosition);
     }
 
     private void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
@@ -101,7 +100,7 @@ public partial class Game1
             var sprite = _runtimeAssets.GetSprite(spriteName);
             if (sprite is not null && sprite.Frames.Count > 0)
             {
-                var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, deadBody.ClassId);
+                var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
                 _spriteBatch.Draw(
                     sprite.Frames[0],
                     new Vector2(
@@ -153,7 +152,7 @@ public partial class Game1
             : player.IsTaunting
                 ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
                 : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
         var position = new Vector2(
             roundedOrigin.X - cameraPosition.X,
@@ -297,7 +296,7 @@ public partial class Game1
         var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
         var rotation = GetWeaponRotation(player);
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
         var drawX = roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale;
         var drawY = roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
@@ -347,7 +346,7 @@ public partial class Game1
     private Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
     {
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        return GetRoundedPlayerSpriteOrigin(renderPosition, player.ClassId);
+        return GetRoundedPlayerSpriteOrigin(renderPosition);
     }
 
     private PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
@@ -549,11 +548,6 @@ public partial class Game1
             : Math.Clamp((int)MathF.Floor(animationPosition), 0, perTeamFrames - 1);
         var teamOffset = player.Team == PlayerTeam.Blue ? perTeamFrames : 0;
         return Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
-    }
-
-    private static Vector2 GetPlayerSpriteOffset(PlayerClass classId)
-    {
-        return classId == PlayerClass.Quote ? new Vector2(0f, 12f) : Vector2.Zero;
     }
 
     private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)

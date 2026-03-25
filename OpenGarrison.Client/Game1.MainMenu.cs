@@ -83,15 +83,7 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
 
-        if (_menuBackgroundTexture is null)
-        {
-            var path = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.jpg");
-            if (path is not null && File.Exists(path))
-            {
-                using var stream = File.OpenRead(path);
-                _menuBackgroundTexture = Texture2D.FromStream(GraphicsDevice, stream);
-            }
-        }
+        EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
 
         if (_menuBackgroundTexture is not null)
         {
@@ -156,6 +148,54 @@ public partial class Game1
         DrawMenuStatusText();
         DrawQuitPrompt();
         DrawDevMessagePopup();
+    }
+
+    private void EnsureMenuBackgroundTexture(int viewportWidth, int viewportHeight)
+    {
+        var path = GetMenuBackgroundPath(viewportWidth, viewportHeight);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            DisposeMenuBackgroundTexture();
+            return;
+        }
+
+        if (_menuBackgroundTexture is not null
+            && string.Equals(_menuBackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        DisposeMenuBackgroundTexture();
+        using var stream = File.OpenRead(path);
+        _menuBackgroundTexture = Texture2D.FromStream(GraphicsDevice, stream);
+        _menuBackgroundTexturePath = path;
+    }
+
+    private string? GetMenuBackgroundPath(int viewportWidth, int viewportHeight)
+    {
+        var aspectRatio = viewportHeight <= 0 ? (16f / 9f) : viewportWidth / (float)viewportHeight;
+        var fileName = aspectRatio <= 1.27f
+            ? "background-5x4.jpg"
+            : aspectRatio <= 1.4f
+                ? "background-4x3.jpg"
+                : "background.jpg";
+        var path = ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
+        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        {
+            return path;
+        }
+
+        var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.jpg");
+        return !string.IsNullOrWhiteSpace(fallbackPath) && File.Exists(fallbackPath)
+            ? fallbackPath
+            : null;
+    }
+
+    private void DisposeMenuBackgroundTexture()
+    {
+        _menuBackgroundTexture?.Dispose();
+        _menuBackgroundTexture = null;
+        _menuBackgroundTexturePath = null;
     }
 
     private void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)
