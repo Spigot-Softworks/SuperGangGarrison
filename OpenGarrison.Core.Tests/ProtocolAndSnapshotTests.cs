@@ -973,7 +973,7 @@ public sealed class ProtocolAndSnapshotTests
             ],
             SoundEvents:
             [
-                new SnapshotSoundEvent("IntelGetSnd", 450f, 280f, 701UL),
+                new SnapshotSoundEvent("IntelGetSnd", 450f, 280f, 701UL, 699UL),
             ]);
     }
 }

@@ -24,5 +24,7 @@ public partial class Game1
         _world = new SimulationWorld(_config);
         _simulator = new FixedStepSimulator(_world);
         _world.SetLocalPlayerName(localPlayerName);
+        _observedGameplayLevelName = string.Empty;
+        _observedGameplayMapAreaIndex = -1;
     }
 }

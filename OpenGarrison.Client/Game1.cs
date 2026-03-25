@@ -98,6 +98,8 @@ public partial class Game1 : Game
     private bool _wasLocalPlayerAlive = true;
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
+    private string _observedGameplayLevelName = string.Empty;
+    private int _observedGameplayMapAreaIndex = -1;
     private MouseState _previousMouse;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;

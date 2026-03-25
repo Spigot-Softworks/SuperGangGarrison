@@ -677,9 +677,28 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        TrySnapToGroundBelow(level, team);
         IsGrounded = true;
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
+    }
+
+    private bool TrySnapToGroundBelow(SimpleLevel level, PlayerTeam team)
+    {
+        var obstacleTop = FindBlockingObstacleTop(level, team, X, Y + 1f);
+        if (!obstacleTop.HasValue)
+        {
+            return false;
+        }
+
+        var targetY = obstacleTop.Value - CollisionBottomOffset;
+        if (targetY < Y || !CanOccupy(level, team, X, targetY))
+        {
+            return false;
+        }
+
+        Y = targetY;
+        return true;
     }
 
     private bool TryStepUpForObstacle(SimpleLevel level, PlayerTeam team, float horizontalDirection)
@@ -734,6 +753,14 @@ public sealed partial class PlayerEntity
             if (left < wall.Right && right > wall.Left && top < wall.Bottom && bottom > wall.Top)
             {
                 obstacleTop = obstacleTop.HasValue ? MathF.Min(obstacleTop.Value, wall.Top) : wall.Top;
+            }
+        }
+
+        foreach (var gate in level.GetBlockingTeamGates(team, IsCarryingIntel))
+        {
+            if (left < gate.Right && right > gate.Left && top < gate.Bottom && bottom > gate.Top)
+            {
+                obstacleTop = obstacleTop.HasValue ? MathF.Min(obstacleTop.Value, gate.Top) : gate.Top;
             }
         }
 

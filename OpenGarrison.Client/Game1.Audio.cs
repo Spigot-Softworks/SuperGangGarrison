@@ -303,9 +303,10 @@ public partial class Game1
                 continue;
             }
 
-            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                && TryCreateExplosionVisual(soundEvent, out var explosion))
             {
-                _explosions.Add(new ExplosionVisual(soundEvent.X, soundEvent.Y));
+                _explosions.Add(explosion!);
             }
 
             if (ShouldSuppressManagedLocalRapidFireSound(soundEvent))

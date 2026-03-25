@@ -135,7 +135,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y));
+        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, attacker.X, attacker.Y, SourceFrame: (ulong)Frame));
     }
 
     private void RegisterWorldSoundEvent(string soundName, float x, float y)
@@ -145,7 +145,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, x, y));
+        _pendingSoundEvents.Add(new WorldSoundEvent(soundName, x, y, SourceFrame: (ulong)Frame));
     }
 
     private static PlayerTeam GetOpposingTeam(PlayerTeam team)

@@ -29,6 +29,51 @@ public partial class Game1
     private int _nextClientBackstabVisualId = -1;
     private float _pendingWallspinDustSourceTicks;
 
+    private void ResetTransientPresentationEffects()
+    {
+        _explosions.Clear();
+        _airBlasts.Clear();
+        ResetBackstabVisuals();
+        _bloodVisuals.Clear();
+        _bloodSprayVisuals.Clear();
+        _pendingWeaponShellVisuals.Clear();
+        _shellVisuals.Clear();
+        _rocketSmokeVisuals.Clear();
+        _mineTrailVisuals.Clear();
+        _wallspinDustVisuals.Clear();
+        _blastJumpFlameVisuals.Clear();
+        _flameSmokeVisuals.Clear();
+        _pendingNetworkVisualEvents.Clear();
+        _pendingWallspinDustSourceTicks = 0f;
+    }
+
+    private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
+    {
+        explosion = new ExplosionVisual(soundEvent.X, soundEvent.Y);
+        if (soundEvent.SourceFrame == 0)
+        {
+            return true;
+        }
+
+        var currentFrame = (ulong)Math.Max(0L, _world.Frame);
+        if (currentFrame <= soundEvent.SourceFrame)
+        {
+            return true;
+        }
+
+        var elapsedSourceTicks = (currentFrame - soundEvent.SourceFrame)
+            * (LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond);
+        if (elapsedSourceTicks >= ExplosionVisual.LifetimeSourceTicks)
+        {
+            explosion = null;
+            return false;
+        }
+
+        explosion.ElapsedSourceTicks = Math.Clamp((int)MathF.Floor(elapsedSourceTicks), 0, ExplosionVisual.LifetimeSourceTicks - 1);
+        explosion.PendingSourceTicks = Math.Clamp(elapsedSourceTicks - explosion.ElapsedSourceTicks, 0f, 1f);
+        return true;
+    }
+
     private void AdvanceExplosionVisuals()
     {
         for (var index = _airBlasts.Count - 1; index >= 0; index -= 1)

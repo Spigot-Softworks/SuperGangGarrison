@@ -34,14 +34,8 @@ public partial class Game1
             _remotePlayerRenderTimeSeconds = 0d;
             _lastRemotePlayerRenderTimeClockSeconds = -1d;
             _hasRemotePlayerRenderTime = false;
-            _pendingNetworkVisualEvents.Clear();
-            ResetBackstabVisuals();
-            _processedNetworkSoundEventIds.Clear();
-            _processedNetworkSoundEventOrder.Clear();
-            _processedNetworkVisualEventIds.Clear();
-            _processedNetworkVisualEventOrder.Clear();
-            _processedKillFeedEventIds.Clear();
-            _processedKillFeedEventOrder.Clear();
+            ResetTransientPresentationEffects();
+            ResetProcessedNetworkEventHistory();
             _hasPredictedLocalPlayerPosition = false;
             _hasPredictedLocalActionState = false;
             _predictedLocalPlayerShadow = null;

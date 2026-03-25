@@ -78,6 +78,8 @@ public partial class Game1
                     _lastRemotePlayerRenderTimeClockSeconds = -1d;
                     _hasRemotePlayerRenderTime = false;
                     ResetSnapshotStateHistory();
+                    ResetTransientPresentationEffects();
+                    ResetProcessedNetworkEventHistory();
                     _localPlayerSnapshotEntityId = null;
                     _consoleOpen = false;
                     _mainMenuOpen = false;

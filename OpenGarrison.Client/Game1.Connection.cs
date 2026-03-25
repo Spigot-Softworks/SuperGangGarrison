@@ -172,6 +172,9 @@ public partial class Game1
     {
         _networkClient.Disconnect();
         StopLocalRapidFireWeaponAudio();
+        StopIngameMusic();
+        ResetTransientPresentationEffects();
+        ResetProcessedNetworkEventHistory();
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         ResetClientTimingState();
         _lastAppliedSnapshotFrame = 0;

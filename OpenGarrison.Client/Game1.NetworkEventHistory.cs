@@ -6,6 +6,16 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private void ResetProcessedNetworkEventHistory()
+    {
+        _processedNetworkSoundEventIds.Clear();
+        _processedNetworkSoundEventOrder.Clear();
+        _processedNetworkVisualEventIds.Clear();
+        _processedNetworkVisualEventOrder.Clear();
+        _processedKillFeedEventIds.Clear();
+        _processedKillFeedEventOrder.Clear();
+    }
+
     private static bool ShouldProcessNetworkEvent(ulong eventId, HashSet<ulong> processedIds, Queue<ulong> processedOrder)
     {
         if (eventId == 0)

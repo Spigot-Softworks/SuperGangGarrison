@@ -1811,6 +1811,22 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void FastLanding_SnapsPlayerFlushToGroundInsteadOfLeavingHoverGap()
+    {
+        var world = CreateWorld();
+        var floor = new LevelSolid(0f, 240f, 600f, 24f);
+        world.CombatTestSetLevel(CreateLevel(solids: [floor]));
+        world.TeleportLocalPlayer(150f, floor.Top - world.LocalPlayer.CollisionBottomOffset - 4f);
+        world.LocalPlayer.AddImpulse(0f, 2000f);
+
+        world.SetLocalInput(default);
+        world.AdvanceOneTick();
+
+        Assert.True(world.LocalPlayer.IsGrounded);
+        Assert.Equal(floor.Top, world.LocalPlayer.Bottom, 3);
+    }
+
+    [Fact]
     public void JumpingIntoLowCeiling_DoesNotSnapPlayerBackToCorridorEntrance()
     {
         var world = CreateWorld();

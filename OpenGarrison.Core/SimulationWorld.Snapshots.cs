@@ -117,7 +117,12 @@ public sealed partial class SimulationWorld
         for (var soundIndex = 0; soundIndex < snapshot.SoundEvents.Count; soundIndex += 1)
         {
             var soundEvent = snapshot.SoundEvents[soundIndex];
-            _pendingSoundEvents.Add(new WorldSoundEvent(soundEvent.SoundName, soundEvent.X, soundEvent.Y, soundEvent.EventId));
+            _pendingSoundEvents.Add(new WorldSoundEvent(
+                soundEvent.SoundName,
+                soundEvent.X,
+                soundEvent.Y,
+                soundEvent.EventId,
+                soundEvent.SourceFrame));
         }
 
         return true;

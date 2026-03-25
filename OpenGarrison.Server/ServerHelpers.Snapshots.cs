@@ -266,7 +266,12 @@ internal static partial class ServerHelpers
 
     internal static SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)
     {
-        return new SnapshotSoundEvent(soundEvent.SoundName, soundEvent.X, soundEvent.Y, soundEvent.EventId == 0 ? fallbackEventId : soundEvent.EventId);
+        return new SnapshotSoundEvent(
+            soundEvent.SoundName,
+            soundEvent.X,
+            soundEvent.Y,
+            soundEvent.EventId == 0 ? fallbackEventId : soundEvent.EventId,
+            soundEvent.SourceFrame);
     }
 
     internal static SnapshotVisualEvent ToSnapshotVisualEvent(WorldVisualEvent visualEvent, ulong fallbackEventId)

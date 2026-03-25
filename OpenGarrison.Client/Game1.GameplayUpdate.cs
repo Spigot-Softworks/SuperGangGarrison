@@ -10,6 +10,33 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private void HandleGameplayMapTransitionIfNeeded()
+    {
+        var currentLevelName = _world.Level.Name;
+        var currentMapAreaIndex = _world.Level.MapAreaIndex;
+        if (_observedGameplayMapAreaIndex < 0 || string.IsNullOrWhiteSpace(_observedGameplayLevelName))
+        {
+            _observedGameplayLevelName = currentLevelName;
+            _observedGameplayMapAreaIndex = currentMapAreaIndex;
+            return;
+        }
+
+        if (string.Equals(_observedGameplayLevelName, currentLevelName, StringComparison.OrdinalIgnoreCase)
+            && _observedGameplayMapAreaIndex == currentMapAreaIndex)
+        {
+            return;
+        }
+
+        StopLocalRapidFireWeaponAudio();
+        StopIngameMusic();
+        ResetTransientPresentationEffects();
+        ResetProcessedNetworkEventHistory();
+        _wasDeathCamActive = false;
+        _wasMatchEnded = false;
+        _observedGameplayLevelName = currentLevelName;
+        _observedGameplayMapAreaIndex = currentMapAreaIndex;
+    }
+
     private bool IsGameplayBindingKey(Keys key)
     {
         return _inputBindings.MoveUp == key
@@ -177,6 +204,7 @@ public partial class Game1
             RecordInterpolationDuration(GetDiagnosticsElapsedMilliseconds(interpolationStartTimestamp));
         }
 
+        HandleGameplayMapTransitionIfNeeded();
         UpdateLocalSentryNotice();
         UpdateIntelNotice();
         UpdateLocalPredictedRenderPosition();

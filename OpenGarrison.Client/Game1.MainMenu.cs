@@ -204,11 +204,12 @@ public partial class Game1
         {
             var creditsFrame = creditsSprite.Frames[0];
             const float creditsScale = 2f;
+            var additionalCreditsScale = GetCreditsAdditionalTextScale();
+            var additionalCreditsGap = GetCreditsAdditionalTextGap();
+            var lineHeight = GetCreditsAdditionalLineHeight(additionalCreditsScale);
             var creditsX = (viewportWidth - creditsFrame.Width * creditsScale) / 2f;
-            var additionalCreditsScale = viewportHeight < 540 ? 1.35f : 1.5f;
-            var additionalCreditsY = _creditsScrollY + creditsFrame.Height * creditsScale + 22f;
+            var additionalCreditsY = _creditsScrollY + creditsFrame.Height * creditsScale + additionalCreditsGap;
             var additionalCreditsColor = new Color(240, 228, 196);
-            var lineHeight = MeasureBitmapFontHeight(additionalCreditsScale) + 4f;
             _spriteBatch.Draw(
                 creditsFrame,
                 new Vector2(creditsX, _creditsScrollY),
@@ -278,22 +279,53 @@ public partial class Game1
 
     private float GetCreditsInitialScrollY()
     {
-        return MathF.Max(40f, ViewportHeight - 540f);
+        var panel = GetCreditsPanelBounds();
+        var availableTop = 28f;
+        var availableBottom = panel.Bottom - 92f;
+        var contentHeight = GetCreditsContentHeight();
+        return availableTop + MathF.Max(0f, (availableBottom - availableTop - contentHeight) * 0.5f);
     }
 
     private float GetCreditsMinimumScrollY()
     {
+        var panel = GetCreditsPanelBounds();
+        var availableBottom = panel.Bottom - 92f;
+        return Math.Min(GetCreditsInitialScrollY(), availableBottom - GetCreditsContentHeight());
+    }
+
+    private float GetCreditsContentHeight()
+    {
         var creditsSprite = _runtimeAssets.GetSprite("CreditsS");
         if (creditsSprite is null || creditsSprite.Frames.Count == 0)
         {
-            return GetCreditsInitialScrollY();
+            return 0f;
         }
 
         const float creditsScale = 2f;
-        var additionalCreditsScale = ViewportHeight < 540 ? 1.35f : 1.5f;
-        var additionalCreditsHeight = GetAdditionalCreditsLines().Length * (MeasureBitmapFontHeight(additionalCreditsScale) + 4f);
-        var contentHeight = creditsSprite.Frames[0].Height * creditsScale + 22f + additionalCreditsHeight + 28f;
-        return Math.Min(GetCreditsInitialScrollY(), ViewportHeight - 100f - contentHeight);
+        var contentHeight = creditsSprite.Frames[0].Height * creditsScale;
+        if (GetAdditionalCreditsLines().Length == 0)
+        {
+            return contentHeight;
+        }
+
+        return contentHeight
+            + GetCreditsAdditionalTextGap()
+            + (GetAdditionalCreditsLines().Length * GetCreditsAdditionalLineHeight(GetCreditsAdditionalTextScale()));
+    }
+
+    private float GetCreditsAdditionalTextScale()
+    {
+        return ViewportHeight < 540 ? 1.35f : 1.5f;
+    }
+
+    private float GetCreditsAdditionalLineHeight(float scale)
+    {
+        return MeasureBitmapFontHeight(scale) + 4f;
+    }
+
+    private static float GetCreditsAdditionalTextGap()
+    {
+        return 22f;
     }
 
     private static string[] GetAdditionalCreditsLines()
@@ -301,7 +333,7 @@ public partial class Game1
         return
         [
             "MonoGame Port by Graves",
-            "with help from Soumez",
+            "with help from Soumeh",
             "and KevinKuntz",
         ];
     }
