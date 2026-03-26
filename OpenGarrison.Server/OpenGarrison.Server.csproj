@@ -17,24 +17,28 @@
     <ItemGroup>
       <BundledPluginAssemblies Include="@(ReferenceCopyLocalPaths)"
                                Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'OpenGarrison.Server.Plugins.ChatVoting'" />
+      <BundledPluginOutputFiles Include="@(BundledPluginAssemblies->'$(TargetDir)Plugins\\%(Filename)%(Extension)')" />
     </ItemGroup>
 
-    <MakeDir Directories="$(TargetDir)Plugins" />
+    <MakeDir Directories="$(TargetDir)Plugins\Server\ChatVoting" />
     <Copy SourceFiles="@(BundledPluginAssemblies)"
-          DestinationFolder="$(TargetDir)Plugins"
+          DestinationFolder="$(TargetDir)Plugins\Server\ChatVoting"
           SkipUnchangedFiles="true" />
+    <Delete Files="@(BundledPluginOutputFiles)" />
   </Target>
 
   <Target Name="CopyBundledPluginAssembliesForPublish" AfterTargets="Publish">
     <ItemGroup>
       <BundledPluginAssemblies Include="@(ReferenceCopyLocalPaths)"
                                Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'OpenGarrison.Server.Plugins.ChatVoting'" />
+      <BundledPluginOutputFiles Include="@(BundledPluginAssemblies->'$(PublishDir)Plugins\\%(Filename)%(Extension)')" />
     </ItemGroup>
 
-    <MakeDir Directories="$(PublishDir)Plugins" />
+    <MakeDir Directories="$(PublishDir)Plugins\Server\ChatVoting" />
     <Copy SourceFiles="@(BundledPluginAssemblies)"
-          DestinationFolder="$(PublishDir)Plugins"
+          DestinationFolder="$(PublishDir)Plugins\Server\ChatVoting"
           SkipUnchangedFiles="true" />
+    <Delete Files="@(BundledPluginOutputFiles)" />
   </Target>
 
 </Project>

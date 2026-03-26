@@ -23,7 +23,7 @@ public partial class Game1
 
     private void UpdateBuildMenuState(KeyboardState keyboard, MouseState mouse)
     {
-        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen)
+        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen)
         {
             BeginClosingBuildMenu();
             AdvanceBuildMenuAnimation();

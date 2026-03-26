@@ -223,7 +223,7 @@ public partial class Game1
         KillFeedEntry? previousEntry = null;
         foreach (var entry in _world.KillFeed)
         {
-            if (previousEntry is not null && ShouldSuppressDuplicateSelfKillEntry(previousEntry, entry))
+            if (previousEntry is not null && ShouldSuppressDuplicateKillFeedEntry(previousEntry, entry))
             {
                 continue;
             }
@@ -301,13 +301,15 @@ public partial class Game1
             && string.Equals(entry.WeaponSpriteName, "DeadKL", StringComparison.Ordinal);
     }
 
-    private static bool ShouldSuppressDuplicateSelfKillEntry(KillFeedEntry previousEntry, KillFeedEntry entry)
+    private static bool ShouldSuppressDuplicateKillFeedEntry(KillFeedEntry previousEntry, KillFeedEntry entry)
     {
-        return previousEntry.KillerPlayerId == -1
-            && entry.KillerPlayerId == -1
+        return previousEntry.KillerName == entry.KillerName
+            && previousEntry.KillerTeam == entry.KillerTeam
+            && previousEntry.KillerPlayerId == entry.KillerPlayerId
             && previousEntry.VictimPlayerId == entry.VictimPlayerId
             && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
             && previousEntry.VictimName == entry.VictimName
+            && previousEntry.VictimTeam == entry.VictimTeam
             && previousEntry.MessageText == entry.MessageText
             && previousEntry.SpecialType == entry.SpecialType;
     }

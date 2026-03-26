@@ -63,6 +63,7 @@ public static partial class ProtocolCodec
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
         WriteKillFeedEntries(writer, snapshot.KillFeed);
         WriteVisualEvents(writer, snapshot.VisualEvents);
+        WriteDamageEvents(writer, snapshot.DamageEvents);
         WriteSoundEvents(writer, snapshot.SoundEvents);
     }
 
@@ -124,6 +125,7 @@ public static partial class ProtocolCodec
         var deathCam = ReadDeathCamState(reader);
         var killFeed = ReadKillFeedEntries(reader);
         var visualEvents = ReadVisualEvents(reader);
+        var damageEvents = ReadDamageEvents(reader);
         var soundEvents = ReadSoundEvents(reader);
 
         return new SnapshotMessage(
@@ -163,6 +165,7 @@ public static partial class ProtocolCodec
             deathCam,
             killFeed,
             visualEvents,
+            damageEvents,
             soundEvents,
             isCustomMap,
             mapDownloadUrl,

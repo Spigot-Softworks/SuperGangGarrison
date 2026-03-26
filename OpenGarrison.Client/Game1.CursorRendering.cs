@@ -28,6 +28,7 @@ public partial class Game1
             || _classSelectAlpha > 0.02f
             || _inGameMenuOpen
             || _optionsMenuOpen
+            || _pluginOptionsMenuOpen
             || _controlsMenuOpen;
     }
 

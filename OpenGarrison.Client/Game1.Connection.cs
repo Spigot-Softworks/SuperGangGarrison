@@ -40,6 +40,7 @@ public partial class Game1
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _hostSetupOpen = false;
         _hostSetupEditField = HostSetupEditField.None;
         _editingPlayerName = false;
@@ -134,6 +135,7 @@ public partial class Game1
             _lastRemotePlayerRenderTimeClockSeconds = -1d;
             _hasRemotePlayerRenderTime = false;
             _pendingNetworkVisualEvents.Clear();
+            _pendingNetworkDamageEvents.Clear();
             ResetBackstabVisuals();
             _hasPredictedLocalPlayerPosition = false;
             _hasSmoothedLocalPlayerRenderPosition = false;
@@ -185,6 +187,8 @@ public partial class Game1
         _mainMenuOpen = true;
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
+        _pluginOptionsMenuOpen = false;
+        _pluginOptionsMenuOpenedFromGameplay = false;
         _hostSetupOpen = false;
         _hostSetupEditField = HostSetupEditField.None;
         CloseLobbyBrowser(clearStatus: false);

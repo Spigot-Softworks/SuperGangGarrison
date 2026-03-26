@@ -126,7 +126,8 @@ public partial class Game1
     private void DrawPyroAmmoHud()
     {
         var frameIndex = GetAmmoHudFrameIndex();
-        if (!TryDrawSourceAmmoHudSprite("GasAmmoS", frameIndex))
+        var hudSpriteName = GetAmmoHudSpriteName();
+        if (hudSpriteName is null || !TryDrawSourceAmmoHudSprite(hudSpriteName, frameIndex))
         {
             return;
         }
@@ -141,7 +142,8 @@ public partial class Game1
 
     private void DrawHeavyAmmoHud()
     {
-        if (!TryDrawSourceAmmoHudSprite("MinigunAmmoS", GetAmmoHudFrameIndex()))
+        var hudSpriteName = GetAmmoHudSpriteName();
+        if (hudSpriteName is null || !TryDrawSourceAmmoHudSprite(hudSpriteName, GetAmmoHudFrameIndex()))
         {
             return;
         }
@@ -163,8 +165,9 @@ public partial class Game1
             return;
         }
 
+        var sandwichHudSpriteName = StockGameplayModCatalog.GetSecondaryItem(PlayerClass.Heavy)?.Presentation.HudSpriteName ?? "SandwichHudS";
         if (!TryDrawScreenSprite(
-            "SandwichHudS",
+            sandwichHudSpriteName,
             _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0,
             GetSourceHudPoint(730f, 515f),
             Color.White,
@@ -188,7 +191,8 @@ public partial class Game1
 
     private void DrawQuoteAmmoHud()
     {
-        if (!TryDrawSourceAmmoHudSprite("BladeAmmoS", GetAmmoHudFrameIndex()))
+        var hudSpriteName = GetAmmoHudSpriteName();
+        if (hudSpriteName is null || !TryDrawSourceAmmoHudSprite(hudSpriteName, GetAmmoHudFrameIndex()))
         {
             return;
         }
@@ -657,30 +661,21 @@ public partial class Game1
 
     private string? GetAmmoHudSpriteName()
     {
-        return _world.LocalPlayer.ClassId switch
-        {
-            PlayerClass.Scout => "ScattergunAmmoS",
-            PlayerClass.Engineer => "ShotgunAmmoS",
-            PlayerClass.Soldier => "Rocketclip",
-            PlayerClass.Demoman => "MinegunAmmoS",
-            PlayerClass.Spy => "RevolverAmmoS",
-            PlayerClass.Medic => "NeedleAmmoS",
-            PlayerClass.Pyro => "GasAmmoS",
-            PlayerClass.Heavy => "MinigunAmmoS",
-            PlayerClass.Quote => "BladeAmmoS",
-            _ => null,
-        };
+        return StockGameplayModCatalog.GetPrimaryItem(_world.LocalPlayer.ClassId).Presentation.HudSpriteName;
     }
 
     private int GetAmmoHudFrameIndex()
     {
-        return _world.LocalPlayer.ClassId switch
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(_world.LocalPlayer.ClassId).Presentation;
+        if (presentation.UseAmmoCountForHudFrame)
         {
-            PlayerClass.Soldier => GetPlayerCurrentShells(_world.LocalPlayer) + (_world.LocalPlayerTeam == PlayerTeam.Blue ? 5 : 0),
-            PlayerClass.Scout or PlayerClass.Engineer or PlayerClass.Demoman or PlayerClass.Spy or PlayerClass.Medic or PlayerClass.Pyro or PlayerClass.Heavy or PlayerClass.Quote
-                => _world.LocalPlayerTeam == PlayerTeam.Blue ? 1 : 0,
-            _ => 0,
-        };
+            return GetPlayerCurrentShells(_world.LocalPlayer)
+                + (_world.LocalPlayerTeam == PlayerTeam.Blue ? presentation.BlueTeamAmmoHudFrameOffset : 0);
+        }
+
+        return _world.LocalPlayerTeam == PlayerTeam.Blue
+            ? presentation.BlueTeamHudFrameOffset
+            : 0;
     }
 
     private void DrawAmmoReloadBar(Rectangle barRectangle)

@@ -308,6 +308,21 @@ internal static partial class ServerHelpers
         return new SnapshotVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count, visualEvent.EventId == 0 ? fallbackEventId : visualEvent.EventId);
     }
 
+    internal static SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)
+    {
+        return new SnapshotDamageEvent(
+            damageEvent.Amount,
+            damageEvent.AttackerPlayerId,
+            damageEvent.AssistedByPlayerId,
+            (byte)damageEvent.TargetKind,
+            damageEvent.TargetEntityId,
+            damageEvent.X,
+            damageEvent.Y,
+            damageEvent.WasFatal,
+            damageEvent.EventId == 0 ? fallbackEventId : damageEvent.EventId,
+            damageEvent.SourceFrame);
+    }
+
     internal static SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)
     {
         return new SnapshotKillFeedEntry(

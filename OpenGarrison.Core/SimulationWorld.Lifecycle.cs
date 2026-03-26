@@ -226,12 +226,6 @@ public sealed partial class SimulationWorld
             ? string.Empty
             : victim.DisplayName;
 
-        if (isSelfKill
-            && ShouldSuppressDuplicateSelfKillFeedEntry(victim, weaponSpriteName, resolvedMessageText, victimName, specialType))
-        {
-            return;
-        }
-
         var entry = killer is null || isSelfKill
             ? new KillFeedEntry(
                 string.Empty,
@@ -258,12 +252,7 @@ public sealed partial class SimulationWorld
         AppendKillFeedEntry(entry);
     }
 
-    private bool ShouldSuppressDuplicateSelfKillFeedEntry(
-        PlayerEntity victim,
-        string weaponSpriteName,
-        string messageText,
-        string victimName,
-        KillFeedSpecialType specialType)
+    private bool ShouldSuppressDuplicateKillFeedEntry(KillFeedEntry entry)
     {
         if (_killFeed.Count == 0 || _lastKillFeedRecordedFrame != Frame)
         {
@@ -271,16 +260,24 @@ public sealed partial class SimulationWorld
         }
 
         var previousEntry = _killFeed[^1];
-        return previousEntry.KillerPlayerId == -1
-            && previousEntry.VictimPlayerId == victim.Id
-            && previousEntry.WeaponSpriteName == weaponSpriteName
-            && previousEntry.MessageText == messageText
-            && previousEntry.VictimName == victimName
-            && previousEntry.SpecialType == specialType;
+        return previousEntry.KillerName == entry.KillerName
+            && previousEntry.KillerTeam == entry.KillerTeam
+            && previousEntry.WeaponSpriteName == entry.WeaponSpriteName
+            && previousEntry.VictimName == entry.VictimName
+            && previousEntry.VictimTeam == entry.VictimTeam
+            && previousEntry.MessageText == entry.MessageText
+            && previousEntry.KillerPlayerId == entry.KillerPlayerId
+            && previousEntry.VictimPlayerId == entry.VictimPlayerId
+            && previousEntry.SpecialType == entry.SpecialType;
     }
 
     private void AppendKillFeedEntry(KillFeedEntry entry)
     {
+        if (ShouldSuppressDuplicateKillFeedEntry(entry))
+        {
+            return;
+        }
+
         _killFeed.Add(entry);
         _lastKillFeedRecordedFrame = Frame;
         if (_killFeed.Count > 5)

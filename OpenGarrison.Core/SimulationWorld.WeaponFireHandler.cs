@@ -46,6 +46,21 @@ public sealed partial class SimulationWorld
             _world.RegisterSoundEvent(attacker, soundName);
         }
 
+        private bool ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f)
+        {
+            return _world.ApplyPlayerDamage(target, damage, attacker, spyRevealAlpha);
+        }
+
+        private bool ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? attacker)
+        {
+            return _world.ApplySentryDamage(sentry, damage, attacker);
+        }
+
+        private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker)
+        {
+            return _world.TryDamageGenerator(targetTeam, damage, attacker);
+        }
+
         private void KillPlayer(PlayerEntity player, bool gibbed = false, PlayerEntity? killer = null, string? weaponSpriteName = null)
         {
             _world.KillPlayer(player, gibbed, killer, weaponSpriteName);
@@ -337,18 +352,18 @@ public sealed partial class SimulationWorld
             if (result.HitPlayer is not null)
             {
                 RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
-                if (result.HitPlayer.ApplyDamage(damage, PlayerEntity.SpySniperRevealAlpha))
+                if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpySniperRevealAlpha))
                 {
                     KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleKL");
                 }
             }
-            else if (result.HitSentry is not null && result.HitSentry.ApplyDamage(damage))
+            else if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
             {
                 DestroySentry(result.HitSentry);
             }
             else if (result.HitGenerator is not null)
             {
-                _world.TryDamageGenerator(result.HitGenerator.Team, damage);
+                TryDamageGenerator(result.HitGenerator.Team, damage, attacker);
             }
             else if (result.Distance < rifleDistance)
             {

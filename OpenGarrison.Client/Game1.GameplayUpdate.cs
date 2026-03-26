@@ -91,7 +91,7 @@ public partial class Game1
             return;
         }
 
-        if (!_passwordPromptOpen && !_optionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen)
+        if (!_passwordPromptOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen)
         {
             var canToggleSelectionMenu = !_consoleOpen
                 && !_chatOpen
@@ -131,7 +131,7 @@ public partial class Game1
         {
             _classSelectOpen = false;
         }
-        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_optionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen && pausePressed)
+        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen && pausePressed)
         {
             OpenInGameMenu();
         }
@@ -215,6 +215,7 @@ public partial class Game1
         AdvanceGameplayClientTicks(clientTicks);
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
+        DispatchPendingDamageEventsToPlugins();
         UpdateLocalRapidFireWeaponAudio();
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
@@ -234,6 +235,7 @@ public partial class Game1
             || _classSelectAlpha > 0.02f
             || _inGameMenuOpen
             || _optionsMenuOpen
+            || _pluginOptionsMenuOpen
             || _controlsMenuOpen;
         IsMouseVisible = wantsMouseVisible && !ShouldUseSoftwareMenuCursor();
 

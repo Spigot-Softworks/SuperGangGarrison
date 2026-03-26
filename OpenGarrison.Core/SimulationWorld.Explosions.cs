@@ -6,6 +6,7 @@ public sealed partial class SimulationWorld
 
     private void ExplodeRocket(RocketProjectileEntity rocket, PlayerEntity? directHitPlayer, SentryEntity? directHitSentry, GeneratorState? directHitGenerator)
     {
+        var owner = FindPlayerById(rocket.OwnerId);
         for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
         {
             if (_rockets[rocketIndex].Id == rocket.Id)
@@ -15,18 +16,17 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, FindPlayerById(rocket.OwnerId)))
+        if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, owner))
         {
-            if (directHitPlayer.ApplyDamage(RocketProjectileEntity.DirectHitDamage, PlayerEntity.SpyDamageRevealAlpha))
+            if (ApplyPlayerDamage(directHitPlayer, RocketProjectileEntity.DirectHitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
             {
-                KillPlayer(directHitPlayer, gibbed: true, killer: FindPlayerById(rocket.OwnerId), weaponSpriteName: "RocketKL");
+                KillPlayer(directHitPlayer, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
             }
         }
 
         if (directHitSentry is not null)
         {
-            directHitSentry.ApplyDamage(RocketProjectileEntity.DirectHitDamage);
-            if (directHitSentry.Health <= 0)
+            if (ApplySentryDamage(directHitSentry, RocketProjectileEntity.DirectHitDamage, owner))
             {
                 DestroySentry(directHitSentry);
             }
@@ -34,7 +34,7 @@ public sealed partial class SimulationWorld
 
         if (directHitGenerator is not null)
         {
-            TryDamageGenerator(directHitGenerator.Team, RocketProjectileEntity.DirectHitDamage);
+            TryDamageGenerator(directHitGenerator.Team, RocketProjectileEntity.DirectHitDamage, owner);
         }
 
         RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
@@ -95,9 +95,9 @@ public sealed partial class SimulationWorld
             {
                 var appliedDamage = RocketProjectileEntity.ExplosionDamage * distanceFactor;
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
-                if (player.ApplyContinuousDamage(appliedDamage, PlayerEntity.SpyDamageRevealAlpha))
+                if (ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
                 {
-                    KillPlayer(player, gibbed: true, killer: FindPlayerById(rocket.OwnerId), weaponSpriteName: "RocketKL");
+                    KillPlayer(player, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
                 }
             }
         }
@@ -112,7 +112,7 @@ public sealed partial class SimulationWorld
             }
 
             var damage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
-            if (sentry.ApplyDamage((int)MathF.Ceiling(damage)))
+            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry);
             }
@@ -128,7 +128,7 @@ public sealed partial class SimulationWorld
             }
 
             var damage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
-            TryDamageGenerator(generator.Team, damage);
+            TryDamageGenerator(generator.Team, damage, owner);
         }
 
         TriggerMinesInRocketBlast(rocket);
@@ -201,6 +201,7 @@ public sealed partial class SimulationWorld
 
     private void ExplodeMine(MineProjectileEntity mine)
     {
+        var owner = FindPlayerById(mine.OwnerId);
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
             if (_mines[mineIndex].Id == mine.Id)
@@ -259,9 +260,9 @@ public sealed partial class SimulationWorld
                     damage *= MineProjectileEntity.SelfDamageScale;
                 }
 
-                if (player.ApplyContinuousDamage(damage, PlayerEntity.SpyMineRevealAlpha))
+                if (ApplyPlayerContinuousDamage(player, damage, owner, PlayerEntity.SpyMineRevealAlpha))
                 {
-                    KillPlayer(player, gibbed: true, killer: FindPlayerById(mine.OwnerId), weaponSpriteName: "MineKL");
+                    KillPlayer(player, gibbed: true, killer: owner, weaponSpriteName: "MineKL");
                 }
             }
         }
@@ -282,7 +283,7 @@ public sealed partial class SimulationWorld
             }
 
             var damage = mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * factor;
-            if (sentry.ApplyDamage((int)MathF.Ceiling(damage)))
+            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry);
             }
@@ -304,7 +305,7 @@ public sealed partial class SimulationWorld
             }
 
             var damage = mine.ExplosionDamage * damageFactor;
-            TryDamageGenerator(generator.Team, damage);
+            TryDamageGenerator(generator.Team, damage, owner);
         }
 
         TriggerNearbyMines(mine);

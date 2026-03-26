@@ -1105,6 +1105,10 @@ public sealed class ProtocolAndSnapshotTests
             [
                 new SnapshotVisualEvent("Explosion", 460f, 300f, 0f, 1, 700UL),
             ],
+            DamageEvents:
+            [
+                new SnapshotDamageEvent(40, 1, -1, (byte)OpenGarrison.Core.DamageTargetKind.Player, 2, 455f, 295f, false, 702UL, 700UL),
+            ],
             SoundEvents:
             [
                 new SnapshotSoundEvent("IntelGetSnd", 450f, 280f, 701UL, 699UL),

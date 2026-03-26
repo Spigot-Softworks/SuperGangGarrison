@@ -54,6 +54,10 @@ public partial class Game1
         {
             UpdateControlsMenu(keyboard, mouse);
         }
+        else if (_pluginOptionsMenuOpen)
+        {
+            UpdatePluginOptionsMenu(keyboard, mouse);
+        }
         else if (_optionsMenuOpen)
         {
             UpdateOptionsMenu(keyboard, mouse);

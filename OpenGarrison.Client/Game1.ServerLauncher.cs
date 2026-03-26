@@ -43,6 +43,7 @@ public partial class Game1
         _mainMenuOpen = true;
         _manualConnectOpen = false;
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _creditsOpen = false;
         _controlsMenuOpen = false;
         _hostSetupOpen = false;
@@ -199,6 +200,7 @@ public partial class Game1
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _creditsOpen = false;
         _controlsMenuOpen = false;
         InitializeHostedServerConsole(reset: true);
@@ -250,6 +252,7 @@ public partial class Game1
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _creditsOpen = false;
         _controlsMenuOpen = false;
         InitializeHostedServerConsole(reset: true);

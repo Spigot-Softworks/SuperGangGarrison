@@ -9,6 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>
 

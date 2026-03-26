@@ -14,6 +14,7 @@ public partial class Game1
         _lobbyBrowserOpen = true;
         _manualConnectOpen = false;
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _creditsOpen = false;
         _editingPlayerName = false;
         _editingConnectHost = false;

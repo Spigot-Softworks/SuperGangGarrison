@@ -21,6 +21,7 @@ public partial class Game1
         _manualConnectOpen = false;
         CloseLobbyBrowser(clearStatus: false);
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _creditsOpen = false;
         _editingPlayerName = false;
 

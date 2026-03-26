@@ -75,7 +75,7 @@ public sealed partial class SimulationWorld
         QueuePendingMapChange();
     }
 
-    private bool TryDamageGenerator(PlayerTeam targetTeam, float damage)
+    private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker = null)
     {
         var generator = GetGenerator(targetTeam);
         if (generator is null || generator.IsDestroyed)
@@ -83,7 +83,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        var destroyed = generator.ApplyDamage(damage);
+        var destroyed = ApplyGeneratorDamage(generator, damage, attacker);
         if (!destroyed)
         {
             return false;

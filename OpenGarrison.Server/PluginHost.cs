@@ -8,7 +8,7 @@ internal sealed class PluginHost
     private readonly IOpenGarrisonServerReadOnlyState _serverState;
     private readonly IOpenGarrisonServerAdminOperations _adminOperations;
     private readonly Action<string> _log;
-    private readonly string _pluginsDirectory;
+    private readonly string _pluginsRootDirectory;
     private readonly string _pluginConfigRoot;
     private readonly string _mapsDirectory;
     private readonly List<PluginLoader.LoadedPlugin> _loadedPlugins = new();
@@ -25,7 +25,7 @@ internal sealed class PluginHost
         _commandRegistry = commandRegistry;
         _serverState = serverState;
         _adminOperations = adminOperations;
-        _pluginsDirectory = pluginsDirectory;
+        _pluginsRootDirectory = pluginsDirectory;
         _pluginConfigRoot = pluginConfigRoot;
         _mapsDirectory = mapsDirectory;
         _log = log;
@@ -39,7 +39,7 @@ internal sealed class PluginHost
     public void LoadPlugins()
     {
         _loadedPlugins.Clear();
-        _loadedPlugins.AddRange(PluginLoader.LoadFromDirectory(_pluginsDirectory, CreateContext, _log));
+        _loadedPlugins.AddRange(PluginLoader.LoadFromSearchDirectories(BuildPluginSearchDirectories(), CreateContext, _log));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             _log($"[plugin] loaded {loadedPlugin.Plugin.DisplayName} ({loadedPlugin.Plugin.Id} {loadedPlugin.Plugin.Version})");
@@ -131,10 +131,32 @@ internal sealed class PluginHost
         }
     }
 
-    private IOpenGarrisonServerPluginContext CreateContext(IOpenGarrisonServerPlugin plugin)
+    private IEnumerable<PluginLoader.PluginSearchDirectory> BuildPluginSearchDirectories()
     {
-        var pluginDirectory = Path.Combine(_pluginsDirectory, plugin.Id);
-        var configDirectory = Path.Combine(_pluginConfigRoot, plugin.Id);
+        var scopedServerPluginsDirectory = Path.Combine(_pluginsRootDirectory, "Server");
+        yield return new PluginLoader.PluginSearchDirectory(scopedServerPluginsDirectory, SearchOption.AllDirectories);
+
+        if (LegacyServerPluginsExist())
+        {
+            _log("[plugin] discovered legacy server plugins under Plugins root; prefer Plugins/Server/<PluginFolder>/ for new installs.");
+            yield return new PluginLoader.PluginSearchDirectory(_pluginsRootDirectory, SearchOption.TopDirectoryOnly);
+        }
+    }
+
+    private bool LegacyServerPluginsExist()
+    {
+        if (!Directory.Exists(_pluginsRootDirectory))
+        {
+            return false;
+        }
+
+        return Directory.EnumerateFiles(_pluginsRootDirectory, "*.dll", SearchOption.TopDirectoryOnly).Any();
+    }
+
+    private IOpenGarrisonServerPluginContext CreateContext(IOpenGarrisonServerPlugin plugin, string pluginDirectory)
+    {
+        pluginDirectory = ResolvePluginDirectory(plugin, pluginDirectory);
+        var configDirectory = ResolveConfigDirectory(plugin.Id);
         Directory.CreateDirectory(pluginDirectory);
         Directory.CreateDirectory(configDirectory);
         Directory.CreateDirectory(_mapsDirectory);
@@ -147,6 +169,25 @@ internal sealed class PluginHost
             _adminOperations,
             _commandRegistry,
             _log);
+    }
+
+    private string ResolvePluginDirectory(IOpenGarrisonServerPlugin plugin, string pluginDirectory)
+    {
+        if (!string.IsNullOrWhiteSpace(pluginDirectory))
+        {
+            return pluginDirectory;
+        }
+
+        return Path.Combine(_pluginsRootDirectory, "Server", plugin.Id);
+    }
+
+    private string ResolveConfigDirectory(string pluginId)
+    {
+        var scopedConfigDirectory = Path.Combine(_pluginConfigRoot, "server", pluginId);
+        var legacyConfigDirectory = Path.Combine(_pluginConfigRoot, pluginId);
+        return Directory.Exists(legacyConfigDirectory) && !Directory.Exists(scopedConfigDirectory)
+            ? legacyConfigDirectory
+            : scopedConfigDirectory;
     }
 
     private void Dispatch<THook>(Action<THook> callback) where THook : class

@@ -190,6 +190,47 @@ public static partial class ProtocolCodec
         return soundEvents;
     }
 
+    private static void WriteDamageEvents(BinaryWriter writer, IReadOnlyList<SnapshotDamageEvent> damageEvents)
+    {
+        writer.Write((ushort)damageEvents.Count);
+        for (var index = 0; index < damageEvents.Count; index += 1)
+        {
+            var damageEvent = damageEvents[index];
+            writer.Write(damageEvent.Amount);
+            writer.Write(damageEvent.AttackerPlayerId);
+            writer.Write(damageEvent.AssistedByPlayerId);
+            writer.Write(damageEvent.TargetKind);
+            writer.Write(damageEvent.TargetEntityId);
+            writer.Write(damageEvent.X);
+            writer.Write(damageEvent.Y);
+            writer.Write(damageEvent.WasFatal);
+            writer.Write(damageEvent.EventId);
+            writer.Write(damageEvent.SourceFrame);
+        }
+    }
+
+    private static List<SnapshotDamageEvent> ReadDamageEvents(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var damageEvents = new List<SnapshotDamageEvent>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            damageEvents.Add(new SnapshotDamageEvent(
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadUInt64(),
+                reader.ReadUInt64()));
+        }
+
+        return damageEvents;
+    }
+
     private static void WriteVisualEvents(BinaryWriter writer, IReadOnlyList<SnapshotVisualEvent> visualEvents)
     {
         writer.Write((ushort)visualEvents.Count);

@@ -36,7 +36,7 @@ public partial class Game1
 
     private void UpdateBubbleMenuState(KeyboardState keyboard)
     {
-        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
+        if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
         {
             BeginClosingBubbleMenu();
             AdvanceBubbleMenuAnimation();

@@ -432,6 +432,7 @@ public sealed class SnapshotBroadcasterTests
             LocalDeathCam: null,
             KillFeed: [],
             VisualEvents: [],
+            DamageEvents: [],
             SoundEvents: soundEvents ?? []);
     }
 }

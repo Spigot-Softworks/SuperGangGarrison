@@ -20,6 +20,13 @@ $projects =
     "OpenGarrison.Server/OpenGarrison.Server.csproj",
     "OpenGarrison.ServerLauncher/OpenGarrison.ServerLauncher.csproj"
 )
+$clientPluginProjects =
+@(
+    @{
+        Project = "OpenGarrison.Client.Plugins.DamageIndicator/OpenGarrison.Client.Plugins.DamageIndicator.csproj"
+        Folder = "DamageIndicator"
+    }
+)
 
 function Invoke-DotNet {
     param(
@@ -158,7 +165,8 @@ function Move-PluginArtifactsToPluginDirectory {
     )
 
     $pluginDirectory = Join-Path $OutputDirectory "Plugins"
-    New-Item -ItemType Directory -Path $pluginDirectory -Force | Out-Null
+    $serverPluginDirectory = Join-Path $pluginDirectory "Server"
+    New-Item -ItemType Directory -Path $serverPluginDirectory -Force | Out-Null
 
     $pluginArtifacts = Get-ChildItem -Path $OutputDirectory -File |
         Where-Object {
@@ -167,9 +175,45 @@ function Move-PluginArtifactsToPluginDirectory {
         }
 
     foreach ($artifact in $pluginArtifacts) {
-        $destinationPath = Join-Path $pluginDirectory $artifact.Name
+        $pluginFolderName = $artifact.BaseName -replace '^OpenGarrison\.Server\.Plugins\.', ''
+        if ([string]::IsNullOrWhiteSpace($pluginFolderName)) {
+            $pluginFolderName = $artifact.BaseName
+        }
+
+        $destinationDirectory = Join-Path $serverPluginDirectory $pluginFolderName
+        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+
+        $destinationPath = Join-Path $destinationDirectory $artifact.Name
         Copy-Item $artifact.FullName $destinationPath -Force
         Remove-Item $artifact.FullName -Force
+    }
+}
+
+function Publish-ClientPlugins {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    foreach ($plugin in $clientPluginProjects) {
+        $projectPath = Join-Path $RepoRoot $plugin.Project
+        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "Plugins\\Client" $plugin.Folder)
+        New-Item -ItemType Directory -Path $pluginOutputDirectory -Force | Out-Null
+
+        Invoke-DotNet -Arguments @(
+            "restore",
+            $projectPath
+        )
+
+        Invoke-DotNet -Arguments @(
+            "publish",
+            $projectPath,
+            "-c", $configuration,
+            "--no-restore",
+            "-o", $pluginOutputDirectory
+        )
     }
 }
 
@@ -229,6 +273,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     }
 
     Move-PluginArtifactsToPluginDirectory -OutputDirectory $stagingDirectory
+    Publish-ClientPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
 
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory

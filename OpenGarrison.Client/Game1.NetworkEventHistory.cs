@@ -12,6 +12,8 @@ public partial class Game1
         _processedNetworkSoundEventOrder.Clear();
         _processedNetworkVisualEventIds.Clear();
         _processedNetworkVisualEventOrder.Clear();
+        _processedNetworkDamageEventIds.Clear();
+        _processedNetworkDamageEventOrder.Clear();
         _processedKillFeedEventIds.Clear();
         _processedKillFeedEventOrder.Clear();
     }

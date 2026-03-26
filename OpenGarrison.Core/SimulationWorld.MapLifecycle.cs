@@ -138,6 +138,7 @@ public sealed partial class SimulationWorld
         _killFeed.Clear();
         _pendingSoundEvents.Clear();
         _pendingVisualEvents.Clear();
+        _pendingDamageEvents.Clear();
         _nextRedSpawnIndex = 0;
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();

@@ -33,18 +33,19 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    if (hitResult.HitPlayer.ApplyDamage(ShotProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
+                    var owner = FindPlayerById(shot.OwnerId);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, ShotProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(shot.OwnerId), weaponSpriteName: GetKillFeedWeaponSprite(FindPlayerById(shot.OwnerId)));
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: GetKillFeedWeaponSprite(owner));
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(ShotProjectileEntity.DamagePerHit))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, ShotProjectileEntity.DamagePerHit);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId));
                 }
                 else
                 {
@@ -141,18 +142,19 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
                     hitResult.HitPlayer.AddImpulse(blade.VelocityX * 0.4f, blade.VelocityY * 0.4f);
-                    if (hitResult.HitPlayer.ApplyDamage(blade.HitDamage, PlayerEntity.SpyDamageRevealAlpha))
+                    var owner = FindPlayerById(blade.OwnerId);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, blade.HitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
                         {
-                            KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(blade.OwnerId), weaponSpriteName: "BladeKL");
+                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
                         }
                     }
-                    else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(blade.HitDamage))
+                    else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, blade.HitDamage, FindPlayerById(blade.OwnerId)))
                     {
                         DestroySentry(hitResult.HitSentry);
                     }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage, FindPlayerById(blade.OwnerId));
                 }
                 else
                 {
@@ -205,18 +207,19 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    if (hitResult.HitPlayer.ApplyDamage(NeedleProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
+                    var owner = FindPlayerById(needle.OwnerId);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, NeedleProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(needle.OwnerId), weaponSpriteName: "NeedleKL");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NeedleKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(NeedleProjectileEntity.DamagePerHit))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, NeedleProjectileEntity.DamagePerHit, FindPlayerById(needle.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit, FindPlayerById(needle.OwnerId));
                 }
                 else
                 {
@@ -267,18 +270,19 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    if (hitResult.HitPlayer.ApplyDamage(RevolverProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
+                    var owner = FindPlayerById(shot.OwnerId);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, RevolverProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(shot.OwnerId), weaponSpriteName: "RevolverKL");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "RevolverKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(RevolverProjectileEntity.DamagePerHit))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, RevolverProjectileEntity.DamagePerHit);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId));
                 }
                 else
                 {
@@ -343,12 +347,12 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, mask.DirectionDegrees - 180f, 6);
-                    if (hitResult.HitPlayer.ApplyDamage(StabMaskEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha))
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, StabMaskEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(StabMaskEntity.DamagePerHit))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, StabMaskEntity.DamagePerHit, owner))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
@@ -398,10 +402,11 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
-                    var playerDied = hitPlayer.ApplyContinuousDamage(FlameProjectileEntity.DirectHitDamage);
+                    var owner = FindPlayerById(flame.OwnerId);
+                    var playerDied = ApplyPlayerContinuousDamage(hitPlayer, FlameProjectileEntity.DirectHitDamage, owner);
                     if (playerDied)
                     {
-                        KillPlayer(hitPlayer, killer: FindPlayerById(flame.OwnerId), weaponSpriteName: "FlameKL");
+                        KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
                     }
                     else
                     {
@@ -413,13 +418,13 @@ public sealed partial class SimulationWorld
                             flame.GetAfterburnFalloffAmount(flameAirLifetimeTicks));
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage((int)FlameProjectileEntity.DirectHitDamage))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)FlameProjectileEntity.DirectHitDamage);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId));
                 }
 
                 RegisterCombatTrace(flame.PreviousX, flame.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
@@ -561,11 +566,12 @@ public sealed partial class SimulationWorld
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var playerDied = hitResult.HitPlayer.ApplyDamage(FlareProjectileEntity.DamagePerHit, PlayerEntity.SpyDamageRevealAlpha);
+                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    var owner = FindPlayerById(flare.OwnerId);
+                    var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, FlareProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha);
                     if (playerDied)
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: FindPlayerById(flare.OwnerId), weaponSpriteName: "FlareKL");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");
                     }
                     else
                     {
@@ -577,13 +583,13 @@ public sealed partial class SimulationWorld
                             burnFalloffAmount: 0f);
                     }
                 }
-                else if (hitResult.HitSentry is not null && hitResult.HitSentry.ApplyDamage(FlareProjectileEntity.DamagePerHit))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, FlareProjectileEntity.DamagePerHit, FindPlayerById(flare.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit, FindPlayerById(flare.OwnerId));
                 }
 
                 flare.Destroy();
@@ -984,7 +990,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (player.ApplyContinuousDamage(BubbleProjectileEntity.DamagePerHit))
+            if (ApplyPlayerContinuousDamage(player, BubbleProjectileEntity.DamagePerHit, owner))
             {
                     KillPlayer(player, killer: owner, weaponSpriteName: "BladeKL");
             }
@@ -1023,7 +1029,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            if (sentry.ApplyDamage((int)MathF.Ceiling(BubbleProjectileEntity.DamagePerHit)))
+            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(BubbleProjectileEntity.DamagePerHit), owner))
             {
                 DestroySentry(sentry);
             }
@@ -1041,7 +1047,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            TryDamageGenerator(generator.Team, BubbleProjectileEntity.DamagePerHit);
+            TryDamageGenerator(generator.Team, BubbleProjectileEntity.DamagePerHit, owner);
             return true;
         }
 

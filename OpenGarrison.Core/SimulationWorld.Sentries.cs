@@ -75,6 +75,7 @@ public sealed partial class SimulationWorld
 
             sentry.FireAt(target.Value.X, target.Value.Y);
             RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
+            var ownerPlayer = FindPlayerById(sentry.OwnerPlayerId);
             var distance = DistanceBetween(sentry.X, sentry.Y, target.Value.X, target.Value.Y);
             RegisterCombatTrace(
                 sentry.X,
@@ -86,14 +87,14 @@ public sealed partial class SimulationWorld
             if (target.Value.Player is not null)
             {
                 RegisterBloodEffect(target.Value.Player.X, target.Value.Player.Y, sentry.AimDirectionDegrees - 180f, 2);
-                if (target.Value.Player.ApplyDamage(SentryEntity.HitDamage, PlayerEntity.SpyDamageRevealAlpha))
+                if (ApplyPlayerDamage(target.Value.Player, SentryEntity.HitDamage, ownerPlayer, PlayerEntity.SpyDamageRevealAlpha))
                 {
-                    KillPlayer(target.Value.Player, killer: FindPlayerById(sentry.OwnerPlayerId), weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
+                    KillPlayer(target.Value.Player, killer: ownerPlayer, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
                 }
             }
             else if (target.Value.Generator is not null)
             {
-                TryDamageGenerator(target.Value.Generator.Team, SentryEntity.HitDamage);
+                TryDamageGenerator(target.Value.Generator.Team, SentryEntity.HitDamage, ownerPlayer);
             }
         }
     }

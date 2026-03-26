@@ -51,6 +51,7 @@ public partial class Game1
                 _editingConnectHost = true;
                 _editingConnectPort = false;
                 _optionsMenuOpen = false;
+                _pluginOptionsMenuOpen = false;
                 _controlsMenuOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 _creditsOpen = false;
@@ -67,6 +68,7 @@ public partial class Game1
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 _optionsMenuOpen = false;
+                _pluginOptionsMenuOpen = false;
                 _controlsMenuOpen = false;
                 _editingPlayerName = false;
                 _menuStatusMessage = string.Empty;
@@ -97,6 +99,13 @@ public partial class Game1
         if (_optionsMenuOpen)
         {
             DrawOptionsMenu();
+            DrawDevMessagePopup();
+            return;
+        }
+
+        if (_pluginOptionsMenuOpen)
+        {
+            DrawPluginOptionsMenu();
             DrawDevMessagePopup();
             return;
         }

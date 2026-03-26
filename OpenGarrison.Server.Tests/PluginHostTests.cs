@@ -52,12 +52,14 @@ public sealed class PluginHostTests
         RecordingPlugin.Reset();
         var logs = new List<string>();
         var commandRegistry = new PluginCommandRegistry();
+        var pluginsRoot = CreateTempDirectory();
+        var configRoot = CreateTempDirectory();
         var host = new PluginHost(
             commandRegistry,
             new TestState(),
             new TestAdminOperations(),
-            CreateTempDirectory(),
-            CreateTempDirectory(),
+            pluginsRoot,
+            configRoot,
             CreateTempDirectory(),
             logs.Add);
 
@@ -112,7 +114,32 @@ public sealed class PluginHostTests
         Assert.Contains(plugin.Events, entry => entry == "lifecycle:stopping");
         Assert.Contains(plugin.Events, entry => entry == "lifecycle:stopped");
         Assert.True(plugin.ShutdownCalled);
+        Assert.Equal(Path.GetDirectoryName(typeof(RecordingPlugin).Assembly.Location), plugin.Context?.PluginDirectory);
+        Assert.Equal(Path.Combine(configRoot, "server", plugin.Id), plugin.Context?.ConfigDirectory);
         Assert.Contains(logs, line => line.Contains("loaded Recording Plugin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PluginHost_WhenLegacyPluginConfigExists_UsesLegacyConfigDirectory()
+    {
+        RecordingPlugin.Reset();
+        var commandRegistry = new PluginCommandRegistry();
+        var pluginsRoot = CreateTempDirectory();
+        var configRoot = CreateTempDirectory();
+        var legacyConfigDirectory = Path.Combine(configRoot, "recording.plugin");
+        Directory.CreateDirectory(legacyConfigDirectory);
+        var host = new PluginHost(
+            commandRegistry,
+            new TestState(),
+            new TestAdminOperations(),
+            pluginsRoot,
+            configRoot,
+            CreateTempDirectory(),
+            _ => { });
+
+        host.LoadPlugins([typeof(RecordingPlugin).Assembly]);
+
+        Assert.Equal(legacyConfigDirectory, RecordingPlugin.Instance?.Context?.ConfigDirectory);
     }
 
     private static string CreateTempDirectory()

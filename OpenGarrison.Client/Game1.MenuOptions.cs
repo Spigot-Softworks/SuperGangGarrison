@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -13,7 +14,7 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _inGameMenuOpen || _optionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
+        return _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
     }
 
     private bool IsGameplayInputBlocked()
@@ -41,6 +42,12 @@ public partial class Game1
             return;
         }
 
+        if (_pluginOptionsMenuOpen)
+        {
+            UpdatePluginOptionsMenu(keyboard, mouse);
+            return;
+        }
+
         if (_optionsMenuOpen)
         {
             UpdateOptionsMenu(keyboard, mouse);
@@ -57,9 +64,12 @@ public partial class Game1
     {
         _optionsMenuOpen = true;
         _optionsMenuOpenedFromGameplay = fromGameplay;
+        _pluginOptionsMenuOpen = false;
+        _selectedPluginOptionsPluginId = null;
         _controlsMenuOpen = false;
         _pendingControlsBinding = null;
         _optionsHoverIndex = -1;
+        _pluginOptionsHoverIndex = -1;
         _controlsHoverIndex = -1;
         _editingPlayerName = false;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
@@ -70,13 +80,39 @@ public partial class Game1
         var reopenInGameMenu = _optionsMenuOpenedFromGameplay && !_mainMenuOpen;
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
+        _pluginOptionsMenuOpen = false;
+        _pluginOptionsMenuOpenedFromGameplay = false;
+        _selectedPluginOptionsPluginId = null;
         _optionsHoverIndex = -1;
+        _pluginOptionsHoverIndex = -1;
         _editingPlayerName = false;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
         if (reopenInGameMenu)
         {
             OpenInGameMenu();
         }
+    }
+
+    private void OpenPluginOptionsMenu(bool fromGameplay)
+    {
+        _pluginOptionsMenuOpen = true;
+        _pluginOptionsMenuOpenedFromGameplay = fromGameplay;
+        _selectedPluginOptionsPluginId = null;
+        _optionsMenuOpen = false;
+        _pluginOptionsHoverIndex = -1;
+        _optionsHoverIndex = -1;
+        _editingPlayerName = false;
+        _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
+    }
+
+    private void ClosePluginOptionsMenu()
+    {
+        var reopenFromGameplay = _pluginOptionsMenuOpenedFromGameplay;
+        _pluginOptionsMenuOpen = false;
+        _pluginOptionsMenuOpenedFromGameplay = false;
+        _selectedPluginOptionsPluginId = null;
+        _pluginOptionsHoverIndex = -1;
+        OpenOptionsMenu(reopenFromGameplay);
     }
 
     private void OpenControlsMenu(bool fromGameplay)
@@ -86,6 +122,7 @@ public partial class Game1
         _controlsHoverIndex = -1;
         _pendingControlsBinding = null;
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _editingPlayerName = false;
     }
 
@@ -109,6 +146,7 @@ public partial class Game1
         _inGameMenuAwaitingEscapeRelease = true;
         _inGameMenuHoverIndex = -1;
         _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
         _controlsMenuOpen = false;
         _editingPlayerName = false;
         _pendingControlsBinding = null;
@@ -197,8 +235,9 @@ public partial class Game1
 
     private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        const int items = 15;
-        GetOptionsMenuLayout(out var xbegin, out var ybegin, out var spacing, out var width, out _);
+        var hasPluginOptions = HasClientPluginOptions();
+        var items = hasPluginOptions ? 16 : 15;
+        GetOptionsMenuLayout(items, out var xbegin, out var ybegin, out var spacing, out var width, out _);
 
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
@@ -311,6 +350,16 @@ public partial class Game1
                 OpenControlsMenu(_optionsMenuOpenedFromGameplay);
                 break;
             case 14:
+                if (hasPluginOptions)
+                {
+                    OpenPluginOptionsMenu(_optionsMenuOpenedFromGameplay);
+                }
+                else
+                {
+                    CloseOptionsMenu();
+                }
+                break;
+            case 15:
                 CloseOptionsMenu();
                 break;
         }
@@ -321,12 +370,12 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.8f);
-        GetOptionsMenuLayout(out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
         var compactLayout = ViewportHeight < 540;
         var textScale = compactLayout ? 0.92f : 1f;
+        var hasPluginOptions = HasClientPluginOptions();
 
-        string[] labels =
-        [
+        var labels = new List<string>
+        {
             "Player name:",
             "Fullscreen:",
             "Music:",
@@ -341,10 +390,9 @@ public partial class Game1
             "Kill Cam:",
             "V Sync:",
             "Controls",
-            "Back",
-        ];
-        string[] values =
-        [
+        };
+        var values = new List<string>
+        {
             _editingPlayerName ? _playerNameEditBuffer + "_" : _world.LocalPlayer.DisplayName,
             _graphics.IsFullScreen ? "On" : "Off",
             GetMusicModeLabel(_musicMode),
@@ -359,11 +407,20 @@ public partial class Game1
             _killCamEnabled ? "Enabled" : "Disabled",
             _graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled",
             string.Empty,
-            string.Empty,
-        ];
+        };
+        if (hasPluginOptions)
+        {
+            labels.Add("Plugin Options");
+            values.Add(string.Empty);
+        }
+
+        labels.Add("Back");
+        values.Add(string.Empty);
+
+        GetOptionsMenuLayout(labels.Count, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
 
         var labelPosition = new Vector2(xbegin, ybegin);
-        for (var index = 0; index < labels.Length; index += 1)
+        for (var index = 0; index < labels.Count; index += 1)
         {
             var color = _editingPlayerName && index == 0
                 ? Color.Orange
@@ -371,6 +428,211 @@ public partial class Game1
             DrawBitmapFontText(labels[index], labelPosition, color, textScale);
             DrawBitmapFontText(values[index], new Vector2(valueX, labelPosition.Y), color, textScale);
             labelPosition.Y += spacing;
+        }
+    }
+
+    private void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        var rows = BuildPluginOptionsMenuRows();
+        GetOptionsMenuLayout(rows.Count, out var xbegin, out var ybegin, out var spacing, out var width, out _);
+
+        if (IsKeyPressed(keyboard, Keys.Escape))
+        {
+            if (_selectedPluginOptionsPluginId is not null)
+            {
+                _selectedPluginOptionsPluginId = null;
+                _pluginOptionsHoverIndex = -1;
+                return;
+            }
+
+            ClosePluginOptionsMenu();
+            return;
+        }
+
+        if (mouse.X > xbegin && mouse.X < xbegin + width)
+        {
+            var hoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
+            _pluginOptionsHoverIndex = hoverIndex >= 0 && hoverIndex < rows.Count && rows[hoverIndex].Selectable
+                ? hoverIndex
+                : -1;
+        }
+        else
+        {
+            _pluginOptionsHoverIndex = -1;
+        }
+
+        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        if (!clickPressed || _pluginOptionsHoverIndex < 0)
+        {
+            return;
+        }
+
+        rows[_pluginOptionsHoverIndex].Activate?.Invoke();
+    }
+
+    private void DrawPluginOptionsMenu()
+    {
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
+        var compactLayout = ViewportHeight < 540;
+        var textScale = compactLayout ? 0.92f : 1f;
+        var rows = BuildPluginOptionsMenuRows();
+        GetOptionsMenuLayout(rows.Count, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
+
+        var position = new Vector2(xbegin, ybegin);
+        for (var index = 0; index < rows.Count; index += 1)
+        {
+            var row = rows[index];
+            var color = row.IsHeader
+                ? new Color(240, 200, 120)
+                : index == _pluginOptionsHoverIndex ? Color.Red : Color.White;
+            DrawBitmapFontText(row.Label, position, color, textScale);
+            if (!string.IsNullOrWhiteSpace(row.Value))
+            {
+                DrawBitmapFontText(row.Value, new Vector2(valueX, position.Y), color, textScale);
+            }
+
+            position.Y += spacing;
+        }
+    }
+
+    private bool HasClientPluginOptions()
+    {
+        return GetClientPluginOptionsEntries().Count > 0;
+    }
+
+    private List<PluginOptionsMenuRow> BuildPluginOptionsMenuRows()
+    {
+        var rows = new List<PluginOptionsMenuRow>();
+        var pluginEntries = GetClientPluginOptionsEntries();
+        if (_selectedPluginOptionsPluginId is null)
+        {
+            rows.Add(new PluginOptionsMenuRow("Plugin Options", string.Empty, Selectable: false, IsHeader: true, Activate: null));
+            for (var pluginIndex = 0; pluginIndex < pluginEntries.Count; pluginIndex += 1)
+            {
+                var entry = pluginEntries[pluginIndex];
+                rows.Add(new PluginOptionsMenuRow(
+                    entry.DisplayName,
+                    string.Empty,
+                    Selectable: true,
+                    IsHeader: false,
+                    Activate: () => OpenPluginOptionsDetail(entry.PluginId)));
+            }
+
+            if (pluginEntries.Count == 0)
+            {
+                rows.Add(new PluginOptionsMenuRow("No plugin options available.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
+            }
+
+            rows.Add(new PluginOptionsMenuRow("Back", string.Empty, Selectable: true, IsHeader: false, Activate: ClosePluginOptionsMenu));
+            return rows;
+        }
+
+        var selectedEntry = GetSelectedPluginOptionsEntry();
+        if (selectedEntry is null)
+        {
+            _selectedPluginOptionsPluginId = null;
+            return BuildPluginOptionsMenuRows();
+        }
+
+        rows.Add(new PluginOptionsMenuRow(selectedEntry.DisplayName, string.Empty, Selectable: false, IsHeader: true, Activate: null));
+        var sections = selectedEntry.Sections;
+        for (var sectionIndex = 0; sectionIndex < sections.Count; sectionIndex += 1)
+        {
+            var section = sections[sectionIndex];
+            if (section.Items.Count == 0)
+            {
+                continue;
+            }
+
+            var shouldShowSectionHeader = sections.Count > 1
+                || !string.Equals(section.Title, selectedEntry.DisplayName, StringComparison.Ordinal);
+            if (shouldShowSectionHeader)
+            {
+                rows.Add(new PluginOptionsMenuRow(section.Title, string.Empty, Selectable: false, IsHeader: true, Activate: null));
+            }
+
+            for (var itemIndex = 0; itemIndex < section.Items.Count; itemIndex += 1)
+            {
+                var item = section.Items[itemIndex];
+                rows.Add(new PluginOptionsMenuRow(
+                    item.Label,
+                    GetPluginOptionValueLabel(item),
+                    Selectable: true,
+                    IsHeader: false,
+                    Activate: () => ActivatePluginOption(item)));
+            }
+        }
+
+        if (rows.Count == 1)
+        {
+            rows.Add(new PluginOptionsMenuRow("No options available.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
+        }
+
+        rows.Add(new PluginOptionsMenuRow("Back", string.Empty, Selectable: true, IsHeader: false, Activate: CloseSelectedPluginOptionsDetail));
+        return rows;
+    }
+
+    private IReadOnlyList<ClientPluginOptionsEntry> GetClientPluginOptionsEntries()
+    {
+        return _clientPluginHost?.GetPluginOptionsEntries() ?? [];
+    }
+
+    private ClientPluginOptionsEntry? GetSelectedPluginOptionsEntry()
+    {
+        var selectedPluginId = _selectedPluginOptionsPluginId;
+        if (string.IsNullOrWhiteSpace(selectedPluginId))
+        {
+            return null;
+        }
+
+        var entries = GetClientPluginOptionsEntries();
+        for (var index = 0; index < entries.Count; index += 1)
+        {
+            if (string.Equals(entries[index].PluginId, selectedPluginId, StringComparison.Ordinal))
+            {
+                return entries[index];
+            }
+        }
+
+        return null;
+    }
+
+    private void OpenPluginOptionsDetail(string pluginId)
+    {
+        _selectedPluginOptionsPluginId = pluginId;
+        _pluginOptionsHoverIndex = -1;
+    }
+
+    private void CloseSelectedPluginOptionsDetail()
+    {
+        _selectedPluginOptionsPluginId = null;
+        _pluginOptionsHoverIndex = -1;
+    }
+
+    private string GetPluginOptionValueLabel(ClientPluginOptionItem item)
+    {
+        try
+        {
+            return item.GetValueLabel();
+        }
+        catch (Exception ex)
+        {
+            AddConsoleLine($"plugin option read failed for \"{item.Label}\": {ex.Message}");
+            return "<error>";
+        }
+    }
+
+    private void ActivatePluginOption(ClientPluginOptionItem item)
+    {
+        try
+        {
+            item.Activate();
+        }
+        catch (Exception ex)
+        {
+            AddConsoleLine($"plugin option apply failed for \"{item.Label}\": {ex.Message}");
         }
     }
 
@@ -612,21 +874,35 @@ public partial class Game1
             : "300 ticks";
     }
 
-    private void GetOptionsMenuLayout(out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)
+    private void GetOptionsMenuLayout(int rowCount, out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)
     {
         xbegin = 40f;
         valueX = 240f;
         width = 320f;
         if (ViewportHeight < 540)
         {
-            ybegin = 104f;
             spacing = 26f;
             width = 340f;
             valueX = 232f;
-            return;
+        }
+        else
+        {
+            spacing = 30f;
         }
 
-        ybegin = 170f;
-        spacing = 30f;
+        var compactLayout = ViewportHeight < 540;
+        var defaultY = compactLayout ? 104f : 170f;
+        var minY = compactLayout ? 24f : 40f;
+        var bottomPadding = compactLayout ? 18f : 40f;
+        var estimatedTextHeight = compactLayout ? 18f : 22f;
+        var totalHeight = Math.Max(0, rowCount - 1) * spacing + estimatedTextHeight;
+        ybegin = MathF.Min(defaultY, MathF.Max(minY, ViewportHeight - bottomPadding - totalHeight));
     }
+
+    private readonly record struct PluginOptionsMenuRow(
+        string Label,
+        string Value,
+        bool Selectable,
+        bool IsHeader,
+        Action? Activate);
 }

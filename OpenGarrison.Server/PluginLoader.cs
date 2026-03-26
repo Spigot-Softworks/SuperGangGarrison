@@ -6,37 +6,61 @@ namespace OpenGarrison.Server;
 
 internal static class PluginLoader
 {
-    public static IReadOnlyList<LoadedPlugin> LoadFromDirectory(
-        string pluginsDirectory,
-        Func<IOpenGarrisonServerPlugin, IOpenGarrisonServerPluginContext> contextFactory,
+    public static IReadOnlyList<LoadedPlugin> LoadFromSearchDirectories(
+        IEnumerable<PluginSearchDirectory> searchDirectories,
+        Func<IOpenGarrisonServerPlugin, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log)
     {
-        Directory.CreateDirectory(pluginsDirectory);
-        var assemblies = new List<Assembly>();
-        foreach (var pluginPath in Directory.EnumerateFiles(pluginsDirectory, "*.dll", SearchOption.TopDirectoryOnly)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        var loadedAssemblies = new List<LoadedAssembly>();
+        var seenAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var searchDirectory in searchDirectories)
         {
-            try
+            Directory.CreateDirectory(searchDirectory.DirectoryPath);
+            foreach (var pluginPath in Directory.EnumerateFiles(searchDirectory.DirectoryPath, "*.dll", searchDirectory.SearchOption)
+                         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
-                assemblies.Add(AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(pluginPath)));
-            }
-            catch (Exception ex)
-            {
-                log($"[plugin] failed to load assembly \"{pluginPath}\": {ex.Message}");
+                var fullPluginPath = Path.GetFullPath(pluginPath);
+                if (!seenAssemblyPaths.Add(fullPluginPath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    loadedAssemblies.Add(new LoadedAssembly(
+                        AssemblyLoadContext.Default.LoadFromAssemblyPath(fullPluginPath),
+                        Path.GetDirectoryName(fullPluginPath) ?? string.Empty));
+                }
+                catch (Exception ex)
+                {
+                    log($"[plugin] failed to load assembly \"{pluginPath}\": {ex.Message}");
+                }
             }
         }
 
-        return LoadFromAssemblies(assemblies, contextFactory, log);
+        return LoadFromLoadedAssemblies(loadedAssemblies, contextFactory, log);
     }
 
     public static IReadOnlyList<LoadedPlugin> LoadFromAssemblies(
         IEnumerable<Assembly> assemblies,
-        Func<IOpenGarrisonServerPlugin, IOpenGarrisonServerPluginContext> contextFactory,
+        Func<IOpenGarrisonServerPlugin, string, IOpenGarrisonServerPluginContext> contextFactory,
+        Action<string> log)
+    {
+        var loadedAssemblies = assemblies.Select(assembly =>
+            new LoadedAssembly(assembly, Path.GetDirectoryName(assembly.Location) ?? string.Empty));
+        return LoadFromLoadedAssemblies(loadedAssemblies, contextFactory, log);
+    }
+
+    private static IReadOnlyList<LoadedPlugin> LoadFromLoadedAssemblies(
+        IEnumerable<LoadedAssembly> loadedAssemblies,
+        Func<IOpenGarrisonServerPlugin, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log)
     {
         var loadedPlugins = new List<LoadedPlugin>();
-        foreach (var assembly in assemblies)
+        var loadedPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var loadedAssembly in loadedAssemblies)
         {
+            var assembly = loadedAssembly.Assembly;
             Type[] types;
             try
             {
@@ -58,9 +82,15 @@ internal static class PluginLoader
                         continue;
                     }
 
-                    var context = contextFactory(plugin);
+                    if (!loadedPluginIds.Add(plugin.Id))
+                    {
+                        log($"[plugin] skipped duplicate plugin id \"{plugin.Id}\" from \"{assembly.FullName}\"");
+                        continue;
+                    }
+
+                    var context = contextFactory(plugin, loadedAssembly.PluginDirectory);
                     plugin.Initialize(context);
-                    loadedPlugins.Add(new LoadedPlugin(plugin, context));
+                    loadedPlugins.Add(new LoadedPlugin(plugin, context, loadedAssembly.PluginDirectory));
                 }
                 catch (Exception ex)
                 {
@@ -72,5 +102,12 @@ internal static class PluginLoader
         return loadedPlugins;
     }
 
-    internal sealed record LoadedPlugin(IOpenGarrisonServerPlugin Plugin, IOpenGarrisonServerPluginContext Context);
+    internal sealed record PluginSearchDirectory(string DirectoryPath, SearchOption SearchOption);
+
+    private sealed record LoadedAssembly(Assembly Assembly, string PluginDirectory);
+
+    internal sealed record LoadedPlugin(
+        IOpenGarrisonServerPlugin Plugin,
+        IOpenGarrisonServerPluginContext Context,
+        string PluginDirectory);
 }

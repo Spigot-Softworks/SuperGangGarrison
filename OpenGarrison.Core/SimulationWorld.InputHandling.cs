@@ -58,7 +58,23 @@ public sealed partial class SimulationWorld
             && secondaryPressed
             && player.CanFirePyroAirblast();
 
+        var healthBeforeTick = player.Health;
         var afterburn = player.AdvanceTickState(input, Config.FixedDeltaSeconds);
+        if (healthBeforeTick > player.Health)
+        {
+            var burner = afterburn.BurnedByPlayerId.HasValue
+                ? FindPlayerById(afterburn.BurnedByPlayerId.Value)
+                : null;
+            RegisterDamageEvent(
+                burner,
+                DamageTargetKind.Player,
+                player.Id,
+                player.X,
+                player.Y,
+                healthBeforeTick - player.Health,
+                afterburn.IsFatal);
+        }
+
         if (afterburn.IsFatal)
         {
             var burner = afterburn.BurnedByPlayerId.HasValue

@@ -176,6 +176,16 @@ public sealed partial class SimulationWorld
         ExplodeMine(mine);
     }
 
+    internal void CombatTestRecordKillFeedEntry(
+        PlayerEntity victim,
+        PlayerEntity? killer,
+        string weaponSpriteName,
+        string? messageText = null,
+        KillFeedSpecialType specialType = KillFeedSpecialType.None)
+    {
+        RecordKillFeedEntry(victim, killer, weaponSpriteName, messageText, specialType);
+    }
+
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)
         => Combat.HasLineOfSight(attacker, target);
 

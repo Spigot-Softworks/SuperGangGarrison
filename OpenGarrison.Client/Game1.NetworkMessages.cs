@@ -86,6 +86,8 @@ public partial class Game1
                     _manualConnectOpen = false;
                     _optionsMenuOpen = false;
                     _optionsMenuOpenedFromGameplay = false;
+                    _pluginOptionsMenuOpen = false;
+                    _pluginOptionsMenuOpenedFromGameplay = false;
                     _inGameMenuOpen = false;
                     _controlsMenuOpen = false;
                     _controlsMenuOpenedFromGameplay = false;
@@ -110,6 +112,7 @@ public partial class Game1
                     _consoleOpen = false;
                     _inGameMenuOpen = false;
                     _optionsMenuOpen = false;
+                    _pluginOptionsMenuOpen = false;
                     _controlsMenuOpen = false;
                     _teamSelectOpen = false;
                     _classSelectOpen = false;
@@ -259,6 +262,8 @@ public partial class Game1
 
                         _pendingNetworkVisualEvents.Add(visualEvent);
                     }
+
+                    QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
 
                     if (resolvedBatchSnapshotsByFrame is null)
                     {

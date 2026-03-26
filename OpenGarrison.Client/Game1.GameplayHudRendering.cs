@@ -45,6 +45,8 @@ public partial class Game1
         {
             DrawBubbleMenuHud();
         }
+
+        DrawClientPluginHud(cameraPosition);
     }
 
     private void DrawGameplayModalOverlays(MouseState mouse)
@@ -70,6 +72,7 @@ public partial class Game1
             && (!_killCamEnabled || _world.LocalDeathCam is null)
             && !_consoleOpen
             && !_inGameMenuOpen
+            && !_pluginOptionsMenuOpen
             && !_optionsMenuOpen
             && !_controlsMenuOpen)
         {
@@ -86,6 +89,10 @@ public partial class Game1
         if (_inGameMenuOpen)
         {
             DrawInGameMenu();
+        }
+        else if (_pluginOptionsMenuOpen)
+        {
+            DrawPluginOptionsMenu();
         }
         else if (_optionsMenuOpen)
         {

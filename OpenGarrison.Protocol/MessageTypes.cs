@@ -414,6 +414,18 @@ public sealed record SnapshotVisualEvent(
     int Count,
     ulong EventId = 0);
 
+public sealed record SnapshotDamageEvent(
+    int Amount,
+    int AttackerPlayerId,
+    int AssistedByPlayerId,
+    byte TargetKind,
+    int TargetEntityId,
+    float X,
+    float Y,
+    bool WasFatal,
+    ulong EventId = 0,
+    ulong SourceFrame = 0);
+
 public sealed record SnapshotKillFeedEntry(
     string KillerName,
     byte KillerTeam,
@@ -463,6 +475,7 @@ public sealed record SnapshotMessage(
     SnapshotDeathCamState? LocalDeathCam,
     IReadOnlyList<SnapshotKillFeedEntry> KillFeed,
     IReadOnlyList<SnapshotVisualEvent> VisualEvents,
+    IReadOnlyList<SnapshotDamageEvent> DamageEvents,
     IReadOnlyList<SnapshotSoundEvent> SoundEvents,
     bool IsCustomMap = false,
     string MapDownloadUrl = "",

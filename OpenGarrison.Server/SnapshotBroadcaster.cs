@@ -18,6 +18,7 @@ sealed class SnapshotBroadcaster
     private readonly ulong _transientEventReplayTicks;
     private readonly List<RetainedSnapshotSoundEvent> _recentSoundEvents = new();
     private readonly List<RetainedSnapshotVisualEvent> _recentVisualEvents = new();
+    private readonly List<RetainedSnapshotDamageEvent> _recentDamageEvents = new();
     private string _cachedMapMetadataLevelName = string.Empty;
     private bool _cachedIsCustomMap;
     private string _cachedMapDownloadUrl = string.Empty;
@@ -42,6 +43,7 @@ sealed class SnapshotBroadcaster
     {
         _recentSoundEvents.Clear();
         _recentVisualEvents.Clear();
+        _recentDamageEvents.Clear();
         _nextTransientEventId = 1;
         foreach (var client in _clientsBySlot.Values)
         {
@@ -59,13 +61,16 @@ sealed class SnapshotBroadcaster
         var currentFrame = (ulong)_world.Frame;
         AppendRetainedVisualEvents(_world.DrainPendingVisualEvents(), currentFrame);
         AppendRetainedSoundEvents(_world.DrainPendingSoundEvents(), currentFrame);
+        AppendRetainedDamageEvents(_world.DrainPendingDamageEvents(), currentFrame);
         _recentVisualEvents.RemoveAll(visualEvent => visualEvent.ExpiresAfterFrame < currentFrame);
         _recentSoundEvents.RemoveAll(soundEvent => soundEvent.ExpiresAfterFrame < currentFrame);
+        _recentDamageEvents.RemoveAll(damageEvent => damageEvent.ExpiresAfterFrame < currentFrame);
         var visualEvents = _recentVisualEvents.Select(visualEvent => visualEvent.Event).ToArray();
         var soundEvents = _recentSoundEvents.Select(soundEvent => soundEvent.Event).ToArray();
+        var damageEvents = _recentDamageEvents.Select(damageEvent => damageEvent.Event).ToArray();
         foreach (var client in _clientsBySlot.Values)
         {
-            SendSnapshot(client, visualEvents, soundEvents);
+            SendSnapshot(client, visualEvents, damageEvents, soundEvents);
         }
     }
 
@@ -89,9 +94,23 @@ sealed class SnapshotBroadcaster
         }
     }
 
-    private void SendSnapshot(ClientSession client, SnapshotVisualEvent[] visualEvents, SnapshotSoundEvent[] soundEvents)
+    private void AppendRetainedDamageEvents(IReadOnlyList<WorldDamageEvent> damageEvents, ulong currentFrame)
     {
-        var fullSnapshot = CaptureFullSnapshot(client, visualEvents, soundEvents);
+        for (var index = 0; index < damageEvents.Count; index += 1)
+        {
+            _recentDamageEvents.Add(new RetainedSnapshotDamageEvent(
+                ToSnapshotDamageEvent(damageEvents[index], _nextTransientEventId++),
+                currentFrame + _transientEventReplayTicks));
+        }
+    }
+
+    private void SendSnapshot(
+        ClientSession client,
+        SnapshotVisualEvent[] visualEvents,
+        SnapshotDamageEvent[] damageEvents,
+        SnapshotSoundEvent[] soundEvents)
+    {
+        var fullSnapshot = CaptureFullSnapshot(client, visualEvents, damageEvents, soundEvents);
         var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
         if (fullSnapshotPayload.Length <= TargetSnapshotPayloadBytes)
         {
@@ -109,6 +128,7 @@ sealed class SnapshotBroadcaster
     private SnapshotMessage CaptureFullSnapshot(
         ClientSession client,
         SnapshotVisualEvent[] visualEvents,
+        SnapshotDamageEvent[] damageEvents,
         SnapshotSoundEvent[] soundEvents)
     {
         PlayerEntity? viewer = null;
@@ -175,6 +195,7 @@ sealed class SnapshotBroadcaster
             ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
             _world.KillFeed.Select(ToSnapshotKillFeedEntry).ToArray(),
             visualEvents,
+            damageEvents,
             soundEvents,
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
@@ -316,6 +337,7 @@ sealed class SnapshotBroadcaster
         builder.KillFeed.Clear();
         builder.CombatTraces.Clear();
         builder.VisualEvents.Clear();
+        builder.DamageEvents.Clear();
         builder.SoundEvents.Clear();
     }
 
@@ -497,6 +519,14 @@ sealed class SnapshotBroadcaster
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.VisualEvents.Add(state));
+        AddPointEventContributions(
+            contributions,
+            fullSnapshot.DamageEvents,
+            priority: 1285,
+            focus,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.DamageEvents.Add(state));
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
@@ -663,6 +693,7 @@ sealed class SnapshotBroadcaster
             CombatTraces = new List<SnapshotCombatTraceState>(template.CombatTraces);
             KillFeed = new List<SnapshotKillFeedEntry>(template.KillFeed);
             VisualEvents = new List<SnapshotVisualEvent>(template.VisualEvents);
+            DamageEvents = new List<SnapshotDamageEvent>(template.DamageEvents);
             SoundEvents = new List<SnapshotSoundEvent>(template.SoundEvents);
         }
 
@@ -673,6 +704,7 @@ sealed class SnapshotBroadcaster
             CombatTraces = new List<SnapshotCombatTraceState>(other.CombatTraces);
             KillFeed = new List<SnapshotKillFeedEntry>(other.KillFeed);
             VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
+            DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
             SoundEvents = new List<SnapshotSoundEvent>(other.SoundEvents);
             Sentries = new List<SnapshotSentryState>(other.Sentries);
             Shots = new List<SnapshotShotState>(other.Shots);
@@ -708,6 +740,7 @@ sealed class SnapshotBroadcaster
         public List<SnapshotCombatTraceState> CombatTraces { get; }
         public List<SnapshotKillFeedEntry> KillFeed { get; }
         public List<SnapshotVisualEvent> VisualEvents { get; }
+        public List<SnapshotDamageEvent> DamageEvents { get; }
         public List<SnapshotSoundEvent> SoundEvents { get; }
         public List<SnapshotSentryState> Sentries { get; } = new();
         public List<SnapshotShotState> Shots { get; } = new();
@@ -766,6 +799,7 @@ sealed class SnapshotBroadcaster
                 DeadBodies = DeadBodies.ToArray(),
                 KillFeed = KillFeed.ToArray(),
                 VisualEvents = VisualEvents.ToArray(),
+                DamageEvents = DamageEvents.ToArray(),
                 SoundEvents = SoundEvents.ToArray(),
                 RemovedSentryIds = RemovedSentryIds.ToArray(),
                 RemovedShotIds = RemovedShotIds.ToArray(),

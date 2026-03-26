@@ -150,6 +150,26 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void DuplicateNormalKillFeedEntriesInSameFrame_AreSuppressed()
+    {
+        var world = CreateWorld();
+        const byte enemySlot = 3;
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(enemySlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Soldier));
+        Assert.True(world.TryGetNetworkPlayer(enemySlot, out var enemy));
+
+        world.CombatTestRecordKillFeedEntry(world.LocalPlayer, enemy, "RocketKL");
+        world.CombatTestRecordKillFeedEntry(world.LocalPlayer, enemy, "RocketKL");
+
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal(enemy.DisplayName, entry.KillerName);
+        Assert.Equal(world.LocalPlayer.DisplayName, entry.VictimName);
+        Assert.Equal("RocketKL", entry.WeaponSpriteName);
+    }
+
+    [Fact]
     public void EnemyKill_CreatesDeathCamFocusedOnKiller()
     {
         var world = CreateWorld();

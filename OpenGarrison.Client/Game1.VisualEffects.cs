@@ -50,6 +50,7 @@ public partial class Game1
         _flameSmokeVisuals.Clear();
         _looseSheetVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
+        _pendingNetworkDamageEvents.Clear();
     }
 
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)

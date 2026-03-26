@@ -30,6 +30,7 @@ public partial class Game1
         _scoreboardOpen = !_mainMenuOpen
             && !_inGameMenuOpen
             && !_optionsMenuOpen
+            && !_pluginOptionsMenuOpen
             && !_controlsMenuOpen
             && !_consoleOpen
             && !_teamSelectOpen

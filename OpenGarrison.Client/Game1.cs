@@ -140,6 +140,9 @@ public partial class Game1 : Game
     private bool _mainMenuOpen = true;
     private bool _optionsMenuOpen;
     private bool _optionsMenuOpenedFromGameplay;
+    private bool _pluginOptionsMenuOpen;
+    private bool _pluginOptionsMenuOpenedFromGameplay;
+    private string? _selectedPluginOptionsPluginId;
     private bool _lobbyBrowserOpen;
     private bool _manualConnectOpen;
     private bool _hostSetupOpen;
@@ -160,6 +163,7 @@ public partial class Game1 : Game
     private string _passwordPromptMessage = string.Empty;
     private int _mainMenuHoverIndex = -1;
     private int _optionsHoverIndex = -1;
+    private int _pluginOptionsHoverIndex = -1;
     private int _controlsHoverIndex = -1;
     private int _lobbyBrowserHoverIndex = -1;
     private int _lobbyBrowserSelectedIndex = -1;
@@ -246,6 +250,7 @@ public partial class Game1 : Game
         _menuImageFrame = _visualRandom.Next(2);
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
         AddConsoleLine("debug console ready (`)");
+        InitializeClientPlugins();
         if (_startupMode == GameStartupMode.ServerLauncher)
         {
             InitializeServerLauncherMode();
@@ -267,10 +272,12 @@ public partial class Game1 : Game
         LoadIngameMusic();
         ApplyAudioMuteState();
         AddConsoleLine($"gm assets sprites={_assetManifest.Sprites.Count} backgrounds={_assetManifest.Backgrounds.Count} sounds={_assetManifest.Sounds.Count}");
+        NotifyClientPluginsStarted();
     }
 
     protected override void UnloadContent()
     {
+        ShutdownClientPlugins();
         _menuMusicInstance?.Dispose();
         _menuMusic?.Dispose();
         _faucetMusicInstance?.Dispose();
@@ -310,6 +317,7 @@ public partial class Game1 : Game
         _wasWindowActive = windowActive;
         if (TryHandlePasswordPromptCancel(keyboard, mouse))
         {
+            NotifyClientPluginsFrame(gameTime, clientTicks);
             FinalizeNetworkDiagnosticsFrame();
             base.Update(gameTime);
             return;
@@ -329,12 +337,14 @@ public partial class Game1 : Game
 
         if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
         {
+            NotifyClientPluginsFrame(gameTime, clientTicks);
             FinalizeNetworkDiagnosticsFrame();
             base.Update(gameTime);
             return;
         }
 
         UpdateGameplayFrame(gameTime, keyboard, mouse, clientTicks);
+        NotifyClientPluginsFrame(gameTime, clientTicks);
         FinalizeNetworkDiagnosticsFrame();
 
         base.Update(gameTime);

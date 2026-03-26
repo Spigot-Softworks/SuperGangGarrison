@@ -741,20 +741,17 @@ public partial class Game1
 
     private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
     {
-        return player.ClassId switch
-        {
-            PlayerClass.Scout => new("ScattergunS", "ScattergunFS", "ScattergunFRS", -5f, -4f, GetSourceTicksAsSeconds(20), GetSourceTicksAsSeconds(15)),
-            PlayerClass.Engineer => new("ShotgunS", "ShotgunFS", "ShotgunFRS", -5f, -2f, GetSourceTicksAsSeconds(20), GetSourceTicksAsSeconds(15)),
-            PlayerClass.Pyro => new("FlamethrowerS", "FlamethrowerFS", null, -11f, 4f, GetSourceTicksAsSeconds(3), 0f, LoopRecoilWhileActive: true),
-            PlayerClass.Soldier => new("RocketlauncherS", "RocketlauncherFS", "RocketlauncherFRS", -15f, -10f, GetSourceTicksAsSeconds(30), GetSourceTicksAsSeconds(22)),
-            PlayerClass.Demoman => new("MinegunS", "MinegunFS", "MinegunFRS", -3f, -2f, GetSourceTicksAsSeconds(26), GetSourceTicksAsSeconds(15)),
-            PlayerClass.Heavy => new("MinigunS", "MinigunFS", null, -11f, 0f, GetSourceTicksAsSeconds(3), 0f, LoopRecoilWhileActive: true),
-            PlayerClass.Sniper => new("RifleS", "RifleFS", "RifleFRS", -5f, -8f, GetSourceTicksAsSeconds(15), 0f, GetSourceTicksAsSeconds(60)),
-            PlayerClass.Medic => new("MedigunS", "MedigunFS", "MedigunFRS", -7f, 0f, GetSourceTicksAsSeconds(4), GetSourceTicksAsSeconds(55)),
-            PlayerClass.Spy => new("RevolverS", "RevolverFS", "RevolverFRS", -3f, -6f, GetSourceTicksAsSeconds(18), GetSourceTicksAsSeconds(45)),
-            PlayerClass.Quote => new("BladeS", null, null, -3f, -6f, 0f, 0f),
-            _ => new(null, null, null, 0f, 0f, 0f, 0f),
-        };
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(player.ClassId).Presentation;
+        return new(
+            presentation.WorldSpriteName,
+            presentation.RecoilSpriteName,
+            presentation.ReloadSpriteName,
+            presentation.WeaponOffsetX,
+            presentation.WeaponOffsetY,
+            GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks),
+            GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
+            GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks),
+            presentation.LoopRecoilWhileActive);
     }
 
     private static float GetSourceTicksAsSeconds(float ticks)

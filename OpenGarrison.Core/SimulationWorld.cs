@@ -43,6 +43,7 @@ public sealed partial class SimulationWorld
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
+    private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
     private readonly List<string> _spectatorNames = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
@@ -185,6 +186,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<WorldSoundEvent> PendingSoundEvents => _pendingSoundEvents;
 
     public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
+
+    public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
 
     public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
 
@@ -370,6 +373,18 @@ public sealed partial class SimulationWorld
         var visuals = _pendingVisualEvents.ToArray();
         _pendingVisualEvents.Clear();
         return visuals;
+    }
+
+    public IReadOnlyList<WorldDamageEvent> DrainPendingDamageEvents()
+    {
+        if (_pendingDamageEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var damageEvents = _pendingDamageEvents.ToArray();
+        _pendingDamageEvents.Clear();
+        return damageEvents;
     }
 
     private int AllocateEntityId()
