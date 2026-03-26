@@ -84,19 +84,44 @@ public partial class Game1
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
-        var scale = MathF.Min(actualWidth / (float)ViewportWidth, actualHeight / (float)ViewportHeight);
+        return GetLetterboxedDestinationRectangle(actualWidth, actualHeight);
+    }
+
+    private Rectangle GetInputDestinationRectangle()
+    {
+        var clientBounds = Window.ClientBounds;
+        var inputWidth = clientBounds.Width;
+        var inputHeight = clientBounds.Height;
+        if (inputWidth <= 0 || inputHeight <= 0)
+        {
+            inputWidth = GraphicsDevice.Viewport.Width;
+            inputHeight = GraphicsDevice.Viewport.Height;
+        }
+
+        if (inputWidth <= 0 || inputHeight <= 0)
+        {
+            var fallback = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+            return new Rectangle(0, 0, fallback.X, fallback.Y);
+        }
+
+        return GetLetterboxedDestinationRectangle(inputWidth, inputHeight);
+    }
+
+    private Rectangle GetLetterboxedDestinationRectangle(int surfaceWidth, int surfaceHeight)
+    {
+        var scale = MathF.Min(surfaceWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
         var destinationWidth = Math.Max(1, (int)MathF.Floor(ViewportWidth * scale));
         var destinationHeight = Math.Max(1, (int)MathF.Floor(ViewportHeight * scale));
         return new Rectangle(
-            (actualWidth - destinationWidth) / 2,
-            (actualHeight - destinationHeight) / 2,
+            (surfaceWidth - destinationWidth) / 2,
+            (surfaceHeight - destinationHeight) / 2,
             destinationWidth,
             destinationHeight);
     }
 
     private MouseState GetScaledMouseState(MouseState rawMouse)
     {
-        var destination = GetPresentationDestinationRectangle();
+        var destination = GetInputDestinationRectangle();
         if (destination.Width <= 0 || destination.Height <= 0)
         {
             return rawMouse;
@@ -122,7 +147,7 @@ public partial class Game1
             return rawMouse;
         }
 
-        var destination = GetPresentationDestinationRectangle();
+        var destination = GetInputDestinationRectangle();
         if (destination.Width <= 0 || destination.Height <= 0)
         {
             return rawMouse;

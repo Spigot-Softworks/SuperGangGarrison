@@ -28,6 +28,13 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\OpenGarrison.Core\Content\**\*" Exclude="..\OpenGarrison.Core\Content\bin\**\*;..\OpenGarrison.Core\Content\obj\**\*;..\OpenGarrison.Core\Content\**\*.mgcb">
+      <TargetPath>Content\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
