@@ -46,6 +46,7 @@ internal static partial class ServerHelpers
             player.IsGrounded,
             player.RemainingAirJumps,
             player.IsCarryingIntel,
+            player.IntelRechargeTicks,
             player.IsSpyCloaked,
             player.SpyCloakAlpha,
             player.IsUbered,

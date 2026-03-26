@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     private const float IntelMarkerSize = 24f;
-    private const int IntelReturnTicks = 900;
+    private const int IntelReturnTicks = PlayerEntity.IntelRechargeMaxTicks;
     private const int IntelPickupCooldownTicksAfterDrop = 300;
 
     public TeamIntelligenceState RedIntel { get; private set; }
@@ -28,8 +28,9 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var carriedRechargeTicks = enemyIntel.IsDropped ? enemyIntel.ReturnTicksRemaining : 0f;
         enemyIntel.PickUp();
-        LocalPlayer.PickUpIntel();
+        LocalPlayer.PickUpIntel(carriedRechargeTicks);
         RegisterWorldSoundEvent("IntelGetSnd", LocalPlayer.X, LocalPlayer.Y);
         return true;
     }
@@ -49,9 +50,10 @@ public sealed partial class SimulationWorld
         GetEnemyIntelState(player.Team).Drop(
             player.X,
             player.Y,
-            IntelReturnTicks);
+            GetPlayerIntelReturnTicks(player));
         player.DropIntel(IntelPickupCooldownTicksAfterDrop);
         RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
+        RecordIntelDroppedObjectiveLog(player);
     }
 
     private void TryPickUpEnemyIntel(PlayerEntity player)
@@ -74,9 +76,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        var carriedRechargeTicks = enemyIntel.IsDropped ? enemyIntel.ReturnTicksRemaining : 0f;
         enemyIntel.PickUp();
-        player.PickUpIntel();
+        player.PickUpIntel(carriedRechargeTicks);
         RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
+        RecordIntelPickedUpObjectiveLog(player);
     }
 
     private void TryScoreCarriedIntel(PlayerEntity player)
@@ -100,6 +104,7 @@ public sealed partial class SimulationWorld
         player.ScoreIntel();
         GetEnemyIntelState(player.Team).ResetToBase();
         RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
+        RecordIntelCapturedObjectiveLog(player);
 
         if (player.Team == PlayerTeam.Blue)
         {
@@ -137,5 +142,10 @@ public sealed partial class SimulationWorld
 
         var fallbackSpawn = Level.GetSpawn(team, 0);
         return new TeamIntelligenceState(team, fallbackSpawn.X, fallbackSpawn.Y);
+    }
+
+    private static int GetPlayerIntelReturnTicks(PlayerEntity player)
+    {
+        return Math.Clamp((int)MathF.Round(player.IntelRechargeTicks), 0, IntelReturnTicks);
     }
 }

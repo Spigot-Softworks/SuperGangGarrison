@@ -45,6 +45,7 @@ public enum InputButtons : ushort
     FireSecondary = 1 << 7,
     DebugKill = 1 << 8,
     DestroySentry = 1 << 9,
+    DropIntel = 1 << 10,
 }
 
 public interface IProtocolMessage
@@ -201,6 +202,7 @@ public sealed record SnapshotPlayerState(
     bool IsGrounded,
     int RemainingAirJumps,
     bool IsCarryingIntel,
+    float IntelRechargeTicks,
     bool IsSpyCloaked,
     float SpyCloakAlpha,
     bool IsUbered,

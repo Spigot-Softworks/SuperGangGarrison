@@ -366,10 +366,12 @@ public sealed partial class SimulationWorld
                 if (point.Team == PlayerTeam.Red && previousBlueCappers > 0 && previousRedCappers == 0 && redCappers > 0)
                 {
                     RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
+                    RecordControlPointDefendedObjectiveLog(PlayerTeam.Red, redCappersByPoint[index]);
                 }
                 else if (point.Team == PlayerTeam.Blue && previousRedCappers > 0 && previousBlueCappers == 0 && blueCappers > 0)
                 {
                     RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
+                    RecordControlPointDefendedObjectiveLog(PlayerTeam.Blue, blueCappersByPoint[index]);
                 }
             }
 
@@ -477,6 +479,8 @@ public sealed partial class SimulationWorld
                 player.AddCap();
             }
         }
+
+        RecordControlPointCapturedObjectiveLog(team, capperIds);
 
         if (_controlPointSetupMode)
         {

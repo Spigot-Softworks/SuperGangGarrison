@@ -166,10 +166,27 @@ public partial class Game1
                 continue;
             }
 
-            sheet.X += sheet.VelocityX;
-            sheet.Y += sheet.VelocityY;
-            sheet.VelocityX *= 0.985f;
-            sheet.VelocityY = MathF.Min(1.4f, sheet.VelocityY + 0.035f);
+            var sheetX = sheet.X;
+            var sheetY = sheet.Y;
+            var velocityX = sheet.VelocityX;
+            var velocityY = sheet.VelocityY;
+            AdvanceLooseSheetAxis(ref sheetX, sheetY, ref velocityX, horizontal: true);
+            AdvanceLooseSheetAxis(ref sheetY, sheetX, ref velocityY, horizontal: false);
+
+            if (!IsLooseSheetBlocked(sheetX, sheetY + 1f))
+            {
+                velocityY = MathF.Min(1.4f, velocityY + 0.035f);
+            }
+            else
+            {
+                velocityX *= 0.95f;
+            }
+
+            velocityX *= 0.985f;
+            sheet.X = sheetX;
+            sheet.Y = sheetY;
+            sheet.VelocityX = velocityX;
+            sheet.VelocityY = velocityY;
             sheet.RotationRadians += sheet.RotationSpeedRadians;
         }
     }
@@ -973,6 +990,54 @@ public partial class Game1
     }
 
     private bool IsShellBlocked(float x, float y)
+    {
+        foreach (var solid in _world.Level.Solids)
+        {
+            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+            {
+                return true;
+            }
+        }
+
+        foreach (var wall in _world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
+        {
+            if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void AdvanceLooseSheetAxis(ref float primaryCoordinate, float secondaryCoordinate, ref float velocity, bool horizontal)
+    {
+        if (MathF.Abs(velocity) <= 0.0001f)
+        {
+            velocity = 0f;
+            return;
+        }
+
+        var remaining = velocity;
+        while (MathF.Abs(remaining) > 0.0001f)
+        {
+            var step = MathF.Abs(remaining) > 1f ? MathF.Sign(remaining) : remaining;
+            var nextPrimary = primaryCoordinate + step;
+            var blocked = horizontal
+                ? IsLooseSheetBlocked(nextPrimary, secondaryCoordinate)
+                : IsLooseSheetBlocked(secondaryCoordinate, nextPrimary);
+            if (blocked)
+            {
+                velocity = horizontal ? velocity * -0.2f : 0f;
+                return;
+            }
+
+            primaryCoordinate = nextPrimary;
+            remaining -= step;
+        }
+    }
+
+    private bool IsLooseSheetBlocked(float x, float y)
     {
         foreach (var solid in _world.Level.Solids)
         {

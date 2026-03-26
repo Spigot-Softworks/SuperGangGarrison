@@ -341,7 +341,7 @@ public partial class Game1
             new Vector2(viewportWidth - 70f, viewportHeight - 85f),
             Color.White,
             new Vector2(2f, 2f));
-        DrawHudTextRightAligned(((int)MathF.Floor(GetPlayerMetal(_world.LocalPlayer))).ToString(CultureInfo.InvariantCulture), new Vector2(viewportWidth - 66f, viewportHeight - 81f), Color.White, 1.5f);
+        DrawHudTextRightAligned(((int)MathF.Floor(GetPlayerMetal(_world.LocalPlayer))).ToString(CultureInfo.InvariantCulture), new Vector2(viewportWidth - 66f, viewportHeight - 91f), Color.White, 1.5f);
 
         var localSentry = GetLocalOwnedSentry();
         if (localSentry is null)

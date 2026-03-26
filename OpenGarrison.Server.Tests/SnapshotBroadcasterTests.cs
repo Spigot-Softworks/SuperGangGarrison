@@ -396,6 +396,7 @@ public sealed class SnapshotBroadcasterTests
                     IsGrounded: world.LocalPlayer.IsGrounded,
                     RemainingAirJumps: world.LocalPlayer.RemainingAirJumps,
                     IsCarryingIntel: world.LocalPlayer.IsCarryingIntel,
+                    IntelRechargeTicks: world.LocalPlayer.IntelRechargeTicks,
                     IsSpyCloaked: world.LocalPlayer.IsSpyCloaked,
                     SpyCloakAlpha: world.LocalPlayer.SpyCloakAlpha,
                     IsUbered: world.LocalPlayer.IsUbered,

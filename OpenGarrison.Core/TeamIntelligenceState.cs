@@ -55,8 +55,14 @@ public sealed class TeamIntelligenceState
 
     public void AdvanceTick()
     {
-        if (!IsDropped || ReturnTicksRemaining <= 0)
+        if (!IsDropped)
         {
+            return;
+        }
+
+        if (ReturnTicksRemaining <= 0)
+        {
+            ResetToBase();
             return;
         }
 

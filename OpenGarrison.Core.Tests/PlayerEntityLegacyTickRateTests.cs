@@ -92,6 +92,26 @@ public sealed class PlayerEntityLegacyTickRateTests
     }
 
     [Fact]
+    public void SoldierRocketLauncher_UsesSourceTwentyTwoTickReloadDelay()
+    {
+        var player = CreatePlayer(CharacterClassCatalog.Soldier);
+
+        Assert.True(player.TryFirePrimaryWeapon());
+
+        Assert.Equal(22, player.ReloadTicksUntilNextShell);
+    }
+
+    [Fact]
+    public void SpyRevolver_UsesSourceFortyFiveTickReloadDelay()
+    {
+        var player = CreatePlayer(CharacterClassCatalog.Spy);
+
+        Assert.True(player.TryFirePrimaryWeapon());
+
+        Assert.Equal(45, player.ReloadTicksUntilNextShell);
+    }
+
+    [Fact]
     public void RevolverReload_RestartsFromFullDelayWhenFiringMidReload()
     {
         var player = CreatePlayer(CharacterClassCatalog.Spy);

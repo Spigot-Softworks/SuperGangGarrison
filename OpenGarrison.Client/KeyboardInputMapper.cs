@@ -24,6 +24,7 @@ internal static class KeyboardInputMapper
             FireSecondary: mouse.RightButton == ButtonState.Pressed,
             AimWorldX: cameraX + mouse.X,
             AimWorldY: cameraY + mouse.Y,
-            DebugKill: false);
+            DebugKill: false,
+            DropIntel: keyboard.IsKeyDown(Keys.B));
     }
 }

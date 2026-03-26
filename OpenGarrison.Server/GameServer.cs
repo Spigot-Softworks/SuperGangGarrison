@@ -293,8 +293,8 @@ sealed class GameServer
                 ProcessPendingConsoleCommands();
                 _helloRateLimiter.Prune();
                 _passwordRateLimiter.Prune();
-                _sessionManager.PruneTimedOutClients();
                 PumpIncomingPackets();
+                _sessionManager.PruneTimedOutClients();
                 _sessionManager.RefreshPasswordRequests();
 
                 var now = _clock.Elapsed;

@@ -9,8 +9,21 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        var redWasDropped = RedIntel.IsDropped;
+        var blueWasDropped = BlueIntel.IsDropped;
         RedIntel.AdvanceTick();
         BlueIntel.AdvanceTick();
+        if (redWasDropped && RedIntel.IsAtBase)
+        {
+            RegisterWorldSoundEvent("IntelDropSnd", RedIntel.X, RedIntel.Y);
+            RecordIntelReturnedObjectiveLog(PlayerTeam.Red);
+        }
+
+        if (blueWasDropped && BlueIntel.IsAtBase)
+        {
+            RegisterWorldSoundEvent("IntelDropSnd", BlueIntel.X, BlueIntel.Y);
+            RecordIntelReturnedObjectiveLog(PlayerTeam.Blue);
+        }
 
         foreach (var player in EnumerateSimulatedPlayers())
         {

@@ -114,6 +114,7 @@ public sealed partial class SimulationWorld
         RegisterWorldSoundEvent("RevolverSnd", generator.Marker.CenterX, generator.Marker.CenterY);
         RegisterWorldSoundEvent("CPBeginCapSnd", generator.Marker.CenterX, generator.Marker.CenterY);
         RegisterVisualEffect("Explosion", generator.Marker.CenterX, generator.Marker.CenterY, count: 2);
+        RecordGeneratorDestroyedObjectiveLog(winner);
         ApplyGeneratorExplosion(generator);
 
         MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winner };

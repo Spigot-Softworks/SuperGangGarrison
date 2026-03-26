@@ -220,7 +220,7 @@ sealed class ServerSessionManager
         var staleSlots = new List<byte>();
         foreach (var entry in _clientsBySlot)
         {
-            if ((now - entry.Value.LastSeen).TotalSeconds >= _clientTimeoutSeconds)
+            if ((now - entry.Value.LastSeen).TotalSeconds >= GetEffectiveClientTimeoutSeconds(entry.Value))
             {
                 staleSlots.Add(entry.Key);
             }
@@ -267,6 +267,19 @@ sealed class ServerSessionManager
         {
             RemoveClient(slot, "password timeout");
         }
+    }
+
+    private double GetEffectiveClientTimeoutSeconds(ClientSession client)
+    {
+        var address = client.EndPoint.Address;
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        return IPAddress.IsLoopback(address)
+            ? Math.Max(_clientTimeoutSeconds, 30d)
+            : _clientTimeoutSeconds;
     }
 
     private bool ApplyRequestedTeamForSlot(byte slot, byte requestedTeam)

@@ -243,6 +243,7 @@ public static partial class ProtocolCodec
             writer.Write(player.IsGrounded);
             writer.Write(player.RemainingAirJumps);
             writer.Write(player.IsCarryingIntel);
+            writer.Write(player.IntelRechargeTicks);
             writer.Write(player.IsSpyCloaked);
             writer.Write(player.SpyCloakAlpha);
             writer.Write(player.IsUbered);
@@ -312,6 +313,7 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
+                reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
                 reader.ReadBoolean(),

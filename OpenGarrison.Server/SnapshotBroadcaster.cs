@@ -215,6 +215,7 @@ sealed class SnapshotBroadcaster
             IsGrounded: false,
             RemainingAirJumps: 0,
             IsCarryingIntel: false,
+            IntelRechargeTicks: 0f,
             IsSpyCloaked: false,
             SpyCloakAlpha: 1f,
             IsUbered: false,

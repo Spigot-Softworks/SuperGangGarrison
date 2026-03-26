@@ -28,6 +28,8 @@ internal sealed class NetworkGameClient : IDisposable
     private const long HelloRetryMilliseconds = 500;
     private const long WelcomeTimeoutMilliseconds = 4000;
     private const long ConnectedTimeoutMilliseconds = 5000;
+    private const long LocalWelcomeTimeoutMilliseconds = 30000;
+    private const long LocalConnectedTimeoutMilliseconds = 30000;
     private UdpClient? _udpClient;
     private IPEndPoint? _serverEndPoint;
     private uint _nextInputSequence = 1;
@@ -185,6 +187,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.Taunt) buttons |= InputButtons.Taunt;
         if (input.FirePrimary) buttons |= InputButtons.FirePrimary;
         if (input.FireSecondary) buttons |= InputButtons.FireSecondary;
+        if (input.DropIntel) buttons |= InputButtons.DropIntel;
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;
@@ -405,7 +408,8 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         var nowMilliseconds = _clock.ElapsedMilliseconds;
-        if (_connectStartedAtMilliseconds >= 0 && nowMilliseconds - _connectStartedAtMilliseconds >= WelcomeTimeoutMilliseconds)
+        if (_connectStartedAtMilliseconds >= 0
+            && nowMilliseconds - _connectStartedAtMilliseconds >= GetWelcomeTimeoutMilliseconds())
         {
             _lastDisconnectReason = "Connection timed out waiting for server response.";
             Disconnect();
@@ -427,7 +431,7 @@ internal sealed class NetworkGameClient : IDisposable
 
         var nowMilliseconds = _clock.ElapsedMilliseconds;
         if (_lastServerMessageReceivedAtMilliseconds >= 0
-            && nowMilliseconds - _lastServerMessageReceivedAtMilliseconds >= ConnectedTimeoutMilliseconds)
+            && nowMilliseconds - _lastServerMessageReceivedAtMilliseconds >= GetConnectedTimeoutMilliseconds())
         {
             _lastDisconnectReason = "Connection timed out waiting for server snapshots.";
             Disconnect();
@@ -467,6 +471,36 @@ internal sealed class NetworkGameClient : IDisposable
     private static double GetElapsedMilliseconds(long startTimestamp)
     {
         return (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+    }
+
+    private long GetWelcomeTimeoutMilliseconds()
+    {
+        return IsLoopbackConnection()
+            ? LocalWelcomeTimeoutMilliseconds
+            : WelcomeTimeoutMilliseconds;
+    }
+
+    private long GetConnectedTimeoutMilliseconds()
+    {
+        return IsLoopbackConnection()
+            ? LocalConnectedTimeoutMilliseconds
+            : ConnectedTimeoutMilliseconds;
+    }
+
+    private bool IsLoopbackConnection()
+    {
+        var address = _serverEndPoint?.Address;
+        if (address is null)
+        {
+            return false;
+        }
+
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        return IPAddress.IsLoopback(address);
     }
 
     private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value);

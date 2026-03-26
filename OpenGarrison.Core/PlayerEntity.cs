@@ -24,6 +24,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float MedicUberMaxCharge = 2000f;
     public const int MedicNeedleRefillTicksDefault = 55;
     public const int MedicNeedleFireCooldownTicks = 3;
+    public const int IntelRechargeMaxTicks = 900;
     public const int SpyBackstabWindupTicksDefault = 32;
     public const int SpyBackstabRecoveryTicksDefault = 18;
     public const int SpyBackstabVisualTicksDefault = 60;
@@ -114,6 +115,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsCarryingIntel { get; private set; }
 
     public int IntelPickupCooldownTicks { get; private set; }
+
+    public float IntelRechargeTicks { get; private set; }
 
     public bool IsInSpawnRoom { get; private set; }
 
@@ -276,6 +279,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         Health = MaxHealth;
         IsCarryingIntel = false;
         IntelPickupCooldownTicks = 0;
+        IntelRechargeTicks = 0f;
         RemainingAirJumps = MaxAirJumps;
         Metal = MaxMetal;
         CurrentShells = PrimaryWeapon.MaxAmmo;
@@ -334,6 +338,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
         RemainingAirJumps = int.Min(RemainingAirJumps, MaxAirJumps);
+        IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
         IsHeavyEating = false;
@@ -384,6 +389,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         VerticalSpeed = 0f;
         IsGrounded = false;
         IsCarryingIntel = false;
+        IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
         IsHeavyEating = false;

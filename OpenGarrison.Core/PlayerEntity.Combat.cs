@@ -198,6 +198,18 @@ public sealed partial class PlayerEntity
         IsSpyVisibleToEnemies = SpyCloakAlpha > 0f || IsSpyBackstabAnimating;
     }
 
+    public void ForceDecloak()
+    {
+        if (ClassId != PlayerClass.Spy)
+        {
+            return;
+        }
+
+        IsSpyCloaked = false;
+        SpyCloakAlpha = 1f;
+        IsSpyVisibleToEnemies = false;
+    }
+
     public void ForceSetHealth(int health)
     {
         Health = int.Clamp(health, 0, MaxHealth);
@@ -212,6 +224,7 @@ public sealed partial class PlayerEntity
         VerticalSpeed = 0f;
         IsGrounded = false;
         IsCarryingIntel = false;
+        IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
         IsHeavyEating = false;
@@ -314,11 +327,19 @@ public sealed partial class PlayerEntity
     public void PickUpIntel()
     {
         IsCarryingIntel = true;
+        IntelRechargeTicks = 0f;
+    }
+
+    public void PickUpIntel(float rechargeTicks)
+    {
+        IsCarryingIntel = true;
+        IntelRechargeTicks = float.Clamp(rechargeTicks, 0f, IntelRechargeMaxTicks);
     }
 
     public void ScoreIntel()
     {
         IsCarryingIntel = false;
+        IntelRechargeTicks = 0f;
         Caps += 1;
     }
 
@@ -331,6 +352,7 @@ public sealed partial class PlayerEntity
     {
         IsCarryingIntel = false;
         IntelPickupCooldownTicks = pickupCooldownTicks;
+        IntelRechargeTicks = 0f;
     }
 
     public void AddHealPoints(int amount)
@@ -505,6 +527,24 @@ public sealed partial class PlayerEntity
         {
             IsPyroPrimaryRefilling = false;
         }
+    }
+
+    private void AdvanceIntelCarryState()
+    {
+        if (!IsCarryingIntel)
+        {
+            IntelRechargeTicks = 0f;
+            return;
+        }
+
+        if (IsHeavyEating)
+        {
+            return;
+        }
+
+        var sourceHorizontalSpeed = MathF.Min(MathF.Abs(HorizontalSpeed) / LegacyMovementModel.SourceTicksPerSecond, 7f);
+        var rechargePerTick = IntelRechargeMaxTicks / ((3f + (sourceHorizontalSpeed / 3.5f)) * LegacyMovementModel.SourceTicksPerSecond);
+        IntelRechargeTicks = MathF.Min(IntelRechargeMaxTicks, IntelRechargeTicks + rechargePerTick);
     }
 
     private int GetPyroPrimaryFuelMaxScaled()

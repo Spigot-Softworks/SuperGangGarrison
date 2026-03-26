@@ -12,4 +12,5 @@ public readonly record struct PlayerInputSnapshot(
     bool FireSecondary,
     float AimWorldX,
     float AimWorldY,
-    bool DebugKill);
+    bool DebugKill,
+    bool DropIntel = false);

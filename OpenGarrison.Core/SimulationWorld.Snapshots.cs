@@ -164,6 +164,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.IsGrounded,
             snapshotPlayer.RemainingAirJumps,
             snapshotPlayer.IsCarryingIntel,
+            snapshotPlayer.IntelRechargeTicks,
             snapshotPlayer.IsSpyCloaked,
             snapshotPlayer.SpyCloakAlpha,
             snapshotPlayer.IsUbered,

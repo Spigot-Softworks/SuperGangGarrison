@@ -252,7 +252,7 @@ public partial class Game1
         for (var needleIndex = 0; needleIndex < snapshot.Needles.Count; needleIndex += 1)
         {
             var needle = snapshot.Needles[needleIndex];
-            CaptureProjectileInterpolationTarget(needle.Id, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 18f, snapshotServerTimeSeconds);
+            CaptureProjectileInterpolationTarget(needle.Id, needle.X, needle.Y, new Vector2(needle.VelocityX, needle.VelocityY), 30f, snapshotServerTimeSeconds);
         }
 
         for (var flameIndex = 0; flameIndex < snapshot.Flames.Count; flameIndex += 1)

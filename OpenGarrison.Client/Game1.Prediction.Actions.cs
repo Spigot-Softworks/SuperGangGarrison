@@ -254,7 +254,9 @@ public partial class Game1
             return;
         }
 
-        if (!predictedInput.SecondaryPressed)
+        var useHeldSecondary = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
+        if ((!useHeldSecondary && !predictedInput.SecondaryPressed)
+            || (useHeldSecondary && !predictedInput.Input.FireSecondary))
         {
             return;
         }

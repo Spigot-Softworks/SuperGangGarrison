@@ -24,6 +24,7 @@ public sealed class PlayerEntityPredictionStateTests
             Metal: 66f,
             IsCarryingIntel: true,
             IntelPickupCooldownTicks: 11,
+            IntelRechargeTicks: 333f,
             IsInSpawnRoom: true,
             RemainingAirJumps: 1,
             FacingDirectionX: -1f,

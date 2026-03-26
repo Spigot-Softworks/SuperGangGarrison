@@ -33,8 +33,9 @@ public sealed partial class SimulationWorld
     {
         var preAdvanceX = player.X;
         var preAdvanceY = player.Y;
+        var isHumiliated = IsPlayerHumiliated(player);
 
-        if (IsPlayerHumiliated(player))
+        if (isHumiliated)
         {
             input = input with
             {
@@ -46,12 +47,13 @@ public sealed partial class SimulationWorld
         }
 
         var jumpPressed = input.Up && !previousInput.Up;
-        var dropPressed = input.Down && !previousInput.Down;
+        var dropPressed = input.DropIntel && !previousInput.DropIntel;
         var buildPressed = input.BuildSentry && !previousInput.BuildSentry;
         var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var secondaryPressed = input.FireSecondary && !previousInput.FireSecondary;
+        var allowHeldSecondary = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
         var suppressPyroPrimaryThisTick = player.ClassId == PlayerClass.Pyro
             && secondaryPressed
             && player.CanFirePyroAirblast();
@@ -64,6 +66,11 @@ public sealed partial class SimulationWorld
                 : null;
             KillPlayer(player, killer: burner, weaponSpriteName: "FlameKL");
             return;
+        }
+
+        if (isHumiliated && player.ClassId == PlayerClass.Spy && !player.IsSpyBackstabAnimating)
+        {
+            player.ForceDecloak();
         }
 
         TryHandleNetworkPrimaryFire(player, input, suppressPyroPrimaryThisTick);
@@ -87,7 +94,7 @@ public sealed partial class SimulationWorld
                 TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
             }
         }
-        else if (secondaryPressed)
+        else if ((allowHeldSecondary && input.FireSecondary) || (!allowHeldSecondary && secondaryPressed))
         {
             TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
         }

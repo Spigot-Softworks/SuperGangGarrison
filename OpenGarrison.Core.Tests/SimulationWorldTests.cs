@@ -92,15 +92,16 @@ public sealed class SimulationWorldTests
         var world = CreateWorld();
 
         var pickedUp = world.ForceGiveEnemyIntelToLocalPlayer();
+        AdvanceTicks(world, 30);
         world.ForceDropLocalIntel();
 
         Assert.True(pickedUp);
         Assert.False(world.LocalPlayer.IsCarryingIntel);
         Assert.True(world.BlueIntel.IsDropped);
         Assert.False(world.BlueIntel.IsAtBase);
-        Assert.Equal(900, world.BlueIntel.ReturnTicksRemaining);
+        Assert.Equal(300, world.BlueIntel.ReturnTicksRemaining);
 
-        AdvanceTicks(world, 901);
+        AdvanceTicks(world, 301);
 
         if (!world.BlueIntel.IsAtBase)
         {
@@ -193,6 +194,25 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void CarryingEnemyIntelToOwnBase_RecordsObjectiveLogMessage()
+    {
+        var world = CreateWorld();
+        var ownBase = world.Level.GetIntelBase(world.LocalPlayerTeam);
+
+        Assert.True(ownBase.HasValue);
+        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+
+        world.TeleportLocalPlayer(ownBase.Value.X, ownBase.Value.Y);
+        world.AdvanceOneTick();
+
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal(world.LocalPlayer.DisplayName, entry.KillerName);
+        Assert.Equal("RedCaptureS", entry.WeaponSpriteName);
+        Assert.Equal("captured the intelligence!", entry.MessageText);
+        Assert.Equal(string.Empty, entry.VictimName);
+    }
+
+    [Fact]
     public void SetCapLimit_UpdatesRuleWithoutResettingRoundState()
     {
         var world = CreateWorld();
@@ -262,6 +282,23 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void DestroyingGenerator_RecordsObjectiveLogMessage()
+    {
+        var world = CreateWorld();
+        var redGenerator = new RoomObjectMarker(RoomObjectType.Generator, 80f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Red);
+        var blueGenerator = new RoomObjectMarker(RoomObjectType.Generator, 180f, 180f, 40f, 60f, "GeneratorS", PlayerTeam.Blue);
+        world.CombatTestSetLevel(CreateLevel(mode: GameModeKind.Generator, roomObjects: [redGenerator, blueGenerator]));
+
+        world.CombatTestSetGeneratorHealth(PlayerTeam.Blue, 4);
+        Assert.True(world.CombatTestDamageGenerator(PlayerTeam.Blue, 10f));
+
+        var entry = Assert.Single(world.KillFeed);
+        Assert.Equal("Red team", entry.KillerName);
+        Assert.Equal(" has destroyed the enemy generator!", entry.MessageText);
+        Assert.Equal(string.Empty, entry.WeaponSpriteName);
+    }
+
+    [Fact]
     public void DestroyingGenerator_ExplodesNearbyPlayersProjectilesAndStructures()
     {
         var world = CreateWorld();
@@ -307,6 +344,37 @@ public sealed class SimulationWorldTests
 
         Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
         Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    [Fact]
+    public void HeldDemomanSecondary_DetonatesMineOnSubsequentHeldTick()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Demoman);
+
+        var heldSecondaryInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false);
+        world.SetLocalInput(heldSecondaryInput);
+        world.AdvanceOneTick();
+
+        world.CombatTestSpawnMine(world.LocalPlayer, world.LocalPlayer.X + 10f, world.LocalPlayer.Y, stickied: true);
+        Assert.Single(world.Mines);
+
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Empty(world.Mines);
     }
 
     [Fact]
@@ -520,6 +588,38 @@ public sealed class SimulationWorldTests
         Assert.Empty(world.Bubbles);
         var remainingRocket = Assert.Single(world.Rockets);
         Assert.Equal(rocket.Id, remainingRocket.Id);
+    }
+
+    [Fact]
+    public void HeldQuoteSecondary_FiresBladeWhenReleaseGateClears()
+    {
+        var world = CreateWorld();
+        SetLocalClassAndRespawn(world, PlayerClass.Quote);
+        world.LocalPlayer.IncrementQuoteBladeCount();
+
+        var heldSecondaryInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: true,
+            AimWorldX: world.LocalPlayer.X + 120f,
+            AimWorldY: world.LocalPlayer.Y,
+            DebugKill: false);
+        world.SetLocalInput(heldSecondaryInput);
+        world.AdvanceOneTick();
+
+        Assert.Empty(world.Blades);
+
+        world.LocalPlayer.DecrementQuoteBladeCount();
+        world.AdvanceOneTick();
+        world.SetLocalInput(default);
+
+        Assert.Single(world.Blades);
     }
 
     [Fact]
@@ -2555,6 +2655,7 @@ public sealed class SimulationWorldTests
             isGrounded: player.IsGrounded,
             remainingAirJumps: player.RemainingAirJumps,
             isCarryingIntel: player.IsCarryingIntel,
+            intelRechargeTicks: player.IntelRechargeTicks,
             isSpyCloaked: player.IsSpyCloaked,
             spyCloakAlpha: player.SpyCloakAlpha,
             isUbered: player.IsUbered,
@@ -2651,6 +2752,46 @@ public sealed class SimulationWorldTests
                 Left: false,
                 Right: false,
                 Up: false,
+                Down: false,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: false,
+                AimWorldX: player.X,
+                AimWorldY: player.Y,
+                DebugKill: false,
+                DropIntel: true)));
+
+        world.AdvanceOneTick();
+
+        Assert.False(player.IsCarryingIntel);
+        Assert.True(world.BlueIntel.IsDropped);
+        Assert.False(world.BlueIntel.IsAtBase);
+    }
+
+    [Fact]
+    public void AdditionalPlayableSlot_MoveDownDoesNotDropCarriedIntel()
+    {
+        var world = CreateWorld();
+        const byte extraSlot = 3;
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(extraSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(extraSlot, PlayerTeam.Red));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(extraSlot, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(extraSlot, out var player));
+
+        player.TeleportTo(world.BlueIntel.X, world.BlueIntel.Y);
+        world.AdvanceOneTick();
+
+        Assert.True(player.IsCarryingIntel);
+
+        Assert.True(world.TrySetNetworkPlayerInput(
+            extraSlot,
+            new PlayerInputSnapshot(
+                Left: false,
+                Right: false,
+                Up: false,
                 Down: true,
                 BuildSentry: false,
                 DestroySentry: false,
@@ -2663,8 +2804,8 @@ public sealed class SimulationWorldTests
 
         world.AdvanceOneTick();
 
-        Assert.False(player.IsCarryingIntel);
-        Assert.True(world.BlueIntel.IsDropped);
+        Assert.True(player.IsCarryingIntel);
+        Assert.False(world.BlueIntel.IsDropped);
         Assert.False(world.BlueIntel.IsAtBase);
     }
 
@@ -2950,6 +3091,29 @@ public sealed class SimulationWorldTests
         world.AdvanceOneTick();
 
         Assert.Empty(world.Rockets);
+    }
+
+    [Fact]
+    public void EndedRound_HumiliatedSpyForceDecloaks()
+    {
+        var world = CreateWorld();
+        const byte losingSlot = 3;
+
+        Assert.True(world.TryLoadLevel("destroy"));
+        Assert.True(world.TryPrepareNetworkPlayerJoin(losingSlot));
+        Assert.True(world.TrySetNetworkPlayerTeam(losingSlot, PlayerTeam.Blue));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(losingSlot, PlayerClass.Spy));
+        Assert.True(world.TryGetNetworkPlayer(losingSlot, out var losingSpy));
+        Assert.True(losingSpy.TryToggleSpyCloak());
+        Assert.True(losingSpy.IsSpyCloaked);
+
+        world.CombatTestSetGeneratorHealth(PlayerTeam.Blue, 4);
+        Assert.True(world.CombatTestDamageGenerator(PlayerTeam.Blue, 10f));
+
+        world.AdvanceOneTick();
+
+        Assert.False(losingSpy.IsSpyCloaked);
+        Assert.Equal(1f, losingSpy.SpyCloakAlpha);
     }
 
     [Fact]

@@ -290,6 +290,11 @@ public partial class Game1
                 0f);
         }
 
+        if (!isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
+        {
+            DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
+        }
+
         return true;
     }
 
@@ -325,6 +330,48 @@ public partial class Game1
             scale,
             SpriteEffects.None,
             0f);
+    }
+
+    private void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
+    {
+        var timerSprite = _runtimeAssets.GetSprite("IntelTimerS");
+        if (timerSprite is null || timerSprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var rechargeTicks = float.Clamp(GetPlayerIntelRechargeTicks(player), 0f, PlayerEntity.IntelRechargeMaxTicks);
+        if (rechargeTicks >= PlayerEntity.IntelRechargeMaxTicks)
+        {
+            return;
+        }
+
+        var progress = rechargeTicks / PlayerEntity.IntelRechargeMaxTicks;
+        var timerFrame = Math.Clamp((int)MathF.Floor(progress * 12f), 0, 12);
+        if (GetCarriedIntelTeam(player) == PlayerTeam.Blue)
+        {
+            timerFrame += 12;
+        }
+
+        _spriteBatch.Draw(
+            timerSprite.Frames[Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)],
+            new Vector2(
+                roundedOrigin.X + 2f - cameraPosition.X,
+                roundedOrigin.Y - 33f - cameraPosition.Y),
+            null,
+            Color.White,
+            0f,
+            timerSprite.Origin.ToVector2(),
+            new Vector2(2f, 2f),
+            SpriteEffects.None,
+            0f);
+    }
+
+    private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player)
+    {
+        return player.Team == PlayerTeam.Blue
+            ? PlayerTeam.Red
+            : PlayerTeam.Blue;
     }
 
     private static int GetPlayerBodySpriteFrameIndex(float animationImage, int frameCount)

@@ -110,6 +110,57 @@ public sealed class ServerSessionManagerTests
         Assert.Empty(clientsBySlot);
     }
 
+    [Fact]
+    public void PruneTimedOutClients_KeepsLoopbackClientWithinExtendedGraceWindow()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, new IPEndPoint(IPAddress.Loopback, 8190), "Player", TimeSpan.Zero);
+        var clientsBySlot = new Dictionary<byte, ClientSession> { [1] = client };
+        var manager = CreateManager(
+            world,
+            clientsBySlot,
+            (_, _) => { },
+            nowProvider: () => TimeSpan.FromSeconds(10));
+
+        manager.PruneTimedOutClients();
+
+        Assert.True(clientsBySlot.ContainsKey(1));
+    }
+
+    [Fact]
+    public void PruneTimedOutClients_RemovesLoopbackClientAfterExtendedGraceWindow()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, new IPEndPoint(IPAddress.Loopback, 8190), "Player", TimeSpan.Zero);
+        var clientsBySlot = new Dictionary<byte, ClientSession> { [1] = client };
+        var manager = CreateManager(
+            world,
+            clientsBySlot,
+            (_, _) => { },
+            nowProvider: () => TimeSpan.FromSeconds(31));
+
+        manager.PruneTimedOutClients();
+
+        Assert.Empty(clientsBySlot);
+    }
+
+    [Fact]
+    public void PruneTimedOutClients_RemovesRemoteClientAfterConfiguredTimeout()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, new IPEndPoint(IPAddress.Parse("192.168.10.50"), 8190), "Player", TimeSpan.Zero);
+        var clientsBySlot = new Dictionary<byte, ClientSession> { [1] = client };
+        var manager = CreateManager(
+            world,
+            clientsBySlot,
+            (_, _) => { },
+            nowProvider: () => TimeSpan.FromSeconds(10));
+
+        manager.PruneTimedOutClients();
+
+        Assert.Empty(clientsBySlot);
+    }
+
     private static ServerSessionManager CreateManager(
         SimulationWorld world,
         Dictionary<byte, ClientSession> clientsBySlot,
@@ -118,6 +169,7 @@ public sealed class ServerSessionManagerTests
         Func<IPEndPoint, string?>? getPasswordRateLimitReason = null,
         Action<IPEndPoint>? recordPasswordFailure = null,
         Action<IPEndPoint>? clearPasswordFailures = null,
+        double clientTimeoutSeconds = 5,
         double passwordTimeoutSeconds = 30,
         double passwordRetrySeconds = 2)
     {
@@ -130,7 +182,7 @@ public sealed class ServerSessionManagerTests
             nowProvider: nowProvider ?? (() => TimeSpan.Zero),
             serverPassword: "secret",
             passwordRequired: true,
-            clientTimeoutSeconds: 5,
+            clientTimeoutSeconds: clientTimeoutSeconds,
             passwordTimeoutSeconds: passwordTimeoutSeconds,
             passwordRetrySeconds: passwordRetrySeconds,
             getPasswordRateLimitReason: getPasswordRateLimitReason ?? (_ => null),

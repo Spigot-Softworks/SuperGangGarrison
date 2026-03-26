@@ -17,6 +17,7 @@ public sealed partial class PlayerEntity
         float Metal,
         bool IsCarryingIntel,
         int IntelPickupCooldownTicks,
+        float IntelRechargeTicks,
         bool IsInSpawnRoom,
         int RemainingAirJumps,
         float FacingDirectionX,
@@ -95,6 +96,7 @@ public sealed partial class PlayerEntity
             Metal,
             IsCarryingIntel,
             IntelPickupCooldownTicks,
+            IntelRechargeTicks,
             IsInSpawnRoom,
             RemainingAirJumps,
             FacingDirectionX,
@@ -173,6 +175,7 @@ public sealed partial class PlayerEntity
         Metal = state.Metal;
         IsCarryingIntel = state.IsCarryingIntel;
         IntelPickupCooldownTicks = state.IntelPickupCooldownTicks;
+        IntelRechargeTicks = float.Clamp(state.IntelRechargeTicks, 0f, IntelRechargeMaxTicks);
         IsInSpawnRoom = state.IsInSpawnRoom;
         RemainingAirJumps = state.RemainingAirJumps;
         FacingDirectionX = state.FacingDirectionX;
@@ -256,6 +259,7 @@ public sealed partial class PlayerEntity
         bool isGrounded,
         int remainingAirJumps,
         bool isCarryingIntel,
+        float intelRechargeTicks,
         bool isSpyCloaked,
         float spyCloakAlpha,
         bool isUbered,
@@ -340,6 +344,7 @@ public sealed partial class PlayerEntity
             ? (isGrounded ? MaxAirJumps : int.Clamp(remainingAirJumps, 0, MaxAirJumps))
             : MaxAirJumps;
         IsCarryingIntel = isCarryingIntel;
+        IntelRechargeTicks = isCarryingIntel ? float.Clamp(intelRechargeTicks, 0f, IntelRechargeMaxTicks) : 0f;
         IsSpyCloaked = isSpyCloaked;
         SpyCloakAlpha = float.Clamp(spyCloakAlpha, 0f, 1f);
         SpyBackstabWindupTicksRemaining = 0;
@@ -404,6 +409,7 @@ public sealed partial class PlayerEntity
             PyroFlameLoopTicksRemaining = 0;
             PyroPrimaryRequiresReleaseAfterEmpty = false;
             IsCarryingIntel = false;
+            IntelRechargeTicks = 0f;
             IsSniperScoped = false;
             SniperChargeTicks = 0;
             MovementState = LegacyMovementState.None;

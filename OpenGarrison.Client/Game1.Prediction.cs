@@ -154,6 +154,7 @@ public partial class Game1
             SpyBackstabVisualTicksRemaining = player.SpyBackstabVisualTicksRemaining,
             MedicUberCharge = player.MedicUberCharge,
             Metal = player.Metal,
+            IntelRechargeTicks = player.IntelRechargeTicks,
             IsMedicUberReady = player.IsMedicUberReady,
             IsMedicUbering = player.IsMedicUbering,
             MedicNeedleCooldownTicks = player.MedicNeedleCooldownTicks,
@@ -199,6 +200,7 @@ public partial class Game1
         public int SpyBackstabVisualTicksRemaining;
         public float MedicUberCharge;
         public float Metal;
+        public float IntelRechargeTicks;
         public bool IsMedicUberReady;
         public bool IsMedicUbering;
         public int MedicNeedleCooldownTicks;

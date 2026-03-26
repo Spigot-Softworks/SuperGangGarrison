@@ -409,6 +409,13 @@ public partial class Game1
             : player.PyroFlareCooldownTicks;
     }
 
+    private float GetPlayerIntelRechargeTicks(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IntelRechargeTicks
+            : player.IntelRechargeTicks;
+    }
+
     private int GetPlayerMedicNeedleRefillTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)

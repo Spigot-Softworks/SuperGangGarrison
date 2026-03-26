@@ -108,12 +108,10 @@ public partial class Game1
         var currentAmmoCount = GetRenderWeaponAmmoCount(player);
         var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
         var currentReloadTicks = GetRenderWeaponReloadTicks(player);
-        var cooldownRestarted = currentCooldownTicks > renderState.PreviousCooldownTicks;
         var reloadRestarted = currentReloadTicks > renderState.PreviousReloadTicks;
         var shotStarted = currentCooldownTicks > 0
             && (currentAmmoCount < renderState.PreviousAmmoCount
-                || renderState.PreviousCooldownTicks <= 0
-                || cooldownRestarted);
+                || renderState.PreviousCooldownTicks <= 0);
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < player.MaxShells;
         var preserveRecoilLoop = weaponDefinition.LoopRecoilWhileActive
@@ -169,7 +167,7 @@ public partial class Game1
                     {
                         StopWeaponAnimation(renderState);
                     }
-                    else if (shellReloaded || reloadRestarted || renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+                    else if (shellReloaded || reloadRestarted)
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
                     }
@@ -365,7 +363,7 @@ public partial class Game1
         renderState = new PlayerRenderState
         {
             PreviousAmmoCount = GetRenderWeaponAmmoCount(player),
-            PreviousCooldownTicks = 0,
+            PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player),
             PreviousReloadTicks = GetRenderWeaponReloadTicks(player),
         };
         _playerRenderStates[playerStateKey] = renderState;
@@ -456,12 +454,33 @@ public partial class Game1
                 QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(player.IsSniperScoped ? 20f : 10f), count: 1);
                 break;
             case PlayerClass.Medic when shotStarted:
-                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(55f / 4f), count: 1);
+                QueueResettingWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(55f / 4f), count: 1);
                 break;
             case PlayerClass.Spy when shotStarted:
                 QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds((18f + 45f) * 3f / 5f), count: 1);
                 break;
         }
+    }
+
+    private void QueueResettingWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
+    {
+        if (_particleMode != 0 || count <= 0)
+        {
+            return;
+        }
+
+        var playerStateKey = GetPlayerStateKey(player);
+        for (var pendingIndex = _pendingWeaponShellVisuals.Count - 1; pendingIndex >= 0; pendingIndex -= 1)
+        {
+            var pendingShell = _pendingWeaponShellVisuals[pendingIndex];
+            if (pendingShell.PlayerId == playerStateKey
+                && pendingShell.ClassId == player.ClassId)
+            {
+                _pendingWeaponShellVisuals.RemoveAt(pendingIndex);
+            }
+        }
+
+        QueueWeaponShellVisual(player, delaySeconds, count);
     }
 
     private static void StartWeaponAnimation(PlayerRenderState renderState, WeaponAnimationMode mode, float durationSeconds, bool preserveElapsed = false)
