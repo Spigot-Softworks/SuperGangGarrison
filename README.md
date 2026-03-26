@@ -13,7 +13,9 @@
 2. Make changes
 3. Build with `dotnet build "C:/path/to/cloned/repo/OpenGarrison.sln" -c Release`
 4. Distribute using instructions in OpenGarrison.CSharp/packaging/DISTRO QUICKSTART.txt
-5. Do whatever TF you want bro it's a free country and my files are a fucking mess. please help
+5. Do Stuff
+6. ???
+7. Profit
 
 
 ### Discord
