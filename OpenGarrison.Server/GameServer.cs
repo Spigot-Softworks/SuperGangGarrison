@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -69,8 +68,11 @@ sealed class GameServer
     private TimeSpan _previous;
     private Dictionary<byte, ClientSession> _clientsBySlot = null!;
     private ServerSessionManager _sessionManager = null!;
+    private OpenGarrison.Server.Plugins.IOpenGarrisonServerReadOnlyState _serverState = null!;
+    private OpenGarrison.Server.Plugins.IOpenGarrisonServerAdminOperations _adminOperations = null!;
     private OpenGarrison.Server.PluginCommandRegistry _pluginCommandRegistry = null!;
     private OpenGarrison.Server.PluginHost? _pluginHost;
+    private OpenGarrison.Server.ServerIncomingPacketPump _incomingPacketPump = null!;
     private PersistentServerEventLog? _eventLog;
     private AutoBalancer _autoBalancer = null!;
     private SnapshotBroadcaster _snapshotBroadcaster = null!;
@@ -226,6 +228,7 @@ sealed class GameServer
             SendSnapshotPayload);
         _eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializePluginRuntime();
+        InitializeIncomingPacketPump();
         _pluginHost?.LoadPlugins();
         _pluginHost?.NotifyServerStarting();
 
@@ -378,197 +381,7 @@ sealed class GameServer
 
     private void PumpIncomingPackets()
     {
-        while (_udp.Available > 0)
-        {
-            try
-            {
-                IPEndPoint remoteEndPoint = new(IPAddress.Any, 0);
-                var payload = _udp.Receive(ref remoteEndPoint);
-                if (!ProtocolCodec.TryDeserialize(payload, out var message) || message is null)
-                {
-                    continue;
-                }
-
-                switch (message)
-                {
-                    case ServerStatusRequestMessage:
-                        SendServerStatus(remoteEndPoint);
-                        break;
-                    case HelloMessage hello:
-                        HandleHello(hello, remoteEndPoint);
-                        break;
-                    case PasswordSubmitMessage passwordSubmit:
-                        var passwordClient = FindClient(_clientsBySlot, remoteEndPoint);
-                        if (passwordClient is null)
-                        {
-                            break;
-                        }
-
-                        passwordClient.LastSeen = _clock.Elapsed;
-                        _sessionManager.HandlePasswordSubmit(passwordClient, passwordSubmit);
-                        break;
-                    case ChatSubmitMessage chatSubmit:
-                        var chatClient = FindClient(_clientsBySlot, remoteEndPoint);
-                        if (chatClient is null)
-                        {
-                            break;
-                        }
-
-                        chatClient.LastSeen = _clock.Elapsed;
-                        if (!chatClient.IsAuthorized && _passwordRequired)
-                        {
-                            break;
-                        }
-
-                        BroadcastChat(chatClient, chatSubmit.Text, chatSubmit.TeamOnly);
-                        break;
-                    case SnapshotAckMessage snapshotAck:
-                        var ackClient = FindClient(_clientsBySlot, remoteEndPoint);
-                        if (ackClient is null)
-                        {
-                            break;
-                        }
-
-                        ackClient.LastSeen = _clock.Elapsed;
-                        ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
-                        break;
-                    case InputStateMessage input:
-                        var client = FindClient(_clientsBySlot, remoteEndPoint);
-                        if (client is null)
-                        {
-                            break;
-                        }
-
-                        client.LastSeen = _clock.Elapsed;
-                        if (!client.IsAuthorized && _passwordRequired)
-                        {
-                            break;
-                        }
-                        client.TrySetLatestInput(input.Sequence, ToCoreInput(input));
-
-                        if (input.ChatBubbleFrameIndex >= 0)
-                        {
-                            _world.TryTriggerNetworkPlayerChatBubble(client.Slot, input.ChatBubbleFrameIndex);
-                        }
-                        break;
-                    case ControlCommandMessage command:
-                        var controlClient = FindClient(_clientsBySlot, remoteEndPoint);
-                        if (controlClient is null)
-                        {
-                            break;
-                        }
-
-                        controlClient.LastSeen = _clock.Elapsed;
-                        if (!controlClient.IsAuthorized && _passwordRequired)
-                        {
-                            break;
-                        }
-                        _sessionManager.HandleControlCommand(controlClient, command);
-                        break;
-                }
-            }
-            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset || ex.ErrorCode == WsaConnReset)
-            {
-                Console.WriteLine("[server] ignoring UDP connection reset from disconnected client");
-            }
-        }
-    }
-
-    private void HandleHello(HelloMessage hello, IPEndPoint remoteEndPoint)
-    {
-        _pluginHost?.NotifyHelloReceived(new HelloReceivedEvent(hello.Name, remoteEndPoint.ToString(), hello.Version));
-        if (hello.Version != ProtocolVersion.Current)
-        {
-            Console.WriteLine($"[server] rejected client {remoteEndPoint} due to protocol mismatch client={hello.Version} server={ProtocolVersion.Current}");
-            SendMessage(remoteEndPoint, new ConnectionDeniedMessage("Protocol mismatch."));
-            return;
-        }
-
-        var existingClient = FindClient(_clientsBySlot, remoteEndPoint);
-        if (existingClient is not null)
-        {
-            existingClient.Name = hello.Name;
-            existingClient.LastSeen = _clock.Elapsed;
-            _sessionManager.ApplyClientName(existingClient.Slot, hello.Name);
-            var existingMapMetadata = GetCurrentMapMetadata();
-            SendMessage(remoteEndPoint, new WelcomeMessage(
-                _serverName,
-                ProtocolVersion.Current,
-                _config.TicksPerSecond,
-                _world.Level.Name,
-                existingClient.Slot,
-                existingMapMetadata.IsCustomMap,
-                existingMapMetadata.MapDownloadUrl,
-                existingMapMetadata.MapContentHash));
-            if (_passwordRequired && !existingClient.IsAuthorized)
-            {
-                SendMessage(remoteEndPoint, new PasswordRequestMessage());
-                existingClient.LastPasswordRequestSentAt = _clock.Elapsed;
-            }
-            Console.WriteLine($"[server] client refreshed {remoteEndPoint} slot={existingClient.Slot} name=\"{hello.Name}\" version={hello.Version}");
-            return;
-        }
-
-        if (GetHelloRateLimitReason(remoteEndPoint) is { } rateLimitReason)
-        {
-            Console.WriteLine($"[server] rejected client {remoteEndPoint}; {rateLimitReason}");
-            SendMessage(remoteEndPoint, new ConnectionDeniedMessage(rateLimitReason));
-            return;
-        }
-
-        var assignedSlot = FindAvailableSlot(_clientsBySlot, _maxTotalClients, _maxSpectatorClients, _maxPlayableClients);
-        if (assignedSlot == 0)
-        {
-            Console.WriteLine($"[server] rejected client {remoteEndPoint}; server is full");
-            SendMessage(remoteEndPoint, new ConnectionDeniedMessage("Server is full."));
-            return;
-        }
-
-        var client = new ClientSession(assignedSlot, remoteEndPoint, hello.Name, _clock.Elapsed)
-        {
-            IsAuthorized = !_passwordRequired,
-        };
-        _clientsBySlot[assignedSlot] = client;
-        _sessionManager.ApplyClientName(assignedSlot, hello.Name);
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))
-        {
-            _world.TryPrepareNetworkPlayerJoin(assignedSlot);
-        }
-
-        var mapMetadata = GetCurrentMapMetadata();
-        var welcome = new WelcomeMessage(
-            _serverName,
-            ProtocolVersion.Current,
-            _config.TicksPerSecond,
-            _world.Level.Name,
-            assignedSlot,
-            mapMetadata.IsCustomMap,
-            mapMetadata.MapDownloadUrl,
-            mapMetadata.MapContentHash);
-        SendMessage(remoteEndPoint, welcome);
-        if (_passwordRequired && !client.IsAuthorized)
-        {
-            SendMessage(remoteEndPoint, new PasswordRequestMessage());
-            client.LastPasswordRequestSentAt = _clock.Elapsed;
-        }
-
-        _helloRateLimiter.Reset(remoteEndPoint);
-        _passwordRateLimiter.Reset(remoteEndPoint);
-        Console.WriteLine($"[server] client connected {remoteEndPoint} slot={assignedSlot} name=\"{hello.Name}\" version={hello.Version}");
-        LogServerEvent(
-            "client_connected",
-            ("slot", assignedSlot),
-            ("player_name", hello.Name),
-            ("endpoint", remoteEndPoint.ToString()),
-            ("is_authorized", client.IsAuthorized),
-            ("is_spectator", IsSpectatorSlot(assignedSlot)),
-            ("version", hello.Version));
-        _pluginHost?.NotifyClientConnected(new ClientConnectedEvent(
-            assignedSlot,
-            hello.Name,
-            remoteEndPoint.ToString(),
-            client.IsAuthorized,
-            IsSpectatorSlot(assignedSlot)));
+        _incomingPacketPump.PumpAvailablePackets();
     }
 
     private void ProcessPendingConsoleCommands()
@@ -602,86 +415,6 @@ sealed class GameServer
         }
 
         return [$"[server] unknown command \"{normalized}\". Type help for commands."];
-    }
-
-    private void AddConsoleStatusSummary(List<string> lines)
-    {
-        var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
-        var spectatorCount = _clientsBySlot.Keys.Count(IsSpectatorSlot);
-        var uptime = FormatDuration(_clock.Elapsed);
-        var lobbyValue = _useLobbyServer ? $"enabled {_lobbyHost}:{_lobbyPort}" : "disabled";
-        var passwordValue = _passwordRequired ? "required" : "off";
-        lines.Add(
-            $"[server] status | name={_serverName} | port={_port} | tickrate={_config.TicksPerSecond} | players={activePlayableCount}/{_maxPlayableClients} | spectators={spectatorCount} | map={_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} | mode={_world.MatchRules.Mode} | phase={_world.MatchState.Phase} | score={_world.RedCaps}-{_world.BlueCaps} | lobby={lobbyValue} | password={passwordValue} | uptime={uptime}");
-    }
-
-    private void AddConsoleRulesSummary(List<string> lines)
-    {
-        var autoBalanceValue = _autoBalanceEnabled ? "enabled" : "disabled";
-        var respawnSeconds = _respawnSecondsOverride ?? 5;
-        lines.Add(
-            $"[server] rules | timeLimit={_world.MatchRules.TimeLimitMinutes} | capLimit={_world.MatchRules.CapLimit} | respawn={respawnSeconds} | autoBalance={autoBalanceValue}");
-    }
-
-    private void AddConsoleLobbySummary(List<string> lines)
-    {
-        var lobbyValue = _useLobbyServer ? "enabled" : "disabled";
-        lines.Add($"[server] lobby | enabled={lobbyValue} | host={_lobbyHost} | port={_lobbyPort}");
-    }
-
-    private void AddConsoleMapSummary(List<string> lines)
-    {
-        var winner = _world.MatchState.WinnerTeam?.ToString() ?? "none";
-        lines.Add(
-            $"[server] map | name={_world.Level.Name} | area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} | mode={_world.MatchRules.Mode} | phase={_world.MatchState.Phase} | winner={winner} | imported={_world.Level.ImportedFromSource}");
-        lines.Add($"[server] world | bounds={_world.Bounds.Width}x{_world.Bounds.Height}");
-    }
-
-    private void AddConsoleRotationSummary(List<string> lines)
-    {
-        var rotation = _mapRotationManager.MapRotation;
-        var currentIndex = rotation.Count == 0 ? 0 : Math.Clamp(_mapRotationManager.CurrentRotationIndex + 1, 1, rotation.Count);
-        var source = string.IsNullOrWhiteSpace(_mapRotationFile) ? "stock" : _mapRotationFile!;
-        var entries = rotation.Count == 0 ? _world.Level.Name : string.Join(", ", rotation);
-        lines.Add($"[server] rotation | source={source} | current={currentIndex}/{Math.Max(1, rotation.Count)} | entries={entries}");
-    }
-
-    private void AddConsolePlayersSummary(List<string> lines)
-    {
-        if (_clientsBySlot.Count == 0)
-        {
-            lines.Add("[server] players | count=0");
-            return;
-        }
-
-        lines.Add($"[server] players | count={_clientsBySlot.Count}");
-        foreach (var client in _clientsBySlot.Values.OrderBy(entry => entry.Slot))
-        {
-            var role = "Spectator";
-            if (!IsSpectatorSlot(client.Slot))
-            {
-                role = _world.TryGetNetworkPlayer(client.Slot, out var player)
-                    ? player.Team.ToString()
-                    : "Unassigned";
-            }
-
-            var connectedFor = FormatDuration(_clock.Elapsed - client.ConnectedAt);
-            var authorized = client.IsAuthorized ? "yes" : "pending";
-            lines.Add(
-                $"[server] player | slot={client.Slot} | name={client.Name} | role={role} | authorized={authorized} | endpoint={client.EndPoint} | connected={connectedFor}");
-        }
-    }
-
-    private static string FormatDuration(TimeSpan duration)
-    {
-        if (duration < TimeSpan.Zero)
-        {
-            duration = TimeSpan.Zero;
-        }
-
-        return duration.TotalHours >= 1d
-            ? duration.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture)
-            : duration.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
     }
 
     private void SendServerStatus(IPEndPoint remoteEndPoint)
@@ -861,365 +594,73 @@ sealed class GameServer
 
     private void InitializePluginRuntime()
     {
-        _pluginCommandRegistry = new OpenGarrison.Server.PluginCommandRegistry();
-        RegisterBuiltInCommands();
-        _pluginHost = new OpenGarrison.Server.PluginHost(
-            _pluginCommandRegistry,
-            new OpenGarrison.Server.ServerReadOnlyStateView(() => _serverName, () => _world, () => _clientsBySlot),
-            new OpenGarrison.Server.ServerAdminOperations(
-                Console.WriteLine,
-                SendMessage,
-                () => _clientsBySlot,
-                () => _sessionManager,
-                () => _world,
-                () => _mapRotationManager,
-                () => _snapshotBroadcaster,
-                evt => _pluginHost?.NotifyMapChanging(evt),
-                evt => _pluginHost?.NotifyMapChanged(evt)),
+        var pluginRuntime = OpenGarrison.Server.ServerPluginRuntimeFactory.Create(
+            _config,
+            _port,
+            _serverName,
+            _clientsBySlot,
+            _world,
+            () => _clock.Elapsed,
+            _maxPlayableClients,
+            _useLobbyServer,
+            _lobbyHost,
+            _lobbyPort,
+            _passwordRequired,
+            _autoBalanceEnabled,
+            _respawnSecondsOverride,
+            _mapRotationManager,
+            _mapRotationFile,
+            _sessionManager,
+            _snapshotBroadcaster,
+            SendMessage,
+            Console.WriteLine,
             Path.Combine(RuntimePaths.ApplicationRoot, "Plugins"),
             Path.Combine(RuntimePaths.ConfigDirectory, "plugins"),
-            Path.Combine(RuntimePaths.ApplicationRoot, "Maps"),
-            Console.WriteLine);
+            Path.Combine(RuntimePaths.ApplicationRoot, "Maps"));
+        _pluginCommandRegistry = pluginRuntime.CommandRegistry;
+        _pluginHost = pluginRuntime.PluginHost;
+        _serverState = pluginRuntime.ServerState;
+        _adminOperations = pluginRuntime.AdminOperations;
     }
 
     private OpenGarrisonServerCommandContext CreateCommandContext()
     {
         return new OpenGarrisonServerCommandContext(
-            new OpenGarrison.Server.ServerReadOnlyStateView(() => _serverName, () => _world, () => _clientsBySlot),
-            new OpenGarrison.Server.ServerAdminOperations(
-                Console.WriteLine,
-                SendMessage,
-                () => _clientsBySlot,
-                () => _sessionManager,
-                () => _world,
-                () => _mapRotationManager,
-                () => _snapshotBroadcaster,
-                evt => _pluginHost?.NotifyMapChanging(evt),
-                evt => _pluginHost?.NotifyMapChanged(evt)));
+            _serverState,
+            _adminOperations);
     }
 
-    private void RegisterBuiltInCommands()
+    private void InitializeIncomingPacketPump()
     {
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "help",
-            "Show server and plugin commands.",
-            "help",
-            (context, _, _) => Task.FromResult<IReadOnlyList<string>>(BuildHelpLines()),
-            "?");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "status",
-            "Show overall server status.",
-            "status",
-            (context, _, _) =>
+        var messageDispatcher = new OpenGarrison.Server.ServerIncomingMessageDispatcher(
+            _config,
+            _serverName,
+            _passwordRequired,
+            _maxPlayableClients,
+            _maxTotalClients,
+            _maxSpectatorClients,
+            _clientsBySlot,
+            _sessionManager,
+            _world,
+            () => _clock.Elapsed,
+            () => _pluginHost,
+            GetHelloRateLimitReason,
+            remoteEndPoint =>
             {
-                var lines = new List<string>();
-                AddConsoleStatusSummary(lines);
-                AddConsoleRulesSummary(lines);
-                AddConsoleLobbySummary(lines);
-                AddConsoleMapSummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
+                _helloRateLimiter.Reset(remoteEndPoint);
+                _passwordRateLimiter.Reset(remoteEndPoint);
             },
-            "info");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "players",
-            "List connected players.",
-            "players",
-            (context, _, _) =>
-            {
-                var lines = new List<string>();
-                AddConsolePlayersSummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
-            },
-            "who");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "map",
-            "Show current map details.",
-            "map",
-            (context, _, _) =>
-            {
-                var lines = new List<string>();
-                AddConsoleMapSummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
-            },
-            "level");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "rules",
-            "Show match rules.",
-            "rules",
-            (context, _, _) =>
-            {
-                var lines = new List<string>();
-                AddConsoleRulesSummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "caplimit",
-            "Set the capture limit.",
-            "caplimit <1-255>",
-            (context, arguments, _) =>
-            {
-                if (!TryParseBoundedInt(arguments, min: 1, max: 255, out var capLimit))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: caplimit <1-255>"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetCapLimit(capLimit)
-                    ? [$"[server] cap limit set to {capLimit}."]
-                    : ["[server] unable to set cap limit."]);
-            },
-            "cap");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "lobby",
-            "Show lobby registration state.",
-            "lobby",
-            (context, _, _) =>
-            {
-                var lines = new List<string>();
-                AddConsoleLobbySummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "rotation",
-            "Show the active map rotation.",
-            "rotation",
-            (context, _, _) =>
-            {
-                var lines = new List<string>();
-                AddConsoleRotationSummary(lines);
-                return Task.FromResult<IReadOnlyList<string>>(lines);
-            },
-            "maps");
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "plugins",
-            "List loaded server plugins.",
-            "plugins",
-            (context, _, _) => Task.FromResult<IReadOnlyList<string>>(BuildPluginLines()));
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "say",
-            "Broadcast a system chat message.",
-            "say <text>",
-            (context, arguments, _) =>
-            {
-                if (string.IsNullOrWhiteSpace(arguments))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: say <text>"]);
-                }
-
-                context.AdminOperations.BroadcastSystemMessage(arguments);
-                return Task.FromResult<IReadOnlyList<string>>(["[server] system message sent."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "kick",
-            "Disconnect a player slot.",
-            "kick <slot> [reason]",
-            (context, arguments, _) =>
-            {
-                if (!TryParseSlotAndOptionalArgument(arguments, out var slot, out var reason))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: kick <slot> [reason]"]);
-                }
-
-                var finalReason = string.IsNullOrWhiteSpace(reason) ? "Kicked by admin." : reason;
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryDisconnect(slot, finalReason)
-                    ? [$"[server] kicked slot {slot}."]
-                    : [$"[server] no client at slot {slot}."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "spectate",
-            "Move a player to spectator.",
-            "spectate <slot>",
-            (context, arguments, _) =>
-            {
-                if (!TryParseSlot(arguments, out var slot))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: spectate <slot>"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryMoveToSpectator(slot)
-                    ? [$"[server] moved slot {slot} to spectator."]
-                    : [$"[server] unable to move slot {slot} to spectator."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "team",
-            "Set a player's team.",
-            "team <slot> <red|blue>",
-            (context, arguments, _) =>
-            {
-                if (!TryParseSlotAndRequiredArgument(arguments, out var slot, out var teamText)
-                    || !TryParseTeam(teamText, out var team))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: team <slot> <red|blue>"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetTeam(slot, team)
-                    ? [$"[server] slot {slot} set to {team}."]
-                    : [$"[server] unable to set team for slot {slot}."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "class",
-            "Set a player's class.",
-            "class <slot> <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>",
-            (context, arguments, _) =>
-            {
-                if (!TryParseSlotAndRequiredArgument(arguments, out var slot, out var classText)
-                    || !Enum.TryParse<PlayerClass>(classText, ignoreCase: true, out var playerClass))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: class <slot> <class>"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetClass(slot, playerClass)
-                    ? [$"[server] slot {slot} class set to {playerClass}."]
-                    : [$"[server] unable to set class for slot {slot}."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "kill",
-            "Kill a playable slot's current character.",
-            "kill <slot>",
-            (context, arguments, _) =>
-            {
-                if (!TryParseSlot(arguments, out var slot))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: kill <slot>"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryForceKill(slot)
-                    ? [$"[server] killed slot {slot}."]
-                    : [$"[server] unable to kill slot {slot}."]);
-            });
-        _pluginCommandRegistry.RegisterBuiltIn(
-            "changemap",
-            "Change to another map.",
-            "changemap <mapName> [area]",
-            (context, arguments, _) =>
-            {
-                if (!TryParseMapChangeArguments(arguments, out var levelName, out var areaIndex))
-                {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: changemap <mapName> [area]"]);
-                }
-
-                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryChangeMap(levelName, areaIndex, preservePlayerStats: false)
-                    ? [$"[server] changed map to {levelName} area {areaIndex}."]
-                    : [$"[server] unable to change map to {levelName} area {areaIndex}."]);
-            },
-            "mapchange");
-    }
-
-    private static bool TryParseBoundedInt(string text, int min, int max, out int value)
-    {
-        value = 0;
-        var trimmed = text.Trim();
-        return int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
-            && value >= min
-            && value <= max;
-    }
-
-    private static bool TryParseSlot(string text, out byte slot)
-    {
-        slot = 0;
-        var trimmed = text.Trim();
-        return byte.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out slot) && slot > 0;
-    }
-
-    private static bool TryParseSlotAndOptionalArgument(string arguments, out byte slot, out string argument)
-    {
-        slot = 0;
-        argument = string.Empty;
-        var parts = arguments.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0 || !TryParseSlot(parts[0], out slot))
-        {
-            return false;
-        }
-
-        argument = parts.Length > 1 ? parts[1].Trim() : string.Empty;
-        return true;
-    }
-
-    private static bool TryParseSlotAndRequiredArgument(string arguments, out byte slot, out string argument)
-    {
-        slot = 0;
-        argument = string.Empty;
-        var parts = arguments.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2 || !TryParseSlot(parts[0], out slot))
-        {
-            return false;
-        }
-
-        argument = parts[1].Trim();
-        return argument.Length > 0;
-    }
-
-    private static bool TryParseTeam(string text, out PlayerTeam team)
-    {
-        team = default;
-        var normalized = text.Trim();
-        if (normalized.Equals("red", StringComparison.OrdinalIgnoreCase))
-        {
-            team = PlayerTeam.Red;
-            return true;
-        }
-
-        if (normalized.Equals("blue", StringComparison.OrdinalIgnoreCase) || normalized.Equals("blu", StringComparison.OrdinalIgnoreCase))
-        {
-            team = PlayerTeam.Blue;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryParseMapChangeArguments(string arguments, out string levelName, out int areaIndex)
-    {
-        levelName = string.Empty;
-        areaIndex = 1;
-        var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0)
-        {
-            return false;
-        }
-
-        levelName = parts[0].Trim();
-        if (levelName.Length == 0)
-        {
-            return false;
-        }
-
-        if (parts.Length < 2)
-        {
-            return true;
-        }
-
-        return int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out areaIndex) && areaIndex >= 1;
-    }
-
-    private IReadOnlyList<string> BuildHelpLines()
-    {
-        var lines = new List<string>
-        {
-            "[server] commands:",
-        };
-        foreach (var command in _pluginCommandRegistry.GetPrimaryCommands())
-        {
-            var ownerSuffix = command.IsBuiltIn ? string.Empty : $" [plugin:{command.OwnerId}]";
-            lines.Add($"[server]   {command.Name} - {command.Description} ({command.Usage}){ownerSuffix}");
-        }
-
-        lines.Add("[server] shutdown is handled directly by the host console/admin pipe.");
-        return lines;
-    }
-
-    private IReadOnlyList<string> BuildPluginLines()
-    {
-        var pluginIds = _pluginHost?.LoadedPluginIds ?? [];
-        if (pluginIds.Count == 0)
-        {
-            return ["[server] plugins | count=0"];
-        }
-
-        return
-        [
-            $"[server] plugins | count={pluginIds.Count}",
-            .. pluginIds.Select(pluginId => $"[server] plugin | id={pluginId}")
-        ];
+            GetCurrentMapMetadata,
+            SendMessage,
+            SendServerStatus,
+            BroadcastChat,
+            (eventName, fields) => LogServerEvent(eventName, fields),
+            Console.WriteLine);
+        _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
+            _udp,
+            messageDispatcher,
+            WsaConnReset,
+            Console.WriteLine);
     }
 
     private void ResetObservedGameplayState()

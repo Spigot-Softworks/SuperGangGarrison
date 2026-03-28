@@ -1,8 +1,6 @@
 [CmdletBinding()]
 param(
-    [string[]]$Platforms = @("win-x64", "linux-x64"),
-    [switch]$RunTests,
-    [switch]$SkipTests
+    [string[]]$Platforms = @("win-x64", "linux-x64")
 )
 
 Set-StrictMode -Version Latest
@@ -19,13 +17,6 @@ $projects =
     "OpenGarrison.Client/OpenGarrison.Client.csproj",
     "OpenGarrison.Server/OpenGarrison.Server.csproj",
     "OpenGarrison.ServerLauncher/OpenGarrison.ServerLauncher.csproj"
-)
-$clientPluginProjects =
-@(
-    @{
-        Project = "OpenGarrison.Client.Plugins.DamageIndicator/OpenGarrison.Client.Plugins.DamageIndicator.csproj"
-        Folder = "DamageIndicator"
-    }
 )
 
 function Invoke-DotNet {
@@ -158,38 +149,48 @@ function Add-UnixLaunchers {
     New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server-launcher.sh") -ExecutableName "OpenGarrison.ServerLauncher"
 }
 
-function Move-PluginArtifactsToPluginDirectory {
+function Get-BundledPluginProjects {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$OutputDirectory
+        [string]$RepoRoot
     )
 
-    $pluginDirectory = Join-Path $OutputDirectory "Plugins"
-    $serverPluginDirectory = Join-Path $pluginDirectory "Server"
-    New-Item -ItemType Directory -Path $serverPluginDirectory -Force | Out-Null
-
-    $pluginArtifacts = Get-ChildItem -Path $OutputDirectory -File |
-        Where-Object {
-            $_.Name -like "OpenGarrison.Server.Plugins.*" -and
-            $_.Name -notlike "OpenGarrison.Server.Plugins.Abstractions.*"
-        }
-
-    foreach ($artifact in $pluginArtifacts) {
-        $pluginFolderName = $artifact.BaseName -replace '^OpenGarrison\.Server\.Plugins\.', ''
-        if ([string]::IsNullOrWhiteSpace($pluginFolderName)) {
-            $pluginFolderName = $artifact.BaseName
-        }
-
-        $destinationDirectory = Join-Path $serverPluginDirectory $pluginFolderName
-        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
-
-        $destinationPath = Join-Path $destinationDirectory $artifact.Name
-        Copy-Item $artifact.FullName $destinationPath -Force
-        Remove-Item $artifact.FullName -Force
+    $pluginsRoot = Join-Path $RepoRoot "OpenGarrison.Core/Plugins"
+    if (-not (Test-Path $pluginsRoot)) {
+        return @()
     }
+
+    $pluginProjects = Get-ChildItem -Path $pluginsRoot -Recurse -Filter *.csproj -File |
+        Where-Object { $_.BaseName -notlike "*.Abstractions" }
+
+    $bundledPlugins = foreach ($project in $pluginProjects) {
+        $scope = if ($project.BaseName -like "OpenGarrison.Client.Plugins.*") {
+            "Client"
+        }
+        elseif ($project.BaseName -like "OpenGarrison.Server.Plugins.*") {
+            "Server"
+        }
+        else {
+            continue
+        }
+
+        $folder = $project.BaseName -replace '^OpenGarrison\.(Client|Server)\.Plugins\.', ''
+        if ([string]::IsNullOrWhiteSpace($folder) -or $folder -eq $project.BaseName) {
+            $folder = $project.Directory.Name
+        }
+
+        [pscustomobject]@{
+            Project = $project.FullName
+            Scope = $scope
+            Folder = $folder
+        }
+    }
+
+    return $bundledPlugins |
+        Sort-Object Scope, Folder
 }
 
-function Publish-ClientPlugins {
+function Publish-BundledPlugins {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
@@ -197,9 +198,10 @@ function Publish-ClientPlugins {
         [string]$OutputDirectory
     )
 
-    foreach ($plugin in $clientPluginProjects) {
-        $projectPath = Join-Path $RepoRoot $plugin.Project
-        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "Plugins\\Client" $plugin.Folder)
+    $bundledPlugins = Get-BundledPluginProjects -RepoRoot $RepoRoot
+    foreach ($plugin in $bundledPlugins) {
+        $projectPath = $plugin.Project
+        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "Plugins\\$($plugin.Scope)" $plugin.Folder)
         New-Item -ItemType Directory -Path $pluginOutputDirectory -Force | Out-Null
 
         Invoke-DotNet -Arguments @(
@@ -226,10 +228,6 @@ $toolManifestPaths = @(
 )
 if ($toolManifestPaths | Where-Object { Test-Path $_ }) {
     Invoke-DotNet -Arguments @("tool", "restore")
-}
-
-if ($RunTests -and -not $SkipTests) {
-    Invoke-DotNet -Arguments @("test", (Join-Path $repoRoot "OpenGarrison.sln"), "-c", $configuration)
 }
 
 $builtOutputs = @()
@@ -272,8 +270,7 @@ foreach ($runtimeIdentifier in $Platforms) {
         Add-UnixLaunchers -OutputDirectory $stagingDirectory
     }
 
-    Move-PluginArtifactsToPluginDirectory -OutputDirectory $stagingDirectory
-    Publish-ClientPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
+    Publish-BundledPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
 
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory

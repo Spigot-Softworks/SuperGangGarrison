@@ -11,21 +11,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Protocol", "Op
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server", "OpenGarrison.Server\OpenGarrison.Server.csproj", "{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.Abstractions", "OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.Abstractions", "OpenGarrison.Core\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.GameplayModding.Abstractions", "OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Tests", "OpenGarrison.Server.Tests\OpenGarrison.Server.Tests.csproj", "{E466CB8A-2C84-49B4-8A09-83E532DE01FB}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.ServerLauncher", "OpenGarrison.ServerLauncher\OpenGarrison.ServerLauncher.csproj", "{2E938D9E-532E-471F-8192-30CDB8828AB7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Core.Tests", "OpenGarrison.Core.Tests\OpenGarrison.Core.Tests.csproj", "{35C7A382-308F-4BAE-97F5-0002D02CEF8E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "OpenGarrison.Core\Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.DamageIndicator", "OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.DamageIndicator", "OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.BotAI", "OpenGarrison.BotAI\OpenGarrison.BotAI.csproj", "{8C4C8B37-3893-40C3-923D-947E063C2522}"
 EndProject
@@ -121,18 +117,6 @@ Global
 		{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}.Release|x64.Build.0 = Release|Any CPU
 		{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}.Release|x86.ActiveCfg = Release|Any CPU
 		{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}.Release|x86.Build.0 = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|x64.Build.0 = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Debug|x86.Build.0 = Debug|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|x64.ActiveCfg = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|x64.Build.0 = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|x86.ActiveCfg = Release|Any CPU
-		{E466CB8A-2C84-49B4-8A09-83E532DE01FB}.Release|x86.Build.0 = Release|Any CPU
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -145,18 +129,6 @@ Global
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Release|x64.Build.0 = Release|Any CPU
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Release|x86.ActiveCfg = Release|Any CPU
 		{2E938D9E-532E-471F-8192-30CDB8828AB7}.Release|x86.Build.0 = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|x64.Build.0 = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Debug|x86.Build.0 = Debug|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x64.ActiveCfg = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x64.Build.0 = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x86.ActiveCfg = Release|Any CPU
-		{35C7A382-308F-4BAE-97F5-0002D02CEF8E}.Release|x86.Build.0 = Release|Any CPU
 		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}.Debug|x64.ActiveCfg = Debug|Any CPU

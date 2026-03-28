@@ -36,7 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenGarrison.BotAI\OpenGarrison.BotAI.csproj" />
-    <ProjectReference Include="..\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
+    <ProjectReference Include="..\OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />
