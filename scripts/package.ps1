@@ -1,10 +1,16 @@
 [CmdletBinding()]
 param(
-    [string[]]$Platforms = @("win-x64", "linux-x64")
+    [string[]]$Platforms = @("win-x64", "linux-x64"),
+    [switch]$RunTests,
+    [switch]$SkipTests
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($RunTests -or $SkipTests) {
+    Write-Host "[package] test flags are ignored; packaging performs publish only."
+}
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $distRoot = Join-Path $repoRoot "dist"

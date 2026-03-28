@@ -13,7 +13,7 @@ public partial class Game1
         get
         {
             if (_hostedServerSession is not null
-                && TryGetHostedServerProcess(_hostedServerSession.ProcessId, out var attachedProcess))
+                && HostedServerBootstrapper.TryGetProcess(_hostedServerSession.ProcessId, out var attachedProcess))
             {
                 attachedProcess?.Dispose();
                 return true;
@@ -76,7 +76,7 @@ public partial class Game1
 
         if (_hostedServerSession is not null)
         {
-            if (!TryGetHostedServerProcess(_hostedServerSession.ProcessId, out var attachedProcess))
+            if (!HostedServerBootstrapper.TryGetProcess(_hostedServerSession.ProcessId, out var attachedProcess))
             {
                 _hostedServerSession = null;
                 HostedServerSessionInfo.Delete();

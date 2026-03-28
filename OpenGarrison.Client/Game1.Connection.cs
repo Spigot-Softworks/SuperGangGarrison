@@ -4,11 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.IO.Pipes;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
 
@@ -16,8 +11,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed record HostedServerLaunchTarget(string FileName, string ArgumentsPrefix, string WorkingDirectory);
-
     private int _pendingHostedConnectTicks = -1;
     private int _pendingHostedConnectPort = 8190;
     private Process? _hostedServerProcess;
@@ -236,6 +229,30 @@ public partial class Game1
         _autoBalanceNoticeTicks = Math.Max(1, seconds * _config.TicksPerSecond);
     }
 
+    private static HostedServerLaunchOptions CreateHostedServerLaunchOptions(
+        string serverName,
+        int port,
+        int maxPlayers,
+        string password,
+        int timeLimitMinutes,
+        int capLimit,
+        int respawnSeconds,
+        bool lobbyAnnounce,
+        bool autoBalance)
+    {
+        return new HostedServerLaunchOptions(
+            RuntimePaths.GetConfigPath(OpenGarrisonPreferencesDocument.DefaultFileName),
+            serverName,
+            port,
+            maxPlayers,
+            password,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            lobbyAnnounce,
+            autoBalance);
+    }
+
     private bool TryStartHostedServer(
         string serverName,
         int port,
@@ -253,14 +270,25 @@ public partial class Game1
         StopHostedServer();
         HostedServerSessionInfo.Delete();
 
-        if (!IsUdpPortAvailable(port))
+        var launchOptions = CreateHostedServerLaunchOptions(
+            serverName,
+            port,
+            maxPlayers,
+            password,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            lobbyAnnounce,
+            autoBalance);
+
+        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
         {
-            error = $"UDP port {port} is already in use.";
+            error = $"UDP port {launchOptions.Port} is already in use.";
             AppendHostedServerLog("launcher", error);
             return false;
         }
 
-        var serverLaunchTarget = FindServerLaunchTarget();
+        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
         if (serverLaunchTarget is null)
         {
             error = "Could not find OpenGarrison.Server. Build the server first.";
@@ -272,17 +300,7 @@ public partial class Game1
             InitializeHostedServerConsole(reset: false);
             _hostedServerLastOutputLine = null;
 
-            var arguments = BuildHostedServerLaunchArguments(
-                serverLaunchTarget,
-                serverName,
-                port,
-                maxPlayers,
-                password,
-                timeLimitMinutes,
-                capLimit,
-                respawnSeconds,
-                lobbyAnnounce,
-                autoBalance);
+            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
             var startInfo = new ProcessStartInfo(
                 serverLaunchTarget.FileName,
                 arguments)
@@ -336,13 +354,24 @@ public partial class Game1
     {
         error = string.Empty;
 
-        if (!IsUdpPortAvailable(port))
+        var launchOptions = CreateHostedServerLaunchOptions(
+            serverName,
+            port,
+            maxPlayers,
+            password,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            lobbyAnnounce,
+            autoBalance);
+
+        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
         {
-            error = $"UDP port {port} is already in use.";
+            error = $"UDP port {launchOptions.Port} is already in use.";
             return false;
         }
 
-        var serverLaunchTarget = FindServerLaunchTarget();
+        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
         if (serverLaunchTarget is null)
         {
             error = "Could not find OpenGarrison.Server. Build the server first.";
@@ -353,17 +382,7 @@ public partial class Game1
         {
             HostedServerSessionInfo.Delete();
             InitializeHostedServerConsole(reset: true);
-            var arguments = BuildHostedServerLaunchArguments(
-                serverLaunchTarget,
-                serverName,
-                port,
-                maxPlayers,
-                password,
-                timeLimitMinutes,
-                capLimit,
-                respawnSeconds,
-                lobbyAnnounce,
-                autoBalance);
+            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
             var startInfo = new ProcessStartInfo(
                 serverLaunchTarget.FileName,
                 arguments)
@@ -399,7 +418,7 @@ public partial class Game1
                     AppendHostedServerLog("launcher", shutdownError);
                 }
 
-                if (TryGetHostedServerProcess(session.ProcessId, out var processToStop)
+                if (HostedServerBootstrapper.TryGetProcess(session.ProcessId, out var processToStop)
                     && processToStop is not null
                     && !processToStop.WaitForExit(2000)
                     && _hostedServerProcess is not null
@@ -439,108 +458,6 @@ public partial class Game1
         }
     }
 
-    private static HostedServerLaunchTarget? FindServerLaunchTarget()
-    {
-        foreach (var candidate in EnumerateServerAppHostCandidates())
-        {
-            if (File.Exists(candidate))
-            {
-                return new HostedServerLaunchTarget(candidate, string.Empty, Path.GetDirectoryName(candidate) ?? AppContext.BaseDirectory);
-            }
-        }
-
-        foreach (var candidate in EnumerateServerAssemblyCandidates())
-        {
-            if (File.Exists(candidate))
-            {
-                return new HostedServerLaunchTarget("dotnet", $"\"{candidate}\"", Path.GetDirectoryName(candidate) ?? AppContext.BaseDirectory);
-            }
-        }
-
-        return null;
-    }
-
-    private static IEnumerable<string> EnumerateServerAppHostCandidates()
-    {
-        var appHostFileNames = OperatingSystem.IsWindows()
-            ? new[] { "OpenGarrison.Server.exe", "OpenGarrison.Server" }
-            : new[] { "OpenGarrison.Server", "OpenGarrison.Server.exe" };
-        var directCandidates = new[]
-        {
-            AppContext.BaseDirectory,
-            Directory.GetCurrentDirectory(),
-        };
-        foreach (var directory in directCandidates)
-        {
-            foreach (var fileName in appHostFileNames)
-            {
-                yield return Path.Combine(directory, fileName);
-            }
-        }
-
-        var probes = new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory };
-        var relativeDirectories = new[]
-        {
-            Path.Combine("Source", "OpenGarrison.CSharp", "src", "OpenGarrison.Server", "bin", "Debug", "net10.0"),
-            Path.Combine("Source", "OpenGarrison.CSharp", "src", "OpenGarrison.Server", "bin", "Release", "net10.0"),
-            Path.Combine("src", "OpenGarrison.Server", "bin", "Debug", "net10.0"),
-            Path.Combine("src", "OpenGarrison.Server", "bin", "Release", "net10.0"),
-        };
-
-        foreach (var probe in probes)
-        {
-            var directory = new DirectoryInfo(probe);
-            while (directory is not null)
-            {
-                foreach (var relativeDirectory in relativeDirectories)
-                {
-                    foreach (var fileName in appHostFileNames)
-                    {
-                        yield return Path.Combine(directory.FullName, relativeDirectory, fileName);
-                    }
-                }
-
-                directory = directory.Parent;
-            }
-        }
-    }
-
-    private static IEnumerable<string> EnumerateServerAssemblyCandidates()
-    {
-        var directCandidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "OpenGarrison.Server.dll"),
-            Path.Combine(Directory.GetCurrentDirectory(), "OpenGarrison.Server.dll"),
-        };
-        foreach (var candidate in directCandidates)
-        {
-            yield return candidate;
-        }
-
-        var probes = new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory };
-        var relativePaths = new[]
-        {
-            Path.Combine("Source", "OpenGarrison.CSharp", "src", "OpenGarrison.Server", "bin", "Debug", "net10.0", "OpenGarrison.Server.dll"),
-            Path.Combine("Source", "OpenGarrison.CSharp", "src", "OpenGarrison.Server", "bin", "Release", "net10.0", "OpenGarrison.Server.dll"),
-            Path.Combine("src", "OpenGarrison.Server", "bin", "Debug", "net10.0", "OpenGarrison.Server.dll"),
-            Path.Combine("src", "OpenGarrison.Server", "bin", "Release", "net10.0", "OpenGarrison.Server.dll"),
-        };
-
-        foreach (var probe in probes)
-        {
-            var directory = new DirectoryInfo(probe);
-            while (directory is not null)
-            {
-                foreach (var relativePath in relativePaths)
-                {
-                    yield return Path.Combine(directory.FullName, relativePath);
-                }
-
-                directory = directory.Parent;
-            }
-        }
-    }
-
     private void AppendHostedServerLog(string source, string message)
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{source}] {message}{Environment.NewLine}";
@@ -565,19 +482,6 @@ public partial class Game1
             {
                 ResetHostedServerConsoleStateUnsafe();
             }
-        }
-    }
-
-    private static bool IsUdpPortAvailable(int port)
-    {
-        try
-        {
-            using var probe = new UdpClient(port);
-            return true;
-        }
-        catch (SocketException)
-        {
-            return false;
         }
     }
 
@@ -863,7 +767,7 @@ public partial class Game1
             return false;
         }
 
-        if (!TryGetHostedServerProcess(session.ProcessId, out _))
+        if (!HostedServerBootstrapper.TryGetProcess(session.ProcessId, out _))
         {
             HostedServerSessionInfo.Delete();
             return false;
@@ -891,92 +795,16 @@ public partial class Game1
         return true;
     }
 
-    private static bool TryGetHostedServerProcess(int processId, out Process? process)
-    {
-        process = null;
-        try
-        {
-            process = Process.GetProcessById(processId);
-            if (process.HasExited)
-            {
-                process.Dispose();
-                process = null;
-                return false;
-            }
-
-            return true;
-        }
-        catch
-        {
-            process?.Dispose();
-            process = null;
-            return false;
-        }
-    }
-
     private bool TrySendHostedServerAdminCommand(string command, out List<string> responseLines, out string error)
     {
-        responseLines = new List<string>();
-        error = string.Empty;
         if (_hostedServerSession is null || string.IsNullOrWhiteSpace(_hostedServerSession.PipeName))
         {
+            responseLines = new List<string>();
             error = "Dedicated server control channel is unavailable.";
             return false;
         }
 
-        try
-        {
-            using var pipe = new NamedPipeClientStream(".", _hostedServerSession.PipeName, PipeDirection.InOut, PipeOptions.None);
-            pipe.Connect(1000);
-            using var writer = new StreamWriter(pipe, Encoding.UTF8, bufferSize: 1024, leaveOpen: true)
-            {
-                AutoFlush = true,
-            };
-            using var reader = new StreamReader(pipe, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
-            writer.WriteLine(command);
-            string? line;
-            while ((line = reader.ReadLine()) is not null)
-            {
-                if (string.Equals(line, "__END__", StringComparison.Ordinal))
-                {
-                    break;
-                }
-
-                responseLines.Add(line);
-            }
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"Dedicated server control channel failed: {ex.Message}";
-            return false;
-        }
-    }
-
-    private static string BuildHostedServerLaunchArguments(
-        HostedServerLaunchTarget serverLaunchTarget,
-        string serverName,
-        int port,
-        int maxPlayers,
-        string password,
-        int timeLimitMinutes,
-        int capLimit,
-        int respawnSeconds,
-        bool lobbyAnnounce,
-        bool autoBalance)
-    {
-        var configArg = $" --config \"{RuntimePaths.GetConfigPath(OpenGarrisonPreferencesDocument.DefaultFileName)}\"";
-        var portArg = port > 0 ? $" --port {port}" : string.Empty;
-        var nameArg = string.IsNullOrWhiteSpace(serverName) ? string.Empty : $" --name \"{serverName}\"";
-        var maxPlayersArg = maxPlayers > 0 ? $" --max-players {maxPlayers}" : string.Empty;
-        var passwordArg = string.IsNullOrWhiteSpace(password) ? string.Empty : $" --password \"{password}\"";
-        var timeLimitArg = timeLimitMinutes > 0 ? $" --time-limit {timeLimitMinutes}" : string.Empty;
-        var capLimitArg = capLimit > 0 ? $" --cap-limit {capLimit}" : string.Empty;
-        var respawnArg = respawnSeconds >= 0 ? $" --respawn-seconds {respawnSeconds}" : string.Empty;
-        var lobbyArg = lobbyAnnounce ? " --lobby" : " --no-lobby";
-        var autoBalanceArg = autoBalance ? " --auto-balance" : " --no-auto-balance";
-        return $"{serverLaunchTarget.ArgumentsPrefix}{configArg}{portArg}{nameArg}{maxPlayersArg}{passwordArg}{timeLimitArg}{capLimitArg}{respawnArg}{lobbyArg}{autoBalanceArg}".Trim();
+        return HostedServerAdminClient.TrySendCommand(_hostedServerSession.PipeName, command, out responseLines, out error);
     }
 
     private static bool TryParseHostedServerKeyValues(

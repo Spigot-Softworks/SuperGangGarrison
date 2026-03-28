@@ -31,4 +31,4 @@ else
   exit 1
 fi
 
-"${PS_CMD[@]}" "$PACKAGE_SCRIPT" -Platforms "$RID" -SkipTests
+"${PS_CMD[@]}" "$PACKAGE_SCRIPT" -Platforms "$RID"
