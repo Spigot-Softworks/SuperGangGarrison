@@ -161,7 +161,7 @@ function Get-BundledPluginProjects {
         [string]$RepoRoot
     )
 
-    $pluginsRoot = Join-Path $RepoRoot "OpenGarrison.Core/Plugins"
+    $pluginsRoot = Join-Path $RepoRoot "OpenGarrison.Plugins"
     if (-not (Test-Path $pluginsRoot)) {
         return @()
     }

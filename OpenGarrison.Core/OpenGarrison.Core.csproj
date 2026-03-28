@@ -9,13 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Plugins\**\*.cs" />
-    <EmbeddedResource Remove="Plugins\**\*" />
-    <Content Remove="Plugins\**\*" />
-    <None Remove="Plugins\**\*" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>

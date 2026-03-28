@@ -11,17 +11,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Protocol", "Op
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server", "OpenGarrison.Server\OpenGarrison.Server.csproj", "{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.Abstractions", "OpenGarrison.Core\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.Abstractions", "OpenGarrison.Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "OpenGarrison.Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.GameplayModding.Abstractions", "OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.ServerLauncher", "OpenGarrison.ServerLauncher\OpenGarrison.ServerLauncher.csproj", "{2E938D9E-532E-471F-8192-30CDB8828AB7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "OpenGarrison.Core\Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "OpenGarrison.Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.DamageIndicator", "OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.DamageIndicator", "OpenGarrison.Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.BotAI", "OpenGarrison.BotAI\OpenGarrison.BotAI.csproj", "{8C4C8B37-3893-40C3-923D-947E063C2522}"
 EndProject

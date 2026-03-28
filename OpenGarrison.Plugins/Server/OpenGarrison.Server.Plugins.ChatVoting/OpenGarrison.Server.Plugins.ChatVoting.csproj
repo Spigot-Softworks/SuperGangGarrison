@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <OutputPath>..\..\..\..\OpenGarrison.Server\bin\$(Configuration)\net10.0\Plugins\Server\ChatVoting\</OutputPath>
+    <OutputPath>..\..\..\OpenGarrison.Server\bin\$(Configuration)\net10.0\Plugins\Server\ChatVoting\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\OpenGarrison.Core.csproj" />
+    <ProjectReference Include="..\..\..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
   </ItemGroup>
 

@@ -7,19 +7,19 @@
     <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Icon.ico</ApplicationIcon>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+    <ApplicationIcon>Properties\Icon.ico</ApplicationIcon>
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Icon.ico" />
-    <None Remove="Icon.bmp" />
+    <None Remove="Properties\Icon.ico" />
+    <None Remove="Properties\Icon.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Icon.ico">
+    <EmbeddedResource Include="Properties\Icon.ico">
       <LogicalName>Icon.ico</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Icon.bmp">
+    <EmbeddedResource Include="Properties\Icon.bmp">
       <LogicalName>Icon.bmp</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
@@ -36,7 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenGarrison.BotAI\OpenGarrison.BotAI.csproj" />
-    <ProjectReference Include="..\OpenGarrison.Core\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
+    <ProjectReference Include="..\OpenGarrison.Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />

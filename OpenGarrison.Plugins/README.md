@@ -1,13 +1,13 @@
 # Plugin Conventions
 
-`OpenGarrison.Core/Plugins` is the only source tree for plugin projects in this repo.
+`OpenGarrison.Plugins` is the only source tree for plugin projects in this repo.
 
 ## Layout
 
-- Client plugin abstractions live under `OpenGarrison.Core/Plugins/Client/OpenGarrison.Client.Plugins.Abstractions/`.
-- Client plugin implementations live under `OpenGarrison.Core/Plugins/Client/OpenGarrison.Client.Plugins.<PluginName>/`.
-- Server plugin abstractions live under `OpenGarrison.Core/Plugins/Server/OpenGarrison.Server.Plugins.Abstractions/`.
-- Server plugin implementations live under `OpenGarrison.Core/Plugins/Server/OpenGarrison.Server.Plugins.<PluginName>/`.
+- Client plugin abstractions live under `OpenGarrison.Plugins/Client/OpenGarrison.Client.Plugins.Abstractions/`.
+- Client plugin implementations live under `OpenGarrison.Plugins/Client/OpenGarrison.Client.Plugins.<PluginName>/`.
+- Server plugin abstractions live under `OpenGarrison.Plugins/Server/OpenGarrison.Server.Plugins.Abstractions/`.
+- Server plugin implementations live under `OpenGarrison.Plugins/Server/OpenGarrison.Server.Plugins.<PluginName>/`.
 
 ## Naming
 

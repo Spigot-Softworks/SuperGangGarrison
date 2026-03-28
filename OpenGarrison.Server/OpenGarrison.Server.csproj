@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\OpenGarrison.Core\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
+    <ProjectReference Include="..\OpenGarrison.Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\OpenGarrison.Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\OpenGarrison.Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>
