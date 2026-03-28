@@ -13,8 +13,7 @@ internal sealed class ServerAdminOperations(
     Func<SimulationWorld> worldGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
     Func<SnapshotBroadcaster> snapshotBroadcasterGetter,
-    Action<MapChangingEvent>? notifyMapChanging = null,
-    Action<MapChangedEvent>? notifyMapChanged = null) : IOpenGarrisonServerAdminOperations
+    Action<MapChangeTransition>? applyMapTransition = null) : IOpenGarrisonServerAdminOperations
 {
     public void BroadcastSystemMessage(string text)
     {
@@ -87,7 +86,7 @@ internal sealed class ServerAdminOperations(
     public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false)
     {
         var world = worldGetter();
-        var changingEvent = new MapChangingEvent(
+        var transition = new MapChangeTransition(
             world.Level.Name,
             world.Level.MapAreaIndex,
             world.Level.MapAreaCount,
@@ -105,15 +104,10 @@ internal sealed class ServerAdminOperations(
             world.ResetPlayersToAwaitingJoinForFreshMap();
         }
 
-        notifyMapChanging?.Invoke(changingEvent);
+        applyMapTransition?.Invoke(transition);
         mapRotationManagerGetter().ClearQueuedNextRoundMap();
         mapRotationManagerGetter().AlignCurrentMap(levelName);
         snapshotBroadcasterGetter().ResetTransientEvents();
-        notifyMapChanged?.Invoke(new MapChangedEvent(
-            world.Level.Name,
-            world.Level.MapAreaIndex,
-            world.Level.MapAreaCount,
-            world.MatchRules.Mode));
         log($"[server] admin changed map to {world.Level.Name} area {world.Level.MapAreaIndex}/{world.Level.MapAreaCount}");
         return true;
     }

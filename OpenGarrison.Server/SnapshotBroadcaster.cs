@@ -4,51 +4,39 @@ using System.Linq;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using static ServerHelpers;
 
 sealed class SnapshotBroadcaster
 {
-    private const int TargetSnapshotPayloadBytes = 1200;
     private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
 
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
     private readonly Dictionary<byte, ClientSession> _clientsBySlot;
     private readonly Action<IPEndPoint, SnapshotMessage, byte[]> _sendSnapshot;
-    private readonly ulong _transientEventReplayTicks;
-    private readonly List<RetainedSnapshotSoundEvent> _recentSoundEvents = new();
-    private readonly List<RetainedSnapshotVisualEvent> _recentVisualEvents = new();
-    private readonly List<RetainedSnapshotDamageEvent> _recentDamageEvents = new();
-    private string _cachedMapMetadataLevelName = string.Empty;
-    private bool _cachedIsCustomMap;
-    private string _cachedMapDownloadUrl = string.Empty;
-    private string _cachedMapContentHash = string.Empty;
-    private ulong _nextTransientEventId = 1;
+    private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
+    private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
 
     public SnapshotBroadcaster(
         SimulationWorld world,
         SimulationConfig config,
         Dictionary<byte, ClientSession> clientsBySlot,
         ulong transientEventReplayTicks,
+        OpenGarrison.Server.ServerMapMetadataResolver mapMetadataResolver,
         Action<IPEndPoint, SnapshotMessage, byte[]> sendSnapshot)
     {
         _world = world;
         _config = config;
         _clientsBySlot = clientsBySlot;
-        _transientEventReplayTicks = transientEventReplayTicks;
+        _mapMetadataResolver = mapMetadataResolver;
+        _transientEventBuffer = new OpenGarrison.Server.SnapshotTransientEventBuffer(transientEventReplayTicks);
         _sendSnapshot = sendSnapshot;
     }
 
     public void ResetTransientEvents()
     {
-        _recentSoundEvents.Clear();
-        _recentVisualEvents.Clear();
-        _recentDamageEvents.Clear();
-        _nextTransientEventId = 1;
-        foreach (var client in _clientsBySlot.Values)
-        {
-            client.ResetSnapshotHistory();
-        }
+        _transientEventBuffer.Reset(_clientsBySlot.Values);
     }
 
     public void BroadcastSnapshot()
@@ -58,49 +46,10 @@ sealed class SnapshotBroadcaster
             return;
         }
 
-        var currentFrame = (ulong)_world.Frame;
-        AppendRetainedVisualEvents(_world.DrainPendingVisualEvents(), currentFrame);
-        AppendRetainedSoundEvents(_world.DrainPendingSoundEvents(), currentFrame);
-        AppendRetainedDamageEvents(_world.DrainPendingDamageEvents(), currentFrame);
-        _recentVisualEvents.RemoveAll(visualEvent => visualEvent.ExpiresAfterFrame < currentFrame);
-        _recentSoundEvents.RemoveAll(soundEvent => soundEvent.ExpiresAfterFrame < currentFrame);
-        _recentDamageEvents.RemoveAll(damageEvent => damageEvent.ExpiresAfterFrame < currentFrame);
-        var visualEvents = _recentVisualEvents.Select(visualEvent => visualEvent.Event).ToArray();
-        var soundEvents = _recentSoundEvents.Select(soundEvent => soundEvent.Event).ToArray();
-        var damageEvents = _recentDamageEvents.Select(damageEvent => damageEvent.Event).ToArray();
+        var transientEvents = _transientEventBuffer.CaptureCurrentEvents(_world);
         foreach (var client in _clientsBySlot.Values)
         {
-            SendSnapshot(client, visualEvents, damageEvents, soundEvents);
-        }
-    }
-
-    private void AppendRetainedSoundEvents(IReadOnlyList<WorldSoundEvent> soundEvents, ulong currentFrame)
-    {
-        for (var index = 0; index < soundEvents.Count; index += 1)
-        {
-            _recentSoundEvents.Add(new RetainedSnapshotSoundEvent(
-                ToSnapshotSoundEvent(soundEvents[index], _nextTransientEventId++),
-                currentFrame + _transientEventReplayTicks));
-        }
-    }
-
-    private void AppendRetainedVisualEvents(IReadOnlyList<WorldVisualEvent> visualEvents, ulong currentFrame)
-    {
-        for (var index = 0; index < visualEvents.Count; index += 1)
-        {
-            _recentVisualEvents.Add(new RetainedSnapshotVisualEvent(
-                ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++),
-                currentFrame + _transientEventReplayTicks));
-        }
-    }
-
-    private void AppendRetainedDamageEvents(IReadOnlyList<WorldDamageEvent> damageEvents, ulong currentFrame)
-    {
-        for (var index = 0; index < damageEvents.Count; index += 1)
-        {
-            _recentDamageEvents.Add(new RetainedSnapshotDamageEvent(
-                ToSnapshotDamageEvent(damageEvents[index], _nextTransientEventId++),
-                currentFrame + _transientEventReplayTicks));
+            SendSnapshot(client, transientEvents.VisualEvents, transientEvents.DamageEvents, transientEvents.SoundEvents);
         }
     }
 
@@ -112,7 +61,7 @@ sealed class SnapshotBroadcaster
     {
         var fullSnapshot = CaptureFullSnapshot(client, visualEvents, damageEvents, soundEvents);
         var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
-        if (fullSnapshotPayload.Length <= TargetSnapshotPayloadBytes)
+        if (fullSnapshotPayload.Length <= OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes)
         {
             _sendSnapshot(client.EndPoint, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
@@ -255,30 +204,10 @@ sealed class SnapshotBroadcaster
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()
     {
-        var levelName = _world.Level.Name;
-        if (string.Equals(_cachedMapMetadataLevelName, levelName, StringComparison.OrdinalIgnoreCase))
-        {
-            return (_cachedIsCustomMap, _cachedMapDownloadUrl, _cachedMapContentHash);
-        }
-
-        _cachedMapMetadataLevelName = levelName;
-        if (CustomMapDescriptorResolver.TryResolve(levelName, out var descriptor))
-        {
-            _cachedIsCustomMap = true;
-            _cachedMapDownloadUrl = descriptor.SourceUrl;
-            _cachedMapContentHash = descriptor.ContentHash;
-        }
-        else
-        {
-            _cachedIsCustomMap = false;
-            _cachedMapDownloadUrl = string.Empty;
-            _cachedMapContentHash = string.Empty;
-        }
-
-        return (_cachedIsCustomMap, _cachedMapDownloadUrl, _cachedMapContentHash);
+        return _mapMetadataResolver.GetCurrentMapMetadata();
     }
 
-    private SnapshotMessage? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)
+    private static SnapshotMessage? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)
     {
         if (client.LastAcknowledgedSnapshotFrame == 0
             || !client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out var baseline))
@@ -295,59 +224,18 @@ sealed class SnapshotBroadcaster
 
     private SerializedSnapshot BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotMessage? baseline)
     {
-        var builder = new SnapshotBuilder(fullSnapshot, baseline?.Frame ?? 0);
-        var snapshot = builder.Build();
-        var payload = ProtocolCodec.Serialize(snapshot);
-        var payloadSize = payload.Length;
-
-        if (payloadSize > TargetSnapshotPayloadBytes)
-        {
-            TrimAuxiliaryCollections(builder);
-            snapshot = builder.Build();
-            payload = ProtocolCodec.Serialize(snapshot);
-            payloadSize = payload.Length;
-            if (payloadSize > TargetSnapshotPayloadBytes)
-            {
-                return new SerializedSnapshot(snapshot, payload);
-            }
-        }
-
         var contributions = BuildTransientContributions(client, fullSnapshot, baseline);
-        foreach (var contribution in contributions.OrderByDescending(static entry => entry.Priority).ThenBy(static entry => entry.DistanceSquared))
-        {
-            var trialBuilder = builder.Clone();
-            contribution.Apply(trialBuilder);
-            var trialSnapshot = trialBuilder.Build();
-            var trialPayload = ProtocolCodec.Serialize(trialSnapshot);
-            if (trialPayload.Length > TargetSnapshotPayloadBytes)
-            {
-                continue;
-            }
-
-            builder = trialBuilder;
-            snapshot = trialSnapshot;
-            payload = trialPayload;
-        }
-
-        return new SerializedSnapshot(snapshot, payload);
+        var snapshot = OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshot(fullSnapshot, baseline, contributions);
+        return new SerializedSnapshot(snapshot.Message, snapshot.Payload);
     }
 
-    private static void TrimAuxiliaryCollections(SnapshotBuilder builder)
-    {
-        builder.KillFeed.Clear();
-        builder.CombatTraces.Clear();
-        builder.VisualEvents.Clear();
-        builder.DamageEvents.Clear();
-        builder.SoundEvents.Clear();
-    }
-
-    private List<SnapshotContribution> BuildTransientContributions(
+    private List<OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution> BuildTransientContributions(
         ClientSession client,
         SnapshotMessage fullSnapshot,
         SnapshotMessage? baseline)
     {
         var focus = GetClientFocusPoint(client);
-        var contributions = new List<SnapshotContribution>();
+        var contributions = new List<OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution>();
 
         AddEntityDelta(
             contributions,
@@ -555,7 +443,7 @@ sealed class SnapshotBroadcaster
     }
 
     private static void AddEntityDelta<T>(
-        List<SnapshotContribution> contributions,
+        List<OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> currentStates,
         IReadOnlyList<T>? baselineStates,
         int priority,
@@ -563,14 +451,14 @@ sealed class SnapshotBroadcaster
         Func<T, int> idSelector,
         Func<T, float> xSelector,
         Func<T, float> ySelector,
-        Action<SnapshotBuilder, T> addState,
-        Action<SnapshotBuilder, int> addRemovedId)
+        Action<OpenGarrison.Server.SnapshotDeltaBudgeter.Builder, T> addState,
+        Action<OpenGarrison.Server.SnapshotDeltaBudgeter.Builder, int> addRemovedId)
     {
         var delta = DiffEntities(currentStates, baselineStates, idSelector);
         for (var index = 0; index < delta.RemovedIds.Count; index += 1)
         {
             var removedId = delta.RemovedIds[index];
-            contributions.Add(new SnapshotContribution(
+            contributions.Add(new OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution(
                 priority + 100,
                 DistanceSquared(focus.X, focus.Y, focus.X, focus.Y),
                 builder => addRemovedId(builder, removedId)));
@@ -579,7 +467,7 @@ sealed class SnapshotBroadcaster
         for (var index = 0; index < delta.UpdatedStates.Count; index += 1)
         {
             var state = delta.UpdatedStates[index];
-            contributions.Add(new SnapshotContribution(
+            contributions.Add(new OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution(
                 priority,
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                 builder => addState(builder, state)));
@@ -587,18 +475,18 @@ sealed class SnapshotBroadcaster
     }
 
     private static void AddPointEventContributions<T>(
-        List<SnapshotContribution> contributions,
+        List<OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> states,
         int priority,
         (float X, float Y) focus,
         Func<T, float> xSelector,
         Func<T, float> ySelector,
-        Action<SnapshotBuilder, T> addState)
+        Action<OpenGarrison.Server.SnapshotDeltaBudgeter.Builder, T> addState)
     {
         for (var index = states.Count - 1; index >= 0; index -= 1)
         {
             var state = states[index];
-            contributions.Add(new SnapshotContribution(
+            contributions.Add(new OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution(
                 priority - ((states.Count - 1) - index),
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                 builder => addState(builder, state)));
@@ -606,15 +494,15 @@ sealed class SnapshotBroadcaster
     }
 
     private static void AddOrderedContributions<T>(
-        List<SnapshotContribution> contributions,
+        List<OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> states,
         int priority,
-        Action<SnapshotBuilder, T> addState)
+        Action<OpenGarrison.Server.SnapshotDeltaBudgeter.Builder, T> addState)
     {
         for (var index = states.Count - 1; index >= 0; index -= 1)
         {
             var state = states[index];
-            contributions.Add(new SnapshotContribution(
+            contributions.Add(new OpenGarrison.Server.SnapshotDeltaBudgeter.Contribution(
                 priority - ((states.Count - 1) - index),
                 0f,
                 builder => addState(builder, state)));
@@ -679,143 +567,4 @@ sealed class SnapshotBroadcaster
     }
 
     private sealed record EntityDelta<T>(List<T> UpdatedStates, List<int> RemovedIds);
-
-    private sealed record SnapshotContribution(int Priority, float DistanceSquared, Action<SnapshotBuilder> Apply);
-
-    private sealed class SnapshotBuilder
-    {
-        private readonly SnapshotMessage _template;
-
-        public SnapshotBuilder(SnapshotMessage template, ulong baselineFrame)
-        {
-            _template = template;
-            BaselineFrame = baselineFrame;
-            CombatTraces = new List<SnapshotCombatTraceState>(template.CombatTraces);
-            KillFeed = new List<SnapshotKillFeedEntry>(template.KillFeed);
-            VisualEvents = new List<SnapshotVisualEvent>(template.VisualEvents);
-            DamageEvents = new List<SnapshotDamageEvent>(template.DamageEvents);
-            SoundEvents = new List<SnapshotSoundEvent>(template.SoundEvents);
-        }
-
-        private SnapshotBuilder(SnapshotBuilder other)
-        {
-            _template = other._template;
-            BaselineFrame = other.BaselineFrame;
-            CombatTraces = new List<SnapshotCombatTraceState>(other.CombatTraces);
-            KillFeed = new List<SnapshotKillFeedEntry>(other.KillFeed);
-            VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
-            DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
-            SoundEvents = new List<SnapshotSoundEvent>(other.SoundEvents);
-            Sentries = new List<SnapshotSentryState>(other.Sentries);
-            Shots = new List<SnapshotShotState>(other.Shots);
-            Bubbles = new List<SnapshotShotState>(other.Bubbles);
-            Blades = new List<SnapshotShotState>(other.Blades);
-            Needles = new List<SnapshotShotState>(other.Needles);
-            RevolverShots = new List<SnapshotShotState>(other.RevolverShots);
-            Rockets = new List<SnapshotRocketState>(other.Rockets);
-            Flames = new List<SnapshotFlameState>(other.Flames);
-            Flares = new List<SnapshotShotState>(other.Flares);
-            Mines = new List<SnapshotMineState>(other.Mines);
-            SentryGibs = new List<SnapshotSentryGibState>(other.SentryGibs);
-            PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
-            BloodDrops = new List<SnapshotBloodDropState>(other.BloodDrops);
-            DeadBodies = new List<SnapshotDeadBodyState>(other.DeadBodies);
-            RemovedSentryIds = new List<int>(other.RemovedSentryIds);
-            RemovedShotIds = new List<int>(other.RemovedShotIds);
-            RemovedBubbleIds = new List<int>(other.RemovedBubbleIds);
-            RemovedBladeIds = new List<int>(other.RemovedBladeIds);
-            RemovedNeedleIds = new List<int>(other.RemovedNeedleIds);
-            RemovedRevolverShotIds = new List<int>(other.RemovedRevolverShotIds);
-            RemovedRocketIds = new List<int>(other.RemovedRocketIds);
-            RemovedFlameIds = new List<int>(other.RemovedFlameIds);
-            RemovedFlareIds = new List<int>(other.RemovedFlareIds);
-            RemovedMineIds = new List<int>(other.RemovedMineIds);
-            RemovedSentryGibIds = new List<int>(other.RemovedSentryGibIds);
-            RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
-            RemovedBloodDropIds = new List<int>(other.RemovedBloodDropIds);
-            RemovedDeadBodyIds = new List<int>(other.RemovedDeadBodyIds);
-        }
-
-        public ulong BaselineFrame { get; }
-        public List<SnapshotCombatTraceState> CombatTraces { get; }
-        public List<SnapshotKillFeedEntry> KillFeed { get; }
-        public List<SnapshotVisualEvent> VisualEvents { get; }
-        public List<SnapshotDamageEvent> DamageEvents { get; }
-        public List<SnapshotSoundEvent> SoundEvents { get; }
-        public List<SnapshotSentryState> Sentries { get; } = new();
-        public List<SnapshotShotState> Shots { get; } = new();
-        public List<SnapshotShotState> Bubbles { get; } = new();
-        public List<SnapshotShotState> Blades { get; } = new();
-        public List<SnapshotShotState> Needles { get; } = new();
-        public List<SnapshotShotState> RevolverShots { get; } = new();
-        public List<SnapshotRocketState> Rockets { get; } = new();
-        public List<SnapshotFlameState> Flames { get; } = new();
-        public List<SnapshotShotState> Flares { get; } = new();
-        public List<SnapshotMineState> Mines { get; } = new();
-        public List<SnapshotSentryGibState> SentryGibs { get; } = new();
-        public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
-        public List<SnapshotBloodDropState> BloodDrops { get; } = new();
-        public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
-        public List<int> RemovedSentryIds { get; } = new();
-        public List<int> RemovedShotIds { get; } = new();
-        public List<int> RemovedBubbleIds { get; } = new();
-        public List<int> RemovedBladeIds { get; } = new();
-        public List<int> RemovedNeedleIds { get; } = new();
-        public List<int> RemovedRevolverShotIds { get; } = new();
-        public List<int> RemovedRocketIds { get; } = new();
-        public List<int> RemovedFlameIds { get; } = new();
-        public List<int> RemovedFlareIds { get; } = new();
-        public List<int> RemovedMineIds { get; } = new();
-        public List<int> RemovedSentryGibIds { get; } = new();
-        public List<int> RemovedPlayerGibIds { get; } = new();
-        public List<int> RemovedBloodDropIds { get; } = new();
-        public List<int> RemovedDeadBodyIds { get; } = new();
-
-        public SnapshotBuilder Clone()
-        {
-            return new SnapshotBuilder(this);
-        }
-
-        public SnapshotMessage Build()
-        {
-            return _template with
-            {
-                BaselineFrame = BaselineFrame,
-                IsDelta = true,
-                CombatTraces = CombatTraces.ToArray(),
-                Sentries = Sentries.ToArray(),
-                Shots = Shots.ToArray(),
-                Bubbles = Bubbles.ToArray(),
-                Blades = Blades.ToArray(),
-                Needles = Needles.ToArray(),
-                RevolverShots = RevolverShots.ToArray(),
-                Rockets = Rockets.ToArray(),
-                Flames = Flames.ToArray(),
-                Flares = Flares.ToArray(),
-                Mines = Mines.ToArray(),
-                SentryGibs = SentryGibs.ToArray(),
-                PlayerGibs = PlayerGibs.ToArray(),
-                BloodDrops = BloodDrops.ToArray(),
-                DeadBodies = DeadBodies.ToArray(),
-                KillFeed = KillFeed.ToArray(),
-                VisualEvents = VisualEvents.ToArray(),
-                DamageEvents = DamageEvents.ToArray(),
-                SoundEvents = SoundEvents.ToArray(),
-                RemovedSentryIds = RemovedSentryIds.ToArray(),
-                RemovedShotIds = RemovedShotIds.ToArray(),
-                RemovedBubbleIds = RemovedBubbleIds.ToArray(),
-                RemovedBladeIds = RemovedBladeIds.ToArray(),
-                RemovedNeedleIds = RemovedNeedleIds.ToArray(),
-                RemovedRevolverShotIds = RemovedRevolverShotIds.ToArray(),
-                RemovedRocketIds = RemovedRocketIds.ToArray(),
-                RemovedFlameIds = RemovedFlameIds.ToArray(),
-                RemovedFlareIds = RemovedFlareIds.ToArray(),
-                RemovedMineIds = RemovedMineIds.ToArray(),
-                RemovedSentryGibIds = RemovedSentryGibIds.ToArray(),
-                RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
-                RemovedBloodDropIds = RemovedBloodDropIds.ToArray(),
-                RemovedDeadBodyIds = RemovedDeadBodyIds.ToArray(),
-            };
-        }
-    }
 }

@@ -24,6 +24,7 @@ internal static class ServerPluginRuntimeFactory
         string? mapRotationFile,
         ServerSessionManager sessionManager,
         SnapshotBroadcaster snapshotBroadcaster,
+        Action<MapChangeTransition> applyMapTransition,
         Action<IPEndPoint, IProtocolMessage> sendMessage,
         Action<string> log,
         string pluginsDirectory,
@@ -41,8 +42,7 @@ internal static class ServerPluginRuntimeFactory
             () => world,
             () => mapRotationManager,
             () => snapshotBroadcaster,
-            evt => pluginHost?.NotifyMapChanging(evt),
-            evt => pluginHost?.NotifyMapChanged(evt));
+            applyMapTransition);
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(
             config,
             port,
