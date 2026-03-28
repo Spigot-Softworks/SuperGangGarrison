@@ -51,7 +51,7 @@ internal static class PluginLoader
         return LoadFromLoadedAssemblies(loadedAssemblies, contextFactory, log);
     }
 
-    private static IReadOnlyList<LoadedPlugin> LoadFromLoadedAssemblies(
+    private static List<LoadedPlugin> LoadFromLoadedAssemblies(
         IEnumerable<LoadedAssembly> loadedAssemblies,
         Func<IOpenGarrisonServerPlugin, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log)
