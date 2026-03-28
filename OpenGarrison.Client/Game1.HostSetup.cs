@@ -145,7 +145,7 @@ public partial class Game1
 
             if (sendBounds.Contains(mouse.Position))
             {
-                ExecuteHostedServerCommandFromUi(_hostedServerCommandInput);
+                ExecuteHostedServerCommandFromUi(_hostedServerConsole.CreateSnapshot().CommandInput);
                 return;
             }
 
@@ -504,6 +504,7 @@ public partial class Game1
 
     private void DrawHostedServerConsoleTab(Rectangle panel)
     {
+        var consoleSnapshot = GetHostedServerConsoleSnapshot();
         GetHostedServerConsoleLayout(
             panel,
             out var logBounds,
@@ -523,7 +524,7 @@ public partial class Game1
         DrawBitmapFontText("Recent Output", new Vector2(logBounds.X + 10f, logBounds.Y + 8f), Color.White, 0.95f);
         DrawBitmapFontText("Live Status", new Vector2(summaryBounds.X + 10f, summaryBounds.Y + 8f), Color.White, 0.95f);
 
-        var consoleLines = GetHostedServerConsoleLinesSnapshot();
+        var consoleLines = consoleSnapshot.ConsoleLines;
         var availableLineCount = Math.Max(1, (logBounds.Height - 38) / 18);
         var firstLineIndex = Math.Max(0, consoleLines.Count - availableLineCount);
         var drawY = logBounds.Y + 30f;
@@ -543,14 +544,14 @@ public partial class Game1
 
         var summaryRows = new (string Label, string Value)[]
         {
-            ("Server", _hostedServerStatusName),
-            ("Port", _hostedServerStatusPort),
-            ("Players", _hostedServerStatusPlayers),
-            ("Lobby", _hostedServerStatusLobby),
-            ("Map", _hostedServerStatusMap),
-            ("Rules", _hostedServerStatusRules),
-            ("Runtime", _hostedServerStatusRuntime),
-            ("World", _hostedServerStatusWorld),
+            ("Server", consoleSnapshot.StatusName),
+            ("Port", consoleSnapshot.StatusPort),
+            ("Players", consoleSnapshot.StatusPlayers),
+            ("Lobby", consoleSnapshot.StatusLobby),
+            ("Map", consoleSnapshot.StatusMap),
+            ("Rules", consoleSnapshot.StatusRules),
+            ("Runtime", consoleSnapshot.StatusRuntime),
+            ("World", consoleSnapshot.StatusWorld),
         };
         var compactLayout = IsCompactHostSetupLayout(panel);
         var summaryRowGap = compactLayout ? 4 : 5;
@@ -568,7 +569,7 @@ public partial class Game1
         }
 
         DrawBitmapFontText("Console Command", new Vector2(commandBounds.X, commandBounds.Y - 20f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(commandBounds, _hostedServerCommandInput, _hostSetupEditField == HostSetupEditField.ServerConsoleCommand);
+        DrawMenuInputBox(commandBounds, consoleSnapshot.CommandInput, _hostSetupEditField == HostSetupEditField.ServerConsoleCommand);
         DrawMenuButton(sendBounds, "Send", false);
         DrawMenuButton(clearBounds, "Clear", false);
         DrawMenuButton(statusCommandBounds, "Status", false);

@@ -293,23 +293,17 @@ public partial class Game1
         switch (e.Character)
         {
             case '\b':
-                if (_hostedServerCommandInput.Length > 0)
-                {
-                    _hostedServerCommandInput = _hostedServerCommandInput[..^1];
-                }
+                _hostedServerConsole.BackspaceCommandInput();
                 break;
             case '\r':
             case '\n':
-                ExecuteHostedServerCommandFromUi(_hostedServerCommandInput);
+                ExecuteHostedServerCommandFromUi(_hostedServerConsole.CreateSnapshot().CommandInput);
                 break;
             case '\t':
                 _hostSetupEditField = HostSetupEditField.ServerConsoleCommand;
                 break;
             default:
-                if (!char.IsControl(e.Character) && _hostedServerCommandInput.Length < 120)
-                {
-                    _hostedServerCommandInput += e.Character;
-                }
+                _hostedServerConsole.AppendCommandInput(e.Character, 120);
                 break;
         }
 

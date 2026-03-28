@@ -194,16 +194,7 @@ public partial class Game1 : Game
     private string _hostRespawnSecondsBuffer = "5";
     private bool _hostLobbyAnnounceEnabled = true;
     private bool _hostAutoBalanceEnabled = true;
-    private readonly List<string> _hostedServerConsoleLines = new();
-    private string _hostedServerCommandInput = string.Empty;
-    private string _hostedServerStatusName = "Offline";
-    private string _hostedServerStatusPort = "--";
-    private string _hostedServerStatusPlayers = "0/0";
-    private string _hostedServerStatusLobby = "Lobby unknown";
-    private string _hostedServerStatusMap = "Map unknown";
-    private string _hostedServerStatusRules = "Rules unknown";
-    private string _hostedServerStatusRuntime = "No live server output yet.";
-    private string _hostedServerStatusWorld = "World bounds unknown";
+    private readonly HostedServerConsoleState _hostedServerConsole = new();
     private HostedServerSessionInfo? _hostedServerSession;
     private int _hostedServerStatePollTicks;
     private string _playerNameEditBuffer = string.Empty;

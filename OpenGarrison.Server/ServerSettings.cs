@@ -49,6 +49,11 @@ sealed class ServerSettings
             return LoadFromIni(resolvedPath);
         }
 
+        if (OpenGarrisonLegacyPreferencesMigration.TryMigrate(resolvedPath))
+        {
+            return LoadFromIni(resolvedPath);
+        }
+
         var legacyPath = RuntimePaths.GetConfigPath(LegacyFileName);
         if (File.Exists(legacyPath))
         {

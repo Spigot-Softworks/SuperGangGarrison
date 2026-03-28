@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
 
@@ -14,8 +13,6 @@ public partial class Game1
     private int _pendingHostedConnectTicks = -1;
     private int _pendingHostedConnectPort = 8190;
     private Process? _hostedServerProcess;
-    private readonly object _hostedServerLogSync = new();
-    private string? _hostedServerLastOutputLine;
     private string? _recentConnectHost;
     private int _recentConnectPort;
 
@@ -298,7 +295,6 @@ public partial class Game1
         try
         {
             InitializeHostedServerConsole(reset: false);
-            _hostedServerLastOutputLine = null;
 
             var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
             var startInfo = new ProcessStartInfo(
@@ -460,37 +456,20 @@ public partial class Game1
 
     private void AppendHostedServerLog(string source, string message)
     {
-        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{source}] {message}{Environment.NewLine}";
-        lock (_hostedServerLogSync)
-        {
-            _hostedServerLastOutputLine = message;
-            _hostedServerConsoleLines.Add(line.TrimEnd('\r', '\n'));
-            while (_hostedServerConsoleLines.Count > 240)
-            {
-                _hostedServerConsoleLines.RemoveAt(0);
-            }
-
-            UpdateHostedServerConsoleStatusUnsafe(source, message);
-        }
+        _hostedServerConsole.AppendLog(source, message);
     }
 
     private void InitializeHostedServerConsole(bool reset)
     {
-        lock (_hostedServerLogSync)
+        if (reset)
         {
-            if (reset)
-            {
-                ResetHostedServerConsoleStateUnsafe();
-            }
+            _hostedServerConsole.Reset();
         }
     }
 
     private string BuildHostedServerExitMessage()
     {
-        var details = string.IsNullOrWhiteSpace(_hostedServerLastOutputLine)
-            ? "No additional server output."
-            : _hostedServerLastOutputLine;
-        return $"Dedicated server exited. {details}";
+        return _hostedServerConsole.BuildExitMessage();
     }
 
     private void PrimeHostedServerConsoleState(
@@ -503,18 +482,16 @@ public partial class Game1
         bool lobbyAnnounce,
         bool autoBalance)
     {
-        lock (_hostedServerLogSync)
-        {
-            _hostedServerCommandInput = string.Empty;
-            _hostedServerStatusName = serverName;
-            _hostedServerStatusPort = port.ToString(CultureInfo.InvariantCulture);
-            _hostedServerStatusPlayers = $"0/{maxPlayers}";
-            _hostedServerStatusLobby = lobbyAnnounce ? "Enabled" : "Disabled";
-            _hostedServerStatusMap = GetSelectedHostMapEntry()?.DisplayName ?? "Waiting for map bootstrap";
-            _hostedServerStatusRules = $"{timeLimitMinutes} min | cap {capLimit} | respawn {respawnSeconds}s | auto-balance {(autoBalance ? "on" : "off")}";
-            _hostedServerStatusRuntime = "Launching dedicated server...";
-            _hostedServerStatusWorld = "Waiting for world bootstrap";
-        }
+        _hostedServerConsole.Prime(
+            serverName,
+            port,
+            maxPlayers,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            lobbyAnnounce,
+            autoBalance,
+            GetSelectedHostMapEntry()?.DisplayName);
     }
 
     private bool TrySendHostedServerCommand(string command, out string error)
@@ -537,221 +514,20 @@ public partial class Game1
             return false;
         }
 
-        lock (_hostedServerLogSync)
-        {
-            foreach (var line in responseLines)
-            {
-                UpdateHostedServerConsoleStatusUnsafe("server", line);
-            }
-        }
-
-        _hostedServerCommandInput = string.Empty;
+        _hostedServerConsole.ApplyServerMessages(responseLines);
+        _hostedServerConsole.ClearCommandInput();
         AppendHostedServerLog("launcher", $"> {trimmed}");
         return true;
     }
 
     private void ClearHostedServerConsoleView()
     {
-        lock (_hostedServerLogSync)
-        {
-            _hostedServerConsoleLines.Clear();
-            _hostedServerLastOutputLine = null;
-        }
+        _hostedServerConsole.ClearView();
     }
 
-    private List<string> GetHostedServerConsoleLinesSnapshot()
+    private HostedServerConsoleSnapshot GetHostedServerConsoleSnapshot()
     {
-        lock (_hostedServerLogSync)
-        {
-            return _hostedServerConsoleLines.ToList();
-        }
-    }
-
-    private void ResetHostedServerConsoleStateUnsafe()
-    {
-        _hostedServerConsoleLines.Clear();
-        _hostedServerLastOutputLine = null;
-        _hostedServerStatusName = "Offline";
-        _hostedServerStatusPort = "--";
-        _hostedServerStatusPlayers = "0/0";
-        _hostedServerStatusLobby = "Lobby unknown";
-        _hostedServerStatusMap = "Map unknown";
-        _hostedServerStatusRules = "Rules unknown";
-        _hostedServerStatusRuntime = "No live server output yet.";
-        _hostedServerStatusWorld = "World bounds unknown";
-    }
-
-    private void UpdateHostedServerConsoleStatusUnsafe(string source, string message)
-    {
-        if (source.StartsWith("launcher", StringComparison.OrdinalIgnoreCase))
-        {
-            if (message.Contains("initialized", StringComparison.OrdinalIgnoreCase))
-            {
-                _hostedServerStatusRuntime = "Launcher ready.";
-            }
-            else if (message.StartsWith("Start Server pressed", StringComparison.OrdinalIgnoreCase)
-                || message.StartsWith("Starting ", StringComparison.OrdinalIgnoreCase))
-            {
-                _hostedServerStatusRuntime = "Launching dedicated server...";
-            }
-            else if (message.StartsWith("> ", StringComparison.Ordinal))
-            {
-                _hostedServerStatusRuntime = $"Sent command {message[2..]}";
-            }
-            else if (message.Contains("exited", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("stopped", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("terminating", StringComparison.OrdinalIgnoreCase))
-            {
-                _hostedServerStatusRuntime = message;
-            }
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] status | ", out var statusValues))
-        {
-            if (statusValues.TryGetValue("name", out var name))
-            {
-                _hostedServerStatusName = name;
-            }
-
-            if (statusValues.TryGetValue("port", out var port))
-            {
-                _hostedServerStatusPort = port;
-            }
-
-            if (statusValues.TryGetValue("players", out var players))
-            {
-                var spectatorsSuffix = statusValues.TryGetValue("spectators", out var spectators)
-                    ? $" ({spectators} spectators)"
-                    : string.Empty;
-                _hostedServerStatusPlayers = players + spectatorsSuffix;
-            }
-
-            if (statusValues.TryGetValue("lobby", out var lobby))
-            {
-                _hostedServerStatusLobby = lobby;
-            }
-
-            if (statusValues.TryGetValue("map", out var map))
-            {
-                _hostedServerStatusMap = map;
-            }
-
-            var runtimeParts = new List<string>();
-            if (statusValues.TryGetValue("mode", out var mode))
-            {
-                runtimeParts.Add(mode);
-            }
-
-            if (statusValues.TryGetValue("phase", out var phase))
-            {
-                runtimeParts.Add(phase);
-            }
-
-            if (statusValues.TryGetValue("score", out var score))
-            {
-                runtimeParts.Add($"score {score}");
-            }
-
-            if (statusValues.TryGetValue("uptime", out var uptime))
-            {
-                runtimeParts.Add($"uptime {uptime}");
-            }
-
-            if (runtimeParts.Count > 0)
-            {
-                _hostedServerStatusRuntime = string.Join(" | ", runtimeParts);
-            }
-
-            return;
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] rules | ", out var ruleValues))
-        {
-            var ruleParts = new List<string>();
-            if (ruleValues.TryGetValue("timeLimit", out var timeLimit))
-            {
-                ruleParts.Add($"{timeLimit} min");
-            }
-
-            if (ruleValues.TryGetValue("capLimit", out var capLimit))
-            {
-                ruleParts.Add($"cap {capLimit}");
-            }
-
-            if (ruleValues.TryGetValue("respawn", out var respawn))
-            {
-                ruleParts.Add($"respawn {respawn}s");
-            }
-
-            if (ruleValues.TryGetValue("autoBalance", out var autoBalance))
-            {
-                ruleParts.Add($"auto-balance {autoBalance}");
-            }
-
-            if (ruleParts.Count > 0)
-            {
-                _hostedServerStatusRules = string.Join(" | ", ruleParts);
-            }
-
-            return;
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] lobby | ", out var lobbyValues))
-        {
-            var enabled = lobbyValues.TryGetValue("enabled", out var enabledValue) ? enabledValue : "unknown";
-            if (enabled.Equals("enabled", StringComparison.OrdinalIgnoreCase)
-                && lobbyValues.TryGetValue("host", out var host)
-                && lobbyValues.TryGetValue("port", out var lobbyPort))
-            {
-                _hostedServerStatusLobby = $"Enabled ({host}:{lobbyPort})";
-            }
-            else
-            {
-                _hostedServerStatusLobby = enabled.Equals("disabled", StringComparison.OrdinalIgnoreCase)
-                    ? "Disabled"
-                    : enabled;
-            }
-
-            return;
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] map | ", out var mapValues))
-        {
-            if (mapValues.TryGetValue("name", out var mapName))
-            {
-                var area = mapValues.TryGetValue("area", out var areaValue) ? $" area {areaValue}" : string.Empty;
-                var mode = mapValues.TryGetValue("mode", out var modeValue) ? $" | {modeValue}" : string.Empty;
-                _hostedServerStatusMap = mapName + area + mode;
-            }
-
-            return;
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] world | ", out var worldValues))
-        {
-            if (worldValues.TryGetValue("bounds", out var bounds))
-            {
-                _hostedServerStatusWorld = bounds;
-            }
-
-            return;
-        }
-
-        if (TryParseHostedServerKeyValues(message, "[server] rotation | ", out var rotationValues))
-        {
-            if (rotationValues.TryGetValue("current", out var current)
-                && rotationValues.TryGetValue("source", out var rotationSource))
-            {
-                _hostedServerStatusRuntime = $"Rotation {current} from {rotationSource}";
-            }
-
-            return;
-        }
-
-        if (message.StartsWith("[server] frame=", StringComparison.OrdinalIgnoreCase))
-        {
-            _hostedServerStatusRuntime = message[9..];
-        }
+        return _hostedServerConsole.CreateSnapshot();
     }
 
     private bool TryResumeHostedServerSession(bool loadExistingLog, int? expectedProcessId = null)
@@ -774,8 +550,7 @@ public partial class Game1
         }
 
         _hostedServerSession = session;
-        _hostedServerStatusName = string.IsNullOrWhiteSpace(session.ServerName) ? _hostedServerStatusName : session.ServerName;
-        _hostedServerStatusPort = session.Port > 0 ? session.Port.ToString(CultureInfo.InvariantCulture) : _hostedServerStatusPort;
+        _hostedServerConsole.ApplySessionInfo(session);
 
         if (!TrySendHostedServerAdminCommand("__ping", out _, out _))
         {
@@ -784,13 +559,7 @@ public partial class Game1
         _ = loadExistingLog;
 
         TrySendHostedServerAdminCommand("__snapshot", out var snapshotLines, out _);
-        lock (_hostedServerLogSync)
-        {
-            foreach (var line in snapshotLines)
-            {
-                UpdateHostedServerConsoleStatusUnsafe("server", line);
-            }
-        }
+        _hostedServerConsole.ApplyServerMessages(snapshotLines);
 
         return true;
     }
@@ -805,36 +574,5 @@ public partial class Game1
         }
 
         return HostedServerAdminClient.TrySendCommand(_hostedServerSession.PipeName, command, out responseLines, out error);
-    }
-
-    private static bool TryParseHostedServerKeyValues(
-        string message,
-        string prefix,
-        out Dictionary<string, string> values)
-    {
-        values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!message.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var segments = message[prefix.Length..].Split(" | ", StringSplitOptions.RemoveEmptyEntries);
-        foreach (var segment in segments)
-        {
-            var separatorIndex = segment.IndexOf('=');
-            if (separatorIndex <= 0 || separatorIndex >= segment.Length - 1)
-            {
-                continue;
-            }
-
-            var key = segment[..separatorIndex].Trim();
-            var value = segment[(separatorIndex + 1)..].Trim();
-            if (key.Length > 0)
-            {
-                values[key] = value;
-            }
-        }
-
-        return values.Count > 0;
     }
 }

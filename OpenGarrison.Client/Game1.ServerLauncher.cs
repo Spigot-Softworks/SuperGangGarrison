@@ -54,7 +54,7 @@ public partial class Game1
         {
             _hostSetupTab = HostSetupTab.ServerConsole;
             _hostSetupEditField = HostSetupEditField.ServerConsoleCommand;
-            _menuStatusMessage = $"Resumed dedicated server on UDP port {_hostedServerStatusPort}.";
+            _menuStatusMessage = $"Resumed dedicated server on UDP port {_hostedServerConsole.CreateSnapshot().StatusPort}.";
         }
         else
         {
@@ -88,13 +88,7 @@ public partial class Game1
                 if (_hostedServerStatePollTicks <= 0)
                 {
                     TrySendHostedServerAdminCommand("__snapshot", out var snapshotLines, out _);
-                    lock (_hostedServerLogSync)
-                    {
-                        foreach (var line in snapshotLines)
-                        {
-                            UpdateHostedServerConsoleStatusUnsafe("server", line);
-                        }
-                    }
+                    _hostedServerConsole.ApplyServerMessages(snapshotLines);
 
                     _hostedServerStatePollTicks = 90;
                 }
