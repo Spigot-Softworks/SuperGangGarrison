@@ -53,9 +53,18 @@ public partial class Game1
         _pendingNetworkDamageEvents.Clear();
     }
 
+    private static ExplosionVisual CreateExplosionVisual(float x, float y, int initialElapsedSourceTicks = 1)
+    {
+        var explosion = new ExplosionVisual(x, y)
+        {
+            ElapsedSourceTicks = Math.Clamp(initialElapsedSourceTicks, 0, ExplosionVisual.LifetimeSourceTicks - 1),
+        };
+        return explosion;
+    }
+
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
     {
-        explosion = new ExplosionVisual(soundEvent.X, soundEvent.Y);
+        explosion = CreateExplosionVisual(soundEvent.X, soundEvent.Y);
         if (soundEvent.SourceFrame == 0)
         {
             return true;
@@ -613,29 +622,49 @@ public partial class Game1
     {
         DrawAirBlastVisuals(cameraPosition);
         DrawBubblePopVisuals(cameraPosition);
-        var sprite = _runtimeAssets.GetSprite("ExplosionS");
-        if (sprite is null || sprite.Frames.Count == 0)
+        DrawFallbackExplosionVisuals(cameraPosition);
+        var largeSprite = _runtimeAssets.GetSprite("ExplosionS");
+        var smallSprite = _runtimeAssets.GetSprite("ExplosionSmallS");
+        if ((largeSprite is null || largeSprite.Frames.Count == 0)
+            && (smallSprite is null || smallSprite.Frames.Count == 0))
         {
             return;
         }
 
         foreach (var explosion in _explosions)
         {
-            var frameIndex = Math.Clamp(
-                (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks),
-                0,
-                sprite.Frames.Count - 1);
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
-                null,
-                Color.White,
-                0f,
-                sprite.Origin.ToVector2(),
-                new Vector2(2.2f, 2.2f),
-                SpriteEffects.None,
-                0f);
+            DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.2f, 0.92f, startingFrameBias: 3);
+            DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.45f, 0.78f, startingFrameBias: 2);
         }
+    }
+
+    private void DrawExplosionSprite(
+        ExplosionVisual explosion,
+        Vector2 cameraPosition,
+        LoadedGameMakerSprite? sprite,
+        float scale,
+        float alpha,
+        int startingFrameBias)
+    {
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var rawFrameIndex = explosion.ElapsedSourceTicks == 0
+            ? Math.Min(startingFrameBias, sprite.Frames.Count - 1)
+            : (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks);
+        var frameIndex = Math.Clamp(rawFrameIndex, 0, sprite.Frames.Count - 1);
+        _spriteBatch.Draw(
+            sprite.Frames[frameIndex],
+            new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
+            null,
+            Color.White * alpha,
+            0f,
+            sprite.Origin.ToVector2(),
+            new Vector2(scale, scale),
+            SpriteEffects.None,
+            0f);
     }
 
     private void DrawImpactVisuals(Vector2 cameraPosition)
@@ -662,6 +691,29 @@ public partial class Game1
                 new Vector2(scale, scale),
                 SpriteEffects.None,
                 0f);
+        }
+    }
+
+    private void DrawFallbackExplosionVisuals(Vector2 cameraPosition)
+    {
+        foreach (var explosion in _explosions)
+        {
+            var progress = explosion.ElapsedSourceTicks / (float)ExplosionVisual.LifetimeSourceTicks;
+            var radius = 12f + (progress * 18f);
+            var innerRadius = radius * 0.5f;
+            var alpha = MathHelper.Clamp(1f - progress, 0f, 1f);
+            var outerRectangle = new Rectangle(
+                (int)MathF.Round(explosion.X - cameraPosition.X - radius),
+                (int)MathF.Round(explosion.Y - cameraPosition.Y - radius),
+                (int)MathF.Round(radius * 2f),
+                (int)MathF.Round(radius * 2f));
+            var innerRectangle = new Rectangle(
+                (int)MathF.Round(explosion.X - cameraPosition.X - innerRadius),
+                (int)MathF.Round(explosion.Y - cameraPosition.Y - innerRadius),
+                (int)MathF.Round(innerRadius * 2f),
+                (int)MathF.Round(innerRadius * 2f));
+            _spriteBatch.Draw(_pixel, outerRectangle, new Color(255, 182, 68) * alpha);
+            _spriteBatch.Draw(_pixel, innerRectangle, new Color(255, 240, 180) * alpha);
         }
     }
 
@@ -1083,7 +1135,7 @@ public partial class Game1
     {
         if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
         {
-            _explosions.Add(new ExplosionVisual(x, y));
+            _explosions.Add(CreateExplosionVisual(x, y));
             return;
         }
 

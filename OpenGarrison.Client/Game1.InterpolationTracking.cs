@@ -34,8 +34,6 @@ public partial class Game1
             _remotePlayerRenderTimeSeconds = 0d;
             _lastRemotePlayerRenderTimeClockSeconds = -1d;
             _hasRemotePlayerRenderTime = false;
-            ResetTransientPresentationEffects();
-            ResetProcessedNetworkEventHistory();
             _hasPredictedLocalPlayerPosition = false;
             _hasPredictedLocalActionState = false;
             _predictedLocalPlayerShadow = null;

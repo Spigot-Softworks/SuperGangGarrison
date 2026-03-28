@@ -14,7 +14,7 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
+        return _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
     }
 
     private bool IsGameplayInputBlocked()
@@ -39,6 +39,12 @@ public partial class Game1
         if (_controlsMenuOpen)
         {
             UpdateControlsMenu(keyboard, mouse);
+            return;
+        }
+
+        if (_practiceSetupOpen)
+        {
+            UpdatePracticeSetupMenu(keyboard, mouse);
             return;
         }
 
@@ -165,7 +171,7 @@ public partial class Game1
         const float ybegin = 300f;
         const float spacing = 30f;
         const float width = 220f;
-        const int items = 4;
+        var items = GetInGameMenuItems();
 
         if (_inGameMenuAwaitingEscapeRelease)
         {
@@ -183,7 +189,7 @@ public partial class Game1
         if (mouse.X > xbegin && mouse.X < xbegin + width)
         {
             _inGameMenuHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-            if (_inGameMenuHoverIndex < 0 || _inGameMenuHoverIndex >= items)
+            if (_inGameMenuHoverIndex < 0 || _inGameMenuHoverIndex >= items.Length)
             {
                 _inGameMenuHoverIndex = -1;
             }
@@ -199,7 +205,64 @@ public partial class Game1
             return;
         }
 
-        switch (_inGameMenuHoverIndex)
+        ActivateInGameMenuItem(_inGameMenuHoverIndex);
+    }
+
+    private string[] GetInGameMenuItems()
+    {
+        if (IsPracticeSessionActive)
+        {
+            return
+            [
+                "Options",
+                "Practice Setup",
+                "Restart Practice",
+                "Return to Game",
+                "Leave Practice",
+                "Quit Game",
+            ];
+        }
+
+        var leaveLabel = IsPracticeSessionActive ? "Leave Practice" : "Disconnect";
+        return
+        [
+            "Options",
+            "Return to Game",
+            leaveLabel,
+            "Quit Game",
+        ];
+    }
+
+    private void ActivateInGameMenuItem(int menuIndex)
+    {
+        if (IsPracticeSessionActive)
+        {
+            switch (menuIndex)
+            {
+                case 0:
+                    OpenOptionsMenu(fromGameplay: true);
+                    CloseInGameMenu();
+                    return;
+                case 1:
+                    OpenPracticeSetupMenu();
+                    return;
+                case 2:
+                    CloseInGameMenu();
+                    RestartPracticeSession();
+                    return;
+                case 3:
+                    CloseInGameMenu();
+                    return;
+                case 4:
+                    ReturnToMainMenu(GetGameplayExitStatusMessage());
+                    return;
+                case 5:
+                    OpenQuitPrompt();
+                    return;
+            }
+        }
+
+        switch (menuIndex)
         {
             case 0:
                 OpenOptionsMenu(fromGameplay: true);
@@ -209,7 +272,7 @@ public partial class Game1
                 CloseInGameMenu();
                 break;
             case 2:
-                ReturnToMainMenu("Disconnected.");
+                ReturnToMainMenu(GetGameplayExitStatusMessage());
                 break;
             case 3:
                 OpenQuitPrompt();
@@ -223,7 +286,7 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
-        string[] items = ["Options", "Return to Game", "Disconnect", "Quit Game"];
+        var items = GetInGameMenuItems();
         var position = new Vector2(40f, 300f);
         for (var index = 0; index < items.Length; index += 1)
         {

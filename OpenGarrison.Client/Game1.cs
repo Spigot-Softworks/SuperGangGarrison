@@ -61,6 +61,13 @@ public partial class Game1 : Game
         ServerConsole,
     }
 
+    private enum GameplaySessionKind
+    {
+        None,
+        Online,
+        Practice,
+    }
+
     private enum ControlsMenuBinding
     {
         MoveUp,
@@ -146,6 +153,7 @@ public partial class Game1 : Game
     private bool _lobbyBrowserOpen;
     private bool _manualConnectOpen;
     private bool _hostSetupOpen;
+    private bool _practiceSetupOpen;
     private bool _creditsOpen;
     private bool _creditsScrollInitialized;
     private float _creditsScrollY;
@@ -168,11 +176,14 @@ public partial class Game1 : Game
     private int _lobbyBrowserHoverIndex = -1;
     private int _lobbyBrowserSelectedIndex = -1;
     private int _hostSetupHoverIndex = -1;
+    private int _practiceMapIndex;
     private int _inGameMenuHoverIndex = -1;
     private int _hostMapIndex;
     private List<OpenGarrisonMapRotationEntry> _hostMapEntries = new();
+    private List<PracticeMapEntry> _practiceMapEntries = new();
     private HostSetupEditField _hostSetupEditField;
     private HostSetupTab _hostSetupTab;
+    private GameplaySessionKind _gameplaySessionKind;
     private string _hostServerNameBuffer = "My Server";
     private string _hostPortBuffer = "8190";
     private string _hostSlotsBuffer = "10";
@@ -199,6 +210,14 @@ public partial class Game1 : Game
     private string _connectHostBuffer = "127.0.0.1";
     private string _connectPortBuffer = "8190";
     private string _menuStatusMessage = string.Empty;
+    private int _practiceTickRate = SimulationConfig.DefaultTicksPerSecond;
+    private int _practiceTimeLimitMinutes = 15;
+    private int _practiceCapLimit = 5;
+    private int _practiceRespawnSeconds = 5;
+    private int _practiceEnemyBotCount;
+    private int _practiceFriendlyBotCount;
+    private bool _practiceEnemyDummyEnabled = true;
+    private bool _practiceFriendlyDummyEnabled;
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
@@ -419,6 +438,25 @@ public partial class Game1 : Game
         public bool TeamOnly { get; }
 
         public int TicksRemaining { get; set; }
+    }
+
+    private sealed class PracticeMapEntry
+    {
+        public PracticeMapEntry(string levelName, string displayName, GameModeKind mode, bool isCustomMap)
+        {
+            LevelName = levelName;
+            DisplayName = displayName;
+            Mode = mode;
+            IsCustomMap = isCustomMap;
+        }
+
+        public string LevelName { get; }
+
+        public string DisplayName { get; }
+
+        public GameModeKind Mode { get; }
+
+        public bool IsCustomMap { get; }
     }
 
     private sealed class DevMessagePopupState

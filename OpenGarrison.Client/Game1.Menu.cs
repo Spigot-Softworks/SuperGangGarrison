@@ -38,6 +38,10 @@ public partial class Game1
 
             UpdateHostSetupMenu(mouse);
         }
+        else if (_practiceSetupOpen)
+        {
+            UpdatePracticeSetupMenu(keyboard, mouse);
+        }
         else if (_creditsOpen)
         {
             UpdateCreditsMenu(keyboard, mouse);

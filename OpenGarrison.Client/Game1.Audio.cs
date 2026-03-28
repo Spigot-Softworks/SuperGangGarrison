@@ -291,11 +291,6 @@ public partial class Game1
 
     private void PlayPendingSoundEvents()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
         foreach (var soundEvent in _world.DrainPendingSoundEvents())
         {
             if (!ShouldProcessNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds, _processedNetworkSoundEventOrder))
@@ -307,6 +302,11 @@ public partial class Game1
                 && TryCreateExplosionVisual(soundEvent, out var explosion))
             {
                 _explosions.Add(explosion!);
+            }
+
+            if (!_audioAvailable)
+            {
+                continue;
             }
 
             if (ShouldSuppressManagedLocalRapidFireSound(soundEvent))

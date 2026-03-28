@@ -84,6 +84,7 @@ public partial class Game1
                     _consoleOpen = false;
                     _mainMenuOpen = false;
                     _manualConnectOpen = false;
+                    _practiceSetupOpen = false;
                     _optionsMenuOpen = false;
                     _optionsMenuOpenedFromGameplay = false;
                     _pluginOptionsMenuOpen = false;
@@ -94,6 +95,7 @@ public partial class Game1
                     _pendingControlsBinding = null;
                     _teamSelectOpen = !_networkClient.IsSpectator;
                     _classSelectOpen = false;
+                    _gameplaySessionKind = GameplaySessionKind.Online;
                     _menuStatusMessage = _networkClient.IsSpectator ? "Connected as spectator." : string.Empty;
                     StopMenuMusic();
                     AddConsoleLine(

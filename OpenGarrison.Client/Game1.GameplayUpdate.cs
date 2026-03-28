@@ -189,7 +189,10 @@ public partial class Game1
         }
         else
         {
+            BeginBotDiagnosticsFrame(gameTime);
+            UpdatePracticeBots();
             _simulator.Step(gameTime.ElapsedGameTime.TotalSeconds);
+            FinalizeBotDiagnosticsFrame();
         }
     }
 
@@ -233,6 +236,7 @@ public partial class Game1
             || _teamSelectAlpha > 0.02f
             || _classSelectOpen
             || _classSelectAlpha > 0.02f
+            || _practiceSetupOpen
             || _inGameMenuOpen
             || _optionsMenuOpen
             || _pluginOptionsMenuOpen

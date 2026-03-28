@@ -451,6 +451,14 @@ public partial class Game1
             yield break;
         }
 
+        if (IsPracticeSessionActive)
+        {
+            foreach (var bot in EnumeratePracticeBotPlayersForView())
+            {
+                yield return bot;
+            }
+        }
+
         if (_config.EnableEnemyTrainingDummy && _world.EnemyPlayerEnabled)
         {
             yield return _world.EnemyPlayer;

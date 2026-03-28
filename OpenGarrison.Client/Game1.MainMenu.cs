@@ -17,7 +17,7 @@ public partial class Game1
         const float ybegin = 300f;
         const float spacing = 30f;
         const float width = 200f;
-        const int items = 6;
+        const int items = 7;
 
         if (mouse.X > xbegin && mouse.X < xbegin + width)
         {
@@ -44,9 +44,12 @@ public partial class Game1
                 OpenHostSetupMenu();
                 break;
             case 1:
-                OpenLobbyBrowser();
+                OpenPracticeSetupMenu();
                 break;
             case 2:
+                OpenLobbyBrowser();
+                break;
+            case 3:
                 _manualConnectOpen = true;
                 _editingConnectHost = true;
                 _editingConnectPort = false;
@@ -58,13 +61,13 @@ public partial class Game1
                 _editingPlayerName = false;
                 _menuStatusMessage = string.Empty;
                 break;
-            case 3:
+            case 4:
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 CloseCreditsMenu();
                 OpenOptionsMenu(fromGameplay: false);
                 break;
-            case 4:
+            case 5:
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 _optionsMenuOpen = false;
@@ -74,7 +77,7 @@ public partial class Game1
                 _menuStatusMessage = string.Empty;
                 OpenCreditsMenu();
                 break;
-            case 5:
+            case 6:
                 OpenQuitPrompt();
                 break;
         }
@@ -124,6 +127,13 @@ public partial class Game1
             return;
         }
 
+        if (_practiceSetupOpen)
+        {
+            DrawPracticeSetupMenu();
+            DrawDevMessagePopup();
+            return;
+        }
+
         if (_creditsOpen)
         {
             DrawCreditsMenu();
@@ -145,7 +155,7 @@ public partial class Game1
             return;
         }
 
-        string[] items = ["Host Game", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
+        string[] items = ["Host Game", "Practice", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
         var position = new Vector2(40f, 300f);
         for (var index = 0; index < items.Length; index += 1)
         {

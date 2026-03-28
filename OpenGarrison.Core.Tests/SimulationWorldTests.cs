@@ -367,6 +367,27 @@ public sealed class SimulationWorldTests
     }
 
     [Fact]
+    public void FragBoxKill_EmitsExplosionSoundAndVisual()
+    {
+        var world = CreateWorld();
+        var fragBox = new RoomObjectMarker(RoomObjectType.FragBox, 80f, 180f, 60f, 60f, string.Empty);
+        world.CombatTestSetLevel(CreateLevel(roomObjects: [fragBox]));
+        world.TeleportLocalPlayer(fragBox.CenterX, fragBox.CenterY);
+
+        world.DrainPendingSoundEvents();
+        world.DrainPendingVisualEvents();
+
+        world.AdvanceOneTick();
+
+        var soundEvents = world.DrainPendingSoundEvents();
+        var visualEvents = world.DrainPendingVisualEvents();
+
+        Assert.False(world.LocalPlayer.IsAlive);
+        Assert.Contains(soundEvents, soundEvent => soundEvent.SoundName == "ExplosionSnd");
+        Assert.Contains(visualEvents, visualEvent => visualEvent.EffectName == "Explosion");
+    }
+
+    [Fact]
     public void HeldDemomanSecondary_DetonatesMineOnSubsequentHeldTick()
     {
         var world = CreateWorld();

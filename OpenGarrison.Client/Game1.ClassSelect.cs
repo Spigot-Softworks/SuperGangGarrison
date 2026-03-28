@@ -146,10 +146,12 @@ public partial class Game1
         else if (_world.LocalPlayerAwaitingJoin)
         {
             _world.CompleteLocalPlayerJoin(selectedClass);
+            ApplyPracticeDummyPreferencesAfterJoin();
         }
         else
         {
             _world.TrySetLocalClass(selectedClass);
+            ApplyPracticeDummyPreferencesAfterJoin();
         }
     }
 

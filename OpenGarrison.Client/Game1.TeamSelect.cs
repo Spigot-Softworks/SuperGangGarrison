@@ -132,7 +132,7 @@ public partial class Game1
             }
             else
             {
-                _menuStatusMessage = "Spectator mode requires a network session.";
+                _menuStatusMessage = GetOfflineSpectateUnavailableMessage();
             }
 
             return;
@@ -172,6 +172,7 @@ public partial class Game1
         else
         {
             _world.SetLocalPlayerTeam(selectedTeam);
+            ApplyPracticeTeamSelection(selectedTeam);
         }
 
         _teamSelectOpen = false;

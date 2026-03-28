@@ -172,6 +172,8 @@ public partial class Game1
 
     private void ReturnToMainMenu(string? statusMessage = null)
     {
+        ResetPracticeBotManagerState(releaseWorldSlots: true);
+        ResetPracticeNavigationState();
         _networkClient.Disconnect();
         StopLocalRapidFireWeaponAudio();
         StopIngameMusic();
@@ -191,6 +193,7 @@ public partial class Game1
         _pluginOptionsMenuOpenedFromGameplay = false;
         _hostSetupOpen = false;
         _hostSetupEditField = HostSetupEditField.None;
+        _practiceSetupOpen = false;
         CloseLobbyBrowser(clearStatus: false);
         _manualConnectOpen = false;
         _creditsOpen = false;
@@ -220,6 +223,7 @@ public partial class Game1
         _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
         _lastPredictedRenderSmoothingTimeSeconds = -1d;
         _pendingPredictedInputs.Clear();
+        _gameplaySessionKind = GameplaySessionKind.None;
         ResetSnapshotStateHistory();
         _menuStatusMessage = statusMessage ?? string.Empty;
         _autoBalanceNoticeText = string.Empty;

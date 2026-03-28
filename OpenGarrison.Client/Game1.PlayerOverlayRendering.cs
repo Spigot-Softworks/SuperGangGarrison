@@ -43,7 +43,7 @@ public partial class Game1
             0f);
     }
 
-    private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor)
+    private void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor)
     {
         if (GetPlayerVisibilityAlpha(player) <= 0f)
         {
@@ -52,12 +52,22 @@ public partial class Game1
 
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
-        var barWidth = Math.Max(1, bounds.Width);
+        var barWidth = Math.Max(14, bounds.Width + 2);
+        const int barHeight = 5;
+        const int verticalOffset = 14;
+        var barX = (int)MathF.Round((renderPosition.X - cameraPosition.X) - (barWidth * 0.5f));
+        var barY = (int)MathF.Round(renderPosition.Y + player.CollisionTopOffset - cameraPosition.Y) - verticalOffset;
+        var borderRectangle = new Rectangle(
+            barX - 1,
+            barY - 1,
+            barWidth + 2,
+            barHeight + 2);
         var backRectangle = new Rectangle(
-            bounds.X,
-            bounds.Y - 8,
+            barX,
+            barY,
             barWidth,
-            4);
+            barHeight);
+        _spriteBatch.Draw(_pixel, borderRectangle, borderColor);
         _spriteBatch.Draw(_pixel, backRectangle, backColor);
 
         if (player.MaxHealth <= 0)

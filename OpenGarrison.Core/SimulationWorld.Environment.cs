@@ -213,6 +213,7 @@ public sealed partial class SimulationWorld
                     }
 
                     RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
+                    RegisterVisualEffect("Explosion", player.X, player.Y);
                     KillPlayer(player, weaponSpriteName: "DeadKL");
                     return;
                 case RoomObjectType.KillBox:

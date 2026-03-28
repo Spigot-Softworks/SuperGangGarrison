@@ -71,6 +71,7 @@ public partial class Game1
             && _world.LocalPlayer.IsAlive
             && (!_killCamEnabled || _world.LocalDeathCam is null)
             && !_consoleOpen
+            && !_practiceSetupOpen
             && !_inGameMenuOpen
             && !_pluginOptionsMenuOpen
             && !_optionsMenuOpen
@@ -85,10 +86,15 @@ public partial class Game1
         }
 
         DrawNetworkDiagnosticsOverlay();
+        DrawBotDiagnosticsOverlay();
 
         if (_inGameMenuOpen)
         {
             DrawInGameMenu();
+        }
+        else if (_practiceSetupOpen)
+        {
+            DrawPracticeSetupMenu();
         }
         else if (_pluginOptionsMenuOpen)
         {

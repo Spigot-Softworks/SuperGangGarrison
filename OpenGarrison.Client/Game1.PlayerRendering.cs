@@ -102,7 +102,17 @@ public partial class Game1
         DrawChatBubble(player, cameraPosition);
         if (_showHealthBarEnabled && visibilityAlpha > 0f)
         {
-            DrawHealthBar(player, cameraPosition, new Color(120, 220, 120), new Color(36, 64, 36));
+            var isAlly = player.Team == _world.LocalPlayer.Team;
+            var fillColor = isAlly
+                ? new Color(130, 210, 255)
+                : new Color(120, 220, 120);
+            var backColor = isAlly
+                ? new Color(18, 42, 66)
+                : new Color(36, 64, 36);
+            var borderColor = isAlly
+                ? new Color(245, 250, 255)
+                : new Color(240, 245, 220);
+            DrawHealthBar(player, cameraPosition, fillColor, backColor, borderColor);
         }
     }
 
