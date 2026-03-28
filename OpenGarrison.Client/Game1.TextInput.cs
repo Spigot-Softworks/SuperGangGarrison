@@ -163,120 +163,17 @@ public partial class Game1
         switch (e.Character)
         {
             case '\b':
-                switch (_hostSetupEditField)
-                {
-                    case HostSetupEditField.ServerName:
-                        if (_hostServerNameBuffer.Length > 0)
-                        {
-                            _hostServerNameBuffer = _hostServerNameBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.Port:
-                        if (_hostPortBuffer.Length > 0)
-                        {
-                            _hostPortBuffer = _hostPortBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.Slots:
-                        if (_hostSlotsBuffer.Length > 0)
-                        {
-                            _hostSlotsBuffer = _hostSlotsBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.Password:
-                        if (_hostPasswordBuffer.Length > 0)
-                        {
-                            _hostPasswordBuffer = _hostPasswordBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.MapRotationFile:
-                        if (_hostMapRotationFileBuffer.Length > 0)
-                        {
-                            _hostMapRotationFileBuffer = _hostMapRotationFileBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.TimeLimit:
-                        if (_hostTimeLimitBuffer.Length > 0)
-                        {
-                            _hostTimeLimitBuffer = _hostTimeLimitBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.CapLimit:
-                        if (_hostCapLimitBuffer.Length > 0)
-                        {
-                            _hostCapLimitBuffer = _hostCapLimitBuffer[..^1];
-                        }
-                        break;
-                    case HostSetupEditField.RespawnSeconds:
-                        if (_hostRespawnSecondsBuffer.Length > 0)
-                        {
-                            _hostRespawnSecondsBuffer = _hostRespawnSecondsBuffer[..^1];
-                        }
-                        break;
-                }
+                _hostSetupState.BackspaceActiveField();
                 break;
             case '\t':
-                CycleHostSetupField();
+                _hostSetupState.CycleField();
                 break;
             case '\r':
             case '\n':
                 TryHostFromSetup();
                 break;
             default:
-                if (char.IsControl(e.Character))
-                {
-                    break;
-                }
-
-                if (_hostSetupEditField == HostSetupEditField.None)
-                {
-                    _hostSetupEditField = HostSetupEditField.ServerName;
-                }
-
-                if (_hostSetupEditField == HostSetupEditField.ServerName)
-                {
-                    if (_hostServerNameBuffer.Length < 32)
-                    {
-                        _hostServerNameBuffer += e.Character;
-                    }
-                }
-                else if (_hostSetupEditField == HostSetupEditField.Password)
-                {
-                    if (_hostPasswordBuffer.Length < 32)
-                    {
-                        _hostPasswordBuffer += e.Character;
-                    }
-                }
-                else if (_hostSetupEditField == HostSetupEditField.MapRotationFile)
-                {
-                    if (_hostMapRotationFileBuffer.Length < 180)
-                    {
-                        _hostMapRotationFileBuffer += e.Character;
-                    }
-                }
-                else if (char.IsDigit(e.Character))
-                {
-                    if (_hostSetupEditField == HostSetupEditField.Port && _hostPortBuffer.Length < 5)
-                    {
-                        _hostPortBuffer += e.Character;
-                    }
-                    else if (_hostSetupEditField == HostSetupEditField.Slots && _hostSlotsBuffer.Length < 2)
-                    {
-                        _hostSlotsBuffer += e.Character;
-                    }
-                    else if (_hostSetupEditField == HostSetupEditField.TimeLimit && _hostTimeLimitBuffer.Length < 3)
-                    {
-                        _hostTimeLimitBuffer += e.Character;
-                    }
-                    else if (_hostSetupEditField == HostSetupEditField.CapLimit && _hostCapLimitBuffer.Length < 3)
-                    {
-                        _hostCapLimitBuffer += e.Character;
-                    }
-                    else if (_hostSetupEditField == HostSetupEditField.RespawnSeconds && _hostRespawnSecondsBuffer.Length < 3)
-                    {
-                        _hostRespawnSecondsBuffer += e.Character;
-                    }
-                }
+                _hostSetupState.AppendCharacterToActiveField(e.Character);
                 break;
         }
 
@@ -369,21 +266,5 @@ public partial class Game1
                 }
                 break;
         }
-    }
-
-    private void CycleHostSetupField()
-    {
-        _hostSetupEditField = _hostSetupEditField switch
-        {
-            HostSetupEditField.ServerName => HostSetupEditField.Port,
-            HostSetupEditField.Port => HostSetupEditField.Slots,
-            HostSetupEditField.Slots => HostSetupEditField.Password,
-            HostSetupEditField.Password => HostSetupEditField.MapRotationFile,
-            HostSetupEditField.MapRotationFile => HostSetupEditField.TimeLimit,
-            HostSetupEditField.TimeLimit => HostSetupEditField.CapLimit,
-            HostSetupEditField.CapLimit => HostSetupEditField.RespawnSeconds,
-            HostSetupEditField.RespawnSeconds => HostSetupEditField.ServerName,
-            _ => HostSetupEditField.ServerName,
-        };
     }
 }

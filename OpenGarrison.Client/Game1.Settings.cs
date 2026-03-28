@@ -2,7 +2,6 @@
 
 using System;
 using System.Globalization;
-using System.Linq;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -35,16 +34,7 @@ public partial class Game1
         _connectHostBuffer = SanitizeHost(_clientSettings.RecentConnection.Host);
         _connectPortBuffer = SanitizePort(_clientSettings.RecentConnection.Port);
 
-        _hostServerNameBuffer = SanitizeServerName(_clientSettings.HostDefaults.ServerName);
-        _hostPortBuffer = SanitizePort(_clientSettings.HostDefaults.Port);
-        _hostSlotsBuffer = Math.Clamp(_clientSettings.HostDefaults.Slots, 1, SimulationWorld.MaxPlayableNetworkPlayers).ToString(CultureInfo.InvariantCulture);
-        _hostPasswordBuffer = _clientSettings.HostDefaults.Password ?? string.Empty;
-        _hostMapRotationFileBuffer = _clientSettings.HostDefaults.MapRotationFile ?? string.Empty;
-        _hostTimeLimitBuffer = Math.Clamp(_clientSettings.HostDefaults.TimeLimitMinutes, 1, 255).ToString(CultureInfo.InvariantCulture);
-        _hostCapLimitBuffer = Math.Clamp(_clientSettings.HostDefaults.CapLimit, 1, 255).ToString(CultureInfo.InvariantCulture);
-        _hostRespawnSecondsBuffer = Math.Clamp(_clientSettings.HostDefaults.RespawnSeconds, 0, 255).ToString(CultureInfo.InvariantCulture);
-        _hostLobbyAnnounceEnabled = _clientSettings.HostDefaults.LobbyAnnounceEnabled;
-        _hostAutoBalanceEnabled = _clientSettings.HostDefaults.AutoBalanceEnabled;
+        _hostSetupState.LoadFrom(_clientSettings.HostDefaults);
     }
 
     private void PersistClientSettings()
@@ -64,22 +54,7 @@ public partial class Game1
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
         _clientSettings.RecentConnection.Host = SanitizeHost(_connectHostBuffer);
         _clientSettings.RecentConnection.Port = ParsePortOrDefault(_connectPortBuffer, 8190);
-        _clientSettings.HostDefaults.ServerName = SanitizeServerName(_hostServerNameBuffer);
-        _clientSettings.HostDefaults.Port = ParsePortOrDefault(_hostPortBuffer, 8190);
-        _clientSettings.HostDefaults.Slots = ParseClampedInt(_hostSlotsBuffer, 10, 1, SimulationWorld.MaxPlayableNetworkPlayers);
-        _clientSettings.HostDefaults.Password = _hostPasswordBuffer.Trim();
-        _clientSettings.HostDefaults.MapRotationFile = _hostMapRotationFileBuffer.Trim();
-        _clientSettings.HostDefaults.TimeLimitMinutes = ParseClampedInt(_hostTimeLimitBuffer, 15, 1, 255);
-        _clientSettings.HostDefaults.CapLimit = ParseClampedInt(_hostCapLimitBuffer, 5, 1, 255);
-        _clientSettings.HostDefaults.RespawnSeconds = ParseClampedInt(_hostRespawnSecondsBuffer, 5, 0, 255);
-        _clientSettings.HostDefaults.LobbyAnnounceEnabled = _hostLobbyAnnounceEnabled;
-        _clientSettings.HostDefaults.AutoBalanceEnabled = _hostAutoBalanceEnabled;
-        if (_hostMapEntries.Count > 0)
-        {
-            _clientSettings.HostDefaults.StockMapRotation = _hostMapEntries
-                .Select(entry => entry.Clone())
-                .ToList();
-        }
+        _hostSetupState.ApplyTo(_clientSettings);
 
         _clientSettings.Save();
     }

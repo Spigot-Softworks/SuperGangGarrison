@@ -1,7 +1,5 @@
 #nullable enable
 
-using OpenGarrison.Core;
-
 namespace OpenGarrison.Client;
 
 public partial class Game1
@@ -12,26 +10,7 @@ public partial class Game1
     {
         get
         {
-            if (_hostedServerSession is not null
-                && HostedServerBootstrapper.TryGetProcess(_hostedServerSession.ProcessId, out var attachedProcess))
-            {
-                attachedProcess?.Dispose();
-                return true;
-            }
-
-            if (_hostedServerProcess is null)
-            {
-                return false;
-            }
-
-            try
-            {
-                return !_hostedServerProcess.HasExited;
-            }
-            catch
-            {
-                return false;
-            }
+            return _hostedServerRuntime.IsRunning;
         }
     }
 
@@ -69,54 +48,11 @@ public partial class Game1
             return;
         }
 
-        if (_hostedServerSession is null)
+        var runtimeUpdateState = _hostedServerRuntime.UpdateForLauncher();
+        if (runtimeUpdateState is HostedServerRuntimeUpdateState.SessionEnded
+            or HostedServerRuntimeUpdateState.ProcessExited)
         {
-            TryResumeHostedServerSession(loadExistingLog: true, expectedProcessId: _hostedServerProcess?.Id);
-        }
-
-        if (_hostedServerSession is not null)
-        {
-            if (!HostedServerBootstrapper.TryGetProcess(_hostedServerSession.ProcessId, out var attachedProcess))
-            {
-                _hostedServerSession = null;
-                HostedServerSessionInfo.Delete();
-                _menuStatusMessage = BuildHostedServerExitMessage();
-            }
-            else
-            {
-                attachedProcess?.Dispose();
-                if (_hostedServerStatePollTicks <= 0)
-                {
-                    TrySendHostedServerAdminCommand("__snapshot", out var snapshotLines, out _);
-                    _hostedServerConsole.ApplyServerMessages(snapshotLines);
-
-                    _hostedServerStatePollTicks = 90;
-                }
-                else
-                {
-                    _hostedServerStatePollTicks -= 1;
-                }
-            }
-
-            return;
-        }
-
-        if (_hostedServerProcess is null)
-        {
-            return;
-        }
-
-        try
-        {
-            if (_hostedServerProcess.HasExited)
-            {
-                _hostedServerProcess.Dispose();
-                _hostedServerProcess = null;
-                _menuStatusMessage = BuildHostedServerExitMessage();
-            }
-        }
-        catch
-        {
+            _menuStatusMessage = BuildHostedServerExitMessage();
         }
     }
 

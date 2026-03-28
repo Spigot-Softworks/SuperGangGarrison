@@ -4,137 +4,6 @@ public sealed partial class SimulationWorld
 {
     private const float SourceExplosionKnockbackCap = 15f;
 
-    private void ExplodeRocket(RocketProjectileEntity rocket, PlayerEntity? directHitPlayer, SentryEntity? directHitSentry, GeneratorState? directHitGenerator)
-    {
-        var owner = FindPlayerById(rocket.OwnerId);
-        for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
-        {
-            if (_rockets[rocketIndex].Id == rocket.Id)
-            {
-                RemoveRocketAt(rocketIndex);
-                break;
-            }
-        }
-
-        if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, owner))
-        {
-            if (ApplyPlayerDamage(directHitPlayer, RocketProjectileEntity.DirectHitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
-            {
-                KillPlayer(directHitPlayer, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
-            }
-        }
-
-        if (directHitSentry is not null)
-        {
-            if (ApplySentryDamage(directHitSentry, RocketProjectileEntity.DirectHitDamage, owner))
-            {
-                DestroySentry(directHitSentry);
-            }
-        }
-
-        if (directHitGenerator is not null)
-        {
-            TryDamageGenerator(directHitGenerator.Team, RocketProjectileEntity.DirectHitDamage, owner);
-        }
-
-        RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
-        RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
-        ApplyDeadBodyExplosionImpulse(rocket.X, rocket.Y, RocketProjectileEntity.BlastRadius, 10f);
-        ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, RocketProjectileEntity.BlastRadius, 15f);
-        RegisterExplosionTraces(rocket.X, rocket.Y);
-
-        foreach (var player in EnumerateSimulatedPlayers())
-        {
-            if (!player.IsAlive)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(rocket.X, rocket.Y, player.X, player.Y);
-            if (distance >= RocketProjectileEntity.BlastRadius)
-            {
-                continue;
-            }
-
-            if (ShouldIgnoreFriendlyGroundedBlast(player, rocket.Team, rocket.OwnerId))
-            {
-                continue;
-            }
-
-            var distanceFactor = 1f - (distance / RocketProjectileEntity.BlastRadius);
-            if (distanceFactor <= RocketProjectileEntity.SplashThresholdFactor)
-            {
-                continue;
-            }
-
-            ApplyRocketExplosionImpulse(player, rocket, rocket.X, rocket.Y, distanceFactor);
-            if (player.Id == rocket.OwnerId && player.Team == rocket.Team)
-            {
-                player.SetMovementState(LegacyMovementState.ExplosionRecovery);
-            }
-            else if (player.Team == rocket.Team)
-            {
-                player.SetMovementState(LegacyMovementState.FriendlyJuggle);
-            }
-            else if (player.Team != rocket.Team)
-            {
-                player.SetMovementState(LegacyMovementState.RocketJuggle);
-            }
-
-            var receivedBlastLiftBonus = player.Id != rocket.OwnerId
-                && ShouldApplyRocketBlastLiftBonus(player, rocket.X, rocket.Y);
-            if (player.Id != rocket.OwnerId
-                && receivedBlastLiftBonus)
-            {
-                player.AddImpulse(0f, -4f * distanceFactor * LegacyMovementModel.SourceTicksPerSecond);
-            }
-
-            ApplyRocketExplosionSpeedAdjustments(player, rocket, receivedBlastLiftBonus);
-
-            if (player.Team != rocket.Team || player.Id == rocket.OwnerId)
-            {
-                var appliedDamage = RocketProjectileEntity.ExplosionDamage * distanceFactor;
-                RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
-                if (ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
-                {
-                    KillPlayer(player, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
-                }
-            }
-        }
-
-        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
-        {
-            var sentry = _sentries[sentryIndex];
-            var distance = DistanceBetween(rocket.X, rocket.Y, sentry.X, sentry.Y);
-            if (distance >= RocketProjectileEntity.BlastRadius || sentry.Team == rocket.Team)
-            {
-                continue;
-            }
-
-            var damage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
-            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
-            {
-                DestroySentry(sentry);
-            }
-        }
-
-        for (var generatorIndex = 0; generatorIndex < _generators.Count; generatorIndex += 1)
-        {
-            var generator = _generators[generatorIndex];
-            var distance = DistanceBetween(rocket.X, rocket.Y, generator.Marker.CenterX, generator.Marker.CenterY);
-            if (distance >= RocketProjectileEntity.BlastRadius || generator.Team == rocket.Team || generator.IsDestroyed)
-            {
-                continue;
-            }
-
-            var damage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
-            TryDamageGenerator(generator.Team, damage, owner);
-        }
-
-        TriggerMinesInRocketBlast(rocket);
-        DestroyBubblesInRocketBlast(rocket);
-    }
-
     private static void ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse)
     {
         if (impulse <= 0.0001f)
@@ -408,30 +277,6 @@ public sealed partial class SimulationWorld
             && !player.CanOccupy(Level, player.Team, player.X, player.Y + 1f);
     }
 
-    private void TriggerMinesInRocketBlast(RocketProjectileEntity rocket)
-    {
-        var queuedMineIds = new List<int>();
-        foreach (var mine in _mines)
-        {
-            if ((mine.Team == rocket.Team && mine.OwnerId != rocket.OwnerId)
-                || DistanceBetween(rocket.X, rocket.Y, mine.X, mine.Y) >= MineProjectileEntity.BlastRadius * 0.66f)
-            {
-                continue;
-            }
-
-            queuedMineIds.Add(mine.Id);
-        }
-
-        for (var index = 0; index < queuedMineIds.Count; index += 1)
-        {
-            var mine = FindMineById(queuedMineIds[index]);
-            if (mine is not null)
-            {
-                ExplodeMine(mine);
-            }
-        }
-    }
-
     private void TriggerNearbyMines(MineProjectileEntity sourceMine)
     {
         var queuedMineIds = new List<int>();
@@ -500,17 +345,6 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void DestroyBubblesInRocketBlast(RocketProjectileEntity rocket)
-    {
-        for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
-        {
-            if (DistanceBetween(rocket.X, rocket.Y, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < RocketProjectileEntity.BlastRadius * 0.66f)
-            {
-                RemoveBubbleAt(bubbleIndex);
-            }
-        }
-    }
-
     private void DestroyBubblesInMineBlast(MineProjectileEntity mine)
     {
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
@@ -520,18 +354,6 @@ public sealed partial class SimulationWorld
                 RemoveBubbleAt(bubbleIndex);
             }
         }
-    }
-
-    private static void ApplyRocketExplosionImpulse(PlayerEntity player, RocketProjectileEntity rocket, float originX, float originY, float distanceFactor)
-    {
-        var impulse = GetExplosionImpulseMagnitude(
-            player,
-            originX,
-            originY,
-            rocket.CurrentKnockback,
-            distanceFactor,
-            useMineVectorProfile: false);
-        ApplyExplosionImpulse(player, originX, originY, impulse);
     }
 
     private void ApplyMineExplosionImpulse(PlayerEntity player, float originX, float originY, float distanceFactor)
@@ -544,20 +366,6 @@ public sealed partial class SimulationWorld
             distanceFactor,
             useMineVectorProfile: true);
         ApplyExplosionImpulse(player, originX, originY, impulse);
-    }
-
-    private static void ApplyRocketExplosionSpeedAdjustments(PlayerEntity player, RocketProjectileEntity rocket, bool receivedBlastLiftBonus)
-    {
-        if (player.Id == rocket.OwnerId && player.Team == rocket.Team)
-        {
-            player.ScaleVelocity(player.IsUbered ? 1.055f : 1.06f);
-            return;
-        }
-
-        if (receivedBlastLiftBonus)
-        {
-            player.ScaleVelocity(1.3f);
-        }
     }
 
     private static float GetExplosionImpulseMagnitude(
@@ -590,16 +398,5 @@ public sealed partial class SimulationWorld
         return MathF.Min(SourceExplosionKnockbackCap, knockbackPerTick * distanceFactor) * vectorFactor * LegacyMovementModel.SourceTicksPerSecond;
     }
 
-    private static bool ShouldApplyRocketBlastLiftBonus(PlayerEntity player, float originX, float originY)
-    {
-        var offsetAngle = ToGameMakerDegrees(PointDirectionDegrees(player.X, player.Y + 5f, originX, originY - 5f));
-        var baseAngle = ToGameMakerDegrees(PointDirectionDegrees(player.X, player.Y, originX, originY));
-        return offsetAngle > 210f && baseAngle < 330f;
-    }
-
-    private static float ToGameMakerDegrees(float worldDegrees)
-    {
-        return NormalizeAngleDegrees(360f - worldDegrees);
-    }
 }
 

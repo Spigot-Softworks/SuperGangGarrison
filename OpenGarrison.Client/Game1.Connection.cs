@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
 
@@ -12,7 +11,6 @@ public partial class Game1
 {
     private int _pendingHostedConnectTicks = -1;
     private int _pendingHostedConnectPort = 8190;
-    private Process? _hostedServerProcess;
     private string? _recentConnectHost;
     private int _recentConnectPort;
 
@@ -70,7 +68,7 @@ public partial class Game1
             return;
         }
 
-        if (_hostedServerProcess is not null && _hostedServerProcess.HasExited)
+        if (_hostedServerRuntime.HasTrackedProcessExited)
         {
             _pendingHostedConnectTicks = -1;
             _menuStatusMessage = "Local server exited before connect.";
@@ -262,11 +260,6 @@ public partial class Game1
         bool autoBalance,
         out string error)
     {
-        error = string.Empty;
-
-        StopHostedServer();
-        HostedServerSessionInfo.Delete();
-
         var launchOptions = CreateHostedServerLaunchOptions(
             serverName,
             port,
@@ -277,63 +270,8 @@ public partial class Game1
             respawnSeconds,
             lobbyAnnounce,
             autoBalance);
-
-        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
-        {
-            error = $"UDP port {launchOptions.Port} is already in use.";
-            AppendHostedServerLog("launcher", error);
-            return false;
-        }
-
-        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
-        if (serverLaunchTarget is null)
-        {
-            error = "Could not find OpenGarrison.Server. Build the server first.";
-            return false;
-        }
-
-        try
-        {
-            InitializeHostedServerConsole(reset: false);
-
-            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
-            var startInfo = new ProcessStartInfo(
-                serverLaunchTarget.FileName,
-                arguments)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = serverLaunchTarget.WorkingDirectory,
-            };
-            startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "launcher";
-            AppendHostedServerLog("launcher", $"Starting {serverLaunchTarget.FileName} {arguments}");
-            var process = Process.Start(startInfo);
-            if (process is null)
-            {
-                error = "Failed to start local server process.";
-                return false;
-            }
-
-            process.EnableRaisingEvents = true;
-            process.Exited += (_, _) =>
-            {
-                try
-                {
-                    AppendHostedServerLog("launcher", $"Server process exited with code {process.ExitCode}.");
-                }
-                catch
-                {
-                }
-            };
-            _hostedServerProcess = process;
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"Failed to start local server: {ex.Message}";
-            return false;
-        }
+        InitializeHostedServerConsole(reset: false);
+        return _hostedServerRuntime.TryStartBackground(launchOptions, out error);
     }
 
     private bool TryStartHostedServerInTerminal(
@@ -348,8 +286,6 @@ public partial class Game1
         bool autoBalance,
         out string error)
     {
-        error = string.Empty;
-
         var launchOptions = CreateHostedServerLaunchOptions(
             serverName,
             port,
@@ -360,87 +296,12 @@ public partial class Game1
             respawnSeconds,
             lobbyAnnounce,
             autoBalance);
-
-        if (!HostedServerBootstrapper.IsUdpPortAvailable(launchOptions.Port))
-        {
-            error = $"UDP port {launchOptions.Port} is already in use.";
-            return false;
-        }
-
-        var serverLaunchTarget = HostedServerBootstrapper.FindLaunchTarget();
-        if (serverLaunchTarget is null)
-        {
-            error = "Could not find OpenGarrison.Server. Build the server first.";
-            return false;
-        }
-
-        try
-        {
-            HostedServerSessionInfo.Delete();
-            InitializeHostedServerConsole(reset: true);
-            var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
-            var startInfo = new ProcessStartInfo(
-                serverLaunchTarget.FileName,
-                arguments)
-            {
-                UseShellExecute = true,
-                WorkingDirectory = serverLaunchTarget.WorkingDirectory,
-            };
-            Process.Start(startInfo);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"Failed to start dedicated server terminal: {ex.Message}";
-            return false;
-        }
+        return _hostedServerRuntime.TryStartInTerminal(launchOptions, out error);
     }
 
     private void StopHostedServer()
     {
-        var session = _hostedServerSession;
-        if (session is null && _hostedServerProcess is null)
-        {
-            return;
-        }
-
-        try
-        {
-            if (session is not null)
-            {
-                AppendHostedServerLog("launcher", "Stop requested for hosted server.");
-                if (!TrySendHostedServerAdminCommand("shutdown", out _, out var shutdownError))
-                {
-                    AppendHostedServerLog("launcher", shutdownError);
-                }
-
-                if (HostedServerBootstrapper.TryGetProcess(session.ProcessId, out var processToStop)
-                    && processToStop is not null
-                    && !processToStop.WaitForExit(2000)
-                    && _hostedServerProcess is not null
-                    && _hostedServerProcess.Id == session.ProcessId)
-                {
-                    AppendHostedServerLog("launcher", "Hosted server did not exit after shutdown; terminating process tree.");
-                    _hostedServerProcess.Kill(entireProcessTree: true);
-                    _hostedServerProcess.WaitForExit(1000);
-                }
-            }
-            else if (_hostedServerProcess is not null && !_hostedServerProcess.HasExited)
-            {
-                _hostedServerProcess.Kill(entireProcessTree: true);
-                _hostedServerProcess.WaitForExit(1000);
-            }
-        }
-        catch
-        {
-        }
-        finally
-        {
-            _hostedServerProcess?.Dispose();
-            _hostedServerProcess = null;
-            _hostedServerSession = null;
-            HostedServerSessionInfo.Delete();
-        }
+        _hostedServerRuntime.Stop();
     }
 
     private void CloseManualConnectMenu(bool clearStatus)
@@ -532,47 +393,11 @@ public partial class Game1
 
     private bool TryResumeHostedServerSession(bool loadExistingLog, int? expectedProcessId = null)
     {
-        var session = HostedServerSessionInfo.Load();
-        if (session is null)
-        {
-            return false;
-        }
-
-        if (expectedProcessId.HasValue && session.ProcessId != expectedProcessId.Value)
-        {
-            return false;
-        }
-
-        if (!HostedServerBootstrapper.TryGetProcess(session.ProcessId, out _))
-        {
-            HostedServerSessionInfo.Delete();
-            return false;
-        }
-
-        _hostedServerSession = session;
-        _hostedServerConsole.ApplySessionInfo(session);
-
-        if (!TrySendHostedServerAdminCommand("__ping", out _, out _))
-        {
-            return false;
-        }
-        _ = loadExistingLog;
-
-        TrySendHostedServerAdminCommand("__snapshot", out var snapshotLines, out _);
-        _hostedServerConsole.ApplyServerMessages(snapshotLines);
-
-        return true;
+        return _hostedServerRuntime.TryResumeSession(loadExistingLog, expectedProcessId);
     }
 
     private bool TrySendHostedServerAdminCommand(string command, out List<string> responseLines, out string error)
     {
-        if (_hostedServerSession is null || string.IsNullOrWhiteSpace(_hostedServerSession.PipeName))
-        {
-            responseLines = new List<string>();
-            error = "Dedicated server control channel is unavailable.";
-            return false;
-        }
-
-        return HostedServerAdminClient.TrySendCommand(_hostedServerSession.PipeName, command, out responseLines, out error);
+        return _hostedServerRuntime.TrySendCommand(command, out responseLines, out error);
     }
 }

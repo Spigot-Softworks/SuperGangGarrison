@@ -42,37 +42,14 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private static void UpdateGeneratorState()
+    private void UpdateGeneratorState()
     {
-        // Generator objectives are passive. Damage resolution happens in the combat systems.
+        MatchObjectiveFlowSystem.UpdateGeneratorState(this);
     }
 
     private void AdvanceGeneratorMatchState()
     {
-        if (MatchState.IsEnded)
-        {
-            return;
-        }
-
-        var capWinner = GetCapLimitWinner();
-        if (capWinner.HasValue)
-        {
-            MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = capWinner };
-            QueuePendingMapChange();
-            return;
-        }
-
-        if (MatchState.TimeRemainingTicks > 0)
-        {
-            MatchState = MatchState with { TimeRemainingTicks = MatchState.TimeRemainingTicks - 1 };
-            if (MatchState.TimeRemainingTicks > 0)
-            {
-                return;
-            }
-        }
-
-        MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = GetHigherCapWinner() };
-        QueuePendingMapChange();
+        MatchObjectiveFlowSystem.AdvanceGeneratorMatchState(this);
     }
 
     private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker = null)
