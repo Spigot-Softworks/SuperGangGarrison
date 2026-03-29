@@ -1,0 +1,10 @@
+[Controls]
+jump=87
+down=83
+left=65
+right=68
+taunt=70
+changeTeam=78
+changeClass=77
+showScores=160
+console=192

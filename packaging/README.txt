@@ -5,7 +5,6 @@ linux/macOS
 - linux audio uses the system OpenAL library; if audio is unavailable the client will continue with sound disabled
 
 config files
-- config/client.settings.json
-- config/input.bindings.json
-- config/server.settings.json
+- config/OpenGarrison.ini
+- config/controls.OpenGarrison
 - config/sampleMapRotation.txt

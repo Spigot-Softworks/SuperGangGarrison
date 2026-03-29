@@ -1,0 +1,5397 @@
+{
+  "FormatVersion": 2,
+  "LevelName": "Montane",
+  "MapAreaIndex": 1,
+  "Profile": "Standard",
+  "LevelFingerprint": "b78eb1b95ad253f64c1d2dee16d784ab87e2771f28a90a8093f176d05566a1c5",
+  "BuildStrategy": "GeometrySampledValidatedJumps",
+  "BuiltUtc": "2026-03-28T05:54:36.1887065Z",
+  "Stats": {
+    "SurfaceCount": 567,
+    "CandidateNodeCount": 2140,
+    "NodeCount": 136,
+    "EdgeCount": 311,
+    "WalkEdgeCount": 170,
+    "JumpEdgeCount": 141,
+    "DropEdgeCount": 0,
+    "BuildMilliseconds": 2427.6546
+  },
+  "Nodes": [
+    {
+      "Id": 0,
+      "X": 2153,
+      "Y": 210,
+      "SurfaceId": 0,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 1,
+      "X": 2155,
+      "Y": 210,
+      "SurfaceId": 0,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 2,
+      "X": 2141,
+      "Y": 258,
+      "SurfaceId": 3,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 3,
+      "X": 2167,
+      "Y": 258,
+      "SurfaceId": 3,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 4,
+      "X": 2135,
+      "Y": 306,
+      "SurfaceId": 5,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 5,
+      "X": 2173,
+      "Y": 306,
+      "SurfaceId": 5,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 6,
+      "X": 419,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 7,
+      "X": 515,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 8,
+      "X": 611,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 9,
+      "X": 707,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 10,
+      "X": 803,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 11,
+      "X": 899,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 12,
+      "X": 973,
+      "Y": 384,
+      "SurfaceId": 16,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 13,
+      "X": 3329,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 14,
+      "X": 3425,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 15,
+      "X": 3521,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 16,
+      "X": 3617,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 17,
+      "X": 3713,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 18,
+      "X": 3809,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 19,
+      "X": 3883,
+      "Y": 384,
+      "SurfaceId": 17,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 20,
+      "X": 1901,
+      "Y": 438,
+      "SurfaceId": 41,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 21,
+      "X": 1997,
+      "Y": 438,
+      "SurfaceId": 41,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 22,
+      "X": 2071,
+      "Y": 438,
+      "SurfaceId": 41,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 23,
+      "X": 2237,
+      "Y": 438,
+      "SurfaceId": 42,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 24,
+      "X": 2333,
+      "Y": 438,
+      "SurfaceId": 42,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 25,
+      "X": 2407,
+      "Y": 438,
+      "SurfaceId": 42,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 26,
+      "X": 1757,
+      "Y": 492,
+      "SurfaceId": 81,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 27,
+      "X": 2549,
+      "Y": 492,
+      "SurfaceId": 82,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 28,
+      "X": 2551,
+      "Y": 492,
+      "SurfaceId": 82,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 29,
+      "X": 2147,
+      "Y": 522,
+      "SurfaceId": 99,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 30,
+      "X": 2161,
+      "Y": 522,
+      "SurfaceId": 99,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 31,
+      "X": 2087,
+      "Y": 552,
+      "SurfaceId": 102,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 32,
+      "X": 2183,
+      "Y": 552,
+      "SurfaceId": 102,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 33,
+      "X": 2221,
+      "Y": 552,
+      "SurfaceId": 102,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 34,
+      "X": 761,
+      "Y": 576,
+      "SurfaceId": 109,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 35,
+      "X": 857,
+      "Y": 576,
+      "SurfaceId": 109,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 36,
+      "X": 953,
+      "Y": 576,
+      "SurfaceId": 109,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 37,
+      "X": 985,
+      "Y": 576,
+      "SurfaceId": 109,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 38,
+      "X": 3317,
+      "Y": 576,
+      "SurfaceId": 111,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 39,
+      "X": 3413,
+      "Y": 576,
+      "SurfaceId": 111,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 40,
+      "X": 3509,
+      "Y": 576,
+      "SurfaceId": 111,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 41,
+      "X": 3541,
+      "Y": 576,
+      "SurfaceId": 111,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 42,
+      "X": 1763,
+      "Y": 618,
+      "SurfaceId": 135,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 43,
+      "X": 1831,
+      "Y": 618,
+      "SurfaceId": 135,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 44,
+      "X": 2477,
+      "Y": 618,
+      "SurfaceId": 138,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 45,
+      "X": 2545,
+      "Y": 618,
+      "SurfaceId": 138,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 46,
+      "X": 149,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 47,
+      "X": 245,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 48,
+      "X": 341,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 49,
+      "X": 354,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Spawn",
+      "Label": "red-spawn"
+    },
+    {
+      "Id": 50,
+      "X": 402,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Spawn",
+      "Label": "red-spawn"
+    },
+    {
+      "Id": 51,
+      "X": 437,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 52,
+      "X": 444,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Spawn",
+      "Label": "red-spawn"
+    },
+    {
+      "Id": 53,
+      "X": 480,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Spawn",
+      "Label": "local-spawn"
+    },
+    {
+      "Id": 54,
+      "X": 529,
+      "Y": 630,
+      "SurfaceId": 146,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 55,
+      "X": 3773,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 56,
+      "X": 3810,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Spawn",
+      "Label": "blue-spawn"
+    },
+    {
+      "Id": 57,
+      "X": 3852,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Spawn",
+      "Label": "blue-spawn"
+    },
+    {
+      "Id": 58,
+      "X": 3869,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 59,
+      "X": 3888,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Spawn",
+      "Label": "blue-spawn"
+    },
+    {
+      "Id": 60,
+      "X": 3930,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Spawn",
+      "Label": "blue-spawn"
+    },
+    {
+      "Id": 61,
+      "X": 3965,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 62,
+      "X": 4061,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 63,
+      "X": 4147,
+      "Y": 630,
+      "SurfaceId": 151,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 64,
+      "X": 1403,
+      "Y": 636,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 65,
+      "X": 1499,
+      "Y": 636,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 66,
+      "X": 1595,
+      "Y": 636,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 67,
+      "X": 1691,
+      "Y": 636,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 68,
+      "X": 2651,
+      "Y": 636,
+      "SurfaceId": 156,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 69,
+      "X": 2747,
+      "Y": 636,
+      "SurfaceId": 156,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 70,
+      "X": 2843,
+      "Y": 636,
+      "SurfaceId": 156,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 71,
+      "X": 2905,
+      "Y": 636,
+      "SurfaceId": 156,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 72,
+      "X": 643,
+      "Y": 678,
+      "SurfaceId": 238,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 73,
+      "X": 761,
+      "Y": 678,
+      "SurfaceId": 239,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 74,
+      "X": 857,
+      "Y": 678,
+      "SurfaceId": 239,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 75,
+      "X": 953,
+      "Y": 678,
+      "SurfaceId": 239,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 76,
+      "X": 955,
+      "Y": 678,
+      "SurfaceId": 239,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 77,
+      "X": 3347,
+      "Y": 678,
+      "SurfaceId": 308,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 78,
+      "X": 3443,
+      "Y": 678,
+      "SurfaceId": 308,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 79,
+      "X": 3539,
+      "Y": 678,
+      "SurfaceId": 308,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 80,
+      "X": 3541,
+      "Y": 678,
+      "SurfaceId": 308,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 81,
+      "X": 3659,
+      "Y": 678,
+      "SurfaceId": 309,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 82,
+      "X": 2117,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 83,
+      "X": 2121,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Objective",
+      "Label": "CaptureZone"
+    },
+    {
+      "Id": 84,
+      "X": 2157,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Objective",
+      "Label": "CaptureZone"
+    },
+    {
+      "Id": 85,
+      "X": 2175,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Objective",
+      "Label": "ArenaControlPoint"
+    },
+    {
+      "Id": 86,
+      "X": 2191,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 87,
+      "X": 2193,
+      "Y": 738,
+      "SurfaceId": 417,
+      "Kind": "Objective",
+      "Label": "CaptureZone"
+    },
+    {
+      "Id": 88,
+      "X": 1919,
+      "Y": 732,
+      "SurfaceId": 426,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 89,
+      "X": 1933,
+      "Y": 732,
+      "SurfaceId": 426,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 90,
+      "X": 2375,
+      "Y": 732,
+      "SurfaceId": 428,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 91,
+      "X": 2389,
+      "Y": 732,
+      "SurfaceId": 428,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 92,
+      "X": 1859,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 93,
+      "X": 1955,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 94,
+      "X": 2051,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 95,
+      "X": 2243,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 96,
+      "X": 2339,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 97,
+      "X": 2435,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 98,
+      "X": 2449,
+      "Y": 762,
+      "SurfaceId": 431,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 99,
+      "X": 845,
+      "Y": 858,
+      "SurfaceId": 497,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 100,
+      "X": 941,
+      "Y": 858,
+      "SurfaceId": 497,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 101,
+      "X": 973,
+      "Y": 858,
+      "SurfaceId": 497,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 102,
+      "X": 3329,
+      "Y": 858,
+      "SurfaceId": 500,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 103,
+      "X": 3425,
+      "Y": 858,
+      "SurfaceId": 500,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 104,
+      "X": 11,
+      "Y": 888,
+      "SurfaceId": 517,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 105,
+      "X": 4259,
+      "Y": 888,
+      "SurfaceId": 520,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 106,
+      "X": 4261,
+      "Y": 888,
+      "SurfaceId": 520,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 107,
+      "X": 2111,
+      "Y": 912,
+      "SurfaceId": 535,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 108,
+      "X": 2197,
+      "Y": 912,
+      "SurfaceId": 535,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 109,
+      "X": 1313,
+      "Y": 894,
+      "SurfaceId": 538,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 110,
+      "X": 1327,
+      "Y": 894,
+      "SurfaceId": 538,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 111,
+      "X": 2981,
+      "Y": 894,
+      "SurfaceId": 540,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 112,
+      "X": 2995,
+      "Y": 894,
+      "SurfaceId": 540,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 113,
+      "X": 1283,
+      "Y": 924,
+      "SurfaceId": 555,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 114,
+      "X": 1685,
+      "Y": 924,
+      "SurfaceId": 556,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 115,
+      "X": 1699,
+      "Y": 924,
+      "SurfaceId": 556,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 116,
+      "X": 2609,
+      "Y": 924,
+      "SurfaceId": 558,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 117,
+      "X": 2623,
+      "Y": 924,
+      "SurfaceId": 558,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 118,
+      "X": 3025,
+      "Y": 924,
+      "SurfaceId": 559,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 119,
+      "X": 1163,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 120,
+      "X": 1259,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 121,
+      "X": 1451,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 122,
+      "X": 1547,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 123,
+      "X": 1643,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 124,
+      "X": 1739,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 125,
+      "X": 1835,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 126,
+      "X": 1931,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 127,
+      "X": 2027,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 128,
+      "X": 2315,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 129,
+      "X": 2411,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 130,
+      "X": 2507,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 131,
+      "X": 2699,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 132,
+      "X": 2795,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 133,
+      "X": 2891,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 134,
+      "X": 3083,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    },
+    {
+      "Id": 135,
+      "X": 3179,
+      "Y": 954,
+      "SurfaceId": 561,
+      "Kind": "Surface",
+      "Label": ""
+    }
+  ],
+  "Edges": [
+    {
+      "FromNodeId": 0,
+      "ToNodeId": 1,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 0,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 3,
+      "Kind": "Walk",
+      "Cost": 26,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 2,
+      "Kind": "Walk",
+      "Cost": 26,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 6,
+      "ToNodeId": 7,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 7,
+      "ToNodeId": 6,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 7,
+      "ToNodeId": 8,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 7,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 9,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 8,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 10,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 10,
+      "ToNodeId": 9,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 10,
+      "ToNodeId": 11,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 10,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 12,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 12,
+      "ToNodeId": 11,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 13,
+      "ToNodeId": 14,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 14,
+      "ToNodeId": 13,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 14,
+      "ToNodeId": 15,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 15,
+      "ToNodeId": 14,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 15,
+      "ToNodeId": 16,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 16,
+      "ToNodeId": 15,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 16,
+      "ToNodeId": 17,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 17,
+      "ToNodeId": 16,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 17,
+      "ToNodeId": 18,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 18,
+      "ToNodeId": 17,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 18,
+      "ToNodeId": 19,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 19,
+      "ToNodeId": 18,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 20,
+      "ToNodeId": 21,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 20,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 22,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 21,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 23,
+      "ToNodeId": 24,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 23,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 25,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 24,
+      "Kind": "Walk",
+      "Cost": 74,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 27,
+      "ToNodeId": 28,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 28,
+      "ToNodeId": 27,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 30,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 29,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 32,
+      "ToNodeId": 33,
+      "Kind": "Walk",
+      "Cost": 38,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 33,
+      "ToNodeId": 32,
+      "Kind": "Walk",
+      "Cost": 38,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 34,
+      "ToNodeId": 35,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 35,
+      "ToNodeId": 34,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 35,
+      "ToNodeId": 36,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 36,
+      "ToNodeId": 35,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 36,
+      "ToNodeId": 37,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 37,
+      "ToNodeId": 36,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 38,
+      "ToNodeId": 39,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 39,
+      "ToNodeId": 38,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 39,
+      "ToNodeId": 40,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 40,
+      "ToNodeId": 39,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 40,
+      "ToNodeId": 41,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 41,
+      "ToNodeId": 40,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 43,
+      "Kind": "Walk",
+      "Cost": 68,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 43,
+      "ToNodeId": 42,
+      "Kind": "Walk",
+      "Cost": 68,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 44,
+      "ToNodeId": 45,
+      "Kind": "Walk",
+      "Cost": 68,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 45,
+      "ToNodeId": 44,
+      "Kind": "Walk",
+      "Cost": 68,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 46,
+      "ToNodeId": 47,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 47,
+      "ToNodeId": 46,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 48,
+      "ToNodeId": 49,
+      "Kind": "Walk",
+      "Cost": 13,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 48,
+      "Kind": "Walk",
+      "Cost": 13,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 50,
+      "Kind": "Walk",
+      "Cost": 48,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 50,
+      "ToNodeId": 49,
+      "Kind": "Walk",
+      "Cost": 48,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 50,
+      "ToNodeId": 51,
+      "Kind": "Walk",
+      "Cost": 35,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 50,
+      "Kind": "Walk",
+      "Cost": 35,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 52,
+      "Kind": "Walk",
+      "Cost": 7,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 51,
+      "Kind": "Walk",
+      "Cost": 7,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 53,
+      "Kind": "Walk",
+      "Cost": 36,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 53,
+      "ToNodeId": 52,
+      "Kind": "Walk",
+      "Cost": 36,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 53,
+      "ToNodeId": 54,
+      "Kind": "Walk",
+      "Cost": 49,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 54,
+      "ToNodeId": 53,
+      "Kind": "Walk",
+      "Cost": 49,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 55,
+      "ToNodeId": 56,
+      "Kind": "Walk",
+      "Cost": 37,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 55,
+      "Kind": "Walk",
+      "Cost": 37,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 57,
+      "Kind": "Walk",
+      "Cost": 42,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 57,
+      "ToNodeId": 56,
+      "Kind": "Walk",
+      "Cost": 42,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 57,
+      "ToNodeId": 58,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 57,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 59,
+      "Kind": "Walk",
+      "Cost": 19,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 58,
+      "Kind": "Walk",
+      "Cost": 19,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 60,
+      "Kind": "Walk",
+      "Cost": 42,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 60,
+      "ToNodeId": 59,
+      "Kind": "Walk",
+      "Cost": 42,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 60,
+      "ToNodeId": 61,
+      "Kind": "Walk",
+      "Cost": 35,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 61,
+      "ToNodeId": 60,
+      "Kind": "Walk",
+      "Cost": 35,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 62,
+      "ToNodeId": 63,
+      "Kind": "Walk",
+      "Cost": 86,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 63,
+      "ToNodeId": 62,
+      "Kind": "Walk",
+      "Cost": 86,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 64,
+      "ToNodeId": 65,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 64,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 66,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 65,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 67,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 67,
+      "ToNodeId": 66,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 69,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 69,
+      "ToNodeId": 68,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 69,
+      "ToNodeId": 70,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 70,
+      "ToNodeId": 69,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 70,
+      "ToNodeId": 71,
+      "Kind": "Walk",
+      "Cost": 62,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 71,
+      "ToNodeId": 70,
+      "Kind": "Walk",
+      "Cost": 62,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 73,
+      "ToNodeId": 74,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 74,
+      "ToNodeId": 73,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 74,
+      "ToNodeId": 75,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 75,
+      "ToNodeId": 74,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 75,
+      "ToNodeId": 76,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 76,
+      "ToNodeId": 75,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 77,
+      "ToNodeId": 78,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 78,
+      "ToNodeId": 77,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 78,
+      "ToNodeId": 79,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 79,
+      "ToNodeId": 78,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 79,
+      "ToNodeId": 80,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 80,
+      "ToNodeId": 79,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 82,
+      "ToNodeId": 83,
+      "Kind": "Walk",
+      "Cost": 4,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 83,
+      "ToNodeId": 82,
+      "Kind": "Walk",
+      "Cost": 4,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 83,
+      "ToNodeId": 84,
+      "Kind": "Walk",
+      "Cost": 36,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 83,
+      "Kind": "Walk",
+      "Cost": 36,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 85,
+      "Kind": "Walk",
+      "Cost": 18,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 84,
+      "Kind": "Walk",
+      "Cost": 18,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 86,
+      "Kind": "Walk",
+      "Cost": 16,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 85,
+      "Kind": "Walk",
+      "Cost": 16,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 87,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 87,
+      "ToNodeId": 86,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 88,
+      "ToNodeId": 89,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 89,
+      "ToNodeId": 88,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 91,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 91,
+      "ToNodeId": 90,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 93,
+      "ToNodeId": 94,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 93,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 96,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 96,
+      "ToNodeId": 95,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 97,
+      "ToNodeId": 98,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 97,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 99,
+      "ToNodeId": 100,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 100,
+      "ToNodeId": 99,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 100,
+      "ToNodeId": 101,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 101,
+      "ToNodeId": 100,
+      "Kind": "Walk",
+      "Cost": 32,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 102,
+      "ToNodeId": 103,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 103,
+      "ToNodeId": 102,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 105,
+      "ToNodeId": 106,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 106,
+      "ToNodeId": 105,
+      "Kind": "Walk",
+      "Cost": 2,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 107,
+      "ToNodeId": 108,
+      "Kind": "Walk",
+      "Cost": 86,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 108,
+      "ToNodeId": 107,
+      "Kind": "Walk",
+      "Cost": 86,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 109,
+      "ToNodeId": 110,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 110,
+      "ToNodeId": 109,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 111,
+      "ToNodeId": 112,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 112,
+      "ToNodeId": 111,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 114,
+      "ToNodeId": 115,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 115,
+      "ToNodeId": 114,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 116,
+      "ToNodeId": 117,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 117,
+      "ToNodeId": 116,
+      "Kind": "Walk",
+      "Cost": 14,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 119,
+      "ToNodeId": 120,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 120,
+      "ToNodeId": 119,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 121,
+      "ToNodeId": 122,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 122,
+      "ToNodeId": 121,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 122,
+      "ToNodeId": 123,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 123,
+      "ToNodeId": 122,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 124,
+      "ToNodeId": 125,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 125,
+      "ToNodeId": 124,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 125,
+      "ToNodeId": 126,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 126,
+      "ToNodeId": 125,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 126,
+      "ToNodeId": 127,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 127,
+      "ToNodeId": 126,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 128,
+      "ToNodeId": 129,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 129,
+      "ToNodeId": 128,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 129,
+      "ToNodeId": 130,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 130,
+      "ToNodeId": 129,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 131,
+      "ToNodeId": 132,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 132,
+      "ToNodeId": 131,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 132,
+      "ToNodeId": 133,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 133,
+      "ToNodeId": 132,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 134,
+      "ToNodeId": 135,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 135,
+      "ToNodeId": 134,
+      "Kind": "Walk",
+      "Cost": 96,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 20,
+      "ToNodeId": 26,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 29,
+      "Kind": "Jump",
+      "Cost": 444,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 36
+        }
+      ]
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 30,
+      "Kind": "Jump",
+      "Cost": 444,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 36
+        }
+      ]
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 30,
+      "Kind": "Jump",
+      "Cost": 492,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 36
+        }
+      ]
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 27,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 28,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 26,
+      "ToNodeId": 20,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 27,
+      "ToNodeId": 25,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 28,
+      "ToNodeId": 25,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 31,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 33,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 33,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 31,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 67,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 66,
+      "Kind": "Jump",
+      "Cost": 420,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 34
+        }
+      ]
+    },
+    {
+      "FromNodeId": 43,
+      "ToNodeId": 67,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 45,
+      "ToNodeId": 68,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 53,
+      "ToNodeId": 72,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 54,
+      "ToNodeId": 72,
+      "Kind": "Jump",
+      "Cost": 348,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 28
+        }
+      ]
+    },
+    {
+      "FromNodeId": 55,
+      "ToNodeId": 81,
+      "Kind": "Jump",
+      "Cost": 348,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 28
+        }
+      ]
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 81,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 31
+        }
+      ]
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 420,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 34
+        }
+      ]
+    },
+    {
+      "FromNodeId": 67,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 67,
+      "ToNodeId": 43,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 45,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 72,
+      "ToNodeId": 73,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 13
+        }
+      ]
+    },
+    {
+      "FromNodeId": 72,
+      "ToNodeId": 54,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 72,
+      "ToNodeId": 53,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 73,
+      "ToNodeId": 72,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 79,
+      "ToNodeId": 81,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 80,
+      "ToNodeId": 81,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 80,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 79,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 55,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 56,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 31
+        }
+      ]
+    },
+    {
+      "FromNodeId": 82,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 82,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 82,
+      "ToNodeId": 93,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 83,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 83,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 83,
+      "ToNodeId": 93,
+      "Kind": "Jump",
+      "Cost": 420,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 34
+        }
+      ]
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 252,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 20
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 96,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 156,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 96,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 87,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 156,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 87,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 87,
+      "ToNodeId": 96,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 88,
+      "ToNodeId": 92,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 88,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 336,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 89,
+      "ToNodeId": 92,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 89,
+      "ToNodeId": 94,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 97,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 98,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 336,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 19
+        }
+      ]
+    },
+    {
+      "FromNodeId": 91,
+      "ToNodeId": 97,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 91,
+      "ToNodeId": 98,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 91,
+      "ToNodeId": 95,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 18
+        }
+      ]
+    },
+    {
+      "FromNodeId": 92,
+      "ToNodeId": 88,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 92,
+      "ToNodeId": 89,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 93,
+      "ToNodeId": 82,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 93,
+      "ToNodeId": 83,
+      "Kind": "Jump",
+      "Cost": 420,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 34
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 82,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 83,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 84,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 85,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 89,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 22
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 86,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 88,
+      "Kind": "Jump",
+      "Cost": 336,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 94,
+      "ToNodeId": 87,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 29
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 87,
+      "Kind": "Jump",
+      "Cost": 156,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 86,
+      "Kind": "Jump",
+      "Cost": 156,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 85,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 84,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 83,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 82,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 26
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 90,
+      "Kind": "Jump",
+      "Cost": 360,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 21
+        }
+      ]
+    },
+    {
+      "FromNodeId": 95,
+      "ToNodeId": 91,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 22
+        }
+      ]
+    },
+    {
+      "FromNodeId": 96,
+      "ToNodeId": 87,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 96,
+      "ToNodeId": 86,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 96,
+      "ToNodeId": 85,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 97,
+      "ToNodeId": 91,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 97,
+      "ToNodeId": 90,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 91,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 90,
+      "Kind": "Jump",
+      "Cost": 192,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 15
+        }
+      ]
+    },
+    {
+      "FromNodeId": 107,
+      "ToNodeId": 127,
+      "Kind": "Jump",
+      "Cost": 252,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 20
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        }
+      ]
+    },
+    {
+      "FromNodeId": 108,
+      "ToNodeId": 128,
+      "Kind": "Jump",
+      "Cost": 396,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 32
+        }
+      ]
+    },
+    {
+      "FromNodeId": 108,
+      "ToNodeId": 127,
+      "Kind": "Jump",
+      "Cost": 432,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 35
+        }
+      ]
+    },
+    {
+      "FromNodeId": 109,
+      "ToNodeId": 121,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 109,
+      "ToNodeId": 119,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 110,
+      "ToNodeId": 121,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 110,
+      "ToNodeId": 119,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 33
+        }
+      ]
+    },
+    {
+      "FromNodeId": 111,
+      "ToNodeId": 133,
+      "Kind": "Jump",
+      "Cost": 276,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 111,
+      "ToNodeId": 134,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 112,
+      "ToNodeId": 134,
+      "Kind": "Jump",
+      "Cost": 276,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 112,
+      "ToNodeId": 133,
+      "Kind": "Jump",
+      "Cost": 324,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 14
+        }
+      ]
+    },
+    {
+      "FromNodeId": 113,
+      "ToNodeId": 119,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 113,
+      "ToNodeId": 121,
+      "Kind": "Jump",
+      "Cost": 420,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 34
+        }
+      ]
+    },
+    {
+      "FromNodeId": 114,
+      "ToNodeId": 123,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 114,
+      "ToNodeId": 122,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 114,
+      "ToNodeId": 125,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 31
+        }
+      ]
+    },
+    {
+      "FromNodeId": 115,
+      "ToNodeId": 124,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 115,
+      "ToNodeId": 125,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 115,
+      "ToNodeId": 122,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 31
+        }
+      ]
+    },
+    {
+      "FromNodeId": 116,
+      "ToNodeId": 131,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 116,
+      "ToNodeId": 130,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 117,
+      "ToNodeId": 131,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 117,
+      "ToNodeId": 130,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 117,
+      "ToNodeId": 132,
+      "Kind": "Jump",
+      "Cost": 432,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 35
+        }
+      ]
+    },
+    {
+      "FromNodeId": 118,
+      "ToNodeId": 134,
+      "Kind": "Jump",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 9
+        }
+      ]
+    },
+    {
+      "FromNodeId": 118,
+      "ToNodeId": 133,
+      "Kind": "Jump",
+      "Cost": 372,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 30
+        }
+      ]
+    },
+    {
+      "FromNodeId": 118,
+      "ToNodeId": 135,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 31
+        }
+      ]
+    },
+    {
+      "FromNodeId": 119,
+      "ToNodeId": 113,
+      "Kind": "Jump",
+      "Cost": 336,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 119,
+      "ToNodeId": 109,
+      "Kind": "Jump",
+      "Cost": 396,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 119,
+      "ToNodeId": 110,
+      "Kind": "Jump",
+      "Cost": 408,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 17
+        }
+      ]
+    },
+    {
+      "FromNodeId": 120,
+      "ToNodeId": 109,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 120,
+      "ToNodeId": 110,
+      "Kind": "Jump",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 121,
+      "ToNodeId": 110,
+      "Kind": "Jump",
+      "Cost": 348,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 121,
+      "ToNodeId": 109,
+      "Kind": "Jump",
+      "Cost": 348,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 122,
+      "ToNodeId": 114,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 122,
+      "ToNodeId": 115,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 125,
+      "ToNodeId": 115,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 125,
+      "ToNodeId": 114,
+      "Kind": "Jump",
+      "Cost": 384,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 8
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 127,
+      "ToNodeId": 107,
+      "Kind": "Jump",
+      "Cost": 252,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 20
+        }
+      ]
+    },
+    {
+      "FromNodeId": 127,
+      "ToNodeId": 108,
+      "Kind": "Jump",
+      "Cost": 432,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 35
+        }
+      ]
+    },
+    {
+      "FromNodeId": 128,
+      "ToNodeId": 108,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 130,
+      "ToNodeId": 116,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 130,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 300,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 24
+        }
+      ]
+    },
+    {
+      "FromNodeId": 131,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 131,
+      "ToNodeId": 116,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 132,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 480,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 133,
+      "ToNodeId": 111,
+      "Kind": "Jump",
+      "Cost": 252,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 133,
+      "ToNodeId": 112,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "Ticks": 17
+        }
+      ]
+    },
+    {
+      "FromNodeId": 134,
+      "ToNodeId": 118,
+      "Kind": "Jump",
+      "Cost": 288,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    },
+    {
+      "FromNodeId": 134,
+      "ToNodeId": 112,
+      "Kind": "Jump",
+      "Cost": 252,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 16
+        }
+      ]
+    },
+    {
+      "FromNodeId": 134,
+      "ToNodeId": 111,
+      "Kind": "Jump",
+      "Cost": 264,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 4
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 17
+        }
+      ]
+    },
+    {
+      "FromNodeId": 135,
+      "ToNodeId": 118,
+      "Kind": "Jump",
+      "Cost": 432,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 12
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "Ticks": 23
+        }
+      ]
+    }
+  ]
+}

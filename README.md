@@ -4,8 +4,8 @@
 
 1. Download latest `.zip` (Windows) or `.tar.gz` (Linux/macOS) from Releases
 2. Extract somewhere
-3. Run OpenGarrison.Client from that directory (linux/mac: `sh run-client.sh`)
-4. To host: Run OpenGarrison.ServerLauncher or use `sh run-server.sh`
+3. Run `OG2` from that directory (linux/mac: `sh run-client.sh`)
+4. To host: Run `OG2.ServerLauncher` or use `sh run-server.sh`
 
 ### How to Do Stuff
 
