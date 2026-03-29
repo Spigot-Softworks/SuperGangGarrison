@@ -18,11 +18,11 @@ $stagingRoot = Join-Path $distRoot "_staging"
 $configuration = "Release"
 $projects =
 @(
-    "OpenGarrison.Core/OpenGarrison.Core.csproj",
-    "OpenGarrison.Protocol/OpenGarrison.Protocol.csproj",
-    "OpenGarrison.Client/OpenGarrison.Client.csproj",
-    "OpenGarrison.Server/OpenGarrison.Server.csproj",
-    "OpenGarrison.ServerLauncher/OpenGarrison.ServerLauncher.csproj"
+    "Core/OpenGarrison.Core.csproj",
+    "Protocol/OpenGarrison.Protocol.csproj",
+    "Client/OpenGarrison.Client.csproj",
+    "Server/OpenGarrison.Server.csproj",
+    "ServerLauncher/OpenGarrison.ServerLauncher.csproj"
 )
 
 function Invoke-DotNet {
@@ -150,9 +150,9 @@ function Add-UnixLaunchers {
         [string]$OutputDirectory
     )
 
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-client.sh") -ExecutableName "OpenGarrison.Client"
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server.sh") -ExecutableName "OpenGarrison.Server"
-    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server-launcher.sh") -ExecutableName "OpenGarrison.ServerLauncher"
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-client.sh") -ExecutableName "OG2"
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server.sh") -ExecutableName "OG2.Server"
+    New-UnixLauncherScript -DestinationPath (Join-Path $OutputDirectory "run-server-launcher.sh") -ExecutableName "OG2.ServerLauncher"
 }
 
 function Get-BundledPluginProjects {
@@ -161,7 +161,7 @@ function Get-BundledPluginProjects {
         [string]$RepoRoot
     )
 
-    $pluginsRoot = Join-Path $RepoRoot "OpenGarrison.Plugins"
+    $pluginsRoot = Join-Path $RepoRoot "Plugins"
     if (-not (Test-Path $pluginsRoot)) {
         return @()
     }
@@ -266,8 +266,8 @@ foreach ($runtimeIdentifier in $Platforms) {
         )
     }
 
-    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "OpenGarrison.Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
-    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "OpenGarrison.Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
+    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
+    Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force
