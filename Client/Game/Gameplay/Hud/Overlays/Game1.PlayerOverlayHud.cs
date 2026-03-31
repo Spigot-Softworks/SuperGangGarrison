@@ -121,6 +121,11 @@ public partial class Game1
 
             DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
         }
+
+        if (_world.LocalPlayer.ClassId == PlayerClass.Demoman)
+        {
+            DrawDemomanStickyHud();
+        }
     }
 
     private void DrawPyroAmmoHud()
@@ -198,6 +203,33 @@ public partial class Game1
         }
 
         DrawSourceAmmoHudBar(689f, 34f, GetPlayerCurrentShells(_world.LocalPlayer), _world.LocalPlayer.MaxShells, AmmoHudBarColor);
+    }
+
+    private void DrawDemomanStickyHud()
+    {
+        var stickyCount = CountLocalOwnedStickyMines();
+        var maxStickies = Math.Max(1, _world.LocalPlayer.PrimaryWeapon.MaxAmmo);
+        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+        if (!TryDrawScreenSprite(
+                "StickyCounterS",
+                frameIndex,
+                GetSourceHudPoint(735f, 522f),
+                Color.White,
+                new Vector2(3f, 3f)))
+        {
+            return;
+        }
+
+        DrawHudTextLeftAligned(
+            stickyCount.ToString(CultureInfo.InvariantCulture),
+            GetSourceHudPoint(717f, 524f),
+            AmmoHudBarColor,
+            1.5f);
+        DrawHudTextLeftAligned(
+            $"/{maxStickies.ToString(CultureInfo.InvariantCulture)}",
+            GetSourceHudPoint(730f, 524f),
+            AmmoHudBarColor,
+            1.5f);
     }
 
     private void DrawPyroFlareHud(int frameIndex)
@@ -657,6 +689,20 @@ public partial class Game1
             Vector2.One,
             SpriteEffects.None,
             0f);
+    }
+
+    private int CountLocalOwnedStickyMines()
+    {
+        var count = 0;
+        foreach (var mine in _world.Mines)
+        {
+            if (mine.OwnerId == _world.LocalPlayer.Id)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
     }
 
     private string? GetAmmoHudSpriteName()

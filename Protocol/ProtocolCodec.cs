@@ -29,6 +29,7 @@ public static partial class ProtocolCodec
             case HelloMessage hello:
                 WriteString(writer, hello.Name, MaxPlayerNameBytes, nameof(hello.Name));
                 writer.Write(hello.Version);
+                writer.Write(hello.BadgeMask);
                 break;
             case WelcomeMessage welcome:
                 WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
@@ -102,6 +103,10 @@ public static partial class ProtocolCodec
             case SnapshotAckMessage snapshotAck:
                 writer.Write(snapshotAck.Frame);
                 break;
+            case PlayerProfileUpdateMessage profileUpdate:
+                WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));
+                writer.Write(profileUpdate.BadgeMask);
+                break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);
                 break;
@@ -129,7 +134,7 @@ public static partial class ProtocolCodec
 
             message = type switch
             {
-                MessageType.Hello => new HelloMessage(ReadString(reader, MaxPlayerNameBytes), reader.ReadInt32()),
+                MessageType.Hello => new HelloMessage(ReadString(reader, MaxPlayerNameBytes), reader.ReadInt32(), reader.ReadUInt64()),
                 MessageType.Welcome => new WelcomeMessage(
                     ReadString(reader, MaxServerNameBytes),
                     reader.ReadInt32(),
@@ -179,6 +184,9 @@ public static partial class ProtocolCodec
                     (ControlCommandKind)reader.ReadByte(),
                     reader.ReadBoolean()),
                 MessageType.SnapshotAck => new SnapshotAckMessage(reader.ReadUInt64()),
+                MessageType.PlayerProfileUpdate => new PlayerProfileUpdateMessage(
+                    ReadString(reader, MaxPlayerNameBytes),
+                    reader.ReadUInt64()),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };

@@ -61,14 +61,19 @@ public sealed partial class SimulationWorld
             return _world.TryDamageGenerator(targetTeam, damage, attacker);
         }
 
-        private void KillPlayer(PlayerEntity player, bool gibbed = false, PlayerEntity? killer = null, string? weaponSpriteName = null)
+        private void KillPlayer(
+            PlayerEntity player,
+            bool gibbed = false,
+            PlayerEntity? killer = null,
+            string? weaponSpriteName = null,
+            DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default)
         {
-            _world.KillPlayer(player, gibbed, killer, weaponSpriteName);
+            _world.KillPlayer(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind);
         }
 
-        private void DestroySentry(SentryEntity sentry)
+        private void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null)
         {
-            _world.DestroySentry(sentry);
+            _world.DestroySentry(sentry, attacker);
         }
 
         private int CountOwnedMines(int ownerId)
@@ -157,10 +162,15 @@ public sealed partial class SimulationWorld
                 GetSourceEquipmentOffset(attacker));
         }
 
+        private static float GetPyroOriginY(SourceWeaponOrigin weaponOrigin)
+        {
+            return weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
+        }
+
         public (float X, float Y) GetPyroSecondaryOrigin(PlayerEntity attacker)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
-            return (weaponOrigin.BaseX, weaponOrigin.BaseY + weaponOrigin.EquipmentOffset);
+            return (weaponOrigin.BaseX, GetPyroOriginY(weaponOrigin));
         }
 
         private static float GetSourceWeaponYOffset(PlayerClass classId)
@@ -354,12 +364,15 @@ public sealed partial class SimulationWorld
                 RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
                 if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpySniperRevealAlpha))
                 {
-                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleKL");
+                    var deadBodyAnimationKind = damage > PlayerEntity.SniperBaseDamage
+                        ? DeadBodyAnimationKind.Severe
+                        : DeadBodyAnimationKind.Rifle;
+                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: "RifleKL", deadBodyAnimationKind: deadBodyAnimationKind);
                 }
             }
             else if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
             {
-                DestroySentry(result.HitSentry);
+                DestroySentry(result.HitSentry, attacker);
             }
             else if (result.HitGenerator is not null)
             {
@@ -391,12 +404,14 @@ public sealed partial class SimulationWorld
             var bladePower = attacker.CurrentShells;
             var bonusDamage = (int)MathF.Floor((15f / 100f) * bladePower + 3f);
             var hitDamage = 3 + bonusDamage;
+            var inheritedVelocityX = attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+            var inheritedVelocityY = attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond;
             SpawnBlade(
                 attacker,
                 weaponOrigin.BaseX + directionX * 5f,
                 weaponOrigin.BaseY + directionY * 5f,
-                directionX * 12f,
-                directionY * 12f,
+                directionX * 12f + inheritedVelocityX,
+                directionY * 12f + inheritedVelocityY,
                 hitDamage);
         }
     
@@ -430,8 +445,10 @@ public sealed partial class SimulationWorld
         private bool FireFlamethrower(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var sourceX = weaponOrigin.BaseX;
+            var sourceY = GetPyroOriginY(weaponOrigin);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            var aimDeltaY = aimWorldY - sourceY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
             {
                 aimDeltaX = attacker.FacingDirectionX;
@@ -440,9 +457,9 @@ public sealed partial class SimulationWorld
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
             var directionX = MathF.Cos(baseAngle);
             var directionY = MathF.Sin(baseAngle);
-            var spawnX = weaponOrigin.BaseX + directionX * 25f;
-            var spawnY = weaponOrigin.BaseY + directionY * 25f + weaponOrigin.EquipmentOffset;
-            if (IsFlameSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team))
+            var spawnX = sourceX + directionX * 25f;
+            var spawnY = sourceY + directionY * 25f;
+            if (IsFlameSpawnBlocked(sourceX, sourceY, spawnX, spawnY, attacker.Team))
             {
                 return false;
             }

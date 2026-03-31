@@ -64,6 +64,7 @@ public sealed partial class PlayerEntity
         int Kills,
         int Deaths,
         int Caps,
+        float Points,
         int HealPoints,
         int ActiveDominationCount,
         bool IsDominatingLocalViewer,
@@ -77,7 +78,13 @@ public sealed partial class PlayerEntity
         int PyroPrimaryFuelScaled = 0,
         bool IsPyroPrimaryRefilling = false,
         int PyroFlameLoopTicksRemaining = 0,
-        bool PyroPrimaryRequiresReleaseAfterEmpty = false);
+        bool PyroPrimaryRequiresReleaseAfterEmpty = false,
+        int Assists = 0,
+        ulong BadgeMask = 0,
+        int? LastDamageDealerPlayerId = null,
+        int LastDamageDealerAssistTicksRemaining = 0,
+        int? SecondToLastDamageDealerPlayerId = null,
+        int SecondToLastDamageDealerAssistTicksRemaining = 0);
 
     internal PredictionState CapturePredictionState()
     {
@@ -143,6 +150,7 @@ public sealed partial class PlayerEntity
             Kills,
             Deaths,
             Caps,
+            Points,
             HealPoints,
             ActiveDominationCount,
             IsDominatingLocalViewer,
@@ -156,7 +164,13 @@ public sealed partial class PlayerEntity
             PyroPrimaryFuelScaled,
             IsPyroPrimaryRefilling,
             PyroFlameLoopTicksRemaining,
-            PyroPrimaryRequiresReleaseAfterEmpty);
+            PyroPrimaryRequiresReleaseAfterEmpty,
+            Assists,
+            BadgeMask,
+            LastDamageDealerPlayerId,
+            LastDamageDealerAssistTicksRemaining,
+            SecondToLastDamageDealerPlayerId,
+            SecondToLastDamageDealerAssistTicksRemaining);
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -223,6 +237,7 @@ public sealed partial class PlayerEntity
         Kills = state.Kills;
         Deaths = state.Deaths;
         Caps = state.Caps;
+        Points = state.Points;
         HealPoints = state.HealPoints;
         ActiveDominationCount = state.ActiveDominationCount;
         IsDominatingLocalViewer = state.IsDominatingLocalViewer;
@@ -236,6 +251,12 @@ public sealed partial class PlayerEntity
         IsPyroPrimaryRefilling = state.IsPyroPrimaryRefilling;
         PyroFlameLoopTicksRemaining = state.PyroFlameLoopTicksRemaining;
         PyroPrimaryRequiresReleaseAfterEmpty = state.PyroPrimaryRequiresReleaseAfterEmpty;
+        Assists = state.Assists;
+        BadgeMask = BadgeCatalog.SanitizeBadgeMask(state.BadgeMask);
+        LastDamageDealerPlayerId = state.LastDamageDealerPlayerId;
+        LastDamageDealerAssistTicksRemaining = state.LastDamageDealerAssistTicksRemaining;
+        SecondToLastDamageDealerPlayerId = state.SecondToLastDamageDealerPlayerId;
+        SecondToLastDamageDealerAssistTicksRemaining = state.SecondToLastDamageDealerAssistTicksRemaining;
     }
 
     public void ApplyNetworkState(
@@ -251,6 +272,7 @@ public sealed partial class PlayerEntity
         int kills,
         int deaths,
         int caps,
+        float points,
         int healPoints,
         int activeDominationCount,
         bool isDominatingLocalViewer,
@@ -290,7 +312,9 @@ public sealed partial class PlayerEntity
         bool isPyroPrimaryRefilling = false,
         int pyroFlameLoopTicksRemaining = 0,
         bool pyroPrimaryRequiresReleaseAfterEmpty = false,
-        int heavyEatCooldownTicksRemaining = 0)
+        int heavyEatCooldownTicksRemaining = 0,
+        int assists = 0,
+        ulong badgeMask = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -334,8 +358,11 @@ public sealed partial class PlayerEntity
             : 0;
         Kills = Math.Max(0, kills);
         Deaths = Math.Max(0, deaths);
+        Assists = Math.Max(0, assists);
         Caps = Math.Max(0, caps);
+        Points = Math.Max(0f, points);
         HealPoints = Math.Max(0, healPoints);
+        BadgeMask = BadgeCatalog.SanitizeBadgeMask(badgeMask);
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
         IsDominatedByLocalViewer = isDominatedByLocalViewer;
@@ -416,6 +443,7 @@ public sealed partial class PlayerEntity
             ExtinguishAfterburn();
         }
 
+        ClearRecentDamageDealers();
         if (IsUbered)
         {
             ExtinguishAfterburn();

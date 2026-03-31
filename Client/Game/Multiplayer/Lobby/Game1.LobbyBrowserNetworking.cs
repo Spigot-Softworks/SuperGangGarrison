@@ -93,6 +93,9 @@ public partial class Game1
                         (byte)GameModeKind.Arena => "Arena",
                         (byte)GameModeKind.ControlPoint => "CP",
                         (byte)GameModeKind.Generator => "Gen",
+                        (byte)GameModeKind.KingOfTheHill => "KOTH",
+                        (byte)GameModeKind.DoubleKingOfTheHill => "DKOTH",
+                        (byte)GameModeKind.TeamDeathmatch => "TDM",
                         _ => "CTF",
                     };
                     entry.PlayerCount = status.PlayerCount;

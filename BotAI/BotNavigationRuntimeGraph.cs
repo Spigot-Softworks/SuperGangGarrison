@@ -11,7 +11,10 @@ internal sealed class BotNavigationRuntimeGraph
     public BotNavigationRuntimeGraph(BotNavigationAsset asset)
     {
         Asset = asset;
-        CacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{asset.Profile}|{asset.LevelFingerprint}";
+        var scopeToken = asset.ClassId.HasValue
+            ? BotNavigationClasses.GetFileToken(asset.ClassId.Value)
+            : BotNavigationProfiles.GetFileToken(asset.Profile);
+        CacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{scopeToken}|{asset.LevelFingerprint}";
 
         var maxNodeId = asset.Nodes.Count == 0 ? -1 : asset.Nodes.Max(static node => node.Id);
         _nodesById = new BotNavigationNode[Math.Max(0, maxNodeId + 1)];
@@ -50,6 +53,11 @@ internal sealed class BotNavigationRuntimeGraph
 
     public bool TryFindNearestNode(float x, float y, float maxDistance, out BotNavigationNode node)
     {
+        return TryFindNearestNode(x, y, maxDistance, requireGroundSupport: false, out node);
+    }
+
+    public bool TryFindNearestNode(float x, float y, float maxDistance, bool requireGroundSupport, out BotNavigationNode node)
+    {
         node = default!;
         var bestDistanceSquared = maxDistance <= 0f ? float.PositiveInfinity : maxDistance * maxDistance;
         var found = false;
@@ -57,6 +65,11 @@ internal sealed class BotNavigationRuntimeGraph
         {
             var candidate = _nodesById[index];
             if (candidate is null)
+            {
+                continue;
+            }
+
+            if (requireGroundSupport && !candidate.RequiresGroundSupport)
             {
                 continue;
             }
@@ -99,7 +112,8 @@ internal sealed class BotNavigationRuntimeGraph
             return 0;
         }
 
-        if (_surfaceExtentsBySurfaceId.TryGetValue(fromNode.SurfaceId, out var extents))
+        if (_surfaceExtentsBySurfaceId.TryGetValue(fromNode.SurfaceId, out var extents)
+            && (extents.MaxX - extents.MinX) > 4f)
         {
             if (MathF.Abs(fromNode.X - extents.MinX) <= 2f)
             {
@@ -136,6 +150,118 @@ internal sealed class BotNavigationRuntimeGraph
         var route = ComputeRoute(startNodeId, goalNodeId);
         _routeCache[routeKey] = route;
         return route;
+    }
+
+    public bool TryFindRouteToGoalRadius(
+        int startNodeId,
+        float goalX,
+        float goalY,
+        float goalRadius,
+        out int[] route,
+        out int goalNodeId)
+    {
+        route = Array.Empty<int>();
+        goalNodeId = -1;
+        if (!TryGetNode(startNodeId, out _))
+        {
+            return false;
+        }
+
+        BuildShortestPathTree(startNodeId, out var costByNodeId, out var cameFromNodeId);
+
+        var bestScore = float.PositiveInfinity;
+        for (var index = 0; index < _nodesById.Length; index += 1)
+        {
+            var candidate = _nodesById[index];
+            if (candidate is null || !float.IsFinite(costByNodeId[index]))
+            {
+                continue;
+            }
+
+            var goalDistance = DistanceBetween(candidate.X, candidate.Y, goalX, goalY);
+            if (goalDistance > goalRadius)
+            {
+                continue;
+            }
+
+            var score = costByNodeId[index] + goalDistance;
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            goalNodeId = index;
+        }
+
+        if (goalNodeId < 0)
+        {
+            return false;
+        }
+
+        route = ReconstructRoute(startNodeId, goalNodeId, cameFromNodeId);
+        return route.Length > 1;
+    }
+
+    public bool TryFindBestPartialRoute(
+        int startNodeId,
+        float goalX,
+        float goalY,
+        float minimumImprovementDistance,
+        out int[] route,
+        out int goalNodeId)
+    {
+        route = Array.Empty<int>();
+        goalNodeId = -1;
+        if (!TryGetNode(startNodeId, out var startNode))
+        {
+            return false;
+        }
+
+        BuildShortestPathTree(startNodeId, out var costByNodeId, out var cameFromNodeId);
+
+        var startGoalDistance = DistanceBetween(startNode.X, startNode.Y, goalX, goalY);
+        var bestGoalDistance = startGoalDistance;
+        var bestPathCost = float.PositiveInfinity;
+
+        for (var index = 0; index < _nodesById.Length; index += 1)
+        {
+            var candidate = _nodesById[index];
+            if (candidate is null
+                || index == startNodeId
+                || !float.IsFinite(costByNodeId[index]))
+            {
+                continue;
+            }
+
+            var goalDistance = DistanceBetween(candidate.X, candidate.Y, goalX, goalY);
+            if ((startGoalDistance - goalDistance) < minimumImprovementDistance)
+            {
+                continue;
+            }
+
+            if (goalDistance > bestGoalDistance + 0.01f)
+            {
+                continue;
+            }
+
+            if (goalDistance >= bestGoalDistance - 0.01f && costByNodeId[index] >= bestPathCost)
+            {
+                continue;
+            }
+
+            bestGoalDistance = goalDistance;
+            bestPathCost = costByNodeId[index];
+            goalNodeId = index;
+        }
+
+        if (goalNodeId < 0)
+        {
+            return false;
+        }
+
+        route = ReconstructRoute(startNodeId, goalNodeId, cameFromNodeId);
+        return route.Length > 1;
     }
 
     private int[]? ComputeRoute(int startNodeId, int goalNodeId)
@@ -197,6 +323,69 @@ internal sealed class BotNavigationRuntimeGraph
             if (current < 0)
             {
                 return null;
+            }
+
+            route.Add(current);
+        }
+
+        route.Reverse();
+        return route.ToArray();
+    }
+
+    private void BuildShortestPathTree(int startNodeId, out float[] costByNodeId, out int[] cameFromNodeId)
+    {
+        costByNodeId = new float[_nodesById.Length];
+        cameFromNodeId = new int[_nodesById.Length];
+        Array.Fill(costByNodeId, float.PositiveInfinity);
+        Array.Fill(cameFromNodeId, -1);
+
+        var frontier = new PriorityQueue<int, float>();
+        costByNodeId[startNodeId] = 0f;
+        frontier.Enqueue(startNodeId, 0f);
+
+        while (frontier.TryDequeue(out var currentNodeId, out _))
+        {
+            if (!_edgesByFromNodeId.TryGetValue(currentNodeId, out var edges))
+            {
+                continue;
+            }
+
+            for (var index = 0; index < edges.Count; index += 1)
+            {
+                var edge = edges[index];
+                var newCost = costByNodeId[currentNodeId] + Math.Max(1f, edge.Cost);
+                if (newCost >= costByNodeId[edge.ToNodeId])
+                {
+                    continue;
+                }
+
+                costByNodeId[edge.ToNodeId] = newCost;
+                cameFromNodeId[edge.ToNodeId] = currentNodeId;
+                frontier.Enqueue(edge.ToNodeId, newCost);
+            }
+        }
+    }
+
+    private static int[] ReconstructRoute(int startNodeId, int goalNodeId, int[] cameFromNodeId)
+    {
+        if (startNodeId == goalNodeId)
+        {
+            return [startNodeId];
+        }
+
+        if (goalNodeId < 0 || goalNodeId >= cameFromNodeId.Length || cameFromNodeId[goalNodeId] < 0)
+        {
+            return Array.Empty<int>();
+        }
+
+        var route = new List<int> { goalNodeId };
+        var current = goalNodeId;
+        while (current != startNodeId)
+        {
+            current = cameFromNodeId[current];
+            if (current < 0)
+            {
+                return Array.Empty<int>();
             }
 
             route.Add(current);

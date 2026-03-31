@@ -17,6 +17,9 @@ public partial class Game1
         var localPlayerName = _world is null
             ? _clientSettings.PlayerName
             : _world.LocalPlayer.DisplayName;
+        var localPlayerBadgeMask = _world is null
+            ? BadgeCatalog.ParseRewardString(_clientSettings.Rewards)
+            : _world.LocalPlayer.BadgeMask;
         _config = new SimulationConfig
         {
             TicksPerSecond = normalizedTickRate,
@@ -24,6 +27,7 @@ public partial class Game1
         _world = new SimulationWorld(_config);
         _simulator = new FixedStepSimulator(_world);
         _world.SetLocalPlayerName(localPlayerName);
+        _world.SetLocalPlayerBadgeMask(localPlayerBadgeMask);
         _observedGameplayLevelName = string.Empty;
         _observedGameplayMapAreaIndex = -1;
     }

@@ -38,6 +38,7 @@ internal static partial class ServerHelpers
             (short)player.Kills,
             (short)player.Deaths,
             (short)player.Caps,
+            player.Points,
             (short)player.HealPoints,
             (short)player.ActiveDominationCount,
             isDominatingLocalViewer,
@@ -77,7 +78,9 @@ internal static partial class ServerHelpers
             player.IsPyroPrimaryRefilling,
             player.PyroFlameLoopTicksRemaining,
             player.PyroPrimaryRequiresReleaseAfterEmpty,
-            player.HeavyEatCooldownTicksRemaining);
+            player.HeavyEatCooldownTicksRemaining,
+            (short)player.Assists,
+            player.BadgeMask);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -211,6 +214,7 @@ internal static partial class ServerHelpers
             deadBody.Id,
             (byte)deadBody.Team,
             (byte)deadBody.ClassId,
+            (byte)deadBody.AnimationKind,
             deadBody.X,
             deadBody.Y,
             deadBody.Width,

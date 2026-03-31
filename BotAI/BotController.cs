@@ -7,6 +7,7 @@ public sealed class BotController
     private const float ObjectiveArrivalDistance = 56f;
     private const float PatrolDistance = 36f;
     private const float MovementDeadZone = 18f;
+    private const float RouteMovementDeadZone = 4f;
     private const float NearbyEnemyDistance = 260f;
     private const float VisibleTargetSeekDistance = 900f;
     private const float CabinetSeekHealthFraction = 0.45f;
@@ -17,6 +18,9 @@ public sealed class BotController
     private const float WallProbeThickness = 3f;
     private const float WallProbeBottomInset = 4f;
     private const float RouteNodeArrivalDistance = 18f;
+    private const float RouteWalkApproximateArrivalHeight = 64f;
+    private const float TraversalStartDistance = 6f;
+    private const float RoutePartialMinimumImprovementDistance = 18f;
     private const float RouteRepathDistance = 120f;
     private const float RouteStartNodeSearchDistance = 144f;
     private const float RouteGoalNodeSearchDistance = 220f;
@@ -27,6 +31,9 @@ public sealed class BotController
     private const int StrafeTicksMin = 18;
     private const int StrafeTicksMax = 42;
     private const int RouteRefreshTicksDefault = 20;
+    private const int StickyTargetRefreshTicksDefault = 12;
+    private const int EnemyTargetLockTicksDefault = 18;
+    private const int HealTargetLockTicksDefault = 20;
     private const float LowHealthRetreatFraction = 0.3f;
 
     private readonly Dictionary<byte, BotMemory> _memoryBySlot = new();
@@ -46,7 +53,7 @@ public sealed class BotController
     public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputs(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
-        IReadOnlyDictionary<BotNavigationProfile, BotNavigationAsset>? navigationAssets = null)
+        IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? navigationAssets = null)
     {
         var inputs = new Dictionary<byte, PlayerInputSnapshot>();
         if (controlledSlots.Count == 0)
@@ -59,7 +66,8 @@ public sealed class BotController
 
         var allPlayers = BuildPlayerRoster(world);
         var controlledPlayers = BuildControlledPlayerRoster(world, controlledSlots);
-        var navigationGraphsByProfile = BuildNavigationGraphs(navigationAssets);
+        var navigationGraphsByClass = BuildNavigationGraphs(navigationAssets);
+        var timing = CreateTimingProfile(world.Config);
         var rolesBySlot = AssignRoles(world, controlledPlayers);
         var diagnosticsEntries = CollectDiagnostics
             ? new List<BotControllerDiagnosticsEntry>(controlledPlayers.Count)
@@ -75,7 +83,7 @@ public sealed class BotController
             var slot = entry.Key;
             var player = entry.Value.Player;
             var memory = GetMemory(slot);
-            TickMemory(memory, player);
+            TickMemory(memory, player, timing);
 
             if (!player.IsAlive)
             {
@@ -94,9 +102,10 @@ public sealed class BotController
                 entry.Value.ControlledSlot,
                 player,
                 allPlayers,
-                navigationGraphsByProfile.GetValueOrDefault(BotNavigationProfiles.GetProfileForClass(entry.Value.ControlledSlot.ClassId)),
+                navigationGraphsByClass.GetValueOrDefault(entry.Value.ControlledSlot.ClassId),
                 role,
                 memory,
+                timing,
                 out var diagnosticsEntry);
             if (diagnosticsEntries is not null)
             {
@@ -130,16 +139,17 @@ public sealed class BotController
         BotNavigationRuntimeGraph? navigationGraph,
         BotRole role,
         BotMemory memory,
+        BotTimingProfile timing,
         out BotControllerDiagnosticsEntry diagnosticsEntry)
     {
-        var healTarget = FindBestHealTarget(world, player, controlledSlot.Team, allPlayers, memory);
+        var healTarget = FindBestHealTarget(world, player, controlledSlot.Team, allPlayers, memory, timing);
         var isSeekingCabinet = TryGetHealingCabinetDestination(world, player, out var cabinetDestination);
         var destination = isSeekingCabinet
             ? cabinetDestination
             : ResolveDestination(world, player, controlledSlot.Team, role, healTarget);
-        var navigationDecision = ResolveNavigationDecision(player, controlledSlot.ClassId, destination, navigationGraph, memory);
+        var navigationDecision = ResolveNavigationDecision(player, controlledSlot.ClassId, destination, navigationGraph, memory, timing);
         var movementDestination = navigationDecision.MovementTarget;
-        var enemyTarget = FindBestEnemyTarget(world, player, controlledSlot.Team, role, destination, allPlayers, memory);
+        var enemyTarget = FindBestEnemyTarget(world, player, controlledSlot.Team, role, destination, allPlayers, memory, timing);
         var hasVisibleEnemy = enemyTarget is not null && HasCombatLineOfSight(world, player, enemyTarget);
 
         var aimTarget = ResolveAimTarget(player, movementDestination, enemyTarget, healTarget);
@@ -151,7 +161,8 @@ public sealed class BotController
             healTarget,
             hasVisibleEnemy,
             navigationDecision,
-            memory);
+            memory,
+            timing);
         var jump = ResolveJump(
             world,
             player,
@@ -161,7 +172,8 @@ public sealed class BotController
             horizontal,
             hasVisibleEnemy,
             navigationDecision,
-            memory);
+            memory,
+            timing);
         var firePrimary = ResolvePrimaryFire(world, player, enemyTarget, healTarget);
         var fireSecondary = ResolveSecondaryFire(player, healTarget);
 
@@ -345,10 +357,10 @@ public sealed class BotController
         return null;
     }
 
-    private Dictionary<BotNavigationProfile, BotNavigationRuntimeGraph> BuildNavigationGraphs(
-        IReadOnlyDictionary<BotNavigationProfile, BotNavigationAsset>? navigationAssets)
+    private Dictionary<PlayerClass, BotNavigationRuntimeGraph> BuildNavigationGraphs(
+        IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? navigationAssets)
     {
-        var graphs = new Dictionary<BotNavigationProfile, BotNavigationRuntimeGraph>();
+        var graphs = new Dictionary<PlayerClass, BotNavigationRuntimeGraph>();
         if (navigationAssets is null || navigationAssets.Count == 0)
         {
             return graphs;
@@ -357,7 +369,9 @@ public sealed class BotController
         foreach (var entry in navigationAssets)
         {
             var asset = entry.Value;
-            var cacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{asset.Profile}|{asset.LevelFingerprint}";
+            var cacheKey = asset.ClassId.HasValue
+                ? $"{asset.LevelName}|{asset.MapAreaIndex}|{BotNavigationClasses.GetFileToken(asset.ClassId.Value)}|{asset.LevelFingerprint}"
+                : $"{asset.LevelName}|{asset.MapAreaIndex}|{BotNavigationProfiles.GetFileToken(asset.Profile)}|{asset.LevelFingerprint}";
             if (!_navigationGraphsByKey.TryGetValue(cacheKey, out var graph))
             {
                 graph = new BotNavigationRuntimeGraph(asset);
@@ -370,12 +384,13 @@ public sealed class BotController
         return graphs;
     }
 
-    private NavigationDecision ResolveNavigationDecision(
+    private static NavigationDecision ResolveNavigationDecision(
         PlayerEntity player,
         PlayerClass classId,
         (float X, float Y) destination,
         BotNavigationRuntimeGraph? navigationGraph,
-        BotMemory memory)
+        BotMemory memory,
+        BotTimingProfile timing)
     {
         if (navigationGraph is null)
         {
@@ -383,18 +398,14 @@ public sealed class BotController
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
         }
 
-        if (!navigationGraph.TryFindNearestNode(destination.X, destination.Y, RouteGoalNodeSearchDistance, out var goalNode))
-        {
-            ClearNavigationRoute(memory);
-            return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "goal-miss");
-        }
-
-        if (!navigationGraph.TryFindNearestNode(player.X, player.Y, RouteStartNodeSearchDistance, out var startNode))
+        if (!navigationGraph.TryFindNearestNode(player.X, player.Y, RouteStartNodeSearchDistance, requireGroundSupport: true, out var startNode))
         {
             ClearNavigationRoute(memory);
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "start-miss");
         }
 
+        var hasExactGoalNode = navigationGraph.TryFindNearestNode(destination.X, destination.Y, RouteGoalNodeSearchDistance, requireGroundSupport: true, out var goalNode);
+        var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
         var goalMoved = DistanceSquared(destination.X, destination.Y, memory.RouteGoalX, memory.RouteGoalY)
             > RouteNodeArrivalDistance * RouteNodeArrivalDistance;
         if (memory.RouteRefreshTicks > 0)
@@ -405,7 +416,7 @@ public sealed class BotController
         var requiresRepath = memory.RouteNodeIds is null
             || memory.RouteNodeIds.Length == 0
             || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-            || memory.RouteGoalNodeId != goalNode.Id
+            || memory.RouteGoalNodeId != exactGoalNodeId
             || goalMoved
             || memory.RouteRefreshTicks <= 0
             || !TryGetCurrentRouteNode(navigationGraph, memory, out var currentRouteNode)
@@ -413,25 +424,37 @@ public sealed class BotController
 
         if (requiresRepath)
         {
-            var route = navigationGraph.FindRoute(startNode.Id, goalNode.Id);
-            if (route is null || route.Length <= 1)
+            if (!TryBuildRouteToDestination(
+                    navigationGraph,
+                    startNode.Id,
+                    exactGoalNodeId,
+                    destination,
+                    out var route,
+                    out var routeIsPartial))
             {
                 ClearNavigationRoute(memory);
                 memory.NavigationGraphKey = navigationGraph.CacheKey;
-                memory.RouteGoalNodeId = goalNode.Id;
+                memory.RouteGoalNodeId = exactGoalNodeId;
                 memory.RouteGoalX = destination.X;
                 memory.RouteGoalY = destination.Y;
-                memory.RouteRefreshTicks = RouteRefreshTicksDefault;
-                return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "route-miss");
+                memory.RouteRefreshTicks = timing.RouteRefreshTicks;
+                return new NavigationDecision(
+                    destination,
+                    HasRoute: false,
+                    ForcedHorizontalDirection: 0,
+                    ForceJump: false,
+                    LocksMovement: false,
+                    Label: hasExactGoalNode ? "route-miss" : "goal-miss");
             }
 
             memory.NavigationGraphKey = navigationGraph.CacheKey;
             memory.RouteNodeIds = route;
             memory.RouteIndex = 1;
-            memory.RouteGoalNodeId = goalNode.Id;
+            memory.RouteGoalNodeId = exactGoalNodeId;
             memory.RouteGoalX = destination.X;
             memory.RouteGoalY = destination.Y;
-            memory.RouteRefreshTicks = RouteRefreshTicksDefault;
+            memory.RouteRefreshTicks = timing.RouteRefreshTicks;
+            memory.RouteIsPartial = routeIsPartial;
         }
 
         if (memory.RouteNodeIds is null || memory.RouteNodeIds.Length <= 1)
@@ -453,7 +476,16 @@ public sealed class BotController
             return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, BotNavigationTraversalKind.Walk));
         }
 
-        if (TryResolveTraversalDecision(player, destination, navigationGraph, memory, previousNodeId, nextNode, edge, out var traversalDecision))
+        if (TryResolveTraversalDecision(
+                player,
+                destination,
+                navigationGraph,
+                memory,
+                previousNodeId,
+                nextNode,
+                edge,
+                timing.FixedDeltaSeconds,
+                out var traversalDecision))
         {
             return traversalDecision;
         }
@@ -469,6 +501,7 @@ public sealed class BotController
         int previousNodeId,
         BotNavigationNode nextNode,
         BotNavigationEdge edge,
+        double simulationTickSeconds,
         out NavigationDecision decision)
     {
         if (edge.InputTape.Count > 0)
@@ -485,7 +518,7 @@ public sealed class BotController
                 ClearTraversalExecution(memory);
             }
 
-            if (DistanceSquared(player.X, player.Y, sourceNode.X, sourceNode.Y) > RouteNodeArrivalDistance * RouteNodeArrivalDistance)
+            if (DistanceSquared(player.X, player.Y, sourceNode.X, sourceNode.Y) > TraversalStartDistance * TraversalStartDistance)
             {
                 decision = new NavigationDecision((sourceNode.X, sourceNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: true, Label: GetRouteLabel(memory, edge.Kind));
                 return true;
@@ -502,7 +535,7 @@ public sealed class BotController
                 BeginTraversalExecution(memory, previousNodeId, nextNode.Id, edge);
             }
 
-            if (TryConsumeTraversalExecution(memory, out var forcedHorizontalDirection, out var forceJump))
+            if (TryConsumeTraversalExecution(memory, simulationTickSeconds, out var forcedHorizontalDirection, out var forceJump))
             {
                 decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: forcedHorizontalDirection, ForceJump: forceJump, LocksMovement: true, Label: GetRouteLabel(memory, edge.Kind));
                 return true;
@@ -547,10 +580,49 @@ public sealed class BotController
 
         while (memory.RouteIndex < memory.RouteNodeIds.Length
             && navigationGraph.TryGetNode(memory.RouteNodeIds[memory.RouteIndex], out var currentNode)
-            && DistanceSquared(player.X, player.Y, currentNode.X, currentNode.Y) <= RouteNodeArrivalDistance * RouteNodeArrivalDistance)
+            && HasReachedRouteNode(player, navigationGraph, memory.RouteNodeIds, memory.RouteIndex, currentNode))
         {
             memory.RouteIndex += 1;
         }
+    }
+
+    private static bool HasReachedRouteNode(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        IReadOnlyList<int> routeNodeIds,
+        int routeIndex,
+        BotNavigationNode currentNode)
+    {
+        if (DistanceSquared(player.X, player.Y, currentNode.X, currentNode.Y)
+            <= GetRouteNodeArrivalDistanceSquared(navigationGraph, routeNodeIds, routeIndex))
+        {
+            return true;
+        }
+
+        return routeIndex > 0
+            && currentNode.RequiresGroundSupport
+            && player.IsGrounded
+            && navigationGraph.TryGetEdge(routeNodeIds[routeIndex - 1], routeNodeIds[routeIndex], out var edge)
+            && edge.Kind == BotNavigationTraversalKind.Walk
+            && MathF.Abs(player.X - currentNode.X) <= RouteNodeArrivalDistance
+            && MathF.Abs(player.Y - currentNode.Y) <= RouteWalkApproximateArrivalHeight;
+    }
+
+    private static float GetRouteNodeArrivalDistanceSquared(
+        BotNavigationRuntimeGraph navigationGraph,
+        IReadOnlyList<int> routeNodeIds,
+        int routeIndex)
+    {
+        var arrivalDistance = RouteNodeArrivalDistance;
+        if (routeIndex >= 0
+            && routeIndex + 1 < routeNodeIds.Count
+            && navigationGraph.TryGetEdge(routeNodeIds[routeIndex], routeNodeIds[routeIndex + 1], out var edge)
+            && (edge.InputTape.Count > 0 || edge.Kind == BotNavigationTraversalKind.Drop))
+        {
+            arrivalDistance = TraversalStartDistance;
+        }
+
+        return arrivalDistance * arrivalDistance;
     }
 
     private static bool TryGetCurrentRouteNode(BotNavigationRuntimeGraph navigationGraph, BotMemory memory, out BotNavigationNode node)
@@ -562,11 +634,61 @@ public sealed class BotController
             && navigationGraph.TryGetNode(memory.RouteNodeIds[memory.RouteIndex], out node);
     }
 
+    private static bool TryBuildRouteToDestination(
+        BotNavigationRuntimeGraph navigationGraph,
+        int startNodeId,
+        int exactGoalNodeId,
+        (float X, float Y) destination,
+        out int[] route,
+        out bool routeIsPartial)
+    {
+        route = Array.Empty<int>();
+        routeIsPartial = false;
+
+        if (exactGoalNodeId >= 0)
+        {
+            route = navigationGraph.FindRoute(startNodeId, exactGoalNodeId) ?? Array.Empty<int>();
+            if (route.Length > 1)
+            {
+                return true;
+            }
+        }
+
+        if (navigationGraph.TryFindRouteToGoalRadius(
+                startNodeId,
+                destination.X,
+                destination.Y,
+                RouteGoalNodeSearchDistance,
+                out route,
+                out _)
+            && route.Length > 1)
+        {
+            return true;
+        }
+
+        if (navigationGraph.TryFindBestPartialRoute(
+                startNodeId,
+                destination.X,
+                destination.Y,
+                RoutePartialMinimumImprovementDistance,
+                out route,
+                out _)
+            && route.Length > 1)
+        {
+            routeIsPartial = true;
+            return true;
+        }
+
+        route = Array.Empty<int>();
+        return false;
+    }
+
     private static void ClearNavigationRoute(BotMemory memory)
     {
         ClearTraversalExecution(memory);
         memory.RouteNodeIds = null;
         memory.RouteIndex = 0;
+        memory.RouteIsPartial = false;
         memory.RouteGoalNodeId = -1;
         memory.RouteRefreshTicks = 0;
         memory.RouteGoalX = 0f;
@@ -581,9 +703,9 @@ public sealed class BotController
         memory.ActiveTraversalKind = edge.Kind;
         memory.ActiveTraversalTape = edge.InputTape;
         memory.ActiveTraversalFrameIndex = 0;
-        memory.ActiveTraversalFrameTicksRemaining = edge.InputTape.Count == 0
+        memory.ActiveTraversalFrameSecondsRemaining = edge.InputTape.Count == 0
             ? 0
-            : Math.Max(1, edge.InputTape[0].Ticks);
+            : GetFrameDurationSeconds(edge.InputTape[0]);
     }
 
     private static bool IsExecutingTraversal(BotMemory memory, int fromNodeId, int toNodeId)
@@ -595,7 +717,11 @@ public sealed class BotController
             && memory.ActiveTraversalToNodeId == toNodeId;
     }
 
-    private static bool TryConsumeTraversalExecution(BotMemory memory, out int forcedHorizontalDirection, out bool forceJump)
+    private static bool TryConsumeTraversalExecution(
+        BotMemory memory,
+        double simulationTickSeconds,
+        out int forcedHorizontalDirection,
+        out bool forceJump)
     {
         forcedHorizontalDirection = 0;
         forceJump = false;
@@ -610,21 +736,26 @@ public sealed class BotController
         forcedHorizontalDirection = frame.Right ? 1 : frame.Left ? -1 : 0;
         forceJump = frame.Up;
 
-        memory.ActiveTraversalFrameTicksRemaining -= 1;
-        if (memory.ActiveTraversalFrameTicksRemaining > 0)
+        if (memory.ActiveTraversalFrameSecondsRemaining <= 0d)
         {
-            return true;
+            memory.ActiveTraversalFrameSecondsRemaining = GetFrameDurationSeconds(frame);
         }
 
-        memory.ActiveTraversalFrameIndex += 1;
-        if (memory.ActiveTraversalTape is null
-            || memory.ActiveTraversalFrameIndex >= memory.ActiveTraversalTape.Count)
+        var remainingSeconds = memory.ActiveTraversalFrameSecondsRemaining - Math.Max(0d, simulationTickSeconds);
+        while (remainingSeconds <= 0d)
         {
-            ClearTraversalExecution(memory);
-            return true;
+            memory.ActiveTraversalFrameIndex += 1;
+            if (memory.ActiveTraversalTape is null
+                || memory.ActiveTraversalFrameIndex >= memory.ActiveTraversalTape.Count)
+            {
+                ClearTraversalExecution(memory);
+                return true;
+            }
+
+            remainingSeconds += GetFrameDurationSeconds(memory.ActiveTraversalTape[memory.ActiveTraversalFrameIndex]);
         }
 
-        memory.ActiveTraversalFrameTicksRemaining = Math.Max(1, memory.ActiveTraversalTape[memory.ActiveTraversalFrameIndex].Ticks);
+        memory.ActiveTraversalFrameSecondsRemaining = remainingSeconds;
         return true;
     }
 
@@ -635,18 +766,29 @@ public sealed class BotController
         memory.ActiveTraversalKind = BotNavigationTraversalKind.Walk;
         memory.ActiveTraversalTape = null;
         memory.ActiveTraversalFrameIndex = 0;
-        memory.ActiveTraversalFrameTicksRemaining = 0;
+        memory.ActiveTraversalFrameSecondsRemaining = 0d;
+    }
+
+    private static double GetFrameDurationSeconds(BotNavigationInputFrame frame)
+    {
+        if (frame.DurationSeconds > 0d)
+        {
+            return frame.DurationSeconds;
+        }
+
+        return Math.Max(1, frame.Ticks) / (double)SimulationConfig.DefaultTicksPerSecond;
     }
 
     private static string GetRouteLabel(BotMemory memory, BotNavigationTraversalKind traversalKind)
     {
+        var prefix = memory.RouteIsPartial ? "p" : "r";
         var step = memory.RouteIndex;
         var totalSteps = memory.RouteNodeIds is null ? 0 : Math.Max(0, memory.RouteNodeIds.Length - 1);
         return traversalKind switch
         {
-            BotNavigationTraversalKind.Drop => $"r{step}/{totalSteps}:drop",
-            BotNavigationTraversalKind.Jump => $"r{step}/{totalSteps}:jump",
-            _ => $"r{step}/{totalSteps}",
+            BotNavigationTraversalKind.Drop => $"{prefix}{step}/{totalSteps}:drop",
+            BotNavigationTraversalKind.Jump => $"{prefix}{step}/{totalSteps}:jump",
+            _ => $"{prefix}{step}/{totalSteps}",
         };
     }
 
@@ -805,12 +947,13 @@ public sealed class BotController
         BotRole role,
         (float X, float Y) destination,
         IReadOnlyList<PlayerEntity> allPlayers,
-        BotMemory memory)
+        BotMemory memory,
+        BotTimingProfile timing)
     {
         var stickyTarget = TryResolveStickyTarget(allPlayers, GetOpposingTeam(team), memory.TargetPlayerId);
         if (stickyTarget is not null && ShouldKeepStickyTarget(world, player, stickyTarget, memory))
         {
-            memory.TargetLockTicksRemaining = Math.Max(memory.TargetLockTicksRemaining, 12);
+            memory.TargetLockTicksRemaining = Math.Max(memory.TargetLockTicksRemaining, timing.StickyTargetRefreshTicks);
             return stickyTarget;
         }
 
@@ -869,7 +1012,7 @@ public sealed class BotController
         }
 
         memory.TargetPlayerId = bestTarget?.Id ?? -1;
-        memory.TargetLockTicksRemaining = bestTarget is null ? 0 : 18;
+        memory.TargetLockTicksRemaining = bestTarget is null ? 0 : timing.TargetLockTicks;
         return bestTarget;
     }
 
@@ -878,7 +1021,8 @@ public sealed class BotController
         PlayerEntity player,
         PlayerTeam team,
         IReadOnlyList<PlayerEntity> allPlayers,
-        BotMemory memory)
+        BotMemory memory,
+        BotTimingProfile timing)
     {
         if (player.ClassId != PlayerClass.Medic)
         {
@@ -892,7 +1036,7 @@ public sealed class BotController
             && NeedsHealing(stickyTarget)
             && DistanceSquared(player.X, player.Y, stickyTarget.X, stickyTarget.Y) <= HealTargetSeekDistance * HealTargetSeekDistance)
         {
-            memory.HealTargetLockTicksRemaining = Math.Max(memory.HealTargetLockTicksRemaining, 12);
+            memory.HealTargetLockTicksRemaining = Math.Max(memory.HealTargetLockTicksRemaining, timing.StickyTargetRefreshTicks);
             return stickyTarget;
         }
 
@@ -940,7 +1084,7 @@ public sealed class BotController
         }
 
         memory.HealTargetPlayerId = bestTarget?.Id ?? -1;
-        memory.HealTargetLockTicksRemaining = bestTarget is null ? 0 : 20;
+        memory.HealTargetLockTicksRemaining = bestTarget is null ? 0 : timing.HealTargetLockTicks;
         return bestTarget;
     }
 
@@ -971,7 +1115,8 @@ public sealed class BotController
         PlayerEntity? healTarget,
         bool hasVisibleEnemy,
         NavigationDecision navigationDecision,
-        BotMemory memory)
+        BotMemory memory,
+        BotTimingProfile timing)
     {
         if (memory.UnstickTicks > 0)
         {
@@ -989,7 +1134,7 @@ public sealed class BotController
 
         if (!navigationDecision.LocksMovement && enemyTarget is not null && hasVisibleEnemy)
         {
-            return ResolveCombatMovement(player, enemyTarget, memory);
+            return ResolveCombatMovement(player, enemyTarget, memory, timing);
         }
 
         if (navigationDecision.ForcedHorizontalDirection != 0)
@@ -997,15 +1142,25 @@ public sealed class BotController
             return navigationDecision.ForcedHorizontalDirection;
         }
 
+        if (navigationDecision.LocksMovement)
+        {
+            return GetMoveDirection(destination.X - player.X, RouteMovementDeadZone);
+        }
+
+        if (navigationDecision.HasRoute)
+        {
+            return GetMoveDirection(destination.X - player.X, RouteMovementDeadZone);
+        }
+
         if (DistanceSquared(player.X, player.Y, destination.X, destination.Y) <= ObjectiveArrivalDistance * ObjectiveArrivalDistance)
         {
-            return ResolvePatrolMovement(memory, destination.X - player.X);
+            return ResolvePatrolMovement(memory, destination.X - player.X, timing);
         }
 
         return GetMoveDirection(destination.X - player.X);
     }
 
-    private int ResolveCombatMovement(PlayerEntity player, PlayerEntity enemyTarget, BotMemory memory)
+    private int ResolveCombatMovement(PlayerEntity player, PlayerEntity enemyTarget, BotMemory memory, BotTimingProfile timing)
     {
         var preferredRange = GetPreferredCombatRange(player.ClassId);
         var distance = DistanceBetween(player.X, player.Y, enemyTarget.X, enemyTarget.Y);
@@ -1022,14 +1177,14 @@ public sealed class BotController
         if (memory.StrafeTicksRemaining <= 0)
         {
             memory.StrafeDirection = GetRandomDirection();
-            memory.StrafeTicksRemaining = _random.Next(StrafeTicksMin, StrafeTicksMax + 1);
+            memory.StrafeTicksRemaining = GetRandomTicksInRange(timing.StrafeTicksMin, timing.StrafeTicksMax);
         }
 
         memory.StrafeTicksRemaining -= 1;
         return memory.StrafeDirection;
     }
 
-    private int ResolvePatrolMovement(BotMemory memory, float destinationOffsetX)
+    private int ResolvePatrolMovement(BotMemory memory, float destinationOffsetX, BotTimingProfile timing)
     {
         if (MathF.Abs(destinationOffsetX) > PatrolDistance)
         {
@@ -1039,7 +1194,7 @@ public sealed class BotController
         if (memory.StrafeTicksRemaining <= 0)
         {
             memory.StrafeDirection = GetRandomDirection();
-            memory.StrafeTicksRemaining = _random.Next(StrafeTicksMin, StrafeTicksMax + 1);
+            memory.StrafeTicksRemaining = GetRandomTicksInRange(timing.StrafeTicksMin, timing.StrafeTicksMax);
         }
 
         memory.StrafeTicksRemaining -= 1;
@@ -1055,11 +1210,12 @@ public sealed class BotController
         int horizontal,
         bool hasVisibleEnemy,
         NavigationDecision navigationDecision,
-        BotMemory memory)
+        BotMemory memory,
+        BotTimingProfile timing)
     {
         if (navigationDecision.ForceJump)
         {
-            memory.JumpCooldownTicks = JumpCooldownTicksDefault;
+            memory.JumpCooldownTicks = timing.JumpCooldownTicks;
             return true;
         }
 
@@ -1070,8 +1226,13 @@ public sealed class BotController
 
         if (memory.UnstickTicks > 0 && player.IsGrounded)
         {
-            memory.JumpCooldownTicks = JumpCooldownTicksDefault;
+            memory.JumpCooldownTicks = timing.JumpCooldownTicks;
             return true;
+        }
+
+        if (navigationDecision.LocksMovement)
+        {
+            return false;
         }
 
         var movementTarget = healTarget is not null && player.ClassId == PlayerClass.Medic
@@ -1080,15 +1241,20 @@ public sealed class BotController
                 ? (enemyTarget.X, enemyTarget.Y)
                 : destination;
 
-        if (movementTarget.Y < player.Y - 24f && player.IsGrounded)
+        var isPureRouteMovement = navigationDecision.HasRoute
+            && healTarget is null
+            && (!hasVisibleEnemy || enemyTarget is null);
+        if (movementTarget.Y < player.Y - 24f
+            && player.IsGrounded
+            && !isPureRouteMovement)
         {
-            memory.JumpCooldownTicks = JumpCooldownTicksDefault;
+            memory.JumpCooldownTicks = timing.JumpCooldownTicks;
             return true;
         }
 
         if (horizontal != 0 && WouldMoveIntoObstacle(world, player, horizontal))
         {
-            memory.JumpCooldownTicks = JumpCooldownTicksDefault;
+            memory.JumpCooldownTicks = timing.JumpCooldownTicks;
             return true;
         }
 
@@ -1435,7 +1601,7 @@ public sealed class BotController
         };
     }
 
-    private void TickMemory(BotMemory memory, PlayerEntity player)
+    private void TickMemory(BotMemory memory, PlayerEntity player, BotTimingProfile timing)
     {
         if (memory.JumpCooldownTicks > 0)
         {
@@ -1475,10 +1641,10 @@ public sealed class BotController
             memory.StuckTicks = 0;
         }
 
-        if (memory.StuckTicks >= StuckTickThreshold)
+        if (memory.StuckTicks >= timing.StuckTickThreshold)
         {
             ClearNavigationRoute(memory);
-            memory.UnstickTicks = UnstickTicksDefault;
+            memory.UnstickTicks = timing.UnstickTicks;
             memory.UnstickDirection = memory.LastRequestedHorizontal == 0
                 ? GetRandomDirection()
                 : -memory.LastRequestedHorizontal;
@@ -1754,9 +1920,21 @@ public sealed class BotController
         return _random.Next(2) == 0 ? -1 : 1;
     }
 
+    private int GetRandomTicksInRange(int minimumTicks, int maximumTicks)
+    {
+        var minimum = Math.Max(1, Math.Min(minimumTicks, maximumTicks));
+        var maximum = Math.Max(minimum, maximumTicks);
+        return _random.Next(minimum, maximum + 1);
+    }
+
     private static int GetMoveDirection(float deltaX)
     {
-        if (MathF.Abs(deltaX) <= MovementDeadZone)
+        return GetMoveDirection(deltaX, MovementDeadZone);
+    }
+
+    private static int GetMoveDirection(float deltaX, float deadZone)
+    {
+        if (MathF.Abs(deltaX) <= deadZone)
         {
             return 0;
         }
@@ -1795,6 +1973,33 @@ public sealed class BotController
         return (dx * dx) + (dy * dy);
     }
 
+    private static BotTimingProfile CreateTimingProfile(SimulationConfig config)
+    {
+        var ticksPerSecond = SimulationConfig.NormalizeTicksPerSecond(config.TicksPerSecond);
+        return new BotTimingProfile(
+            config.FixedDeltaSeconds,
+            ScaleBotTicks(StuckTickThreshold, ticksPerSecond),
+            ScaleBotTicks(UnstickTicksDefault, ticksPerSecond),
+            ScaleBotTicks(JumpCooldownTicksDefault, ticksPerSecond),
+            ScaleBotTicks(StrafeTicksMin, ticksPerSecond),
+            ScaleBotTicks(StrafeTicksMax, ticksPerSecond),
+            ScaleBotTicks(RouteRefreshTicksDefault, ticksPerSecond),
+            ScaleBotTicks(StickyTargetRefreshTicksDefault, ticksPerSecond),
+            ScaleBotTicks(EnemyTargetLockTicksDefault, ticksPerSecond),
+            ScaleBotTicks(HealTargetLockTicksDefault, ticksPerSecond));
+    }
+
+    private static int ScaleBotTicks(int authoredTicks, int ticksPerSecond)
+    {
+        if (authoredTicks <= 0)
+        {
+            return 0;
+        }
+
+        var scaledTicks = authoredTicks * (ticksPerSecond / (double)SimulationConfig.DefaultTicksPerSecond);
+        return Math.Max(1, (int)Math.Ceiling(scaledTicks));
+    }
+
     private sealed class BotMemory
     {
         public bool HasObservedPosition { get; set; }
@@ -1829,6 +2034,8 @@ public sealed class BotController
 
         public int RouteIndex { get; set; }
 
+        public bool RouteIsPartial { get; set; }
+
         public int RouteGoalNodeId { get; set; } = -1;
 
         public int RouteRefreshTicks { get; set; }
@@ -1849,8 +2056,20 @@ public sealed class BotController
 
         public int ActiveTraversalFrameIndex { get; set; }
 
-        public int ActiveTraversalFrameTicksRemaining { get; set; }
+        public double ActiveTraversalFrameSecondsRemaining { get; set; }
     }
+
+    private readonly record struct BotTimingProfile(
+        double FixedDeltaSeconds,
+        int StuckTickThreshold,
+        int UnstickTicks,
+        int JumpCooldownTicks,
+        int StrafeTicksMin,
+        int StrafeTicksMax,
+        int RouteRefreshTicks,
+        int StickyTargetRefreshTicks,
+        int TargetLockTicks,
+        int HealTargetLockTicks);
 
     private readonly record struct NavigationDecision(
         (float X, float Y) MovementTarget,

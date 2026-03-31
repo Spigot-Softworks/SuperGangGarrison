@@ -14,6 +14,8 @@ public sealed class ClientSettings
 
     public string PlayerName { get; set; } = "Player";
 
+    public string Rewards { get; set; } = string.Empty;
+
     public bool Fullscreen { get; set; }
 
     public bool VSync { get; set; }
@@ -47,6 +49,10 @@ public sealed class ClientSettings
     public ClientRecentConnectionSettings RecentConnection { get; set; } = new();
 
     public OpenGarrisonHostSettings HostDefaults { get; set; } = new();
+
+    public string LobbyHost { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
+
+    public int LobbyPort { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyPort;
 
     public static ClientSettings Load(string? path = null)
     {
@@ -90,6 +96,7 @@ public sealed class ClientSettings
         return new ClientSettings
         {
             PlayerName = document.PlayerName,
+            Rewards = document.Rewards,
             Fullscreen = document.Fullscreen,
             MusicMode = document.MusicMode,
             IngameResolution = document.IngameResolution,
@@ -108,12 +115,15 @@ public sealed class ClientSettings
                 Port = document.RecentConnectionPort,
             },
             HostDefaults = document.HostSettings.Clone(),
+            LobbyHost = document.LobbyHost,
+            LobbyPort = document.LobbyPort,
         };
     }
 
     private void ApplyTo(OpenGarrisonPreferencesDocument preferences)
     {
         preferences.PlayerName = PlayerName;
+        preferences.Rewards = Rewards;
         preferences.Fullscreen = Fullscreen;
         preferences.VSync = VSync;
         preferences.IngameResolution = IngameResolution;
@@ -129,6 +139,8 @@ public sealed class ClientSettings
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;
         preferences.HostSettings = HostDefaults.Clone();
+        preferences.LobbyHost = LobbyHost;
+        preferences.LobbyPort = LobbyPort;
     }
 }
 

@@ -28,7 +28,7 @@ public sealed partial class PlayerEntity
         ClampTo(level.Bounds);
         if (CanOccupy(level, team, X, Y))
         {
-            RefreshGroundSupport(level, team);
+            RefreshGroundSupport(level, team, allowDropdownFallThrough: false);
         }
     }
 
@@ -43,7 +43,7 @@ public sealed partial class PlayerEntity
 
         var startedGrounded = PrepareMovement(input, level, team, deltaSeconds, out var canMove);
         var jumped = TryJumpIfPossible(canMove, jumpPressed);
-        CompleteMovement(level, team, deltaSeconds, startedGrounded, jumped);
+        CompleteMovement(level, team, deltaSeconds, startedGrounded, jumped, input.Down);
         return jumped;
     }
 
@@ -62,6 +62,7 @@ public sealed partial class PlayerEntity
             return default;
         }
 
+        AdvanceAssistTracking();
         var legacyStateTicks = ConsumeLegacyStateTicks(dt);
         for (var tick = 0; tick < legacyStateTicks; tick += 1)
         {
@@ -84,7 +85,7 @@ public sealed partial class PlayerEntity
         return AdvanceAfterburn(dt);
     }
 
-    public bool PrepareMovement(PlayerInputSnapshot input, SimpleLevel level, PlayerTeam team, double deltaSeconds, out bool canMove)
+    public bool PrepareMovement(PlayerInputSnapshot input, SimpleLevel level, PlayerTeam team, double deltaSeconds, out bool canMove, bool isHumiliated = false)
     {
         var dt = (float)deltaSeconds;
         if (!IsAlive)
@@ -122,7 +123,8 @@ public sealed partial class PlayerEntity
             horizontalDirection,
             MovementState,
             IsCarryingIntel,
-            dt);
+            dt,
+            isHumiliated);
 
         ClampMovementSpeedsToSourceStepMaximum();
 
@@ -134,7 +136,8 @@ public sealed partial class PlayerEntity
             ClampTo(level.Bounds);
         }
 
-        var startedGrounded = !CanOccupy(level, team, X, Y + 1f);
+        var startedGrounded = !CanOccupy(level, team, X, Y + 1f)
+            || IsStandingOnDropdownPlatform(level, input.Down);
         if (startedGrounded)
         {
             IsGrounded = true;
@@ -142,6 +145,12 @@ public sealed partial class PlayerEntity
             if (VerticalSpeed > 0f)
             {
                 VerticalSpeed = 0f;
+            }
+
+            if (TryGetSupportingDropdownPlatform(level, input.Down, out var dropdownPlatform)
+                && dropdownPlatform.ResetsMovementState())
+            {
+                MovementState = LegacyMovementState.None;
             }
         }
         else
@@ -162,13 +171,15 @@ public sealed partial class PlayerEntity
         return TryJump();
     }
 
-    public void CompleteMovement(SimpleLevel level, PlayerTeam team, double deltaSeconds, bool startedGrounded, bool jumped)
+    public void CompleteMovement(SimpleLevel level, PlayerTeam team, double deltaSeconds, bool startedGrounded, bool jumped, bool allowDropdownFallThrough)
     {
         var dt = (float)deltaSeconds;
         if (!IsAlive)
         {
             return;
         }
+
+        GetCollisionBounds(out _, out _, out _, out var previousBottom);
 
         var gravityPerTick = 0f;
         if (!startedGrounded || jumped)
@@ -182,15 +193,20 @@ public sealed partial class PlayerEntity
             VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
         }
 
-        MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt);
+        MoveWithCollisions(level, team, HorizontalSpeed * dt, VerticalSpeed * dt, allowDropdownFallThrough);
         if (gravityPerTick > 0f && CanOccupy(level, team, X, Y + 1f))
         {
             VerticalSpeed = LegacyMovementModel.AdvanceVerticalSpeedHalfStep(VerticalSpeed, gravityPerTick, dt);
         }
 
+        ResolveDropdownPlatformContact(level, allowDropdownFallThrough, previousBottom);
         if (TryApplySourceStepDown(level, team))
         {
-            RefreshGroundSupport(level, team);
+            RefreshGroundSupport(level, team, allowDropdownFallThrough);
+        }
+        else
+        {
+            RefreshGroundSupport(level, team, allowDropdownFallThrough);
         }
 
         ClampTo(level.Bounds);
@@ -236,7 +252,7 @@ public sealed partial class PlayerEntity
         return ShouldCancelGravityForSourceSpinjump(level, Team, LegacyMovementModel.GetAirborneGravityPerTick(MovementState));
     }
 
-    private void MoveWithCollisions(SimpleLevel level, PlayerTeam team, float moveX, float moveY)
+    private void MoveWithCollisions(SimpleLevel level, PlayerTeam team, float moveX, float moveY, bool allowDropdownFallThrough)
     {
         if (!float.IsFinite(moveX) || !float.IsFinite(moveY))
         {
@@ -303,7 +319,7 @@ public sealed partial class PlayerEntity
             }
         }
 
-        RefreshGroundSupport(level, team);
+        RefreshGroundSupport(level, team, allowDropdownFallThrough);
     }
 
     private float GetMovementScale(PlayerInputSnapshot input)
@@ -528,39 +544,40 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        var scaleFactor = MathF.Max(MathF.Abs(deltaX), MathF.Abs(deltaY));
-        if (scaleFactor <= 0f)
-        {
-            return;
-        }
+        var directionX = deltaX / maxDistance;
+        var directionY = deltaY / maxDistance;
 
-        var subpixel = CollisionSubpixelPrecision;
         var totalMoved = 0f;
-        while (totalMoved < maxDistance && subpixel > 0f)
+        while (totalMoved < maxDistance)
         {
             var remainingDistance = MathF.Min(1f, maxDistance - totalMoved);
-            var fraction = subpixel / CollisionSubpixelPrecision;
-            var moveX = (deltaX / scaleFactor) * fraction * remainingDistance;
-            var moveY = (deltaY / scaleFactor) * fraction * remainingDistance;
-            var nextX = X + (moveX * fraction);
-            var nextY = Y + (moveY * fraction);
-            if (!CanOccupy(level, team, nextX, nextY))
+            var movedThisIteration = false;
+            for (var subpixel = CollisionSubpixelPrecision; subpixel >= 1f; subpixel -= 1f)
             {
-                subpixel -= 1f;
-                continue;
-            }
+                var fraction = subpixel / CollisionSubpixelPrecision;
+                var stepDistance = remainingDistance * fraction;
+                var nextX = X + (directionX * stepDistance);
+                var nextY = Y + (directionY * stepDistance);
+                if (!CanOccupy(level, team, nextX, nextY))
+                {
+                    continue;
+                }
 
-            var advancedX = nextX - X;
-            var advancedY = nextY - Y;
-            if (advancedX == 0f && advancedY == 0f)
-            {
+                var advancedX = nextX - X;
+                var advancedY = nextY - Y;
+                if (advancedX == 0f && advancedY == 0f)
+                {
+                    continue;
+                }
+
+                X = nextX;
+                Y = nextY;
+                totalMoved += MathF.Sqrt((advancedX * advancedX) + (advancedY * advancedY));
+                movedThisIteration = true;
                 break;
             }
 
-            totalMoved += MathF.Sqrt((advancedX * advancedX) + (advancedY * advancedY));
-            X = nextX;
-            Y = nextY;
-            if (subpixel < CollisionSubpixelPrecision)
+            if (!movedThisIteration)
             {
                 break;
             }
@@ -675,19 +692,114 @@ public sealed partial class PlayerEntity
             && bottom > gateTop;
     }
 
-    private void RefreshGroundSupport(SimpleLevel level, PlayerTeam team)
+    private bool IsStandingOnDropdownPlatform(SimpleLevel level, bool allowDropdownFallThrough)
+    {
+        return TryGetSupportingDropdownPlatform(level, allowDropdownFallThrough, out _);
+    }
+
+    private bool TryGetSupportingDropdownPlatform(SimpleLevel level, bool allowDropdownFallThrough, out RoomObjectMarker platform)
+    {
+        platform = default;
+        if (allowDropdownFallThrough)
+        {
+            return false;
+        }
+
+        GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+        left += StepSupportEpsilon;
+        right -= StepSupportEpsilon;
+        if (right <= left)
+        {
+            left = X + CollisionLeftOffset;
+            right = X + CollisionRightOffset;
+        }
+
+        RoomObjectMarker? bestPlatform = null;
+        foreach (var candidate in level.GetRoomObjects(RoomObjectType.DropdownPlatform))
+        {
+            if (right <= candidate.Left
+                || left >= candidate.Right
+                || top >= candidate.Bottom
+                || bottom < candidate.Top - 1.5f
+                || bottom > candidate.Top + 1f)
+            {
+                continue;
+            }
+
+            if (bestPlatform is null || candidate.Top < bestPlatform.Value.Top)
+            {
+                bestPlatform = candidate;
+            }
+        }
+
+        if (!bestPlatform.HasValue)
+        {
+            return false;
+        }
+
+        platform = bestPlatform.Value;
+        return true;
+    }
+
+    private void ResolveDropdownPlatformContact(SimpleLevel level, bool allowDropdownFallThrough, float previousBottom)
+    {
+        if (allowDropdownFallThrough || VerticalSpeed < 0f)
+        {
+            return;
+        }
+
+        RoomObjectMarker? bestPlatform = null;
+        foreach (var platform in level.GetRoomObjects(RoomObjectType.DropdownPlatform))
+        {
+            if (!Intersects(platform))
+            {
+                continue;
+            }
+
+            if (previousBottom > platform.Top + 0.1f)
+            {
+                continue;
+            }
+
+            if (bestPlatform is null || platform.Top < bestPlatform.Value.Top)
+            {
+                bestPlatform = platform;
+            }
+        }
+
+        if (!bestPlatform.HasValue)
+        {
+            return;
+        }
+
+        Y = bestPlatform.Value.Top - CollisionBottomOffset;
+        IsGrounded = true;
+        RemainingAirJumps = MaxAirJumps;
+        VerticalSpeed = 0f;
+        if (bestPlatform.Value.ResetsMovementState())
+        {
+            MovementState = LegacyMovementState.None;
+        }
+    }
+
+    private void RefreshGroundSupport(SimpleLevel level, PlayerTeam team, bool allowDropdownFallThrough)
     {
         if (VerticalSpeed < 0f || !CanOccupy(level, team, X, Y))
         {
             return;
         }
 
-        if (CanOccupy(level, team, X, Y + 1f))
+        if (CanOccupy(level, team, X, Y + 1f) && !IsStandingOnDropdownPlatform(level, allowDropdownFallThrough))
         {
             return;
         }
 
-        TrySnapToGroundBelow(level, team);
+        if (!TrySnapToGroundBelow(level, team)
+            && !TrySnapToDropdownPlatformBelow(level, allowDropdownFallThrough))
+        {
+            return;
+        }
+
         IsGrounded = true;
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
@@ -708,6 +820,28 @@ public sealed partial class PlayerEntity
         }
 
         Y = targetY;
+        return true;
+    }
+
+    private bool TrySnapToDropdownPlatformBelow(SimpleLevel level, bool allowDropdownFallThrough)
+    {
+        if (!TryGetSupportingDropdownPlatform(level, allowDropdownFallThrough, out var platform))
+        {
+            return false;
+        }
+
+        var targetY = platform.Top - CollisionBottomOffset;
+        if (targetY < Y)
+        {
+            return false;
+        }
+
+        Y = targetY;
+        if (platform.ResetsMovementState())
+        {
+            MovementState = LegacyMovementState.None;
+        }
+
         return true;
     }
 
@@ -748,6 +882,14 @@ public sealed partial class PlayerEntity
     private float? FindBlockingObstacleTop(SimpleLevel level, PlayerTeam team, float x, float y)
     {
         GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+        left += StepSupportEpsilon;
+        right -= StepSupportEpsilon;
+        if (right <= left)
+        {
+            left = x + CollisionLeftOffset;
+            right = x + CollisionRightOffset;
+        }
+
         float? obstacleTop = null;
 
         foreach (var solid in level.Solids)

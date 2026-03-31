@@ -8,7 +8,8 @@ public readonly record struct RoomObjectMarker(
     float Height,
     string SpriteName,
     PlayerTeam? Team = null,
-    string SourceName = "")
+    string SourceName = "",
+    float Value = 0f)
 {
     public float Left => X;
 

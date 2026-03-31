@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using OpenGarrison.Client.Plugins;
 
 namespace OpenGarrison.Client;
 
@@ -11,6 +12,17 @@ public partial class Game1
     private void DrawBubbleMenuHud()
     {
         if (_bubbleMenuKind == BubbleMenuKind.None)
+        {
+            return;
+        }
+
+        var renderState = new ClientBubbleMenuRenderState(
+            ToClientBubbleMenuKind(_bubbleMenuKind),
+            _bubbleMenuAlpha,
+            _bubbleMenuXPageIndex,
+            _world.LocalPlayer.AimDirectionDegrees,
+            GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState()))));
+        if (TryDrawClientPluginBubbleMenu(GetCurrentClientPluginCameraTopLeft(), renderState))
         {
             return;
         }
@@ -34,7 +46,7 @@ public partial class Game1
         TryDrawScreenSprite(spriteName, frameIndex, new Vector2(_bubbleMenuX, viewportHeight / 2f), Color.White * _bubbleMenuAlpha, Vector2.One);
     }
 
-    private void UpdateBubbleMenuState(KeyboardState keyboard)
+    private void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
     {
         if (_mainMenuOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
         {
@@ -43,9 +55,10 @@ public partial class Game1
             return;
         }
 
-        var openZPressed = keyboard.IsKeyDown(Keys.Z) && !_previousKeyboard.IsKeyDown(Keys.Z);
-        var openXPressed = keyboard.IsKeyDown(Keys.X) && !_previousKeyboard.IsKeyDown(Keys.X);
-        var openCPressed = keyboard.IsKeyDown(Keys.C) && !_previousKeyboard.IsKeyDown(Keys.C);
+        var leftClickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        var openZPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ);
+        var openXPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX);
+        var openCPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC);
 
         if (openZPressed)
         {
@@ -58,6 +71,29 @@ public partial class Game1
         else if (openCPressed)
         {
             ToggleBubbleMenu(BubbleMenuKind.C);
+        }
+
+        if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
+        {
+            var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
+                ToClientBubbleMenuKind(_bubbleMenuKind),
+                _bubbleMenuXPageIndex,
+                _world.LocalPlayer.AimDirectionDegrees,
+                GetBubbleMenuPointerDistanceFromCenter(mouse),
+                leftClickPressed,
+                GetPressedDigit(keyboard),
+                keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q)));
+            if (pluginResult is not null)
+            {
+                if (leftClickPressed)
+                {
+                    SuppressPrimaryFireUntilMouseRelease();
+                }
+
+                ApplyBubbleMenuPluginResult(pluginResult);
+                AdvanceBubbleMenuAnimation();
+                return;
+            }
         }
 
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing && TryGetBubbleMenuSelection(keyboard, out var bubbleFrame))
@@ -75,6 +111,34 @@ public partial class Game1
         }
 
         AdvanceBubbleMenuAnimation();
+    }
+
+    private void ApplyBubbleMenuPluginResult(ClientBubbleMenuUpdateResult result)
+    {
+        if (result.NewXPageIndex.HasValue)
+        {
+            _bubbleMenuXPageIndex = Math.Clamp(result.NewXPageIndex.Value, 0, 2);
+        }
+
+        if (result.BubbleFrame.HasValue)
+        {
+            if (_networkClient.IsConnected)
+            {
+                _networkClient.QueueChatBubble(result.BubbleFrame.Value);
+            }
+            else
+            {
+                _world.SetLocalPlayerChatBubble(result.BubbleFrame.Value);
+            }
+
+            BeginClosingBubbleMenu();
+            return;
+        }
+
+        if (result.CloseMenu)
+        {
+            BeginClosingBubbleMenu();
+        }
     }
 
     private void ToggleBubbleMenu(BubbleMenuKind kind)
@@ -255,5 +319,39 @@ public partial class Game1
         }
 
         return null;
+    }
+
+    private float GetBubbleMenuPointerDistanceFromCenter(MouseState mouse)
+    {
+        var center = new Vector2(ViewportWidth / 2f, ViewportHeight / 2f);
+        var pointer = new Vector2(mouse.X, mouse.Y);
+        return Vector2.Distance(pointer, center);
+    }
+
+    private int GetBubbleWheelSelectedSlot(MouseState mouse)
+    {
+        if (GetBubbleMenuPointerDistanceFromCenter(mouse) < 30f)
+        {
+            return 0;
+        }
+
+        var aimDirection = _world.LocalPlayer.AimDirectionDegrees + 90f;
+        while (aimDirection >= 360f)
+        {
+            aimDirection -= 360f;
+        }
+
+        return Math.Clamp((int)(aimDirection / 40f) + 1, 1, 9);
+    }
+
+    private static ClientBubbleMenuKind ToClientBubbleMenuKind(BubbleMenuKind kind)
+    {
+        return kind switch
+        {
+            BubbleMenuKind.Z => ClientBubbleMenuKind.Z,
+            BubbleMenuKind.X => ClientBubbleMenuKind.X,
+            BubbleMenuKind.C => ClientBubbleMenuKind.C,
+            _ => ClientBubbleMenuKind.None,
+        };
     }
 }

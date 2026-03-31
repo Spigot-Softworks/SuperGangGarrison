@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -22,11 +23,13 @@ public partial class Game1
         int Id,
         PlayerClass ClassId,
         PlayerTeam Team,
+        DeadBodyAnimationKind AnimationKind,
         float X,
         float Y,
         float Width,
         float Height,
-        bool FacingLeft);
+        bool FacingLeft,
+        int TicksRemaining);
 
     private readonly record struct WeaponRenderDefinition(
         string? NormalSpriteName,
@@ -100,18 +103,13 @@ public partial class Game1
         DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
         DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
         DrawChatBubble(player, cameraPosition);
-        if (_showHealthBarEnabled && visibilityAlpha > 0f)
+        if (_showHealthBarEnabled
+            && visibilityAlpha > 0f
+            && player.Team == _world.LocalPlayer.Team)
         {
-            var isAlly = player.Team == _world.LocalPlayer.Team;
-            var fillColor = isAlly
-                ? new Color(130, 210, 255)
-                : new Color(120, 220, 120);
-            var backColor = isAlly
-                ? new Color(18, 42, 66)
-                : new Color(36, 64, 36);
-            var borderColor = isAlly
-                ? new Color(245, 250, 255)
-                : new Color(240, 245, 220);
+            var fillColor = new Color(130, 210, 255);
+            var backColor = new Color(18, 42, 66);
+            var borderColor = new Color(245, 250, 255);
             DrawHealthBar(player, cameraPosition, fillColor, backColor, borderColor);
         }
     }
@@ -120,13 +118,16 @@ public partial class Game1
     {
         var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
         DrawDeadBodyVisual(
+            deadBody.Id,
             deadBody.ClassId,
             deadBody.Team,
+            deadBody.AnimationKind,
             renderPosition.X,
             renderPosition.Y,
             deadBody.Width,
             deadBody.Height,
             deadBody.FacingLeft,
+            deadBody.TicksRemaining,
             cameraPosition);
     }
 
@@ -136,13 +137,16 @@ public partial class Game1
         {
             var deadBody = _retainedDeadBodies[index];
             DrawDeadBodyVisual(
+                deadBody.Id,
                 deadBody.ClassId,
                 deadBody.Team,
+                deadBody.AnimationKind,
                 deadBody.X,
                 deadBody.Y,
                 deadBody.Width,
                 deadBody.Height,
                 deadBody.FacingLeft,
+                deadBody.TicksRemaining,
                 cameraPosition);
         }
     }
@@ -168,11 +172,13 @@ public partial class Game1
                 deadBody.Id,
                 deadBody.ClassId,
                 deadBody.Team,
+                deadBody.AnimationKind,
                 renderPosition.X,
                 renderPosition.Y,
                 deadBody.Width,
                 deadBody.Height,
-                deadBody.FacingLeft);
+                deadBody.FacingLeft,
+                deadBody.TicksRemaining);
             _staleTrackedDeadBodyIds.Remove(deadBody.Id);
         }
 
@@ -195,16 +201,33 @@ public partial class Game1
     }
 
     private void DrawDeadBodyVisual(
+        int id,
         PlayerClass classId,
         PlayerTeam team,
+        DeadBodyAnimationKind animationKind,
         float x,
         float y,
         float width,
         float height,
         bool facingLeft,
+        int ticksRemaining,
         Vector2 cameraPosition)
     {
         var renderPosition = new Vector2(x, y);
+        if (TryDrawClientPluginDeadBody(cameraPosition, new ClientDeadBodyRenderState(
+            id,
+            ToClientPluginClass(classId),
+            ToClientPluginTeam(team),
+            renderPosition,
+            width,
+            height,
+            facingLeft,
+            ticksRemaining,
+            ToClientDeadBodyAnimationKind(animationKind))))
+        {
+            return;
+        }
+
         var spriteName = GetDeadBodySpriteName(classId, team);
         if (spriteName is not null)
         {
@@ -263,7 +286,7 @@ public partial class Game1
             : player.IsTaunting
                 ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
                 : bodySelection.IsHumiliated
-                    ? GetHumiliationSpriteFrameIndex(player, sprite.Frames.Count)
+                    ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                     : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
@@ -394,7 +417,7 @@ public partial class Game1
         return Math.Clamp((int)MathF.Floor(WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
     }
 
-    private int GetHumiliationSpriteFrameIndex(PlayerEntity player, int frameCount)
+    private int GetHumiliationSpriteFrameIndex(PlayerEntity player, float animationImage, int frameCount)
     {
         if (frameCount <= 0)
         {
@@ -404,14 +427,13 @@ public partial class Game1
         const int framesPerPose = 3;
         if (frameCount <= framesPerPose)
         {
-            var frame = (int)MathF.Floor((_world.Frame * LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond) / 6f);
-            return Math.Clamp(frame % frameCount, 0, frameCount - 1);
+            return Math.Clamp((int)MathF.Floor(animationImage), 0, frameCount - 1);
         }
 
-        var poseCount = Math.Max(1, frameCount / framesPerPose);
-        var poseOffset = Math.Abs(GetPlayerStateKey(player)) % poseCount;
-        var cycleFrame = (int)MathF.Floor((_world.Frame * LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond) / 6f) % framesPerPose;
-        return Math.Clamp((poseOffset * framesPerPose) + cycleFrame, 0, frameCount - 1);
+        var poseCount = Math.Max(1, Math.Min(frameCount / framesPerPose, 11));
+        var poseOffset = Math.Abs(unchecked((GetPlayerStateKey(player) * 97) + 13)) % poseCount;
+        var poseFrame = Math.Clamp((int)MathF.Floor(animationImage), 0, framesPerPose - 1);
+        return Math.Clamp((poseOffset * framesPerPose) + poseFrame, 0, frameCount - 1);
     }
 
     private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount)
@@ -540,7 +562,7 @@ public partial class Game1
         {
             return new PlayerBodySpriteSelection(
                 GetTeamSpriteName(player.ClassId, player.Team, "HS"),
-                0f,
+                animationImage,
                 0f,
                 0f,
                 false,

@@ -17,6 +17,7 @@ public partial class Game1
         _creditsOpen = false;
         _editingPlayerName = false;
         _hostSetupState.PrepareForOpen(_clientSettings.HostDefaults);
+        EnsureSelectedHostMapVisible();
     }
 
     private void TryHostFromSetup(bool runInTerminal = false)
@@ -41,7 +42,9 @@ public partial class Game1
                     request.CapLimit,
                     request.RespawnSeconds,
                     request.LobbyAnnounce,
-                    request.AutoBalance);
+                    request.AutoBalance,
+                    request.RequestedMap,
+                    request.MapRotationFile);
             }
             else
             {
@@ -54,7 +57,9 @@ public partial class Game1
                     request.CapLimit,
                     request.RespawnSeconds,
                     request.LobbyAnnounce,
-                    request.AutoBalance);
+                    request.AutoBalance,
+                    request.RequestedMap,
+                    request.MapRotationFile);
             }
             return;
         }
@@ -68,18 +73,22 @@ public partial class Game1
             request.CapLimit,
             request.RespawnSeconds,
             request.LobbyAnnounce,
-            request.AutoBalance);
+            request.AutoBalance,
+            request.RequestedMap,
+            request.MapRotationFile);
     }
 
     private void ToggleSelectedHostMap()
     {
         _hostSetupState.ToggleSelectedMap();
+        EnsureSelectedHostMapVisible();
         _menuStatusMessage = string.Empty;
     }
 
     private void MoveSelectedHostMap(int direction)
     {
         _hostSetupState.MoveSelectedMap(direction);
+        EnsureSelectedHostMapVisible();
         _menuStatusMessage = string.Empty;
     }
 
@@ -106,5 +115,15 @@ public partial class Game1
     private string GetHostStockRotationSummary(int previewCount = 4)
     {
         return _hostSetupState.GetStockRotationSummary(previewCount);
+    }
+
+    private void EnsureSelectedHostMapVisible()
+    {
+        var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(
+            ViewportWidth,
+            ViewportHeight,
+            _hostMapEntries.Count,
+            IsServerLauncherMode);
+        _hostSetupState.EnsureSelectedMapVisible(layout.VisibleRowCapacity);
     }
 }

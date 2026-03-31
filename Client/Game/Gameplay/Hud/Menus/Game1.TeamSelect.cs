@@ -10,7 +10,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateTeamSelect(MouseState mouse)
+    private void UpdateTeamSelect(KeyboardState keyboard, MouseState mouse)
     {
         if (!_teamSelectOpen)
         {
@@ -40,12 +40,21 @@ public partial class Game1
 
         var panelLeft = (ViewportWidth / 2f) - 400f;
         _teamSelectHoverIndex = GetTeamSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        var selectionFromKeyboard = GetTeamSelectKeyboardSelection(keyboard);
+        if (selectionFromKeyboard >= 0)
+        {
+            _teamSelectHoverIndex = selectionFromKeyboard;
+            ApplyTeamSelection(selectionFromKeyboard);
+            return;
+        }
+
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!clickPressed || _teamSelectHoverIndex < 0)
         {
             return;
         }
 
+        SuppressPrimaryFireUntilMouseRelease();
         ApplyTeamSelection(_teamSelectHoverIndex);
     }
 
@@ -114,6 +123,31 @@ public partial class Game1
             {
                 return index;
             }
+        }
+
+        return -1;
+    }
+
+    private int GetTeamSelectKeyboardSelection(KeyboardState keyboard)
+    {
+        if (IsKeyPressed(keyboard, Keys.D1) || IsKeyPressed(keyboard, Keys.NumPad1))
+        {
+            return 0;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.D2) || IsKeyPressed(keyboard, Keys.NumPad2))
+        {
+            return 1;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.D3) || IsKeyPressed(keyboard, Keys.NumPad3))
+        {
+            return 2;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.D4) || IsKeyPressed(keyboard, Keys.NumPad4))
+        {
+            return 3;
         }
 
         return -1;

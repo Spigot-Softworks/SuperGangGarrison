@@ -96,7 +96,8 @@ public sealed partial class SimulationWorld
             player.TryStartTaunt();
         }
 
-        var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove);
+        ApplyRoomForces(player);
+        var startedGrounded = player.PrepareMovement(input, Level, team, Config.FixedDeltaSeconds, out var canMove, isHumiliated);
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         var emitWallspinDust = player.IsAlive && player.IsPerformingSourceSpinjump(Level);
         if (jumped)
@@ -120,7 +121,8 @@ public sealed partial class SimulationWorld
             RegisterWallspinDustEffect(player);
         }
 
-        player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped);
+        AdvancePendingRocketsForOwner(player.Id);
+        player.CompleteMovement(Level, team, Config.FixedDeltaSeconds, startedGrounded, jumped, input.Down);
         TryRegisterIntelTrailEffect(player);
         UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);
@@ -306,7 +308,10 @@ public sealed partial class SimulationWorld
 
             if (player.IsMedicUberReady && input.FirePrimary)
             {
-                player.TryStartMedicUber();
+                if (player.TryStartMedicUber())
+                {
+                    AwardMedicUberActivationPoints(player);
+                }
             }
         }
 

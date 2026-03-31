@@ -8,6 +8,11 @@ public partial class Game1
 {
     private void OnWindowTextInput(object? sender, TextInputEventArgs e)
     {
+        if (HandleNavEditorTextInput(e))
+        {
+            return;
+        }
+
         if (HandlePasswordPromptTextInput(e))
         {
             return;

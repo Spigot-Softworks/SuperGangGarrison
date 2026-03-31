@@ -63,6 +63,39 @@ public static class BotNavigationHintStore
         return File.Exists(runtimePath) ? runtimePath : null;
     }
 
+    public static string ResolveWritablePath(string levelName, int mapAreaIndex)
+    {
+        var fileName = $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex)}.botnavhints.json";
+        var existingPath = ResolvePath(levelName, mapAreaIndex);
+        if (!string.IsNullOrWhiteSpace(existingPath))
+        {
+            return existingPath;
+        }
+
+        var projectDirectory = ProjectSourceLocator.FindDirectory(HintsRelativeDirectory);
+        if (!string.IsNullOrWhiteSpace(projectDirectory))
+        {
+            return Path.Combine(projectDirectory, fileName);
+        }
+
+        return ContentRoot.GetPath("BotNavHints", fileName);
+    }
+
+    public static void Save(BotNavigationHintAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+
+        var path = ResolveWritablePath(asset.LevelName, asset.MapAreaIndex);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var json = JsonSerializer.Serialize(asset, SerializerOptions);
+        File.WriteAllText(path, json);
+    }
+
     private static string SanitizeFileToken(string value)
     {
         if (string.IsNullOrWhiteSpace(value))

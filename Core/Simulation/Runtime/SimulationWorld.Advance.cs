@@ -49,6 +49,7 @@ public sealed partial class SimulationWorld
 
         if (FriendlyDummyEnabled && FriendlyDummy.IsAlive)
         {
+            ApplyRoomForces(FriendlyDummy);
             FriendlyDummy.Advance(default, false, Level, FriendlyDummy.Team, Config.FixedDeltaSeconds);
             UpdateSpawnRoomState(FriendlyDummy);
             TryActivatePendingSpyBackstab(FriendlyDummy);
@@ -66,8 +67,15 @@ public sealed partial class SimulationWorld
             case GameModeKind.ControlPoint:
                 UpdateControlPointState();
                 break;
+            case GameModeKind.KingOfTheHill:
+            case GameModeKind.DoubleKingOfTheHill:
+                UpdateControlPointState();
+                UpdateKothState();
+                break;
             case GameModeKind.Generator:
                 UpdateGeneratorState();
+                break;
+            case GameModeKind.TeamDeathmatch:
                 break;
             default:
                 UpdateCaptureTheFlagState();

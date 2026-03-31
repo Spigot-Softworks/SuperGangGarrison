@@ -22,6 +22,7 @@ public enum MessageType : byte
     ChatSubmit = 15,
     ChatRelay = 16,
     SnapshotAck = 17,
+    PlayerProfileUpdate = 18,
 }
 
 public enum ControlCommandKind : byte
@@ -53,7 +54,7 @@ public interface IProtocolMessage
     MessageType Type { get; }
 }
 
-public sealed record HelloMessage(string Name, int Version) : IProtocolMessage
+public sealed record HelloMessage(string Name, int Version, ulong BadgeMask) : IProtocolMessage
 {
     public MessageType Type => MessageType.Hello;
 }
@@ -173,6 +174,11 @@ public sealed record SnapshotAckMessage(ulong Frame) : IProtocolMessage
     public MessageType Type => MessageType.SnapshotAck;
 }
 
+public sealed record PlayerProfileUpdateMessage(string Name, ulong BadgeMask) : IProtocolMessage
+{
+    public MessageType Type => MessageType.PlayerProfileUpdate;
+}
+
 public sealed record SnapshotPlayerState(
     byte Slot,
     int PlayerId,
@@ -194,6 +200,7 @@ public sealed record SnapshotPlayerState(
     short Kills,
     short Deaths,
     short Caps,
+    float Points,
     short HealPoints,
     short ActiveDominationCount,
     bool IsDominatingLocalViewer,
@@ -233,7 +240,9 @@ public sealed record SnapshotPlayerState(
     bool IsPyroPrimaryRefilling = false,
     int PyroFlameLoopTicksRemaining = 0,
     bool PyroPrimaryRequiresReleaseAfterEmpty = false,
-    int HeavyEatCooldownTicksRemaining = 0);
+    int HeavyEatCooldownTicksRemaining = 0,
+    short Assists = 0,
+    ulong BadgeMask = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -339,6 +348,7 @@ public sealed record SnapshotDeadBodyState(
     int Id,
     byte Team,
     byte ClassId,
+    byte AnimationKind,
     float X,
     float Y,
     float Width,
@@ -470,6 +480,9 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotBloodDropState> BloodDrops,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     int ControlPointSetupTicksRemaining,
+    int KothUnlockTicksRemaining,
+    int KothRedTimerTicksRemaining,
+    int KothBlueTimerTicksRemaining,
     IReadOnlyList<SnapshotControlPointState> ControlPoints,
     IReadOnlyList<SnapshotGeneratorState> Generators,
     SnapshotDeathCamState? LocalDeathCam,

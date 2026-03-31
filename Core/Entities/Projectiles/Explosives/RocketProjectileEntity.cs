@@ -11,6 +11,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public const float FadeLifetimeSourceTicks = 8f;
     public const float InitialKnockback = 8f;
     public const float ReducedKnockback = 5f;
+    public const float EnvironmentCollisionBackoffDistance = 6f;
     public const float NormalReducedKnockbackDelaySourceTicks = 20f;
     public const float NormalZeroKnockbackDelaySourceTicks = 30f;
     public const float ReflectedReducedKnockbackDelaySourceTicks = 40f;

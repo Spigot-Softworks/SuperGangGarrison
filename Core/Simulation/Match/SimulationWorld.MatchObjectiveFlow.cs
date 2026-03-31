@@ -142,9 +142,21 @@ public sealed partial class SimulationWorld
                 return;
             }
 
+            if (SimulationWorld.IsKothMode(world.MatchRules.Mode))
+            {
+                world.AdvanceKothMatchState();
+                return;
+            }
+
             if (world.MatchRules.Mode == GameModeKind.Generator)
             {
                 AdvanceGeneratorMatchState(world);
+                return;
+            }
+
+            if (world.MatchRules.Mode == GameModeKind.TeamDeathmatch)
+            {
+                AdvanceTeamDeathmatchMatchState(world);
                 return;
             }
 
@@ -213,6 +225,34 @@ public sealed partial class SimulationWorld
             if (capWinner.HasValue)
             {
                 world.MatchState = world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = capWinner };
+                world.QueuePendingMapChange();
+                return;
+            }
+
+            if (world.MatchState.TimeRemainingTicks > 0)
+            {
+                world.MatchState = world.MatchState with { TimeRemainingTicks = world.MatchState.TimeRemainingTicks - 1 };
+                if (world.MatchState.TimeRemainingTicks > 0)
+                {
+                    return;
+                }
+            }
+
+            world.MatchState = world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = GetHigherCapWinner(world) };
+            world.QueuePendingMapChange();
+        }
+
+        public static void AdvanceTeamDeathmatchMatchState(SimulationWorld world)
+        {
+            if (world.MatchState.IsEnded)
+            {
+                return;
+            }
+
+            var killLimitWinner = GetCapLimitWinner(world);
+            if (killLimitWinner.HasValue)
+            {
+                world.MatchState = world.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = killLimitWinner };
                 world.QueuePendingMapChange();
                 return;
             }

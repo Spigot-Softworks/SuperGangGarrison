@@ -553,6 +553,9 @@ public partial class Game1
             GameModeKind.Arena => "Arena",
             GameModeKind.ControlPoint => "CP",
             GameModeKind.Generator => "Gen",
+            GameModeKind.KingOfTheHill => "KOTH",
+            GameModeKind.DoubleKingOfTheHill => "DKOTH",
+            GameModeKind.TeamDeathmatch => "TDM",
             _ => "CTF",
         };
         return entry.IsCustomMap

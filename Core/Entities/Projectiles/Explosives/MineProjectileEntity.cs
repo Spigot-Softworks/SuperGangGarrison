@@ -8,6 +8,7 @@ public sealed class MineProjectileEntity : SimulationEntity
     public const float GravityPerTick = 0.2f;
     public const float MaxFallSpeed = 8f;
     public const float BlastImpulse = 10f;
+    public const float EnvironmentCollisionBackoffDistance = 3f;
     public const float SelfDamageScale = 5f / 9f;
     public const float SplashThresholdFactor = 0.25f;
     public const float SentryDamageMultiplier = 1.5f;

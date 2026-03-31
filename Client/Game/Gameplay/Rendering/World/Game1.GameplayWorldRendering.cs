@@ -146,6 +146,10 @@ public partial class Game1
         {
             DrawControlPoints(cameraPosition);
         }
+        else if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        {
+            DrawControlPoints(cameraPosition);
+        }
         else if (_world.MatchRules.Mode == GameModeKind.Generator)
         {
             DrawGenerators(cameraPosition);

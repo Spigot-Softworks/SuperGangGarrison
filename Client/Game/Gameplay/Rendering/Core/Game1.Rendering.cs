@@ -32,8 +32,8 @@ public partial class Game1
 
             var alpha = 0.8f * (trace.TicksRemaining / 3f);
             var color = trace.Team == PlayerTeam.Blue
-                ? new Color(120, 185, 255) * alpha
-                : new Color(255, 96, 96) * alpha;
+                ? Color.Blue * alpha
+                : Color.Red * alpha;
             DrawWorldLine(trace.StartX, trace.StartY, trace.EndX, trace.EndY, cameraPosition, color, 2f);
         }
     }

@@ -15,9 +15,9 @@ sealed class ServerSettings
 
     public bool UseLobbyServer { get; set; } = true;
 
-    public string LobbyHost { get; set; } = "OpenGarrison.game-host.org";
+    public string LobbyHost { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
 
-    public int LobbyPort { get; set; } = 29942;
+    public int LobbyPort { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyPort;
 
     public string RequestedMap { get; set; } = string.Empty;
 

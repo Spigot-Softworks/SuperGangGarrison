@@ -72,6 +72,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
         player.SetDisplayName(GetNetworkPlayerDefaultName(slot));
+        player.SetBadgeMask(0);
         player.ResetRoundStats();
         player.ClearMedicHealingTarget();
         foreach (var otherPlayer in EnumerateSimulatedPlayers())

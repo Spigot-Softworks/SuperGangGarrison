@@ -25,6 +25,11 @@ public sealed partial class SimulationWorld
         LocalPlayer.SetDisplayName(displayName);
     }
 
+    public void SetLocalPlayerBadgeMask(ulong badgeMask)
+    {
+        LocalPlayer.SetBadgeMask(badgeMask);
+    }
+
     public void SetLocalPlayerChatBubble(int frameIndex)
     {
         LocalPlayer.TriggerChatBubble(frameIndex);
@@ -53,6 +58,29 @@ public sealed partial class SimulationWorld
         }
     }
 
+    public bool TrySetNetworkPlayerBadgeMask(byte slot, ulong badgeMask)
+    {
+        switch (slot)
+        {
+            case LocalPlayerSlot:
+                SetLocalPlayerBadgeMask(badgeMask);
+                return true;
+            default:
+                if (IsPlayableNetworkPlayerSlot(slot))
+                {
+                    EnsureAdditionalNetworkPlayer(slot);
+                }
+
+                if (!TryGetNetworkPlayer(slot, out var player))
+                {
+                    return false;
+                }
+
+                player.SetBadgeMask(badgeMask);
+                return true;
+        }
+    }
+
     public bool TryTriggerNetworkPlayerChatBubble(byte slot, int frameIndex)
     {
         switch (slot)
@@ -75,6 +103,7 @@ public sealed partial class SimulationWorld
     {
         if (TryGetNetworkPlayer(slot, out var configuredPlayer) && configuredPlayer.Team != team)
         {
+            TryDropCarriedIntel(configuredPlayer);
             ClearDominationsForPlayer(configuredPlayer);
         }
 

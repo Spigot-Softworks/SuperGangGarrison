@@ -1,3 +1,6 @@
+using System;
+using Microsoft.Xna.Framework.Input;
+
 namespace OpenGarrison.Client.Plugins;
 
 public sealed record ClientPluginChoiceOptionValue(int Value, string Label);
@@ -71,5 +74,70 @@ public sealed class ClientPluginChoiceOptionItem(
         }
 
         setter(choices[0].Value);
+    }
+}
+
+public sealed class ClientPluginIntegerOptionItem(
+    string label,
+    Func<int> getter,
+    Action<int> setter,
+    int minValue,
+    int maxValue,
+    int step = 1,
+    Func<int, string>? valueLabelFormatter = null) : ClientPluginOptionItem(label)
+{
+    public override string GetValueLabel()
+    {
+        var value = getter();
+        return valueLabelFormatter is null
+            ? value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : valueLabelFormatter(value);
+    }
+
+    public override void Activate()
+    {
+        if (maxValue < minValue)
+        {
+            return;
+        }
+
+        var current = int.Clamp(getter(), minValue, maxValue);
+        var normalizedStep = Math.Max(1, step);
+        var next = current + normalizedStep;
+        if (next > maxValue)
+        {
+            next = minValue;
+        }
+
+        setter(next);
+    }
+}
+
+public sealed class ClientPluginKeyOptionItem(
+    string label,
+    Func<Keys> getter,
+    Action<Keys> setter,
+    Func<Keys, string>? valueLabelFormatter = null) : ClientPluginOptionItem(label)
+{
+    public Keys GetKey()
+    {
+        return getter();
+    }
+
+    public void SetKey(Keys key)
+    {
+        setter(key);
+    }
+
+    public override string GetValueLabel()
+    {
+        var key = getter();
+        return valueLabelFormatter is null
+            ? key.ToString()
+            : valueLabelFormatter(key);
+    }
+
+    public override void Activate()
+    {
     }
 }

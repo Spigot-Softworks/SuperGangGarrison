@@ -23,7 +23,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            DestroySentry(sentry);
+            DestroySentry(sentry, attacker: null);
             return true;
         }
 
@@ -38,7 +38,7 @@ public sealed partial class SimulationWorld
             var owner = FindPlayerById(sentry.OwnerPlayerId);
             if (owner is null || owner.ClassId != PlayerClass.Engineer || owner.Team != sentry.Team)
             {
-                DestroySentry(sentry);
+                DestroySentry(sentry, attacker: null);
                 continue;
             }
 
@@ -56,7 +56,11 @@ public sealed partial class SimulationWorld
 
             var target = AcquireSentryTarget(sentry);
             var previousTargetId = sentry.CurrentTargetPlayerId;
-            sentry.SetTarget(target?.PlayerId, target?.X ?? sentry.X + sentry.FacingDirectionX, target.HasValue);
+            sentry.SetTarget(
+                target?.PlayerId,
+                target?.X ?? sentry.X + sentry.FacingDirectionX,
+                target?.Y ?? sentry.Y,
+                target.HasValue);
             if (!target.HasValue)
             {
                 continue;
@@ -203,7 +207,7 @@ public sealed partial class SimulationWorld
         return nearestTarget;
     }
 
-    private void DestroySentry(SentryEntity sentry)
+    private void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null)
     {
         for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
         {
@@ -212,6 +216,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            AwardSentryDestructionPoints(sentry, attacker);
             ReleaseMinesFromSentry(sentry);
             ApplySentryDestroyBlastToOwner(sentry);
             _entities.Remove(sentry.Id);
@@ -341,7 +346,7 @@ public sealed partial class SimulationWorld
             }
 
             hadSentry = true;
-            DestroySentry(_sentries[index]);
+            DestroySentry(_sentries[index], attacker: null);
         }
 
         return hadSentry;

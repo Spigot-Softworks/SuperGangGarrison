@@ -74,7 +74,7 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, connect <host> [port], disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, show_import, show_engineer, show_medic");
+                AddConsoleLine("help, clear, connect <host> [port], disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, nav_edit <on|off|status|save|reload|rebuild>, spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, show_import, show_engineer, show_medic");
                 break;
             case "clear":
                 _consoleHistory.Clear();
@@ -167,6 +167,40 @@ public partial class Game1
                         break;
                     default:
                         AddConsoleLine("usage: bot_diag <on|off|status|clear>");
+                        break;
+                }
+
+                break;
+            case "nav_edit":
+                if (parts.Length < 2)
+                {
+                    AddConsoleLine(_navEditorEnabled ? "nav editor: enabled" : "nav editor: disabled");
+                    break;
+                }
+
+                switch (parts[1].ToLowerInvariant())
+                {
+                    case "on":
+                        EnableNavEditor();
+                        break;
+                    case "off":
+                        DisableNavEditor("nav editor disabled");
+                        break;
+                    case "status":
+                        AddConsoleLine(_navEditorEnabled ? "nav editor: enabled" : "nav editor: disabled");
+                        AddConsoleLine(_navEditorStatusMessage);
+                        break;
+                    case "save":
+                        SaveNavEditorHints();
+                        break;
+                    case "reload":
+                        ReloadNavEditorState("nav editor reloaded from disk");
+                        break;
+                    case "rebuild":
+                        StartNavEditorRebuild();
+                        break;
+                    default:
+                        AddConsoleLine("usage: nav_edit <on|off|status|save|reload|rebuild>");
                         break;
                 }
 
@@ -409,10 +443,19 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, overlayRectangle, new Color(10, 14, 18, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(overlayRectangle.X, overlayRectangle.Y, overlayRectangle.Width, 2), new Color(245, 215, 120));
 
-        var linePosition = new Vector2(overlayRectangle.X + 12, overlayRectangle.Y + 10);
+        var wrappedLines = new List<string>();
+        var maxTextWidth = overlayRectangle.Width - 24f;
         foreach (var line in _consoleHistory)
         {
-            _spriteBatch.DrawString(_consoleFont, line, linePosition, new Color(230, 232, 235));
+            AppendWrappedConsoleLines(wrappedLines, line, maxTextWidth);
+        }
+
+        var availableLineCount = Math.Max(1, (overlayRectangle.Height - 52) / 18);
+        var firstLineIndex = Math.Max(0, wrappedLines.Count - availableLineCount);
+        var linePosition = new Vector2(overlayRectangle.X + 12, overlayRectangle.Y + 10);
+        for (var index = firstLineIndex; index < wrappedLines.Count; index += 1)
+        {
+            _spriteBatch.DrawString(_consoleFont, wrappedLines[index], linePosition, new Color(230, 232, 235));
             linePosition.Y += 18f;
         }
 
@@ -422,6 +465,59 @@ public partial class Game1
             promptText,
             new Vector2(overlayRectangle.X + 12, overlayRectangle.Bottom - 30),
             new Color(255, 245, 190));
+    }
+
+    private void AppendWrappedConsoleLines(List<string> lines, string text, float maxWidth)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            lines.Add(string.Empty);
+            return;
+        }
+
+        var paragraphs = text.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n');
+        foreach (var paragraph in paragraphs)
+        {
+            if (string.IsNullOrWhiteSpace(paragraph))
+            {
+                lines.Add(string.Empty);
+                continue;
+            }
+
+            var current = string.Empty;
+            foreach (var word in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var candidate = current.Length == 0 ? word : $"{current} {word}";
+                if (_consoleFont.MeasureString(candidate).X <= maxWidth)
+                {
+                    current = candidate;
+                    continue;
+                }
+
+                if (current.Length > 0)
+                {
+                    lines.Add(current);
+                }
+
+                current = word;
+                while (_consoleFont.MeasureString(current).X > maxWidth && current.Length > 1)
+                {
+                    var splitLength = current.Length - 1;
+                    while (splitLength > 1 && _consoleFont.MeasureString(current[..splitLength]).X > maxWidth)
+                    {
+                        splitLength -= 1;
+                    }
+
+                    lines.Add(current[..splitLength]);
+                    current = current[splitLength..];
+                }
+            }
+
+            if (current.Length > 0)
+            {
+                lines.Add(current);
+            }
+        }
     }
 
     private void AddConsoleLine(string line)

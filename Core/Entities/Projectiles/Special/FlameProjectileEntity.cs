@@ -10,8 +10,10 @@ public sealed class FlameProjectileEntity : SimulationEntity
     public const bool AfterburnFalloff = true;
     public const float BurnDamagePerTick = 0.06f;
     public const float GravityPerTick = 0.15f;
+    public const int PenetrationCap = 1;
 
     private float _burnDamageAccumulator;
+    private readonly HashSet<int> _hitPlayerIds = [];
 
     public FlameProjectileEntity(
         int id,
@@ -21,7 +23,8 @@ public sealed class FlameProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
-        int ticksRemaining = AirLifetimeTicks) : base(id)
+        int ticksRemaining = AirLifetimeTicks,
+        bool isPerseverant = false) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -30,6 +33,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
+        IsPerseverant = isPerseverant;
     }
 
     public PlayerTeam Team { get; }
@@ -59,6 +63,10 @@ public sealed class FlameProjectileEntity : SimulationEntity
     public bool IsAttached => AttachedPlayerId.HasValue;
 
     public bool IsExpired => TicksRemaining <= 0;
+
+    public bool IsPerseverant { get; }
+
+    public int HitPlayerCount => _hitPlayerIds.Count;
 
     public void AdvanceOneTick(float deltaSeconds)
     {
@@ -125,6 +133,16 @@ public sealed class FlameProjectileEntity : SimulationEntity
     public void Destroy()
     {
         TicksRemaining = 0;
+    }
+
+    public bool HasHitPlayer(int playerId)
+    {
+        return _hitPlayerIds.Contains(playerId);
+    }
+
+    public void RegisterHitPlayer(int playerId)
+    {
+        _hitPlayerIds.Add(playerId);
     }
 
     public void ApplyNetworkState(

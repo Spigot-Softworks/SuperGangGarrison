@@ -119,7 +119,8 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
-            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks));
+            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
+            isPerseverant: _random.Next(8) == 0);
         _flames.Add(flame);
         _entities.Add(flame.Id, flame);
     }
@@ -158,6 +159,12 @@ public sealed partial class SimulationWorld
 
         _rockets.Add(rocket);
         _entities.Add(rocket.Id, rocket);
+        _pendingNewRocketIds.Add(rocket.Id);
+    }
+
+    private void AdvancePendingRocketsForOwner(int ownerId)
+    {
+        RocketProjectileSystem.AdvancePendingForOwner(this, ownerId);
     }
 
     private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY)

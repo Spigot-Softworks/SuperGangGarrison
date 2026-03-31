@@ -3,7 +3,7 @@ namespace OpenGarrison.Core;
 public sealed class RevolverProjectileEntity : SimulationEntity
 {
     public const int LifetimeTicks = 40;
-    public const int DamagePerHit = 25;
+    public const int DamagePerHit = 28;
     public const float GravityPerTick = 0.15f;
 
     public RevolverProjectileEntity(

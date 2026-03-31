@@ -170,7 +170,19 @@ public partial class Game1
         {
             var sheet = _looseSheetVisuals[index];
             sheet.TicksRemaining -= 1;
+            if (sheet.IsBurning)
+            {
+                sheet.BurnTicksRemaining -= 1;
+                sheet.BurnAnimationTicks += 1;
+            }
+
             if (sheet.TicksRemaining <= 0)
+            {
+                _looseSheetVisuals.RemoveAt(index);
+                continue;
+            }
+
+            if (sheet.IsBurning && sheet.BurnTicksRemaining <= 0)
             {
                 _looseSheetVisuals.RemoveAt(index);
                 continue;
@@ -183,13 +195,25 @@ public partial class Game1
             AdvanceLooseSheetAxis(ref sheetX, sheetY, ref velocityX, horizontal: true);
             AdvanceLooseSheetAxis(ref sheetY, sheetX, ref velocityY, horizontal: false);
 
-            if (!IsLooseSheetBlocked(sheetX, sheetY + 1f))
+            if (!sheet.IsBurning && IsLooseSheetIgnited(sheetX, sheetY))
+            {
+                sheet.IsBurning = true;
+                sheet.SpriteName = "SheetBurning";
+                sheet.BurnTicksRemaining = LooseSheetVisual.BurnLifetimeTicks;
+                sheet.BurnAnimationTicks = 0;
+            }
+
+            if (!sheet.IsBurning && !IsLooseSheetBlocked(sheetX, sheetY + 1f))
             {
                 velocityY = MathF.Min(1.4f, velocityY + 0.035f);
             }
-            else
+            else if (!sheet.IsBurning)
             {
                 velocityX *= 0.95f;
+            }
+            else
+            {
+                velocityY = MathF.Max(-1.8f, velocityY - 0.2f);
             }
 
             velocityX *= 0.985f;
@@ -728,8 +752,14 @@ public partial class Game1
                 : 1f;
             if (sprite is not null && sprite.Frames.Count > 0)
             {
+                var frameIndex = 0;
+                if (sheet.IsBurning)
+                {
+                    frameIndex = Math.Clamp(sheet.BurnAnimationTicks / 4, 0, sprite.Frames.Count - 1);
+                }
+
                 _spriteBatch.Draw(
-                    sprite.Frames[0],
+                    sprite.Frames[frameIndex],
                     new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y),
                     null,
                     Color.White * alpha,
@@ -1103,6 +1133,27 @@ public partial class Game1
         foreach (var wall in _world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
         {
             if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsLooseSheetIgnited(float x, float y)
+    {
+        for (var index = 0; index < _world.Flames.Count; index += 1)
+        {
+            if (DistanceSquared(x, y, _world.Flames[index].X, _world.Flames[index].Y) <= 196f)
+            {
+                return true;
+            }
+        }
+
+        for (var index = 0; index < _world.Flares.Count; index += 1)
+        {
+            if (DistanceSquared(x, y, _world.Flares[index].X, _world.Flares[index].Y) <= 144f)
             {
                 return true;
             }
@@ -1536,6 +1587,7 @@ public partial class Game1
     {
         public const int LifetimeTicks = 260;
         public const int FadeTicks = 60;
+        public const int BurnLifetimeTicks = 24;
 
         public LooseSheetVisual(float x, float y, float velocityX, float velocityY, float rotationSpeedRadians, string spriteName)
         {
@@ -1560,7 +1612,13 @@ public partial class Game1
 
         public float RotationSpeedRadians { get; }
 
-        public string SpriteName { get; }
+        public string SpriteName { get; set; }
+
+        public bool IsBurning { get; set; }
+
+        public int BurnTicksRemaining { get; set; }
+
+        public int BurnAnimationTicks { get; set; }
 
         public int TicksRemaining { get; set; }
     }

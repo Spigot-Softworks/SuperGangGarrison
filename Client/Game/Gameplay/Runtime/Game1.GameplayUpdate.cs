@@ -33,6 +33,10 @@ public partial class Game1
         ResetProcessedNetworkEventHistory();
         _wasDeathCamActive = false;
         _wasMatchEnded = false;
+        if (_navEditorEnabled)
+        {
+            DisableNavEditor("nav editor closed after map change");
+        }
         _observedGameplayLevelName = currentLevelName;
         _observedGameplayMapAreaIndex = currentMapAreaIndex;
     }
@@ -47,7 +51,10 @@ public partial class Game1
             || _inputBindings.ChangeTeam == key
             || _inputBindings.ChangeClass == key
             || _inputBindings.ShowScoreboard == key
-            || _inputBindings.ToggleConsole == key;
+            || _inputBindings.ToggleConsole == key
+            || _inputBindings.OpenBubbleMenuZ == key
+            || _inputBindings.OpenBubbleMenuX == key
+            || _inputBindings.OpenBubbleMenuC == key;
     }
 
     private bool IsChatShortcutHeld(KeyboardState keyboard)
@@ -90,6 +97,8 @@ public partial class Game1
             ResetChatInputState();
             return;
         }
+
+        UpdateSpectatorTrackingHotkeys(keyboard);
 
         if (!_passwordPromptOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen)
         {
@@ -151,12 +160,45 @@ public partial class Game1
 
     private (PlayerInputSnapshot GameplayInput, PlayerInputSnapshot NetworkInput) BuildGameplayInputs(KeyboardState keyboard, MouseState mouse, Vector2 cameraPosition)
     {
-        var gameplayInput = IsGameplayInputBlocked() || _networkClient.IsConnected
+        if (_suppressPrimaryFireUntilMouseRelease
+            && mouse.LeftButton != ButtonState.Pressed)
+        {
+            _suppressPrimaryFireUntilMouseRelease = false;
+        }
+
+        var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
+        if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
+        {
+            fullInput = fullInput with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+            };
+        }
+
+        var blockedInput = ShouldPreserveAimWhileBlocked()
+            ? BuildAimOnlyGameplaySnapshot(fullInput)
+            : default;
+        var gameplayInput = _networkClient.IsConnected
             ? default
-            : KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
+            : IsGameplayInputBlocked()
+                ? blockedInput
+                : fullInput;
         var networkInput = IsGameplayInputBlocked()
-            ? default
-            : KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
+            ? blockedInput
+            : fullInput;
+
+        if (_suppressPrimaryFireUntilMouseRelease)
+        {
+            gameplayInput = gameplayInput with
+            {
+                FirePrimary = false,
+            };
+            networkInput = networkInput with
+            {
+                FirePrimary = false,
+            };
+        }
 
         if (_world.IsPlayerHumiliated(_world.LocalPlayer))
         {
@@ -181,6 +223,62 @@ public partial class Game1
         return (gameplayInput, networkInput);
     }
 
+    private void SuppressPrimaryFireUntilMouseRelease()
+    {
+        _suppressPrimaryFireUntilMouseRelease = true;
+    }
+
+    private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard)
+    {
+        if (!_networkClient.IsSpectator
+            || _consoleOpen
+            || _chatOpen
+            || _passwordPromptOpen
+            || _teamSelectOpen
+            || _classSelectOpen
+            || IsGameplayMenuOpen())
+        {
+            return;
+        }
+
+        if (IsKeyPressed(keyboard, Keys.Add) || IsKeyPressed(keyboard, Keys.OemPlus))
+        {
+            CycleSpectatorTracking(forward: true);
+        }
+        else if (IsKeyPressed(keyboard, Keys.Subtract) || IsKeyPressed(keyboard, Keys.OemMinus))
+        {
+            CycleSpectatorTracking(forward: false);
+        }
+    }
+
+    private bool ShouldPreserveAimWhileBlocked()
+    {
+        return _chatOpen
+            && !_consoleOpen
+            && !_passwordPromptOpen
+            && !_teamSelectOpen
+            && !_classSelectOpen
+            && !IsGameplayMenuOpen();
+    }
+
+    private static PlayerInputSnapshot BuildAimOnlyGameplaySnapshot(PlayerInputSnapshot input)
+    {
+        return input with
+        {
+            Left = false,
+            Right = false,
+            Up = false,
+            Down = false,
+            BuildSentry = false,
+            DestroySentry = false,
+            Taunt = false,
+            FirePrimary = false,
+            FireSecondary = false,
+            DebugKill = false,
+            DropIntel = false,
+        };
+    }
+
     private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
     {
         if (_networkClient.IsConnected)
@@ -191,12 +289,15 @@ public partial class Game1
         {
             BeginBotDiagnosticsFrame(gameTime);
             UpdatePracticeBots();
-            _simulator.Step(gameTime.ElapsedGameTime.TotalSeconds);
+            _simulator.Step(
+                gameTime.ElapsedGameTime.TotalSeconds,
+                OnNavEditorTraversalCaptureBeforeTick,
+                OnNavEditorTraversalCaptureAfterTick);
             FinalizeBotDiagnosticsFrame();
         }
     }
 
-    private void UpdateGameplayPresentation(GameTime gameTime, MouseState mouse, int clientTicks)
+    private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
     {
         var interpolationStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         UpdateInterpolatedWorldState();
@@ -224,7 +325,7 @@ public partial class Game1
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
         EnsureIngameMusicPlaying();
-        UpdateTeamSelect(mouse);
+        UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
     }
 
@@ -236,6 +337,7 @@ public partial class Game1
             || _teamSelectAlpha > 0.02f
             || _classSelectOpen
             || _classSelectAlpha > 0.02f
+            || ShouldBlockGameplayForNavEditor()
             || _practiceSetupOpen
             || _inGameMenuOpen
             || _optionsMenuOpen

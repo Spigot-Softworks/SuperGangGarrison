@@ -21,20 +21,20 @@ public static class BotNavigationAssetStore
         SerializerOptions.Converters.Add(new JsonStringEnumConverter());
     }
 
-    public static BotNavigationLoadResult LoadForLevel(SimpleLevel level, IReadOnlyList<BotNavigationProfile>? profiles = null)
+    public static BotNavigationLoadResult LoadForLevel(SimpleLevel level, IReadOnlyList<PlayerClass>? classes = null)
     {
         ArgumentNullException.ThrowIfNull(level);
 
-        var requestedProfiles = profiles ?? BotNavigationProfiles.All;
+        var requestedClasses = classes ?? BotNavigationClasses.All;
         var fingerprint = BotNavigationLevelFingerprint.Compute(level);
-        var assets = new Dictionary<BotNavigationProfile, BotNavigationAsset>();
-        var statuses = new List<BotNavigationAssetStatus>(requestedProfiles.Count);
+        var assets = new Dictionary<PlayerClass, BotNavigationAsset>();
+        var statuses = new List<BotNavigationAssetStatus>(requestedClasses.Count);
 
-        foreach (var profile in requestedProfiles.Distinct())
+        foreach (var classId in requestedClasses.Distinct())
         {
-            if (TryLoadAsset(level, profile, fingerprint, out var asset, out var status))
+            if (TryLoadAsset(level, classId, fingerprint, out var asset, out var status))
             {
-                assets[profile] = asset!;
+                assets[classId] = asset!;
             }
 
             statuses.Add(status);
@@ -49,107 +49,184 @@ public static class BotNavigationAssetStore
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
         Directory.CreateDirectory(outputDirectory);
-        var outputPath = Path.Combine(outputDirectory, GetAssetFileName(asset.LevelName, asset.MapAreaIndex, asset.Profile));
+        var outputPath = Path.Combine(outputDirectory, GetAssetFileName(asset));
         WriteAsset(outputPath, asset);
     }
 
     public static void SaveRuntimeCache(BotNavigationAsset asset)
     {
         ArgumentNullException.ThrowIfNull(asset);
-        var cachePath = GetRuntimeCachePath(asset.LevelName, asset.MapAreaIndex, asset.Profile, asset.LevelFingerprint);
+        var cachePath = GetRuntimeCachePath(asset);
         WriteAsset(cachePath, asset);
     }
 
-    public static string GetAssetFileName(string levelName, int mapAreaIndex, BotNavigationProfile profile)
+    public static string GetAssetFileName(string levelName, int mapAreaIndex, PlayerClass classId)
+    {
+        return $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex)}.{BotNavigationClasses.GetFileToken(classId)}.botnav.json";
+    }
+
+    public static string GetRuntimeCachePath(string levelName, int mapAreaIndex, PlayerClass classId, string levelFingerprint)
+    {
+        var cacheFileName = $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex)}.{BotNavigationClasses.GetFileToken(classId)}.{TrimFingerprint(levelFingerprint)}.botnav.json";
+        return RuntimePaths.GetConfigPath(Path.Combine(RuntimeCacheDirectoryName, cacheFileName));
+    }
+
+    public static string? ResolveShippedPath(string levelName, int mapAreaIndex, PlayerClass classId)
+    {
+        return ResolvePath(GetAssetFileName(levelName, mapAreaIndex, classId));
+    }
+
+    public static string GetLegacyAssetFileName(string levelName, int mapAreaIndex, BotNavigationProfile profile)
     {
         return $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex)}.{BotNavigationProfiles.GetFileToken(profile)}.botnav.json";
     }
 
-    public static string GetRuntimeCachePath(string levelName, int mapAreaIndex, BotNavigationProfile profile, string levelFingerprint)
+    public static string GetLegacyRuntimeCachePath(string levelName, int mapAreaIndex, BotNavigationProfile profile, string levelFingerprint)
     {
         var cacheFileName = $"{SanitizeFileToken(levelName)}.a{Math.Max(1, mapAreaIndex)}.{BotNavigationProfiles.GetFileToken(profile)}.{TrimFingerprint(levelFingerprint)}.botnav.json";
         return RuntimePaths.GetConfigPath(Path.Combine(RuntimeCacheDirectoryName, cacheFileName));
     }
 
-    public static string? ResolveShippedPath(string levelName, int mapAreaIndex, BotNavigationProfile profile)
+    public static string? ResolveLegacyProfileShippedPath(string levelName, int mapAreaIndex, BotNavigationProfile profile)
     {
-        var fileName = GetAssetFileName(levelName, mapAreaIndex, profile);
-        var runtimePath = ContentRoot.GetPath("BotNav", fileName);
-        if (File.Exists(runtimePath))
-        {
-            return runtimePath;
-        }
-
-        var projectPath = ProjectSourceLocator.FindFile($"{ShippedRelativeDirectory}/{fileName}");
-        if (!string.IsNullOrWhiteSpace(projectPath) && File.Exists(projectPath))
-        {
-            return projectPath;
-        }
-
-        return null;
+        return ResolvePath(GetLegacyAssetFileName(levelName, mapAreaIndex, profile));
     }
 
     private static bool TryLoadAsset(
         SimpleLevel level,
-        BotNavigationProfile profile,
+        PlayerClass classId,
         string fingerprint,
         out BotNavigationAsset? asset,
         out BotNavigationAssetStatus status)
     {
-        var shippedPath = ResolveShippedPath(level.Name, level.MapAreaIndex, profile);
-        if (!string.IsNullOrWhiteSpace(shippedPath)
-            && TryReadAndValidate(shippedPath, level, profile, fingerprint, out asset, out var shippedMessage))
-        {
-            status = new BotNavigationAssetStatus(
-                profile,
-                IsLoaded: true,
-                BotNavigationAssetSource.ShippedContent,
-                shippedPath,
-                shippedMessage,
-                asset!.Nodes.Count,
-                asset.Edges.Count);
-            return true;
-        }
+        var profile = BotNavigationProfiles.GetProfileForClass(classId);
+        var classShippedPath = ResolveShippedPath(level.Name, level.MapAreaIndex, classId);
+        var classRuntimeCachePath = GetRuntimeCachePath(level.Name, level.MapAreaIndex, classId, fingerprint);
+        var legacyShippedPath = ResolveLegacyProfileShippedPath(level.Name, level.MapAreaIndex, profile);
+        var legacyRuntimeCachePath = GetLegacyRuntimeCachePath(level.Name, level.MapAreaIndex, profile, fingerprint);
+        var candidates = new List<LoadedAssetCandidate>(4);
+        var failureMessages = new List<string>();
+        var candidatePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var runtimeCachePath = GetRuntimeCachePath(level.Name, level.MapAreaIndex, profile, fingerprint);
-        if (File.Exists(runtimeCachePath)
-            && TryReadAndValidate(runtimeCachePath, level, profile, fingerprint, out asset, out var cacheMessage))
+        TryLoadCandidate(
+            level,
+            classId,
+            profile,
+            fingerprint,
+            classShippedPath,
+            BotNavigationAssetSource.ShippedContent,
+            allowLegacyProfileFallback: false,
+            candidates,
+            failureMessages,
+            candidatePaths);
+        TryLoadCandidate(
+            level,
+            classId,
+            profile,
+            fingerprint,
+            File.Exists(classRuntimeCachePath) ? classRuntimeCachePath : null,
+            BotNavigationAssetSource.RuntimeCache,
+            allowLegacyProfileFallback: false,
+            candidates,
+            failureMessages,
+            candidatePaths);
+        TryLoadCandidate(
+            level,
+            classId,
+            profile,
+            fingerprint,
+            legacyShippedPath,
+            BotNavigationAssetSource.ShippedContent,
+            allowLegacyProfileFallback: true,
+            candidates,
+            failureMessages,
+            candidatePaths);
+        TryLoadCandidate(
+            level,
+            classId,
+            profile,
+            fingerprint,
+            File.Exists(legacyRuntimeCachePath) ? legacyRuntimeCachePath : null,
+            BotNavigationAssetSource.RuntimeCache,
+            allowLegacyProfileFallback: true,
+            candidates,
+            failureMessages,
+            candidatePaths);
+
+        var selectedCandidate = SelectBestCandidate(candidates);
+        if (selectedCandidate is not null)
         {
+            asset = selectedCandidate.Asset;
             status = new BotNavigationAssetStatus(
+                classId,
                 profile,
                 IsLoaded: true,
-                BotNavigationAssetSource.RuntimeCache,
-                runtimeCachePath,
-                cacheMessage,
+                selectedCandidate.Source,
+                selectedCandidate.Path,
+                selectedCandidate.Message,
                 asset!.Nodes.Count,
-                asset.Edges.Count);
+                asset.Edges.Count,
+                selectedCandidate.Validation.IsStructurallyValid,
+                selectedCandidate.Validation.BuildSummary());
             return true;
         }
 
         asset = null;
         status = new BotNavigationAssetStatus(
+            classId,
             profile,
             IsLoaded: false,
             BotNavigationAssetSource.None,
-            shippedPath ?? runtimeCachePath,
-            shippedPath is null
-                ? "no shipped asset found"
-                : "shipped asset did not match current level fingerprint",
+            classShippedPath ?? classRuntimeCachePath,
+            BuildLoadFailureMessage(failureMessages, classShippedPath, classRuntimeCachePath, legacyShippedPath, legacyRuntimeCachePath),
             NodeCount: 0,
             EdgeCount: 0);
         return false;
     }
 
+    private static void TryLoadCandidate(
+        SimpleLevel level,
+        PlayerClass classId,
+        BotNavigationProfile profile,
+        string fingerprint,
+        string? path,
+        BotNavigationAssetSource source,
+        bool allowLegacyProfileFallback,
+        List<LoadedAssetCandidate> candidates,
+        List<string> failureMessages,
+        ISet<string> candidatePaths)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !candidatePaths.Add(path))
+        {
+            return;
+        }
+
+        if (TryReadAndValidate(path, level, classId, profile, fingerprint, allowLegacyProfileFallback, out var asset, out var message, out var validation))
+        {
+            candidates.Add(new LoadedAssetCandidate(asset!, source, path, message, validation));
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            failureMessages.Add(message);
+        }
+    }
+
     private static bool TryReadAndValidate(
         string path,
         SimpleLevel level,
+        PlayerClass classId,
         BotNavigationProfile profile,
         string fingerprint,
+        bool allowLegacyProfileFallback,
         out BotNavigationAsset? asset,
-        out string message)
+        out string message,
+        out BotNavigationValidationResult validation)
     {
         asset = null;
         message = string.Empty;
+        validation = BotNavigationValidationResult.Valid;
 
         try
         {
@@ -183,6 +260,22 @@ public static class BotNavigationAssetStore
             return false;
         }
 
+        if (asset.ClassId.HasValue)
+        {
+            if (asset.ClassId.Value != classId)
+            {
+                message = "asset class mismatch";
+                asset = null;
+                return false;
+            }
+        }
+        else if (!allowLegacyProfileFallback)
+        {
+            message = "asset class metadata missing";
+            asset = null;
+            return false;
+        }
+
         if (!string.Equals(asset.LevelFingerprint, fingerprint, StringComparison.OrdinalIgnoreCase))
         {
             message = "level fingerprint mismatch";
@@ -190,7 +283,8 @@ public static class BotNavigationAssetStore
             return false;
         }
 
-        message = BuildSummary(asset);
+        validation = BotNavigationAssetValidator.Validate(level, asset);
+        message = BuildSummary(asset, allowLegacyProfileFallback && !asset.ClassId.HasValue);
         return true;
     }
 
@@ -206,9 +300,82 @@ public static class BotNavigationAssetStore
         File.WriteAllText(path, json);
     }
 
-    private static string BuildSummary(BotNavigationAsset asset)
+    private static string GetAssetFileName(BotNavigationAsset asset)
     {
-        return $"asset nodes={asset.Nodes.Count} edges={asset.Edges.Count} strategy={asset.BuildStrategy}";
+        return asset.ClassId.HasValue
+            ? GetAssetFileName(asset.LevelName, asset.MapAreaIndex, asset.ClassId.Value)
+            : GetLegacyAssetFileName(asset.LevelName, asset.MapAreaIndex, asset.Profile);
+    }
+
+    private static string GetRuntimeCachePath(BotNavigationAsset asset)
+    {
+        return asset.ClassId.HasValue
+            ? GetRuntimeCachePath(asset.LevelName, asset.MapAreaIndex, asset.ClassId.Value, asset.LevelFingerprint)
+            : GetLegacyRuntimeCachePath(asset.LevelName, asset.MapAreaIndex, asset.Profile, asset.LevelFingerprint);
+    }
+
+    private static string? ResolvePath(string fileName)
+    {
+        var runtimePath = ContentRoot.GetPath("BotNav", fileName);
+        if (File.Exists(runtimePath))
+        {
+            return runtimePath;
+        }
+
+        var projectPath = ProjectSourceLocator.FindFile($"{ShippedRelativeDirectory}/{fileName}");
+        if (!string.IsNullOrWhiteSpace(projectPath) && File.Exists(projectPath))
+        {
+            return projectPath;
+        }
+
+        return null;
+    }
+
+    private static string BuildSummary(BotNavigationAsset asset, bool usedLegacyProfileFallback)
+    {
+        var summary = $"asset nodes={asset.Nodes.Count} edges={asset.Edges.Count} strategy={asset.BuildStrategy}";
+        return usedLegacyProfileFallback ? $"{summary} legacy-fallback" : summary;
+    }
+
+    private static LoadedAssetCandidate? SelectBestCandidate(IReadOnlyList<LoadedAssetCandidate> candidates)
+    {
+        LoadedAssetCandidate? bestCandidate = null;
+        for (var index = 0; index < candidates.Count; index += 1)
+        {
+            var candidate = candidates[index];
+            if (bestCandidate is null
+                || candidate.Validation.IsStructurallyValid && !bestCandidate.Validation.IsStructurallyValid
+                || candidate.Validation.IsStructurallyValid == bestCandidate.Validation.IsStructurallyValid
+                    && candidate.Source < bestCandidate.Source)
+            {
+                bestCandidate = candidate;
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private static string BuildLoadFailureMessage(
+        IReadOnlyList<string> failureMessages,
+        string? classShippedPath,
+        string classRuntimeCachePath,
+        string? legacyShippedPath,
+        string legacyRuntimeCachePath)
+    {
+        if (failureMessages.Count > 0)
+        {
+            return failureMessages[0];
+        }
+
+        if (classShippedPath is null
+            && !File.Exists(classRuntimeCachePath)
+            && legacyShippedPath is null
+            && !File.Exists(legacyRuntimeCachePath))
+        {
+            return "no shipped asset found";
+        }
+
+        return "no compatible nav asset found";
     }
 
     private static string SanitizeFileToken(string value)
@@ -233,4 +400,11 @@ public static class BotNavigationAssetStore
             ? "unknown"
             : fingerprint[..Math.Min(12, fingerprint.Length)].ToLowerInvariant();
     }
+
+    private sealed record LoadedAssetCandidate(
+        BotNavigationAsset Asset,
+        BotNavigationAssetSource Source,
+        string Path,
+        string Message,
+        BotNavigationValidationResult Validation);
 }

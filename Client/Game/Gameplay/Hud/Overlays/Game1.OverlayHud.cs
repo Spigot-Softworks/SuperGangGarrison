@@ -20,9 +20,19 @@ public partial class Game1
             DrawControlPointHud();
             return;
         }
+        if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        {
+            DrawKothHud();
+            return;
+        }
         if (_world.MatchRules.Mode == GameModeKind.Generator)
         {
             DrawGeneratorHud();
+            return;
+        }
+        if (_world.MatchRules.Mode == GameModeKind.TeamDeathmatch)
+        {
+            DrawTeamDeathmatchHud();
             return;
         }
 

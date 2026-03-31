@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -13,8 +14,6 @@ public partial class Game1
     private const long LobbyBrowserQueryTimeoutMilliseconds = 1500;
     private const long LobbyBrowserLobbyConnectTimeoutMilliseconds = 2500;
     private const long LobbyBrowserLobbyReadTimeoutMilliseconds = 6000;
-    private const string LobbyServerHost = "OpenGarrison.game-host.org";
-    private const int LobbyServerPort = 29942;
     private const string LobbyProtocolUuidString = "71eb5496-492b-b186-4770-06ccb30d3f8f";
 
     private static readonly byte[] LobbyProtocolUuidBytes = ParseProtocolUuid(LobbyProtocolUuidString);
@@ -29,6 +28,14 @@ public partial class Game1
     private int _lobbyBrowserLobbyServersRead;
     private long _lobbyBrowserLobbyStartedAtMilliseconds;
     private bool _lobbyBrowserLobbyHandshakeSent;
+
+    private string LobbyServerHost => string.IsNullOrWhiteSpace(_clientSettings.LobbyHost)
+        ? OpenGarrisonPreferencesDocument.DefaultLobbyHost
+        : _clientSettings.LobbyHost.Trim();
+
+    private int LobbyServerPort => _clientSettings.LobbyPort > 0
+        ? _clientSettings.LobbyPort
+        : OpenGarrisonPreferencesDocument.DefaultLobbyPort;
 
     private static byte[] ParseProtocolUuid(string uuid)
     {

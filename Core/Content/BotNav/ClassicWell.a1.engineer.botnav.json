@@ -1,0 +1,218 @@
+{
+  "FormatVersion": 2,
+  "LevelName": "ClassicWell",
+  "MapAreaIndex": 1,
+  "ClassId": "Engineer",
+  "Profile": "Standard",
+  "LevelFingerprint": "fc10f2c1a277fb7a871c2c11d3b5adb7c401f173b057e5c2f42bd98f0a4b9840",
+  "BuildStrategy": "ExplicitHintGraphValidatedTraversals",
+  "BuiltUtc": "2026-03-29T22:41:31.2545039Z",
+  "Stats": {
+    "SurfaceCount": 1063,
+    "CandidateNodeCount": 14,
+    "SurfaceSampleNodeCount": 0,
+    "AutoAnchorNodeCount": 10,
+    "HintNodeCount": 4,
+    "NodeCount": 14,
+    "EdgeCount": 4,
+    "WalkEdgeCount": 4,
+    "JumpEdgeCount": 0,
+    "DropEdgeCount": 0,
+    "HintEdgeCount": 4,
+    "BuildMilliseconds": 14.5665,
+    "SurfaceSamplingMilliseconds": 0.0001,
+    "AutoAnchorMilliseconds": 4.4093,
+    "HintNodeMilliseconds": 0.1619,
+    "AutomaticEdgeMilliseconds": 0.0708,
+    "HintEdgeMilliseconds": 9.2626,
+    "DropEdgeMilliseconds": 0
+  },
+  "Nodes": [
+    {
+      "Id": 0,
+      "X": 1236,
+      "Y": 906,
+      "SurfaceId": 437,
+      "Kind": "Spawn",
+      "Team": null,
+      "Label": "local-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 1,
+      "X": 1291,
+      "Y": 906,
+      "SurfaceId": 437,
+      "Kind": "Spawn",
+      "Team": "Red",
+      "Label": "red-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 2,
+      "X": 1321,
+      "Y": 906,
+      "SurfaceId": 437,
+      "Kind": "HealingCabinet",
+      "Team": "Red",
+      "Label": "red-cabinet",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 3,
+      "X": 1444,
+      "Y": 906,
+      "SurfaceId": 437,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "Label": "route",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 4,
+      "X": 5022,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 5,
+      "X": 5046,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 6,
+      "X": 5070,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 7,
+      "X": 5094,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 8,
+      "X": 5118,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 9,
+      "X": 5142,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 10,
+      "X": 5166,
+      "Y": 906,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 11,
+      "X": 1532,
+      "Y": 972,
+      "SurfaceId": 531,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "Label": "route-2",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 12,
+      "X": 396,
+      "Y": 1158,
+      "SurfaceId": 785,
+      "Kind": "Objective",
+      "Team": "Red",
+      "Label": "Red-intel",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 13,
+      "X": 5994,
+      "Y": 1158,
+      "SurfaceId": 794,
+      "Kind": "Objective",
+      "Team": "Blue",
+      "Label": "Blue-intel",
+      "RequiresGroundSupport": true
+    }
+  ],
+  "Edges": [
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 3,
+      "Kind": "Walk",
+      "Cost": 153,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 1,
+      "Kind": "Walk",
+      "Cost": 153,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 11,
+      "Kind": "Walk",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "DurationSeconds": 0.6,
+          "Ticks": 18
+        }
+      ]
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 3,
+      "Kind": "Walk",
+      "Cost": 216,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "DurationSeconds": 0.6,
+          "Ticks": 18
+        }
+      ]
+    }
+  ]
+}

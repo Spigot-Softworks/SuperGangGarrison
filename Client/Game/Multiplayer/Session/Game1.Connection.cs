@@ -23,7 +23,9 @@ public partial class Game1
         int capLimit,
         int respawnSeconds,
         bool lobbyAnnounce,
-        bool autoBalance)
+        bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile)
     {
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
@@ -44,6 +46,8 @@ public partial class Game1
                 respawnSeconds,
                 lobbyAnnounce,
                 autoBalance,
+                requestedMap,
+                mapRotationFile,
                 out var error))
         {
             _menuStatusMessage = error;
@@ -105,7 +109,7 @@ public partial class Game1
 
     private bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
     {
-        if (_networkClient.Connect(host, port, _world.LocalPlayer.DisplayName, out var error))
+        if (_networkClient.Connect(host, port, _world.LocalPlayer.DisplayName, _world.LocalPlayer.BadgeMask, out var error))
         {
             RecordRecentConnection(host, port);
             ResetClientTimingState();
@@ -175,6 +179,7 @@ public partial class Game1
         _pendingHostedConnectTicks = -1;
         _pendingHostedConnectPort = 8190;
         _mainMenuOpen = true;
+        ResetSpectatorTracking(enableTracking: false);
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;
         _pluginOptionsMenuOpen = false;
@@ -233,7 +238,9 @@ public partial class Game1
         int capLimit,
         int respawnSeconds,
         bool lobbyAnnounce,
-        bool autoBalance)
+        bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile)
     {
         return new HostedServerLaunchOptions(
             RuntimePaths.GetConfigPath(OpenGarrisonPreferencesDocument.DefaultFileName),
@@ -245,7 +252,9 @@ public partial class Game1
             capLimit,
             respawnSeconds,
             lobbyAnnounce,
-            autoBalance);
+            autoBalance,
+            requestedMap,
+            mapRotationFile);
     }
 
     private bool TryStartHostedServer(
@@ -258,6 +267,8 @@ public partial class Game1
         int respawnSeconds,
         bool lobbyAnnounce,
         bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile,
         out string error)
     {
         var launchOptions = CreateHostedServerLaunchOptions(
@@ -269,7 +280,9 @@ public partial class Game1
             capLimit,
             respawnSeconds,
             lobbyAnnounce,
-            autoBalance);
+            autoBalance,
+            requestedMap,
+            mapRotationFile);
         InitializeHostedServerConsole(reset: false);
         return _hostedServerRuntime.TryStartBackground(launchOptions, out error);
     }
@@ -284,6 +297,8 @@ public partial class Game1
         int respawnSeconds,
         bool lobbyAnnounce,
         bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile,
         out string error)
     {
         var launchOptions = CreateHostedServerLaunchOptions(
@@ -295,7 +310,9 @@ public partial class Game1
             capLimit,
             respawnSeconds,
             lobbyAnnounce,
-            autoBalance);
+            autoBalance,
+            requestedMap,
+            mapRotationFile);
         return _hostedServerRuntime.TryStartInTerminal(launchOptions, out error);
     }
 

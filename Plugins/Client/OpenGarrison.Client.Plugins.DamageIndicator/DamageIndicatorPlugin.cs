@@ -311,7 +311,10 @@ public sealed class DamageIndicatorPlugin :
     {
         var worldPosition = indicator.WorldPosition;
         if (indicator.TargetKind == DamageTargetKind.Player
-            && _context?.ClientState.TryGetPlayerWorldPosition(indicator.TargetEntityId, out var playerPosition) == true)
+            && _context is not null
+            && _context.ClientState.IsPlayerVisibleToLocalViewer(indicator.TargetEntityId)
+            && !_context.ClientState.IsPlayerCloaked(indicator.TargetEntityId)
+            && _context.ClientState.TryGetPlayerWorldPosition(indicator.TargetEntityId, out var playerPosition))
         {
             worldPosition = playerPosition;
         }

@@ -40,6 +40,7 @@ internal sealed class NetworkGameClient : IDisposable
     private readonly Queue<PendingPacket> _pendingOutboundPackets = new();
     private readonly Queue<PendingMessage> _pendingInboundMessages = new();
     private string? _pendingHelloPlayerName;
+    private ulong _pendingHelloBadgeMask;
     private long _connectStartedAtMilliseconds = -1;
     private long _lastHelloSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
@@ -55,7 +56,7 @@ internal sealed class NetworkGameClient : IDisposable
     public int SimulatedLatencyMilliseconds { get; private set; }
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
 
-    public bool Connect(string host, int port, string playerName, out string error)
+    public bool Connect(string host, int port, string playerName, ulong badgeMask, out string error)
     {
         error = string.Empty;
         Disconnect();
@@ -76,6 +77,7 @@ internal sealed class NetworkGameClient : IDisposable
             _udpClient.Client.Blocking = false;
             TryDisableUdpConnectionReset(_udpClient.Client);
             _pendingHelloPlayerName = playerName;
+            _pendingHelloBadgeMask = badgeMask;
             _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
             _lastHelloSentAtMilliseconds = -1;
             LocalPlayerSlot = 0;
@@ -105,6 +107,7 @@ internal sealed class NetworkGameClient : IDisposable
         LocalPlayerSlot = 0;
         ServerDescription = null;
         _pendingHelloPlayerName = null;
+        _pendingHelloBadgeMask = 0UL;
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = -1;
@@ -118,6 +121,16 @@ internal sealed class NetworkGameClient : IDisposable
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = _clock.ElapsedMilliseconds;
+    }
+
+    public void SetServerDescription(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return;
+        }
+
+        ServerDescription = description.Trim();
     }
 
     public void QueueChatBubble(int frameIndex)
@@ -168,6 +181,18 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         Send(new ChatSubmitMessage(text, teamOnly));
+    }
+
+    public void UpdatePlayerProfile(string playerName, ulong badgeMask)
+    {
+        _pendingHelloPlayerName = playerName;
+        _pendingHelloBadgeMask = badgeMask;
+        if (!IsConnected || IsAwaitingWelcome)
+        {
+            return;
+        }
+
+        Send(new PlayerProfileUpdateMessage(playerName, badgeMask));
     }
 
     public uint SendInput(PlayerInputSnapshot input)
@@ -445,7 +470,7 @@ internal sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        Send(new HelloMessage(_pendingHelloPlayerName, ProtocolVersion.Current));
+        Send(new HelloMessage(_pendingHelloPlayerName, ProtocolVersion.Current, _pendingHelloBadgeMask));
         _lastHelloSentAtMilliseconds = _clock.ElapsedMilliseconds;
     }
 

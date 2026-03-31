@@ -125,7 +125,9 @@ public partial class Game1
         int capLimit,
         int respawnSeconds,
         bool lobbyAnnounce,
-        bool autoBalance)
+        bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile)
     {
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
@@ -155,6 +157,8 @@ public partial class Game1
                 respawnSeconds,
                 lobbyAnnounce,
                 autoBalance,
+                requestedMap,
+                mapRotationFile,
                 out var error))
         {
             _menuStatusMessage = error;
@@ -177,7 +181,9 @@ public partial class Game1
         int capLimit,
         int respawnSeconds,
         bool lobbyAnnounce,
-        bool autoBalance)
+        bool autoBalance,
+        string? requestedMap,
+        string? mapRotationFile)
     {
         CloseManualConnectMenu(clearStatus: true);
         CloseLobbyBrowser(clearStatus: true);
@@ -206,6 +212,8 @@ public partial class Game1
                 respawnSeconds,
                 lobbyAnnounce,
                 autoBalance,
+                requestedMap,
+                mapRotationFile,
                 out var error))
         {
             _menuStatusMessage = error;

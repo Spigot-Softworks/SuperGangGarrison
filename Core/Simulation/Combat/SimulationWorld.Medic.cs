@@ -122,6 +122,7 @@ public sealed partial class SimulationWorld
     private PlayerEntity? AcquireMedicHealingTarget(PlayerEntity medic, float aimWorldX, float aimWorldY)
     {
         const float maxDistance = 300f;
+        const float maxMouseSelectDistance = 150f;
         var aimDeltaX = aimWorldX - medic.X;
         var aimDeltaY = aimWorldY - medic.Y;
         if (aimDeltaX == 0f && aimDeltaY == 0f)
@@ -140,10 +141,16 @@ public sealed partial class SimulationWorld
         var aimEndX = medic.X + directionX * maxDistance;
         var aimEndY = medic.Y + directionY * maxDistance;
         PlayerEntity? bestTarget = null;
-        var bestDistance = maxDistance;
+        var bestScore = float.MinValue;
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive || player.Id == medic.Id || player.Team != medic.Team)
+            {
+                continue;
+            }
+
+            var healDistance = DistanceBetween(medic.X, medic.Y, player.X, player.Y);
+            if (healDistance > maxDistance)
             {
                 continue;
             }
@@ -155,7 +162,7 @@ public sealed partial class SimulationWorld
                 aimEndY,
                 player,
                 maxDistance);
-            if (!hitDistance.HasValue || hitDistance.Value > bestDistance)
+            if (!hitDistance.HasValue)
             {
                 continue;
             }
@@ -165,8 +172,17 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            var mouseDistance = DistanceBetween(player.X, player.Y, aimWorldX, aimWorldY);
+            var targetScore = mouseDistance <= maxMouseSelectDistance
+                ? 3f - (mouseDistance / maxMouseSelectDistance)
+                : 1f - (healDistance / maxDistance);
+            if (targetScore < bestScore)
+            {
+                continue;
+            }
+
             bestTarget = player;
-            bestDistance = hitDistance.Value;
+            bestScore = targetScore;
         }
 
         return bestTarget;

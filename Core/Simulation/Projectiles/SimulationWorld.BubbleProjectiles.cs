@@ -284,7 +284,7 @@ public sealed partial class SimulationWorld
 
                 if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(BubbleProjectileEntity.DamagePerHit), owner))
                 {
-                    world.DestroySentry(sentry);
+                    world.DestroySentry(sentry, owner);
                 }
 
                 return true;

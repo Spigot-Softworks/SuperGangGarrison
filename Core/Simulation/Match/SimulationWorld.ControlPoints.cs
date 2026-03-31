@@ -43,8 +43,17 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        _controlPointSetupMode = Level.GetRoomObjects(RoomObjectType.ControlPointSetupGate).Count > 0;
-        _controlPointSetupTicksRemaining = snapshot.ControlPointSetupTicksRemaining;
+        if (IsKothMode((GameModeKind)snapshot.GameMode))
+        {
+            _controlPointSetupMode = false;
+            _controlPointSetupTicksRemaining = 0;
+        }
+        else
+        {
+            _controlPointSetupMode = Level.GetRoomObjects(RoomObjectType.ControlPointSetupGate).Count > 0;
+            _controlPointSetupTicksRemaining = snapshot.ControlPointSetupTicksRemaining;
+        }
+
         UpdateControlPointSetupGates();
 
         for (var index = 0; index < snapshot.ControlPoints.Count; index += 1)

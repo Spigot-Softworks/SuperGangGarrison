@@ -58,6 +58,16 @@ internal sealed class ServerIncomingMessageDispatcher(
                     ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
                 }
                 break;
+            case PlayerProfileUpdateMessage profileUpdate:
+                if (TryGetClient(remoteEndPoint, out var profileClient))
+                {
+                    profileClient.LastSeen = elapsedGetter();
+                    profileClient.Name = profileUpdate.Name;
+                    profileClient.BadgeMask = profileUpdate.BadgeMask;
+                    sessionManager.ApplyClientName(profileClient.Slot, profileUpdate.Name);
+                    sessionManager.ApplyClientBadgeMask(profileClient.Slot, profileUpdate.BadgeMask);
+                }
+                break;
             case InputStateMessage input:
                 if (TryGetAuthorizedClient(remoteEndPoint, out var inputClient))
                 {
@@ -93,8 +103,10 @@ internal sealed class ServerIncomingMessageDispatcher(
         if (existingClient is not null)
         {
             existingClient.Name = hello.Name;
+            existingClient.BadgeMask = hello.BadgeMask;
             existingClient.LastSeen = elapsedGetter();
             sessionManager.ApplyClientName(existingClient.Slot, hello.Name);
+            sessionManager.ApplyClientBadgeMask(existingClient.Slot, hello.BadgeMask);
             var existingMapMetadata = getCurrentMapMetadata();
             sendMessage(remoteEndPoint, new WelcomeMessage(
                 serverName,
@@ -134,9 +146,11 @@ internal sealed class ServerIncomingMessageDispatcher(
         var client = new ClientSession(assignedSlot, remoteEndPoint, hello.Name, now)
         {
             IsAuthorized = !passwordRequired,
+            BadgeMask = hello.BadgeMask,
         };
         clientsBySlot[assignedSlot] = client;
         sessionManager.ApplyClientName(assignedSlot, hello.Name);
+        sessionManager.ApplyClientBadgeMask(assignedSlot, hello.BadgeMask);
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))
         {
             world.TryPrepareNetworkPlayerJoin(assignedSlot);

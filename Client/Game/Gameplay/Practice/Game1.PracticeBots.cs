@@ -140,9 +140,10 @@ public partial class Game1
     {
         var nextSlot = startSlot;
         var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
+        var classCycle = GetEligiblePracticeBotClassCycle();
         for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
-            var classId = PracticeBotClassCycle[(index + classOffset) % PracticeBotClassCycle.Length];
+            var classId = classCycle[(index + classOffset) % classCycle.Length];
             desiredSlots[nextSlot] = new PracticeBotSlotState(
                 nextSlot,
                 team,
@@ -152,6 +153,30 @@ public partial class Game1
         }
 
         return nextSlot;
+    }
+
+    private PlayerClass[] GetEligiblePracticeBotClassCycle()
+    {
+        if (_practiceNavigationAssets.Statuses.Count == 0)
+        {
+            return PracticeBotClassCycle;
+        }
+
+        var eligibleClasses = PracticeBotClassCycle
+            .Where(IsPracticeBotClassNavigationReady)
+            .ToArray();
+        return eligibleClasses.Length > 0 ? eligibleClasses : PracticeBotClassCycle;
+    }
+
+    private bool IsPracticeBotClassNavigationReady(PlayerClass classId)
+    {
+        var status = _practiceNavigationAssets.Statuses.FirstOrDefault(candidate => candidate.ClassId == classId);
+        if (status is null)
+        {
+            return true;
+        }
+
+        return status.IsLoaded && status.IsStructurallyValid;
     }
 
     private void InitializePracticeBotNamePoolForMatch()

@@ -1,3 +1,5 @@
+using Microsoft.Xna.Framework.Graphics;
+
 namespace OpenGarrison.Client.Plugins;
 
 public interface IOpenGarrisonClientPluginContext
@@ -7,6 +9,8 @@ public interface IOpenGarrisonClientPluginContext
     string PluginDirectory { get; }
 
     string ConfigDirectory { get; }
+
+    GraphicsDevice GraphicsDevice { get; }
 
     IOpenGarrisonClientReadOnlyState ClientState { get; }
 

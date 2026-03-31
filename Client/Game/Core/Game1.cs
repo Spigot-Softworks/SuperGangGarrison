@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -78,6 +79,9 @@ public partial class Game1 : Game
         ChangeClass,
         ShowScoreboard,
         ToggleConsole,
+        OpenBubbleMenuZ,
+        OpenBubbleMenuX,
+        OpenBubbleMenuC,
     }
 
     private const int ProcessedNetworkEventHistoryLimit = 4096;
@@ -93,14 +97,19 @@ public partial class Game1 : Game
     private Texture2D _pixel = null!;
     private Texture2D? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
+    private string _menuBackgroundAttributionText = string.Empty;
     private SpriteFont _consoleFont = null!;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
+    private KeyboardState _clientPluginPreviousKeyboard;
+    private KeyboardState _clientPluginKeyboard;
     private readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
     private readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
     private readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
     private int? _localPlayerSnapshotEntityId;
+    private int? _spectatorTrackedPlayerId;
+    private bool _spectatorTrackingEnabled;
     private readonly Random _visualRandom = new(1337);
     private bool _wasLocalPlayerAlive = true;
     private bool _wasDeathCamActive;
@@ -108,6 +117,7 @@ public partial class Game1 : Game
     private string _observedGameplayLevelName = string.Empty;
     private int _observedGameplayMapAreaIndex = -1;
     private MouseState _previousMouse;
+    private bool _suppressPrimaryFireUntilMouseRelease;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;
     private bool _teamSelectOpen;
@@ -171,6 +181,8 @@ public partial class Game1 : Game
     private int _mainMenuHoverIndex = -1;
     private int _optionsHoverIndex = -1;
     private int _pluginOptionsHoverIndex = -1;
+    private int _pluginOptionsScrollOffset;
+    private ClientPluginKeyOptionItem? _pendingPluginOptionsKeyItem;
     private int _controlsHoverIndex = -1;
     private int _lobbyBrowserHoverIndex = -1;
     private int _lobbyBrowserSelectedIndex = -1;
@@ -302,12 +314,16 @@ public partial class Game1 : Game
         var clientTicks = ConsumeClientTickCount(gameTime);
         var windowActive = IsActive;
         var keyboard = windowActive ? Keyboard.GetState() : default;
-        var mouse = windowActive ? GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState())) : default;
+        var rawMouse = windowActive ? GetConstrainedMouseState(Mouse.GetState()) : default;
+        var mouse = windowActive ? GetScaledMouseState(rawMouse) : default;
         if (!_wasWindowActive && windowActive)
         {
             _previousKeyboard = keyboard;
             _previousMouse = mouse;
         }
+
+        _clientPluginPreviousKeyboard = _previousKeyboard;
+        _clientPluginKeyboard = keyboard;
 
         _wasWindowActive = windowActive;
         if (TryHandlePasswordPromptCancel(keyboard, mouse))
@@ -338,7 +354,7 @@ public partial class Game1 : Game
             return;
         }
 
-        UpdateGameplayFrame(gameTime, keyboard, mouse, clientTicks);
+        UpdateGameplayFrame(gameTime, keyboard, mouse, rawMouse, clientTicks);
         NotifyClientPluginsFrame(gameTime, clientTicks);
         FinalizeNetworkDiagnosticsFrame();
 

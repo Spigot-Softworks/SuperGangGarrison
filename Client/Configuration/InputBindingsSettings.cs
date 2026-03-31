@@ -29,6 +29,12 @@ public sealed class InputBindingsSettings
 
     public Keys ToggleConsole { get; set; } = Keys.OemTilde;
 
+    public Keys OpenBubbleMenuZ { get; set; } = Keys.Z;
+
+    public Keys OpenBubbleMenuX { get; set; } = Keys.X;
+
+    public Keys OpenBubbleMenuC { get; set; } = Keys.C;
+
     public Keys ToggleClassMenu
     {
         get => ChangeClass;
@@ -70,6 +76,9 @@ public sealed class InputBindingsSettings
         document.SetInt("Controls", "changeClass", (int)ChangeClass);
         document.SetInt("Controls", "showScores", (int)ShowScoreboard);
         document.SetInt("Controls", "console", (int)ToggleConsole);
+        document.SetInt("Controls", "bubbleMenuZ", (int)OpenBubbleMenuZ);
+        document.SetInt("Controls", "bubbleMenuX", (int)OpenBubbleMenuX);
+        document.SetInt("Controls", "bubbleMenuC", (int)OpenBubbleMenuC);
 
         document.Save(resolvedPath);
     }
@@ -88,6 +97,9 @@ public sealed class InputBindingsSettings
             ChangeClass = ReadKey(document, "changeClass", Keys.M),
             ShowScoreboard = ReadKey(document, "showScores", Keys.LeftShift),
             ToggleConsole = ReadKey(document, "console", Keys.OemTilde),
+            OpenBubbleMenuZ = ReadKey(document, "bubbleMenuZ", Keys.Z),
+            OpenBubbleMenuX = ReadKey(document, "bubbleMenuX", Keys.X),
+            OpenBubbleMenuC = ReadKey(document, "bubbleMenuC", Keys.C),
         };
     }
 

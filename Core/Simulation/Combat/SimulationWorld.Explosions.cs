@@ -11,9 +11,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var deltaX = player.X - originX;
-        var deltaY = player.Y - originY;
-        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        GetExplosionDirection(player, originX, originY, out var deltaX, out var deltaY, out var distance);
         if (distance <= 0.0001f)
         {
             player.AddImpulse(0f, -impulse);
@@ -93,7 +91,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var distance = DistanceBetween(mine.X, mine.Y, player.X, player.Y);
+            var distance = GetExplosionDistanceToPlayer(player, mine.X, mine.Y);
             if (distance >= MineProjectileEntity.BlastRadius)
             {
                 continue;
@@ -154,7 +152,7 @@ public sealed partial class SimulationWorld
             var damage = mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * factor;
             if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
-                DestroySentry(sentry);
+                DestroySentry(sentry, owner);
             }
         }
 
@@ -356,7 +354,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void ApplyMineExplosionImpulse(PlayerEntity player, float originX, float originY, float distanceFactor)
+    private static void ApplyMineExplosionImpulse(PlayerEntity player, float originX, float originY, float distanceFactor)
     {
         var impulse = GetExplosionImpulseMagnitude(
             player,
@@ -381,9 +379,7 @@ public sealed partial class SimulationWorld
             return 0f;
         }
 
-        var deltaX = player.X - originX;
-        var deltaY = player.Y - originY;
-        var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        GetExplosionDirection(player, originX, originY, out var deltaX, out var deltaY, out var distance);
         if (distance <= 0.0001f)
         {
             return MathF.Min(SourceExplosionKnockbackCap, knockbackPerTick * distanceFactor) * LegacyMovementModel.SourceTicksPerSecond;
@@ -396,6 +392,41 @@ public sealed partial class SimulationWorld
             : MathF.Sqrt((unitX * unitX * unitX * unitX) + (unitY * unitY * unitY * unitY));
 
         return MathF.Min(SourceExplosionKnockbackCap, knockbackPerTick * distanceFactor) * vectorFactor * LegacyMovementModel.SourceTicksPerSecond;
+    }
+
+    private static float GetExplosionDistanceToPlayer(PlayerEntity player, float originX, float originY)
+    {
+        player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+        var deltaX = 0f;
+        if (originX < left)
+        {
+            deltaX = left - originX;
+        }
+        else if (originX > right)
+        {
+            deltaX = originX - right;
+        }
+
+        var deltaY = 0f;
+        if (originY < top)
+        {
+            deltaY = top - originY;
+        }
+        else if (originY > bottom)
+        {
+            deltaY = originY - bottom;
+        }
+
+        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+    }
+
+    private static void GetExplosionDirection(PlayerEntity player, float originX, float originY, out float deltaX, out float deltaY, out float distance)
+    {
+        var centerX = player.X + ((player.CollisionLeftOffset + player.CollisionRightOffset) * 0.5f);
+        var centerY = player.Y + ((player.CollisionTopOffset + player.CollisionBottomOffset) * 0.5f);
+        deltaX = centerX - originX;
+        deltaY = centerY - originY;
+        distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
     }
 
 }

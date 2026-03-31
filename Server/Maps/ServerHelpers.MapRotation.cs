@@ -18,11 +18,24 @@ internal static partial class ServerHelpers
 
     internal static string GetLobbyMapLabel(SimulationWorld world)
     {
+        if (OpenGarrisonStockMapCatalog.TryGetDefinition(world.Level.Name, out var stockDefinition))
+        {
+            return stockDefinition.IniKey.ToLowerInvariant();
+        }
+
+        if (HasKnownMapPrefix(world.Level.Name))
+        {
+            return world.Level.Name.ToLowerInvariant();
+        }
+
         var prefix = world.MatchRules.Mode switch
         {
             GameModeKind.ControlPoint => "cp",
             GameModeKind.Arena => "arena",
             GameModeKind.Generator => "gen",
+            GameModeKind.KingOfTheHill => "koth",
+            GameModeKind.DoubleKingOfTheHill => "dkoth",
+            GameModeKind.TeamDeathmatch => "tdm",
             _ => "ctf",
         };
 
@@ -134,20 +147,36 @@ internal static partial class ServerHelpers
         }
 
         var trimmed = mapName.Trim();
-        var underscoreIndex = trimmed.IndexOf('_');
-        if (underscoreIndex > 0)
+        if (OpenGarrisonStockMapCatalog.TryGetDefinition(trimmed, out var stockDefinition))
         {
-            var prefix = trimmed[..underscoreIndex];
-            if (prefix.Equals("ctf", StringComparison.OrdinalIgnoreCase)
-                || prefix.Equals("cp", StringComparison.OrdinalIgnoreCase)
-                || prefix.Equals("arena", StringComparison.OrdinalIgnoreCase)
-                || prefix.Equals("gen", StringComparison.OrdinalIgnoreCase))
-            {
-                return trimmed[(underscoreIndex + 1)..];
-            }
+            return stockDefinition.LevelName;
         }
 
         return trimmed;
+    }
+
+    private static bool HasKnownMapPrefix(string mapName)
+    {
+        if (string.IsNullOrWhiteSpace(mapName))
+        {
+            return false;
+        }
+
+        var trimmed = mapName.Trim();
+        var underscoreIndex = trimmed.IndexOf('_');
+        if (underscoreIndex <= 0)
+        {
+            return false;
+        }
+
+        var prefix = trimmed[..underscoreIndex];
+        return prefix.Equals("ctf", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("cp", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("arena", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("gen", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("koth", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("dkoth", StringComparison.OrdinalIgnoreCase)
+            || prefix.Equals("tdm", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool TryApplyPendingMapChange(

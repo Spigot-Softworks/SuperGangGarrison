@@ -55,7 +55,7 @@ public partial class Game1
         return true;
     }
 
-    private void UpdateGameplayFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
+    private void UpdateGameplayFrame(GameTime gameTime, KeyboardState keyboard, MouseState mouse, MouseState rawMouse, int clientTicks)
     {
         if (_networkClient.IsConnected)
         {
@@ -66,13 +66,16 @@ public partial class Game1
         UpdateGameplayMenuState(keyboard, mouse);
         UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
         var cameraPosition = GetCameraTopLeft(ViewportWidth, ViewportHeight, mouse.X, mouse.Y);
+        UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
         var (gameplayInput, networkInput) = BuildGameplayInputs(keyboard, mouse, cameraPosition);
+        SetNavEditorTraversalCaptureInput(gameplayInput);
+        var localGameplayInput = ResolveNavEditorGameplayInput(gameplayInput);
         CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
-        _world.SetLocalInput(gameplayInput);
-        UpdateBubbleMenuState(keyboard);
+        _world.SetLocalInput(localGameplayInput);
+        UpdateBubbleMenuState(keyboard, mouse);
         UpdateScoreboardState(keyboard);
         AdvanceGameplaySimulation(gameTime, networkInput);
-        UpdateGameplayPresentation(gameTime, mouse, clientTicks);
+        UpdateGameplayPresentation(gameTime, keyboard, mouse, clientTicks);
         UpdateGameplayWindowState();
         FinalizeGameplayFrame(keyboard, mouse);
     }
@@ -106,7 +109,8 @@ public partial class Game1
     {
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
-        var mouse = GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState()));
+        var rawMouse = GetConstrainedMouseState(Mouse.GetState());
+        var mouse = GetScaledMouseState(rawMouse);
         var cameraPosition = GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
         PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
 
@@ -118,6 +122,7 @@ public partial class Game1
         DrawGameplayHudLayers(mouse, cameraPosition);
         DrawGameplayModalOverlays(mouse);
         EndLogicalFrame();
+        DrawNavEditorPresentationOverlay(rawMouse);
     }
 
     private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight)

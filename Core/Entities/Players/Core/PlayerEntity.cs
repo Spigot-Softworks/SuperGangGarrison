@@ -220,9 +220,15 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int Deaths { get; private set; }
 
+    public int Assists { get; private set; }
+
     public int Caps { get; private set; }
 
+    public float Points { get; private set; }
+
     public int HealPoints { get; private set; }
+
+    public ulong BadgeMask { get; private set; }
 
     public bool IsChatBubbleVisible { get; private set; }
 
@@ -233,6 +239,14 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsChatBubbleFading { get; private set; }
 
     public int ChatBubbleTicksRemaining { get; private set; }
+
+    internal int? LastDamageDealerPlayerId { get; private set; }
+
+    internal int LastDamageDealerAssistTicksRemaining { get; private set; }
+
+    internal int? SecondToLastDamageDealerPlayerId { get; private set; }
+
+    internal int SecondToLastDamageDealerAssistTicksRemaining { get; private set; }
 
     private bool SpyBackstabHitboxPending { get; set; }
 
@@ -317,6 +331,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
+        ClearRecentDamageDealers();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -367,6 +382,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         PyroPrimaryRequiresReleaseAfterEmpty = false;
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
+        ClearRecentDamageDealers();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -417,6 +433,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsInSpawnRoom = false;
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
+        ClearRecentDamageDealers();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -494,6 +511,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     internal bool CanOccupy(SimpleLevel level, PlayerTeam team, float x, float y)
     {
+        GetCollisionBounds(out var previousLeft, out _, out var previousRight, out _);
         GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
         foreach (var solid in level.Solids)
@@ -516,6 +534,12 @@ public sealed partial class PlayerEntity : SimulationEntity
         {
             if (left < wall.Right && right > wall.Left && top < wall.Bottom && bottom > wall.Top)
             {
+                if (wall.IsDirectionalDoor()
+                    && !wall.BlocksDirectionalMovement(previousLeft, previousRight, left, right))
+                {
+                    continue;
+                }
+
                 return false;
             }
         }

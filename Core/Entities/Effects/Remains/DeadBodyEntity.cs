@@ -11,6 +11,7 @@ public sealed class DeadBodyEntity : SimulationEntity
         int id,
         PlayerClass classId,
         PlayerTeam team,
+        DeadBodyAnimationKind animationKind,
         float x,
         float y,
         float width,
@@ -21,6 +22,7 @@ public sealed class DeadBodyEntity : SimulationEntity
     {
         ClassId = classId;
         Team = team;
+        AnimationKind = animationKind;
         X = x;
         Y = y;
         Width = width;
@@ -34,6 +36,8 @@ public sealed class DeadBodyEntity : SimulationEntity
     public PlayerClass ClassId { get; }
 
     public PlayerTeam Team { get; }
+
+    public DeadBodyAnimationKind AnimationKind { get; }
 
     public float X { get; private set; }
 

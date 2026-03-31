@@ -239,7 +239,7 @@ public partial class Game1
         const float leftPadding = 8f;
         const float rightPadding = 10f;
         const float iconSpacing = 6f;
-        var localPlayerId = _world.LocalPlayer.Id;
+        var localPlayerId = GetResolvedLocalPlayerId();
         var isLocalInvolved = entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId;
         var hideVictimName = ShouldSuppressKillFeedVictimName(entry);
         var victimName = hideVictimName ? string.Empty : entry.VictimName;

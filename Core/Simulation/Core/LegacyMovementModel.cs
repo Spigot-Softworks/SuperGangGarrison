@@ -28,6 +28,7 @@ public static class LegacyMovementModel
     private const float SelfBlastControlFactor = 0.65f;
     private const float EnemyBlastControlFactor = 0.45f;
     private const float AirblastControlFactor = 0.35f;
+    private const float HumiliationControlFactor = BaseControlFactor - 0.2f;
     private const float IntelControlFactor = BaseControlFactor - 0.1f;
     private const float SelfBlastFrictionFactor = 1f;
     private const float EnemyBlastFrictionFactor = 1.05f;
@@ -87,7 +88,8 @@ public static class LegacyMovementModel
         float horizontalDirection,
         LegacyMovementState state,
         bool isCarryingIntel,
-        float deltaSeconds)
+        float deltaSeconds,
+        bool isHumiliated = false)
     {
         if (deltaSeconds <= 0f)
         {
@@ -106,7 +108,7 @@ public static class LegacyMovementModel
                 speedPerTick += horizontalDirection
                     * runPower
                     * movementScale
-                    * GetControlFactor(state, isCarryingIntel)
+                    * GetControlFactor(state, isCarryingIntel, isHumiliated)
                     * stepSourceTicks;
             }
 
@@ -166,7 +168,7 @@ public static class LegacyMovementModel
         return MathF.Abs(runPower * BaseControlFactor / (BaseFrictionFactor - 1f));
     }
 
-    private static float GetControlFactor(LegacyMovementState state, bool isCarryingIntel)
+    private static float GetControlFactor(LegacyMovementState state, bool isCarryingIntel, bool isHumiliated)
     {
         return state switch
         {
@@ -174,6 +176,7 @@ public static class LegacyMovementModel
             LegacyMovementState.RocketJuggle => EnemyBlastControlFactor,
             LegacyMovementState.Airblast => AirblastControlFactor,
             LegacyMovementState.FriendlyJuggle => BaseControlFactor,
+            _ when isHumiliated => HumiliationControlFactor,
             _ => isCarryingIntel ? IntelControlFactor : BaseControlFactor,
         };
     }

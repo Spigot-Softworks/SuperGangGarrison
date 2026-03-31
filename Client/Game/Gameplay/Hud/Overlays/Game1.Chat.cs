@@ -7,6 +7,11 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float ChatHudPanelMargin = 12f;
+    private const float ChatHudPanelHorizontalPadding = 6f;
+    private const float ChatHudPanelVerticalPadding = 4f;
+    private const float ChatHudPanelSpacing = 4f;
+
     private void OpenChat(bool teamOnly)
     {
         _chatOpen = true;
@@ -71,18 +76,31 @@ public partial class Game1
     private void DrawChatHud()
     {
         var baseX = 18f;
-        var lineHeight = Math.Max(16f, MeasureBitmapFontHeight(1f) + 10f);
+        var maxPanelWidth = GetChatHudMaxPanelWidth(baseX);
+        var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
         var promptRectangle = new Rectangle(
             12,
             ViewportHeight - 118,
             Math.Max(280, ViewportWidth / 3),
             24);
-        var baseY = promptRectangle.Y - 14f - Math.Max(0f, (_chatLines.Count - 1) * lineHeight);
+        var totalChatHeight = 0f;
+        for (var index = 0; index < _chatLines.Count; index += 1)
+        {
+            totalChatHeight += MeasureChatLineHeight(_chatLines[index], maxPanelWidth);
+            if (index < _chatLines.Count - 1)
+            {
+                totalChatHeight += ChatHudPanelSpacing;
+            }
+        }
+
+        var baseY = promptRectangle.Y - 14f - totalChatHeight;
         for (var index = 0; index < _chatLines.Count; index += 1)
         {
             var line = _chatLines[index];
             var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
-            DrawChatLine(line, new Vector2(baseX, baseY + index * lineHeight), alpha);
+            var linePosition = new Vector2(baseX, baseY);
+            DrawChatLine(line, linePosition, alpha, maxPanelWidth);
+            baseY += MeasureChatLineHeight(line, maxPanelWidth) + ChatHudPanelSpacing;
         }
 
         if (!_chatOpen)
@@ -90,35 +108,213 @@ public partial class Game1
             return;
         }
 
-        var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
-        var promptText = $"{promptPrefix}{_chatInput}_";
-        promptRectangle.Width = Math.Max(promptRectangle.Width, (int)MathF.Ceiling(MeasureBitmapFontWidth(promptText, 1f) + 18f));
         DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
-        DrawBitmapFontText(promptPrefix, new Vector2(promptRectangle.X + 8, promptRectangle.Y + 6), new Color(255, 245, 210), 1f);
-        DrawBitmapFontText($"{_chatInput}_", new Vector2(promptRectangle.X + 8 + MeasureBitmapFontWidth(promptPrefix, 1f), promptRectangle.Y + 6), Color.White, 1f);
+        DrawChatPrompt(promptRectangle, promptPrefix);
     }
 
-    private void DrawChatLine(ChatLine line, Vector2 position, float alpha)
+    private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
     {
         var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
         var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
             ? channelPrefix
             : $"{channelPrefix}{line.PlayerName}: ";
         var speakerWidth = MeasureBitmapFontWidth(speakerPrefix, 1f);
-        var messageWidth = MeasureBitmapFontWidth(line.Text, 1f);
-        var width = Math.Max(96f, speakerWidth + messageWidth + 14f);
-        var height = Math.Max(16f, MeasureBitmapFontHeight(1f) + 8f);
+        var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
+        var wrappedMessageLines = WrapBitmapFontText(
+            line.Text,
+            Math.Max(24f, maxContentWidth - speakerWidth),
+            maxContentWidth);
+        var lineHeight = GetChatHudLineHeight();
+        var width = Math.Max(
+            96f,
+            GetWrappedChatPanelWidth(wrappedMessageLines, speakerWidth) + (ChatHudPanelHorizontalPadding * 2f));
+        var height = Math.Max(
+            16f,
+            GetWrappedChatPanelHeight(wrappedMessageLines.Count, lineHeight));
         DrawInsetHudPanel(
             new Rectangle((int)(position.X - 6f), (int)(position.Y - 2f), (int)MathF.Ceiling(width), (int)MathF.Ceiling(height)),
             new Color(0, 0, 0) * (0.82f * alpha),
             new Color(49, 45, 26) * (0.82f * alpha));
 
-        if (speakerPrefix.Length > 0)
+        for (var lineIndex = 0; lineIndex < wrappedMessageLines.Count; lineIndex += 1)
         {
-            DrawBitmapFontText(speakerPrefix, position, GetChatTeamColor(line.Team) * alpha, 1f);
+            var textPosition = new Vector2(position.X, position.Y + lineIndex * lineHeight);
+            if (lineIndex == 0 && speakerPrefix.Length > 0)
+            {
+                DrawBitmapFontText(speakerPrefix, textPosition, GetChatTeamColor(line.Team) * alpha, 1f);
+            }
+
+            DrawBitmapFontText(
+                wrappedMessageLines[lineIndex],
+                new Vector2(textPosition.X + (lineIndex == 0 ? speakerWidth : 0f), textPosition.Y),
+                new Color(235, 235, 235) * alpha,
+                1f);
+        }
+    }
+
+    private void DrawChatPrompt(Rectangle promptRectangle, string promptPrefix)
+    {
+        var prefixWidth = MeasureBitmapFontWidth(promptPrefix, 1f);
+        var maxInputWidth = Math.Max(24f, promptRectangle.Width - 18f - prefixWidth);
+        var visibleInput = GetTrailingBitmapFontTextThatFits($"{_chatInput}_", maxInputWidth);
+        var promptPosition = new Vector2(promptRectangle.X + 8f, promptRectangle.Y + 6f);
+        DrawBitmapFontText(promptPrefix, promptPosition, new Color(255, 245, 210), 1f);
+        DrawBitmapFontText(
+            visibleInput,
+            new Vector2(promptPosition.X + prefixWidth, promptPosition.Y),
+            Color.White,
+            1f);
+    }
+
+    private float MeasureChatLineHeight(ChatLine line, float maxPanelWidth)
+    {
+        var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
+        var speakerPrefix = string.IsNullOrWhiteSpace(line.PlayerName)
+            ? channelPrefix
+            : $"{channelPrefix}{line.PlayerName}: ";
+        var maxContentWidth = Math.Max(48f, maxPanelWidth - (ChatHudPanelHorizontalPadding * 2f));
+        var wrappedMessageLines = WrapBitmapFontText(
+            line.Text,
+            Math.Max(24f, maxContentWidth - MeasureBitmapFontWidth(speakerPrefix, 1f)),
+            maxContentWidth);
+        return GetWrappedChatPanelHeight(wrappedMessageLines.Count, GetChatHudLineHeight());
+    }
+
+    private float GetWrappedChatPanelWidth(IReadOnlyList<string> wrappedLines, float firstLinePrefixWidth)
+    {
+        var width = 0f;
+        for (var lineIndex = 0; lineIndex < wrappedLines.Count; lineIndex += 1)
+        {
+            var lineWidth = MeasureBitmapFontWidth(wrappedLines[lineIndex], 1f);
+            if (lineIndex == 0)
+            {
+                lineWidth += firstLinePrefixWidth;
+            }
+
+            width = MathF.Max(width, lineWidth);
         }
 
-        DrawBitmapFontText(line.Text, new Vector2(position.X + speakerWidth, position.Y), new Color(235, 235, 235) * alpha, 1f);
+        return width;
+    }
+
+    private float GetWrappedChatPanelHeight(int wrappedLineCount, float lineHeight)
+    {
+        return Math.Max(16f, (wrappedLineCount * lineHeight) + (ChatHudPanelVerticalPadding * 2f));
+    }
+
+    private float GetChatHudMaxPanelWidth(float baseX)
+    {
+        return Math.Max(220f, ViewportWidth - baseX - ChatHudPanelMargin);
+    }
+
+    private float GetChatHudLineHeight()
+    {
+        return Math.Max(16f, MeasureBitmapFontHeight(1f) + 2f);
+    }
+
+    private List<string> WrapBitmapFontText(string text, float firstLineWidth, float continuationLineWidth)
+    {
+        var wrappedLines = new List<string>();
+        var normalizedText = (text ?? string.Empty).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        var paragraphs = normalizedText.Split('\n');
+        var currentLineWidth = Math.Max(1f, firstLineWidth);
+        var wrappedAnyParagraph = false;
+
+        for (var paragraphIndex = 0; paragraphIndex < paragraphs.Length; paragraphIndex += 1)
+        {
+            var paragraph = paragraphs[paragraphIndex];
+            var words = paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var currentLine = string.Empty;
+
+            if (words.Length == 0)
+            {
+                wrappedLines.Add(string.Empty);
+                currentLineWidth = Math.Max(1f, continuationLineWidth);
+                wrappedAnyParagraph = true;
+                continue;
+            }
+
+            for (var wordIndex = 0; wordIndex < words.Length; wordIndex += 1)
+            {
+                var word = words[wordIndex];
+                var candidate = currentLine.Length == 0 ? word : $"{currentLine} {word}";
+                if (MeasureBitmapFontWidth(candidate, 1f) <= currentLineWidth)
+                {
+                    currentLine = candidate;
+                    continue;
+                }
+
+                if (currentLine.Length > 0)
+                {
+                    wrappedLines.Add(currentLine);
+                    currentLine = string.Empty;
+                    currentLineWidth = Math.Max(1f, continuationLineWidth);
+                }
+
+                while (MeasureBitmapFontWidth(word, 1f) > currentLineWidth && word.Length > 0)
+                {
+                    var splitIndex = GetWrappedBitmapFontChunkLength(word, currentLineWidth);
+                    wrappedLines.Add(word[..splitIndex]);
+                    word = word[splitIndex..];
+                    currentLineWidth = Math.Max(1f, continuationLineWidth);
+                }
+
+                currentLine = word;
+            }
+
+            if (currentLine.Length > 0)
+            {
+                wrappedLines.Add(currentLine);
+            }
+
+            currentLineWidth = Math.Max(1f, continuationLineWidth);
+            wrappedAnyParagraph = true;
+        }
+
+        if (!wrappedAnyParagraph)
+        {
+            wrappedLines.Add(string.Empty);
+        }
+
+        return wrappedLines;
+    }
+
+    private int GetWrappedBitmapFontChunkLength(string text, float maxWidth)
+    {
+        var bestLength = 1;
+        for (var length = 1; length <= text.Length; length += 1)
+        {
+            if (MeasureBitmapFontWidth(text[..length], 1f) > maxWidth)
+            {
+                break;
+            }
+
+            bestLength = length;
+        }
+
+        return bestLength;
+    }
+
+    private string GetTrailingBitmapFontTextThatFits(string text, float maxWidth)
+    {
+        if (string.IsNullOrEmpty(text) || MeasureBitmapFontWidth(text, 1f) <= maxWidth)
+        {
+            return text;
+        }
+
+        var startIndex = text.Length - 1;
+        while (startIndex > 0)
+        {
+            var candidate = text[startIndex..];
+            if (MeasureBitmapFontWidth(candidate, 1f) <= maxWidth)
+            {
+                return candidate;
+            }
+
+            startIndex -= 1;
+        }
+
+        return text[^1].ToString();
     }
 
     private static Color GetChatTeamColor(byte team)

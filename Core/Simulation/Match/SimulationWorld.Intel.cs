@@ -102,6 +102,7 @@ public sealed partial class SimulationWorld
         }
 
         player.ScoreIntel();
+        AwardObjectiveCapturePoints(player);
         GetEnemyIntelState(player.Team).ResetToBase();
         RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
         RecordIntelCapturedObjectiveLog(player);

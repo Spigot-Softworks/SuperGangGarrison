@@ -14,6 +14,7 @@ sealed class ClientSession(byte slot, IPEndPoint endPoint, string name, TimeSpan
     public byte Slot { get; set; } = slot;
     public IPEndPoint EndPoint { get; } = endPoint;
     public string Name { get; set; } = name;
+    public ulong BadgeMask { get; set; }
     public TimeSpan ConnectedAt { get; } = lastSeen;
     public TimeSpan LastSeen { get; set; } = lastSeen;
     public PlayerInputSnapshot LatestReceivedInput { get; private set; }

@@ -23,10 +23,8 @@ public static class SimpleLevelFactory
 
     public static SimpleLevel? CreateImportedLevel(string levelName, int mapAreaIndex = 1)
     {
-        var normalizedName = NormalizeLevelName(levelName);
         var catalog = GetAvailableSourceLevels();
-        var levelSpec = catalog.FirstOrDefault(entry => NameComparer.Equals(entry.Name, normalizedName));
-        if (string.IsNullOrEmpty(levelSpec.Name))
+        if (!TryFindCatalogEntry(catalog, levelName, out var levelSpec))
         {
             return null;
         }
@@ -104,7 +102,7 @@ public static class SimpleLevelFactory
         var solids = importedSolids.Count > 0 ? importedSolids : CreateFallbackSolids(bounds, spawn, floorY);
 
         return new SimpleLevel(
-            name: importedRoom.Name,
+            name: levelSpec.Name,
             mode: levelSpec.Mode,
             bounds: bounds,
             backgroundAssetName: importedRoom.PrimaryBackgroundAssetName,
@@ -130,23 +128,15 @@ public static class SimpleLevelFactory
         }
 
         var entries = new List<LevelCatalogEntry>();
-        var mapsDirectory = ProjectSourceLocator.FindDirectory(ContentRoot.GetPath("Rooms", "Maps"));
-        if (mapsDirectory is not null)
+        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
         {
-            foreach (var mapFile in Directory.EnumerateFiles(mapsDirectory, "*.xml"))
+            var stockMapPath = FindStockMapSourcePath(definition);
+            if (stockMapPath is null)
             {
-                var mapName = Path.GetFileNameWithoutExtension(mapFile);
-                if (string.IsNullOrWhiteSpace(mapName)
-                    || mapName.Equals("_resources.list", StringComparison.OrdinalIgnoreCase)
-                    || mapName.Equals("CustomMapRoom", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var mode = DetectMode(mapFile);
-                var collisionMaskPath = FindCollisionMaskPath(mapName);
-                entries.Add(new LevelCatalogEntry(mapName, mode, mapFile, collisionMaskPath));
+                continue;
             }
+
+            entries.Add(new LevelCatalogEntry(definition.LevelName, definition.Mode, stockMapPath, null));
         }
 
         AppendCustomMapEntries(entries);
@@ -234,6 +224,17 @@ public static class SimpleLevelFactory
             return GameModeKind.Arena;
         }
 
+        if (metadata.RoomObjects.Any(static marker => marker.IsRedKothControlPoint())
+            && metadata.RoomObjects.Any(static marker => marker.IsBlueKothControlPoint()))
+        {
+            return GameModeKind.DoubleKingOfTheHill;
+        }
+
+        if (metadata.RoomObjects.Any(static marker => marker.IsSingleKothControlPoint()))
+        {
+            return GameModeKind.KingOfTheHill;
+        }
+
         if (metadata.RoomObjects.Any(marker => marker.Type == RoomObjectType.ControlPoint))
         {
             return GameModeKind.ControlPoint;
@@ -242,6 +243,11 @@ public static class SimpleLevelFactory
         if (metadata.IntelBases.Count > 0)
         {
             return GameModeKind.CaptureTheFlag;
+        }
+
+        if (metadata.Name.StartsWith("tdm_", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameModeKind.TeamDeathmatch;
         }
 
         return GameModeKind.CaptureTheFlag;
@@ -273,24 +279,54 @@ public static class SimpleLevelFactory
         }
     }
 
-    private static string? FindCollisionMaskPath(string mapName)
+    private static bool TryFindCatalogEntry(IReadOnlyList<LevelCatalogEntry> catalog, string levelName, out LevelCatalogEntry entry)
     {
-        var collisionDirectory = ContentRoot.GetPath("Sprites", "Collision Maps");
-        if (collisionDirectory is null)
+        var trimmedLevelName = levelName.Trim();
+        foreach (var candidate in catalog)
         {
-            return null;
+            if (NameComparer.Equals(candidate.Name, trimmedLevelName))
+            {
+                entry = candidate;
+                return true;
+            }
         }
 
-        var targetFolderName = $"{mapName}S.images";
-        var folder = Directory.EnumerateDirectories(collisionDirectory)
-            .FirstOrDefault(candidate => NameComparer.Equals(Path.GetFileName(candidate), targetFolderName));
-        if (folder is null)
+        var normalizedName = NormalizeLevelName(levelName);
+        foreach (var candidate in catalog)
         {
-            return null;
+            if (NameComparer.Equals(NormalizeLevelName(candidate.Name), normalizedName))
+            {
+                entry = candidate;
+                return true;
+            }
         }
 
-        var imagePath = Path.Combine(folder, "image 0.png");
-        return File.Exists(imagePath) ? imagePath : null;
+        entry = default;
+        return false;
+    }
+
+    private static string? FindStockMapSourcePath(OpenGarrisonStockMapDefinition definition)
+    {
+        var fileName = $"{definition.IniKey}.png";
+        var runtimePath = ContentRoot.GetPath("StockMaps", fileName);
+        if (File.Exists(runtimePath))
+        {
+            return runtimePath;
+        }
+
+        var projectContentPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "StockMaps", fileName));
+        if (!string.IsNullOrWhiteSpace(projectContentPath) && File.Exists(projectContentPath))
+        {
+            return projectContentPath;
+        }
+
+        var sourceContentPath = ProjectSourceLocator.FindFile(Path.Combine(ContentRoot.Path, "StockMaps", fileName));
+        if (!string.IsNullOrWhiteSpace(sourceContentPath) && File.Exists(sourceContentPath))
+        {
+            return sourceContentPath;
+        }
+
+        return null;
     }
 
     private static string NormalizeLevelName(string levelName)
@@ -304,7 +340,10 @@ public static class SimpleLevelFactory
         if (trimmed.StartsWith("ctf_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("arena_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("cp_", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("gen_", StringComparison.OrdinalIgnoreCase))
+            || trimmed.StartsWith("gen_", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("koth_", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("dkoth_", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("tdm_", StringComparison.OrdinalIgnoreCase))
         {
             return trimmed[(trimmed.IndexOf('_') + 1)..];
         }

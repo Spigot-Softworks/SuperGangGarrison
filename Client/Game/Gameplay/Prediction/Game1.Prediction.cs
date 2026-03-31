@@ -178,11 +178,41 @@ public partial class Game1
         }
 
         ApplyPredictedPrimaryFire(player, predictedInput);
+        ApplyPredictedRoomForces(player);
         var startedGrounded = player.PrepareMovement(predictedInput.Input, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
         var jumped = player.TryJumpIfPossible(canMove, predictedInput.JumpPressed);
         ApplyPredictedSecondaryFire(player, predictedInput);
-        player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped);
+        player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, predictedInput.Input.Down);
         SyncPredictedLocalPlayerState(player);
+    }
+
+    private void ApplyPredictedRoomForces(PlayerEntity player)
+    {
+        foreach (var roomObject in _world.Level.RoomObjects)
+        {
+            if (!roomObject.IsMoveBox())
+            {
+                continue;
+            }
+
+            if (!player.IntersectsMarker(
+                roomObject.CenterX,
+                roomObject.CenterY,
+                roomObject.Width,
+                roomObject.Height))
+            {
+                continue;
+            }
+
+            var impulse = roomObject.GetMoveBoxImpulse();
+            if (impulse.X == 0f && impulse.Y == 0f)
+            {
+                continue;
+            }
+
+            player.SetMovementState(LegacyMovementState.None);
+            player.AddImpulse(impulse.X, impulse.Y);
+        }
     }
 
     private struct PredictedLocalActionState

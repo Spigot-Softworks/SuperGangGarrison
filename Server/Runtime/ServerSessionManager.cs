@@ -77,6 +77,11 @@ sealed class ServerSessionManager
         _world.TrySetNetworkPlayerName(slot, name);
     }
 
+    public void ApplyClientBadgeMask(byte slot, ulong badgeMask)
+    {
+        _world.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
+    }
+
     public void PreparePlayableClientInputsForNextTick()
     {
         for (var index = 0; index < SimulationWorld.NetworkPlayerSlots.Count; index += 1)
@@ -349,6 +354,7 @@ sealed class ServerSessionManager
         {
             _world.TryPrepareNetworkPlayerJoin(newSlot);
             _world.TrySetNetworkPlayerName(newSlot, client.Name);
+            _world.TrySetNetworkPlayerBadgeMask(newSlot, client.BadgeMask);
         }
 
         _sendMessage(client.EndPoint, new SessionSlotChangedMessage(newSlot));

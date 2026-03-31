@@ -14,7 +14,7 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen;
+        return _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen || ShouldBlockGameplayForNavEditor();
     }
 
     private bool IsGameplayInputBlocked()
@@ -71,6 +71,7 @@ public partial class Game1
         _optionsMenuOpen = true;
         _optionsMenuOpenedFromGameplay = fromGameplay;
         _pluginOptionsMenuOpen = false;
+        _pendingPluginOptionsKeyItem = null;
         _selectedPluginOptionsPluginId = null;
         _controlsMenuOpen = false;
         _pendingControlsBinding = null;
@@ -88,6 +89,7 @@ public partial class Game1
         _optionsMenuOpenedFromGameplay = false;
         _pluginOptionsMenuOpen = false;
         _pluginOptionsMenuOpenedFromGameplay = false;
+        _pendingPluginOptionsKeyItem = null;
         _selectedPluginOptionsPluginId = null;
         _optionsHoverIndex = -1;
         _pluginOptionsHoverIndex = -1;
@@ -103,9 +105,11 @@ public partial class Game1
     {
         _pluginOptionsMenuOpen = true;
         _pluginOptionsMenuOpenedFromGameplay = fromGameplay;
+        _pendingPluginOptionsKeyItem = null;
         _selectedPluginOptionsPluginId = null;
         _optionsMenuOpen = false;
         _pluginOptionsHoverIndex = -1;
+        _pluginOptionsScrollOffset = 0;
         _optionsHoverIndex = -1;
         _editingPlayerName = false;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
@@ -116,8 +120,10 @@ public partial class Game1
         var reopenFromGameplay = _pluginOptionsMenuOpenedFromGameplay;
         _pluginOptionsMenuOpen = false;
         _pluginOptionsMenuOpenedFromGameplay = false;
+        _pendingPluginOptionsKeyItem = null;
         _selectedPluginOptionsPluginId = null;
         _pluginOptionsHoverIndex = -1;
+        _pluginOptionsScrollOffset = 0;
         OpenOptionsMenu(reopenFromGameplay);
     }
 
@@ -497,14 +503,57 @@ public partial class Game1
     private void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
         var rows = BuildPluginOptionsMenuRows();
-        GetOptionsMenuLayout(rows.Count, out var xbegin, out var ybegin, out var spacing, out var width, out _);
+        var visibleRowCount = Math.Min(rows.Count, GetPluginOptionsVisibleRowCapacity());
+        ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
+        GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out var width, out _);
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        var menuTop = ybegin - spacing;
+        var menuHeight = Math.Max(spacing, visibleRowCount * spacing);
+        var menuBounds = new Rectangle(
+            (int)MathF.Floor(xbegin),
+            (int)MathF.Floor(menuTop),
+            (int)MathF.Ceiling(width),
+            (int)MathF.Ceiling(menuHeight));
+
+        if (_pendingPluginOptionsKeyItem is not null)
+        {
+            if (IsKeyPressed(keyboard, Keys.Escape))
+            {
+                _pendingPluginOptionsKeyItem = null;
+                return;
+            }
+
+            foreach (var key in keyboard.GetPressedKeys())
+            {
+                if (_previousKeyboard.IsKeyDown(key))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    _pendingPluginOptionsKeyItem.SetKey(key);
+                }
+                catch (Exception ex)
+                {
+                    AddConsoleLine($"plugin option apply failed for \"{_pendingPluginOptionsKeyItem.Label}\": {ex.Message}");
+                }
+
+                _pendingPluginOptionsKeyItem = null;
+                return;
+            }
+
+            return;
+        }
 
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
             if (_selectedPluginOptionsPluginId is not null)
             {
                 _selectedPluginOptionsPluginId = null;
+                _pendingPluginOptionsKeyItem = null;
                 _pluginOptionsHoverIndex = -1;
+                _pluginOptionsScrollOffset = 0;
                 return;
             }
 
@@ -512,12 +561,28 @@ public partial class Game1
             return;
         }
 
+        if (wheelDelta != 0 && menuBounds.Contains(mouse.Position))
+        {
+            var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
+            _pluginOptionsScrollOffset = Math.Clamp(
+                _pluginOptionsScrollOffset + (wheelDelta > 0 ? -stepCount : stepCount),
+                0,
+                Math.Max(0, rows.Count - visibleRowCount));
+        }
+
         if (mouse.X > xbegin && mouse.X < xbegin + width)
         {
-            var hoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-            _pluginOptionsHoverIndex = hoverIndex >= 0 && hoverIndex < rows.Count && rows[hoverIndex].Selectable
-                ? hoverIndex
-                : -1;
+            var visibleHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
+            var hoverIndex = _pluginOptionsScrollOffset + visibleHoverIndex;
+            var visibleStart = _pluginOptionsScrollOffset;
+            var visibleEndExclusive = visibleStart + visibleRowCount;
+            _pluginOptionsHoverIndex = visibleHoverIndex >= 0
+                && hoverIndex >= visibleStart
+                && hoverIndex < visibleEndExclusive
+                && hoverIndex < rows.Count
+                && rows[hoverIndex].Selectable
+                    ? hoverIndex
+                    : -1;
         }
         else
         {
@@ -541,10 +606,13 @@ public partial class Game1
         var compactLayout = ViewportHeight < 540;
         var textScale = compactLayout ? 0.92f : 1f;
         var rows = BuildPluginOptionsMenuRows();
-        GetOptionsMenuLayout(rows.Count, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
+        var visibleRowCount = Math.Min(rows.Count, GetPluginOptionsVisibleRowCapacity());
+        ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
+        GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
 
         var position = new Vector2(xbegin, ybegin);
-        for (var index = 0; index < rows.Count; index += 1)
+        var endIndex = Math.Min(rows.Count, _pluginOptionsScrollOffset + visibleRowCount);
+        for (var index = _pluginOptionsScrollOffset; index < endIndex; index += 1)
         {
             var row = rows[index];
             var color = row.IsHeader
@@ -557,6 +625,26 @@ public partial class Game1
             }
 
             position.Y += spacing;
+        }
+
+        if (rows.Count > visibleRowCount)
+        {
+            var visibleStart = _pluginOptionsScrollOffset + 1;
+            var visibleEnd = Math.Min(rows.Count, _pluginOptionsScrollOffset + visibleRowCount);
+            DrawBitmapFontText(
+                $"{visibleStart}-{visibleEnd}/{rows.Count}",
+                new Vector2(valueX + (compactLayout ? 32f : 56f), ybegin - spacing),
+                new Color(186, 186, 186),
+                compactLayout ? 0.72f : 0.8f);
+        }
+
+        if (_pendingPluginOptionsKeyItem is not null)
+        {
+            DrawBitmapFontText(
+                $"Press a key for {_pendingPluginOptionsKeyItem.Label} (Esc to cancel)",
+                new Vector2(xbegin, Math.Max(18f, ybegin - spacing * 1.5f)),
+                Color.Orange,
+                compactLayout ? 0.82f : 0.9f);
         }
     }
 
@@ -577,7 +665,7 @@ public partial class Game1
                 var entry = pluginEntries[pluginIndex];
                 rows.Add(new PluginOptionsMenuRow(
                     entry.DisplayName,
-                    string.Empty,
+                    GetClientPluginStatusLabel(entry),
                     Selectable: true,
                     IsHeader: false,
                     Activate: () => OpenPluginOptionsDetail(entry.PluginId)));
@@ -600,8 +688,25 @@ public partial class Game1
         }
 
         rows.Add(new PluginOptionsMenuRow(selectedEntry.DisplayName, string.Empty, Selectable: false, IsHeader: true, Activate: null));
+        rows.Add(new PluginOptionsMenuRow("Version", FormatClientPluginVersion(selectedEntry.Version), Selectable: false, IsHeader: false, Activate: null));
+        rows.Add(new PluginOptionsMenuRow(
+            "Enabled",
+            selectedEntry.IsEnabled ? "Enabled" : "Disabled",
+            Selectable: true,
+            IsHeader: false,
+            Activate: () => _clientPluginHost?.SetPluginEnabled(selectedEntry.PluginId, !selectedEntry.IsEnabled)));
+        if (selectedEntry.IsEnabled && !selectedEntry.IsLoaded)
+        {
+            rows.Add(new PluginOptionsMenuRow("Status", "Load failed", Selectable: false, IsHeader: false, Activate: null));
+            rows.Add(new PluginOptionsMenuRow("See console for the plugin error.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
+        }
+        else if (!selectedEntry.IsEnabled)
+        {
+            rows.Add(new PluginOptionsMenuRow("Enable this plugin to access its options.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
+        }
+
         var sections = selectedEntry.Sections;
-        for (var sectionIndex = 0; sectionIndex < sections.Count; sectionIndex += 1)
+        for (var sectionIndex = 0; selectedEntry.IsEnabled && selectedEntry.IsLoaded && sectionIndex < sections.Count; sectionIndex += 1)
         {
             var section = sections[sectionIndex];
             if (section.Items.Count == 0)
@@ -628,7 +733,7 @@ public partial class Game1
             }
         }
 
-        if (rows.Count == 1)
+        if (rows.Count == 3 && selectedEntry.IsEnabled && selectedEntry.IsLoaded)
         {
             rows.Add(new PluginOptionsMenuRow("No options available.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
         }
@@ -665,13 +770,49 @@ public partial class Game1
     private void OpenPluginOptionsDetail(string pluginId)
     {
         _selectedPluginOptionsPluginId = pluginId;
+        _pendingPluginOptionsKeyItem = null;
         _pluginOptionsHoverIndex = -1;
+        _pluginOptionsScrollOffset = 0;
     }
 
     private void CloseSelectedPluginOptionsDetail()
     {
         _selectedPluginOptionsPluginId = null;
+        _pendingPluginOptionsKeyItem = null;
         _pluginOptionsHoverIndex = -1;
+        _pluginOptionsScrollOffset = 0;
+    }
+
+    private int GetPluginOptionsVisibleRowCapacity()
+    {
+        return ViewportHeight < 540 ? 14 : 16;
+    }
+
+    private void ClampPluginOptionsScrollOffset(int rowCount, int visibleRowCount)
+    {
+        _pluginOptionsScrollOffset = Math.Clamp(
+            _pluginOptionsScrollOffset,
+            0,
+            Math.Max(0, rowCount - visibleRowCount));
+    }
+
+    private static string GetClientPluginStatusLabel(ClientPluginOptionsEntry entry)
+    {
+        if (!entry.IsEnabled)
+        {
+            return "Disabled";
+        }
+
+        return entry.IsLoaded ? "Enabled" : "Load failed";
+    }
+
+    private static string FormatClientPluginVersion(Version version)
+    {
+        return version.Revision >= 0
+            ? version.ToString()
+            : version.Build >= 0
+                ? version.ToString(3)
+                : $"{version.Major}.{version.Minor}";
     }
 
     private string GetPluginOptionValueLabel(ClientPluginOptionItem item)
@@ -689,6 +830,12 @@ public partial class Game1
 
     private void ActivatePluginOption(ClientPluginOptionItem item)
     {
+        if (item is ClientPluginKeyOptionItem keyItem)
+        {
+            _pendingPluginOptionsKeyItem = keyItem;
+            return;
+        }
+
         try
         {
             item.Activate();
@@ -796,6 +943,7 @@ public partial class Game1
 
     private List<(ControlsMenuBinding Binding, string Label, Keys Key)> GetControlsMenuBindings()
     {
+        var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
         return
         [
             (ControlsMenuBinding.MoveUp, "Jump:", _inputBindings.MoveUp),
@@ -807,6 +955,9 @@ public partial class Game1
             (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
             (ControlsMenuBinding.ShowScoreboard, "Show Scores:", _inputBindings.ShowScoreboard),
             (ControlsMenuBinding.ToggleConsole, "Console:", _inputBindings.ToggleConsole),
+            (ControlsMenuBinding.OpenBubbleMenuZ, $"{bubbleMenuBindingPrefix} Z:", _inputBindings.OpenBubbleMenuZ),
+            (ControlsMenuBinding.OpenBubbleMenuX, $"{bubbleMenuBindingPrefix} X:", _inputBindings.OpenBubbleMenuX),
+            (ControlsMenuBinding.OpenBubbleMenuC, $"{bubbleMenuBindingPrefix} C:", _inputBindings.OpenBubbleMenuC),
         ];
     }
 
@@ -841,11 +992,21 @@ public partial class Game1
             case ControlsMenuBinding.ToggleConsole:
                 _inputBindings.ToggleConsole = key;
                 break;
+            case ControlsMenuBinding.OpenBubbleMenuZ:
+                _inputBindings.OpenBubbleMenuZ = key;
+                break;
+            case ControlsMenuBinding.OpenBubbleMenuX:
+                _inputBindings.OpenBubbleMenuX = key;
+                break;
+            case ControlsMenuBinding.OpenBubbleMenuC:
+                _inputBindings.OpenBubbleMenuC = key;
+                break;
         }
     }
 
-    private static string GetControlsBindingLabel(ControlsMenuBinding binding)
+    private string GetControlsBindingLabel(ControlsMenuBinding binding)
     {
+        var bubbleMenuBindingPrefix = GetBubbleMenuBindingPrefix();
         return binding switch
         {
             ControlsMenuBinding.MoveUp => "Jump",
@@ -857,8 +1018,18 @@ public partial class Game1
             ControlsMenuBinding.ChangeClass => "Change Class",
             ControlsMenuBinding.ShowScoreboard => "Show Scores",
             ControlsMenuBinding.ToggleConsole => "Console",
+            ControlsMenuBinding.OpenBubbleMenuZ => $"{bubbleMenuBindingPrefix} Z",
+            ControlsMenuBinding.OpenBubbleMenuX => $"{bubbleMenuBindingPrefix} X",
+            ControlsMenuBinding.OpenBubbleMenuC => $"{bubbleMenuBindingPrefix} C",
             _ => "Binding",
         };
+    }
+
+    private string GetBubbleMenuBindingPrefix()
+    {
+        return HasClientPluginBubbleMenuOverride()
+            ? "Bubble Wheel"
+            : "Bubble Menu";
     }
 
     private static string GetBindingDisplayName(Keys key)

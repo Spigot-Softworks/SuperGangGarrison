@@ -18,7 +18,9 @@ internal sealed record HostedServerLaunchOptions(
     int CapLimit,
     int RespawnSeconds,
     bool LobbyAnnounce,
-    bool AutoBalance);
+    bool AutoBalance,
+    string? RequestedMap,
+    string? MapRotationFile);
 
 internal static class HostedServerBootstrapper
 {
@@ -139,6 +141,16 @@ internal static class HostedServerBootstrapper
         if (!string.IsNullOrWhiteSpace(options.Password))
         {
             arguments.Add($"--password {QuoteArgument(options.Password)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.RequestedMap))
+        {
+            arguments.Add($"--map {QuoteArgument(options.RequestedMap)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.MapRotationFile))
+        {
+            arguments.Add($"--map-rotation {QuoteArgument(options.MapRotationFile)}");
         }
 
         if (options.TimeLimitMinutes > 0)

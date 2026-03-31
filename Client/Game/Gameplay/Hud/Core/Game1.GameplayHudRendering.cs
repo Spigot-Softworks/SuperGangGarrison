@@ -47,6 +47,7 @@ public partial class Game1
         }
 
         DrawClientPluginHud(cameraPosition);
+        DrawNavEditorOverlay(mouse, cameraPosition);
     }
 
     private void DrawGameplayModalOverlays(MouseState mouse)
@@ -70,6 +71,7 @@ public partial class Game1
             && !_networkClient.IsSpectator
             && _world.LocalPlayer.IsAlive
             && (!_killCamEnabled || _world.LocalDeathCam is null)
+            && !ShouldBlockGameplayForNavEditor()
             && !_consoleOpen
             && !_practiceSetupOpen
             && !_inGameMenuOpen

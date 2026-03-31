@@ -1,3 +1,5 @@
+using OpenGarrison.Core;
+
 namespace OpenGarrison.BotAI;
 
 public enum BotNavigationNodeKind
@@ -21,6 +23,7 @@ public enum BotNavigationBuildStrategy
     GeometrySampled = 0,
     GeometrySampledValidatedJumps = 1,
     HintAugmentedValidatedJumps = 2,
+    ExplicitHintGraphValidatedTraversals = 3,
 }
 
 public enum BotNavigationAssetSource
@@ -38,6 +41,8 @@ public sealed class BotNavigationInputFrame
 
     public bool Up { get; init; }
 
+    public double DurationSeconds { get; init; }
+
     public int Ticks { get; init; } = 1;
 }
 
@@ -53,7 +58,11 @@ public sealed class BotNavigationNode
 
     public BotNavigationNodeKind Kind { get; init; }
 
+    public PlayerTeam? Team { get; init; }
+
     public string Label { get; init; } = string.Empty;
+
+    public bool RequiresGroundSupport { get; init; } = true;
 }
 
 public sealed class BotNavigationEdge
@@ -75,6 +84,12 @@ public sealed class BotNavigationBuildStats
 
     public int CandidateNodeCount { get; init; }
 
+    public int SurfaceSampleNodeCount { get; init; }
+
+    public int AutoAnchorNodeCount { get; init; }
+
+    public int HintNodeCount { get; init; }
+
     public int NodeCount { get; init; }
 
     public int EdgeCount { get; init; }
@@ -85,7 +100,21 @@ public sealed class BotNavigationBuildStats
 
     public int DropEdgeCount { get; init; }
 
+    public int HintEdgeCount { get; init; }
+
     public double BuildMilliseconds { get; init; }
+
+    public double SurfaceSamplingMilliseconds { get; init; }
+
+    public double AutoAnchorMilliseconds { get; init; }
+
+    public double HintNodeMilliseconds { get; init; }
+
+    public double AutomaticEdgeMilliseconds { get; init; }
+
+    public double HintEdgeMilliseconds { get; init; }
+
+    public double DropEdgeMilliseconds { get; init; }
 }
 
 public sealed class BotNavigationAsset
@@ -95,6 +124,8 @@ public sealed class BotNavigationAsset
     public string LevelName { get; init; } = string.Empty;
 
     public int MapAreaIndex { get; init; } = 1;
+
+    public PlayerClass? ClassId { get; init; }
 
     public BotNavigationProfile Profile { get; init; }
 
@@ -112,26 +143,29 @@ public sealed class BotNavigationAsset
 }
 
 public sealed record BotNavigationAssetStatus(
+    PlayerClass ClassId,
     BotNavigationProfile Profile,
     bool IsLoaded,
     BotNavigationAssetSource Source,
     string Path,
     string Message,
     int NodeCount,
-    int EdgeCount);
+    int EdgeCount,
+    bool IsStructurallyValid = true,
+    string StructuralMessage = "");
 
 public sealed record BotNavigationLoadResult(
     string LevelName,
     int MapAreaIndex,
     string LevelFingerprint,
-    IReadOnlyDictionary<BotNavigationProfile, BotNavigationAsset> Assets,
+    IReadOnlyDictionary<PlayerClass, BotNavigationAsset> Assets,
     IReadOnlyList<BotNavigationAssetStatus> Statuses)
 {
     public static BotNavigationLoadResult Empty { get; } = new(
         string.Empty,
         1,
         string.Empty,
-        new Dictionary<BotNavigationProfile, BotNavigationAsset>(),
+        new Dictionary<PlayerClass, BotNavigationAsset>(),
         Array.Empty<BotNavigationAssetStatus>());
 
     public bool HasAnyAssets => Assets.Count > 0;
@@ -140,13 +174,16 @@ public sealed record BotNavigationLoadResult(
     {
         if (Statuses.Count == 0)
         {
-            return "nav no profiles requested";
+            return "nav no classes requested";
         }
 
         var loadedCount = Statuses.Count(static status => status.IsLoaded);
         var missingCount = Statuses.Count - loadedCount;
+        var invalidCount = Statuses.Count(static status => status.IsLoaded && !status.IsStructurallyValid);
         var loadedNodes = Statuses.Where(static status => status.IsLoaded).Sum(static status => status.NodeCount);
         var loadedEdges = Statuses.Where(static status => status.IsLoaded).Sum(static status => status.EdgeCount);
-        return $"nav loaded={loadedCount}/{Statuses.Count} missing={missingCount} nodes={loadedNodes} edges={loadedEdges}";
+        return invalidCount > 0
+            ? $"nav loaded={loadedCount}/{Statuses.Count} missing={missingCount} invalid={invalidCount} nodes={loadedNodes} edges={loadedEdges}"
+            : $"nav loaded={loadedCount}/{Statuses.Count} missing={missingCount} nodes={loadedNodes} edges={loadedEdges}";
     }
 }

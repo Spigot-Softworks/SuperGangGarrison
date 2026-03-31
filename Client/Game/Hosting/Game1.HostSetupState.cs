@@ -19,12 +19,15 @@ public partial class Game1
         int CapLimit,
         int RespawnSeconds,
         bool LobbyAnnounce,
-        bool AutoBalance);
+        bool AutoBalance,
+        string? RequestedMap,
+        string? MapRotationFile);
 
     private sealed class HostSetupFormState
     {
         public int HoverIndex { get; set; } = -1;
         public int MapIndex { get; set; }
+        public int MapScrollOffset { get; set; }
         public HostSetupEditField EditField { get; set; }
         public HostSetupTab Tab { get; set; }
         public string ServerNameBuffer { get; set; } = "My Server";
@@ -43,6 +46,7 @@ public partial class Game1
         {
             ArgumentNullException.ThrowIfNull(hostDefaults);
 
+            MapScrollOffset = 0;
             ServerNameBuffer = SanitizeServerName(hostDefaults.ServerName);
             PortBuffer = SanitizePort(hostDefaults.Port);
             SlotsBuffer = Math.Clamp(hostDefaults.Slots, 1, SimulationWorld.MaxPlayableNetworkPlayers)
@@ -73,6 +77,7 @@ public partial class Game1
             ArgumentNullException.ThrowIfNull(hostDefaults);
 
             HoverIndex = -1;
+            MapScrollOffset = 0;
             Tab = HostSetupTab.Settings;
             EditField = HostSetupEditField.ServerName;
 
@@ -148,6 +153,7 @@ public partial class Game1
             error = string.Empty;
 
             var trimmedRotationFile = MapRotationFileBuffer.Trim();
+            string? requestedMap = null;
             if (MapEntries.Count == 0)
             {
                 error = "No stock maps are available.";
@@ -206,6 +212,18 @@ public partial class Game1
                 return false;
             }
 
+            var selectedMap = GetSelectedMapEntry();
+            if (selectedMap is not null && selectedMap.Order > 0)
+            {
+                requestedMap = selectedMap.LevelName;
+            }
+
+            if (string.IsNullOrWhiteSpace(requestedMap))
+            {
+                var includedMaps = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(MapEntries);
+                requestedMap = includedMaps.Count > 0 ? includedMaps[0] : null;
+            }
+
             request = new HostSetupLaunchRequest(
                 serverName,
                 port,
@@ -215,7 +233,9 @@ public partial class Game1
                 capLimit,
                 respawnSeconds,
                 LobbyAnnounceEnabled,
-                AutoBalanceEnabled);
+                AutoBalanceEnabled,
+                requestedMap,
+                string.IsNullOrWhiteSpace(trimmedRotationFile) ? null : trimmedRotationFile);
             return true;
         }
 
@@ -467,6 +487,53 @@ public partial class Game1
             return $"Stock rotation: {preview}";
         }
 
+        public void ScrollMapList(int deltaRows, int visibleRowCount)
+        {
+            MapScrollOffset = Math.Clamp(
+                MapScrollOffset + deltaRows,
+                0,
+                GetMaxMapScrollOffset(visibleRowCount));
+        }
+
+        public void ClampMapScrollOffset(int visibleRowCount)
+        {
+            MapScrollOffset = Math.Clamp(MapScrollOffset, 0, GetMaxMapScrollOffset(visibleRowCount));
+        }
+
+        public void EnsureSelectedMapVisible(int visibleRowCount)
+        {
+            EnsureMapIndexVisible(MapIndex, visibleRowCount);
+        }
+
+        public void EnsureMapIndexVisible(int mapIndex, int visibleRowCount)
+        {
+            if (MapEntries.Count == 0)
+            {
+                MapScrollOffset = 0;
+                return;
+            }
+
+            var capacity = Math.Max(1, visibleRowCount);
+            var clampedIndex = Math.Clamp(mapIndex, 0, MapEntries.Count - 1);
+            var maxScrollOffset = GetMaxMapScrollOffset(capacity);
+            MapScrollOffset = Math.Clamp(MapScrollOffset, 0, maxScrollOffset);
+            if (clampedIndex < MapScrollOffset)
+            {
+                MapScrollOffset = clampedIndex;
+            }
+            else if (clampedIndex >= MapScrollOffset + capacity)
+            {
+                MapScrollOffset = clampedIndex - capacity + 1;
+            }
+
+            MapScrollOffset = Math.Clamp(MapScrollOffset, 0, maxScrollOffset);
+        }
+
+        private int GetMaxMapScrollOffset(int visibleRowCount)
+        {
+            return Math.Max(0, MapEntries.Count - Math.Max(1, visibleRowCount));
+        }
+
         private static List<OpenGarrisonMapRotationEntry> BuildMapEntries(OpenGarrisonHostSettings hostDefaults)
         {
             var configuredEntries = hostDefaults.StockMapRotation
@@ -508,6 +575,12 @@ public partial class Game1
     {
         get => _hostSetupState.MapIndex;
         set => _hostSetupState.MapIndex = value;
+    }
+
+    private int _hostMapScrollOffset
+    {
+        get => _hostSetupState.MapScrollOffset;
+        set => _hostSetupState.MapScrollOffset = value;
     }
 
     private List<OpenGarrisonMapRotationEntry> _hostMapEntries

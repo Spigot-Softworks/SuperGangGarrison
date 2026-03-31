@@ -204,7 +204,7 @@ public partial class Game1
         var turretAngleDegrees = facingScale < 0f ? turretDirectionDegrees + 180f : turretDirectionDegrees;
         var turretRotation = MathF.PI * turretAngleDegrees / 180f;
         var drawX = renderPosition.X + (-17f + turretSprite.Origin.X) * facingScale;
-        var drawY = renderPosition.Y + (-10f + turretSprite.Origin.Y) - 6f;
+        var drawY = renderPosition.Y + (-10f + turretSprite.Origin.Y);
         _spriteBatch.Draw(
             turretSprite.Frames[turretFrameIndex],
             new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y),

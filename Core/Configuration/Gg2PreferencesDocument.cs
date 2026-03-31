@@ -8,12 +8,16 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
+    public const string DefaultLobbyHost = "OpenGarrison.game-host.org";
+    public const int DefaultLobbyPort = 29942;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
     private const string ServerAdvancedSection = "Server.Advanced";
 
     public string PlayerName { get; set; } = "Player";
+
+    public string Rewards { get; set; } = string.Empty;
 
     public bool Fullscreen { get; set; }
 
@@ -51,9 +55,9 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public OpenGarrisonHostSettings HostSettings { get; set; } = new();
 
-    public string LobbyHost { get; set; } = "OpenGarrison.game-host.org";
+    public string LobbyHost { get; set; } = DefaultLobbyHost;
 
-    public int LobbyPort { get; set; } = 29942;
+    public int LobbyPort { get; set; } = DefaultLobbyPort;
 
     public int MaxPlayableClients { get; set; } = SimulationWorld.MaxPlayableNetworkPlayers;
 
@@ -70,6 +74,7 @@ public sealed class OpenGarrisonPreferencesDocument
         return new OpenGarrisonPreferencesDocument
         {
             PlayerName = ini.GetString(SettingsSection, "PlayerName", "Player"),
+            Rewards = ini.GetString(SettingsSection, "Rewards", string.Empty),
             Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
             IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
@@ -85,8 +90,8 @@ public sealed class OpenGarrisonPreferencesDocument
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
-            LobbyHost = ini.GetString(ServerAdvancedSection, "LobbyHost", "OpenGarrison.game-host.org"),
-            LobbyPort = ini.GetInt(ServerAdvancedSection, "LobbyPort", 29942),
+            LobbyHost = ini.GetString(ServerAdvancedSection, "LobbyHost", DefaultLobbyHost),
+            LobbyPort = ini.GetInt(ServerAdvancedSection, "LobbyPort", DefaultLobbyPort),
             MaxPlayableClients = ini.GetInt(ServerAdvancedSection, "MaxPlayableClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxTotalClients = ini.GetInt(ServerAdvancedSection, "MaxTotalClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxSpectatorClients = ini.GetInt(ServerAdvancedSection, "MaxSpectatorClients", SimulationWorld.MaxPlayableNetworkPlayers),
@@ -99,6 +104,7 @@ public sealed class OpenGarrisonPreferencesDocument
         var ini = new IniConfigurationFile();
 
         ini.SetString(SettingsSection, "PlayerName", PlayerName);
+        ini.SetString(SettingsSection, "Rewards", Rewards);
         ini.SetBool(SettingsSection, "Fullscreen", Fullscreen);
         ini.SetBool(SettingsSection, "UseLobby", HostSettings.LobbyAnnounceEnabled);
         ini.SetInt(SettingsSection, "HostingPort", HostSettings.Port);
@@ -130,7 +136,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ConnectionSection, "Port", RecentConnectionPort);
 
         ini.SetString(ServerAdvancedSection, "LobbyHost", LobbyHost);
-        ini.SetInt(ServerAdvancedSection, "LobbyPort", LobbyPort);
+        ini.SetInt(ServerAdvancedSection, "LobbyPort", LobbyPort > 0 ? LobbyPort : DefaultLobbyPort);
         ini.SetInt(ServerAdvancedSection, "TickRate", SimulationConfig.NormalizeTicksPerSecond(HostSettings.TickRate));
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
@@ -338,7 +344,7 @@ public static class OpenGarrisonStockMapCatalog
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> Definitions { get; } =
     [
         new("ctf_truefort", "Truefort", "Truefort", GameModeKind.CaptureTheFlag, 1, "truefort"),
-        new("ctf_2dfort", "TwodFortTwo", "TwodFortTwo", GameModeKind.CaptureTheFlag, 2, "2dfort", "twodforttwo"),
+        new("ctf_2dfort", "TwodFortTwo", "2dFort", GameModeKind.CaptureTheFlag, 2, "2dfort", "twodforttwo", "2dfort2", "2dfortremix"),
         new("ctf_conflict", "Conflict", "Conflict", GameModeKind.CaptureTheFlag, 3, "conflict"),
         new("ctf_classicwell", "ClassicWell", "ClassicWell", GameModeKind.CaptureTheFlag, 4, "classicwell"),
         new("ctf_waterway", "Waterway", "Waterway", GameModeKind.CaptureTheFlag, 5, "waterway"),
@@ -348,6 +354,15 @@ public static class OpenGarrisonStockMapCatalog
         new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 9, "montane"),
         new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 10, "lumberyard"),
         new("gen_destroy", "Destroy", "Destroy", GameModeKind.Generator, 11, "destroy"),
+        new("koth_valley", "Valley", "Valley", GameModeKind.KingOfTheHill, 12, "valley"),
+        new("koth_corinth", "Corinth", "Corinth", GameModeKind.KingOfTheHill, 13, "corinth"),
+        new("koth_harvest", "Harvest", "Harvest", GameModeKind.KingOfTheHill, 14, "harvest"),
+        new("dkoth_atalia", "Atalia", "Atalia", GameModeKind.DoubleKingOfTheHill, 15, "atalia"),
+        new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 16, "sixties", "60s", "dkoth_60s"),
+        new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 17, "mantic"),
+        new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 18, "avanti"),
+        new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 19, "gallery"),
+        new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 20, "eiger"),
     ];
 
     public static List<OpenGarrisonMapRotationEntry> CreateDefaultEntries()

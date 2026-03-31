@@ -14,6 +14,11 @@ public partial class Game1
 
     private int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
 
+    private bool ShouldUseNavEditorWindowGutter()
+    {
+        return _navEditorEnabled && !_graphics.IsFullScreen;
+    }
+
     private void ApplyGraphicsSettings()
     {
         _graphics.IsFullScreen = _clientSettings.Fullscreen;
@@ -84,7 +89,7 @@ public partial class Game1
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
-        return GetLetterboxedDestinationRectangle(actualWidth, actualHeight);
+        return GetGameplayDestinationRectangle(actualWidth, actualHeight);
     }
 
     private Rectangle GetInputDestinationRectangle()
@@ -104,16 +109,19 @@ public partial class Game1
             return new Rectangle(0, 0, fallback.X, fallback.Y);
         }
 
-        return GetLetterboxedDestinationRectangle(inputWidth, inputHeight);
+        return GetGameplayDestinationRectangle(inputWidth, inputHeight);
     }
 
-    private Rectangle GetLetterboxedDestinationRectangle(int surfaceWidth, int surfaceHeight)
+    private Rectangle GetGameplayDestinationRectangle(int surfaceWidth, int surfaceHeight)
     {
-        var scale = MathF.Min(surfaceWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
+        var availableWidth = ShouldUseNavEditorWindowGutter()
+            ? Math.Max(1, surfaceWidth - GetNavEditorWindowGutterWidth())
+            : surfaceWidth;
+        var scale = MathF.Min(availableWidth / (float)ViewportWidth, surfaceHeight / (float)ViewportHeight);
         var destinationWidth = Math.Max(1, (int)MathF.Floor(ViewportWidth * scale));
         var destinationHeight = Math.Max(1, (int)MathF.Floor(ViewportHeight * scale));
         return new Rectangle(
-            (surfaceWidth - destinationWidth) / 2,
+            (availableWidth - destinationWidth) / 2,
             (surfaceHeight - destinationHeight) / 2,
             destinationWidth,
             destinationHeight);
@@ -173,9 +181,46 @@ public partial class Game1
 
     private void ApplyPreferredBackBufferSize(bool fullscreen, IngameResolutionKind ingameResolution)
     {
-        var preferredDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution);
+        var preferredDimensions = GetWindowDimensions(fullscreen, ingameResolution);
         _graphics.PreferredBackBufferWidth = preferredDimensions.X;
         _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
+    }
+
+    private Point GetWindowDimensions(bool fullscreen, IngameResolutionKind ingameResolution)
+    {
+        var gameplayDimensions = GetPreferredBackBufferDimensions(fullscreen, ingameResolution);
+        if (fullscreen || !_navEditorEnabled)
+        {
+            return gameplayDimensions;
+        }
+
+        return new Point(
+            gameplayDimensions.X + GetNavEditorWindowGutterWidth(),
+            Math.Max(gameplayDimensions.Y, GetNavEditorExpandedWindowHeight()));
+    }
+
+    private void RefreshNavEditorWindowGutter()
+    {
+        var preferredDimensions = GetWindowDimensions(_graphics.IsFullScreen, _ingameResolution);
+        if (_graphics.PreferredBackBufferWidth == preferredDimensions.X
+            && _graphics.PreferredBackBufferHeight == preferredDimensions.Y)
+        {
+            return;
+        }
+
+        _graphics.PreferredBackBufferWidth = preferredDimensions.X;
+        _graphics.PreferredBackBufferHeight = preferredDimensions.Y;
+        _graphics.ApplyChanges();
+    }
+
+    private static int GetNavEditorWindowGutterWidth()
+    {
+        return NavEditorPanelWidth + (NavEditorPanelMargin * 2);
+    }
+
+    private static int GetNavEditorExpandedWindowHeight()
+    {
+        return NavEditorPanelExpandedHeight + (NavEditorPanelMargin * 2);
     }
 
     private static Point GetPreferredBackBufferDimensions(bool fullscreen, IngameResolutionKind ingameResolution)

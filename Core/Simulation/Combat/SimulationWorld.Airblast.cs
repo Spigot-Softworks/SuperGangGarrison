@@ -98,8 +98,27 @@ public sealed partial class SimulationWorld
 
             var currentSpeed = MathF.Sqrt((mine.VelocityX * mine.VelocityX) + (mine.VelocityY * mine.VelocityY));
             var reflectedSpeed = MathF.Max(currentSpeed, PyroAirblastMineSpeedFloor);
+            var wasStickied = mine.IsStickied;
             mine.Unstick();
             mine.SetVelocity(MathF.Cos(aimRadians) * reflectedSpeed, MathF.Sin(aimRadians) * reflectedSpeed);
+            if (!wasStickied)
+            {
+                continue;
+            }
+
+            mine.SetVelocity(mine.VelocityX * 0.65f, mine.VelocityY * 0.65f);
+            if (!TryGetAirblastMineSurfaceNormal(mine.X, mine.Y, out var normalX, out var normalY))
+            {
+                continue;
+            }
+
+            var normalSpeed = (normalX * mine.VelocityX) + (normalY * mine.VelocityY);
+            if (normalSpeed < 0f)
+            {
+                mine.SetVelocity(
+                    mine.VelocityX - (2f * normalSpeed * normalX),
+                    mine.VelocityY - (2f * normalSpeed * normalY));
+            }
         }
     }
 
@@ -127,6 +146,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
             target.AddImpulse(
                 MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
                 MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);
@@ -197,5 +217,62 @@ public sealed partial class SimulationWorld
             PyroAirblastMaskTop,
             PyroAirblastMaskRight,
             PyroAirblastMaskBottom);
+    }
+
+    private bool TryGetAirblastMineSurfaceNormal(float x, float y, out float normalX, out float normalY)
+    {
+        normalY = (IsAirblastMineObstacleBlocked(x, y - 3f) ? 1f : 0f)
+            - (IsAirblastMineObstacleBlocked(x, y + 3f) ? 1f : 0f);
+        normalX = (IsAirblastMineObstacleBlocked(x - 3f, y) ? 1f : 0f)
+            - (IsAirblastMineObstacleBlocked(x + 3f, y) ? 1f : 0f);
+
+        var length = MathF.Sqrt((normalX * normalX) + (normalY * normalY));
+        if (length <= 0.0001f)
+        {
+            normalX = 0f;
+            normalY = 0f;
+            return false;
+        }
+
+        normalX /= length;
+        normalY /= length;
+        return true;
+    }
+
+    private bool IsAirblastMineObstacleBlocked(float x, float y)
+    {
+        foreach (var solid in Level.Solids)
+        {
+            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
+            {
+                return true;
+            }
+        }
+
+        foreach (var roomObject in Level.RoomObjects)
+        {
+            if (!IsAirblastMineBlockingRoomObject(roomObject))
+            {
+                continue;
+            }
+
+            if (x >= roomObject.Left && x < roomObject.Right && y >= roomObject.Top && y < roomObject.Bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsAirblastMineBlockingRoomObject(RoomObjectMarker roomObject)
+    {
+        return roomObject.Type switch
+        {
+            RoomObjectType.TeamGate => true,
+            RoomObjectType.ControlPointSetupGate => Level.ControlPointSetupGatesActive,
+            RoomObjectType.BulletWall => true,
+            _ => false,
+        };
     }
 }

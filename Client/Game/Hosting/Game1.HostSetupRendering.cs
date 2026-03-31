@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using System;
 
 namespace OpenGarrison.Client;
 
@@ -14,6 +15,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
 
         var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(ViewportWidth, ViewportHeight, _hostMapEntries.Count, IsServerLauncherMode);
+        _hostSetupState.ClampMapScrollOffset(layout.VisibleRowCapacity);
         var panel = layout.Panel;
         var compactLayout = layout.CompactLayout;
         var titleScale = compactLayout ? 0.92f : 1f;
@@ -65,17 +67,31 @@ public partial class Game1
         }
 
         DrawBitmapFontText("Stock Map Rotation", new Vector2(layout.ListBounds.X, layout.ListBounds.Y - 24f), Color.White, compactLayout ? 0.88f : 0.95f);
+        if (_hostMapEntries.Count > layout.VisibleRowCapacity)
+        {
+            var visibleStart = _hostMapScrollOffset + 1;
+            var visibleEnd = Math.Min(_hostMapEntries.Count, _hostMapScrollOffset + layout.VisibleRowCapacity);
+            DrawBitmapFontText(
+                $"{visibleStart}-{visibleEnd}/{_hostMapEntries.Count}",
+                new Vector2(layout.ListBounds.Right - (compactLayout ? 70f : 86f), layout.ListBounds.Y - 24f),
+                new Color(186, 186, 186),
+                compactLayout ? 0.68f : 0.78f);
+        }
         DrawBitmapFontText("ORDER", new Vector2(layout.ListBounds.X + 10f, layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
         DrawBitmapFontText("MAP", new Vector2(layout.ListBounds.X + (compactLayout ? 54f : 78f), layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
         DrawBitmapFontText("MODE", new Vector2(layout.ListBounds.Right - (compactLayout ? 98f : 112f), layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
         DrawBitmapFontText("ON", new Vector2(layout.ListBounds.Right - (compactLayout ? 38f : 48f), layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
 
-        for (var index = 0; index < _hostMapEntries.Count; index += 1)
+        var firstVisibleRow = _hostMapScrollOffset;
+        var visibleRowCount = layout.VisibleRowCapacity;
+        var endIndex = Math.Min(_hostMapEntries.Count, firstVisibleRow + visibleRowCount);
+        for (var index = firstVisibleRow; index < endIndex; index += 1)
         {
             var entry = _hostMapEntries[index];
+            var visibleRow = index - firstVisibleRow;
             var rowBounds = new Rectangle(
                 layout.ListBounds.X - 6,
-                layout.ListBounds.Y + layout.ListHeaderHeight + (index * layout.RowHeight),
+                layout.ListBounds.Y + layout.ListHeaderHeight + (visibleRow * layout.RowHeight),
                 layout.ListBounds.Width + 12,
                 layout.RowHeight - 2);
             if (index == _hostMapIndex)
@@ -96,6 +112,9 @@ public partial class Game1
                 GameModeKind.Arena => "Arena",
                 GameModeKind.ControlPoint => "CP",
                 GameModeKind.Generator => "Gen",
+                GameModeKind.KingOfTheHill => "KOTH",
+                GameModeKind.DoubleKingOfTheHill => "DKOTH",
+                GameModeKind.TeamDeathmatch => "TDM",
                 _ => "CTF",
             };
             var orderLabel = entry.Order > 0 ? $"#{entry.Order}" : "--";

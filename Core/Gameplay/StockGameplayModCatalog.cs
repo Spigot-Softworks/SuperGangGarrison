@@ -238,8 +238,8 @@ public static class StockGameplayModCatalog
                 ammoRegenPerTick: 1,
                 worldSpriteName: "BladeS",
                 hudSpriteName: "BladeAmmoS",
-                weaponOffsetX: -3f,
-                weaponOffsetY: -6f,
+                weaponOffsetX: 0f,
+                weaponOffsetY: -3f,
                 blueTeamHudFrameOffset: 1),
 
             ["ability.engineer-pda"] = CreateAbilityItem("ability.engineer-pda", "Engineer PDA", GameplayEquipmentSlot.Secondary, BuiltInGameplayBehaviorIds.EngineerPda),

@@ -99,6 +99,8 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
         }
 
+        DrawMenuBackgroundAttribution();
+
         if (_optionsMenuOpen)
         {
             DrawOptionsMenu();
@@ -171,7 +173,8 @@ public partial class Game1
 
     private void EnsureMenuBackgroundTexture(int viewportWidth, int viewportHeight)
     {
-        var path = GetMenuBackgroundPath(viewportWidth, viewportHeight);
+        var (path, attributionText) = GetMenuBackgroundSelection(viewportWidth, viewportHeight);
+        _menuBackgroundAttributionText = attributionText;
         if (string.IsNullOrWhiteSpace(path))
         {
             DisposeMenuBackgroundTexture();
@@ -190,7 +193,20 @@ public partial class Game1
         _menuBackgroundTexturePath = path;
     }
 
-    private string? GetMenuBackgroundPath(int viewportWidth, int viewportHeight)
+    private (string? Path, string AttributionText) GetMenuBackgroundSelection(int viewportWidth, int viewportHeight)
+    {
+        var pluginOverride = GetClientPluginMainMenuBackgroundOverride();
+        if (pluginOverride is not null
+            && !string.IsNullOrWhiteSpace(pluginOverride.ImagePath)
+            && File.Exists(pluginOverride.ImagePath))
+        {
+            return (pluginOverride.ImagePath, pluginOverride.AttributionText);
+        }
+
+        return (GetDefaultMenuBackgroundPath(viewportWidth, viewportHeight), string.Empty);
+    }
+
+    private static string? GetDefaultMenuBackgroundPath(int viewportWidth, int viewportHeight)
     {
         var aspectRatio = viewportHeight <= 0 ? (16f / 9f) : viewportWidth / (float)viewportHeight;
         var fileName = aspectRatio <= 1.27f
@@ -215,6 +231,19 @@ public partial class Game1
         _menuBackgroundTexture?.Dispose();
         _menuBackgroundTexture = null;
         _menuBackgroundTexturePath = null;
+    }
+
+    private void DrawMenuBackgroundAttribution()
+    {
+        if (string.IsNullOrWhiteSpace(_menuBackgroundAttributionText))
+        {
+            return;
+        }
+
+        var scale = ViewportHeight < 540 ? 0.82f : 0.95f;
+        var position = new Vector2(ViewportWidth - 18f, ViewportHeight - 18f);
+        DrawBitmapFontTextRightAligned(_menuBackgroundAttributionText, position + Vector2.One, Color.Black * 0.75f, scale);
+        DrawBitmapFontTextRightAligned(_menuBackgroundAttributionText, position, Color.White, scale);
     }
 
     private void UpdateCreditsMenu(KeyboardState keyboard, MouseState mouse)

@@ -4,8 +4,8 @@ using OpenGarrison.Core;
 
 sealed class ServerLaunchOptions
 {
-    private const string DefaultLobbyHost = "OpenGarrison.game-host.org";
-    private const int DefaultLobbyPort = 29942;
+    private const string DefaultLobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
+    private const int DefaultLobbyPort = OpenGarrisonPreferencesDocument.DefaultLobbyPort;
 
     private ServerLaunchOptions()
     {

@@ -15,4 +15,9 @@ public enum RoomObjectType
     SpawnRoom = 11,
     FragBox = 12,
     KillBox = 13,
+    DropdownPlatform = 14,
+    MoveBoxUp = 15,
+    MoveBoxDown = 16,
+    MoveBoxLeft = 17,
+    MoveBoxRight = 18,
 }

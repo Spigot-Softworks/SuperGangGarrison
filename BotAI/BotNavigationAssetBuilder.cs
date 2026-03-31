@@ -9,41 +9,78 @@ public static class BotNavigationAssetBuilder
     private const float HorizontalProbeStep = 8f;
     private const float MinimumJumpHorizontalDistance = 18f;
     private const int MaxJumpTargetsPerSourceNode = 8;
+    private const int MaxGroundTraversalTargetsPerSourceNode = 12;
+    private const float GroundTraversalMaxHorizontalDistance = 240f;
+    private const float GroundTraversalMaxRiseDistance = 220f;
+    private const float GroundTraversalMaxDescentDistance = 96f;
     private const float DropHorizontalTolerance = 18f;
     private const float MaximumDropDistance = 320f;
     private const float MinimumDropDistance = 18f;
 
-    public static BotNavigationAsset Build(SimpleLevel level, BotNavigationProfile profile, string? levelFingerprint = null)
+    public static BotNavigationAsset Build(SimpleLevel level, PlayerClass classId, string? levelFingerprint = null)
+    {
+        return Build(level, classId, levelFingerprint, BotNavigationHintStore.Load(level));
+    }
+
+    public static BotNavigationAsset Build(
+        SimpleLevel level,
+        PlayerClass classId,
+        string? levelFingerprint,
+        BotNavigationHintAsset? hintAsset)
     {
         ArgumentNullException.ThrowIfNull(level);
 
         var stopwatch = Stopwatch.StartNew();
-        var classDefinition = BotNavigationProfiles.GetRepresentativeClassDefinition(profile);
-        var hintAsset = BotNavigationHintStore.Load(level);
+        var profile = BotNavigationProfiles.GetProfileForClass(classId);
+        var classDefinition = BotNavigationClasses.GetDefinition(classId);
+        var hintBuildMode = ResolveHintBuildMode(hintAsset);
+        var useExplicitHintGraph = hintAsset is not null && hintBuildMode == BotNavigationHintBuildMode.ExplicitGraph;
         var candidateNodeCount = 0;
+        var surfaceSampleNodeCount = 0;
+        var autoAnchorNodeCount = 0;
+        var hintNodeCount = 0;
         var mutableNodes = new Dictionary<string, MutableNode>(StringComparer.Ordinal);
         var nodesBySurface = new Dictionary<int, List<MutableNode>>();
+        var nextVirtualSurfaceId = -1;
 
-        for (var surfaceIndex = 0; surfaceIndex < level.Solids.Count; surfaceIndex += 1)
+        var phaseStopwatch = Stopwatch.StartNew();
+        var surfaceSamplingMilliseconds = 0d;
+        var autoAnchorMilliseconds = 0d;
+        var hintNodeMilliseconds = 0d;
+        var automaticEdgeMilliseconds = 0d;
+        var hintEdgeMilliseconds = 0d;
+        var dropEdgeMilliseconds = 0d;
+
+        if (!useExplicitHintGraph)
         {
-            var solid = level.Solids[surfaceIndex];
-            foreach (var sampleX in EnumerateSurfaceSamplePositions(solid, classDefinition, profile))
+            for (var surfaceIndex = 0; surfaceIndex < level.Solids.Count; surfaceIndex += 1)
             {
-                candidateNodeCount += 1;
-                TryAddSurfaceNode(
-                    level,
-                    classDefinition,
-                    mutableNodes,
-                    nodesBySurface,
-                    surfaceIndex,
-                    sampleX,
-                    solid.Top - classDefinition.CollisionBottom,
-                    BotNavigationNodeKind.Surface,
-                    string.Empty);
+                var solid = level.Solids[surfaceIndex];
+                foreach (var sampleX in EnumerateSurfaceSamplePositions(solid, classDefinition, profile))
+                {
+                    candidateNodeCount += 1;
+                    if (TryAddNode(
+                            level,
+                            classDefinition,
+                            mutableNodes,
+                            nodesBySurface,
+                            surfaceIndex,
+                            sampleX,
+                            solid.Top - classDefinition.CollisionBottom,
+                            BotNavigationNodeKind.Surface,
+                            null,
+                            string.Empty,
+                            requiresGroundSupport: true))
+                    {
+                        surfaceSampleNodeCount += 1;
+                    }
+                }
             }
         }
+        surfaceSamplingMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
-        foreach (var anchor in EnumerateAnchors(level))
+        foreach (var anchor in EnumerateAnchors(level, hintAsset))
         {
             candidateNodeCount += 1;
             if (!TryProjectAnchor(level, classDefinition, anchor, out var projected))
@@ -51,30 +88,43 @@ public static class BotNavigationAssetBuilder
                 continue;
             }
 
-            TryAddSurfaceNode(
-                level,
-                classDefinition,
-                mutableNodes,
-                nodesBySurface,
-                projected.SurfaceId,
-                projected.X,
-                projected.Y,
-                anchor.Kind,
-                anchor.Label);
+            if (TryAddNode(
+                    level,
+                    classDefinition,
+                    mutableNodes,
+                    nodesBySurface,
+                    projected.SurfaceId,
+                    projected.X,
+                    projected.Y,
+                    anchor.Kind,
+                    anchor.Team,
+                    anchor.Label,
+                    requiresGroundSupport: true))
+            {
+                autoAnchorNodeCount += 1;
+            }
         }
+        autoAnchorMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
         if (hintAsset is not null)
         {
             foreach (var hintNode in hintAsset.Nodes)
             {
-                if (!AppliesToProfile(hintNode.Profiles, profile))
+                if (!BotNavigationClasses.AppliesToProfile(hintNode.Classes, hintNode.Profiles, profile))
                 {
                     continue;
                 }
 
-                TryAddHintNode(level, classDefinition, mutableNodes, nodesBySurface, hintNode);
+                candidateNodeCount += 1;
+                if (TryAddHintNode(level, classDefinition, mutableNodes, nodesBySurface, hintNode, useExplicitHintGraph, ref nextVirtualSurfaceId))
+                {
+                    hintNodeCount += 1;
+                }
             }
         }
+        hintNodeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
         var orderedNodes = mutableNodes.Values
             .OrderBy(static node => node.SurfaceId)
@@ -100,46 +150,60 @@ public static class BotNavigationAssetBuilder
         var walkEdgeCount = 0;
         var jumpEdgeCount = 0;
         var dropEdgeCount = 0;
+        var hintEdgeCount = 0;
         var jumpSearchEnvelope = BotNavigationMovementValidator.GetSearchEnvelope(profile, classDefinition);
 
-        foreach (var surfaceNodes in nodesBySurface.Values)
+        if (!useExplicitHintGraph)
         {
-            surfaceNodes.Sort(static (left, right) => left.X.CompareTo(right.X));
-            for (var index = 0; index + 1 < surfaceNodes.Count; index += 1)
+            foreach (var surfaceNodes in nodesBySurface.Values)
             {
-                var from = surfaceNodes[index];
-                var to = surfaceNodes[index + 1];
-                if (!CanWalkBetween(level, classDefinition, from, to))
+                surfaceNodes.Sort(static (left, right) => left.X.CompareTo(right.X));
+                for (var index = 0; index + 1 < surfaceNodes.Count; index += 1)
                 {
-                    continue;
-                }
+                    var from = surfaceNodes[index];
+                    var to = surfaceNodes[index + 1];
+                    if (!CanWalkBetween(level, classDefinition, from, to))
+                    {
+                        continue;
+                    }
 
-                var cost = MathF.Abs(to.X - from.X);
-                if (TryAddEdge(edgeKeys, edges, new BotNavigationEdge { FromNodeId = from.Id, ToNodeId = to.Id, Kind = BotNavigationTraversalKind.Walk, Cost = cost }))
-                {
-                    walkEdgeCount += 1;
-                }
+                    var cost = MathF.Abs(to.X - from.X);
+                    if (TryAddEdge(edgeKeys, edges, new BotNavigationEdge { FromNodeId = from.Id, ToNodeId = to.Id, Kind = BotNavigationTraversalKind.Walk, Cost = cost }))
+                    {
+                        walkEdgeCount += 1;
+                    }
 
-                if (TryAddEdge(edgeKeys, edges, new BotNavigationEdge { FromNodeId = to.Id, ToNodeId = from.Id, Kind = BotNavigationTraversalKind.Walk, Cost = cost }))
-                {
-                    walkEdgeCount += 1;
+                    if (TryAddEdge(edgeKeys, edges, new BotNavigationEdge { FromNodeId = to.Id, ToNodeId = from.Id, Kind = BotNavigationTraversalKind.Walk, Cost = cost }))
+                    {
+                        walkEdgeCount += 1;
+                    }
                 }
             }
-        }
 
-        foreach (var sourceNode in orderedNodes)
-        {
-            TryAddJumpEdges(
-                level,
-                classDefinition,
-                profile,
-                sourceNode,
-                orderedNodes,
-                jumpSearchEnvelope,
-                edgeKeys,
-                edges,
-                ref jumpEdgeCount);
+            foreach (var sourceNode in orderedNodes)
+            {
+                TryAddGroundTraversalEdges(
+                    level,
+                    classDefinition,
+                    sourceNode,
+                    orderedNodes,
+                    edgeKeys,
+                    edges,
+                    ref walkEdgeCount);
+                TryAddJumpEdges(
+                    level,
+                    classDefinition,
+                    profile,
+                    sourceNode,
+                    orderedNodes,
+                    jumpSearchEnvelope,
+                    edgeKeys,
+                    edges,
+                    ref jumpEdgeCount);
+            }
         }
+        automaticEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
         if (hintAsset is not null)
         {
@@ -153,22 +217,29 @@ public static class BotNavigationAssetBuilder
                 edges,
                 ref walkEdgeCount,
                 ref jumpEdgeCount,
-                ref dropEdgeCount);
+                ref dropEdgeCount,
+                ref hintEdgeCount);
         }
+        hintEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
-        foreach (var surfaceNodes in nodesBySurface.Values)
+        if (!useExplicitHintGraph)
         {
-            if (surfaceNodes.Count == 0)
+            foreach (var surfaceNodes in nodesBySurface.Values)
             {
-                continue;
-            }
+                if (surfaceNodes.Count == 0)
+                {
+                    continue;
+                }
 
-            TryAddDropEdge(level, classDefinition, surfaceNodes[0], orderedNodes, edgeKeys, edges, ref dropEdgeCount);
-            if (surfaceNodes.Count > 1)
-            {
-                TryAddDropEdge(level, classDefinition, surfaceNodes[^1], orderedNodes, edgeKeys, edges, ref dropEdgeCount);
+                TryAddDropEdge(level, classDefinition, surfaceNodes[0], orderedNodes, edgeKeys, edges, ref dropEdgeCount);
+                if (surfaceNodes.Count > 1)
+                {
+                    TryAddDropEdge(level, classDefinition, surfaceNodes[^1], orderedNodes, edgeKeys, edges, ref dropEdgeCount);
+                }
             }
         }
+        dropEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
 
         stopwatch.Stop();
 
@@ -180,7 +251,9 @@ public static class BotNavigationAssetBuilder
                 Y = node.Y,
                 SurfaceId = node.SurfaceId,
                 Kind = node.Kind,
+                Team = node.Team,
                 Label = node.Label,
+                RequiresGroundSupport = node.RequiresGroundSupport,
             })
             .ToArray();
 
@@ -189,9 +262,12 @@ public static class BotNavigationAssetBuilder
             FormatVersion = BotNavigationAssetStore.CurrentFormatVersion,
             LevelName = level.Name,
             MapAreaIndex = level.MapAreaIndex,
+            ClassId = classId,
             Profile = profile,
             LevelFingerprint = levelFingerprint ?? BotNavigationLevelFingerprint.Compute(level),
-            BuildStrategy = hintAsset is null
+            BuildStrategy = useExplicitHintGraph
+                ? BotNavigationBuildStrategy.ExplicitHintGraphValidatedTraversals
+                : hintAsset is null
                 ? BotNavigationBuildStrategy.GeometrySampledValidatedJumps
                 : BotNavigationBuildStrategy.HintAugmentedValidatedJumps,
             BuiltUtc = DateTime.UtcNow,
@@ -199,35 +275,91 @@ public static class BotNavigationAssetBuilder
             {
                 SurfaceCount = level.Solids.Count,
                 CandidateNodeCount = candidateNodeCount,
+                SurfaceSampleNodeCount = surfaceSampleNodeCount,
+                AutoAnchorNodeCount = autoAnchorNodeCount,
+                HintNodeCount = hintNodeCount,
                 NodeCount = builtNodes.Length,
                 EdgeCount = edges.Count,
                 WalkEdgeCount = walkEdgeCount,
                 JumpEdgeCount = jumpEdgeCount,
                 DropEdgeCount = dropEdgeCount,
+                HintEdgeCount = hintEdgeCount,
                 BuildMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
+                SurfaceSamplingMilliseconds = surfaceSamplingMilliseconds,
+                AutoAnchorMilliseconds = autoAnchorMilliseconds,
+                HintNodeMilliseconds = hintNodeMilliseconds,
+                AutomaticEdgeMilliseconds = automaticEdgeMilliseconds,
+                HintEdgeMilliseconds = hintEdgeMilliseconds,
+                DropEdgeMilliseconds = dropEdgeMilliseconds,
             },
             Nodes = builtNodes,
             Edges = edges.ToArray(),
         };
     }
 
-    private static IEnumerable<AnchorCandidate> EnumerateAnchors(SimpleLevel level)
+    public static BotNavigationAsset Build(SimpleLevel level, BotNavigationProfile profile, string? levelFingerprint = null)
     {
-        yield return new AnchorCandidate(level.LocalSpawn.X, level.LocalSpawn.Y, BotNavigationNodeKind.Spawn, "local-spawn");
+        return Build(level, BotNavigationProfiles.GetRepresentativeClassDefinition(profile).Id, levelFingerprint);
+    }
 
-        foreach (var spawn in level.RedSpawns)
+    private static BotNavigationHintBuildMode ResolveHintBuildMode(BotNavigationHintAsset? hintAsset)
+    {
+        if (hintAsset is null)
         {
-            yield return new AnchorCandidate(spawn.X, spawn.Y, BotNavigationNodeKind.Spawn, "red-spawn");
+            return BotNavigationHintBuildMode.GeometryAugmented;
         }
 
-        foreach (var spawn in level.BlueSpawns)
+        if (hintAsset.BuildMode == BotNavigationHintBuildMode.ExplicitGraph)
         {
-            yield return new AnchorCandidate(spawn.X, spawn.Y, BotNavigationNodeKind.Spawn, "blue-spawn");
+            return BotNavigationHintBuildMode.ExplicitGraph;
+        }
+
+        // Older editor-authored files predate BuildMode but already mark auto-generated labels.
+        return hintAsset.Links.Count > 0 && hintAsset.Nodes.Any(static node => node.AutoLabel)
+            ? BotNavigationHintBuildMode.ExplicitGraph
+            : BotNavigationHintBuildMode.GeometryAugmented;
+    }
+
+    private static IEnumerable<AnchorCandidate> EnumerateAnchors(SimpleLevel level, BotNavigationHintAsset? hintAsset)
+    {
+        var hasLocalSpawnOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Spawn, null);
+        var hasRedSpawnOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Spawn, PlayerTeam.Red);
+        var hasBlueSpawnOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Spawn, PlayerTeam.Blue);
+        var hasNeutralObjectiveOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Objective, null);
+        var hasRedObjectiveOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Objective, PlayerTeam.Red);
+        var hasBlueObjectiveOverride = HasHintNodeOverride(hintAsset, BotNavigationNodeKind.Objective, PlayerTeam.Blue);
+        var hasCabinetOverride = hintAsset?.Nodes.Any(node => node.Kind == BotNavigationNodeKind.HealingCabinet) == true;
+
+        if (!hasLocalSpawnOverride)
+        {
+            yield return new AnchorCandidate(level.LocalSpawn.X, level.LocalSpawn.Y, BotNavigationNodeKind.Spawn, null, "local-spawn");
+        }
+
+        if (!hasRedSpawnOverride)
+        {
+            foreach (var spawn in level.RedSpawns)
+            {
+                yield return new AnchorCandidate(spawn.X, spawn.Y, BotNavigationNodeKind.Spawn, PlayerTeam.Red, "red-spawn");
+            }
+        }
+
+        if (!hasBlueSpawnOverride)
+        {
+            foreach (var spawn in level.BlueSpawns)
+            {
+                yield return new AnchorCandidate(spawn.X, spawn.Y, BotNavigationNodeKind.Spawn, PlayerTeam.Blue, "blue-spawn");
+            }
         }
 
         foreach (var intelBase in level.IntelBases)
         {
-            yield return new AnchorCandidate(intelBase.X, intelBase.Y, BotNavigationNodeKind.Objective, $"{intelBase.Team}-intel");
+            if ((intelBase.Team == PlayerTeam.Red && hasRedObjectiveOverride)
+                || (intelBase.Team == PlayerTeam.Blue && hasBlueObjectiveOverride))
+            {
+                continue;
+            }
+
+            yield return new AnchorCandidate(intelBase.X, intelBase.Y, BotNavigationNodeKind.Objective, intelBase.Team, $"{intelBase.Team}-intel");
         }
 
         foreach (var roomObject in level.RoomObjects)
@@ -235,16 +367,96 @@ public static class BotNavigationAssetBuilder
             switch (roomObject.Type)
             {
                 case RoomObjectType.HealingCabinet:
-                    yield return new AnchorCandidate(roomObject.CenterX, roomObject.CenterY, BotNavigationNodeKind.HealingCabinet, "cabinet");
+                    if (!hasCabinetOverride)
+                    {
+                        yield return new AnchorCandidate(
+                            roomObject.CenterX,
+                            roomObject.CenterY,
+                            BotNavigationNodeKind.HealingCabinet,
+                            InferFallbackCabinetTeam(level, roomObject.CenterX, roomObject.CenterY),
+                            "cabinet");
+                    }
                     break;
                 case RoomObjectType.ArenaControlPoint:
                 case RoomObjectType.CaptureZone:
                 case RoomObjectType.ControlPoint:
                 case RoomObjectType.Generator:
-                    yield return new AnchorCandidate(roomObject.CenterX, roomObject.CenterY, BotNavigationNodeKind.Objective, roomObject.Type.ToString());
+                    if (roomObject.Team == PlayerTeam.Red && hasRedObjectiveOverride)
+                    {
+                        break;
+                    }
+
+                    if (roomObject.Team == PlayerTeam.Blue && hasBlueObjectiveOverride)
+                    {
+                        break;
+                    }
+
+                    if (!roomObject.Team.HasValue && hasNeutralObjectiveOverride)
+                    {
+                        break;
+                    }
+
+                    yield return new AnchorCandidate(roomObject.CenterX, roomObject.CenterY, BotNavigationNodeKind.Objective, roomObject.Team, roomObject.Type.ToString());
                     break;
             }
         }
+    }
+
+    private static bool HasHintNodeOverride(BotNavigationHintAsset? hintAsset, BotNavigationNodeKind kind, PlayerTeam? team)
+    {
+        if (hintAsset is null)
+        {
+            return false;
+        }
+
+        return hintAsset.Nodes.Any(node => node.Kind == kind && node.Team == team);
+    }
+
+    private static PlayerTeam? InferFallbackCabinetTeam(SimpleLevel level, float x, float y)
+    {
+        var redDistanceSquared = GetNearestSpawnDistanceSquared(level.RedSpawns, x, y);
+        var blueDistanceSquared = GetNearestSpawnDistanceSquared(level.BlueSpawns, x, y);
+        if (!redDistanceSquared.HasValue && !blueDistanceSquared.HasValue)
+        {
+            return null;
+        }
+
+        if (!redDistanceSquared.HasValue)
+        {
+            return PlayerTeam.Blue;
+        }
+
+        if (!blueDistanceSquared.HasValue)
+        {
+            return PlayerTeam.Red;
+        }
+
+        if (MathF.Abs(redDistanceSquared.Value - blueDistanceSquared.Value) <= 1f)
+        {
+            return null;
+        }
+
+        return redDistanceSquared.Value < blueDistanceSquared.Value
+            ? PlayerTeam.Red
+            : PlayerTeam.Blue;
+    }
+
+    private static float? GetNearestSpawnDistanceSquared(IReadOnlyList<SpawnPoint> spawns, float x, float y)
+    {
+        float? bestDistanceSquared = null;
+        for (var index = 0; index < spawns.Count; index += 1)
+        {
+            var spawn = spawns[index];
+            var deltaX = spawn.X - x;
+            var deltaY = spawn.Y - y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+            if (!bestDistanceSquared.HasValue || distanceSquared < bestDistanceSquared.Value)
+            {
+                bestDistanceSquared = distanceSquared;
+            }
+        }
+
+        return bestDistanceSquared;
     }
 
     private static IEnumerable<float> EnumerateSurfaceSamplePositions(LevelSolid solid, CharacterClassDefinition classDefinition, BotNavigationProfile profile)
@@ -315,7 +527,7 @@ public static class BotNavigationAssetBuilder
         return bestDistance < float.PositiveInfinity;
     }
 
-    private static bool TryAddSurfaceNode(
+    private static bool TryAddNode(
         SimpleLevel level,
         CharacterClassDefinition classDefinition,
         IDictionary<string, MutableNode> mutableNodes,
@@ -324,10 +536,13 @@ public static class BotNavigationAssetBuilder
         float x,
         float y,
         BotNavigationNodeKind kind,
-        string label)
+        PlayerTeam? team,
+        string label,
+        bool requiresGroundSupport,
+        bool preferLabel = false)
     {
         if (!CanOccupy(level, classDefinition, x, y)
-            || !HasGroundSupport(level, classDefinition, x, y))
+            || requiresGroundSupport && !HasGroundSupport(level, classDefinition, x, y))
         {
             return false;
         }
@@ -335,11 +550,11 @@ public static class BotNavigationAssetBuilder
         var key = $"{surfaceId}:{MathF.Round(x, 2):F2}:{MathF.Round(y, 2):F2}";
         if (mutableNodes.TryGetValue(key, out var existing))
         {
-            existing.TryPromote(kind, label);
+            existing.TryPromote(kind, team, label, requiresGroundSupport, preferLabel);
             return false;
         }
 
-        var node = new MutableNode(surfaceId, x, y, kind, label);
+        var node = new MutableNode(surfaceId, x, y, kind, team, label, requiresGroundSupport);
         mutableNodes[key] = node;
         if (!nodesBySurface.TryGetValue(surfaceId, out var surfaceNodes))
         {
@@ -358,18 +573,35 @@ public static class BotNavigationAssetBuilder
             return false;
         }
 
-        var minX = MathF.Min(from.X, to.X);
-        var maxX = MathF.Max(from.X, to.X);
-        for (var x = minX; x <= maxX; x += HorizontalProbeStep)
+        return BotNavigationMovementValidator.CanWalkDirectly(level, classDefinition, from.X, from.Y, to.X, to.Y);
+    }
+
+    private static int FindSupportingSurfaceId(SimpleLevel level, CharacterClassDefinition classDefinition, float x, float y)
+    {
+        var bestSurfaceId = -1;
+        var bestDistance = float.PositiveInfinity;
+        for (var surfaceIndex = 0; surfaceIndex < level.Solids.Count; surfaceIndex += 1)
         {
-            if (!CanOccupy(level, classDefinition, x, from.Y)
-                || !HasGroundSupport(level, classDefinition, x, from.Y))
+            var solid = level.Solids[surfaceIndex];
+            if (x < solid.Left || x > solid.Right)
             {
-                return false;
+                continue;
             }
+
+            var projectedY = solid.Top - classDefinition.CollisionBottom;
+            var distance = MathF.Abs(projectedY - y);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestSurfaceId = surfaceIndex;
         }
 
-        return true;
+        return bestSurfaceId >= 0
+            ? bestSurfaceId
+            : FindNearestSurfaceId(level, x, y);
     }
 
     private static int FindNearestSurfaceId(SimpleLevel level, float x, float y)
@@ -406,11 +638,12 @@ public static class BotNavigationAssetBuilder
         List<BotNavigationEdge> edges,
         ref int walkEdgeCount,
         ref int jumpEdgeCount,
-        ref int dropEdgeCount)
+        ref int dropEdgeCount,
+        ref int hintEdgeCount)
     {
         foreach (var hintLink in hintAsset.Links)
         {
-            if (!AppliesToProfile(hintLink.Profiles, profile))
+            if (!BotNavigationClasses.AppliesToProfile(hintLink.Classes, hintLink.Profiles, profile))
             {
                 continue;
             }
@@ -432,7 +665,8 @@ public static class BotNavigationAssetBuilder
                 edges,
                 ref walkEdgeCount,
                 ref jumpEdgeCount,
-                ref dropEdgeCount);
+                ref dropEdgeCount,
+                ref hintEdgeCount);
 
             if (hintLink.Bidirectional)
             {
@@ -447,7 +681,8 @@ public static class BotNavigationAssetBuilder
                     edges,
                     ref walkEdgeCount,
                     ref jumpEdgeCount,
-                    ref dropEdgeCount);
+                    ref dropEdgeCount,
+                    ref hintEdgeCount);
             }
         }
     }
@@ -463,7 +698,8 @@ public static class BotNavigationAssetBuilder
         List<BotNavigationEdge> edges,
         ref int walkEdgeCount,
         ref int jumpEdgeCount,
-        ref int dropEdgeCount)
+        ref int dropEdgeCount,
+        ref int hintEdgeCount)
     {
         if (!TryBuildHintEdge(level, classDefinition, profile, fromNode, toNode, hintLink, out var edge))
         {
@@ -474,6 +710,8 @@ public static class BotNavigationAssetBuilder
         {
             return false;
         }
+
+        hintEdgeCount += 1;
 
         switch (edge.Kind)
         {
@@ -502,29 +740,58 @@ public static class BotNavigationAssetBuilder
     {
         edge = default!;
         var costMultiplier = Math.Clamp(hintLink.CostMultiplier, 0.1f, 4f);
+        if (TryBuildRecordedHintEdge(
+                level,
+                classDefinition,
+                profile,
+                fromNode,
+                toNode,
+                hintLink,
+                costMultiplier,
+                out edge))
+        {
+            return true;
+        }
+
         if (hintLink.Traversal is BotNavigationHintTraversalKind.Auto or BotNavigationHintTraversalKind.Walk)
         {
             if (CanWalkBetween(level, classDefinition, fromNode, toNode))
+            {
+                edge = CreateAuthoredWalkEdge(fromNode, toNode, costMultiplier);
+                return true;
+            }
+
+            if (TryBuildGroundTapeForEitherTeam(
+                    level,
+                    classDefinition,
+                    fromNode.X,
+                    fromNode.Y,
+                    toNode.X,
+                    toNode.Y,
+                    out var inputTape,
+                    out var groundCost))
             {
                 edge = new BotNavigationEdge
                 {
                     FromNodeId = fromNode.Id,
                     ToNodeId = toNode.Id,
                     Kind = BotNavigationTraversalKind.Walk,
-                    Cost = MathF.Abs(toNode.X - fromNode.X) * costMultiplier,
+                    Cost = groundCost * costMultiplier,
+                    InputTape = inputTape,
                 };
                 return true;
             }
 
             if (hintLink.Traversal == BotNavigationHintTraversalKind.Walk)
             {
-                return false;
+                edge = CreateAuthoredWalkEdge(fromNode, toNode, costMultiplier);
+                return true;
             }
         }
 
         if (hintLink.Traversal is BotNavigationHintTraversalKind.Auto or BotNavigationHintTraversalKind.Jump)
         {
-            if (BotNavigationMovementValidator.TryBuildHintJumpTape(
+            if (TryBuildHintJumpTapeForEitherTeam(
                     level,
                     classDefinition,
                     profile,
@@ -532,6 +799,7 @@ public static class BotNavigationAssetBuilder
                     fromNode.Y,
                     toNode.X,
                     toNode.Y,
+                    toNode.RequiresGroundSupport,
                     out var inputTape,
                     out var jumpCost))
             {
@@ -548,7 +816,22 @@ public static class BotNavigationAssetBuilder
 
             if (hintLink.Traversal == BotNavigationHintTraversalKind.Jump)
             {
-                return false;
+                var approximateJumpTape = BotNavigationMovementValidator.BuildApproximateHintJumpTape(
+                    classDefinition,
+                    profile,
+                    fromNode.X,
+                    fromNode.Y,
+                    toNode.X,
+                    toNode.Y);
+                edge = new BotNavigationEdge
+                {
+                    FromNodeId = fromNode.Id,
+                    ToNodeId = toNode.Id,
+                    Kind = BotNavigationTraversalKind.Jump,
+                    Cost = GetTraversalTapeCost(approximateJumpTape) * costMultiplier,
+                    InputTape = approximateJumpTape,
+                };
+                return true;
             }
         }
 
@@ -574,14 +857,125 @@ public static class BotNavigationAssetBuilder
         return false;
     }
 
+    private static bool TryBuildRecordedHintEdge(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        BotNavigationProfile profile,
+        MutableNode fromNode,
+        MutableNode toNode,
+        BotNavigationHintLink hintLink,
+        float costMultiplier,
+        out BotNavigationEdge edge)
+    {
+        edge = default!;
+        var representativeClass = classDefinition.Id;
+        var recordedTraversal = hintLink.RecordedTraversals
+            .FirstOrDefault(entry => entry.ClassId == representativeClass && entry.InputTape.Count > 0)
+            ?? hintLink.RecordedTraversals.FirstOrDefault(entry => entry.ClassId.HasValue && BotNavigationProfiles.GetProfileForClass(entry.ClassId.Value) == profile && entry.InputTape.Count > 0)
+            ?? hintLink.RecordedTraversals.FirstOrDefault(entry => entry.Profile == profile && entry.InputTape.Count > 0);
+        if (recordedTraversal is null)
+        {
+            return false;
+        }
+
+        var recordedKind = ResolveRecordedTraversalKind(fromNode.Y, toNode.Y, recordedTraversal.InputTape);
+        var recordedCost = GetTraversalTapeCost(recordedTraversal.InputTape);
+
+        edge = new BotNavigationEdge
+        {
+            FromNodeId = fromNode.Id,
+            ToNodeId = toNode.Id,
+            Kind = hintLink.Traversal == BotNavigationHintTraversalKind.Drop
+                ? BotNavigationTraversalKind.Drop
+                : recordedKind,
+            Cost = recordedCost * costMultiplier,
+            InputTape = recordedTraversal.InputTape.ToArray(),
+        };
+        return true;
+    }
+
+    private static BotNavigationEdge CreateAuthoredWalkEdge(MutableNode fromNode, MutableNode toNode, float costMultiplier)
+    {
+        return new BotNavigationEdge
+        {
+            FromNodeId = fromNode.Id,
+            ToNodeId = toNode.Id,
+            Kind = BotNavigationTraversalKind.Walk,
+            Cost = MathF.Abs(toNode.X - fromNode.X) * costMultiplier,
+            InputTape = Array.Empty<BotNavigationInputFrame>(),
+        };
+    }
+
+    private static float GetTraversalTapeCost(IReadOnlyList<BotNavigationInputFrame> tape)
+    {
+        if (tape.Count == 0)
+        {
+            return 0f;
+        }
+
+        var totalSeconds = 0d;
+        for (var index = 0; index < tape.Count; index += 1)
+        {
+            var frame = tape[index];
+            totalSeconds += frame.DurationSeconds > 0d
+                ? frame.DurationSeconds
+                : Math.Max(1, frame.Ticks) / (double)SimulationConfig.DefaultTicksPerSecond;
+        }
+
+        var totalTicks = Math.Max(1, (int)Math.Round(totalSeconds * SimulationConfig.DefaultTicksPerSecond, MidpointRounding.AwayFromZero));
+        return totalTicks * 12f;
+    }
+
+    private static BotNavigationTraversalKind ResolveRecordedTraversalKind(
+        float sourceY,
+        float targetY,
+        IReadOnlyList<BotNavigationInputFrame> tape)
+    {
+        if (tape.Any(frame => frame.Up))
+        {
+            return BotNavigationTraversalKind.Jump;
+        }
+
+        return targetY > sourceY + 8f
+            ? BotNavigationTraversalKind.Drop
+            : BotNavigationTraversalKind.Walk;
+    }
+
     private static bool TryAddHintNode(
         SimpleLevel level,
         CharacterClassDefinition classDefinition,
         IDictionary<string, MutableNode> mutableNodes,
         IDictionary<int, List<MutableNode>> nodesBySurface,
-        BotNavigationHintNode hintNode)
+        BotNavigationHintNode hintNode,
+        bool preserveAuthoredPlacement,
+        ref int nextVirtualSurfaceId)
     {
-        if (TryAddSurfaceNode(
+        if (preserveAuthoredPlacement
+            && CanOccupy(level, classDefinition, hintNode.X, hintNode.Y))
+        {
+            var requiresGroundSupport = HasGroundSupport(level, classDefinition, hintNode.X, hintNode.Y);
+            var surfaceId = requiresGroundSupport
+                ? FindSupportingSurfaceId(level, classDefinition, hintNode.X, hintNode.Y)
+                : nextVirtualSurfaceId--;
+            if (TryAddNode(
+                    level,
+                    classDefinition,
+                    mutableNodes,
+                    nodesBySurface,
+                    surfaceId,
+                    hintNode.X,
+                    hintNode.Y,
+                    hintNode.Kind,
+                    hintNode.Team,
+                    hintNode.Label,
+                    requiresGroundSupport,
+                    preferLabel: true))
+            {
+                return true;
+            }
+        }
+
+        if (TryAddNode(
                 level,
                 classDefinition,
                 mutableNodes,
@@ -590,13 +984,16 @@ public static class BotNavigationAssetBuilder
                 hintNode.X,
                 hintNode.Y,
                 hintNode.Kind,
-                hintNode.Label))
+                hintNode.Team,
+                hintNode.Label,
+                requiresGroundSupport: true,
+                preferLabel: true))
         {
             return true;
         }
 
-        return TryProjectAnchor(level, classDefinition, new AnchorCandidate(hintNode.X, hintNode.Y, hintNode.Kind, hintNode.Label), out var projected)
-            && TryAddSurfaceNode(
+        return TryProjectAnchor(level, classDefinition, new AnchorCandidate(hintNode.X, hintNode.Y, hintNode.Kind, hintNode.Team, hintNode.Label), out var projected)
+            && TryAddNode(
                 level,
                 classDefinition,
                 mutableNodes,
@@ -605,7 +1002,61 @@ public static class BotNavigationAssetBuilder
                 projected.X,
                 projected.Y,
                 hintNode.Kind,
-                hintNode.Label);
+                hintNode.Team,
+                hintNode.Label,
+                requiresGroundSupport: true,
+                preferLabel: true);
+    }
+
+    private static void TryAddGroundTraversalEdges(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        MutableNode sourceNode,
+        IReadOnlyList<MutableNode> allNodes,
+        ISet<long> edgeKeys,
+        List<BotNavigationEdge> edges,
+        ref int walkEdgeCount)
+    {
+        var candidateTargets = SelectTraversalCandidates(
+            sourceNode,
+            allNodes,
+            IsGroundTraversalCandidate,
+            GetGroundTraversalCandidateScore,
+            MaxGroundTraversalTargetsPerSourceNode);
+
+        for (var index = 0; index < candidateTargets.Length; index += 1)
+        {
+            var candidate = candidateTargets[index];
+            if (!TryBuildGroundTapeForEitherTeam(
+                    level,
+                    classDefinition,
+                    sourceNode.X,
+                    sourceNode.Y,
+                    candidate.X,
+                    candidate.Y,
+                    out var inputTape,
+                    out var cost))
+            {
+                continue;
+            }
+
+            if (!TryAddEdge(
+                    edgeKeys,
+                    edges,
+                    new BotNavigationEdge
+                    {
+                        FromNodeId = sourceNode.Id,
+                        ToNodeId = candidate.Id,
+                        Kind = BotNavigationTraversalKind.Walk,
+                        Cost = cost,
+                        InputTape = inputTape,
+                    }))
+            {
+                continue;
+            }
+
+            walkEdgeCount += 1;
+        }
     }
 
     private static void TryAddJumpEdges(
@@ -619,16 +1070,18 @@ public static class BotNavigationAssetBuilder
         List<BotNavigationEdge> edges,
         ref int jumpEdgeCount)
     {
-        var candidateTargets = allNodes
-            .Where(candidate => IsJumpCandidate(sourceNode, candidate, jumpSearchEnvelope))
-            .OrderBy(candidate => GetJumpCandidateScore(sourceNode, candidate))
-            .Take(MaxJumpTargetsPerSourceNode)
-            .ToArray();
+        var candidateTargets = SelectTraversalCandidates(
+            sourceNode,
+            allNodes,
+            static (source, candidate, envelope) => IsJumpCandidate(source, candidate, envelope),
+            GetJumpCandidateScore,
+            MaxJumpTargetsPerSourceNode,
+            jumpSearchEnvelope);
 
         for (var index = 0; index < candidateTargets.Length; index += 1)
         {
             var candidate = candidateTargets[index];
-            if (!BotNavigationMovementValidator.TryBuildJumpTape(
+            if (!TryBuildJumpTapeForEitherTeam(
                     level,
                     classDefinition,
                     profile,
@@ -685,11 +1138,254 @@ public static class BotNavigationAssetBuilder
         return true;
     }
 
+    private static bool IsGroundTraversalCandidate(MutableNode sourceNode, MutableNode candidate)
+    {
+        if (candidate.SurfaceId == sourceNode.SurfaceId)
+        {
+            return false;
+        }
+
+        var horizontalDistance = MathF.Abs(candidate.X - sourceNode.X);
+        if (horizontalDistance < 12f || horizontalDistance > GroundTraversalMaxHorizontalDistance)
+        {
+            return false;
+        }
+
+        var riseDistance = sourceNode.Y - candidate.Y;
+        if (riseDistance > GroundTraversalMaxRiseDistance
+            || riseDistance < -GroundTraversalMaxDescentDistance)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static float GetJumpCandidateScore(MutableNode sourceNode, MutableNode candidate)
     {
         var horizontalDistance = MathF.Abs(candidate.X - sourceNode.X);
         var verticalDistance = MathF.Abs(candidate.Y - sourceNode.Y);
         return horizontalDistance + (verticalDistance * 1.5f);
+    }
+
+    private static float GetGroundTraversalCandidateScore(MutableNode sourceNode, MutableNode candidate)
+    {
+        var horizontalDistance = MathF.Abs(candidate.X - sourceNode.X);
+        var verticalDistance = MathF.Abs(candidate.Y - sourceNode.Y);
+        return horizontalDistance + verticalDistance;
+    }
+
+    private static bool TryBuildGroundTapeForEitherTeam(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        tape = Array.Empty<BotNavigationInputFrame>();
+        cost = 0f;
+
+        if (BotNavigationMovementValidator.TryBuildGroundTape(
+                level,
+                classDefinition,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                out tape,
+                out cost))
+        {
+            return true;
+        }
+
+        return BotNavigationMovementValidator.TryBuildGroundTape(
+            level,
+            classDefinition,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            PlayerTeam.Blue,
+            out tape,
+            out cost);
+    }
+
+    private static bool TryBuildJumpTapeForEitherTeam(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        BotNavigationProfile profile,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        tape = Array.Empty<BotNavigationInputFrame>();
+        cost = 0f;
+
+        if (BotNavigationMovementValidator.TryBuildJumpTape(
+                level,
+                classDefinition,
+                profile,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                out tape,
+                out cost))
+        {
+            return true;
+        }
+
+        return BotNavigationMovementValidator.TryBuildJumpTape(
+            level,
+            classDefinition,
+            profile,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            PlayerTeam.Blue,
+            out tape,
+            out cost);
+    }
+
+    private static bool TryBuildHintJumpTapeForEitherTeam(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        BotNavigationProfile profile,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        bool requireGroundedArrival,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        tape = Array.Empty<BotNavigationInputFrame>();
+        cost = 0f;
+
+        if (BotNavigationMovementValidator.TryBuildHintJumpTape(
+                level,
+                classDefinition,
+                profile,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                requireGroundedArrival,
+                out tape,
+                out cost))
+        {
+            return true;
+        }
+
+        return BotNavigationMovementValidator.TryBuildHintJumpTape(
+            level,
+            classDefinition,
+            profile,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            PlayerTeam.Blue,
+            requireGroundedArrival,
+            out tape,
+            out cost);
+    }
+
+    private static bool TryValidateRecordedHintTapeForEitherTeam(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        bool requireGroundedArrival,
+        IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost,
+        out BotNavigationTraversalKind traversalKind)
+    {
+        cost = 0f;
+        traversalKind = BotNavigationTraversalKind.Walk;
+        if (BotNavigationMovementValidator.TryValidateRecordedTraversalTape(
+                level,
+                classDefinition,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                tape,
+                requireGroundedArrival,
+                out cost,
+                out traversalKind))
+        {
+            return true;
+        }
+
+        return BotNavigationMovementValidator.TryValidateRecordedTraversalTape(
+            level,
+            classDefinition,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            PlayerTeam.Blue,
+            tape,
+            requireGroundedArrival,
+            out cost,
+            out traversalKind);
+    }
+
+    private static MutableNode[] SelectTraversalCandidates(
+        MutableNode sourceNode,
+        IReadOnlyList<MutableNode> allNodes,
+        Func<MutableNode, MutableNode, bool> predicate,
+        Func<MutableNode, MutableNode, float> scoreSelector,
+        int maxCandidateCount)
+    {
+        return allNodes
+            .Where(candidate => predicate(sourceNode, candidate))
+            .GroupBy(static candidate => candidate.SurfaceId)
+            .Select(group => group
+                .OrderByDescending(static candidate => candidate.Kind)
+                .ThenBy(candidate => scoreSelector(sourceNode, candidate))
+                .ThenBy(candidate => MathF.Abs(candidate.X - sourceNode.X))
+                .First())
+            .OrderBy(candidate => scoreSelector(sourceNode, candidate))
+            .ThenByDescending(static candidate => candidate.Kind)
+            .Take(maxCandidateCount)
+            .ToArray();
+    }
+
+    private static MutableNode[] SelectTraversalCandidates<TContext>(
+        MutableNode sourceNode,
+        IReadOnlyList<MutableNode> allNodes,
+        Func<MutableNode, MutableNode, TContext, bool> predicate,
+        Func<MutableNode, MutableNode, float> scoreSelector,
+        int maxCandidateCount,
+        TContext context)
+    {
+        return allNodes
+            .Where(candidate => predicate(sourceNode, candidate, context))
+            .GroupBy(static candidate => candidate.SurfaceId)
+            .Select(group => group
+                .OrderByDescending(static candidate => candidate.Kind)
+                .ThenBy(candidate => scoreSelector(sourceNode, candidate))
+                .ThenBy(candidate => MathF.Abs(candidate.X - sourceNode.X))
+                .First())
+            .OrderBy(candidate => scoreSelector(sourceNode, candidate))
+            .ThenByDescending(static candidate => candidate.Kind)
+            .Take(maxCandidateCount)
+            .ToArray();
     }
 
     private static void TryAddDropEdge(
@@ -822,24 +1518,6 @@ public static class BotNavigationAssetBuilder
         return true;
     }
 
-    private static bool AppliesToProfile(IReadOnlyList<BotNavigationProfile> profiles, BotNavigationProfile profile)
-    {
-        if (profiles.Count == 0)
-        {
-            return true;
-        }
-
-        for (var index = 0; index < profiles.Count; index += 1)
-        {
-            if (profiles[index] == profile)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static long GetEdgeKey(int fromNodeId, int toNodeId)
     {
         return ((long)fromNodeId << 32) | (uint)toNodeId;
@@ -847,13 +1525,15 @@ public static class BotNavigationAssetBuilder
 
     private sealed class MutableNode
     {
-        public MutableNode(int surfaceId, float x, float y, BotNavigationNodeKind kind, string label)
+        public MutableNode(int surfaceId, float x, float y, BotNavigationNodeKind kind, PlayerTeam? team, string label, bool requiresGroundSupport)
         {
             SurfaceId = surfaceId;
             X = x;
             Y = y;
             Kind = kind;
+            Team = team;
             Label = label;
+            RequiresGroundSupport = requiresGroundSupport;
         }
 
         public int Id { get; set; }
@@ -866,23 +1546,41 @@ public static class BotNavigationAssetBuilder
 
         public BotNavigationNodeKind Kind { get; private set; }
 
+        public PlayerTeam? Team { get; private set; }
+
         public string Label { get; private set; }
 
-        public void TryPromote(BotNavigationNodeKind kind, string label)
+        public bool RequiresGroundSupport { get; private set; }
+
+        public void TryPromote(BotNavigationNodeKind kind, PlayerTeam? team, string label, bool requiresGroundSupport, bool preferLabel = false)
         {
             if (kind > Kind)
             {
                 Kind = kind;
             }
 
-            if (label.Length > Label.Length)
+            if (!Team.HasValue && team.HasValue)
+            {
+                Team = team;
+            }
+
+            if (requiresGroundSupport)
+            {
+                RequiresGroundSupport = true;
+            }
+
+            if (preferLabel && !string.IsNullOrWhiteSpace(label))
+            {
+                Label = label;
+            }
+            else if (label.Length > Label.Length)
             {
                 Label = label;
             }
         }
     }
 
-    private readonly record struct AnchorCandidate(float X, float Y, BotNavigationNodeKind Kind, string Label);
+    private readonly record struct AnchorCandidate(float X, float Y, BotNavigationNodeKind Kind, PlayerTeam? Team, string Label);
 
     private readonly record struct ProjectedAnchor(int SurfaceId, float X, float Y);
 }

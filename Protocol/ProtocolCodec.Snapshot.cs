@@ -58,6 +58,9 @@ public static partial class ProtocolCodec
         WriteSentryGibStates(writer, snapshot.SentryGibs);
         WriteEntityIdList(writer, snapshot.RemovedSentryGibIds);
         writer.Write(snapshot.ControlPointSetupTicksRemaining);
+        writer.Write(snapshot.KothUnlockTicksRemaining);
+        writer.Write(snapshot.KothRedTimerTicksRemaining);
+        writer.Write(snapshot.KothBlueTimerTicksRemaining);
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
@@ -120,6 +123,9 @@ public static partial class ProtocolCodec
         var sentryGibs = ReadSentryGibStates(reader);
         var removedSentryGibIds = ReadEntityIdList(reader);
         var controlPointSetupTicksRemaining = reader.ReadInt32();
+        var kothUnlockTicksRemaining = reader.ReadInt32();
+        var kothRedTimerTicksRemaining = reader.ReadInt32();
+        var kothBlueTimerTicksRemaining = reader.ReadInt32();
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
         var deathCam = ReadDeathCamState(reader);
@@ -160,6 +166,9 @@ public static partial class ProtocolCodec
             bloodDrops,
             deadBodies,
             controlPointSetupTicksRemaining,
+            kothUnlockTicksRemaining,
+            kothRedTimerTicksRemaining,
+            kothBlueTimerTicksRemaining,
             controlPoints,
             generators,
             deathCam,
@@ -238,6 +247,7 @@ public static partial class ProtocolCodec
             writer.Write(player.Kills);
             writer.Write(player.Deaths);
             writer.Write(player.Caps);
+            writer.Write(player.Points);
             writer.Write(player.HealPoints);
             writer.Write(player.ActiveDominationCount);
             writer.Write(player.IsDominatingLocalViewer);
@@ -278,6 +288,8 @@ public static partial class ProtocolCodec
             writer.Write(player.PyroFlameLoopTicksRemaining);
             writer.Write(player.PyroPrimaryRequiresReleaseAfterEmpty);
             writer.Write(player.HeavyEatCooldownTicksRemaining);
+            writer.Write(player.Assists);
+            writer.Write(player.BadgeMask);
         }
     }
 
@@ -308,6 +320,7 @@ public static partial class ProtocolCodec
                 reader.ReadInt16(),
                 reader.ReadInt16(),
                 reader.ReadInt16(),
+                reader.ReadSingle(),
                 reader.ReadInt16(),
                 reader.ReadInt16(),
                 reader.ReadBoolean(),
@@ -347,7 +360,9 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                reader.ReadInt16(),
+                reader.ReadUInt64()));
         }
 
         return players;

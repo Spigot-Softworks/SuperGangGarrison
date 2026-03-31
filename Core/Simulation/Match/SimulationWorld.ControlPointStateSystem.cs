@@ -168,6 +168,31 @@ public sealed partial class SimulationWorld
 
         private static bool IsLocked(SimulationWorld world, ControlPointState point)
         {
+            if (SimulationWorld.IsKothMode(world.MatchRules.Mode))
+            {
+                if (world._kothUnlockTicksRemaining > 0)
+                {
+                    return true;
+                }
+
+                if (world.MatchRules.Mode == GameModeKind.KingOfTheHill)
+                {
+                    return false;
+                }
+
+                if (point.Marker.IsRedKothControlPoint())
+                {
+                    return world.GetDualKothPoint(PlayerTeam.Blue)?.Team == PlayerTeam.Red;
+                }
+
+                if (point.Marker.IsBlueKothControlPoint())
+                {
+                    return world.GetDualKothPoint(PlayerTeam.Red)?.Team == PlayerTeam.Blue;
+                }
+
+                return false;
+            }
+
             if (!point.Team.HasValue)
             {
                 return false;
@@ -230,6 +255,7 @@ public sealed partial class SimulationWorld
                     }
 
                     player.AddCap();
+                    AwardObjectiveCapturePoints(player);
                 }
             }
 

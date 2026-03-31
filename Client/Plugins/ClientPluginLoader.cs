@@ -6,9 +6,8 @@ namespace OpenGarrison.Client;
 
 internal static class ClientPluginLoader
 {
-    public static IReadOnlyList<LoadedPlugin> LoadFromDirectory(
+    public static IReadOnlyList<DiscoveredPlugin> DiscoverFromDirectory(
         string pluginsDirectory,
-        Func<IOpenGarrisonClientPlugin, string, IOpenGarrisonClientPluginContext> contextFactory,
         Action<string> log)
     {
         Directory.CreateDirectory(pluginsDirectory);
@@ -26,30 +25,18 @@ internal static class ClientPluginLoader
             }
         }
 
-        return LoadFromAssemblies(assemblies, contextFactory, log);
+        return DiscoverFromAssemblies(assemblies, log);
     }
 
-    public static IReadOnlyList<LoadedPlugin> LoadFromAssemblies(
+    public static IReadOnlyList<DiscoveredPlugin> DiscoverFromAssemblies(
         IEnumerable<Assembly> assemblies,
-        Func<IOpenGarrisonClientPlugin, string, IOpenGarrisonClientPluginContext> contextFactory,
         Action<string> log)
     {
-        var loadedPlugins = new List<LoadedPlugin>();
+        var discoveredPlugins = new List<DiscoveredPlugin>();
+        var discoveredPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var assembly in assemblies)
         {
-            Type[] types;
-            try
-            {
-                types = assembly.GetTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                types = ex.Types.Where(type => type is not null).Cast<Type>().ToArray();
-            }
-
-            foreach (var type in types
-                         .Where(type => typeof(IOpenGarrisonClientPlugin).IsAssignableFrom(type)
-                             && type is { IsAbstract: false, IsInterface: false }))
+            foreach (var type in GetPluginTypes(assembly))
             {
                 try
                 {
@@ -58,20 +45,77 @@ internal static class ClientPluginLoader
                         continue;
                     }
 
-                    var pluginDirectory = Path.GetDirectoryName(assembly.Location) ?? string.Empty;
-                    var context = contextFactory(plugin, pluginDirectory);
-                    plugin.Initialize(context);
-                    loadedPlugins.Add(new LoadedPlugin(plugin, context, pluginDirectory));
+                    if (!discoveredPluginIds.Add(plugin.Id))
+                    {
+                        log($"[plugin] duplicate client plugin id \"{plugin.Id}\" from \"{type.FullName}\" ignored.");
+                        continue;
+                    }
+
+                    discoveredPlugins.Add(new DiscoveredPlugin(
+                        plugin.Id,
+                        plugin.DisplayName,
+                        plugin.Version,
+                        type,
+                        Path.GetDirectoryName(assembly.Location) ?? string.Empty));
                 }
                 catch (Exception ex)
                 {
-                    log($"[plugin] failed to initialize \"{type.FullName}\": {ex.Message}");
+                    log($"[plugin] failed to inspect \"{type.FullName}\": {ex.Message}");
                 }
             }
         }
 
-        return loadedPlugins;
+        return discoveredPlugins
+            .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
+
+    public static LoadedPlugin? TryLoadDiscoveredPlugin(
+        DiscoveredPlugin discoveredPlugin,
+        Func<IOpenGarrisonClientPlugin, string, IOpenGarrisonClientPluginContext> contextFactory,
+        Action<string> log)
+    {
+        try
+        {
+            if (Activator.CreateInstance(discoveredPlugin.PluginType) is not IOpenGarrisonClientPlugin plugin)
+            {
+                return null;
+            }
+
+            var context = contextFactory(plugin, discoveredPlugin.PluginDirectory);
+            plugin.Initialize(context);
+            return new LoadedPlugin(plugin, context, discoveredPlugin.PluginDirectory);
+        }
+        catch (Exception ex)
+        {
+            log($"[plugin] failed to initialize \"{discoveredPlugin.PluginType.FullName}\": {ex.Message}");
+            return null;
+        }
+    }
+
+    private static IEnumerable<Type> GetPluginTypes(Assembly assembly)
+    {
+        Type[] types;
+        try
+        {
+            types = assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            types = ex.Types.Where(type => type is not null).Cast<Type>().ToArray();
+        }
+
+        return types.Where(type => typeof(IOpenGarrisonClientPlugin).IsAssignableFrom(type)
+            && type is { IsAbstract: false, IsInterface: false });
+    }
+
+    internal sealed record DiscoveredPlugin(
+        string PluginId,
+        string DisplayName,
+        Version Version,
+        Type PluginType,
+        string PluginDirectory);
 
     internal sealed record LoadedPlugin(
         IOpenGarrisonClientPlugin Plugin,

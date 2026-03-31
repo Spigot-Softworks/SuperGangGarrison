@@ -150,12 +150,18 @@ public sealed partial class SimulationWorld
         RedCaps = 0;
         BlueCaps = 0;
 
-        if (MatchRules.Mode != GameModeKind.ControlPoint)
+        if (MatchRules.Mode != GameModeKind.ControlPoint && !IsKothMode(MatchRules.Mode))
         {
             _controlPoints.Clear();
             _controlPointZones.Clear();
             _controlPointSetupMode = false;
             _controlPointSetupTicksRemaining = 0;
+        }
+        if (!IsKothMode(MatchRules.Mode))
+        {
+            _kothRedTimerTicksRemaining = 0;
+            _kothBlueTimerTicksRemaining = 0;
+            _kothUnlockTicksRemaining = 0;
         }
         if (MatchRules.Mode != GameModeKind.Generator)
         {
@@ -177,9 +183,16 @@ public sealed partial class SimulationWorld
         _arenaCappers = 0;
         _arenaUnlockTicksRemaining = MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0;
 
-        if (MatchRules.Mode == GameModeKind.ControlPoint)
+        if (MatchRules.Mode == GameModeKind.ControlPoint || IsKothMode(MatchRules.Mode))
         {
             ResetControlPointStateForNewRound();
+        }
+
+        if (!IsKothMode(MatchRules.Mode))
+        {
+            _kothRedTimerTicksRemaining = 0;
+            _kothBlueTimerTicksRemaining = 0;
+            _kothUnlockTicksRemaining = 0;
         }
 
         if (MatchRules.Mode == GameModeKind.Generator)

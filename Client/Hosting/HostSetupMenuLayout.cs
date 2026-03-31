@@ -35,6 +35,8 @@ internal readonly record struct HostSetupMenuLayout(
         ListBounds.Width,
         ListBounds.Height - ListHeaderHeight);
 
+    public int VisibleRowCapacity => Math.Max(1, ListRowsBounds.Height / RowHeight);
+
     public Vector2 StatusPosition => CompactLayout
         ? new Vector2(Panel.X + 28f, Panel.Y + 62f)
         : new Vector2(Panel.X + 28f, Panel.Bottom - 38f);

@@ -14,6 +14,12 @@ public sealed partial class SimulationWorld
     {
         public static void ResetForNewRound(SimulationWorld world)
         {
+            if (SimulationWorld.IsKothMode(world.MatchRules.Mode))
+            {
+                world.ResetKothStateForNewRound();
+                return;
+            }
+
             InitializeForLevel(world);
             var hasSetupGates = world.Level.GetRoomObjects(RoomObjectType.ControlPointSetupGate).Count > 0;
             if (world._controlPoints.Count == 0)

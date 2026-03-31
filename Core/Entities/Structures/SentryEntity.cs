@@ -156,7 +156,7 @@ public sealed class SentryEntity : SimulationEntity
         return (deltaX * deltaX) + (deltaY * deltaY) <= radius * radius;
     }
 
-    public void SetTarget(int? playerId, float targetX, bool hasTarget = true)
+    public void SetTarget(int? playerId, float targetX, float targetY, bool hasTarget = true)
     {
         HasActiveTarget = hasTarget;
         CurrentTargetPlayerId = playerId;
@@ -164,6 +164,10 @@ public sealed class SentryEntity : SimulationEntity
             ? (targetX < X ? -1f : 1f)
             : StartDirectionX;
         SetDesiredFacing(desiredFacingDirectionX);
+        if (hasTarget)
+        {
+            AimDirectionDegrees = MathF.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
+        }
     }
 
     public bool BeginTargetAlert()

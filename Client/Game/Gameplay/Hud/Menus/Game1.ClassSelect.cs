@@ -62,6 +62,7 @@ public partial class Game1
             return;
         }
 
+        SuppressPrimaryFireUntilMouseRelease();
         ApplyClassSelection(_classSelectHoverIndex);
         _classSelectOpen = false;
     }

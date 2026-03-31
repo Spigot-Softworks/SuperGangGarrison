@@ -8,9 +8,19 @@ namespace OpenGarrison.Core;
 
 public static class CustomMapPngImporter
 {
+    private const float DefaultCustomMapScale = 6f;
+    private const float DefaultMoveBoxPushPowerPerTick = 5f;
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     public sealed record Result(GameMakerRoomMetadata Room, IReadOnlyList<LevelSolid> Solids);
+
+    private readonly record struct ImportedEntity(
+        string Type,
+        float X,
+        float Y,
+        float XScale,
+        float YScale,
+        IReadOnlyDictionary<string, string> Properties);
 
     public static Result? Import(string pngPath)
     {
@@ -36,12 +46,18 @@ public static class CustomMapPngImporter
             return null;
         }
 
-        if (!TryDecodeWalkmask(walkmaskSection, out var solids, out var bounds))
+        if (!TryDecodeEntities(entitiesSection, out var entities, out var metadata))
         {
             return null;
         }
 
-        var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entitiesSection);
+        var mapScale = ResolveMapScale(metadata);
+        if (!TryDecodeWalkmask(walkmaskSection, mapScale, out var solids, out var bounds))
+        {
+            return null;
+        }
+
+        var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entities);
         return new Result(room, solids);
     }
 
@@ -174,7 +190,7 @@ public static class CustomMapPngImporter
         return input[start..end].Trim();
     }
 
-    private static bool TryDecodeWalkmask(string walkmaskSection, out IReadOnlyList<LevelSolid> solids, out WorldBounds bounds)
+    private static bool TryDecodeWalkmask(string walkmaskSection, float mapScale, out IReadOnlyList<LevelSolid> solids, out WorldBounds bounds)
     {
         solids = Array.Empty<LevelSolid>();
         var lines = walkmaskSection
@@ -192,31 +208,45 @@ public static class CustomMapPngImporter
 
         var cells = new bool[width * height];
         var packed = string.Concat(lines.Skip(2));
-        var x = width - 1;
-        var y = height - 1;
-        foreach (var character in packed)
+        if (packed.Length == 0)
         {
-            var value = Math.Max(0, character - 32);
-            for (var bit = 0; bit < 6 && y >= 0; bit += 1)
+            bounds = default;
+            return false;
+        }
+
+        var trailingUnusedBits = Math.Max(0, (packed.Length * 6) - (width * height));
+        var packedIndex = packed.Length - 1 - (trailingUnusedBits / 6);
+        if (packedIndex < 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        var bitMask = 1 << (trailingUnusedBits % 6);
+        var packedValue = Math.Max(0, packed[packedIndex] - 32);
+        for (var row = height - 1; row >= 0; row -= 1)
+        {
+            for (var column = width - 1; column >= 0; column -= 1)
             {
-                if ((value & (1 << bit)) != 0)
+                if (bitMask == 64)
                 {
-                    cells[(y * width) + x] = true;
+                    packedIndex -= 1;
+                    if (packedIndex < 0)
+                    {
+                        bounds = default;
+                        return false;
+                    }
+
+                    packedValue = Math.Max(0, packed[packedIndex] - 32);
+                    bitMask = 1;
                 }
 
-                x -= 1;
-                if (x >= 0)
+                if ((packedValue & bitMask) != 0)
                 {
-                    continue;
+                    cells[(row * width) + column] = true;
                 }
 
-                x = width - 1;
-                y -= 1;
-            }
-
-            if (y < 0)
-            {
-                break;
+                bitMask <<= 1;
             }
         }
 
@@ -238,16 +268,20 @@ public static class CustomMapPngImporter
                     column += 1;
                 }
 
-                decodedSolids.Add(new LevelSolid(start, row, column - start, 1f));
+                decodedSolids.Add(new LevelSolid(start * mapScale, row * mapScale, (column - start) * mapScale, mapScale));
             }
         }
 
-        bounds = new WorldBounds(width, height);
+        bounds = new WorldBounds(width * mapScale, height * mapScale);
         solids = decodedSolids;
         return true;
     }
 
-    private static GameMakerRoomMetadata BuildRoomMetadata(string mapName, string pngPath, WorldBounds bounds, string entitiesSection)
+    private static GameMakerRoomMetadata BuildRoomMetadata(
+        string mapName,
+        string pngPath,
+        WorldBounds bounds,
+        IReadOnlyList<ImportedEntity> entities)
     {
         var redSpawns = new List<SpawnPoint>();
         var blueSpawns = new List<SpawnPoint>();
@@ -255,18 +289,13 @@ public static class CustomMapPngImporter
         var roomObjects = new List<RoomObjectMarker>();
         var areaTransitionMarkers = new List<AreaTransitionMarker>();
         var unsupportedEntities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var lines = entitiesSection
-            .Replace("\r", string.Empty, StringComparison.Ordinal)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        for (var index = 0; index + 2 < lines.Length; index += 3)
+        for (var index = 0; index < entities.Count; index += 1)
         {
-            var entityType = lines[index].Trim();
-            if (!float.TryParse(lines[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
-                || !float.TryParse(lines[index + 2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
-            {
-                continue;
-            }
+            var entity = entities[index];
+            var entityType = entity.Type.Trim();
+            var x = entity.X;
+            var y = entity.Y;
 
             switch (entityType.ToLowerInvariant())
             {
@@ -289,7 +318,7 @@ public static class CustomMapPngImporter
                     areaTransitionMarkers.Add(new AreaTransitionMarker(x, y, AreaTransitionDirection.Previous, entityType));
                     break;
                 default:
-                    if (TryCreateRoomObject(entityType, x, y, out var marker))
+                    if (TryCreateRoomObject(entity, out var marker))
                     {
                         roomObjects.Add(marker);
                     }
@@ -318,38 +347,279 @@ public static class CustomMapPngImporter
         };
     }
 
-    private static bool TryCreateRoomObject(string entityType, float x, float y, out RoomObjectMarker marker)
+    private static bool TryCreateRoomObject(ImportedEntity entity, out RoomObjectMarker marker)
     {
+        var entityType = entity.Type;
+        var x = entity.X;
+        var y = entity.Y;
+        var xScale = MathF.Abs(entity.XScale) <= 0f ? 1f : MathF.Abs(entity.XScale);
+        var yScale = MathF.Abs(entity.YScale) <= 0f ? 1f : MathF.Abs(entity.YScale);
+        var resetMoveStatus = ResolveResetMoveStatus(entity.Properties);
+        var moveBoxImpulse = ResolveMoveBoxImpulse(entity.Properties);
+
         marker = entityType.ToLowerInvariant() switch
         {
-            "spawnroom" => new RoomObjectMarker(RoomObjectType.SpawnRoom, x, y, 42f, 42f, "sprite64", SourceName: entityType),
-            "cabinets" or "healingcabinet" or "medcabinet" => new RoomObjectMarker(RoomObjectType.HealingCabinet, x, y, 32f, 48f, "sprite74", SourceName: entityType),
-            "killbox" => new RoomObjectMarker(RoomObjectType.KillBox, x, y, 42f, 42f, "sprite64", SourceName: entityType),
-            "fragbox" => new RoomObjectMarker(RoomObjectType.FragBox, x, y, 42f, 42f, "sprite64", SourceName: entityType),
-            "redteamgate" => new RoomObjectMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", PlayerTeam.Red, entityType),
-            "blueteamgate" => new RoomObjectMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", PlayerTeam.Blue, entityType),
-            "redteamgate2" => new RoomObjectMarker(RoomObjectType.TeamGate, x, y, 60f, 6f, "sprite44", PlayerTeam.Red, entityType),
-            "blueteamgate2" => new RoomObjectMarker(RoomObjectType.TeamGate, x, y, 60f, 6f, "sprite44", PlayerTeam.Blue, entityType),
-            "redintelgate" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", PlayerTeam.Red, entityType),
-            "blueintelgate" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", PlayerTeam.Blue, entityType),
-            "redintelgate2" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", PlayerTeam.Red, entityType),
-            "blueintelgate2" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", PlayerTeam.Blue, entityType),
-            "intelgatevertical" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", SourceName: entityType),
-            "intelgatehorizontal" => new RoomObjectMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", SourceName: entityType),
-            "playerwall" => new RoomObjectMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", SourceName: entityType),
-            "playerwallhorizontal" or "playerwall_horizontal" => new RoomObjectMarker(RoomObjectType.PlayerWall, x, y, 60f, 6f, "sprite44", SourceName: entityType),
-            "bulletwall" => new RoomObjectMarker(RoomObjectType.BulletWall, x, y, 6f, 60f, "sprite45", SourceName: entityType),
-            "bulletwallhorizontal" or "bulletwall_horizontal" => new RoomObjectMarker(RoomObjectType.BulletWall, x, y, 60f, 6f, "sprite44", SourceName: entityType),
+            "spawnroom" => CreateMarker(RoomObjectType.SpawnRoom, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType),
+            "cabinets" or "healingcabinet" or "medcabinet" => CreateMarker(RoomObjectType.HealingCabinet, x, y, 32f, 48f, "sprite74", xScale, yScale, sourceName: entityType),
+            "killbox" or "pitfall" => CreateMarker(RoomObjectType.KillBox, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType),
+            "fragbox" => CreateMarker(RoomObjectType.FragBox, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType),
+            "redteamgate" => CreateMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", xScale, yScale, PlayerTeam.Red, entityType),
+            "blueteamgate" => CreateMarker(RoomObjectType.TeamGate, x, y, 6f, 60f, "sprite45", xScale, yScale, PlayerTeam.Blue, entityType),
+            "redteamgate2" => CreateMarker(RoomObjectType.TeamGate, x, y, 60f, 6f, "sprite44", xScale, yScale, PlayerTeam.Red, entityType),
+            "blueteamgate2" => CreateMarker(RoomObjectType.TeamGate, x, y, 60f, 6f, "sprite44", xScale, yScale, PlayerTeam.Blue, entityType),
+            "redintelgate" => CreateMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", xScale, yScale, PlayerTeam.Red, entityType),
+            "blueintelgate" => CreateMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", xScale, yScale, PlayerTeam.Blue, entityType),
+            "redintelgate2" => CreateMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", xScale, yScale, PlayerTeam.Red, entityType),
+            "blueintelgate2" => CreateMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", xScale, yScale, PlayerTeam.Blue, entityType),
+            "intelgatevertical" => CreateMarker(RoomObjectType.IntelGate, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
+            "intelgatehorizontal" => CreateMarker(RoomObjectType.IntelGate, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "playerwall" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
+            "playerwallhorizontal" or "playerwall_horizontal" => CreateMarker(RoomObjectType.PlayerWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "leftdoor" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
+            "rightdoor" => CreateMarker(RoomObjectType.PlayerWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
+            "dropdownplatform" => CreateMarker(RoomObjectType.DropdownPlatform, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType, value: resetMoveStatus),
+            "bulletwall" => CreateMarker(RoomObjectType.BulletWall, x, y, 6f, 60f, "sprite45", xScale, yScale, sourceName: entityType),
+            "bulletwallhorizontal" or "bulletwall_horizontal" => CreateMarker(RoomObjectType.BulletWall, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "moveboxup" => CreateMarker(RoomObjectType.MoveBoxUp, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
+            "moveboxdown" => CreateMarker(RoomObjectType.MoveBoxDown, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
+            "moveboxleft" => CreateMarker(RoomObjectType.MoveBoxLeft, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
+            "moveboxright" => CreateMarker(RoomObjectType.MoveBoxRight, x, y, 42f, 42f, "sprite64", xScale, yScale, sourceName: entityType, value: moveBoxImpulse),
             "controlpoint" or "controlpoint1" or "controlpoint2" or "controlpoint3" or "controlpoint4" or "controlpoint5"
-                => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: entityType),
-            "capturepoint" => new RoomObjectMarker(RoomObjectType.CaptureZone, x, y, 42f, 42f, string.Empty, SourceName: entityType),
-            "setupgate" => new RoomObjectMarker(RoomObjectType.ControlPointSetupGate, x, y, 60f, 6f, "sprite44", SourceName: entityType),
-            "arenacontrolpoint" => new RoomObjectMarker(RoomObjectType.ArenaControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: entityType),
-            "generatorred" => new RoomObjectMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", PlayerTeam.Red, entityType),
-            "generatorblue" => new RoomObjectMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", PlayerTeam.Blue, entityType),
+                => CreateMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", xScale, yScale, sourceName: entityType),
+            "kothcontrolpoint" => CreateMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", xScale, yScale, sourceName: entityType),
+            "kothredcontrolpoint" => CreateMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointRedS", xScale, yScale, sourceName: entityType),
+            "kothbluecontrolpoint" => CreateMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointBlueS", xScale, yScale, sourceName: entityType),
+            "capturepoint" => CreateMarker(RoomObjectType.CaptureZone, x, y, 42f, 42f, string.Empty, xScale, yScale, sourceName: entityType),
+            "setupgate" => CreateMarker(RoomObjectType.ControlPointSetupGate, x, y, 60f, 6f, "sprite44", xScale, yScale, sourceName: entityType),
+            "arenacontrolpoint" => CreateMarker(RoomObjectType.ArenaControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", xScale, yScale, sourceName: entityType),
+            "generatorred" => CreateMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", xScale, yScale, PlayerTeam.Red, entityType),
+            "generatorblue" => CreateMarker(RoomObjectType.Generator, x, y, 40f, 40f, "GeneratorS", xScale, yScale, PlayerTeam.Blue, entityType),
             _ => default,
         };
 
         return marker.Type != default || entityType.Equals("spawnroom", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static RoomObjectMarker CreateMarker(
+        RoomObjectType type,
+        float x,
+        float y,
+        float width,
+        float height,
+        string spriteName,
+        float xScale,
+        float yScale,
+        PlayerTeam? team = null,
+        string sourceName = "",
+        float value = 0f)
+    {
+        return new RoomObjectMarker(type, x, y, width * xScale, height * yScale, spriteName, team, sourceName, value);
+    }
+
+    private static bool TryDecodeEntities(
+        string entitiesSection,
+        out IReadOnlyList<ImportedEntity> entities,
+        out IReadOnlyDictionary<string, string> metadata)
+    {
+        var trimmed = entitiesSection.Trim();
+        if (!string.IsNullOrEmpty(trimmed) && (trimmed[0] == '{' || trimmed[0] == '['))
+        {
+            return TryDecodeGgonEntities(trimmed, out entities, out metadata);
+        }
+
+        return TryDecodeLegacyEntities(entitiesSection, out entities, out metadata);
+    }
+
+    private static bool TryDecodeLegacyEntities(
+        string entitiesSection,
+        out IReadOnlyList<ImportedEntity> entities,
+        out IReadOnlyDictionary<string, string> metadata)
+    {
+        metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var decodedEntities = new List<ImportedEntity>();
+        var lines = entitiesSection
+            .Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        for (var index = 0; index + 2 < lines.Length; index += 3)
+        {
+            var entityType = lines[index].Trim();
+            if (!float.TryParse(lines[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+                || !float.TryParse(lines[index + 2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+            {
+                continue;
+            }
+
+            decodedEntities.Add(new ImportedEntity(
+                entityType,
+                x,
+                y,
+                1f,
+                1f,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
+        }
+
+        entities = decodedEntities;
+        return true;
+    }
+
+    private static bool TryDecodeGgonEntities(
+        string entitiesSection,
+        out IReadOnlyList<ImportedEntity> entities,
+        out IReadOnlyDictionary<string, string> metadata)
+    {
+        entities = Array.Empty<ImportedEntity>();
+        metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!GgonParser.TryParse(entitiesSection, out var root))
+        {
+            return false;
+        }
+
+        if (!TryEnumerateList(root, out var items))
+        {
+            return false;
+        }
+
+        var decodedEntities = new List<ImportedEntity>(items.Count);
+        var decodedMetadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < items.Count; index += 1)
+        {
+            if (items[index] is not GgonValue.Map entityMap)
+            {
+                continue;
+            }
+
+            if (!TryGetString(entityMap, "type", out var entityType))
+            {
+                continue;
+            }
+
+            if (entityType.Equals("meta", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var entry in entityMap.Entries)
+                {
+                    if (entry.Value is GgonValue.Scalar scalar)
+                    {
+                        decodedMetadata[entry.Key] = scalar.Value;
+                    }
+                }
+
+                continue;
+            }
+
+            if (!TryGetFloat(entityMap, "x", out var x) || !TryGetFloat(entityMap, "y", out var y))
+            {
+                continue;
+            }
+
+            var xScale = TryGetFloat(entityMap, "xscale", out var parsedXScale) ? parsedXScale : 1f;
+            var yScale = TryGetFloat(entityMap, "yscale", out var parsedYScale) ? parsedYScale : 1f;
+            var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entityMap.Entries)
+            {
+                if (entry.Value is GgonValue.Scalar scalar)
+                {
+                    properties[entry.Key] = scalar.Value;
+                }
+            }
+
+            decodedEntities.Add(new ImportedEntity(entityType, x, y, xScale, yScale, properties));
+        }
+
+        entities = decodedEntities;
+        metadata = decodedMetadata;
+        return true;
+    }
+
+    private static bool TryEnumerateList(GgonValue value, out IReadOnlyList<GgonValue> items)
+    {
+        if (value is GgonValue.List list)
+        {
+            items = list.Items;
+            return true;
+        }
+
+        if (value is GgonValue.Map map
+            && TryGetString(map, "length", out var lengthText)
+            && int.TryParse(lengthText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var length)
+            && length >= 0)
+        {
+            var values = new List<GgonValue>(length);
+            for (var index = 0; index < length; index += 1)
+            {
+                if (!map.Entries.TryGetValue(index.ToString(CultureInfo.InvariantCulture), out var item))
+                {
+                    items = Array.Empty<GgonValue>();
+                    return false;
+                }
+
+                values.Add(item);
+            }
+
+            items = values;
+            return true;
+        }
+
+        items = Array.Empty<GgonValue>();
+        return false;
+    }
+
+    private static float ResolveMapScale(IReadOnlyDictionary<string, string> metadata)
+    {
+        if (metadata.TryGetValue("scale", out var scaleText)
+            && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale)
+            && scale > 0f)
+        {
+            return scale;
+        }
+
+        return DefaultCustomMapScale;
+    }
+
+    private static float ResolveResetMoveStatus(IReadOnlyDictionary<string, string> properties)
+    {
+        if (properties.TryGetValue("resetMoveStatus", out var rawValue)
+            && float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue))
+        {
+            return parsedValue != 0f ? 1f : 0f;
+        }
+
+        return 1f;
+    }
+
+    private static float ResolveMoveBoxImpulse(IReadOnlyDictionary<string, string> properties)
+    {
+        if (properties.TryGetValue("speed", out var rawValue)
+            && float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue)
+            && parsedValue > 0f)
+        {
+            return parsedValue * LegacyMovementModel.SourceTicksPerSecond;
+        }
+
+        return DefaultMoveBoxPushPowerPerTick * LegacyMovementModel.SourceTicksPerSecond;
+    }
+
+    private static bool TryGetString(GgonValue.Map map, string key, out string value)
+    {
+        if (map.Entries.TryGetValue(key, out var rawValue) && rawValue is GgonValue.Scalar scalar)
+        {
+            value = scalar.Value;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryGetFloat(GgonValue.Map map, string key, out float value)
+    {
+        if (TryGetString(map, key, out var text)
+            && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        value = 0f;
+        return false;
     }
 }

@@ -14,6 +14,7 @@ public sealed partial class SimulationWorld
     private const int DefaultRespawnTicks = 150;
     private const int DefaultTimeLimitMinutes = 15;
     private const int DefaultCapLimit = 5;
+    private const int DefaultTeamDeathmatchKillLimit = 30;
     private const int ArenaPointCapTimeTicksDefault = 300;
     private const int ArenaPointUnlockTicksDefault = 1800;
     private const int PendingMapChangeTicks = 300;
@@ -34,6 +35,7 @@ public sealed partial class SimulationWorld
     private readonly List<FlameProjectileEntity> _flames = new();
     private readonly List<FlareProjectileEntity> _flares = new();
     private readonly List<RocketProjectileEntity> _rockets = new();
+    private readonly List<int> _pendingNewRocketIds = new();
     private readonly List<MineProjectileEntity> _mines = new();
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<PlayerGibEntity> _playerGibs = new();
@@ -45,7 +47,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
-    private readonly List<string> _spectatorNames = new();
+    private readonly List<ScoreboardSpectatorEntry> _spectators = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
@@ -124,7 +126,7 @@ public sealed partial class SimulationWorld
 
     public int SpectatorCount { get; private set; }
 
-    public IReadOnlyList<string> SpectatorNames => _spectatorNames;
+    public IReadOnlyList<ScoreboardSpectatorEntry> Spectators => _spectators;
 
     public MatchRules MatchRules { get; private set; }
 
@@ -395,7 +397,10 @@ public sealed partial class SimulationWorld
     private MatchRules CreateDefaultMatchRules(GameModeKind mode)
     {
         var timeLimitTicks = _configuredTimeLimitMinutes * Config.TicksPerSecond * 60;
-        return new MatchRules(mode, _configuredTimeLimitMinutes, timeLimitTicks, _configuredCapLimit);
+        var capLimit = mode == GameModeKind.TeamDeathmatch && _configuredCapLimit == DefaultCapLimit
+            ? DefaultTeamDeathmatchKillLimit
+            : _configuredCapLimit;
+        return new MatchRules(mode, _configuredTimeLimitMinutes, timeLimitTicks, capLimit);
     }
 
     private static MatchState CreateInitialMatchState(MatchRules rules)

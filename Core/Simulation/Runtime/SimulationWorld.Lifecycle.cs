@@ -7,16 +7,35 @@ public sealed partial class SimulationWorld
         bool gibbed = false,
         PlayerEntity? killer = null,
         string? weaponSpriteName = null,
+        DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default,
         string? deathCamMessage = null,
         SentryEntity? deathCamSentry = null,
         string? killFeedMessage = null,
         bool createDeathCam = true,
         bool spawnRemains = true)
     {
+        var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
+            ? ResolveAssistPlayer(player, killer)
+            : null;
+
         player.AddDeath();
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();
+            AwardKillPoints(player, killer, weaponSpriteName);
+            AwardAssistPoints(assistingPlayer, player, killer);
+
+            if (MatchRules.Mode == GameModeKind.TeamDeathmatch && killer.Team != player.Team)
+            {
+                if (killer.Team == PlayerTeam.Red)
+                {
+                    RedCaps += 1;
+                }
+                else if (killer.Team == PlayerTeam.Blue)
+                {
+                    BlueCaps += 1;
+                }
+            }
         }
 
         if (player.IsCarryingIntel)
@@ -44,7 +63,7 @@ public sealed partial class SimulationWorld
         }
         else
         {
-            SpawnDeadBody(player);
+            SpawnDeadBody(player, deadBodyAnimationKind);
             RegisterWorldSoundEvent(_random.Next(2) == 0 ? "DeathSnd1" : "DeathSnd2", player.X, player.Y);
         }
 
@@ -502,7 +521,7 @@ public sealed partial class SimulationWorld
         SpawnPlayerResolved(EnemyPlayer, _enemyDummyTeam, ReserveSpawn(EnemyPlayer, _enemyDummyTeam));
     }
 
-    private void SpawnDeadBody(PlayerEntity player)
+    private void SpawnDeadBody(PlayerEntity player, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
     {
         if (!player.IsAlive)
         {
@@ -513,6 +532,7 @@ public sealed partial class SimulationWorld
             AllocateEntityId(),
             player.ClassId,
             player.Team,
+            animationKind,
             player.X,
             player.Y,
             player.Width,

@@ -1,0 +1,248 @@
+{
+  "FormatVersion": 2,
+  "LevelName": "ClassicWell",
+  "MapAreaIndex": 1,
+  "ClassId": "Quote",
+  "Profile": "Standard",
+  "LevelFingerprint": "fc10f2c1a277fb7a871c2c11d3b5adb7c401f173b057e5c2f42bd98f0a4b9840",
+  "BuildStrategy": "ExplicitHintGraphValidatedTraversals",
+  "BuiltUtc": "2026-03-29T22:41:31.4432264Z",
+  "Stats": {
+    "SurfaceCount": 1063,
+    "CandidateNodeCount": 14,
+    "SurfaceSampleNodeCount": 0,
+    "AutoAnchorNodeCount": 10,
+    "HintNodeCount": 4,
+    "NodeCount": 14,
+    "EdgeCount": 4,
+    "WalkEdgeCount": 2,
+    "JumpEdgeCount": 2,
+    "DropEdgeCount": 0,
+    "HintEdgeCount": 4,
+    "BuildMilliseconds": 70.9936,
+    "SurfaceSamplingMilliseconds": 0,
+    "AutoAnchorMilliseconds": 4.157,
+    "HintNodeMilliseconds": 0.1802,
+    "AutomaticEdgeMilliseconds": 0.0343,
+    "HintEdgeMilliseconds": 66.2095,
+    "DropEdgeMilliseconds": 0
+  },
+  "Nodes": [
+    {
+      "Id": 0,
+      "X": 1532,
+      "Y": 972,
+      "SurfaceId": -4,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "Label": "route-2",
+      "RequiresGroundSupport": false
+    },
+    {
+      "Id": 1,
+      "X": 1444,
+      "Y": 906,
+      "SurfaceId": -3,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "Label": "route",
+      "RequiresGroundSupport": false
+    },
+    {
+      "Id": 2,
+      "X": 1291,
+      "Y": 906,
+      "SurfaceId": -2,
+      "Kind": "Spawn",
+      "Team": "Red",
+      "Label": "red-spawn",
+      "RequiresGroundSupport": false
+    },
+    {
+      "Id": 3,
+      "X": 1321,
+      "Y": 906,
+      "SurfaceId": -1,
+      "Kind": "HealingCabinet",
+      "Team": "Red",
+      "Label": "red-cabinet",
+      "RequiresGroundSupport": false
+    },
+    {
+      "Id": 4,
+      "X": 1236,
+      "Y": 918,
+      "SurfaceId": 437,
+      "Kind": "Spawn",
+      "Team": null,
+      "Label": "local-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 5,
+      "X": 5022,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 6,
+      "X": 5046,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 7,
+      "X": 5070,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 8,
+      "X": 5094,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 9,
+      "X": 5118,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 10,
+      "X": 5142,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 11,
+      "X": 5166,
+      "Y": 918,
+      "SurfaceId": 442,
+      "Kind": "Spawn",
+      "Team": "Blue",
+      "Label": "blue-spawn",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 12,
+      "X": 396,
+      "Y": 1170,
+      "SurfaceId": 785,
+      "Kind": "Objective",
+      "Team": "Red",
+      "Label": "Red-intel",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 13,
+      "X": 5994,
+      "Y": 1170,
+      "SurfaceId": 794,
+      "Kind": "Objective",
+      "Team": "Blue",
+      "Label": "Blue-intel",
+      "RequiresGroundSupport": true
+    }
+  ],
+  "Edges": [
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 1,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": true,
+          "DurationSeconds": 0.03333333333333333,
+          "Ticks": 1
+        },
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "DurationSeconds": 0.8333333333333334,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 2,
+      "Kind": "Jump",
+      "Cost": 312,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": true,
+          "DurationSeconds": 0.03333333333333333,
+          "Ticks": 1
+        },
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "DurationSeconds": 0.8333333333333334,
+          "Ticks": 25
+        }
+      ]
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 0,
+      "Kind": "Walk",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": false,
+          "Right": true,
+          "Up": false,
+          "DurationSeconds": 0.5666666666666667,
+          "Ticks": 17
+        }
+      ]
+    },
+    {
+      "FromNodeId": 0,
+      "ToNodeId": 1,
+      "Kind": "Walk",
+      "Cost": 204,
+      "InputTape": [
+        {
+          "Left": true,
+          "Right": false,
+          "Up": false,
+          "DurationSeconds": 0.5666666666666667,
+          "Ticks": 17
+        }
+      ]
+    }
+  ]
+}

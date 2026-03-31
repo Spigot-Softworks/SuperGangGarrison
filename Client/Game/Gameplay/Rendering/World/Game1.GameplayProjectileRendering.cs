@@ -34,8 +34,8 @@ public partial class Game1
 
         var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
         var beamColor = healTarget.Team == PlayerTeam.Blue
-            ? new Color(100, 170, 255, 77)
-            : new Color(255, 110, 110, 77);
+            ? Color.Blue * 0.3f
+            : Color.Red * 0.3f;
         DrawWorldLine(
             medic.X + MathF.Cos(aimRadians) * 25f,
             medic.Y + MathF.Sin(aimRadians) * 24f,

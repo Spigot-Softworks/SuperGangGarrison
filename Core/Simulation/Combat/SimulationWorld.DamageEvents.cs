@@ -2,6 +2,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private const float AssistTrackingSourceTicks = 120f;
+
     private void RegisterDamageEvent(
         PlayerEntity? attacker,
         DamageTargetKind targetKind,
@@ -9,7 +11,8 @@ public sealed partial class SimulationWorld
         float x,
         float y,
         int amount,
-        bool wasFatal)
+        bool wasFatal,
+        PlayerEntity? playerTarget = null)
     {
         if (amount <= 0)
         {
@@ -17,9 +20,7 @@ public sealed partial class SimulationWorld
         }
 
         var attackerPlayerId = attacker?.Id ?? -1;
-        var assistedByPlayerId = attacker is null
-            ? -1
-            : FindHealingMedicPlayerId(attacker.Id);
+        var assistedByPlayerId = ResolveDamageEventAssistPlayerId(attacker, playerTarget, targetKind, wasFatal);
         _pendingDamageEvents.Add(new WorldDamageEvent(
             amount,
             attackerPlayerId,
@@ -56,14 +57,17 @@ public sealed partial class SimulationWorld
 
         var healthBefore = target.Health;
         var died = target.ApplyDamage(damage, spyRevealAlpha);
+        var appliedDamage = Math.Max(0, healthBefore - target.Health);
+        RegisterPlayerDamageDealer(target, attacker, appliedDamage);
         RegisterDamageEvent(
             attacker,
             DamageTargetKind.Player,
             target.Id,
             target.X,
             target.Y,
-            Math.Max(0, healthBefore - target.Health),
-            died);
+            appliedDamage,
+            died,
+            target);
         return died;
     }
 
@@ -76,14 +80,17 @@ public sealed partial class SimulationWorld
 
         var healthBefore = target.Health;
         var died = target.ApplyContinuousDamage(damage, spyRevealAlpha);
+        var appliedDamage = Math.Max(0, healthBefore - target.Health);
+        RegisterPlayerDamageDealer(target, attacker, appliedDamage);
         RegisterDamageEvent(
             attacker,
             DamageTargetKind.Player,
             target.Id,
             target.X,
             target.Y,
-            Math.Max(0, healthBefore - target.Health),
-            died);
+            appliedDamage,
+            died,
+            target);
         return died;
     }
 
@@ -125,5 +132,79 @@ public sealed partial class SimulationWorld
             Math.Max(0, healthBefore - target.Health),
             destroyed);
         return destroyed;
+    }
+
+    private void RegisterPlayerDamageDealer(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
+    {
+        if (appliedDamage <= 0
+            || attacker is null
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team)
+        {
+            return;
+        }
+
+        target.RegisterDamageDealer(attacker.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+    }
+
+    private int ResolveDamageEventAssistPlayerId(
+        PlayerEntity? attacker,
+        PlayerEntity? playerTarget,
+        DamageTargetKind targetKind,
+        bool wasFatal)
+    {
+        if (attacker is null)
+        {
+            return -1;
+        }
+
+        if (targetKind == DamageTargetKind.Player
+            && wasFatal
+            && playerTarget is not null)
+        {
+            return ResolveAssistPlayerId(playerTarget, attacker);
+        }
+
+        return FindHealingMedicPlayerId(attacker.Id);
+    }
+
+    private int ResolveAssistPlayerId(PlayerEntity victim, PlayerEntity killer)
+    {
+        var assistingPlayer = ResolveAssistPlayer(victim, killer);
+        return assistingPlayer?.Id ?? -1;
+    }
+
+    private PlayerEntity? ResolveAssistPlayer(PlayerEntity victim, PlayerEntity killer)
+    {
+        if (ReferenceEquals(victim, killer) || killer.Team == victim.Team)
+        {
+            return null;
+        }
+
+        var healingMedic = FindHealingMedicPlayer(killer.Id);
+        if (healingMedic is not null
+            && healingMedic.Id != killer.Id
+            && healingMedic.Id != victim.Id
+            && healingMedic.Team == killer.Team)
+        {
+            return healingMedic;
+        }
+
+        if (!victim.SecondToLastDamageDealerPlayerId.HasValue)
+        {
+            return null;
+        }
+
+        var assistant = FindPlayerById(victim.SecondToLastDamageDealerPlayerId.Value);
+        if (assistant is null
+            || assistant.Id == killer.Id
+            || assistant.Id == victim.Id
+            || !assistant.IsAlive
+            || assistant.Team != killer.Team)
+        {
+            return null;
+        }
+
+        return assistant;
     }
 }

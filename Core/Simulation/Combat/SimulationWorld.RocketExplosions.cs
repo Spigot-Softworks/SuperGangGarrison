@@ -65,7 +65,7 @@ public sealed partial class SimulationWorld
             {
                 if (world.ApplySentryDamage(directHitSentry, RocketProjectileEntity.DirectHitDamage, owner))
                 {
-                    world.DestroySentry(directHitSentry);
+                    world.DestroySentry(directHitSentry, owner);
                 }
             }
 
@@ -84,7 +84,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distance = SimulationWorld.DistanceBetween(rocket.X, rocket.Y, player.X, player.Y);
+                var distance = SimulationWorld.GetExplosionDistanceToPlayer(player, rocket.X, rocket.Y);
                 if (distance >= RocketProjectileEntity.BlastRadius)
                 {
                     continue;
@@ -190,7 +190,7 @@ public sealed partial class SimulationWorld
                 var damage = RocketProjectileEntity.ExplosionDamage * (1f - (distance / RocketProjectileEntity.BlastRadius));
                 if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
                 {
-                    world.DestroySentry(sentry);
+                    world.DestroySentry(sentry, owner);
                 }
             }
         }

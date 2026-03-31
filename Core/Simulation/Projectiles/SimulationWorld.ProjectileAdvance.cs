@@ -41,7 +41,7 @@ public sealed partial class SimulationWorld
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, FindPlayerById(shot.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
@@ -85,31 +85,33 @@ public sealed partial class SimulationWorld
                     var hitResult = hit.Value;
                     blade.MoveTo(hitResult.HitX, hitResult.HitY);
                     RegisterCombatTrace(blade.PreviousX, blade.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                if (hitResult.HitPlayer is not null)
-                {
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
-                    hitResult.HitPlayer.AddImpulse(blade.VelocityX * 0.4f, blade.VelocityY * 0.4f);
-                    var owner = FindPlayerById(blade.OwnerId);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, blade.HitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
+                    if (hitResult.HitPlayer is not null)
+                    {
+                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
+                        hitResult.HitPlayer.AddImpulse(
+                            blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
+                            blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
+                        var owner = FindPlayerById(blade.OwnerId);
+                        if (ApplyPlayerDamage(hitResult.HitPlayer, blade.HitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
                         {
                             KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
                         }
                     }
                     else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, blade.HitDamage, FindPlayerById(blade.OwnerId)))
                     {
-                        DestroySentry(hitResult.HitSentry);
+                        DestroySentry(hitResult.HitSentry, FindPlayerById(blade.OwnerId));
                     }
-                else if (hitResult.HitGenerator is not null)
-                {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage, FindPlayerById(blade.OwnerId));
-                }
-                else
-                {
-                    RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
-                }
+                    else if (hitResult.HitGenerator is not null)
+                    {
+                        TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage, FindPlayerById(blade.OwnerId));
+                    }
+                    else
+                    {
+                        RegisterImpactEffect(hitResult.HitX, hitResult.HitY, MathF.Atan2(directionY, directionX) * (180f / MathF.PI));
+                    }
 
-                blade.Destroy();
-            }
+                    blade.Destroy();
+                }
             }
 
             if (TryCutBubbleWithBlade(blade))
@@ -162,7 +164,7 @@ public sealed partial class SimulationWorld
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, NeedleProjectileEntity.DamagePerHit, FindPlayerById(needle.OwnerId)))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, FindPlayerById(needle.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
@@ -225,7 +227,7 @@ public sealed partial class SimulationWorld
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, FindPlayerById(shot.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
@@ -296,12 +298,12 @@ public sealed partial class SimulationWorld
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, mask.DirectionDegrees - 180f, 6);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, StabMaskEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeKL");
+                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "KnifeKL", deadBodyAnimationKind: DeadBodyAnimationKind.Severe);
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, StabMaskEntity.DamagePerHit, owner))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, owner);
                 }
 
                 mask.Destroy();
@@ -364,18 +366,33 @@ public sealed partial class SimulationWorld
                             FlameProjectileEntity.AfterburnFalloff,
                             flame.GetAfterburnFalloffAmount(flameAirLifetimeTicks));
                     }
+
+                    if (flame.HitPlayerCount >= FlameProjectileEntity.PenetrationCap && !flame.IsPerseverant)
+                    {
+                        flame.Destroy();
+                    }
+                    else
+                    {
+                        flame.RegisterHitPlayer(hitPlayer.Id);
+                        flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
+                    }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId)))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, FindPlayerById(flame.OwnerId));
+                    flame.Destroy();
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
                     TryDamageGenerator(hitResult.HitGenerator.Team, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId));
+                    flame.Destroy();
+                }
+                else
+                {
+                    flame.Destroy();
                 }
 
                 RegisterCombatTrace(flame.PreviousX, flame.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
-                flame.Destroy();
             }
             else
             {
@@ -447,7 +464,7 @@ public sealed partial class SimulationWorld
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, FlareProjectileEntity.DamagePerHit, FindPlayerById(flare.OwnerId)))
                 {
-                    DestroySentry(hitResult.HitSentry);
+                    DestroySentry(hitResult.HitSentry, FindPlayerById(flare.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
@@ -496,7 +513,18 @@ public sealed partial class SimulationWorld
             }
 
             var hitResult = hit.Value;
-            mine.MoveTo(hitResult.HitX, hitResult.HitY);
+            var hitX = hitResult.HitX;
+            var hitY = hitResult.HitY;
+            if (!hitResult.DestroyOnHit)
+            {
+                // Stickies in GG2 back out of solid geometry before arming, which keeps their
+                // center on the playable side of the surface for consistent sticky jumps.
+                var backoffDistance = MathF.Min(hitResult.Distance, MineProjectileEntity.EnvironmentCollisionBackoffDistance);
+                hitX -= directionX * backoffDistance;
+                hitY -= directionY * backoffDistance;
+            }
+
+            mine.MoveTo(hitX, hitY);
             if (hitResult.DestroyOnHit)
             {
                 RemoveMineAt(mineIndex);
@@ -600,7 +628,7 @@ public sealed partial class SimulationWorld
         {
             if (_sentries[sentryIndex].OwnerPlayerId == ownerId)
             {
-                DestroySentry(_sentries[sentryIndex]);
+                DestroySentry(_sentries[sentryIndex], attacker: null);
             }
         }
     }

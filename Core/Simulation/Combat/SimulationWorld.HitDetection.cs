@@ -29,6 +29,7 @@ public sealed partial class SimulationWorld
             AllocateEntityId(),
             sourcePlayer.ClassId,
             sourcePlayer.Team,
+            DeadBodyAnimationKind.Default,
             x,
             y,
             sourcePlayer.Width,
@@ -150,7 +151,8 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
-            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks));
+            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
+            isPerseverant: false);
         _flames.Add(flame);
         _entities[flame.Id] = flame;
         return flame;

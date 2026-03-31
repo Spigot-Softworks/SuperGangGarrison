@@ -43,7 +43,8 @@ public partial class Game1
 
     private bool IsRespawnFreeCameraActive()
     {
-        return _networkClient.IsSpectator
+        return ShouldBlockGameplayForNavEditor()
+            || _networkClient.IsSpectator
             || (!_world.LocalPlayerAwaitingJoin
                 && !_world.LocalPlayer.IsAlive
                 && _world.LocalDeathCam is null);
@@ -63,7 +64,7 @@ public partial class Game1
             _respawnCameraCenter = GetDefaultFreeCameraCenter();
         }
 
-        if (!IsGameplayInputBlocked())
+        if (ShouldBlockGameplayForNavEditor() || !IsGameplayInputBlocked())
         {
             var moveAmount = 600f * deltaSeconds;
             var moved = false;
@@ -92,6 +93,13 @@ public partial class Game1
 
             if (moved)
             {
+                if (_networkClient.IsSpectator && _spectatorTrackingEnabled)
+                {
+                    _spectatorTrackingEnabled = false;
+                    _spectatorTrackedPlayerId = null;
+                    ShowNotice(NoticeKind.PlayerTrackDisable);
+                }
+
                 _respawnCameraDetached = true;
             }
         }
@@ -425,18 +433,98 @@ public partial class Game1
 
     private PlayerEntity? GetSpectatorFocusPlayer()
     {
+        if (_networkClient.IsSpectator && !_spectatorTrackingEnabled)
+        {
+            return null;
+        }
+
+        if (_spectatorTrackedPlayerId.HasValue)
+        {
+            foreach (var player in EnumerateRemotePlayersForView())
+            {
+                if (player.Id == _spectatorTrackedPlayerId.Value)
+                {
+                    return player;
+                }
+            }
+
+            _spectatorTrackedPlayerId = null;
+        }
+
         PlayerEntity? fallback = null;
         foreach (var player in EnumerateRemotePlayersForView())
         {
             if (player.IsAlive)
             {
+                _spectatorTrackedPlayerId ??= player.Id;
                 return player;
             }
 
             fallback ??= player;
         }
 
+        _spectatorTrackedPlayerId = fallback?.Id;
         return fallback;
+    }
+
+    private void ResetSpectatorTracking(bool enableTracking)
+    {
+        _spectatorTrackedPlayerId = null;
+        _spectatorTrackingEnabled = enableTracking;
+    }
+
+    private void CycleSpectatorTracking(bool forward)
+    {
+        var candidates = GetSpectatorTrackingCandidates();
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var wasTracking = _spectatorTrackingEnabled;
+        var currentIndex = -1;
+        if (_spectatorTrackedPlayerId.HasValue)
+        {
+            for (var index = 0; index < candidates.Count; index += 1)
+            {
+                if (candidates[index].Id == _spectatorTrackedPlayerId.Value)
+                {
+                    currentIndex = index;
+                    break;
+                }
+            }
+        }
+
+        var nextIndex = currentIndex < 0
+            ? 0
+            : (currentIndex + (forward ? 1 : -1) + candidates.Count) % candidates.Count;
+        var trackedPlayer = candidates[nextIndex];
+        _spectatorTrackedPlayerId = trackedPlayer.Id;
+        _spectatorTrackingEnabled = true;
+        _respawnCameraDetached = false;
+        _respawnCameraCenter = GetRenderPosition(trackedPlayer);
+        if (!wasTracking)
+        {
+            ShowNotice(NoticeKind.PlayerTrackEnable);
+        }
+    }
+
+    private List<PlayerEntity> GetSpectatorTrackingCandidates()
+    {
+        var alivePlayers = new List<PlayerEntity>();
+        var fallbackPlayers = new List<PlayerEntity>();
+        foreach (var player in EnumerateRemotePlayersForView())
+        {
+            fallbackPlayers.Add(player);
+            if (player.IsAlive)
+            {
+                alivePlayers.Add(player);
+            }
+        }
+
+        return alivePlayers.Count > 0
+            ? alivePlayers
+            : fallbackPlayers;
     }
 
     private IEnumerable<PlayerEntity> EnumerateRemotePlayersForView()
@@ -487,7 +575,7 @@ public partial class Game1
 
     private PlayerEntity? FindPlayerById(int playerId)
     {
-        if ((_localPlayerSnapshotEntityId ?? _world.LocalPlayer.Id) == playerId)
+        if (GetResolvedLocalPlayerId() == playerId)
         {
             return _world.LocalPlayer;
         }
@@ -501,5 +589,10 @@ public partial class Game1
         }
 
         return null;
+    }
+
+    private int GetResolvedLocalPlayerId()
+    {
+        return _localPlayerSnapshotEntityId ?? _world.LocalPlayer.Id;
     }
 }

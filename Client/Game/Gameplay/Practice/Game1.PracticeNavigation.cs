@@ -17,6 +17,10 @@ public partial class Game1
     {
         _practiceNavigationAssets = BotNavigationAssetStore.LoadForLevel(_world.Level);
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary());
+        foreach (var status in _practiceNavigationAssets.Statuses.Where(static status => status.IsLoaded && !status.IsStructurallyValid))
+        {
+            AddConsoleLine($"nav {BotNavigationClasses.GetShortLabel(status.ClassId)} invalid: {status.StructuralMessage}");
+        }
     }
 
     private string GetPracticeNavigationDiagnosticsSummary()
@@ -33,8 +37,10 @@ public partial class Game1
 
         var tokens = _practiceNavigationAssets.Statuses
             .Select(status => status.IsLoaded
-                ? $"{BotNavigationProfiles.GetFileToken(status.Profile)}:{status.NodeCount}/{status.EdgeCount}"
-                : $"{BotNavigationProfiles.GetFileToken(status.Profile)}:missing")
+                ? status.IsStructurallyValid
+                    ? $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}"
+                    : $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}:invalid"
+                : $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:missing")
             .ToArray();
         return $"{_practiceNavigationAssets.BuildSummary()} [{string.Join(" ", tokens)}]";
     }

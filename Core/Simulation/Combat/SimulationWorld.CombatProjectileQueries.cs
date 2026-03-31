@@ -58,7 +58,7 @@ public sealed partial class SimulationWorld
             UpdateNearestEnvironmentProjectileHitFromRoomObjects(ref nearestHit, flame, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, ProjectileRoomObjectBlockerProfile.Flame, destroyOnHit: false, UpdateNearestFlameEnvironmentHit);
             UpdateNearestTargetProjectileHitFromSentries(ref nearestHit, flame, flame.Team, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlameHit);
             UpdateNearestTargetProjectileHitFromGenerators(ref nearestHit, flame, flame.Team, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlameHit);
-            UpdateNearestTargetProjectileHitFromPlayers(ref nearestHit, flame, flame.Team, flame.OwnerId, flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance, UpdateNearestFlameHit);
+            UpdateNearestFlameHitFromPlayers(ref nearestHit, flame, directionX, directionY, maxDistance);
             return nearestHit;
         }
 
@@ -166,6 +166,44 @@ public sealed partial class SimulationWorld
 
                 var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, player, maxDistance);
                 if (distance.HasValue) { updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, player, null, null); }
+            }
+        }
+
+        private void UpdateNearestFlameHitFromPlayers(
+            ref FlameHitResult? nearestHit,
+            FlameProjectileEntity flame,
+            float directionX,
+            float directionY,
+            float maxDistance)
+        {
+            var rayBounds = GetRayBounds(flame.PreviousX, flame.PreviousY, directionX, directionY, maxDistance);
+            foreach (var player in EnumerateSimulatedPlayers())
+            {
+                if (!player.IsAlive
+                    || player.Team == flame.Team
+                    || player.Id == flame.OwnerId
+                    || flame.HasHitPlayer(player.Id))
+                {
+                    continue;
+                }
+
+                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+                if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
+                {
+                    continue;
+                }
+
+                var distance = GetRayIntersectionDistanceWithPlayer(
+                    flame.PreviousX,
+                    flame.PreviousY,
+                    directionX,
+                    directionY,
+                    player,
+                    maxDistance);
+                if (distance.HasValue)
+                {
+                    UpdateNearestFlameHit(ref nearestHit, flame, directionX, directionY, distance.Value, player);
+                }
             }
         }
 

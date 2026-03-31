@@ -275,7 +275,7 @@ public partial class Game1
                 continue;
             }
 
-            var localPlayerId = _world.LocalPlayer.Id;
+            var localPlayerId = GetResolvedLocalPlayerId();
             if (entry.KillerPlayerId != localPlayerId && entry.VictimPlayerId != localPlayerId)
             {
                 continue;

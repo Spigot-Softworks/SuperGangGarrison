@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace OpenGarrison.Client.Plugins;
 
@@ -10,6 +11,8 @@ public interface IOpenGarrisonClientReadOnlyState
 
     bool IsGameplayActive { get; }
 
+    bool IsGameplayInputBlocked { get; }
+
     bool IsSpectator { get; }
 
     bool IsDeathCamActive { get; }
@@ -20,13 +23,41 @@ public interface IOpenGarrisonClientReadOnlyState
 
     string LevelName { get; }
 
+    float LevelWidth { get; }
+
+    float LevelHeight { get; }
+
     int ViewportWidth { get; }
 
     int ViewportHeight { get; }
 
     int? LocalPlayerId { get; }
 
+    ClientPluginTeam LocalPlayerTeam { get; }
+
+    ClientPluginClass LocalPlayerClass { get; }
+
+    bool IsLocalPlayerAlive { get; }
+
+    bool IsLocalPlayerHealing { get; }
+
     Vector2 CameraTopLeft { get; }
 
+    bool TryGetLocalPlayerHealth(out int health, out int maxHealth);
+
+    bool TryGetLocalPlayerWorldPosition(out Vector2 position);
+
     bool TryGetPlayerWorldPosition(int playerId, out Vector2 position);
+
+    bool IsPlayerVisibleToLocalViewer(int playerId);
+
+    bool IsPlayerCloaked(int playerId);
+
+    bool WasKeyPressedThisFrame(Keys key);
+
+    IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers();
+
+    IReadOnlyList<ClientSentryMarker> GetSentryMarkers();
+
+    IReadOnlyList<ClientObjectiveMarker> GetObjectiveMarkers();
 }

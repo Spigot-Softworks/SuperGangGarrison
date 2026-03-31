@@ -62,6 +62,7 @@ public partial class Game1
         var verticalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderVerticalSpeed);
         var animationElapsedSeconds = GetPlayerAnimationElapsedSeconds();
         var isRemoteNetworkPlayer = _networkClient.IsConnected && !ReferenceEquals(player, _world.LocalPlayer);
+        var isHumiliated = _world.IsPlayerHumiliated(player);
         var animationImage = renderState.BodyAnimationImage;
 
         var appearsAirborne = !GetPlayerRenderIsGrounded(player);
@@ -77,7 +78,7 @@ public partial class Game1
         }
         else if (appearsAirborne)
         {
-            animationImage = 1f;
+            animationImage = isHumiliated ? 2f : 1f;
         }
         else
         {
@@ -427,9 +428,13 @@ public partial class Game1
         return animationImage;
     }
 
-    private static float GetPlayerBodyAnimationLength(PlayerEntity player)
+    private float GetPlayerBodyAnimationLength(PlayerEntity player)
     {
-        return player.ClassId == PlayerClass.Quote || player.IsSniperScoped ? 2f : 4f;
+        return player.ClassId == PlayerClass.Quote
+            || player.IsSniperScoped
+            || _world.IsPlayerHumiliated(player)
+                ? 2f
+                : 4f;
     }
 
     private void QueueWeaponShellVisuals(PlayerEntity player, bool shotStarted, bool shellInserted)

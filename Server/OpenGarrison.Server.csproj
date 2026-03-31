@@ -12,4 +12,12 @@
     <AssemblyName>OG2.Server</AssemblyName>
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\Core\Content\StockMaps\**\*">
+      <TargetPath>Content\StockMaps\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
 </Project>

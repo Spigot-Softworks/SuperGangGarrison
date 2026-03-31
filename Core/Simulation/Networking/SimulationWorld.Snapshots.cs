@@ -37,18 +37,22 @@ public sealed partial class SimulationWorld
         RedCaps = snapshot.RedCaps;
         BlueCaps = snapshot.BlueCaps;
         SpectatorCount = Math.Max(0, snapshot.SpectatorCount);
-        _spectatorNames.Clear();
+        _spectators.Clear();
         for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
         {
             var player = snapshot.Players[playerIndex];
-            if (!player.IsSpectator || string.IsNullOrWhiteSpace(player.Name))
+            if ((!player.IsSpectator && !player.IsAwaitingJoin) || string.IsNullOrWhiteSpace(player.Name))
             {
                 continue;
             }
 
-            _spectatorNames.Add(player.Name);
+            _spectators.Add(new ScoreboardSpectatorEntry(
+                player.Name,
+                player.BadgeMask,
+                player.IsAwaitingJoin));
         }
         ApplySnapshotControlPoints(snapshot);
+        ApplySnapshotKoth(snapshot);
         ApplySnapshotGenerators(snapshot);
         RedIntel.ApplyNetworkState(snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshot.RedIntel.IsAtBase, snapshot.RedIntel.IsDropped, snapshot.RedIntel.ReturnTicksRemaining);
         BlueIntel.ApplyNetworkState(snapshot.BlueIntel.X, snapshot.BlueIntel.Y, snapshot.BlueIntel.IsAtBase, snapshot.BlueIntel.IsDropped, snapshot.BlueIntel.ReturnTicksRemaining);
@@ -156,6 +160,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.Kills,
             snapshotPlayer.Deaths,
             snapshotPlayer.Caps,
+            snapshotPlayer.Points,
             snapshotPlayer.HealPoints,
             snapshotPlayer.ActiveDominationCount,
             snapshotPlayer.IsDominatingLocalViewer,
@@ -195,7 +200,9 @@ public sealed partial class SimulationWorld
             snapshotPlayer.IsPyroPrimaryRefilling,
             snapshotPlayer.PyroFlameLoopTicksRemaining,
             snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty,
-            snapshotPlayer.HeavyEatCooldownTicksRemaining);
+            snapshotPlayer.HeavyEatCooldownTicksRemaining,
+            snapshotPlayer.Assists,
+            snapshotPlayer.BadgeMask);
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
@@ -436,6 +443,7 @@ public sealed partial class SimulationWorld
             static (entity, state) =>
                 entity.ClassId == (PlayerClass)state.ClassId
                 && entity.Team == (PlayerTeam)state.Team
+                && entity.AnimationKind == (DeadBodyAnimationKind)state.AnimationKind
                 && entity.Width == state.Width
                 && entity.Height == state.Height
                 && entity.FacingLeft == state.FacingLeft,
@@ -443,6 +451,7 @@ public sealed partial class SimulationWorld
                 state.Id,
                 (PlayerClass)state.ClassId,
                 (PlayerTeam)state.Team,
+                (DeadBodyAnimationKind)state.AnimationKind,
                 state.X,
                 state.Y,
                 state.Width,

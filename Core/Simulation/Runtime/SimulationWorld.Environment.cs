@@ -70,6 +70,26 @@ public sealed partial class SimulationWorld
                 && probeTop < wallBottom
                 && probeBottom > wallTop)
             {
+                if (wall.IsLeftDoor())
+                {
+                    if (moveDirection < 0f && player.Left >= wall.Right - 2f)
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (wall.IsRightDoor())
+                {
+                    if (moveDirection > 0f && player.Right <= wall.Left + 2f)
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
                 return true;
             }
         }
@@ -156,6 +176,40 @@ public sealed partial class SimulationWorld
         }
 
         player.SetHealingCabinetState(usingHealingCabinet);
+    }
+
+    private void ApplyRoomForces(PlayerEntity player)
+    {
+        if (!player.IsAlive)
+        {
+            return;
+        }
+
+        foreach (var roomObject in Level.RoomObjects)
+        {
+            if (!roomObject.IsMoveBox())
+            {
+                continue;
+            }
+
+            if (!player.IntersectsMarker(
+                roomObject.CenterX,
+                roomObject.CenterY,
+                roomObject.Width,
+                roomObject.Height))
+            {
+                continue;
+            }
+
+            var impulse = roomObject.GetMoveBoxImpulse();
+            if (impulse.X == 0f && impulse.Y == 0f)
+            {
+                continue;
+            }
+
+            player.SetMovementState(LegacyMovementState.None);
+            player.AddImpulse(impulse.X, impulse.Y);
+        }
     }
 
     private void UpdateSpawnRoomState(PlayerEntity player)

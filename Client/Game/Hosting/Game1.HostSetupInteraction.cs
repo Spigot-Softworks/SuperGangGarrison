@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework.Input;
+using System;
 
 namespace OpenGarrison.Client;
 
@@ -22,6 +23,8 @@ public partial class Game1
             return;
         }
 
+        _hostSetupState.ClampMapScrollOffset(layout.VisibleRowCapacity);
+        HandleHostSetupListScroll(mouse, layout);
         UpdateHostSetupHoverIndex(mouse, layout);
         if (!clickPressed)
         {
@@ -134,10 +137,23 @@ public partial class Game1
         }
 
         var row = (mouse.Y - layout.ListRowsBounds.Y) / layout.RowHeight;
-        if (row >= 0 && row < _hostMapEntries.Count)
+        var mapIndex = _hostMapScrollOffset + row;
+        if (mapIndex >= 0 && mapIndex < _hostMapEntries.Count)
         {
-            _hostSetupHoverIndex = row;
+            _hostSetupHoverIndex = mapIndex;
         }
+    }
+
+    private void HandleHostSetupListScroll(MouseState mouse, HostSetupMenuLayout layout)
+    {
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        if (wheelDelta == 0 || !layout.ListRowsBounds.Contains(mouse.Position))
+        {
+            return;
+        }
+
+        var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
+        _hostSetupState.ScrollMapList(wheelDelta > 0 ? -stepCount : stepCount, layout.VisibleRowCapacity);
     }
 
     private void HandleHostSetupSettingsMenuClick(MouseState mouse, HostSetupMenuLayout layout)

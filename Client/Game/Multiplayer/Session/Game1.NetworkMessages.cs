@@ -52,6 +52,8 @@ public partial class Game1
 
                     ReinitializeSimulationForTickRate(welcome.TickRate);
                     _networkClient.SetLocalPlayerSlot(welcome.PlayerSlot);
+                    _networkClient.SetServerDescription(welcome.ServerName);
+                    ResetSpectatorTracking(enableTracking: _networkClient.IsSpectator);
                     _networkClient.ClearPendingTeamSelection();
                     _networkClient.ClearPendingClassSelection();
                     ResetClientTimingState();
@@ -169,12 +171,14 @@ public partial class Game1
                     _networkClient.SetLocalPlayerSlot(slotChanged.PlayerSlot);
                     if (_networkClient.IsSpectator)
                     {
+                        ResetSpectatorTracking(enableTracking: true);
                         _teamSelectOpen = false;
                         _classSelectOpen = false;
                         _menuStatusMessage = "Connected as spectator.";
                     }
                     else if (wasSpectator)
                     {
+                        ResetSpectatorTracking(enableTracking: false);
                         _teamSelectOpen = false;
                         _classSelectOpen = true;
                         _menuStatusMessage = string.Empty;

@@ -103,7 +103,21 @@ sealed class SnapshotBroadcaster
             }
         }
 
-        var spectatorCount = _clientsBySlot.Keys.Count(IsSpectatorSlot);
+        var spectatorCount = 0;
+        foreach (var slot in _clientsBySlot.Keys)
+        {
+            if (IsSpectatorSlot(slot))
+            {
+                spectatorCount += 1;
+                continue;
+            }
+
+            if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+                && _world.IsNetworkPlayerAwaitingJoin(slot))
+            {
+                spectatorCount += 1;
+            }
+        }
         var mapAreaIndex = (byte)Math.Clamp(_world.Level.MapAreaIndex, 1, byte.MaxValue);
         var mapAreaCount = (byte)Math.Clamp(_world.Level.MapAreaCount, 1, byte.MaxValue);
         var mapMetadata = GetCurrentMapMetadata();
@@ -139,6 +153,9 @@ sealed class SnapshotBroadcaster
             _world.BloodDrops.Select(ToSnapshotBloodDropState).ToArray(),
             _world.DeadBodies.Select(ToSnapshotDeadBodyState).ToArray(),
             _world.ControlPointSetupTicksRemaining,
+            _world.KothUnlockTicksRemaining,
+            _world.KothRedTimerTicksRemaining,
+            _world.KothBlueTimerTicksRemaining,
             _world.ControlPoints.Select(ToSnapshotControlPointState).ToArray(),
             _world.Generators.Select(ToSnapshotGeneratorState).ToArray(),
             ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
@@ -177,6 +194,7 @@ sealed class SnapshotBroadcaster
             Kills: 0,
             Deaths: 0,
             Caps: 0,
+            Points: 0f,
             HealPoints: 0,
             ActiveDominationCount: 0,
             IsDominatingLocalViewer: false,
@@ -199,7 +217,9 @@ sealed class SnapshotBroadcaster
             TauntFrameIndex: 0f,
             IsChatBubbleVisible: false,
             ChatBubbleFrameIndex: 0,
-            ChatBubbleAlpha: 0f);
+            ChatBubbleAlpha: 0f,
+            Assists: 0,
+            BadgeMask: client.BadgeMask);
     }
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()

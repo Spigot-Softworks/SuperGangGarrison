@@ -246,6 +246,7 @@ public sealed partial class PlayerEntity
         PyroFlareCooldownTicks = 0;
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
+        ClearRecentDamageDealers();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -365,6 +366,21 @@ public sealed partial class PlayerEntity
         HealPoints += amount;
     }
 
+    public void AddPoints(float amount)
+    {
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        Points += amount;
+    }
+
+    public void AddAssist()
+    {
+        Assists += 1;
+    }
+
     public void AddKill()
     {
         Kills += 1;
@@ -379,8 +395,65 @@ public sealed partial class PlayerEntity
     {
         Kills = 0;
         Deaths = 0;
+        Assists = 0;
         Caps = 0;
+        Points = 0f;
         HealPoints = 0;
+    }
+
+    public void SetBadgeMask(ulong badgeMask)
+    {
+        BadgeMask = BadgeCatalog.SanitizeBadgeMask(badgeMask);
+    }
+
+    public void RegisterDamageDealer(int playerId, int assistTicks)
+    {
+        if (playerId <= 0 || playerId == Id || assistTicks <= 0)
+        {
+            return;
+        }
+
+        if (LastDamageDealerPlayerId != playerId && LastDamageDealerPlayerId.HasValue)
+        {
+            SecondToLastDamageDealerPlayerId = LastDamageDealerPlayerId;
+            SecondToLastDamageDealerAssistTicksRemaining = LastDamageDealerAssistTicksRemaining;
+        }
+
+        LastDamageDealerPlayerId = playerId;
+        LastDamageDealerAssistTicksRemaining = assistTicks;
+    }
+
+    public void AdvanceAssistTracking()
+    {
+        if (LastDamageDealerAssistTicksRemaining > 0)
+        {
+            LastDamageDealerAssistTicksRemaining -= 1;
+        }
+
+        if (LastDamageDealerAssistTicksRemaining <= 0)
+        {
+            ClearRecentDamageDealers();
+            return;
+        }
+
+        if (SecondToLastDamageDealerAssistTicksRemaining > 0)
+        {
+            SecondToLastDamageDealerAssistTicksRemaining -= 1;
+        }
+
+        if (SecondToLastDamageDealerAssistTicksRemaining <= 0)
+        {
+            SecondToLastDamageDealerPlayerId = null;
+            SecondToLastDamageDealerAssistTicksRemaining = 0;
+        }
+    }
+
+    public void ClearRecentDamageDealers()
+    {
+        LastDamageDealerPlayerId = null;
+        LastDamageDealerAssistTicksRemaining = 0;
+        SecondToLastDamageDealerPlayerId = null;
+        SecondToLastDamageDealerAssistTicksRemaining = 0;
     }
 
     public void IncrementQuoteBubbleCount()

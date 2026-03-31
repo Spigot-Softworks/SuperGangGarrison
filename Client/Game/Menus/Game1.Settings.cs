@@ -29,6 +29,7 @@ public partial class Game1
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
 
         _world.SetLocalPlayerName(_clientSettings.PlayerName);
+        _world.SetLocalPlayerBadgeMask(BadgeCatalog.ParseRewardString(_clientSettings.Rewards));
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
 
         _connectHostBuffer = SanitizeHost(_clientSettings.RecentConnection.Host);
@@ -68,6 +69,7 @@ public partial class Game1
     {
         _world.SetLocalPlayerName(playerName);
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
+        _networkClient.UpdatePlayerProfile(_world.LocalPlayer.DisplayName, _world.LocalPlayer.BadgeMask);
         PersistClientSettings();
     }
 
