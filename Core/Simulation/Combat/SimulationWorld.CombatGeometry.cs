@@ -220,5 +220,41 @@ public sealed partial class SimulationWorld
             var directionY = (endY - originY) / distance;
             return GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, player, distance);
         }
+
+        public static float? GetThickLineIntersectionDistanceToPlayer(
+            float originX,
+            float originY,
+            float endX,
+            float endY,
+            PlayerEntity player,
+            float maxDistance,
+            float thicknessRadius)
+        {
+            if (!player.IsAlive)
+            {
+                return null;
+            }
+
+            var distance = DistanceBetween(originX, originY, endX, endY);
+            if (distance <= 0.0001f || distance > maxDistance)
+            {
+                return null;
+            }
+
+            var directionX = (endX - originX) / distance;
+            var directionY = (endY - originY) / distance;
+            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+            return GetThickRayIntersectionDistanceWithRectangle(
+                originX,
+                originY,
+                directionX,
+                directionY,
+                left,
+                top,
+                right,
+                bottom,
+                distance,
+                thicknessRadius);
+        }
     }
 }

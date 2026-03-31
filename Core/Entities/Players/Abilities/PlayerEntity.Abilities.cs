@@ -145,7 +145,6 @@ public sealed partial class PlayerEntity
         SpyBackstabVisualTicksRemaining = SpyBackstabVisualTicksDefault;
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = true;
-        HorizontalSpeed = 0f;
         return true;
     }
 

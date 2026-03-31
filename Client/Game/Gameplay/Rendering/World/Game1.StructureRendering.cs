@@ -144,7 +144,7 @@ public partial class Game1
 
     private bool TryDrawSentry(SentryEntity sentry, Vector2 cameraPosition)
     {
-        var renderPosition = GetRenderPosition(sentry.Id, sentry.X, sentry.Y);
+        var renderPosition = RoundToSourcePixels(GetRenderPosition(sentry.Id, sentry.X, sentry.Y));
         var baseSpriteName = sentry.Team == PlayerTeam.Blue ? "SentryBlue" : "SentryRed";
         var baseSprite = _runtimeAssets.GetSprite(baseSpriteName);
         if (baseSprite is null || baseSprite.Frames.Count == 0)
@@ -170,26 +170,6 @@ public partial class Game1
             return true;
         }
 
-        if (sentry.IsRotating)
-        {
-            var rotateSprite = _runtimeAssets.GetSprite("TurretRotateS");
-            if (rotateSprite is not null && rotateSprite.Frames.Count > 0)
-            {
-                var frameIndex = GetSentryRotateFrameIndex(sentry, rotateSprite.Frames.Count);
-                _spriteBatch.Draw(
-                    rotateSprite.Frames[frameIndex],
-                    new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
-                    null,
-                    Color.White,
-                    0f,
-                    rotateSprite.Origin.ToVector2(),
-                    Vector2.One,
-                    SpriteEffects.None,
-                    0f);
-                return true;
-            }
-        }
-
         var turretSprite = _runtimeAssets.GetSprite("SentryTurretS");
         if (turretSprite is null || turretSprite.Frames.Count == 0)
         {
@@ -203,8 +183,8 @@ public partial class Game1
             : (facingScale < 0f ? 180f : 0f);
         var turretAngleDegrees = facingScale < 0f ? turretDirectionDegrees + 180f : turretDirectionDegrees;
         var turretRotation = MathF.PI * turretAngleDegrees / 180f;
-        var drawX = renderPosition.X + (-17f + turretSprite.Origin.X) * facingScale;
-        var drawY = renderPosition.Y + (-10f + turretSprite.Origin.Y);
+        var drawX = renderPosition.X + (turretSprite.Origin.X - 17f) * facingScale;
+        var drawY = renderPosition.Y + turretSprite.Origin.Y - 10f;
         _spriteBatch.Draw(
             turretSprite.Frames[turretFrameIndex],
             new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y),
@@ -266,23 +246,6 @@ public partial class Game1
 
         var buildFrame = (int)MathF.Floor((sentry.Health / (float)SentryEntity.MaxHealth) * 10f);
         return Math.Clamp(buildFrame, 0, frameCount - 1);
-    }
-
-    private static int GetSentryRotateFrameIndex(SentryEntity sentry, int frameCount)
-    {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        var teamOffset = sentry.Team == PlayerTeam.Blue ? 5 : 0;
-        var progressFrame = Math.Clamp((int)MathF.Round(sentry.RotationProgress * 4f), 0, 4);
-        if (sentry.RotationStartDirectionX < 0f)
-        {
-            progressFrame = 4 - progressFrame;
-        }
-
-        return Math.Clamp(teamOffset + progressFrame, 0, frameCount - 1);
     }
 
     private bool TryDrawSentryGib(SentryGibEntity gib, Vector2 cameraPosition)

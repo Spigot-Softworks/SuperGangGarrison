@@ -189,6 +189,18 @@ public partial class Game1
         return _clientPluginHost?.GetMainMenuBackgroundOverride();
     }
 
+    private void NotifyClientPluginsWorldSound(WorldSoundEvent soundEvent)
+    {
+        _clientPluginHost?.NotifyWorldSound(new ClientWorldSoundEvent(
+            soundEvent.SoundName,
+            new Vector2(soundEvent.X, soundEvent.Y)));
+    }
+
+    private Vector2 GetClientPluginCameraOffset()
+    {
+        return _clientPluginHost?.GetCameraOffset() ?? Vector2.Zero;
+    }
+
     private int? GetClientPluginLocalPlayerId()
     {
         if (_networkClient.IsSpectator)
@@ -212,7 +224,7 @@ public partial class Game1
         }
 
         var mouse = GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState()));
-        return GetCameraTopLeft(ViewportWidth, ViewportHeight, mouse.X, mouse.Y);
+        return RoundToSourcePixels(CalculateBaseCameraTopLeft(ViewportWidth, ViewportHeight, mouse.X, mouse.Y, trackLiveCamera: false));
     }
 
     private Texture2D? GetClientPluginLevelBackgroundTexture()
@@ -223,7 +235,7 @@ public partial class Game1
             : _runtimeAssets.GetBackground(backgroundName);
     }
 
-    private IReadOnlyList<ClientPlayerMarker> GetClientPluginPlayerMarkers()
+    private List<ClientPlayerMarker> GetClientPluginPlayerMarkers()
     {
         var markers = new List<ClientPlayerMarker>();
         if (!_networkClient.IsSpectator && _world.LocalPlayer.IsAlive)
@@ -260,7 +272,7 @@ public partial class Game1
             isLocalPlayer);
     }
 
-    private IReadOnlyList<ClientSentryMarker> GetClientPluginSentryMarkers()
+    private List<ClientSentryMarker> GetClientPluginSentryMarkers()
     {
         if (_world.Sentries.Count == 0)
         {
@@ -282,7 +294,7 @@ public partial class Game1
         return markers;
     }
 
-    private IReadOnlyList<ClientObjectiveMarker> GetClientPluginObjectiveMarkers()
+    private List<ClientObjectiveMarker> GetClientPluginObjectiveMarkers()
     {
         if (_networkClient.IsSpectator)
         {
@@ -428,6 +440,8 @@ public partial class Game1
 
         public int TickRate => game._config.TicksPerSecond;
 
+        public int LocalPingMilliseconds => game._networkClient.EstimatedPingMilliseconds;
+
         public string LevelName => game._world.Level.Name;
 
         public float LevelWidth => game._world.Bounds.Width;
@@ -449,6 +463,8 @@ public partial class Game1
             : ToClientPluginClass(game._world.LocalPlayer.ClassId);
 
         public bool IsLocalPlayerAlive => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsAlive;
+
+        public bool IsLocalPlayerScoped => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsSniperScoped;
 
         public bool IsLocalPlayerHealing => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsMedicHealing;
 
@@ -577,9 +593,9 @@ public partial class Game1
             game._spriteBatch.Draw(game._pixel, new Rectangle(rectangle.Right - safeThickness, rectangle.Y, safeThickness, rectangle.Height), color);
         }
 
-        public void DrawScreenLine(Vector2 start, Vector2 end, Color color, float thickness = 1f)
+        public void DrawScreenLine(Vector2 start, Vector2 endPoint, Color color, float thickness = 1f)
         {
-            var edge = end - start;
+            var edge = endPoint - start;
             var angle = MathF.Atan2(edge.Y, edge.X);
             var length = edge.Length();
             if (length <= 0.01f)

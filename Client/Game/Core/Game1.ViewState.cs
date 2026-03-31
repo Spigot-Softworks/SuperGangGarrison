@@ -12,12 +12,22 @@ public partial class Game1
 {
     private Vector2 GetCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY)
     {
+        var cameraTopLeft = CalculateBaseCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY, trackLiveCamera: true);
+        return RoundToSourcePixels(cameraTopLeft + GetClientPluginCameraOffset());
+    }
+
+    private Vector2 CalculateBaseCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY, bool trackLiveCamera)
+    {
         Vector2 cameraTopLeft;
         if (_killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null)
         {
             cameraTopLeft = GetDeathCamCameraTopLeft(viewportWidth, viewportHeight);
-            TrackLiveCamera(cameraTopLeft);
-            return RoundToSourcePixels(cameraTopLeft);
+            if (trackLiveCamera)
+            {
+                TrackLiveCamera(cameraTopLeft);
+            }
+
+            return cameraTopLeft;
         }
 
         var localViewPosition = GetLocalViewPosition();
@@ -37,8 +47,12 @@ public partial class Game1
                 localViewPosition.Y - halfViewportHeight);
         }
 
-        TrackLiveCamera(cameraTopLeft);
-        return RoundToSourcePixels(cameraTopLeft);
+        if (trackLiveCamera)
+        {
+            TrackLiveCamera(cameraTopLeft);
+        }
+
+        return cameraTopLeft;
     }
 
     private bool IsRespawnFreeCameraActive()

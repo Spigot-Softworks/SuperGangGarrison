@@ -675,7 +675,7 @@ public partial class Game1
         _intelInterpolationTracks.Remove(team);
     }
 
-    private void AppendEntitySnapshot<TKey>(
+    private static void AppendEntitySnapshot<TKey>(
         Dictionary<TKey, List<EntitySnapshotSample>> histories,
         TKey key,
         Vector2 position,

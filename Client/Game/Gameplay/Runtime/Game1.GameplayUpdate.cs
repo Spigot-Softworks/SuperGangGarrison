@@ -48,6 +48,7 @@ public partial class Game1
             || _inputBindings.MoveLeft == key
             || _inputBindings.MoveRight == key
             || _inputBindings.Taunt == key
+            || _inputBindings.CallMedic == key
             || _inputBindings.ChangeTeam == key
             || _inputBindings.ChangeClass == key
             || _inputBindings.ShowScoreboard == key
@@ -57,7 +58,7 @@ public partial class Game1
             || _inputBindings.OpenBubbleMenuC == key;
     }
 
-    private bool IsChatShortcutHeld(KeyboardState keyboard)
+    private static bool IsChatShortcutHeld(KeyboardState keyboard)
     {
         return keyboard.IsKeyDown(Keys.Y)
             || keyboard.IsKeyDown(Keys.U);

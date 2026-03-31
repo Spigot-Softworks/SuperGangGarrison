@@ -123,6 +123,7 @@ public sealed partial class SimulationWorld
     {
         const float maxDistance = 300f;
         const float maxMouseSelectDistance = 150f;
+        const float aimSelectionThicknessRadius = 6f;
         var aimDeltaX = aimWorldX - medic.X;
         var aimDeltaY = aimWorldY - medic.Y;
         if (aimDeltaX == 0f && aimDeltaY == 0f)
@@ -141,7 +142,7 @@ public sealed partial class SimulationWorld
         var aimEndX = medic.X + directionX * maxDistance;
         var aimEndY = medic.Y + directionY * maxDistance;
         PlayerEntity? bestTarget = null;
-        var bestScore = float.MinValue;
+        var bestScore = 0f;
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive || player.Id == medic.Id || player.Team != medic.Team)
@@ -155,13 +156,14 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var hitDistance = GetLineIntersectionDistanceToPlayer(
+            var hitDistance = GetThickLineIntersectionDistanceToPlayer(
                 medic.X,
                 medic.Y,
                 aimEndX,
                 aimEndY,
                 player,
-                maxDistance);
+                maxDistance,
+                aimSelectionThicknessRadius);
             if (!hitDistance.HasValue)
             {
                 continue;

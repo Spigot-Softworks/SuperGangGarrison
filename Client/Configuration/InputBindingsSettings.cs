@@ -21,6 +21,8 @@ public sealed class InputBindingsSettings
 
     public Keys Taunt { get; set; } = Keys.F;
 
+    public Keys CallMedic { get; set; } = Keys.E;
+
     public Keys ShowScoreboard { get; set; } = Keys.LeftShift;
 
     public Keys ChangeTeam { get; set; } = Keys.N;
@@ -72,6 +74,7 @@ public sealed class InputBindingsSettings
         document.SetInt("Controls", "left", (int)MoveLeft);
         document.SetInt("Controls", "right", (int)MoveRight);
         document.SetInt("Controls", "taunt", (int)Taunt);
+        document.SetInt("Controls", "medic", (int)CallMedic);
         document.SetInt("Controls", "changeTeam", (int)ChangeTeam);
         document.SetInt("Controls", "changeClass", (int)ChangeClass);
         document.SetInt("Controls", "showScores", (int)ShowScoreboard);
@@ -93,6 +96,7 @@ public sealed class InputBindingsSettings
             MoveLeft = ReadKey(document, "left", Keys.A),
             MoveRight = ReadKey(document, "right", Keys.D),
             Taunt = ReadKey(document, "taunt", Keys.F),
+            CallMedic = ReadKey(document, "medic", Keys.E),
             ChangeTeam = ReadKey(document, "changeTeam", Keys.N),
             ChangeClass = ReadKey(document, "changeClass", Keys.M),
             ShowScoreboard = ReadKey(document, "showScores", Keys.LeftShift),

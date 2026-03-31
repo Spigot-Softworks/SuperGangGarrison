@@ -116,7 +116,7 @@ public sealed partial class SimulationWorld
 
             if (TryCutBubbleWithBlade(blade))
             {
-                blade.Destroy();
+                continue;
             }
 
             if (blade.IsExpired)

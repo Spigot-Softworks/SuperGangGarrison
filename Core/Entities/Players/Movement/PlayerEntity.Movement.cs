@@ -95,10 +95,6 @@ public sealed partial class PlayerEntity
         }
 
         canMove = !IsHeavyEating && !IsTaunting && !IsSpyBackstabAnimating;
-        if (IsSpyBackstabAnimating)
-        {
-            HorizontalSpeed = 0f;
-        }
 
         var horizontalDirection = 0f;
         if (canMove && input.Left)

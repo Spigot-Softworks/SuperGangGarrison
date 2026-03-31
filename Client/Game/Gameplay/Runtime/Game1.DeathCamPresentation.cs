@@ -29,17 +29,17 @@ public partial class Game1
         return deathCam.InitialTicks > 0 ? deathCam.InitialTicks : deathCam.RemainingTicks;
     }
 
-    private int GetDeathCamElapsedTicks(LocalDeathCamState deathCam)
+    private static int GetDeathCamElapsedTicks(LocalDeathCamState deathCam)
     {
         return Math.Max(0, GetDeathCamInitialTicks(deathCam) - deathCam.RemainingTicks);
     }
 
-    private bool IsDeathCamZoomPhase(LocalDeathCamState deathCam)
+    private static bool IsDeathCamZoomPhase(LocalDeathCamState deathCam)
     {
         return GetDeathCamElapsedTicks(deathCam) >= DeathCamFocusDelayTicks;
     }
 
-    private float GetDeathCamZoom(LocalDeathCamState deathCam)
+    private static float GetDeathCamZoom(LocalDeathCamState deathCam)
     {
         var zoomTicks = Math.Max(0f, GetDeathCamElapsedTicks(deathCam) - DeathCamFocusDelayTicks);
         return Math.Clamp(

@@ -293,12 +293,19 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
         var items = GetInGameMenuItems();
-        var position = new Vector2(40f, 300f);
+        const float xbegin = 40f;
+        const float ybegin = 300f;
+        const float spacing = 30f;
+        const float width = 220f;
+        DrawMenuPanelBackdrop(new Rectangle((int)xbegin - 12, (int)ybegin - 24, (int)width + 28, items.Length * (int)spacing + 24), 0.82f);
+        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), items.Length, spacing, width, 0.72f);
+
+        var position = new Vector2(xbegin, ybegin);
         for (var index = 0; index < items.Length; index += 1)
         {
             var color = index == _inGameMenuHoverIndex ? Color.Red : Color.White;
             DrawBitmapFontText(items[index], position, color, 1f);
-            position.Y += 30f;
+            position.Y += spacing;
         }
     }
 
@@ -486,7 +493,15 @@ public partial class Game1
         labels.Add("Back");
         values.Add(string.Empty);
 
-        GetOptionsMenuLayout(labels.Count, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
+        GetOptionsMenuLayout(labels.Count, out var xbegin, out var ybegin, out var spacing, out var width, out var valueX);
+        DrawMenuPanelBackdrop(
+            new Rectangle(
+                (int)xbegin - 12,
+                (int)(ybegin - spacing),
+                (int)(width + 132f),
+                Math.Max((int)spacing, (int)(labels.Count * spacing + spacing * 0.5f))),
+            0.82f);
+        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), labels.Count, spacing, width + 116f, 0.7f);
 
         var labelPosition = new Vector2(xbegin, ybegin);
         for (var index = 0; index < labels.Count; index += 1)
@@ -608,7 +623,15 @@ public partial class Game1
         var rows = BuildPluginOptionsMenuRows();
         var visibleRowCount = Math.Min(rows.Count, GetPluginOptionsVisibleRowCapacity());
         ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
-        GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out _, out var valueX);
+        GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out var width, out var valueX);
+        DrawMenuPanelBackdrop(
+            new Rectangle(
+                (int)xbegin - 12,
+                (int)(ybegin - spacing),
+                (int)(width + 132f),
+                Math.Max((int)spacing, (int)(visibleRowCount * spacing + spacing * 0.5f))),
+            0.82f);
+        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), visibleRowCount, spacing, width + 116f, 0.7f);
 
         var position = new Vector2(xbegin, ybegin);
         var endIndex = Math.Min(rows.Count, _pluginOptionsScrollOffset + visibleRowCount);
@@ -925,7 +948,14 @@ public partial class Game1
         DrawBitmapFontText(title, new Vector2(40f, 110f), Color.White, 1.2f);
 
         var items = GetControlsMenuBindings();
-        var position = new Vector2(40f, 150f);
+        const float xbegin = 40f;
+        const float ybegin = 150f;
+        const float spacing = 28f;
+        const float width = 360f;
+        DrawMenuPanelBackdrop(new Rectangle((int)xbegin - 12, (int)ybegin - 36, (int)width + 44, (items.Count + 2) * (int)spacing), 0.82f);
+        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), items.Count + 1, spacing, width, 0.72f);
+
+        var position = new Vector2(xbegin, ybegin);
         for (var index = 0; index < items.Count; index += 1)
         {
             var item = items[index];
@@ -934,7 +964,7 @@ public partial class Game1
                 : index == _controlsHoverIndex ? Color.Red : Color.White;
             DrawBitmapFontText(item.Label, position, color, 1f);
             DrawBitmapFontText(GetBindingDisplayName(item.Key), new Vector2(280f, position.Y), color, 1f);
-            position.Y += 28f;
+            position.Y += spacing;
         }
 
         var backColor = items.Count == _controlsHoverIndex ? Color.Red : Color.White;
@@ -951,6 +981,7 @@ public partial class Game1
             (ControlsMenuBinding.MoveRight, "Move Right:", _inputBindings.MoveRight),
             (ControlsMenuBinding.MoveDown, "Move Down:", _inputBindings.MoveDown),
             (ControlsMenuBinding.Taunt, "Taunt:", _inputBindings.Taunt),
+            (ControlsMenuBinding.CallMedic, "Call Medic:", _inputBindings.CallMedic),
             (ControlsMenuBinding.ChangeTeam, "Change Team:", _inputBindings.ChangeTeam),
             (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
             (ControlsMenuBinding.ShowScoreboard, "Show Scores:", _inputBindings.ShowScoreboard),
@@ -979,6 +1010,9 @@ public partial class Game1
                 break;
             case ControlsMenuBinding.Taunt:
                 _inputBindings.Taunt = key;
+                break;
+            case ControlsMenuBinding.CallMedic:
+                _inputBindings.CallMedic = key;
                 break;
             case ControlsMenuBinding.ChangeTeam:
                 _inputBindings.ChangeTeam = key;
@@ -1014,6 +1048,7 @@ public partial class Game1
             ControlsMenuBinding.MoveRight => "Move Right",
             ControlsMenuBinding.MoveDown => "Move Down",
             ControlsMenuBinding.Taunt => "Taunt",
+            ControlsMenuBinding.CallMedic => "Call Medic",
             ControlsMenuBinding.ChangeTeam => "Change Team",
             ControlsMenuBinding.ChangeClass => "Change Class",
             ControlsMenuBinding.ShowScoreboard => "Show Scores",
@@ -1131,6 +1166,50 @@ public partial class Game1
         var estimatedTextHeight = compactLayout ? 18f : 22f;
         var totalHeight = Math.Max(0, rowCount - 1) * spacing + estimatedTextHeight;
         ybegin = MathF.Min(defaultY, MathF.Max(minY, ViewportHeight - bottomPadding - totalHeight));
+    }
+
+    private void DrawMenuPanelBackdrop(Rectangle rectangle, float alpha)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0)
+        {
+            return;
+        }
+
+        DrawInsetHudPanel(
+            rectangle,
+            new Color(184, 178, 160) * (alpha * 0.35f),
+            new Color(24, 27, 32) * (alpha * 0.85f));
+    }
+
+    private void DrawMenuPlaqueRows(Vector2 position, int rowCount, float spacing, float width, float alpha)
+    {
+        for (var index = 0; index < rowCount; index += 1)
+        {
+            DrawMenuPlaque(position.X - 6f, position.Y + (index * spacing) - 4f, width, alpha);
+        }
+    }
+
+    private void DrawMenuPlaque(float x, float y, float width, float alpha)
+    {
+        if (width <= 0f)
+        {
+            return;
+        }
+
+        var tint = Color.White * alpha;
+        const float plaqueSpriteWidth = 17f;
+        if (!TryDrawScreenSprite("gbMenuLayoutS", 0, new Vector2(x, y), tint, Vector2.One))
+        {
+            _spriteBatch.Draw(
+                _pixel,
+                new Rectangle((int)MathF.Round(x), (int)MathF.Round(y), Math.Max(1, (int)MathF.Round(width)), 17),
+                new Color(70, 74, 82) * (alpha * 0.55f));
+            return;
+        }
+
+        var middleScaleX = Math.Max(1f, (width / (plaqueSpriteWidth - 1f)) - 2f);
+        TryDrawScreenSprite("gbMenuLayoutS", 1, new Vector2(x + plaqueSpriteWidth, y), tint, new Vector2(middleScaleX, 1f));
+        TryDrawScreenSprite("gbMenuLayoutS", 2, new Vector2(x - plaqueSpriteWidth + width + 1f, y), tint, Vector2.One);
     }
 
     private readonly record struct PluginOptionsMenuRow(

@@ -25,7 +25,7 @@ public interface IOpenGarrisonClientHudCanvas
 
     void DrawScreenRectangleOutline(Rectangle rectangle, Color color, int thickness = 1);
 
-    void DrawScreenLine(Vector2 start, Vector2 end, Color color, float thickness = 1f);
+    void DrawScreenLine(Vector2 start, Vector2 endPoint, Color color, float thickness = 1f);
 
     bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale);
 

@@ -56,9 +56,16 @@ public partial class Game1
         }
 
         var leftClickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        var callMedicPressed = keyboard.IsKeyDown(_inputBindings.CallMedic) && !_previousKeyboard.IsKeyDown(_inputBindings.CallMedic);
         var openZPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ);
         var openXPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX);
         var openCPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuC);
+
+        if (callMedicPressed)
+        {
+            ApplyLocalChatBubble(45);
+            BeginClosingBubbleMenu();
+        }
 
         if (openZPressed)
         {
@@ -122,15 +129,7 @@ public partial class Game1
 
         if (result.BubbleFrame.HasValue)
         {
-            if (_networkClient.IsConnected)
-            {
-                _networkClient.QueueChatBubble(result.BubbleFrame.Value);
-            }
-            else
-            {
-                _world.SetLocalPlayerChatBubble(result.BubbleFrame.Value);
-            }
-
+            ApplyLocalChatBubble(result.BubbleFrame.Value);
             BeginClosingBubbleMenu();
             return;
         }
@@ -353,5 +352,16 @@ public partial class Game1
             BubbleMenuKind.C => ClientBubbleMenuKind.C,
             _ => ClientBubbleMenuKind.None,
         };
+    }
+
+    private void ApplyLocalChatBubble(int bubbleFrame)
+    {
+        if (_networkClient.IsConnected)
+        {
+            _networkClient.QueueChatBubble(bubbleFrame);
+            return;
+        }
+
+        _world.SetLocalPlayerChatBubble(bubbleFrame);
     }
 }

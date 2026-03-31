@@ -347,6 +347,16 @@ public sealed partial class SimulationWorld
         float maxDistance)
         => CombatResolver.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
+    private static float? GetThickLineIntersectionDistanceToPlayer(
+        float originX,
+        float originY,
+        float endX,
+        float endY,
+        PlayerEntity player,
+        float maxDistance,
+        float thicknessRadius)
+        => CombatResolver.GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
+
     private ShotHitResult? GetNearestShotHit(ShotProjectileEntity shot, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestShotHit(shot, directionX, directionY, maxDistance);
 

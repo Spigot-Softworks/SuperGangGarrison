@@ -85,7 +85,7 @@ public sealed class MoreAnimationsPlugin :
         return true;
     }
 
-    private bool TryResolveAnimationKey(ClientDeadBodyRenderState deadBody, out string animationKey)
+    private static bool TryResolveAnimationKey(ClientDeadBodyRenderState deadBody, out string animationKey)
     {
         animationKey = deadBody.Team switch
         {

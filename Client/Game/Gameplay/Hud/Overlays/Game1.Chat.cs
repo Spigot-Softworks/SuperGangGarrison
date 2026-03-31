@@ -180,7 +180,7 @@ public partial class Game1
         return GetWrappedChatPanelHeight(wrappedMessageLines.Count, GetChatHudLineHeight());
     }
 
-    private float GetWrappedChatPanelWidth(IReadOnlyList<string> wrappedLines, float firstLinePrefixWidth)
+    private float GetWrappedChatPanelWidth(List<string> wrappedLines, float firstLinePrefixWidth)
     {
         var width = 0f;
         for (var lineIndex = 0; lineIndex < wrappedLines.Count; lineIndex += 1)
@@ -197,7 +197,7 @@ public partial class Game1
         return width;
     }
 
-    private float GetWrappedChatPanelHeight(int wrappedLineCount, float lineHeight)
+    private static float GetWrappedChatPanelHeight(int wrappedLineCount, float lineHeight)
     {
         return Math.Max(16f, (wrappedLineCount * lineHeight) + (ChatHudPanelVerticalPadding * 2f));
     }

@@ -33,17 +33,42 @@ public partial class Game1
         }
 
         var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
+        var beamOrigin = GetMedicBeamOrigin(medic);
         var beamColor = healTarget.Team == PlayerTeam.Blue
             ? Color.Blue * 0.3f
             : Color.Red * 0.3f;
         DrawWorldLine(
-            medic.X + MathF.Cos(aimRadians) * 25f,
-            medic.Y + MathF.Sin(aimRadians) * 24f,
+            beamOrigin.X + MathF.Cos(aimRadians) * 24f,
+            beamOrigin.Y + MathF.Sin(aimRadians) * 24f,
             healTarget.X,
             healTarget.Y,
             cameraPosition,
             beamColor,
             5f);
+    }
+
+    private Vector2 GetMedicBeamOrigin(PlayerEntity medic)
+    {
+        var renderPosition = GetRenderPosition(medic, allowInterpolation: !ReferenceEquals(medic, _world.LocalPlayer));
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+        var weaponDefinition = GetWeaponRenderDefinition(medic);
+        if (weaponDefinition.NormalSpriteName is null)
+        {
+            return roundedOrigin;
+        }
+
+        var sprite = _runtimeAssets.GetSprite(weaponDefinition.NormalSpriteName);
+        if (sprite is null)
+        {
+            return roundedOrigin;
+        }
+
+        var bodySelection = GetPlayerBodySpriteSelection(medic);
+        var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
+        var facingScale = GetPlayerFacingScale(medic);
+        return new Vector2(
+            roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale,
+            roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y);
     }
 
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)

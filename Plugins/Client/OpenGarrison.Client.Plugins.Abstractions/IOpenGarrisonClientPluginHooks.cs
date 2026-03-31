@@ -1,3 +1,5 @@
+using Microsoft.Xna.Framework;
+
 namespace OpenGarrison.Client.Plugins;
 
 public interface IOpenGarrisonClientLifecycleHooks
@@ -24,6 +26,20 @@ public interface IOpenGarrisonClientHudHooks
 public interface IOpenGarrisonClientDamageHooks
 {
     void OnLocalDamage(LocalDamageEvent e);
+}
+
+public sealed record ClientWorldSoundEvent(
+    string SoundName,
+    Vector2 WorldPosition);
+
+public interface IOpenGarrisonClientSoundHooks
+{
+    void OnWorldSound(ClientWorldSoundEvent e);
+}
+
+public interface IOpenGarrisonClientCameraHooks
+{
+    Vector2 GetCameraOffset();
 }
 
 public sealed record ClientPluginMainMenuBackgroundOverride(

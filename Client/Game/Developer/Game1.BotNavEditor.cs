@@ -1377,7 +1377,7 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorAnchorContextMenuItems()
+    private NavEditorContextMenuItem[] BuildNavEditorAnchorContextMenuItems()
     {
         if (_navEditorContextMenuAnchorIndex < 0 || _navEditorContextMenuAnchorIndex >= _navEditorAnchors.Count)
         {
@@ -1420,7 +1420,7 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorLinkContextMenuItems()
+    private NavEditorContextMenuItem[] BuildNavEditorLinkContextMenuItems()
     {
         if (_navEditorContextMenuLinkIndex < 0 || _navEditorContextMenuLinkIndex >= _navEditorLinks.Count)
         {
@@ -1488,7 +1488,7 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorAnchorKindMenuItems(
+    private static IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorAnchorKindMenuItems(
         Action<BotNavigationNodeKind, PlayerTeam?> applySelection,
         BotNavigationNodeKind currentKind,
         PlayerTeam? currentTeam)
@@ -1555,14 +1555,14 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorClassScopeMenuItems(IReadOnlyList<PlayerClass> currentClasses)
+    private List<NavEditorContextMenuItem> BuildNavEditorClassScopeMenuItems(PlayerClass[] currentClasses)
     {
         var items = new List<NavEditorContextMenuItem>
         {
             new()
             {
                 Label = "All",
-                Active = currentClasses.Count == 0,
+                Active = currentClasses.Length == 0,
                 Action = () => SetNavEditorClassScope(Array.Empty<PlayerClass>()),
             },
         };
@@ -1572,7 +1572,7 @@ public partial class Game1
             items.Add(new NavEditorContextMenuItem
             {
                 Label = BotNavigationClasses.GetDisplayName(classId),
-                Active = currentClasses.Count == 1 && currentClasses[0] == classId,
+                Active = currentClasses.Length == 1 && currentClasses[0] == classId,
                 Action = () => SetNavEditorClassScope([classId]),
             });
         }
@@ -1630,7 +1630,7 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorRecordTestClassMenuItems()
+    private List<NavEditorContextMenuItem> BuildNavEditorRecordTestClassMenuItems()
     {
         var items = new List<NavEditorContextMenuItem>(BotNavigationClasses.All.Count);
         foreach (var classId in BotNavigationClasses.All)
@@ -1850,7 +1850,7 @@ public partial class Game1
         }
     }
 
-    private IReadOnlyList<NavEditorContextMenuPanel> BuildNavEditorContextMenuPanels(IReadOnlyList<NavEditorContextMenuItem> rootItems)
+    private List<NavEditorContextMenuPanel> BuildNavEditorContextMenuPanels(IReadOnlyList<NavEditorContextMenuItem> rootItems)
     {
         var panels = new List<NavEditorContextMenuPanel>();
         if (rootItems.Count == 0)
@@ -1969,14 +1969,14 @@ public partial class Game1
         return path;
     }
 
-    private static bool PathsEqual(IReadOnlyList<int> left, IReadOnlyList<int> right)
+    private static bool PathsEqual(int[] left, int[] right)
     {
-        if (left.Count != right.Count)
+        if (left.Length != right.Length)
         {
             return false;
         }
 
-        for (var index = 0; index < left.Count; index += 1)
+        for (var index = 0; index < left.Length; index += 1)
         {
             if (left[index] != right[index])
             {
@@ -3344,14 +3344,14 @@ public partial class Game1
             : _navEditorDefaultCostMultiplier;
     }
 
-    private static PlayerClass[] GetNextNavEditorClassSelection(IReadOnlyList<PlayerClass> current)
+    private static PlayerClass[] GetNextNavEditorClassSelection(PlayerClass[] current)
     {
-        if (current.Count == 0)
+        if (current.Length == 0)
         {
             return [BotNavigationClasses.All[0]];
         }
 
-        if (current.Count == 1)
+        if (current.Length == 1)
         {
             for (var index = 0; index < BotNavigationClasses.All.Count; index += 1)
             {
@@ -3367,9 +3367,9 @@ public partial class Game1
         return Array.Empty<PlayerClass>();
     }
 
-    private static string DescribeNavEditorClasses(IReadOnlyList<PlayerClass> classes)
+    private static string DescribeNavEditorClasses(PlayerClass[] classes)
     {
-        return classes.Count == 0 ? "All" : string.Join("/", classes.Select(BotNavigationClasses.GetShortLabel));
+        return classes.Length == 0 ? "All" : string.Join("/", classes.Select(BotNavigationClasses.GetShortLabel));
     }
 
     private static string DescribeNavEditorViewClass(PlayerClass? classId)
@@ -3667,14 +3667,14 @@ public partial class Game1
         return Vector2.Distance(point, projection);
     }
 
-    private static Color GetNavEditorClassColor(IReadOnlyList<PlayerClass> classes)
+    private static Color GetNavEditorClassColor(PlayerClass[] classes)
     {
-        if (classes.Count == 0)
+        if (classes.Length == 0)
         {
             return new Color(236, 238, 242);
         }
 
-        if (classes.Count > 1)
+        if (classes.Length > 1)
         {
             return new Color(208, 212, 218);
         }
@@ -3756,9 +3756,9 @@ public partial class Game1
             return default;
         }
 
-        if (step.InputTape.Count > 0)
+        if (step.InputTape.Length > 0)
         {
-            if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Count)
+            if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Length)
             {
                 return default;
             }
@@ -3871,12 +3871,12 @@ public partial class Game1
             return;
         }
 
-        if (step.InputTape.Count == 0)
+        if (step.InputTape.Length == 0)
         {
             return;
         }
 
-        if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Count)
+        if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Length)
         {
             CancelNavEditorTraversalPlayback($"traversal test missed {step.ToLabel}");
             return;
@@ -3891,7 +3891,7 @@ public partial class Game1
         while (remainingSeconds <= 0d)
         {
             _navEditorPlaybackFrameIndex += 1;
-            if (_navEditorPlaybackFrameIndex >= step.InputTape.Count)
+            if (_navEditorPlaybackFrameIndex >= step.InputTape.Length)
             {
                 if (HasReachedNavEditorPlaybackTarget(step))
                 {
@@ -4184,7 +4184,7 @@ public partial class Game1
                 .Select(recording => BotNavigationClasses.GetShortLabel(recording.ClassId)));
     }
 
-    private static IReadOnlyList<NavEditorRecordedTraversal> ExpandNavEditorRecordedTraversals(IReadOnlyList<BotNavigationHintRecordedTraversal> recordedTraversals)
+    private static List<NavEditorRecordedTraversal> ExpandNavEditorRecordedTraversals(IReadOnlyList<BotNavigationHintRecordedTraversal> recordedTraversals)
     {
         var expanded = new List<NavEditorRecordedTraversal>();
         foreach (var recording in recordedTraversals)
@@ -4335,7 +4335,7 @@ public partial class Game1
     {
         public PlayerClass ClassId { get; set; }
 
-        public IReadOnlyList<BotNavigationInputFrame> InputTape { get; set; } = Array.Empty<BotNavigationInputFrame>();
+        public BotNavigationInputFrame[] InputTape { get; set; } = Array.Empty<BotNavigationInputFrame>();
     }
 
     private readonly record struct NavEditorRouteCandidate(
@@ -4364,7 +4364,7 @@ public partial class Game1
 
         public bool RequiresGroundedArrival { get; set; } = true;
 
-        public IReadOnlyList<BotNavigationInputFrame> InputTape { get; set; } = Array.Empty<BotNavigationInputFrame>();
+        public BotNavigationInputFrame[] InputTape { get; set; } = Array.Empty<BotNavigationInputFrame>();
     }
 
     private readonly record struct NavEditorClearAllPromptLayout(

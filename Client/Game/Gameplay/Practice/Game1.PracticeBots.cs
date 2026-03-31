@@ -193,7 +193,7 @@ public partial class Game1
         }
     }
 
-    private List<string> LoadPracticeBotDisplayNames()
+    private static List<string> LoadPracticeBotDisplayNames()
     {
         var path = ResolvePracticeBotNamesPath();
         var names = new List<string>();

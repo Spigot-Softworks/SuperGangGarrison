@@ -30,6 +30,7 @@ internal sealed class NetworkGameClient : IDisposable
     private const long ConnectedTimeoutMilliseconds = 5000;
     private const long LocalWelcomeTimeoutMilliseconds = 30000;
     private const long LocalConnectedTimeoutMilliseconds = 30000;
+    private const int MaxTrackedInputRoundTrips = 512;
     private UdpClient? _udpClient;
     private IPEndPoint? _serverEndPoint;
     private uint _nextInputSequence = 1;
@@ -39,6 +40,8 @@ internal sealed class NetworkGameClient : IDisposable
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Queue<PendingPacket> _pendingOutboundPackets = new();
     private readonly Queue<PendingMessage> _pendingInboundMessages = new();
+    private readonly Queue<TrackedInputRoundTrip> _trackedInputRoundTrips = new();
+    private readonly Dictionary<uint, long> _trackedInputRoundTripTimes = new();
     private string? _pendingHelloPlayerName;
     private ulong _pendingHelloBadgeMask;
     private long _connectStartedAtMilliseconds = -1;
@@ -54,6 +57,7 @@ internal sealed class NetworkGameClient : IDisposable
     public byte LocalPlayerSlot { get; private set; }
     public string? ServerDescription { get; private set; }
     public int SimulatedLatencyMilliseconds { get; private set; }
+    public int EstimatedPingMilliseconds { get; private set; } = -1;
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
 
     public bool Connect(string host, int port, string playerName, ulong badgeMask, out string error)
@@ -104,6 +108,8 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingControlCommands.Clear();
         _pendingOutboundPackets.Clear();
         _pendingInboundMessages.Clear();
+        _trackedInputRoundTrips.Clear();
+        _trackedInputRoundTripTimes.Clear();
         LocalPlayerSlot = 0;
         ServerDescription = null;
         _pendingHelloPlayerName = null;
@@ -111,6 +117,7 @@ internal sealed class NetworkGameClient : IDisposable
         _connectStartedAtMilliseconds = -1;
         _lastHelloSentAtMilliseconds = -1;
         _lastServerMessageReceivedAtMilliseconds = -1;
+        EstimatedPingMilliseconds = -1;
         LastReceiveDiagnostics = default;
     }
 
@@ -216,9 +223,33 @@ internal sealed class NetworkGameClient : IDisposable
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;
+        TrackInputRoundTrip(sequence);
         Send(new InputStateMessage(sequence, buttons, input.AimWorldX, input.AimWorldY, _pendingChatBubbleFrameIndex));
         _pendingChatBubbleFrameIndex = -1;
         return sequence;
+    }
+
+    public void AcknowledgeProcessedInput(uint sequence)
+    {
+        if (sequence == 0 || _trackedInputRoundTrips.Count == 0)
+        {
+            return;
+        }
+
+        var nowMilliseconds = _clock.ElapsedMilliseconds;
+        while (_trackedInputRoundTrips.Count > 0 && _trackedInputRoundTrips.Peek().Sequence <= sequence)
+        {
+            var tracked = _trackedInputRoundTrips.Dequeue();
+            if (!_trackedInputRoundTripTimes.Remove(tracked.Sequence, out var sentAtMilliseconds))
+            {
+                continue;
+            }
+
+            if (tracked.Sequence == sequence)
+            {
+                EstimatedPingMilliseconds = (int)Math.Clamp(nowMilliseconds - sentAtMilliseconds, 0L, int.MaxValue);
+            }
+        }
     }
 
     public void AcknowledgeControlCommand(uint sequence, ControlCommandKind kind)
@@ -381,6 +412,18 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingControlCommands[kind] = new PendingControlCommand(_nextControlSequence++, kind, value);
     }
 
+    private void TrackInputRoundTrip(uint sequence)
+    {
+        var sentAtMilliseconds = _clock.ElapsedMilliseconds;
+        _trackedInputRoundTrips.Enqueue(new TrackedInputRoundTrip(sequence, sentAtMilliseconds));
+        _trackedInputRoundTripTimes[sequence] = sentAtMilliseconds;
+        while (_trackedInputRoundTrips.Count > MaxTrackedInputRoundTrips)
+        {
+            var dropped = _trackedInputRoundTrips.Dequeue();
+            _trackedInputRoundTripTimes.Remove(dropped.Sequence);
+        }
+    }
+
     private void SendPendingControlCommands()
     {
         if (!IsConnected)
@@ -529,6 +572,7 @@ internal sealed class NetworkGameClient : IDisposable
     }
 
     private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value);
+    private sealed record TrackedInputRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record PendingPacket(long ReleaseAtMilliseconds, byte[] Payload);
     private sealed record PendingMessage(long ReleaseAtMilliseconds, IProtocolMessage Message);
 }

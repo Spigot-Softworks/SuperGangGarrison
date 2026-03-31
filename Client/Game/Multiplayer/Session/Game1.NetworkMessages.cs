@@ -379,6 +379,7 @@ public partial class Game1
 
             _pendingClassSelectTeam = null;
             var reconcileStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
+            _networkClient.AcknowledgeProcessedInput(snapshot.LastProcessedInputSequence);
             ReconcileLocalPrediction(snapshot.LastProcessedInputSequence);
             if (_networkDiagnosticsEnabled)
             {

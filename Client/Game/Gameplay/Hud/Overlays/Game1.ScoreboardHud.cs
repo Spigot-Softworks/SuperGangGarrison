@@ -39,61 +39,51 @@ public partial class Game1
             : "Offline";
         var serverMetaLabel = TruncateScoreboardMetaText(serverLabel, 25);
         var mapMetaLabel = TruncateScoreboardMetaText(_world.Level.Name, 25);
+        var xoffset = (viewportWidth / 2f) - 280f;
+        var yoffset = (viewportHeight / 2f) - 190f;
+        var xsize = 480f;
+        var xcenter = viewportWidth / 2f;
+        var scoreboardBounds = new Rectangle(
+            (int)MathF.Round(xoffset),
+            (int)MathF.Round(yoffset),
+            560,
+            400);
 
-        var panelWidth = Math.Clamp(viewportWidth - 48, 600, 1040);
-        var panelHeight = Math.Clamp(viewportHeight - 44, 360, 640);
-        var spectatorLines = BuildScoreboardSpectatorLines(panelWidth - 32f, 0.9f);
-        var footerLineHeight = MeasureBitmapFontHeight(0.9f) + 2f;
-        var footerHeight = 12f + (footerLineHeight * Math.Max(1, spectatorLines.Count));
-        var panel = new Rectangle((viewportWidth - panelWidth) / 2, (viewportHeight - panelHeight) / 2, panelWidth, panelHeight);
-        var topBannerHeight = 52;
-        var topMargin = 10;
-        var metaLineHeight = 24;
-        var contentGap = 8;
-        var contentTop = panel.Y + topMargin + topBannerHeight + contentGap + metaLineHeight + 10;
-        var contentBottom = panel.Bottom - footerHeight - 12;
-        var teamPanelWidth = (panel.Width - 36) / 2;
-        var leftTeamPanel = new Rectangle(panel.X + 12, contentTop, teamPanelWidth, (int)MathF.Max(120f, contentBottom - contentTop));
-        var rightTeamPanel = new Rectangle(panel.Right - 12 - teamPanelWidth, contentTop, teamPanelWidth, (int)MathF.Max(120f, contentBottom - contentTop));
-        var redBanner = new Rectangle(leftTeamPanel.X, panel.Y + topMargin, leftTeamPanel.Width, topBannerHeight);
-        var blueBanner = new Rectangle(rightTeamPanel.X, panel.Y + topMargin, rightTeamPanel.Width, topBannerHeight);
+        if (!TryDrawScreenSprite("Scoreboard", 0, new Vector2(xoffset, yoffset), Color.White * (alpha * 0.8f), Vector2.One))
+        {
+            _spriteBatch.Draw(_pixel, scoreboardBounds, new Color(26, 29, 34) * (alpha * 0.93f));
+        }
 
-        _spriteBatch.Draw(_pixel, panel, new Color(26, 29, 34) * (alpha * 0.93f));
-        DrawScoreboardBorder(panel, new Color(219, 212, 190) * alpha);
+        DrawCountFontTextCentered(redTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(xcenter - 161f, yoffset + 23f), Color.White * alpha, 1f);
+        DrawCountFontTextCentered(blueTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(xcenter + 83f, yoffset + 23f), Color.White * alpha, 1f);
+        if (isKothMode)
+        {
+            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f, yoffset + 6f), Color.White * alpha, 1.3f);
+            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f, yoffset + 6f), Color.White * alpha, 1.3f);
+        }
+        else
+        {
+            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f, yoffset), Color.White * alpha, 4f);
+            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f, yoffset), Color.White * alpha, 4f);
+        }
 
-        _spriteBatch.Draw(_pixel, redBanner, new Color(153, 83, 79) * alpha);
-        _spriteBatch.Draw(_pixel, blueBanner, new Color(92, 117, 140) * alpha);
-        DrawScoreboardBorder(redBanner, new Color(230, 220, 196) * alpha);
-        DrawScoreboardBorder(blueBanner, new Color(230, 220, 196) * alpha);
+        DrawBitmapFontText($"Server: {serverMetaLabel}", new Vector2(xoffset + 8f, yoffset + 48f), Color.White * alpha, 1f);
+        DrawBitmapFontText($"    Map: {mapMetaLabel}", new Vector2(xoffset + (xsize / 2f) + 16f, yoffset + 48f), Color.White * alpha, 1f);
 
-        var headerY = panel.Y + topMargin + 12f;
-        DrawBitmapFontTextCentered("RED", new Vector2(redBanner.X + 56f, headerY + 9f), Color.White * alpha, 1.7f);
-        DrawBitmapFontTextCentered("BLU", new Vector2(blueBanner.Right - 56f, headerY + 9f), Color.White * alpha, 1.7f);
-        DrawBitmapFontTextCentered(redCenterText, new Vector2(panel.Center.X - 38f, headerY + 6f), Color.White * alpha, isKothMode ? 1.35f : 2.7f);
-        DrawBitmapFontTextCentered(blueCenterText, new Vector2(panel.Center.X + 38f, headerY + 6f), Color.White * alpha, isKothMode ? 1.35f : 2.7f);
-        DrawCountFontTextCentered(redTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(redBanner.Center.X - 34f, redBanner.Center.Y + 17f), Color.White * alpha, 1f);
-        DrawCountFontTextCentered(blueTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(blueBanner.Center.X - 34f, blueBanner.Center.Y + 17f), Color.White * alpha, 1f);
-        DrawBitmapFontTextCentered($"PLAYER{(redTeam.Count == 1 ? string.Empty : "S")}", new Vector2(redBanner.Center.X + 18f, redBanner.Center.Y + 15f), Color.White * alpha, 1f);
-        DrawBitmapFontTextCentered($"PLAYER{(blueTeam.Count == 1 ? string.Empty : "S")}", new Vector2(blueBanner.Center.X + 18f, blueBanner.Center.Y + 15f), Color.White * alpha, 1f);
+        DrawScoreboardTeam(redTeam, PlayerTeam.Red, alpha, xoffset, yoffset, xsize);
+        DrawScoreboardTeam(blueTeam, PlayerTeam.Blue, alpha, xoffset, yoffset, xsize);
 
-        var metaY = panel.Y + topMargin + topBannerHeight + 10f;
-        DrawBitmapFontText($"Server: {serverMetaLabel}", new Vector2(panel.X + 16f, metaY), Color.White * alpha, 1.04f);
-        DrawBitmapFontTextRightAligned($"Map: {mapMetaLabel}", new Vector2(panel.Right - 16f, metaY), Color.White * alpha, 1.04f);
-
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.Center.X - 1, contentTop, 2, (int)(contentBottom - contentTop)), new Color(219, 212, 190) * (alpha * 0.65f));
-
-        DrawScoreboardTeam(redTeam, leftTeamPanel, PlayerTeam.Red, alpha);
-        DrawScoreboardTeam(blueTeam, rightTeamPanel, PlayerTeam.Blue, alpha);
-
-        var spectatorY = panel.Bottom - footerHeight + 2f;
+        var spectatorLines = BuildScoreboardSpectatorLines(525f, 1f);
+        var footerLineHeight = MeasureBitmapFontHeight(1f) + 2f;
+        var spectatorY = yoffset + 370f;
         for (var lineIndex = 0; lineIndex < spectatorLines.Count; lineIndex += 1)
         {
             DrawScoreboardSpectatorLine(
                 spectatorLines[lineIndex],
-                new Vector2(panel.X + 16f, spectatorY + (footerLineHeight * lineIndex)),
-                lineIndex == 0 ? Color.White : new Color(215, 215, 215),
+                new Vector2(xoffset + 5f, spectatorY + (footerLineHeight * lineIndex)),
+                Color.White,
                 alpha,
-                0.9f);
+                1f);
         }
     }
 
@@ -136,35 +126,37 @@ public partial class Game1
         return players;
     }
 
-    private void DrawScoreboardTeam(List<PlayerEntity> players, Rectangle panel, PlayerTeam team, float alpha)
+    private void DrawScoreboardTeam(List<PlayerEntity> players, PlayerTeam team, float alpha, float xoffset, float yoffset, float xsize)
     {
-        var teamColor = team == PlayerTeam.Red ? new Color(225, 110, 103) : new Color(94, 170, 255);
-        var rowHeight = 29;
-        var iconX = panel.X + 14f;
-        var nameX = panel.X + 34f;
-        var deadX = panel.Right - 14f;
-        var relationX = deadX - 19f;
-        var dominationX = relationX - 38f;
-        var pointsRight = dominationX - 12f;
-        var dividerY = panel.Y + 24;
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, dividerY, panel.Width, 2), new Color(219, 212, 190) * (alpha * 0.6f));
+        var teamColor = team == PlayerTeam.Red
+            ? new Color(225, 110, 103)
+            : new Color(94, 170, 255);
+        var iconX = team == PlayerTeam.Red
+            ? xoffset + 14f
+            : xoffset + (xsize / 2f) + 49f;
+        var nameX = team == PlayerTeam.Red
+            ? xoffset + 28f
+            : xoffset + (xsize / 2f) + 60f;
+        var pointsRight = team == PlayerTeam.Red
+            ? xoffset + (xsize / 2f) - 15f
+            : xoffset + xsize + 25f;
+        var dominationX = team == PlayerTeam.Red
+            ? xoffset + (xsize / 2f) - 5f
+            : xoffset + xsize + 35f;
+        var relationX = xoffset + xsize + 55f;
+        var deadX = team == PlayerTeam.Red
+            ? xoffset + 195f
+            : xoffset + 472f;
 
         for (var index = 0; index < players.Count && index < 12; index += 1)
         {
             var player = players[index];
-            var rowY = dividerY + 8f + (rowHeight * index);
-            var isLocalPlayer = ReferenceEquals(player, _world.LocalPlayer);
-
-            if (isLocalPlayer)
-            {
-                var highlightRectangle = new Rectangle(panel.X + 2, (int)(rowY - 2f), panel.Width - 4, rowHeight - 2);
-                _spriteBatch.Draw(_pixel, highlightRectangle, teamColor * (alpha * 0.16f));
-            }
+            var rowY = yoffset + 70f + (20f * (index + 1));
 
             if (!_networkClient.IsSpectator && _world.LocalPlayer.Team == player.Team)
             {
-                TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY + 8f), Color.White * alpha, Vector2.One);
-                TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY + 8f), teamColor * (alpha * 0.2f), Vector2.One);
+                TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), Color.White * alpha, Vector2.One);
+                TryDrawScreenSprite("Icon", GetScoreboardIconFrame(player.ClassId), new Vector2(iconX, rowY), teamColor * (alpha * 0.2f), Vector2.One);
             }
 
             const float badgeScale = 1f;
@@ -173,14 +165,14 @@ public partial class Game1
             var displayName = TrimBitmapMenuText(
                 SanitizeScoreboardText(player.DisplayName),
                 Math.Max(24f, nameMaxWidth - badgeWidth),
-                1.1f);
-            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1.1f, badgeScale);
-            DrawBitmapFontTextRightAligned(MathF.Floor(player.Points).ToString(CultureInfo.InvariantCulture), new Vector2(pointsRight, rowY), Color.White * alpha, 1.1f);
+                1f);
+            DrawScoreboardNameWithBadges(displayName, player.BadgeMask, new Vector2(nameX, rowY), teamColor, alpha, 1f, badgeScale);
+            DrawBitmapFontTextRightAligned(MathF.Floor(player.Points).ToString(CultureInfo.InvariantCulture), new Vector2(pointsRight, rowY), teamColor * alpha, 1f);
             DrawScoreboardDominationBadges(player, team, rowY, alpha, dominationX, relationX);
 
             if (!player.IsAlive)
             {
-                TryDrawScreenSprite("DeadS", 0, new Vector2(deadX, rowY + 9f), Color.White * alpha, Vector2.One);
+                TryDrawScreenSprite("DeadS", 0, new Vector2(deadX, rowY + 5f), Color.White * alpha, Vector2.One);
             }
         }
     }

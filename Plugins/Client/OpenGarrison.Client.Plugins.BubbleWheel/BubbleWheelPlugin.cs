@@ -123,7 +123,7 @@ public sealed class BubbleWheelPlugin :
         return true;
     }
 
-    private ClientBubbleMenuUpdateResult? ResolveWheelSelection(int selectedSlot, int frameBase)
+    private static ClientBubbleMenuUpdateResult? ResolveWheelSelection(int selectedSlot, int frameBase)
     {
         if (selectedSlot <= 0)
         {
@@ -133,7 +133,7 @@ public sealed class BubbleWheelPlugin :
         return new ClientBubbleMenuUpdateResult(BubbleFrame: frameBase + selectedSlot);
     }
 
-    private ClientBubbleMenuUpdateResult? ResolveXSelection(ClientBubbleMenuInputState inputState)
+    private static ClientBubbleMenuUpdateResult? ResolveXSelection(ClientBubbleMenuInputState inputState)
     {
         var selectedSlot = inputState.SelectedSlotOrDefault();
         if (inputState.XPageIndex == 0)

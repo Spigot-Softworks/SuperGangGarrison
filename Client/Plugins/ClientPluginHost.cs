@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenGarrison.Client.Plugins;
 
@@ -96,6 +97,32 @@ internal sealed class ClientPluginHost
     public void NotifyGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas) => Dispatch<IOpenGarrisonClientHudHooks>(hook => hook.OnGameplayHudDraw(canvas));
 
     public void NotifyLocalDamage(LocalDamageEvent e) => Dispatch<IOpenGarrisonClientDamageHooks>(hook => hook.OnLocalDamage(e));
+
+    public void NotifyWorldSound(ClientWorldSoundEvent e) => Dispatch<IOpenGarrisonClientSoundHooks>(hook => hook.OnWorldSound(e));
+
+    public Vector2 GetCameraOffset()
+    {
+        var offset = Vector2.Zero;
+        for (var index = 0; index < _loadedPlugins.Count; index += 1)
+        {
+            var entry = _loadedPlugins[index];
+            if (entry.LoadedPlugin.Plugin is not IOpenGarrisonClientCameraHooks hook)
+            {
+                continue;
+            }
+
+            try
+            {
+                offset += hook.GetCameraOffset();
+            }
+            catch (Exception ex)
+            {
+                _log($"[plugin] camera hook failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
+            }
+        }
+
+        return offset;
+    }
 
     public ClientBubbleMenuUpdateResult? TryHandleBubbleMenuInput(ClientBubbleMenuInputState inputState)
     {

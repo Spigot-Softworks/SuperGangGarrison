@@ -75,6 +75,7 @@ public partial class Game1 : Game
         MoveRight,
         MoveDown,
         Taunt,
+        CallMedic,
         ChangeTeam,
         ChangeClass,
         ShowScoreboard,

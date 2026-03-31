@@ -21,6 +21,8 @@ public interface IOpenGarrisonClientReadOnlyState
 
     int TickRate { get; }
 
+    int LocalPingMilliseconds { get; }
+
     string LevelName { get; }
 
     float LevelWidth { get; }
@@ -38,6 +40,8 @@ public interface IOpenGarrisonClientReadOnlyState
     ClientPluginClass LocalPlayerClass { get; }
 
     bool IsLocalPlayerAlive { get; }
+
+    bool IsLocalPlayerScoped { get; }
 
     bool IsLocalPlayerHealing { get; }
 

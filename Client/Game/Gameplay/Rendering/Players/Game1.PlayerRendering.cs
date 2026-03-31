@@ -53,7 +53,7 @@ public partial class Game1
     private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
     private readonly List<int> _staleTrackedDeadBodyIds = new();
 
-    private Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
+    private static Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
         player.GetCollisionBoundsAt(renderPosition.X, renderPosition.Y, out var left, out var top, out var right, out var bottom);
         var screenLeft = (int)MathF.Floor(left - cameraPosition.X);

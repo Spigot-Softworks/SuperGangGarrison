@@ -12,8 +12,6 @@ public sealed class SentryEntity : SimulationEntity
     public const int ReloadTicks = 5;
     public const int HitDamage = 8;
     public const int ShotTraceTicks = 1;
-    public const int RotationTicks = 14;
-
     public SentryEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y, float startDirectionX) : base(id)
     {
         OwnerPlayerId = ownerPlayerId;
@@ -49,10 +47,6 @@ public sealed class SentryEntity : SimulationEntity
     public int RotationTicksRemaining { get; private set; }
 
     public bool IsRotating => RotationTicksRemaining > 0;
-
-    public float RotationProgress => RotationTicks <= 0
-        ? 1f
-        : 1f - (RotationTicksRemaining / (float)RotationTicks);
 
     public float AimDirectionDegrees { get; private set; }
 
@@ -135,18 +129,6 @@ public sealed class SentryEntity : SimulationEntity
             ShotTraceTicksRemaining -= 1;
         }
 
-        if (RotationTicksRemaining > 0)
-        {
-            RotationTicksRemaining -= 1;
-            if (RotationTicksRemaining == 0)
-            {
-                FacingDirectionX = DesiredFacingDirectionX;
-                if (!HasActiveTarget)
-                {
-                    AimDirectionDegrees = FacingDirectionX < 0f ? 180f : 0f;
-                }
-            }
-        }
     }
 
     public bool IsNear(float x, float y, float radius)
@@ -183,7 +165,7 @@ public sealed class SentryEntity : SimulationEntity
 
     public bool CanFire()
     {
-        return IsBuilt && AlertTicksRemaining == 0 && ReloadTicksRemaining == 0 && !IsRotating;
+        return IsBuilt && AlertTicksRemaining == 0 && ReloadTicksRemaining == 0;
     }
 
     public void FireAt(float targetX, float targetY)
@@ -245,21 +227,10 @@ public sealed class SentryEntity : SimulationEntity
     private void SetDesiredFacing(float desiredFacingDirectionX)
     {
         desiredFacingDirectionX = desiredFacingDirectionX >= 0f ? 1f : -1f;
-        if (DesiredFacingDirectionX == desiredFacingDirectionX && RotationTicksRemaining > 0)
-        {
-            return;
-        }
-
         DesiredFacingDirectionX = desiredFacingDirectionX;
-        if (FacingDirectionX == desiredFacingDirectionX)
-        {
-            RotationTicksRemaining = 0;
-            RotationStartDirectionX = FacingDirectionX;
-            return;
-        }
-
         RotationStartDirectionX = FacingDirectionX;
-        RotationTicksRemaining = RotationTicks;
+        FacingDirectionX = desiredFacingDirectionX;
+        RotationTicksRemaining = 0;
     }
 
     private bool IntersectsSolid(LevelSolid solid)

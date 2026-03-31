@@ -19,6 +19,7 @@ public partial class Game1
     private SoundEffectInstance? _ingameMusicInstance;
     private SoundEffectInstance? _localChaingunSoundInstance;
     private SoundEffectInstance? _localFlamethrowerSoundInstance;
+    private SoundEffectInstance? _localMedigunSoundInstance;
     private bool _audioAvailable = true;
     private bool _audioMuted;
     private MusicMode _musicMode = MusicMode.MenuAndInGame;
@@ -304,6 +305,8 @@ public partial class Game1
                 _explosions.Add(explosion!);
             }
 
+            NotifyClientPluginsWorldSound(soundEvent);
+
             if (!_audioAvailable)
             {
                 continue;
@@ -357,6 +360,7 @@ public partial class Game1
         _audioAvailable = false;
         StopAndDisposeLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
         StopAndDisposeLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
+        StopAndDisposeLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
         StopMenuMusic();
         StopFaucetMusic();
         StopIngameMusic();
@@ -423,6 +427,10 @@ public partial class Game1
             PrimaryWeaponKind.FlameThrower,
             "FlamethrowerSnd",
             ref _localFlamethrowerSoundInstance);
+        UpdateLocalRapidFireWeaponAudio(
+            PrimaryWeaponKind.Medigun,
+            "MedigunSnd",
+            ref _localMedigunSoundInstance);
     }
 
     private void UpdateLocalRapidFireWeaponAudio(
@@ -524,6 +532,11 @@ public partial class Game1
             return player.PyroFlameLoopTicksRemaining > 0;
         }
 
+        if (weaponKind == PrimaryWeaponKind.Medigun)
+        {
+            return player.IsMedicHealing && player.MedicHealTargetId.HasValue;
+        }
+
         return player.PrimaryCooldownTicks > 0;
     }
 
@@ -559,6 +572,7 @@ public partial class Game1
     {
         StopLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
         StopLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
+        StopLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
     }
 
     private static void StopLocalRapidFireWeaponSound(ref SoundEffectInstance? instance)

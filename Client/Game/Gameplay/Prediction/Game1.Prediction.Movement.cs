@@ -147,10 +147,6 @@ public partial class Game1
         var canMove = !_predictedLocalActionState.IsHeavyEating
             && !player.IsTaunting
             && !IsPredictedSpyBackstabAnimating();
-        if (IsPredictedSpyBackstabAnimating())
-        {
-            _predictedLocalPlayerVelocity.X = 0f;
-        }
 
         var horizontalDirection = 0f;
         if (canMove && predictedInput.Input.Left)

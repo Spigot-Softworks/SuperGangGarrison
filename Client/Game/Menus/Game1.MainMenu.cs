@@ -159,11 +159,21 @@ public partial class Game1
 
         string[] items = ["Host Game", "Practice", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
         var position = new Vector2(40f, 300f);
+        const float itemSpacing = 30f;
+        const float itemWidth = 212f;
+        DrawMenuPanelBackdrop(
+            new Rectangle(
+                (int)MathF.Round(position.X - 12f),
+                (int)MathF.Round(position.Y - 24f),
+                (int)MathF.Round(itemWidth + 28f),
+                (int)MathF.Round((items.Length * itemSpacing) + 24f)),
+            0.82f);
+        DrawMenuPlaqueRows(position, items.Length, itemSpacing, itemWidth, 0.72f);
         for (var index = 0; index < items.Length; index += 1)
         {
             var color = index == _mainMenuHoverIndex ? Color.Red : Color.White;
             DrawBitmapFontText(items[index], position, color, 1f);
-            position.Y += 30f;
+            position.Y += itemSpacing;
         }
 
         DrawMenuStatusText();

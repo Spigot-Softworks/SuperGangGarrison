@@ -3,29 +3,29 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34723.18
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\OpenGarrison.Core.csproj", "{47BD21C1-2170-456C-AF98-6D92C5F73BA9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Core", "Core\OpenGarrison.Core.csproj", "{47BD21C1-2170-456C-AF98-6D92C5F73BA9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\OpenGarrison.Client.csproj", "{4CE8A209-60D8-4C0D-B8A4-13F0CEA39719}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client", "Client\OpenGarrison.Client.csproj", "{4CE8A209-60D8-4C0D-B8A4-13F0CEA39719}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Protocol", "Protocol\OpenGarrison.Protocol.csproj", "{C466DC68-44CF-4138-BAAE-1900C611CAC3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Protocol", "Protocol\OpenGarrison.Protocol.csproj", "{C466DC68-44CF-4138-BAAE-1900C611CAC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\OpenGarrison.Server.csproj", "{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server", "Server\OpenGarrison.Server.csproj", "{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server.Plugins.Abstractions", "Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.Abstractions", "Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj", "{1C1FDBDB-C37C-4282-919B-BD56BD1953E1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.Abstractions", "Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.Abstractions", "Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj", "{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameplayModding.Abstractions", "GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.GameplayModding.Abstractions", "GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj", "{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerLauncher", "ServerLauncher\OpenGarrison.ServerLauncher.csproj", "{2E938D9E-532E-471F-8192-30CDB8828AB7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.ServerLauncher", "ServerLauncher\OpenGarrison.ServerLauncher.csproj", "{2E938D9E-532E-471F-8192-30CDB8828AB7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server.Plugins.ChatVoting", "Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Server.Plugins.ChatVoting", "Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\OpenGarrison.Server.Plugins.ChatVoting.csproj", "{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.DamageIndicator", "Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.DamageIndicator", "Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\OpenGarrison.Client.Plugins.DamageIndicator.csproj", "{42AB5832-4018-46D1-82A7-941908F6C6EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotAI", "BotAI\OpenGarrison.BotAI.csproj", "{8C4C8B37-3893-40C3-923D-947E063C2522}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.BotAI", "BotAI\OpenGarrison.BotAI.csproj", "{8C4C8B37-3893-40C3-923D-947E063C2522}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotAI.Tools", "BotAI.Tools\OpenGarrison.BotAI.Tools.csproj", "{DDF9EA1E-10F4-43E3-9768-3367C19739DB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.BotAI.Tools", "BotAI.Tools\OpenGarrison.BotAI.Tools.csproj", "{DDF9EA1E-10F4-43E3-9768-3367C19739DB}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Applications", "Applications", "{9C6607FF-533F-4781-A1D3-F0EDC15648A8}"
 EndProject
@@ -41,15 +41,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{8B45E6
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{FB626974-BFF8-4535-8CE6-19E3BFCDD2A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.LowHealthIndicator", "Plugins\Client\OpenGarrison.Client.Plugins.LowHealthIndicator\OpenGarrison.Client.Plugins.LowHealthIndicator.csproj", "{B0230EB3-414F-469B-AF8F-E6F99135B802}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.LowHealthIndicator", "Plugins\Client\OpenGarrison.Client.Plugins.LowHealthIndicator\OpenGarrison.Client.Plugins.LowHealthIndicator.csproj", "{B0230EB3-414F-469B-AF8F-E6F99135B802}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.RandomBackgrounds", "Plugins\Client\OpenGarrison.Client.Plugins.RandomBackgrounds\OpenGarrison.Client.Plugins.RandomBackgrounds.csproj", "{914B3378-7C3A-43C4-AA9E-284AF7FBF34A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.RandomBackgrounds", "Plugins\Client\OpenGarrison.Client.Plugins.RandomBackgrounds\OpenGarrison.Client.Plugins.RandomBackgrounds.csproj", "{914B3378-7C3A-43C4-AA9E-284AF7FBF34A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.BubbleWheel", "Plugins\Client\OpenGarrison.Client.Plugins.BubbleWheel\OpenGarrison.Client.Plugins.BubbleWheel.csproj", "{6AA93E1E-E546-4ACE-9826-E8989ED45C92}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.BubbleWheel", "Plugins\Client\OpenGarrison.Client.Plugins.BubbleWheel\OpenGarrison.Client.Plugins.BubbleWheel.csproj", "{6AA93E1E-E546-4ACE-9826-E8989ED45C92}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.MoreAnimations", "Plugins\Client\OpenGarrison.Client.Plugins.MoreAnimations\OpenGarrison.Client.Plugins.MoreAnimations.csproj", "{A4E5A761-99C8-4A7B-8D29-C4A5FBF31F40}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.MoreAnimations", "Plugins\Client\OpenGarrison.Client.Plugins.MoreAnimations\OpenGarrison.Client.Plugins.MoreAnimations.csproj", "{A4E5A761-99C8-4A7B-8D29-C4A5FBF31F40}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client.Plugins.TeamOnlyMinimap", "Plugins\Client\OpenGarrison.Client.Plugins.TeamOnlyMinimap\OpenGarrison.Client.Plugins.TeamOnlyMinimap.csproj", "{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.TeamOnlyMinimap", "Plugins\Client\OpenGarrison.Client.Plugins.TeamOnlyMinimap\OpenGarrison.Client.Plugins.TeamOnlyMinimap.csproj", "{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.CameraShake", "Plugins\Client\OpenGarrison.Client.Plugins.CameraShake\OpenGarrison.Client.Plugins.CameraShake.csproj", "{2595A947-996F-4093-9B35-458227A5EBC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGarrison.Client.Plugins.ShowPing", "Plugins\Client\OpenGarrison.Client.Plugins.ShowPing\OpenGarrison.Client.Plugins.ShowPing.csproj", "{D7B5FAD6-E2A0-498A-B031-07111D74A056}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -261,30 +265,56 @@ Global
 		{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C}.Release|x64.Build.0 = Release|Any CPU
 		{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C}.Release|x86.ActiveCfg = Release|Any CPU
 		{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C}.Release|x86.Build.0 = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|x64.Build.0 = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Debug|x86.Build.0 = Debug|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|x64.ActiveCfg = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|x64.Build.0 = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|x86.ActiveCfg = Release|Any CPU
+		{2595A947-996F-4093-9B35-458227A5EBC7}.Release|x86.Build.0 = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|x64.Build.0 = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Debug|x86.Build.0 = Debug|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|x64.ActiveCfg = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|x64.Build.0 = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|x86.ActiveCfg = Release|Any CPU
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{4CE8A209-60D8-4C0D-B8A4-13F0CEA39719} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
-		{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
-		{2E938D9E-532E-471F-8192-30CDB8828AB7} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
 		{47BD21C1-2170-456C-AF98-6D92C5F73BA9} = {74490F90-A453-4F93-A95F-92448F970FBF}
+		{4CE8A209-60D8-4C0D-B8A4-13F0CEA39719} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
 		{C466DC68-44CF-4138-BAAE-1900C611CAC3} = {74490F90-A453-4F93-A95F-92448F970FBF}
-		{8C4C8B37-3893-40C3-923D-947E063C2522} = {74490F90-A453-4F93-A95F-92448F970FBF}
+		{277C6017-9F88-42CC-8EFE-23B7ACCBA4A9} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
+		{1C1FDBDB-C37C-4282-919B-BD56BD1953E1} = {8B45E6A3-3E9F-4E36-9483-3199DEA1E9CB}
+		{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 		{D09D3A4D-4B95-4DA4-B742-95B9807D0C1E} = {B73038FA-7228-44FE-B23F-7C01529B1184}
+		{2E938D9E-532E-471F-8192-30CDB8828AB7} = {9C6607FF-533F-4781-A1D3-F0EDC15648A8}
+		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B} = {8B45E6A3-3E9F-4E36-9483-3199DEA1E9CB}
+		{42AB5832-4018-46D1-82A7-941908F6C6EF} = {E182FC94-13F6-4A7D-8758-677E250CA904}
+		{8C4C8B37-3893-40C3-923D-947E063C2522} = {74490F90-A453-4F93-A95F-92448F970FBF}
 		{DDF9EA1E-10F4-43E3-9768-3367C19739DB} = {FB626974-BFF8-4535-8CE6-19E3BFCDD2A1}
 		{E182FC94-13F6-4A7D-8758-677E250CA904} = {4C616E61-9E2E-41CC-AC78-AFBB21B8954A}
 		{8B45E6A3-3E9F-4E36-9483-3199DEA1E9CB} = {4C616E61-9E2E-41CC-AC78-AFBB21B8954A}
-		{B2081A7C-39B8-4E1B-B8AF-4A82E0C0DE77} = {E182FC94-13F6-4A7D-8758-677E250CA904}
-		{42AB5832-4018-46D1-82A7-941908F6C6EF} = {E182FC94-13F6-4A7D-8758-677E250CA904}
-		{1C1FDBDB-C37C-4282-919B-BD56BD1953E1} = {8B45E6A3-3E9F-4E36-9483-3199DEA1E9CB}
-		{78C166E6-BE6B-48E9-BC25-04D9CD2CFD1B} = {8B45E6A3-3E9F-4E36-9483-3199DEA1E9CB}
 		{B0230EB3-414F-469B-AF8F-E6F99135B802} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 		{914B3378-7C3A-43C4-AA9E-284AF7FBF34A} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 		{6AA93E1E-E546-4ACE-9826-E8989ED45C92} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 		{A4E5A761-99C8-4A7B-8D29-C4A5FBF31F40} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 		{48A7CFEE-E7A0-4B55-856A-3D2D667F2A7C} = {E182FC94-13F6-4A7D-8758-677E250CA904}
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
+		{2595A947-996F-4093-9B35-458227A5EBC7} = {E182FC94-13F6-4A7D-8758-677E250CA904}
+		{D7B5FAD6-E2A0-498A-B031-07111D74A056} = {E182FC94-13F6-4A7D-8758-677E250CA904}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {51ECE597-0299-4753-B7F5-4E8EDECD7BB4}

@@ -69,7 +69,7 @@ internal static class GgonParser
             };
         }
 
-        private GgonValue ParseMap()
+        private GgonValue.Map ParseMap()
         {
             Expect('{');
             SkipWhitespace();
@@ -99,7 +99,7 @@ internal static class GgonParser
             }
         }
 
-        private GgonValue ParseList()
+        private GgonValue.List ParseList()
         {
             Expect('[');
             SkipWhitespace();
