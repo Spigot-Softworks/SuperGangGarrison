@@ -1,0 +1,107 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0/win-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {},
+    ".NETCoreApp,Version=v10.0/win-x64": {
+      "OpenGarrison.Client.Plugins.BubbleWheel/1.0.0": {
+        "dependencies": {
+          "MonoGame.Framework.DesktopGL": "3.8.4.1",
+          "OpenGarrison.Client.Plugins.Abstractions": "1.0.0"
+        },
+        "runtime": {
+          "OpenGarrison.Client.Plugins.BubbleWheel.dll": {}
+        }
+      },
+      "MonoGame.Framework.DesktopGL/3.8.4.1": {
+        "dependencies": {
+          "MonoGame.Library.OpenAL": "1.24.3.2",
+          "MonoGame.Library.SDL": "2.32.2.1",
+          "NVorbis": "0.10.4"
+        },
+        "runtime": {
+          "lib/net8.0/MonoGame.Framework.dll": {
+            "assemblyVersion": "3.8.4.1",
+            "fileVersion": "3.8.4.1"
+          }
+        }
+      },
+      "MonoGame.Library.OpenAL/1.24.3.2": {
+        "native": {
+          "runtimes/win-x64/native/openal.dll": {
+            "fileVersion": "1.24.3.0"
+          }
+        }
+      },
+      "MonoGame.Library.SDL/2.32.2.1": {
+        "native": {
+          "runtimes/win-x64/native/SDL2.dll": {
+            "fileVersion": "2.32.2.0"
+          }
+        }
+      },
+      "NVorbis/0.10.4": {
+        "runtime": {
+          "lib/netstandard2.0/NVorbis.dll": {
+            "assemblyVersion": "0.10.4.0",
+            "fileVersion": "0.10.4.0"
+          }
+        }
+      },
+      "OpenGarrison.Client.Plugins.Abstractions/1.0.0": {
+        "dependencies": {
+          "MonoGame.Framework.DesktopGL": "3.8.4.1"
+        },
+        "runtime": {
+          "OpenGarrison.Client.Plugins.Abstractions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "OpenGarrison.Client.Plugins.BubbleWheel/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "MonoGame.Framework.DesktopGL/3.8.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-YybxIIT5+Ky78E/XdkS0glyluMr2EeDZwx2LqXULAOCqiKt1+aDrjPZaqLL5qpNgBcMEHUeZJ4YjWe4TAZlWLw==",
+      "path": "monogame.framework.desktopgl/3.8.4.1",
+      "hashPath": "monogame.framework.desktopgl.3.8.4.1.nupkg.sha512"
+    },
+    "MonoGame.Library.OpenAL/1.24.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nGRsXQXs+NSUC3C5w90hFQfyKdZPpBnHnyg2w+Dw/2pUH7s+CoRWTJNYbzzdJf3+aeUvfvG4rTbFvMKDDj5olA==",
+      "path": "monogame.library.openal/1.24.3.2",
+      "hashPath": "monogame.library.openal.1.24.3.2.nupkg.sha512"
+    },
+    "MonoGame.Library.SDL/2.32.2.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-T4E2ppGlSTC2L9US1rxtdg3qTbarRzNId31xZoumUW9cf9Nq8nRQPMu9GzvZGrhfSySf0+UWPEj1rlicps+P/w==",
+      "path": "monogame.library.sdl/2.32.2.1",
+      "hashPath": "monogame.library.sdl.2.32.2.1.nupkg.sha512"
+    },
+    "NVorbis/0.10.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WYnil3DhQHzjCY0dM9I2B3r1vWip90AOuQd25KE4NrjPQBg0tBJFluRLm5YPnO5ZLDmwrfosY8jCQGQRmWI/Pg==",
+      "path": "nvorbis/0.10.4",
+      "hashPath": "nvorbis.0.10.4.nupkg.sha512"
+    },
+    "OpenGarrison.Client.Plugins.Abstractions/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -201,7 +201,9 @@ function Publish-BundledPlugins {
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
         [Parameter(Mandatory = $true)]
-        [string]$OutputDirectory
+        [string]$OutputDirectory,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeIdentifier
     )
 
     $bundledPlugins = Get-BundledPluginProjects -RepoRoot $RepoRoot
@@ -212,13 +214,16 @@ function Publish-BundledPlugins {
 
         Invoke-DotNet -Arguments @(
             "restore",
-            $projectPath
+            $projectPath,
+            "-r", $RuntimeIdentifier
         )
 
         Invoke-DotNet -Arguments @(
             "publish",
             $projectPath,
             "-c", $configuration,
+            "-r", $RuntimeIdentifier,
+            "--self-contained", "false",
             "--no-restore",
             "-o", $pluginOutputDirectory
         )
@@ -276,7 +281,7 @@ foreach ($runtimeIdentifier in $Platforms) {
         Add-UnixLaunchers -OutputDirectory $stagingDirectory
     }
 
-    Publish-BundledPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
+    Publish-BundledPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
 
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory
