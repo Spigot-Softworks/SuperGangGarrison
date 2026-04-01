@@ -18,23 +18,19 @@ public partial class Game1
         _hostSetupState.ClampMapScrollOffset(layout.VisibleRowCapacity);
         var panel = layout.Panel;
         var compactLayout = layout.CompactLayout;
-        var titleScale = compactLayout ? 0.92f : 1f;
-        var subtitleScale = compactLayout ? 0.78f : 0.9f;
-        var headerScale = compactLayout ? 0.72f : 0.8f;
-        var rowScale = compactLayout ? 0.78f : 0.9f;
-        var fieldLabelScale = compactLayout ? 0.74f : 0.9f;
-        var infoScale = compactLayout ? 0.74f : 0.85f;
-        var inputScale = compactLayout ? 0.86f : 1f;
-        var buttonScale = compactLayout ? 0.84f : 1f;
+        const float headerScale = 1f;
+        const float rowScale = 1f;
+        const float fieldLabelScale = 1f;
+        const float infoScale = 1f;
+        const float inputScale = 1f;
+        const float buttonScale = 1f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText(GetHostSetupTitle(), new Vector2(panel.X + 28f, panel.Y + 22f), Color.White, titleScale);
-        DrawBitmapFontText(GetHostSetupSubtitle(), new Vector2(panel.X + 28f, panel.Y + 48f), new Color(200, 200, 200), subtitleScale);
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage) && compactLayout)
         {
-            DrawBitmapFontText(_menuStatusMessage, layout.StatusPosition, new Color(230, 220, 180), 0.82f);
+            DrawBitmapFontText(_menuStatusMessage, layout.StatusPosition, new Color(230, 220, 180), 1f);
         }
 
         if (IsServerLauncherMode)
@@ -66,7 +62,7 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, settingsSection, new Color(26, 28, 33, 170));
         }
 
-        DrawBitmapFontText("Stock Map Rotation", new Vector2(layout.ListBounds.X, layout.ListBounds.Y - 24f), Color.White, compactLayout ? 0.88f : 0.95f);
+        DrawBitmapFontText("Stock Map Rotation", new Vector2(layout.ListBounds.X, layout.ListBounds.Y - 24f), Color.White, 1f);
         if (_hostMapEntries.Count > layout.VisibleRowCapacity)
         {
             var visibleStart = _hostMapScrollOffset + 1;
@@ -75,7 +71,7 @@ public partial class Game1
                 $"{visibleStart}-{visibleEnd}/{_hostMapEntries.Count}",
                 new Vector2(layout.ListBounds.Right - (compactLayout ? 70f : 86f), layout.ListBounds.Y - 24f),
                 new Color(186, 186, 186),
-                compactLayout ? 0.68f : 0.78f);
+                1f);
         }
         DrawBitmapFontText("ORDER", new Vector2(layout.ListBounds.X + 10f, layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
         DrawBitmapFontText("MAP", new Vector2(layout.ListBounds.X + (compactLayout ? 54f : 78f), layout.ListBounds.Y - 2f), new Color(210, 210, 210), headerScale);
@@ -133,13 +129,6 @@ public partial class Game1
         DrawMenuButtonScaled(layout.ToggleBounds, selectedIncluded ? "Exclude" : "Include", selectedIncluded, buttonScale);
         DrawMenuButtonScaled(layout.MoveUpBounds, "Move Up", false, buttonScale);
         DrawMenuButtonScaled(layout.MoveDownBounds, "Move Down", false, buttonScale);
-
-        var stockRotationLabel = GetHostStockRotationSummary(compactLayout ? 3 : 4);
-        DrawBitmapFontText(stockRotationLabel, new Vector2(layout.ListBounds.X, layout.ToggleBounds.Bottom + (compactLayout ? 12f : 18f)), new Color(220, 220, 220), compactLayout ? 0.74f : 0.85f);
-        if (!compactLayout && !string.IsNullOrWhiteSpace(_hostMapRotationFileBuffer))
-        {
-            DrawBitmapFontText("Custom rotation file overrides the stock list below.", new Vector2(layout.ListBounds.X, layout.ToggleBounds.Bottom + 40f), new Color(226, 204, 164), 0.82f);
-        }
 
         var labelColor = new Color(210, 210, 210);
         DrawBitmapFontText("Server Name", new Vector2(layout.ServerNameBounds.X, layout.ServerNameBounds.Y - 16f), labelColor, fieldLabelScale);

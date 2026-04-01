@@ -144,17 +144,12 @@ public partial class Game1
             out var backBounds,
             out var compactLayout);
         GetLobbyBrowserColumnLayout(listBounds, compactLayout, out var nameColumnX, out var nameColumnWidth, out var addressColumnX, out var addressColumnWidth, out var playersColumnX, out var playersColumnWidth, out var mapColumnX, out var mapColumnWidth, out var modeColumnX, out var modeColumnWidth, out var pingColumnX, out var pingColumnWidth);
-        var titleScale = compactLayout ? 0.94f : 1f;
-        var subtitleScale = compactLayout ? 0.78f : 0.9f;
-        var headerScale = compactLayout ? 0.74f : 1f;
-        var rowScale = compactLayout ? 0.74f : 0.9f;
-        var buttonScale = compactLayout ? 0.86f : 1f;
+        const float headerScale = 1f;
+        const float rowScale = 1f;
+        const float buttonScale = 1f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
-
-        DrawBitmapFontText("Join (browser)", new Vector2(panel.X + 24f, panel.Y + 22f), Color.White, titleScale);
-        DrawBitmapFontText("Known servers with live status", new Vector2(panel.X + 24f, panel.Y + 48f), new Color(210, 210, 210), subtitleScale);
 
         var headerY = listBounds.Y - 22f;
         DrawBitmapFontText("NAME", new Vector2(nameColumnX, headerY), Color.White, headerScale);
@@ -202,7 +197,7 @@ public partial class Game1
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
-            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, refreshBounds.Y - (compactLayout ? 26f : 30f)), new Color(230, 220, 180), subtitleScale);
+            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, refreshBounds.Y - (compactLayout ? 26f : 30f)), new Color(230, 220, 180), 1f);
         }
     }
 
@@ -237,7 +232,7 @@ public partial class Game1
         manualBounds = new Rectangle(joinBounds.Right + actionGap, actionY, actionButtonWidth, actionButtonHeight);
         backBounds = new Rectangle(manualBounds.Right + actionGap, actionY, actionButtonWidth, actionButtonHeight);
 
-        var contentTop = panel.Y + (compactLayout ? 106 : 132);
+        var contentTop = panel.Y + (compactLayout ? 72 : 88);
         var contentBottom = refreshBounds.Y - (compactLayout ? 36 : 44);
         listBounds = new Rectangle(panel.X + 20, contentTop, panel.Width - 40, System.Math.Max(120, contentBottom - contentTop));
         var rowHeight = compactLayout ? 26 : 30;

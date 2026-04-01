@@ -95,6 +95,7 @@ public sealed partial class PlayerEntity
         }
 
         canMove = !IsHeavyEating && !IsTaunting && !IsSpyBackstabAnimating;
+        var preserveHorizontalMomentum = ClassId == PlayerClass.Spy && IsSpyBackstabAnimating;
 
         var horizontalDirection = 0f;
         if (canMove && input.Left)
@@ -111,16 +112,19 @@ public sealed partial class PlayerEntity
             FacingDirectionX = horizontalDirection;
         }
 
-        HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
-            HorizontalSpeed,
-            RunPower,
-            GetMovementScale(input),
-            canMove && (input.Left || input.Right),
-            horizontalDirection,
-            MovementState,
-            IsCarryingIntel,
-            dt,
-            isHumiliated);
+        if (!preserveHorizontalMomentum)
+        {
+            HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+                HorizontalSpeed,
+                RunPower,
+                GetMovementScale(input),
+                canMove && (input.Left || input.Right),
+                horizontalDirection,
+                MovementState,
+                IsCarryingIntel,
+                dt,
+                isHumiliated);
+        }
 
         ClampMovementSpeedsToSourceStepMaximum();
 

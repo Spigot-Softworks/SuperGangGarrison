@@ -179,11 +179,9 @@ public partial class Game1
         var layout = GetPracticeSetupLayout();
         var panel = layout.Panel;
         var compactLayout = layout.CompactLayout;
-        var titleScale = compactLayout ? 0.94f : 1f;
-        var labelScale = compactLayout ? 0.8f : 0.9f;
-        var valueScale = compactLayout ? 0.82f : 0.9f;
-        var buttonScale = compactLayout ? 0.84f : 0.94f;
-        var infoScale = compactLayout ? 0.74f : 0.84f;
+        const float labelScale = 1f;
+        const float valueScale = 1f;
+        const float buttonScale = 1f;
         var rowLabelX = panel.X + (compactLayout ? 24f : 28f);
         var rowTextOffset = compactLayout ? 8f : 10f;
         var mapEntry = GetSelectedPracticeMapEntry();
@@ -191,13 +189,6 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
-
-        DrawBitmapFontText("Practice", new Vector2(panel.X + 24f, panel.Y + 22f), Color.White, titleScale);
-        DrawBitmapFontText(
-            "Offline rules sandbox with placeholder bot slots and optional dummies.",
-            new Vector2(panel.X + 24f, panel.Y + 48f),
-            new Color(210, 210, 210),
-            infoScale);
 
         DrawBitmapFontText("Map", new Vector2(rowLabelX, layout.MapValueBounds.Y + rowTextOffset), Color.White, labelScale);
         DrawPracticeSelectorRow(
@@ -274,19 +265,13 @@ public partial class Game1
         DrawMenuButtonScaled(layout.StartBounds, "Start Practice", false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, "Back", false, buttonScale);
 
-        DrawBitmapFontText(
-            "Bot slots use simple placeholder AI for now. Training and support dummies remain optional.",
-            new Vector2(panel.X + 24f, layout.FriendlyDummyBounds.Bottom + (compactLayout ? 18f : 22f)),
-            new Color(200, 200, 200),
-            infoScale);
-
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
             DrawBitmapFontText(
                 _menuStatusMessage,
                 new Vector2(panel.X + 24f, panel.Bottom - (compactLayout ? 34f : 38f)),
                 new Color(230, 220, 180),
-                infoScale);
+                1f);
         }
     }
 
@@ -305,7 +290,7 @@ public partial class Game1
         var rowHeight = compactLayout ? 36 : 42;
         var rowGap = compactLayout ? 8 : 10;
         var selectorButtonWidth = compactLayout ? 34 : 40;
-        var contentTop = panel.Y + (compactLayout ? 98 : 112);
+        var contentTop = panel.Y + (compactLayout ? 58 : 72);
         var labelWidth = compactLayout ? 126 : 150;
         var selectorLeft = panel.X + padding + labelWidth;
         var selectorWidth = panel.Width - (padding * 2) - labelWidth;

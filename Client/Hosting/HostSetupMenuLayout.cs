@@ -106,7 +106,7 @@ internal static class HostSetupMenuLayoutCalculator
             var rowHeight = 20;
             var listWidth = Math.Min(288, Math.Max(248, (panel.Width - (padding * 2) - 20) / 2));
             var listX = panel.X + padding;
-            var contentTop = panel.Y + (isServerLauncherMode ? 92 : 84);
+            var contentTop = panel.Y + (isServerLauncherMode ? 92 : 58);
             var availableListHeight = Math.Max(170, panel.Bottom - 156 - contentTop);
             var maxListHeight = listHeaderHeight + (Math.Max(1, mapCount) * rowHeight);
             var listHeight = Math.Min(Math.Min(236, maxListHeight), availableListHeight);
@@ -188,21 +188,22 @@ internal static class HostSetupMenuLayoutCalculator
             roomyListWidth = Math.Max(320, roomyMaxListWidth);
         }
 
-        var roomyListBounds = new Rectangle(panel.X + roomyPadding, panel.Y + 96, roomyListWidth, 328);
+        var roomyContentTop = panel.Y + (isServerLauncherMode ? 96 : 64);
+        var roomyListBounds = new Rectangle(panel.X + roomyPadding, roomyContentTop, roomyListWidth, 328);
         var roomyToggleBounds = new Rectangle(roomyListBounds.X, roomyListBounds.Bottom + 14, 116, 34);
         var roomyMoveUpBounds = new Rectangle(roomyToggleBounds.Right + 12, roomyToggleBounds.Y, 116, 34);
         var roomyMoveDownBounds = new Rectangle(roomyMoveUpBounds.Right + 12, roomyToggleBounds.Y, 116, 34);
 
         var roomyFieldX = roomyListBounds.Right + roomyInterColumnGap;
         var roomyFieldWidth = panel.Right - roomyFieldX - roomyPadding;
-        var roomyServerNameBounds = new Rectangle(roomyFieldX, panel.Y + 100, roomyFieldWidth, 32);
-        var roomyPortBounds = new Rectangle(roomyFieldX, panel.Y + 150, roomyFieldWidth, 32);
-        var roomySlotsBounds = new Rectangle(roomyFieldX, panel.Y + 200, roomyFieldWidth, 32);
-        var roomyPasswordBounds = new Rectangle(roomyFieldX, panel.Y + 250, roomyFieldWidth, 32);
-        var roomyRotationFileBounds = new Rectangle(roomyFieldX, panel.Y + 300, roomyFieldWidth, 32);
-        var roomyTimeLimitBounds = new Rectangle(roomyFieldX, panel.Y + 350, roomyFieldWidth, 32);
-        var roomyCapLimitBounds = new Rectangle(roomyFieldX, panel.Y + 400, roomyFieldWidth, 32);
-        var roomyRespawnBounds = new Rectangle(roomyFieldX, panel.Y + 450, roomyFieldWidth, 32);
+        var roomyServerNameBounds = new Rectangle(roomyFieldX, roomyContentTop + 4, roomyFieldWidth, 32);
+        var roomyPortBounds = new Rectangle(roomyFieldX, roomyContentTop + 54, roomyFieldWidth, 32);
+        var roomySlotsBounds = new Rectangle(roomyFieldX, roomyContentTop + 104, roomyFieldWidth, 32);
+        var roomyPasswordBounds = new Rectangle(roomyFieldX, roomyContentTop + 154, roomyFieldWidth, 32);
+        var roomyRotationFileBounds = new Rectangle(roomyFieldX, roomyContentTop + 204, roomyFieldWidth, 32);
+        var roomyTimeLimitBounds = new Rectangle(roomyFieldX, roomyContentTop + 254, roomyFieldWidth, 32);
+        var roomyCapLimitBounds = new Rectangle(roomyFieldX, roomyContentTop + 304, roomyFieldWidth, 32);
+        var roomyRespawnBounds = new Rectangle(roomyFieldX, roomyContentTop + 354, roomyFieldWidth, 32);
 
         var roomyBackBounds = new Rectangle(panel.Right - roomyPadding - 140, panel.Bottom - 20 - 42, 140, 42);
         var roomyHostBounds = new Rectangle(roomyBackBounds.X - 20 - 140, roomyBackBounds.Y, 140, 42);

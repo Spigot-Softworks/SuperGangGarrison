@@ -76,16 +76,12 @@ public partial class Game1
             out var connectBounds,
             out var backBounds,
             out var compactLayout);
-        var titleScale = compactLayout ? 0.94f : 1f;
-        var labelScale = compactLayout ? 0.84f : 1f;
-        var buttonScale = compactLayout ? 0.9f : 1f;
-        var infoScale = compactLayout ? 0.78f : 0.9f;
+        const float labelScale = 1f;
+        const float buttonScale = 1f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
-        DrawBitmapFontText("Join (manual)", new Vector2(panel.X + 24f, panel.Y + 22f), Color.White, titleScale);
-        DrawBitmapFontText("Connect straight to a known server address.", new Vector2(panel.X + 24f, panel.Y + 48f), new Color(210, 210, 210), infoScale);
         DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
         DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);
 
@@ -96,7 +92,7 @@ public partial class Game1
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
-            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, panel.Bottom - (compactLayout ? 34f : 38f)), new Color(230, 220, 180), infoScale);
+            DrawBitmapFontText(_menuStatusMessage, new Vector2(panel.X + 24f, panel.Bottom - (compactLayout ? 34f : 38f)), new Color(230, 220, 180), 1f);
         }
     }
 
@@ -122,7 +118,7 @@ public partial class Game1
         var buttonHeight = compactLayout ? 36 : 42;
         var buttonGap = compactLayout ? 12 : 20;
         var buttonWidth = (panel.Width - (padding * 2) - buttonGap) / 2;
-        var contentTop = panel.Y + (compactLayout ? 92 : 116);
+        var contentTop = panel.Y + (compactLayout ? 58 : 74);
         hostBounds = new Rectangle(panel.X + padding, contentTop, panel.Width - (padding * 2), fieldHeight);
         portBounds = new Rectangle(panel.X + padding, hostBounds.Bottom + (compactLayout ? 42 : 52), System.Math.Min(220, hostBounds.Width), fieldHeight);
         connectBounds = new Rectangle(panel.X + padding, panel.Bottom - padding - buttonHeight - 6, buttonWidth, buttonHeight);

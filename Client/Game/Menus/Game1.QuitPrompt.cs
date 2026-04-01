@@ -79,16 +79,15 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.76f);
 
         GetQuitPromptLayout(out var panel, out var confirmBounds, out var cancelBounds, out var compactLayout);
-        var titleScale = compactLayout ? 0.94f : 1f;
-        var textScale = compactLayout ? 0.84f : 0.92f;
-        var buttonScale = compactLayout ? 0.88f : 1f;
+        const float titleScale = 1f;
+        const float buttonScale = 1f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 242));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
         DrawBitmapFontTextCentered(
             "Are you sure you want to quit?",
-            new Vector2(panel.Center.X, panel.Y + (compactLayout ? 34f : 38f)),
+            new Vector2(panel.Center.X, panel.Y + (compactLayout ? 32f : 38f)),
             Color.White,
             titleScale);
 

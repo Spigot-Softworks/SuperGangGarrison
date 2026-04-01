@@ -144,9 +144,11 @@ public partial class Game1
         var maxRunSpeed = player.MaxRunSpeed * moveScale;
         var groundAcceleration = player.GroundAcceleration * moveScale;
         var groundDeceleration = player.GroundDeceleration * moveScale;
+        var isSpyBackstabAnimating = IsPredictedSpyBackstabAnimating();
         var canMove = !_predictedLocalActionState.IsHeavyEating
             && !player.IsTaunting
-            && !IsPredictedSpyBackstabAnimating();
+            && !isSpyBackstabAnimating;
+        var preserveHorizontalMomentum = player.ClassId == PlayerClass.Spy && isSpyBackstabAnimating;
 
         var horizontalDirection = 0f;
         if (canMove && predictedInput.Input.Left)
@@ -159,21 +161,24 @@ public partial class Game1
             horizontalDirection += 1f;
         }
 
-        if (horizontalDirection != 0f)
+        if (!preserveHorizontalMomentum)
         {
-            _predictedLocalPlayerVelocity.X += horizontalDirection * groundAcceleration * dt;
-            _predictedLocalPlayerVelocity.X = float.Clamp(_predictedLocalPlayerVelocity.X, -maxRunSpeed, maxRunSpeed);
-        }
-        else
-        {
-            var deceleration = groundDeceleration * dt;
-            if (_predictedLocalPlayerVelocity.X > 0f)
+            if (horizontalDirection != 0f)
             {
-                _predictedLocalPlayerVelocity.X = float.Max(0f, _predictedLocalPlayerVelocity.X - deceleration);
+                _predictedLocalPlayerVelocity.X += horizontalDirection * groundAcceleration * dt;
+                _predictedLocalPlayerVelocity.X = float.Clamp(_predictedLocalPlayerVelocity.X, -maxRunSpeed, maxRunSpeed);
             }
-            else if (_predictedLocalPlayerVelocity.X < 0f)
+            else
             {
-                _predictedLocalPlayerVelocity.X = float.Min(0f, _predictedLocalPlayerVelocity.X + deceleration);
+                var deceleration = groundDeceleration * dt;
+                if (_predictedLocalPlayerVelocity.X > 0f)
+                {
+                    _predictedLocalPlayerVelocity.X = float.Max(0f, _predictedLocalPlayerVelocity.X - deceleration);
+                }
+                else if (_predictedLocalPlayerVelocity.X < 0f)
+                {
+                    _predictedLocalPlayerVelocity.X = float.Min(0f, _predictedLocalPlayerVelocity.X + deceleration);
+                }
             }
         }
 
