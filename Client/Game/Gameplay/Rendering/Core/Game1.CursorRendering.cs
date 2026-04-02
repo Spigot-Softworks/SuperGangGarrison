@@ -27,6 +27,7 @@ public partial class Game1
             || _classSelectOpen
             || _classSelectAlpha > 0.02f
             || ShouldBlockGameplayForNavEditor()
+            || _clientPowersOpen
             || _practiceSetupOpen
             || _inGameMenuOpen
             || _optionsMenuOpen

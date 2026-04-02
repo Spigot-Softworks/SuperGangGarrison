@@ -36,7 +36,10 @@ public sealed partial class SimulationWorld
                     var owner = FindPlayerById(shot.OwnerId);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, ShotProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: GetKillFeedWeaponSprite(owner));
+                        KillPlayer(
+                            hitResult.HitPlayer,
+                            killer: owner,
+                            weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? GetKillFeedWeaponSprite(owner));
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))

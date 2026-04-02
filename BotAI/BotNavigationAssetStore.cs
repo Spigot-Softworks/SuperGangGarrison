@@ -386,10 +386,18 @@ public static class BotNavigationAssetStore
     {
         var cachePath = GetModernRuntimeCachePath(level.Name, level.MapAreaIndex, fingerprint);
         var cacheFailure = string.Empty;
+        var shippedFailure = string.Empty;
         if (!preferFreshModernGeneration
             && TryLoadModernCandidate(cachePath, level, fingerprint, BotNavigationAssetSource.RuntimeCache, out var cachedCandidate, out cacheFailure))
         {
             return new ModernAssetLoadResult(cachedCandidate, string.Empty);
+        }
+
+        var shippedPath = ResolveModernShippedPath(level.Name, level.MapAreaIndex);
+        if (!preferFreshModernGeneration
+            && TryLoadModernCandidate(shippedPath, level, fingerprint, BotNavigationAssetSource.ShippedContent, out var shippedCandidate, out shippedFailure))
+        {
+            return new ModernAssetLoadResult(shippedCandidate, string.Empty);
         }
 
         var buildFailure = string.Empty;
@@ -425,10 +433,9 @@ public static class BotNavigationAssetStore
             return new ModernAssetLoadResult(fallbackCachedCandidate, string.Empty);
         }
 
-        var shippedPath = ResolveModernShippedPath(level.Name, level.MapAreaIndex);
-        if (TryLoadModernCandidate(shippedPath, level, fingerprint, BotNavigationAssetSource.ShippedContent, out var shippedCandidate, out var shippedFailure))
+        if (TryLoadModernCandidate(shippedPath, level, fingerprint, BotNavigationAssetSource.ShippedContent, out var fallbackShippedCandidate, out shippedFailure))
         {
-            return new ModernAssetLoadResult(shippedCandidate, string.Empty);
+            return new ModernAssetLoadResult(fallbackShippedCandidate, string.Empty);
         }
 
         if (!allowSynchronousGeneration)

@@ -199,7 +199,20 @@ public sealed class MoreAnimationsPlugin :
         for (var index = 0; index < pixelData.Length; index += 1)
         {
             var pixel = pixelData[index];
-            textureData[index] = new XnaColor(pixel.R, pixel.G, pixel.B, pixel.A);
+            if (pixel.A == 0)
+            {
+                textureData[index] = XnaColor.Transparent;
+                continue;
+            }
+
+            var premultipliedRed = (pixel.R * pixel.A + 127) / 255;
+            var premultipliedGreen = (pixel.G * pixel.A + 127) / 255;
+            var premultipliedBlue = (pixel.B * pixel.A + 127) / 255;
+            textureData[index] = new XnaColor(
+                (byte)premultipliedRed,
+                (byte)premultipliedGreen,
+                (byte)premultipliedBlue,
+                pixel.A);
         }
 
         var texture = new Texture2D(_context!.GraphicsDevice, image.Width, image.Height);

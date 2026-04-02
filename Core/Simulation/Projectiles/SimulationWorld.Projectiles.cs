@@ -2,7 +2,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
         var shot = new ShotProjectileEntity(
             AllocateEntityId(),
@@ -11,7 +11,8 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            killFeedWeaponSpriteNameOverride);
         _shots.Add(shot);
         _entities.Add(shot.Id, shot);
     }

@@ -67,6 +67,7 @@ public partial class Game1
         _pendingNetworkDamageEvents.Clear();
 
         ReinitializeSimulationForTickRate(_practiceTickRate);
+        _world.ConfigureExperimentalGameplaySettings(GetPracticeExperimentalGameplaySettings());
         _world.ConfigureMatchDefaults(
             timeLimitMinutes: _practiceTimeLimitMinutes,
             capLimit: _practiceCapLimit,
@@ -83,6 +84,8 @@ public partial class Game1
         _pendingHostedConnectTicks = -1;
         _pendingHostedConnectPort = 8190;
         _practiceSetupOpen = false;
+        _clientPowersOpen = false;
+        _clientPowersOpenedFromGameplay = false;
         _mainMenuOpen = false;
         _manualConnectOpen = false;
         _hostSetupOpen = false;

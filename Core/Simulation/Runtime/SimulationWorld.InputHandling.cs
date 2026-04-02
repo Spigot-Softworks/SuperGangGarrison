@@ -251,6 +251,14 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.ClassId == PlayerClass.Soldier
+            && player.HasExperimentalOffhandWeapon
+            && player.TryFireExperimentalOffhandWeapon())
+        {
+            WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+            return;
+        }
+
         if (player.ClassId == PlayerClass.Demoman)
         {
             DetonateOwnedMines(player.Id);

@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace OpenGarrison.Core;
@@ -139,6 +140,20 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int PrimaryCooldownTicks { get; private set; }
 
     public int ReloadTicksUntilNextShell { get; private set; }
+
+    public PrimaryWeaponDefinition? ExperimentalOffhandWeapon { get; private set; }
+
+    public bool HasExperimentalOffhandWeapon => ExperimentalOffhandWeapon is not null;
+
+    public int ExperimentalOffhandCurrentShells { get; private set; }
+
+    public int ExperimentalOffhandMaxShells => ExperimentalOffhandWeapon?.MaxAmmo ?? 0;
+
+    public int ExperimentalOffhandCooldownTicks { get; private set; }
+
+    public int ExperimentalOffhandReloadTicksUntilNextShell { get; private set; }
+
+    public int ExperimentalOffhandDisplayTicksRemaining { get; private set; }
 
     public float ContinuousDamageAccumulator { get; private set; }
 
@@ -300,6 +315,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ResetPyroPrimaryStateFromCurrentAmmo();
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
+        ResetExperimentalOffhandRuntimeState(refillAmmo: true);
         FacingDirectionX = team == PlayerTeam.Blue ? -1f : 1f;
         AimDirectionDegrees = team == PlayerTeam.Blue ? 180f : 0f;
         ContinuousDamageAccumulator = 0f;
@@ -353,6 +369,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
         RemainingAirJumps = int.Min(RemainingAirJumps, MaxAirJumps);
+        ResetExperimentalOffhandRuntimeState(refillAmmo: false);
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
@@ -407,6 +424,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
+        ResetExperimentalOffhandRuntimeState(refillAmmo: false);
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
@@ -576,6 +594,27 @@ public sealed partial class PlayerEntity : SimulationEntity
         return sanitized.Length > MaxDisplayNameLength
             ? sanitized[..MaxDisplayNameLength]
             : sanitized;
+    }
+
+    private void ResetExperimentalOffhandRuntimeState(bool refillAmmo)
+    {
+        if (ExperimentalOffhandWeapon is null)
+        {
+            ExperimentalOffhandCurrentShells = 0;
+            ExperimentalOffhandCooldownTicks = 0;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            ExperimentalOffhandDisplayTicksRemaining = 0;
+            return;
+        }
+
+        ExperimentalOffhandCurrentShells = refillAmmo
+            ? ExperimentalOffhandWeapon.MaxAmmo
+            : int.Clamp(ExperimentalOffhandCurrentShells, 0, ExperimentalOffhandWeapon.MaxAmmo);
+        ExperimentalOffhandCooldownTicks = 0;
+        ExperimentalOffhandReloadTicksUntilNextShell = refillAmmo
+            ? 0
+            : Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
+        ExperimentalOffhandDisplayTicksRemaining = 0;
     }
 }
 

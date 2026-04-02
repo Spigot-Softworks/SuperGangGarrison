@@ -187,6 +187,8 @@ public partial class Game1
         _hostSetupOpen = false;
         _hostSetupEditField = HostSetupEditField.None;
         _practiceSetupOpen = false;
+        _clientPowersOpen = false;
+        _clientPowersOpenedFromGameplay = false;
         CloseLobbyBrowser(clearStatus: false);
         _manualConnectOpen = false;
         _creditsOpen = false;

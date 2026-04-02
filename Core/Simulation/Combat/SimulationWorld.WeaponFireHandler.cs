@@ -96,9 +96,9 @@ public sealed partial class SimulationWorld
             return _world.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
         }
 
-        private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnShot(owner, x, y, velocityX, velocityY);
+            _world.SpawnShot(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -155,10 +155,15 @@ public sealed partial class SimulationWorld
 
         private SourceWeaponOrigin GetSourceWeaponOrigin(PlayerEntity attacker)
         {
+            return GetSourceWeaponOrigin(attacker, attacker.ClassId);
+        }
+
+        private SourceWeaponOrigin GetSourceWeaponOrigin(PlayerEntity attacker, PlayerClass weaponClassId)
+        {
             return new SourceWeaponOrigin(
                 MathF.Round(attacker.X),
                 MathF.Round(attacker.Y),
-                GetSourceWeaponYOffset(attacker.ClassId),
+                GetSourceWeaponYOffset(weaponClassId),
                 GetSourceEquipmentOffset(attacker));
         }
 
@@ -258,7 +263,7 @@ public sealed partial class SimulationWorld
         {
             if (attacker.PrimaryWeapon.Kind != PrimaryWeaponKind.FlameThrower)
             {
-                RegisterLocalPrimaryFireSound(attacker);
+                RegisterWeaponFireSound(attacker, attacker.PrimaryWeapon);
             }
 
             switch (attacker.PrimaryWeapon.Kind)
@@ -285,9 +290,22 @@ public sealed partial class SimulationWorld
                     FireRocketLauncher(attacker, aimWorldX, aimWorldY);
                     break;
                 default:
-                    FirePelletWeapon(attacker, aimWorldX, aimWorldY);
+                    FirePelletWeapon(attacker, attacker.PrimaryWeapon, aimWorldX, aimWorldY, attacker.ClassId);
                     break;
             }
+        }
+
+        public void FireExperimentalSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Shotgun;
+            RegisterWeaponFireSound(attacker, weaponDefinition);
+            FirePelletWeapon(
+                attacker,
+                weaponDefinition,
+                aimWorldX,
+                aimWorldY,
+                PlayerClass.Engineer,
+                killFeedWeaponSpriteNameOverride: "ShotgunKL");
         }
 
         public bool TryFirePyroPrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -415,9 +433,15 @@ public sealed partial class SimulationWorld
                 hitDamage);
         }
     
-        private void FirePelletWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        private void FirePelletWeapon(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            float aimWorldX,
+            float aimWorldY,
+            PlayerClass weaponClassId,
+            string? killFeedWeaponSpriteNameOverride = null)
         {
-            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
             var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)
@@ -426,19 +450,20 @@ public sealed partial class SimulationWorld
             }
     
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
-            for (var pelletIndex = 0; pelletIndex < attacker.PrimaryWeapon.ProjectilesPerShot; pelletIndex += 1)
+            for (var pelletIndex = 0; pelletIndex < weaponDefinition.ProjectilesPerShot; pelletIndex += 1)
             {
-                var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * attacker.PrimaryWeapon.SpreadDegrees);
+                var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
                 var pelletAngle = baseAngle + spreadRadians;
                 var directionX = MathF.Cos(pelletAngle);
                 var directionY = MathF.Sin(pelletAngle);
-                var pelletSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
+                var pelletSpeed = weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed);
                 SpawnShot(
                     attacker,
                     weaponOrigin.BaseX + directionX * 15f,
                     weaponOrigin.BaseY + directionY * 15f,
                     directionX * pelletSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                    directionY * pelletSpeed);
+                    directionY * pelletSpeed,
+                    killFeedWeaponSpriteNameOverride);
             }
         }
     
@@ -588,9 +613,9 @@ public sealed partial class SimulationWorld
                 MathF.Sin(directionRadians) * speed);
         }
     
-        private void RegisterLocalPrimaryFireSound(PlayerEntity attacker)
+        private void RegisterWeaponFireSound(PlayerEntity attacker, PrimaryWeaponDefinition weaponDefinition)
         {
-            switch (attacker.PrimaryWeapon.Kind)
+            switch (weaponDefinition.Kind)
             {
                 case PrimaryWeaponKind.PelletGun:
                     RegisterSoundEvent(attacker, "ShotgunSnd");

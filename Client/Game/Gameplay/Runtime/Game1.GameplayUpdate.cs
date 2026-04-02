@@ -101,7 +101,7 @@ public partial class Game1
 
         UpdateSpectatorTrackingHotkeys(keyboard);
 
-        if (!_passwordPromptOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen)
+        if (!_passwordPromptOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_clientPowersOpen && !_inGameMenuOpen)
         {
             var canToggleSelectionMenu = !_consoleOpen
                 && !_chatOpen
@@ -141,7 +141,7 @@ public partial class Game1
         {
             _classSelectOpen = false;
         }
-        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_inGameMenuOpen && pausePressed)
+        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_clientPowersOpen && !_inGameMenuOpen && pausePressed)
         {
             OpenInGameMenu();
         }
@@ -168,6 +168,13 @@ public partial class Game1
         }
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
+        if (ShouldUsePracticeSoldierShotgunInputOverride())
+        {
+            fullInput = fullInput with
+            {
+                FireSecondary = keyboard.IsKeyDown(Keys.Space),
+            };
+        }
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = fullInput with
@@ -278,6 +285,14 @@ public partial class Game1
             DebugKill = false,
             DropIntel = false,
         };
+    }
+
+    private bool ShouldUsePracticeSoldierShotgunInputOverride()
+    {
+        return IsPracticeSessionActive
+            && !_networkClient.IsConnected
+            && _world.LocalPlayer.ClassId == PlayerClass.Soldier
+            && _world.LocalPlayer.HasExperimentalOffhandWeapon;
     }
 
     private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)

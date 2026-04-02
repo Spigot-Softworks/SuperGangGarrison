@@ -122,6 +122,8 @@ public partial class Game1
             DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
         }
 
+        DrawExperimentalOffhandHud();
+
         if (_world.LocalPlayer.ClassId == PlayerClass.Demoman)
         {
             DrawDemomanStickyHud();
@@ -230,6 +232,66 @@ public partial class Game1
             GetSourceHudPoint(730f, 524f),
             AmmoHudBarColor,
             1.5f);
+    }
+
+    private void DrawExperimentalOffhandHud()
+    {
+        if (_world.LocalPlayer.ClassId != PlayerClass.Soldier
+            || !_world.LocalPlayer.HasExperimentalOffhandWeapon)
+        {
+            return;
+        }
+
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(PlayerClass.Engineer).Presentation;
+        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue
+            ? presentation.BlueTeamHudFrameOffset
+            : 0;
+        var iconPosition = GetSourceHudPoint(688f, 507f);
+        var iconDrawn = presentation.HudSpriteName is not null && TryDrawScreenSprite(
+            presentation.HudSpriteName,
+            frameIndex,
+            iconPosition,
+            Color.White,
+            new Vector2(1.5f, 1.5f));
+        if (!iconDrawn)
+        {
+            DrawBitmapFontText("SHOTGUN", GetSourceHudPoint(664f, 510f), Color.White, 0.72f);
+        }
+
+        var currentShells = _world.LocalPlayer.ExperimentalOffhandCurrentShells;
+        var maxShells = Math.Max(1, _world.LocalPlayer.ExperimentalOffhandMaxShells);
+        var reloadProgress = currentShells >= maxShells
+            ? 1f
+            : _world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell <= 0
+                ? 1f
+                : Math.Clamp(
+                    1f - (_world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell / (float)Math.Max(1, _world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? 1)),
+                    0f,
+                    1f);
+        var ammoColor = currentShells <= Math.Max(1, maxShells / 4)
+            ? LowAmmoHudColor
+            : AmmoHudTextColor;
+
+        DrawBitmapFontText("SPACE", GetSourceHudPoint(684f, 500f), new Color(210, 210, 210), 0.68f);
+        DrawHudTextLeftAligned(
+            currentShells.ToString(CultureInfo.InvariantCulture),
+            GetSourceHudPoint(719f, 515f),
+            ammoColor,
+            0.9f);
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(684f, 531f, 55f, 5f),
+            currentShells,
+            maxShells,
+            false,
+            AmmoHudBarColor,
+            Color.Black);
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(684f, 538f, 55f, 4f),
+            reloadProgress,
+            1f,
+            false,
+            new Color(188, 188, 188),
+            Color.Black);
     }
 
     private void DrawPyroFlareHud(int frameIndex)

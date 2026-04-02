@@ -984,6 +984,11 @@ public partial class Game1
 
     private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count)
     {
+        QueueWeaponShellVisual(player, delaySeconds, count, player.ClassId);
+    }
+
+    private void QueueWeaponShellVisual(PlayerEntity player, float delaySeconds, int count, PlayerClass classId)
+    {
         if (_particleMode != 0 || count <= 0)
         {
             return;
@@ -991,7 +996,7 @@ public partial class Game1
 
         _pendingWeaponShellVisuals.Add(new PendingWeaponShellVisual(
             GetPlayerStateKey(player),
-            player.ClassId,
+            classId,
             player.Team,
             Math.Max(0f, delaySeconds),
             count));

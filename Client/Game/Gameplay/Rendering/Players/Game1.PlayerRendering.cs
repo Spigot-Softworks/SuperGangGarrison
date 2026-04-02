@@ -773,7 +773,7 @@ public partial class Game1
 
     private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
     {
-        var presentation = StockGameplayModCatalog.GetPrimaryItem(player.ClassId).Presentation;
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
         return new(
             presentation.WorldSpriteName,
             presentation.RecoilSpriteName,

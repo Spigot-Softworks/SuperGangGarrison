@@ -192,6 +192,7 @@ public sealed partial class SimulationWorld
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         TrySetNetworkPlayerClassDefinition(LocalPlayerSlot, definition);
         LocalPlayer.SetClassDefinition(definition);
+        SyncExperimentalGameplayLoadout(LocalPlayerSlot, LocalPlayer);
     }
 
     public bool TrySetNetworkPlayerInput(byte slot, PlayerInputSnapshot input)
@@ -300,6 +301,7 @@ public sealed partial class SimulationWorld
         }
 
         player.SetClassDefinition(definition);
+        SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
 }

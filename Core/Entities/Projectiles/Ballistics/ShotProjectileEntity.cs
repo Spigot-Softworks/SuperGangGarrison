@@ -13,7 +13,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
         float x,
         float y,
         float velocityX,
-        float velocityY) : base(id)
+        float velocityY,
+        string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -21,6 +22,7 @@ public sealed class ShotProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
+        KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -39,6 +41,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
     public float VelocityX { get; private set; }
 
     public float VelocityY { get; private set; }
+
+    public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public int TicksRemaining { get; private set; }
 

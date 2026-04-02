@@ -132,6 +132,8 @@ public sealed partial class SimulationWorld
 
     public MatchState MatchState { get; private set; }
 
+    public ExperimentalGameplaySettings ExperimentalGameplaySettings { get; private set; } = new();
+
     public int MapChangeTicksRemaining => _pendingMapChangeTicks;
 
     public bool IsMapChangePending => _pendingMapChangeTicks >= 0;
@@ -280,6 +282,12 @@ public sealed partial class SimulationWorld
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);
     }
 
+    public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
+    {
+        ExperimentalGameplaySettings = settings ?? new ExperimentalGameplaySettings();
+        SyncExperimentalGameplayLoadout(LocalPlayerSlot, LocalPlayer);
+    }
+
 
     public void SetLocalHealth(int health)
     {
@@ -406,6 +414,21 @@ public sealed partial class SimulationWorld
     private static MatchState CreateInitialMatchState(MatchRules rules)
     {
         return new MatchState(MatchPhase.Running, rules.TimeLimitTicks, null);
+    }
+
+    private void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            player.SetExperimentalOffhandWeapon(null);
+            return;
+        }
+
+        player.SetExperimentalOffhandWeapon(
+            ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon
+                && player.ClassId == PlayerClass.Soldier
+                    ? CharacterClassCatalog.Shotgun
+                    : null);
     }
 
 }

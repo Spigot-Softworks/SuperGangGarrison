@@ -117,7 +117,9 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = MathF.Max(0f, renderState.WeaponAnimationTimeRemainingSeconds - elapsedSeconds);
         }
 
-        var weaponDefinition = GetWeaponRenderDefinition(player);
+        var weaponRenderDefinition = GetWeaponRenderDefinition(player);
+        var weaponStats = GetRenderWeaponStats(player);
+        var maxAmmoCount = GetRenderWeaponMaxShells(player);
         var currentAmmoCount = GetRenderWeaponAmmoCount(player);
         var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
         var currentReloadTicks = GetRenderWeaponReloadTicks(player);
@@ -126,16 +128,17 @@ public partial class Game1
             && (currentAmmoCount < renderState.PreviousAmmoCount
                 || renderState.PreviousCooldownTicks <= 0);
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
-        var shellReloaded = ammoIncreased && currentAmmoCount < player.MaxShells;
-        var preserveRecoilLoop = weaponDefinition.LoopRecoilWhileActive
+        var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
+        var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
             && renderState.WeaponAnimationMode == WeaponAnimationMode.Recoil;
         var useScopedRecoilSprite = player.ClassId == PlayerClass.Sniper
-            && weaponDefinition.ReloadSpriteName is not null
+            && !ShouldPresentExperimentalSoldierShotgun(player)
+            && weaponRenderDefinition.ReloadSpriteName is not null
             && player.IsSniperScoped;
 
         if (player.ClassId == PlayerClass.Sniper)
         {
-            UpdateSniperWeaponAnimationState(player, renderState, weaponDefinition, shotStarted);
+            UpdateSniperWeaponAnimationState(player, renderState, weaponRenderDefinition, shotStarted);
             QueueWeaponShellVisuals(player, shotStarted, ammoIncreased);
             renderState.PreviousAmmoCount = currentAmmoCount;
             renderState.PreviousCooldownTicks = currentCooldownTicks;
@@ -147,11 +150,11 @@ public partial class Game1
         {
             if (useScopedRecoilSprite)
             {
-                StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponDefinition.ScopedRecoilDurationSeconds);
+                StartWeaponAnimation(renderState, WeaponAnimationMode.ScopedRecoil, weaponRenderDefinition.ScopedRecoilDurationSeconds);
             }
-            else if (weaponDefinition.RecoilSpriteName is not null)
+            else if (weaponRenderDefinition.RecoilSpriteName is not null)
             {
-                StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponDefinition.RecoilDurationSeconds, preserveElapsed: preserveRecoilLoop);
+                StartWeaponAnimation(renderState, WeaponAnimationMode.Recoil, weaponRenderDefinition.RecoilDurationSeconds, preserveElapsed: preserveRecoilLoop);
             }
             else
             {
@@ -163,9 +166,9 @@ public partial class Game1
             switch (renderState.WeaponAnimationMode)
             {
                 case WeaponAnimationMode.Recoil when renderState.WeaponAnimationTimeRemainingSeconds <= 0f:
-                    if (ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
+                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
                     {
-                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
+                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
                     else
                     {
@@ -176,19 +179,19 @@ public partial class Game1
                     StopWeaponAnimation(renderState);
                     break;
                 case WeaponAnimationMode.Reload:
-                    if (!ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
+                    if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
                     {
                         StopWeaponAnimation(renderState);
                     }
                     else if (shellReloaded || reloadRestarted)
                     {
-                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
+                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
                     break;
                 case WeaponAnimationMode.Idle:
-                    if (ShouldShowReloadAnimation(player, weaponDefinition, currentAmmoCount, currentReloadTicks))
+                    if (ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks))
                     {
-                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponDefinition.ReloadDurationSeconds);
+                        StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
                     break;
             }
@@ -385,6 +388,11 @@ public partial class Game1
 
     private int GetRenderWeaponAmmoCount(PlayerEntity player)
     {
+        if (ShouldPresentExperimentalSoldierShotgun(player))
+        {
+            return player.ExperimentalOffhandCurrentShells;
+        }
+
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState
@@ -394,6 +402,11 @@ public partial class Game1
 
     private int GetRenderWeaponCooldownTicks(PlayerEntity player)
     {
+        if (ShouldPresentExperimentalSoldierShotgun(player))
+        {
+            return player.ExperimentalOffhandCooldownTicks;
+        }
+
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState)
@@ -410,6 +423,11 @@ public partial class Game1
 
     private int GetRenderWeaponReloadTicks(PlayerEntity player)
     {
+        if (ShouldPresentExperimentalSoldierShotgun(player))
+        {
+            return player.ExperimentalOffhandReloadTicksUntilNextShell;
+        }
+
         if (_networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalActionState)
@@ -422,6 +440,35 @@ public partial class Game1
         return player.ClassId == PlayerClass.Medic
             ? player.MedicNeedleRefillTicks
             : player.ReloadTicksUntilNextShell;
+    }
+
+    private static int GetRenderWeaponMaxShells(PlayerEntity player)
+    {
+        return ShouldPresentExperimentalSoldierShotgun(player)
+            ? player.ExperimentalOffhandMaxShells
+            : player.MaxShells;
+    }
+
+    private static PrimaryWeaponDefinition GetRenderWeaponStats(PlayerEntity player)
+    {
+        return ShouldPresentExperimentalSoldierShotgun(player)
+            ? player.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Shotgun
+            : player.PrimaryWeapon;
+    }
+
+    private static PlayerClass GetRenderWeaponPresentationClassId(PlayerEntity player)
+    {
+        return ShouldPresentExperimentalSoldierShotgun(player)
+            ? PlayerClass.Engineer
+            : player.ClassId;
+    }
+
+    private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
+    {
+        return player.ClassId == PlayerClass.Soldier
+            && player.HasExperimentalOffhandWeapon
+            && (player.ExperimentalOffhandDisplayTicksRemaining > 0
+                || player.ExperimentalOffhandReloadTicksUntilNextShell > 0);
     }
 
     private static float WrapAnimationImage(float animationImage, float length)
@@ -456,25 +503,26 @@ public partial class Game1
             return;
         }
 
-        switch (player.ClassId)
+        var shellClassId = GetRenderWeaponPresentationClassId(player);
+        switch (shellClassId)
         {
             case PlayerClass.Heavy when shotStarted:
-                QueueWeaponShellVisual(player, delaySeconds: 0f, count: 1);
+                QueueWeaponShellVisual(player, delaySeconds: 0f, count: 1, shellClassId);
                 break;
             case PlayerClass.Engineer when shotStarted:
-                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(10f), count: 1);
+                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(10f), count: 1, shellClassId);
                 break;
             case PlayerClass.Scout when shellInserted:
-                QueueWeaponShellVisual(player, delaySeconds: 0f, count: 1);
+                QueueWeaponShellVisual(player, delaySeconds: 0f, count: 1, shellClassId);
                 break;
             case PlayerClass.Sniper when shotStarted:
-                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(player.IsSniperScoped ? 20f : 10f), count: 1);
+                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(player.IsSniperScoped ? 20f : 10f), count: 1, shellClassId);
                 break;
             case PlayerClass.Medic when shotStarted:
                 QueueResettingWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds(55f / 4f), count: 1);
                 break;
             case PlayerClass.Spy when shotStarted:
-                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds((18f + 45f) * 3f / 5f), count: 1);
+                QueueWeaponShellVisual(player, delaySeconds: GetSourceTicksAsSeconds((18f + 45f) * 3f / 5f), count: 1, shellClassId);
                 break;
         }
     }
@@ -520,21 +568,28 @@ public partial class Game1
         renderState.WeaponAnimationElapsedSeconds = 0f;
     }
 
-    private static bool ShouldShowReloadAnimation(PlayerEntity player, WeaponRenderDefinition weaponDefinition, int currentAmmoCount, int currentReloadTicks)
+    private static bool ShouldShowReloadAnimation(
+        PlayerEntity player,
+        PrimaryWeaponDefinition weaponStats,
+        WeaponRenderDefinition weaponDefinition,
+        int currentAmmoCount,
+        int maxAmmoCount,
+        int currentReloadTicks)
     {
         if (weaponDefinition.ReloadSpriteName is null)
         {
             return false;
         }
 
-        if (!player.PrimaryWeapon.AutoReloads && !player.PrimaryWeapon.RefillsAllAtOnce)
+        if (!weaponStats.AutoReloads && !weaponStats.RefillsAllAtOnce)
         {
             return player.ClassId == PlayerClass.Medic
-                && currentAmmoCount < player.MaxShells
+                && weaponStats.Kind == PrimaryWeaponKind.Medigun
+                && currentAmmoCount < maxAmmoCount
                 && currentReloadTicks > 0;
         }
 
-        return currentAmmoCount < player.MaxShells
+        return currentAmmoCount < maxAmmoCount
             && currentReloadTicks > 0;
     }
 }

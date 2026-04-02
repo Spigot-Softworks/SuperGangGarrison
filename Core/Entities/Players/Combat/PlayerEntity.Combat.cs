@@ -1,3 +1,5 @@
+using System;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
@@ -27,6 +29,72 @@ public sealed partial class PlayerEntity
             && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             ReloadTicksUntilNextShell = PrimaryWeapon.AmmoReloadTicks;
+        }
+
+        return true;
+    }
+
+    public void SetExperimentalOffhandWeapon(PrimaryWeaponDefinition? weaponDefinition)
+    {
+        if (weaponDefinition == ExperimentalOffhandWeapon)
+        {
+            if (weaponDefinition is not null)
+            {
+                ExperimentalOffhandCurrentShells = int.Clamp(ExperimentalOffhandCurrentShells, 0, weaponDefinition.MaxAmmo);
+                ExperimentalOffhandCooldownTicks = Math.Max(0, ExperimentalOffhandCooldownTicks);
+                ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
+                ExperimentalOffhandDisplayTicksRemaining = Math.Max(0, ExperimentalOffhandDisplayTicksRemaining);
+            }
+            else
+            {
+                ExperimentalOffhandCurrentShells = 0;
+                ExperimentalOffhandCooldownTicks = 0;
+                ExperimentalOffhandReloadTicksUntilNextShell = 0;
+                ExperimentalOffhandDisplayTicksRemaining = 0;
+            }
+
+            return;
+        }
+
+        ExperimentalOffhandWeapon = weaponDefinition;
+        if (weaponDefinition is null)
+        {
+            ExperimentalOffhandCurrentShells = 0;
+            ExperimentalOffhandCooldownTicks = 0;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            ExperimentalOffhandDisplayTicksRemaining = 0;
+            return;
+        }
+
+        ExperimentalOffhandCurrentShells = weaponDefinition.MaxAmmo;
+        ExperimentalOffhandCooldownTicks = 0;
+        ExperimentalOffhandReloadTicksUntilNextShell = 0;
+        ExperimentalOffhandDisplayTicksRemaining = 0;
+    }
+
+    public bool TryFireExperimentalOffhandWeapon()
+    {
+        var weaponDefinition = ExperimentalOffhandWeapon;
+        if (weaponDefinition is null
+            || !IsAlive
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || ExperimentalOffhandCooldownTicks > 0
+            || ExperimentalOffhandCurrentShells < weaponDefinition.AmmoPerShot)
+        {
+            return false;
+        }
+
+        ExperimentalOffhandCurrentShells -= weaponDefinition.AmmoPerShot;
+        ExperimentalOffhandCooldownTicks = weaponDefinition.ReloadDelayTicks;
+        ExperimentalOffhandDisplayTicksRemaining = Math.Max(
+            ExperimentalOffhandDisplayTicksRemaining,
+            weaponDefinition.ReloadDelayTicks);
+        if (weaponDefinition.AutoReloads
+            && ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
         }
 
         return true;
@@ -226,6 +294,7 @@ public sealed partial class PlayerEntity
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
+        ResetExperimentalOffhandRuntimeState(refillAmmo: false);
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
@@ -284,6 +353,13 @@ public sealed partial class PlayerEntity
         Health = MaxHealth;
         Metal = MaxMetal;
         CurrentShells = PrimaryWeapon.MaxAmmo;
+        if (ExperimentalOffhandWeapon is not null)
+        {
+            ExperimentalOffhandCurrentShells = ExperimentalOffhandWeapon.MaxAmmo;
+            ExperimentalOffhandCooldownTicks = 0;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            ExperimentalOffhandDisplayTicksRemaining = 0;
+        }
         HeavyEatCooldownTicksRemaining = 0;
         ResetPyroPrimaryStateFromCurrentAmmo();
         ReloadTicksUntilNextShell = 0;
@@ -508,6 +584,7 @@ public sealed partial class PlayerEntity
         {
             AdvancePyroWeaponState();
             AdvancePyroAirblastState();
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
@@ -525,24 +602,28 @@ public sealed partial class PlayerEntity
 
         if (PrimaryCooldownTicks > 0)
         {
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
         if (!PrimaryWeapon.AutoReloads)
         {
             ReloadTicksUntilNextShell = 0;
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
         if (CurrentShells >= PrimaryWeapon.MaxAmmo)
         {
             ReloadTicksUntilNextShell = 0;
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
         if (ReloadTicksUntilNextShell > 0)
         {
             ReloadTicksUntilNextShell -= 1;
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
@@ -550,6 +631,7 @@ public sealed partial class PlayerEntity
         {
             CurrentShells = PrimaryWeapon.MaxAmmo;
             ReloadTicksUntilNextShell = 0;
+            AdvanceExperimentalOffhandWeaponState();
             return;
         }
 
@@ -558,6 +640,8 @@ public sealed partial class PlayerEntity
         {
             ReloadTicksUntilNextShell = PrimaryWeapon.AmmoReloadTicks;
         }
+
+        AdvanceExperimentalOffhandWeaponState();
     }
 
     private void AdvancePyroWeaponState()
@@ -650,5 +734,64 @@ public sealed partial class PlayerEntity
 
         PyroPrimaryFuelScaledValue = int.Clamp(scaledFuel, 0, GetPyroPrimaryFuelMaxScaled());
         CurrentShells = int.Clamp(PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale, 0, PrimaryWeapon.MaxAmmo);
+    }
+
+    private void AdvanceExperimentalOffhandWeaponState()
+    {
+        var weaponDefinition = ExperimentalOffhandWeapon;
+        if (weaponDefinition is null)
+        {
+            ExperimentalOffhandCurrentShells = 0;
+            ExperimentalOffhandCooldownTicks = 0;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            ExperimentalOffhandDisplayTicksRemaining = 0;
+            return;
+        }
+
+        if (ExperimentalOffhandCooldownTicks > 0)
+        {
+            ExperimentalOffhandCooldownTicks -= 1;
+        }
+
+        if (ExperimentalOffhandDisplayTicksRemaining > 0)
+        {
+            ExperimentalOffhandDisplayTicksRemaining -= 1;
+        }
+
+        if (!weaponDefinition.AutoReloads)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (ExperimentalOffhandCooldownTicks > 0)
+        {
+            return;
+        }
+
+        if (ExperimentalOffhandCurrentShells >= weaponDefinition.MaxAmmo)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (ExperimentalOffhandReloadTicksUntilNextShell > 0)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell -= 1;
+            return;
+        }
+
+        if (weaponDefinition.RefillsAllAtOnce)
+        {
+            ExperimentalOffhandCurrentShells = weaponDefinition.MaxAmmo;
+            ExperimentalOffhandReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        ExperimentalOffhandCurrentShells += 1;
+        if (ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
+        {
+            ExperimentalOffhandReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+        }
     }
 }

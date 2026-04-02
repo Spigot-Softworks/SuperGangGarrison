@@ -43,6 +43,7 @@ public partial class Game1
         Rectangle FriendlyBotsValueBounds,
         Rectangle FriendlyBotsRightBounds,
         Rectangle StartBounds,
+        Rectangle ClientPowersBounds,
         Rectangle BackBounds,
         bool CompactLayout);
 
@@ -58,6 +59,8 @@ public partial class Game1
         _pluginOptionsMenuOpen = false;
         _controlsMenuOpen = false;
         _creditsOpen = false;
+        _clientPowersOpen = false;
+        _clientPowersOpenedFromGameplay = false;
         _editingPlayerName = false;
         _menuStatusMessage = string.Empty;
 
@@ -151,6 +154,10 @@ public partial class Game1
         else if (layout.StartBounds.Contains(point))
         {
             TryStartPracticeFromSetup();
+        }
+        else if (layout.ClientPowersBounds.Contains(point))
+        {
+            OpenClientPowersMenu(fromGameplay: false);
         }
         else if (layout.BackBounds.Contains(point))
         {
@@ -249,6 +256,7 @@ public partial class Game1
             valueScale);
 
         DrawMenuButtonScaled(layout.StartBounds, "Start Practice", false, buttonScale);
+        DrawMenuButtonScaled(layout.ClientPowersBounds, "Experimental", false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, "Back", false, buttonScale);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage))
@@ -282,8 +290,8 @@ public partial class Game1
         var selectorWidth = panel.Width - (padding * 2) - labelWidth;
         var selectorValueWidth = selectorWidth - (selectorButtonWidth * 2) - 16;
         var buttonHeight = compactLayout ? 36 : 42;
-        var actionGap = compactLayout ? 12 : 20;
-        var actionWidth = (panel.Width - (padding * 2) - actionGap) / 2;
+        var actionGap = compactLayout ? 8 : 12;
+        var actionWidth = (panel.Width - (padding * 2) - (actionGap * 2)) / 3;
         var actionsY = panel.Bottom - padding - buttonHeight - 4;
 
         var mapLeftBounds = new Rectangle(selectorLeft, contentTop, selectorButtonWidth, rowHeight);
@@ -315,7 +323,8 @@ public partial class Game1
         var friendlyBotsRightBounds = OffsetPracticeRow(enemyBotsRightBounds, rowHeight + rowGap);
 
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
-        var backBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
+        var clientPowersBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
+        var backBounds = new Rectangle(clientPowersBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
 
         return new PracticeSetupLayout(
             panel,
@@ -341,6 +350,7 @@ public partial class Game1
             friendlyBotsValueBounds,
             friendlyBotsRightBounds,
             startBounds,
+            clientPowersBounds,
             backBounds,
             compactLayout);
     }

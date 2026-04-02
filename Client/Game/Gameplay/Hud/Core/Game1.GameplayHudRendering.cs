@@ -73,6 +73,7 @@ public partial class Game1
             && (!_killCamEnabled || _world.LocalDeathCam is null)
             && !ShouldBlockGameplayForNavEditor()
             && !_consoleOpen
+            && !_clientPowersOpen
             && !_practiceSetupOpen
             && !_inGameMenuOpen
             && !_pluginOptionsMenuOpen
@@ -93,6 +94,10 @@ public partial class Game1
         if (_inGameMenuOpen)
         {
             DrawInGameMenu();
+        }
+        else if (_clientPowersOpen)
+        {
+            DrawClientPowersMenu();
         }
         else if (_practiceSetupOpen)
         {

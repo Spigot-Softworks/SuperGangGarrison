@@ -71,6 +71,7 @@ public sealed partial class SimulationWorld
         TrySetNetworkPlayerClassDefinition(slot, CharacterClassCatalog.Scout);
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
+        SyncExperimentalGameplayLoadout(slot, player);
         player.SetDisplayName(GetNetworkPlayerDefaultName(slot));
         player.SetBadgeMask(0);
         player.ResetRoundStats();
@@ -191,6 +192,7 @@ public sealed partial class SimulationWorld
         }
 
         player.SetClassDefinition(definition);
+        SyncExperimentalGameplayLoadout(slot, player);
         return TryForceRespawnNetworkPlayer(slot);
     }
 }

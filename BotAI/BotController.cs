@@ -221,12 +221,10 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         var medicBuddyTarget = useModernBehavior
             ? FindBestModernMedicBuddyTarget(player, controlledSlot.Team, allPlayers)
             : null;
-        var isSeekingCabinet = TryGetHealingCabinetDestination(world, player, out var cabinetDestination);
         var objectiveSelection = ResolveModernPathSelection(world, player, controlledSlot.Team, allPlayers, medicBuddyTarget);
-        var destination = isSeekingCabinet
-            ? cabinetDestination
-            : objectiveSelection.Destination;
-        var allowModernDirectPath = !isSeekingCabinet && objectiveSelection.AllowDirectPath;
+        var isSeekingCabinet = false;
+        var destination = objectiveSelection.Destination;
+        var allowModernDirectPath = objectiveSelection.AllowDirectPath;
         var navigationDecision = ResolveNavigationDecision(world, player, controlledSlot.ClassId, destination, navigationGraph, memory, timing, allowModernDirectPath, objectiveSelection);
         var movementDestination = navigationDecision.MovementTarget;
         var enemyTarget = FindBestEnemyTarget(world, player, controlledSlot.Team, role, destination, allPlayers, memory, timing, useModernBehavior);
@@ -3299,6 +3297,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
                 || candidate.Team != team
                 || candidate.Id == player.Id
                 || candidate.ClassId == PlayerClass.Medic
+                || (candidate.ClassId == PlayerClass.Spy && candidate.IsSpyCloaked)
                 || ShouldIgnoreEnemyTarget(candidate))
             {
                 continue;

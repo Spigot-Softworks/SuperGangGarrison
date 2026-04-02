@@ -169,6 +169,8 @@ public partial class Game1 : Game
     private bool _manualConnectOpen;
     private bool _hostSetupOpen;
     private bool _practiceSetupOpen;
+    private bool _clientPowersOpen;
+    private bool _clientPowersOpenedFromGameplay;
     private bool _creditsOpen;
     private bool _creditsScrollInitialized;
     private float _creditsScrollY;
@@ -193,6 +195,7 @@ public partial class Game1 : Game
     private int _lobbyBrowserHoverIndex = -1;
     private int _lobbyBrowserSelectedIndex = -1;
     private int _practiceMapIndex;
+    private int _clientPowersScrollOffset;
     private int _inGameMenuHoverIndex = -1;
     private List<PracticeMapEntry> _practiceMapEntries = new();
     private GameplaySessionKind _gameplaySessionKind;
@@ -209,6 +212,7 @@ public partial class Game1 : Game
     private int _practiceRespawnSeconds = 5;
     private int _practiceEnemyBotCount;
     private int _practiceFriendlyBotCount;
+    private bool _practiceExperimentalSoldierShotgunEnabled;
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;

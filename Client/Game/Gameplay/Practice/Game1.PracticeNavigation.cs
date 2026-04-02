@@ -19,7 +19,7 @@ public partial class Game1
             _world.Level,
             useModernRuntimeGeneration: true,
             allowSynchronousGeneration: true,
-            preferFreshModernGeneration: true);
+            preferFreshModernGeneration: false);
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary());
         foreach (var status in _practiceNavigationAssets.Statuses.Where(static status => status.IsLoaded && !status.IsStructurallyValid))
         {

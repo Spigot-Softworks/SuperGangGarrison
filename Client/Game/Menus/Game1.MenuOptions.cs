@@ -14,7 +14,7 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen || ShouldBlockGameplayForNavEditor();
+        return _clientPowersOpen || _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen || ShouldBlockGameplayForNavEditor();
     }
 
     private bool IsGameplayInputBlocked()
@@ -39,6 +39,12 @@ public partial class Game1
         if (_controlsMenuOpen)
         {
             UpdateControlsMenu(keyboard, mouse);
+            return;
+        }
+
+        if (_clientPowersOpen)
+        {
+            UpdateClientPowersMenu(keyboard, mouse);
             return;
         }
 
@@ -157,6 +163,8 @@ public partial class Game1
         _inGameMenuOpen = true;
         _inGameMenuAwaitingEscapeRelease = true;
         _inGameMenuHoverIndex = -1;
+        _clientPowersOpen = false;
+        _clientPowersOpenedFromGameplay = false;
         _optionsMenuOpen = false;
         _pluginOptionsMenuOpen = false;
         _controlsMenuOpen = false;
@@ -222,6 +230,7 @@ public partial class Game1
             [
                 "Options",
                 "Practice Setup",
+                "Experimental Settings",
                 "Restart Practice",
                 "Return to Game",
                 "Leave Practice",
@@ -253,16 +262,19 @@ public partial class Game1
                     OpenPracticeSetupMenu();
                     return;
                 case 2:
-                    CloseInGameMenu();
-                    RestartPracticeSession();
+                    OpenClientPowersMenu(fromGameplay: true);
                     return;
                 case 3:
                     CloseInGameMenu();
+                    RestartPracticeSession();
                     return;
                 case 4:
-                    ReturnToMainMenu(GetGameplayExitStatusMessage());
+                    CloseInGameMenu();
                     return;
                 case 5:
+                    ReturnToMainMenu(GetGameplayExitStatusMessage());
+                    return;
+                case 6:
                     OpenQuitPrompt();
                     return;
             }

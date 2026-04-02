@@ -129,6 +129,13 @@ public partial class Game1
             return;
         }
 
+        if (_clientPowersOpen)
+        {
+            DrawClientPowersMenu();
+            DrawDevMessagePopup();
+            return;
+        }
+
         if (_practiceSetupOpen)
         {
             DrawPracticeSetupMenu();
