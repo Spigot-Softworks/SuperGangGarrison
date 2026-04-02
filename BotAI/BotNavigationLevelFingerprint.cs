@@ -1,5 +1,6 @@
 using OpenGarrison.Core;
 using System.Globalization;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -16,7 +17,7 @@ public static class BotNavigationLevelFingerprint
         builder.AppendLine(level.Mode.ToString());
         builder.Append(level.MapAreaIndex).Append('|').Append(level.MapAreaCount).AppendLine();
         builder.AppendFormat(CultureInfo.InvariantCulture, "{0:F3}|{1:F3}", level.Bounds.Width, level.Bounds.Height).AppendLine();
-        builder.AppendLine(level.BackgroundAssetName ?? string.Empty);
+        builder.AppendLine(NormalizeBackgroundAssetToken(level.BackgroundAssetName));
         builder.AppendFormat(CultureInfo.InvariantCulture, "{0:F3}", level.FloorY).AppendLine();
         AppendSpawns(builder, "local", [level.LocalSpawn]);
         AppendSpawns(builder, "red", level.RedSpawns);
@@ -95,5 +96,24 @@ public static class BotNavigationLevelFingerprint
         {
             builder.Append(unsupportedEntities[index]).AppendLine();
         }
+    }
+
+    private static string NormalizeBackgroundAssetToken(string? backgroundAssetName)
+    {
+        if (string.IsNullOrWhiteSpace(backgroundAssetName))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = backgroundAssetName.Trim();
+        if (trimmed.IndexOfAny(['\\', '/']) < 0)
+        {
+            return trimmed;
+        }
+
+        var normalizedPath = trimmed
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+        return Path.GetFileName(normalizedPath);
     }
 }

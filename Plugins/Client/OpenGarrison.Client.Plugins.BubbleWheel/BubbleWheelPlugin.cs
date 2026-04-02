@@ -18,6 +18,9 @@ public sealed class BubbleWheelPlugin :
     private Texture2D? _menuWheelC;
     private Texture2D? _menuWheelX2R;
     private Texture2D? _menuWheelX2B;
+    private ClientBubbleMenuKind _lastBubbleMenuKind = ClientBubbleMenuKind.None;
+    private int _lastBubbleMenuXPageIndex;
+    private int _lastHoveredSlot = -1;
 
     public string Id => "bubblewheel";
 
@@ -59,18 +62,58 @@ public sealed class BubbleWheelPlugin :
 
     public ClientBubbleMenuUpdateResult? TryHandleBubbleMenuInput(ClientBubbleMenuInputState inputState)
     {
-        if (!inputState.LeftMousePressed)
+        if (inputState.Kind == ClientBubbleMenuKind.None)
+        {
+            ResetHoverSelectionState();
+            return null;
+        }
+
+        if (inputState.Kind == ClientBubbleMenuKind.X
+            && inputState.PressedDigit is >= 1 and <= 3)
+        {
+            var requestedPageIndex = inputState.PressedDigit.Value - 1;
+            if (requestedPageIndex != inputState.XPageIndex)
+            {
+                _lastBubbleMenuKind = inputState.Kind;
+                _lastBubbleMenuXPageIndex = requestedPageIndex;
+                _lastHoveredSlot = -1;
+                return new ClientBubbleMenuUpdateResult(NewXPageIndex: requestedPageIndex, ClearBubbleSelection: true);
+            }
+        }
+
+        var selectedSlot = inputState.SelectedSlotOrDefault();
+        var menuChanged = inputState.Kind != _lastBubbleMenuKind || inputState.XPageIndex != _lastBubbleMenuXPageIndex;
+        var slotChanged = selectedSlot != _lastHoveredSlot;
+
+        _lastBubbleMenuKind = inputState.Kind;
+        _lastBubbleMenuXPageIndex = inputState.XPageIndex;
+
+        if (!menuChanged && !slotChanged && !inputState.QPressed)
         {
             return null;
         }
 
-        return inputState.Kind switch
+        _lastHoveredSlot = selectedSlot;
+
+        var result = inputState.Kind switch
         {
-            ClientBubbleMenuKind.Z => ResolveWheelSelection(inputState.SelectedSlotOrDefault(), 19),
-            ClientBubbleMenuKind.C => ResolveWheelSelection(inputState.SelectedSlotOrDefault(), 35),
-            ClientBubbleMenuKind.X => ResolveXSelection(inputState),
+            ClientBubbleMenuKind.Z => ResolveWheelSelection(selectedSlot, 19),
+            ClientBubbleMenuKind.C => ResolveWheelSelection(selectedSlot, 35),
+            ClientBubbleMenuKind.X => ResolveXSelection(inputState, selectedSlot),
             _ => null,
         };
+
+        if (result is null)
+        {
+            return null;
+        }
+
+        if (result.NewXPageIndex.HasValue)
+        {
+            _lastBubbleMenuXPageIndex = result.NewXPageIndex.Value;
+        }
+
+        return result;
     }
 
     public bool TryDrawBubbleMenu(IOpenGarrisonClientHudCanvas canvas, ClientBubbleMenuRenderState renderState)
@@ -127,35 +170,34 @@ public sealed class BubbleWheelPlugin :
     {
         if (selectedSlot <= 0)
         {
-            return new ClientBubbleMenuUpdateResult(CloseMenu: true);
+            return new ClientBubbleMenuUpdateResult(ClearBubbleSelection: true);
         }
 
         return new ClientBubbleMenuUpdateResult(BubbleFrame: frameBase + selectedSlot);
     }
 
-    private static ClientBubbleMenuUpdateResult? ResolveXSelection(ClientBubbleMenuInputState inputState)
+    private static ClientBubbleMenuUpdateResult? ResolveXSelection(ClientBubbleMenuInputState inputState, int selectedSlot)
     {
-        var selectedSlot = inputState.SelectedSlotOrDefault();
         if (inputState.XPageIndex == 0)
         {
             if (selectedSlot == 0)
             {
-                return new ClientBubbleMenuUpdateResult(CloseMenu: true);
+                return new ClientBubbleMenuUpdateResult(ClearBubbleSelection: true);
             }
 
-            if (selectedSlot == 1)
+            if (selectedSlot is 1 or 2)
             {
-                return new ClientBubbleMenuUpdateResult(NewXPageIndex: 1);
-            }
-
-            if (selectedSlot == 2)
-            {
-                return new ClientBubbleMenuUpdateResult(NewXPageIndex: 2);
+                return new ClientBubbleMenuUpdateResult(ClearBubbleSelection: true);
             }
 
             return selectedSlot is >= 3 and <= 9
                 ? new ClientBubbleMenuUpdateResult(BubbleFrame: 26 + selectedSlot)
                 : null;
+        }
+
+        if (inputState.QPressed)
+        {
+            return new ClientBubbleMenuUpdateResult(BubbleFrame: inputState.XPageIndex == 2 ? 48 : 47);
         }
 
         var offset = inputState.XPageIndex == 2 ? 10 : 0;
@@ -231,6 +273,13 @@ public sealed class BubbleWheelPlugin :
         }
 
         texture = null;
+    }
+
+    private void ResetHoverSelectionState()
+    {
+        _lastBubbleMenuKind = ClientBubbleMenuKind.None;
+        _lastBubbleMenuXPageIndex = 0;
+        _lastHoveredSlot = -1;
     }
 }
 

@@ -4,6 +4,7 @@ using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.IO;
 
@@ -11,20 +12,27 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string PracticeBotNamesRelativePath = "OpenGarrison.Client/practice-bot-names.txt";
+    private const string PracticeBotNamesRelativePath = "Client/practice-bot-names.txt";
     private static readonly PlayerClass[] PracticeBotClassCycle =
     [
         PlayerClass.Scout,
+        PlayerClass.Pyro,
         PlayerClass.Soldier,
         PlayerClass.Heavy,
+        PlayerClass.Demoman,
         PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+        PlayerClass.Quote,
     ];
 
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
     private readonly Dictionary<byte, string> _practiceBotDisplayNamesBySlot = new();
     private readonly HashSet<string> _practiceUsedBotDisplayNames = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _practiceAvailableBotDisplayNames = new();
-    private readonly BotController _practiceBotController = new();
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can depend on the dedicated Modern bot controller without leaking implementation details into the client plumbing.")]
+    private readonly IPracticeBotController _practiceBotController = new ModernPracticeBotController();
 
     private sealed class PracticeBotSlotState
     {
@@ -116,17 +124,20 @@ public partial class Game1
     {
         var desiredSlots = new Dictionary<byte, PracticeBotSlotState>();
         var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
+        var classCycle = GetEligiblePracticeBotClassCycle();
         nextSlot = AppendDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             localTeam,
             _practiceFriendlyBotCount,
+            classCycle,
             classOffset: 0);
         _ = AppendDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             GetOpposingTeam(localTeam),
             _practiceEnemyBotCount,
+            classCycle,
             classOffset: 3);
         return desiredSlots;
     }
@@ -136,11 +147,16 @@ public partial class Game1
         byte startSlot,
         PlayerTeam team,
         int count,
+        PlayerClass[] classCycle,
         int classOffset)
     {
         var nextSlot = startSlot;
         var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
-        var classCycle = GetEligiblePracticeBotClassCycle();
+        if (count <= 0 || classCycle.Length == 0)
+        {
+            return nextSlot;
+        }
+
         for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
             var classId = classCycle[(index + classOffset) % classCycle.Length];
@@ -162,10 +178,9 @@ public partial class Game1
             return PracticeBotClassCycle;
         }
 
-        var eligibleClasses = PracticeBotClassCycle
+        return PracticeBotClassCycle
             .Where(IsPracticeBotClassNavigationReady)
             .ToArray();
-        return eligibleClasses.Length > 0 ? eligibleClasses : PracticeBotClassCycle;
     }
 
     private bool IsPracticeBotClassNavigationReady(PlayerClass classId)
@@ -234,11 +249,11 @@ public partial class Game1
         return File.Exists(configPath) ? configPath : null;
     }
 
-    private void ShufflePracticeBotNames(List<string> names)
+    private static void ShufflePracticeBotNames(List<string> names)
     {
         for (var index = names.Count - 1; index > 0; index -= 1)
         {
-            var swapIndex = _visualRandom.Next(index + 1);
+            var swapIndex = System.Security.Cryptography.RandomNumberGenerator.GetInt32(index + 1);
             (names[index], names[swapIndex]) = (names[swapIndex], names[index]);
         }
     }

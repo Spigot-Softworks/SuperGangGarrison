@@ -1506,7 +1506,7 @@ public static class BotNavigationAssetBuilder
         return !CanOccupy(level, classDefinition, x, y + 1f);
     }
 
-    private static bool TryAddEdge(ISet<long> edgeKeys, ICollection<BotNavigationEdge> edges, BotNavigationEdge edge)
+    private static bool TryAddEdge(ISet<long> edgeKeys, List<BotNavigationEdge> edges, BotNavigationEdge edge)
     {
         var edgeKey = GetEdgeKey(edge.FromNodeId, edge.ToNodeId);
         if (!edgeKeys.Add(edgeKey))

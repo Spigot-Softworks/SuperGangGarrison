@@ -117,16 +117,7 @@ public partial class Game1
             return;
         }
 
-        if (_practiceEnemyDummyEnabled)
-        {
-            _world.SpawnEnemyDummy();
-            _world.SetEnemyPlayerTeam(GetOpposingTeam(localTeam));
-        }
-        else
-        {
-            _world.DespawnEnemyDummy();
-        }
-
+        _world.DespawnEnemyDummy();
         SyncPracticeBotRoster(localTeam);
         _world.DespawnFriendlyDummy();
     }
@@ -138,16 +129,7 @@ public partial class Game1
             return;
         }
 
-        if (_practiceEnemyDummyEnabled)
-        {
-            _world.SpawnEnemyDummy();
-            _world.SetEnemyPlayerTeam(GetOpposingTeam(_world.LocalPlayerTeam));
-        }
-        else
-        {
-            _world.DespawnEnemyDummy();
-        }
-
+        _world.DespawnEnemyDummy();
         _world.DespawnFriendlyDummy();
     }
 
@@ -159,24 +141,8 @@ public partial class Game1
         }
 
         SyncPracticeBotRoster(_world.LocalPlayerTeam);
-        if (_practiceEnemyDummyEnabled)
-        {
-            _world.SpawnEnemyDummy();
-            _world.SetEnemyPlayerTeam(GetOpposingTeam(_world.LocalPlayerTeam));
-        }
-        else
-        {
-            _world.DespawnEnemyDummy();
-        }
-
-        if (_practiceFriendlyDummyEnabled && !_world.LocalPlayerAwaitingJoin && _world.LocalPlayer.IsAlive)
-        {
-            _world.SpawnFriendlyDummy();
-        }
-        else
-        {
-            _world.DespawnFriendlyDummy();
-        }
+        _world.DespawnEnemyDummy();
+        _world.DespawnFriendlyDummy();
     }
 
     private string GetGameplayExitStatusMessage()

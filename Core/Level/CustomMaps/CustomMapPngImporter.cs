@@ -187,7 +187,8 @@ public static class CustomMapPngImporter
             return string.Empty;
         }
 
-        return input[start..end].Trim();
+        // Walkmask sections use spaces as valid packed bits, so callers must receive the raw section text.
+        return input[start..end];
     }
 
     private static bool TryDecodeWalkmask(string walkmaskSection, float mapScale, out IReadOnlyList<LevelSolid> solids, out WorldBounds bounds)
@@ -195,10 +196,16 @@ public static class CustomMapPngImporter
         solids = Array.Empty<LevelSolid>();
         var lines = walkmaskSection
             .Replace("\r", string.Empty, StringComparison.Ordinal)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (lines.Length < 3
-            || !int.TryParse(lines[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
-            || !int.TryParse(lines[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
+            .Split('\n');
+        var firstContentLine = 0;
+        while (firstContentLine < lines.Length && string.IsNullOrWhiteSpace(lines[firstContentLine]))
+        {
+            firstContentLine += 1;
+        }
+
+        if (firstContentLine + 2 >= lines.Length
+            || !int.TryParse(lines[firstContentLine].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
+            || !int.TryParse(lines[firstContentLine + 1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
             || width <= 0
             || height <= 0)
         {
@@ -207,7 +214,7 @@ public static class CustomMapPngImporter
         }
 
         var cells = new bool[width * height];
-        var packed = string.Concat(lines.Skip(2));
+        var packed = string.Concat(lines.Skip(firstContentLine + 2));
         if (packed.Length == 0)
         {
             bounds = default;

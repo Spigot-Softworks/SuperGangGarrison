@@ -15,7 +15,11 @@ public partial class Game1
 
     private void LoadPracticeNavigationAssetsForCurrentLevel()
     {
-        _practiceNavigationAssets = BotNavigationAssetStore.LoadForLevel(_world.Level);
+        _practiceNavigationAssets = BotNavigationAssetStore.LoadForLevel(
+            _world.Level,
+            useModernRuntimeGeneration: true,
+            allowSynchronousGeneration: true,
+            preferFreshModernGeneration: true);
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary());
         foreach (var status in _practiceNavigationAssets.Statuses.Where(static status => status.IsLoaded && !status.IsStructurallyValid))
         {
@@ -38,10 +42,21 @@ public partial class Game1
         var tokens = _practiceNavigationAssets.Statuses
             .Select(status => status.IsLoaded
                 ? status.IsStructurallyValid
-                    ? $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}"
-                    : $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}:invalid"
+                    ? $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}:{GetNavigationSourceLabel(status.Source)}"
+                    : $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:{status.NodeCount}/{status.EdgeCount}:{GetNavigationSourceLabel(status.Source)}:invalid"
                 : $"{BotNavigationClasses.GetShortLabel(status.ClassId)}:missing")
             .ToArray();
         return $"{_practiceNavigationAssets.BuildSummary()} [{string.Join(" ", tokens)}]";
+    }
+
+    private static string GetNavigationSourceLabel(BotNavigationAssetSource source)
+    {
+        return source switch
+        {
+            BotNavigationAssetSource.GeneratedAtRuntime => "gen",
+            BotNavigationAssetSource.RuntimeCache => "cache",
+            BotNavigationAssetSource.ShippedContent => "ship",
+            _ => "none",
+        };
     }
 }

@@ -4,16 +4,20 @@ internal sealed class BotNavigationRuntimeGraph
 {
     private readonly BotNavigationNode[] _nodesById;
     private readonly Dictionary<int, List<BotNavigationEdge>> _edgesByFromNodeId = new();
+    private readonly Dictionary<int, List<BotNavigationEdge>> _edgesByToNodeId = new();
     private readonly Dictionary<long, BotNavigationEdge> _edgeByNodePair = new();
     private readonly Dictionary<int, (float MinX, float MaxX)> _surfaceExtentsBySurfaceId = new();
     private readonly Dictionary<long, int[]?> _routeCache = new();
+    private readonly Dictionary<long, int[]?> _goalWeightCache = new();
 
     public BotNavigationRuntimeGraph(BotNavigationAsset asset)
     {
         Asset = asset;
-        var scopeToken = asset.ClassId.HasValue
-            ? BotNavigationClasses.GetFileToken(asset.ClassId.Value)
-            : BotNavigationProfiles.GetFileToken(asset.Profile);
+        var scopeToken = asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph && !asset.ClassId.HasValue
+            ? "modern"
+            : asset.ClassId.HasValue
+                ? BotNavigationClasses.GetFileToken(asset.ClassId.Value)
+                : BotNavigationProfiles.GetFileToken(asset.Profile);
         CacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{scopeToken}|{asset.LevelFingerprint}";
 
         var maxNodeId = asset.Nodes.Count == 0 ? -1 : asset.Nodes.Max(static node => node.Id);
@@ -43,6 +47,13 @@ internal sealed class BotNavigationRuntimeGraph
             }
 
             edges.Add(edge);
+            if (!_edgesByToNodeId.TryGetValue(edge.ToNodeId, out var incomingEdges))
+            {
+                incomingEdges = new List<BotNavigationEdge>();
+                _edgesByToNodeId[edge.ToNodeId] = incomingEdges;
+            }
+
+            incomingEdges.Add(edge);
             _edgeByNodePair[GetPairKey(edge.FromNodeId, edge.ToNodeId)] = edge;
         }
     }
@@ -50,6 +61,10 @@ internal sealed class BotNavigationRuntimeGraph
     public BotNavigationAsset Asset { get; }
 
     public string CacheKey { get; }
+
+    public BotNavigationBuildStrategy BuildStrategy => Asset.BuildStrategy;
+
+    public IReadOnlyList<BotNavigationNode> Nodes => Asset.Nodes;
 
     public bool TryFindNearestNode(float x, float y, float maxDistance, out BotNavigationNode node)
     {
@@ -103,6 +118,70 @@ internal sealed class BotNavigationRuntimeGraph
     public bool TryGetEdge(int fromNodeId, int toNodeId, out BotNavigationEdge edge)
     {
         return _edgeByNodePair.TryGetValue(GetPairKey(fromNodeId, toNodeId), out edge!);
+    }
+
+    public bool TryGetOutgoingEdges(int fromNodeId, out IReadOnlyList<BotNavigationEdge> edges)
+    {
+        if (_edgesByFromNodeId.TryGetValue(fromNodeId, out var outgoingEdges))
+        {
+            edges = outgoingEdges;
+            return true;
+        }
+
+        edges = Array.Empty<BotNavigationEdge>();
+        return false;
+    }
+
+    public int[]? GetGoalWeights(int goalNodeId, int maximumDepth = 130)
+    {
+        var cacheKey = GetPairKey(goalNodeId, maximumDepth);
+        if (_goalWeightCache.TryGetValue(cacheKey, out var cachedWeights))
+        {
+            return cachedWeights;
+        }
+
+        if (!TryGetNode(goalNodeId, out _))
+        {
+            _goalWeightCache[cacheKey] = null;
+            return null;
+        }
+
+        var weights = new int[_nodesById.Length];
+        var pendingNodeIds = new Queue<int>();
+        weights[goalNodeId] = 1;
+        pendingNodeIds.Enqueue(goalNodeId);
+
+        while (pendingNodeIds.Count > 0)
+        {
+            var currentNodeId = pendingNodeIds.Dequeue();
+            var currentWeight = weights[currentNodeId];
+            if (currentWeight <= 0 || currentWeight >= maximumDepth)
+            {
+                continue;
+            }
+
+            if (!_edgesByToNodeId.TryGetValue(currentNodeId, out var incomingEdges))
+            {
+                continue;
+            }
+
+            for (var edgeIndex = 0; edgeIndex < incomingEdges.Count; edgeIndex += 1)
+            {
+                var incomingEdge = incomingEdges[edgeIndex];
+                var predecessorNodeId = incomingEdge.FromNodeId;
+                var predecessorWeight = currentWeight + 1;
+                if (weights[predecessorNodeId] > 0 && weights[predecessorNodeId] <= predecessorWeight)
+                {
+                    continue;
+                }
+
+                weights[predecessorNodeId] = predecessorWeight;
+                pendingNodeIds.Enqueue(predecessorNodeId);
+            }
+        }
+
+        _goalWeightCache[cacheKey] = weights;
+        return weights;
     }
 
     public int GetDropDirection(int fromNodeId, int toNodeId)

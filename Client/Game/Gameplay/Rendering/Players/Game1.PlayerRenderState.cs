@@ -76,6 +76,14 @@ public partial class Game1
             appearsAirborne = verticalSourceStepSpeed > 0.35f;
         }
 
+        // Small stair snaps can briefly clear grounded state without being a real jump/fall.
+        if (appearsAirborne
+            && horizontalSourceStepSpeed >= 0.2f
+            && verticalSourceStepSpeed <= 0.35f)
+        {
+            appearsAirborne = false;
+        }
+
         if (!appearsAirborne && horizontalSourceStepSpeed < 0.2f)
         {
             animationImage = 0f;

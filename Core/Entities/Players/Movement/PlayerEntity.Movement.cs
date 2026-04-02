@@ -240,7 +240,7 @@ public sealed partial class PlayerEntity
         }
     }
 
-    public bool IsSourceFacingLeft => SourceFacingDirectionX < 0f;
+    public bool IsSourceFacingLeft => GetSourceFacingDirectionX(AimDirectionDegrees) < 0f;
 
     public bool IsPerformingSourceSpinjump(SimpleLevel level)
     {
@@ -480,12 +480,13 @@ public sealed partial class PlayerEntity
 
     private bool DidSourceFacingSpinForHorizontalDirection(float horizontalDirection)
     {
+        var currentSourceFacingDirectionX = GetSourceFacingDirectionX(AimDirectionDegrees);
         if (horizontalDirection > 0f)
         {
-            return PreviousSourceFacingDirectionX > SourceFacingDirectionX;
+            return SourceFacingDirectionX > currentSourceFacingDirectionX;
         }
 
-        return PreviousSourceFacingDirectionX < SourceFacingDirectionX;
+        return SourceFacingDirectionX < currentSourceFacingDirectionX;
     }
 
     private void AdvanceSourceFacingDirectionForNextStep()

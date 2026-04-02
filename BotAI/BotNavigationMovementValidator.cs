@@ -820,7 +820,7 @@ internal static class BotNavigationMovementValidator
         return !CanOccupy(level, classDefinition, x, y + 1f);
     }
 
-    private static IReadOnlyList<int> GetAirborneTickOptions(BotNavigationProfile profile)
+    private static int[] GetAirborneTickOptions(BotNavigationProfile profile)
     {
         return profile switch
         {
@@ -830,7 +830,7 @@ internal static class BotNavigationMovementValidator
         };
     }
 
-    private static IReadOnlyList<int> GetHintAirborneTickOptions(BotNavigationProfile profile)
+    private static int[] GetHintAirborneTickOptions(BotNavigationProfile profile)
     {
         return profile switch
         {
@@ -840,16 +840,16 @@ internal static class BotNavigationMovementValidator
         };
     }
 
-    private static int PickNearestTickOption(IReadOnlyList<int> options, int requestedTicks)
+    private static int PickNearestTickOption(int[] options, int requestedTicks)
     {
-        if (options.Count == 0)
+        if (options.Length == 0)
         {
             return Math.Max(1, requestedTicks);
         }
 
         var bestOption = options[0];
         var bestDistance = Math.Abs(bestOption - requestedTicks);
-        for (var index = 1; index < options.Count; index += 1)
+        for (var index = 1; index < options.Length; index += 1)
         {
             var option = options[index];
             var distance = Math.Abs(option - requestedTicks);

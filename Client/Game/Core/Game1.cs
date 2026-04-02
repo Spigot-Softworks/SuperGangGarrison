@@ -144,6 +144,11 @@ public partial class Game1 : Game
     private float _bubbleMenuX = -30f;
     private bool _bubbleMenuClosing;
     private int _bubbleMenuXPageIndex;
+    private bool _bubbleMenuSessionHadInteraction;
+    private int? _bubbleMenuPendingFrame;
+    private int _recentBubbleFrameZ = 20;
+    private int _recentBubbleFrameX = 29;
+    private int _recentBubbleFrameC = 36;
     private bool _buildMenuOpen;
     private bool _buildMenuClosing;
     private float _buildMenuAlpha = 0.01f;
@@ -204,8 +209,6 @@ public partial class Game1 : Game
     private int _practiceRespawnSeconds = 5;
     private int _practiceEnemyBotCount;
     private int _practiceFriendlyBotCount;
-    private bool _practiceEnemyDummyEnabled = true;
-    private bool _practiceFriendlyDummyEnabled;
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;

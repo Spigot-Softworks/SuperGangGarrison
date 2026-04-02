@@ -42,8 +42,6 @@ public partial class Game1
         Rectangle FriendlyBotsLeftBounds,
         Rectangle FriendlyBotsValueBounds,
         Rectangle FriendlyBotsRightBounds,
-        Rectangle EnemyDummyBounds,
-        Rectangle FriendlyDummyBounds,
         Rectangle StartBounds,
         Rectangle BackBounds,
         bool CompactLayout);
@@ -150,16 +148,6 @@ public partial class Game1
         {
             CyclePracticeFriendlyBots(1);
         }
-        else if (layout.EnemyDummyBounds.Contains(point))
-        {
-            _practiceEnemyDummyEnabled = !_practiceEnemyDummyEnabled;
-            _menuStatusMessage = string.Empty;
-        }
-        else if (layout.FriendlyDummyBounds.Contains(point))
-        {
-            _practiceFriendlyDummyEnabled = !_practiceFriendlyDummyEnabled;
-            _menuStatusMessage = string.Empty;
-        }
         else if (layout.StartBounds.Contains(point))
         {
             TryStartPracticeFromSetup();
@@ -260,8 +248,6 @@ public partial class Game1
             buttonScale,
             valueScale);
 
-        DrawMenuButtonScaled(layout.EnemyDummyBounds, $"Enemy Dummy: {(_practiceEnemyDummyEnabled ? "Enabled" : "Disabled")}", _practiceEnemyDummyEnabled, buttonScale);
-        DrawMenuButtonScaled(layout.FriendlyDummyBounds, $"Support Dummy: {(_practiceFriendlyDummyEnabled ? "Enabled" : "Disabled")}", _practiceFriendlyDummyEnabled, buttonScale);
         DrawMenuButtonScaled(layout.StartBounds, "Start Practice", false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, "Back", false, buttonScale);
 
@@ -296,8 +282,6 @@ public partial class Game1
         var selectorWidth = panel.Width - (padding * 2) - labelWidth;
         var selectorValueWidth = selectorWidth - (selectorButtonWidth * 2) - 16;
         var buttonHeight = compactLayout ? 36 : 42;
-        var toggleGap = compactLayout ? 10 : 14;
-        var toggleWidth = (panel.Width - (padding * 2) - toggleGap) / 2;
         var actionGap = compactLayout ? 12 : 20;
         var actionWidth = (panel.Width - (padding * 2) - actionGap) / 2;
         var actionsY = panel.Bottom - padding - buttonHeight - 4;
@@ -330,9 +314,6 @@ public partial class Game1
         var friendlyBotsValueBounds = OffsetPracticeRow(enemyBotsValueBounds, rowHeight + rowGap);
         var friendlyBotsRightBounds = OffsetPracticeRow(enemyBotsRightBounds, rowHeight + rowGap);
 
-        var togglesY = friendlyBotsValueBounds.Bottom + (compactLayout ? 16 : 22);
-        var enemyDummyBounds = new Rectangle(panel.X + padding, togglesY, toggleWidth, buttonHeight);
-        var friendlyDummyBounds = new Rectangle(enemyDummyBounds.Right + toggleGap, togglesY, toggleWidth, buttonHeight);
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
         var backBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
 
@@ -359,8 +340,6 @@ public partial class Game1
             friendlyBotsLeftBounds,
             friendlyBotsValueBounds,
             friendlyBotsRightBounds,
-            enemyDummyBounds,
-            friendlyDummyBounds,
             startBounds,
             backBounds,
             compactLayout);

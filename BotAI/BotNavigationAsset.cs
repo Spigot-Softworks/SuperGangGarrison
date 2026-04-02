@@ -24,6 +24,7 @@ public enum BotNavigationBuildStrategy
     GeometrySampledValidatedJumps = 1,
     HintAugmentedValidatedJumps = 2,
     ExplicitHintGraphValidatedTraversals = 3,
+    ModernClientBotPointGraph = 4,
 }
 
 public enum BotNavigationAssetSource
@@ -31,6 +32,7 @@ public enum BotNavigationAssetSource
     None = 0,
     ShippedContent = 1,
     RuntimeCache = 2,
+    GeneratedAtRuntime = 3,
 }
 
 public sealed class BotNavigationInputFrame
@@ -180,8 +182,13 @@ public sealed record BotNavigationLoadResult(
         var loadedCount = Statuses.Count(static status => status.IsLoaded);
         var missingCount = Statuses.Count - loadedCount;
         var invalidCount = Statuses.Count(static status => status.IsLoaded && !status.IsStructurallyValid);
-        var loadedNodes = Statuses.Where(static status => status.IsLoaded).Sum(static status => status.NodeCount);
-        var loadedEdges = Statuses.Where(static status => status.IsLoaded).Sum(static status => status.EdgeCount);
+        var uniqueLoadedStatuses = Statuses
+            .Where(static status => status.IsLoaded)
+            .GroupBy(static status => string.IsNullOrWhiteSpace(status.Path) ? $"nodes:{status.NodeCount}:edges:{status.EdgeCount}" : status.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .ToArray();
+        var loadedNodes = uniqueLoadedStatuses.Sum(static status => status.NodeCount);
+        var loadedEdges = uniqueLoadedStatuses.Sum(static status => status.EdgeCount);
         return invalidCount > 0
             ? $"nav loaded={loadedCount}/{Statuses.Count} missing={missingCount} invalid={invalidCount} nodes={loadedNodes} edges={loadedEdges}"
             : $"nav loaded={loadedCount}/{Statuses.Count} missing={missingCount} nodes={loadedNodes} edges={loadedEdges}";

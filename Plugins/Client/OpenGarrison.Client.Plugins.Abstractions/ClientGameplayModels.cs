@@ -91,6 +91,8 @@ public sealed record ClientBubbleMenuInputState(
     float AimDirectionDegrees,
     float DistanceFromCenter,
     bool LeftMousePressed,
+    bool LeftMouseDown,
+    bool LeftMouseReleased,
     int? PressedDigit,
     bool QPressed);
 
@@ -104,7 +106,8 @@ public sealed record ClientBubbleMenuRenderState(
 public sealed record ClientBubbleMenuUpdateResult(
     int? BubbleFrame = null,
     int? NewXPageIndex = null,
-    bool CloseMenu = false);
+    bool CloseMenu = false,
+    bool ClearBubbleSelection = false);
 
 public interface IOpenGarrisonClientBubbleMenuHooks
 {

@@ -44,12 +44,43 @@ public static class BotNavigationAssetValidator
         }
 
         var issues = new List<BotNavigationValidationIssue>();
+        ValidateTraversalExecutability(asset, issues);
         var graph = new BotNavigationRuntimeGraph(asset);
-        ValidateAttackReachability(level, asset, graph, PlayerTeam.Red, issues);
-        ValidateAttackReachability(level, asset, graph, PlayerTeam.Blue, issues);
+        if (asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph)
+        {
+            ValidateModernMarkerCoverage(level, asset, graph, PlayerTeam.Red, issues);
+            ValidateModernMarkerCoverage(level, asset, graph, PlayerTeam.Blue, issues);
+        }
+        else
+        {
+            ValidateAttackReachability(level, asset, graph, PlayerTeam.Red, issues);
+            ValidateAttackReachability(level, asset, graph, PlayerTeam.Blue, issues);
+        }
         return issues.Count == 0
             ? BotNavigationValidationResult.Valid
             : new BotNavigationValidationResult(issues);
+    }
+
+    private static void ValidateTraversalExecutability(
+        BotNavigationAsset asset,
+        List<BotNavigationValidationIssue> issues)
+    {
+        if (asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph)
+        {
+            return;
+        }
+
+        var jumpEdgesMissingTape = asset.Edges.Count(edge =>
+            edge.Kind == BotNavigationTraversalKind.Jump
+            && (edge.InputTape is null || edge.InputTape.Count == 0));
+        if (jumpEdgesMissingTape <= 0)
+        {
+            return;
+        }
+
+        issues.Add(new BotNavigationValidationIssue(
+            "jump-edge-missing-tape",
+            $"graph contains {jumpEdgesMissingTape} jump edge(s) without traversal input tapes"));
     }
 
     private static void ValidateAttackReachability(
@@ -60,7 +91,7 @@ public static class BotNavigationAssetValidator
         List<BotNavigationValidationIssue> issues)
     {
         var spawns = GetTeamSpawns(level, asset, team);
-        if (spawns.Count == 0)
+        if (spawns.Length == 0)
         {
             issues.Add(new BotNavigationValidationIssue(
                 $"spawn-missing-{team}",
@@ -77,7 +108,7 @@ public static class BotNavigationAssetValidator
             return;
         }
 
-        for (var spawnIndex = 0; spawnIndex < spawns.Count; spawnIndex += 1)
+        for (var spawnIndex = 0; spawnIndex < spawns.Length; spawnIndex += 1)
         {
             var spawn = spawns[spawnIndex];
             if (!graph.TryFindNearestNode(spawn.X, spawn.Y, StartNodeSearchDistance, requireGroundSupport: true, out var startNode))
@@ -115,7 +146,55 @@ public static class BotNavigationAssetValidator
         }
     }
 
-    private static IReadOnlyList<NavMarkerPoint> GetTeamSpawns(SimpleLevel level, BotNavigationAsset asset, PlayerTeam team)
+    private static void ValidateModernMarkerCoverage(
+        SimpleLevel level,
+        BotNavigationAsset asset,
+        BotNavigationRuntimeGraph graph,
+        PlayerTeam team,
+        List<BotNavigationValidationIssue> issues)
+    {
+        var spawns = GetTeamSpawns(level, asset, team);
+        if (spawns.Length == 0)
+        {
+            issues.Add(new BotNavigationValidationIssue(
+                $"spawn-missing-{team}",
+                $"{team} has no usable spawns for nav validation"));
+            return;
+        }
+
+        var objectives = GetAttackObjectives(level, asset, team);
+        if (objectives.Count == 0)
+        {
+            issues.Add(new BotNavigationValidationIssue(
+                $"objective-missing-{team}",
+                $"{team} has no attack objective markers for nav validation"));
+            return;
+        }
+
+        for (var spawnIndex = 0; spawnIndex < spawns.Length; spawnIndex += 1)
+        {
+            var spawn = spawns[spawnIndex];
+            if (!graph.TryFindNearestNode(spawn.X, spawn.Y, StartNodeSearchDistance, requireGroundSupport: true, out _))
+            {
+                issues.Add(new BotNavigationValidationIssue(
+                    $"spawn-node-miss-{team}-{spawnIndex}",
+                    $"{team} spawn {spawnIndex + 1} at ({spawn.X:F0},{spawn.Y:F0}) has no nearby nav node"));
+            }
+        }
+
+        for (var objectiveIndex = 0; objectiveIndex < objectives.Count; objectiveIndex += 1)
+        {
+            var objective = objectives[objectiveIndex];
+            if (!graph.TryFindNearestNode(objective.X, objective.Y, GoalNodeSearchDistance, requireGroundSupport: false, out _))
+            {
+                issues.Add(new BotNavigationValidationIssue(
+                    $"objective-node-miss-{team}-{objectiveIndex}",
+                    $"Objective '{objective.Label}' at ({objective.X:F0},{objective.Y:F0}) has no nearby nav node"));
+            }
+        }
+    }
+
+    private static NavMarkerPoint[] GetTeamSpawns(SimpleLevel level, BotNavigationAsset asset, PlayerTeam team)
     {
         var authoredSpawns = asset.Nodes
             .Where(node => node.Kind == BotNavigationNodeKind.Spawn && GetNodeTeam(node) == team)

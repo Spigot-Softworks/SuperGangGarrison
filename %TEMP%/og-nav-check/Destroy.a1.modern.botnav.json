@@ -1,0 +1,1919 @@
+{
+  "FormatVersion": 3,
+  "LevelName": "Destroy",
+  "MapAreaIndex": 1,
+  "ClassId": null,
+  "Profile": "Standard",
+  "LevelFingerprint": "89b5b309a9eb0df701526888bb15e9fe018bbe8d4bd72e8d77af3c262e87c196",
+  "BuildStrategy": "ModernClientBotPointGraph",
+  "BuiltUtc": "2026-04-02T04:10:08.2935445Z",
+  "Stats": {
+    "SurfaceCount": 659,
+    "CandidateNodeCount": 73,
+    "SurfaceSampleNodeCount": 73,
+    "AutoAnchorNodeCount": 0,
+    "HintNodeCount": 0,
+    "NodeCount": 73,
+    "EdgeCount": 165,
+    "WalkEdgeCount": 48,
+    "JumpEdgeCount": 117,
+    "DropEdgeCount": 0,
+    "HintEdgeCount": 0,
+    "BuildMilliseconds": 108.4904,
+    "SurfaceSamplingMilliseconds": 0,
+    "AutoAnchorMilliseconds": 0,
+    "HintNodeMilliseconds": 0,
+    "AutomaticEdgeMilliseconds": 0,
+    "HintEdgeMilliseconds": 0,
+    "DropEdgeMilliseconds": 0
+  },
+  "Nodes": [
+    {
+      "Id": 0,
+      "X": 1530,
+      "Y": 204,
+      "SurfaceId": 152,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 1,
+      "X": 1559,
+      "Y": 204,
+      "SurfaceId": 152,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 2,
+      "X": 2094,
+      "Y": 204,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 3,
+      "X": 2123,
+      "Y": 204,
+      "SurfaceId": 153,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 4,
+      "X": 1308,
+      "Y": 252,
+      "SurfaceId": 200,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 5,
+      "X": 1607,
+      "Y": 252,
+      "SurfaceId": 200,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 6,
+      "X": 2046,
+      "Y": 252,
+      "SurfaceId": 201,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 7,
+      "X": 2345,
+      "Y": 252,
+      "SurfaceId": 201,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 8,
+      "X": 1266,
+      "Y": 294,
+      "SurfaceId": 237,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 9,
+      "X": 2387,
+      "Y": 294,
+      "SurfaceId": 238,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 10,
+      "X": 1158,
+      "Y": 324,
+      "SurfaceId": 261,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 11,
+      "X": 1175,
+      "Y": 324,
+      "SurfaceId": 261,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 12,
+      "X": 2478,
+      "Y": 324,
+      "SurfaceId": 264,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 13,
+      "X": 2495,
+      "Y": 324,
+      "SurfaceId": 264,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 14,
+      "X": 1223,
+      "Y": 342,
+      "SurfaceId": 279,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 15,
+      "X": 2430,
+      "Y": 342,
+      "SurfaceId": 282,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 16,
+      "X": 1710,
+      "Y": 372,
+      "SurfaceId": 306,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 17,
+      "X": 1943,
+      "Y": 372,
+      "SurfaceId": 306,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 18,
+      "X": 1265,
+      "Y": 384,
+      "SurfaceId": 315,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 19,
+      "X": 2388,
+      "Y": 384,
+      "SurfaceId": 317,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 20,
+      "X": 1308,
+      "Y": 432,
+      "SurfaceId": 359,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 21,
+      "X": 1619,
+      "Y": 432,
+      "SurfaceId": 359,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 22,
+      "X": 2034,
+      "Y": 432,
+      "SurfaceId": 360,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 23,
+      "X": 2345,
+      "Y": 432,
+      "SurfaceId": 360,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 24,
+      "X": 1266,
+      "Y": 474,
+      "SurfaceId": 390,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 25,
+      "X": 2387,
+      "Y": 474,
+      "SurfaceId": 391,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 26,
+      "X": 1794,
+      "Y": 504,
+      "SurfaceId": 415,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 27,
+      "X": 1841,
+      "Y": 504,
+      "SurfaceId": 415,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 28,
+      "X": 1158,
+      "Y": 510,
+      "SurfaceId": 419,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 29,
+      "X": 1175,
+      "Y": 510,
+      "SurfaceId": 419,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 30,
+      "X": 2478,
+      "Y": 510,
+      "SurfaceId": 423,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 31,
+      "X": 2495,
+      "Y": 510,
+      "SurfaceId": 423,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 32,
+      "X": 1223,
+      "Y": 522,
+      "SurfaceId": 433,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 33,
+      "X": 2430,
+      "Y": 522,
+      "SurfaceId": 437,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 34,
+      "X": 1770,
+      "Y": 528,
+      "SurfaceId": 442,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 35,
+      "X": 1865,
+      "Y": 528,
+      "SurfaceId": 442,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 36,
+      "X": 756,
+      "Y": 552,
+      "SurfaceId": 466,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 37,
+      "X": 935,
+      "Y": 552,
+      "SurfaceId": 466,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 38,
+      "X": 2718,
+      "Y": 552,
+      "SurfaceId": 470,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 39,
+      "X": 2897,
+      "Y": 552,
+      "SurfaceId": 470,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 40,
+      "X": 1152,
+      "Y": 564,
+      "SurfaceId": 481,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 41,
+      "X": 1265,
+      "Y": 564,
+      "SurfaceId": 481,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 42,
+      "X": 2388,
+      "Y": 564,
+      "SurfaceId": 483,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 43,
+      "X": 2501,
+      "Y": 564,
+      "SurfaceId": 483,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 44,
+      "X": 1704,
+      "Y": 576,
+      "SurfaceId": 496,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 45,
+      "X": 1949,
+      "Y": 576,
+      "SurfaceId": 496,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 46,
+      "X": 1680,
+      "Y": 594,
+      "SurfaceId": 517,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 47,
+      "X": 1973,
+      "Y": 594,
+      "SurfaceId": 517,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 48,
+      "X": 198,
+      "Y": 606,
+      "SurfaceId": 527,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 49,
+      "X": 521,
+      "Y": 606,
+      "SurfaceId": 527,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 50,
+      "X": 972,
+      "Y": 606,
+      "SurfaceId": 528,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 51,
+      "X": 1085,
+      "Y": 606,
+      "SurfaceId": 528,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 52,
+      "X": 2568,
+      "Y": 606,
+      "SurfaceId": 530,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 53,
+      "X": 2681,
+      "Y": 606,
+      "SurfaceId": 530,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 54,
+      "X": 3132,
+      "Y": 606,
+      "SurfaceId": 531,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 55,
+      "X": 3455,
+      "Y": 606,
+      "SurfaceId": 531,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 56,
+      "X": 1308,
+      "Y": 612,
+      "SurfaceId": 536,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 57,
+      "X": 1619,
+      "Y": 612,
+      "SurfaceId": 536,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 58,
+      "X": 2034,
+      "Y": 612,
+      "SurfaceId": 538,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 59,
+      "X": 2345,
+      "Y": 612,
+      "SurfaceId": 538,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 60,
+      "X": 120,
+      "Y": 654,
+      "SurfaceId": 580,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 61,
+      "X": 161,
+      "Y": 654,
+      "SurfaceId": 580,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 62,
+      "X": 1140,
+      "Y": 654,
+      "SurfaceId": 581,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 63,
+      "X": 1271,
+      "Y": 654,
+      "SurfaceId": 581,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 64,
+      "X": 2382,
+      "Y": 654,
+      "SurfaceId": 582,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 65,
+      "X": 2513,
+      "Y": 654,
+      "SurfaceId": 582,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 66,
+      "X": 3492,
+      "Y": 654,
+      "SurfaceId": 583,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 67,
+      "X": 3533,
+      "Y": 654,
+      "SurfaceId": 583,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 68,
+      "X": 545,
+      "Y": 696,
+      "SurfaceId": 608,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 69,
+      "X": 3108,
+      "Y": 696,
+      "SurfaceId": 609,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 70,
+      "X": 1925,
+      "Y": 708,
+      "SurfaceId": 613,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 71,
+      "X": 1740,
+      "Y": 714,
+      "SurfaceId": 614,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    },
+    {
+      "Id": 72,
+      "X": 1901,
+      "Y": 714,
+      "SurfaceId": 614,
+      "Kind": "Surface",
+      "Team": null,
+      "Label": "",
+      "RequiresGroundSupport": true
+    }
+  ],
+  "Edges": [
+    {
+      "FromNodeId": 0,
+      "ToNodeId": 1,
+      "Kind": "Walk",
+      "Cost": 29,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 0,
+      "ToNodeId": 4,
+      "Kind": "Jump",
+      "Cost": 227.12991,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 0,
+      "Kind": "Walk",
+      "Cost": 29,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 5,
+      "Kind": "Jump",
+      "Cost": 67.88225,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 3,
+      "Kind": "Walk",
+      "Cost": 29,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 6,
+      "Kind": "Jump",
+      "Cost": 67.88225,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 2,
+      "Kind": "Walk",
+      "Cost": 29,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 7,
+      "Kind": "Jump",
+      "Cost": 227.12991,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 4,
+      "ToNodeId": 0,
+      "Kind": "Jump",
+      "Cost": 227.12991,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 4,
+      "ToNodeId": 8,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 5,
+      "ToNodeId": 1,
+      "Kind": "Jump",
+      "Cost": 67.88225,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 5,
+      "ToNodeId": 16,
+      "Kind": "Jump",
+      "Cost": 158.14233,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 5,
+      "ToNodeId": 44,
+      "Kind": "Jump",
+      "Cost": 338.20853,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 6,
+      "ToNodeId": 2,
+      "Kind": "Jump",
+      "Cost": 67.88225,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 6,
+      "ToNodeId": 17,
+      "Kind": "Jump",
+      "Cost": 158.14233,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 7,
+      "ToNodeId": 3,
+      "Kind": "Jump",
+      "Cost": 227.12991,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 7,
+      "ToNodeId": 9,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 4,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 11,
+      "Kind": "Jump",
+      "Cost": 95.817535,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 14,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 7,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 12,
+      "Kind": "Jump",
+      "Cost": 95.817535,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 15,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 10,
+      "ToNodeId": 11,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 8,
+      "Kind": "Jump",
+      "Cost": 95.817535,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 10,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 14,
+      "Kind": "Jump",
+      "Cost": 51.264023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 12,
+      "ToNodeId": 9,
+      "Kind": "Jump",
+      "Cost": 95.817535,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 12,
+      "ToNodeId": 13,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 12,
+      "ToNodeId": 15,
+      "Kind": "Jump",
+      "Cost": 51.264023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 13,
+      "ToNodeId": 12,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 13,
+      "ToNodeId": 52,
+      "Kind": "Jump",
+      "Cost": 291.29538,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 14,
+      "ToNodeId": 8,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 14,
+      "ToNodeId": 11,
+      "Kind": "Jump",
+      "Cost": 51.264023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 14,
+      "ToNodeId": 18,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 15,
+      "ToNodeId": 9,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 15,
+      "ToNodeId": 12,
+      "Kind": "Jump",
+      "Cost": 51.264023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 15,
+      "ToNodeId": 19,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 16,
+      "ToNodeId": 17,
+      "Kind": "Walk",
+      "Cost": 233,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 16,
+      "ToNodeId": 21,
+      "Kind": "Jump",
+      "Cost": 109,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 17,
+      "ToNodeId": 16,
+      "Kind": "Walk",
+      "Cost": 233,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 17,
+      "ToNodeId": 22,
+      "Kind": "Jump",
+      "Cost": 109,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 18,
+      "ToNodeId": 14,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 18,
+      "ToNodeId": 20,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 19,
+      "ToNodeId": 15,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 19,
+      "ToNodeId": 23,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 20,
+      "ToNodeId": 18,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 20,
+      "ToNodeId": 21,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 20,
+      "ToNodeId": 24,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 16,
+      "Kind": "Jump",
+      "Cost": 109,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 20,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 34,
+      "Kind": "Jump",
+      "Cost": 178.93295,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 44,
+      "Kind": "Jump",
+      "Cost": 167.21542,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 21,
+      "ToNodeId": 46,
+      "Kind": "Jump",
+      "Cost": 173.10402,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 17,
+      "Kind": "Jump",
+      "Cost": 109,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 23,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 45,
+      "Kind": "Jump",
+      "Cost": 167.21542,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 47,
+      "Kind": "Jump",
+      "Cost": 173.10402,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 23,
+      "ToNodeId": 19,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 23,
+      "ToNodeId": 22,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 23,
+      "ToNodeId": 25,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 20,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 29,
+      "Kind": "Jump",
+      "Cost": 97.862144,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 32,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 23,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 30,
+      "Kind": "Jump",
+      "Cost": 97.862144,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 33,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 26,
+      "ToNodeId": 27,
+      "Kind": "Walk",
+      "Cost": 47,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 26,
+      "ToNodeId": 34,
+      "Kind": "Jump",
+      "Cost": 33.941124,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 27,
+      "ToNodeId": 26,
+      "Kind": "Walk",
+      "Cost": 47,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 27,
+      "ToNodeId": 35,
+      "Kind": "Jump",
+      "Cost": 33.941124,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 28,
+      "ToNodeId": 29,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 24,
+      "Kind": "Jump",
+      "Cost": 97.862144,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 28,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 32,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 25,
+      "Kind": "Jump",
+      "Cost": 97.862144,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 31,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 33,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 31,
+      "ToNodeId": 30,
+      "Kind": "Walk",
+      "Cost": 17,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 32,
+      "ToNodeId": 24,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 32,
+      "ToNodeId": 29,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 32,
+      "ToNodeId": 41,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 33,
+      "ToNodeId": 25,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 33,
+      "ToNodeId": 30,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 33,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 34,
+      "ToNodeId": 26,
+      "Kind": "Jump",
+      "Cost": 33.941124,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 34,
+      "ToNodeId": 44,
+      "Kind": "Jump",
+      "Cost": 81.608826,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 35,
+      "ToNodeId": 27,
+      "Kind": "Jump",
+      "Cost": 33.941124,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 35,
+      "ToNodeId": 45,
+      "Kind": "Jump",
+      "Cost": 96.74709,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 36,
+      "ToNodeId": 37,
+      "Kind": "Walk",
+      "Cost": 179,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 37,
+      "ToNodeId": 36,
+      "Kind": "Walk",
+      "Cost": 179,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 37,
+      "ToNodeId": 50,
+      "Kind": "Jump",
+      "Cost": 65.459915,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 38,
+      "ToNodeId": 39,
+      "Kind": "Walk",
+      "Cost": 179,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 38,
+      "ToNodeId": 53,
+      "Kind": "Jump",
+      "Cost": 65.459915,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 39,
+      "ToNodeId": 38,
+      "Kind": "Walk",
+      "Cost": 179,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 40,
+      "ToNodeId": 51,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 41,
+      "ToNodeId": 32,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 41,
+      "ToNodeId": 56,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 33,
+      "Kind": "Jump",
+      "Cost": 59.39697,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 59,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 43,
+      "ToNodeId": 52,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 44,
+      "ToNodeId": 34,
+      "Kind": "Jump",
+      "Cost": 81.608826,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 44,
+      "ToNodeId": 46,
+      "Kind": "Jump",
+      "Cost": 30,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 45,
+      "ToNodeId": 35,
+      "Kind": "Jump",
+      "Cost": 96.74709,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 45,
+      "ToNodeId": 47,
+      "Kind": "Jump",
+      "Cost": 30,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 46,
+      "ToNodeId": 44,
+      "Kind": "Jump",
+      "Cost": 30,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 46,
+      "ToNodeId": 57,
+      "Kind": "Jump",
+      "Cost": 63.600315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 47,
+      "ToNodeId": 45,
+      "Kind": "Jump",
+      "Cost": 30,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 47,
+      "ToNodeId": 58,
+      "Kind": "Jump",
+      "Cost": 63.600315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 48,
+      "ToNodeId": 49,
+      "Kind": "Walk",
+      "Cost": 323,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 48,
+      "ToNodeId": 61,
+      "Kind": "Jump",
+      "Cost": 60.60528,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 48,
+      "Kind": "Walk",
+      "Cost": 323,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 68,
+      "Kind": "Jump",
+      "Cost": 93.14505,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 50,
+      "ToNodeId": 37,
+      "Kind": "Jump",
+      "Cost": 65.459915,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 50,
+      "ToNodeId": 51,
+      "Kind": "Walk",
+      "Cost": 113,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 40,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 50,
+      "Kind": "Walk",
+      "Cost": 113,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 62,
+      "Kind": "Jump",
+      "Cost": 73,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 43,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 53,
+      "Kind": "Walk",
+      "Cost": 113,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 65,
+      "Kind": "Jump",
+      "Cost": 73,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 53,
+      "ToNodeId": 38,
+      "Kind": "Jump",
+      "Cost": 65.459915,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 53,
+      "ToNodeId": 52,
+      "Kind": "Walk",
+      "Cost": 113,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 54,
+      "ToNodeId": 55,
+      "Kind": "Walk",
+      "Cost": 323,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 54,
+      "ToNodeId": 69,
+      "Kind": "Jump",
+      "Cost": 93.14505,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 55,
+      "ToNodeId": 54,
+      "Kind": "Walk",
+      "Cost": 323,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 55,
+      "ToNodeId": 66,
+      "Kind": "Jump",
+      "Cost": 60.60528,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 41,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 57,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 63,
+      "Kind": "Jump",
+      "Cost": 55.97321,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 57,
+      "ToNodeId": 46,
+      "Kind": "Jump",
+      "Cost": 63.600315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 57,
+      "ToNodeId": 56,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 57,
+      "ToNodeId": 71,
+      "Kind": "Jump",
+      "Cost": 158.25612,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 47,
+      "Kind": "Jump",
+      "Cost": 63.600315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 59,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 70,
+      "Kind": "Jump",
+      "Cost": 145.24806,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 64.44377,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 58,
+      "Kind": "Walk",
+      "Cost": 311,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 64,
+      "Kind": "Jump",
+      "Cost": 55.97321,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 60,
+      "ToNodeId": 61,
+      "Kind": "Walk",
+      "Cost": 41,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 61,
+      "ToNodeId": 48,
+      "Kind": "Jump",
+      "Cost": 60.60528,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 61,
+      "ToNodeId": 60,
+      "Kind": "Walk",
+      "Cost": 41,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 61,
+      "ToNodeId": 68,
+      "Kind": "Jump",
+      "Cost": 386.29004,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 62,
+      "ToNodeId": 51,
+      "Kind": "Jump",
+      "Cost": 73,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 62,
+      "ToNodeId": 63,
+      "Kind": "Walk",
+      "Cost": 131,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 63,
+      "ToNodeId": 56,
+      "Kind": "Jump",
+      "Cost": 55.97321,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 63,
+      "ToNodeId": 62,
+      "Kind": "Walk",
+      "Cost": 131,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 64,
+      "ToNodeId": 59,
+      "Kind": "Jump",
+      "Cost": 55.97321,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 64,
+      "ToNodeId": 65,
+      "Kind": "Walk",
+      "Cost": 131,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 52,
+      "Kind": "Jump",
+      "Cost": 73,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 64,
+      "Kind": "Walk",
+      "Cost": 131,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 55,
+      "Kind": "Jump",
+      "Cost": 60.60528,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 67,
+      "Kind": "Walk",
+      "Cost": 41,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 69,
+      "Kind": "Jump",
+      "Cost": 386.29004,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 67,
+      "ToNodeId": 66,
+      "Kind": "Walk",
+      "Cost": 41,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 49,
+      "Kind": "Jump",
+      "Cost": 93.14505,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 61,
+      "Kind": "Jump",
+      "Cost": 386.29004,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 69,
+      "ToNodeId": 54,
+      "Kind": "Jump",
+      "Cost": 93.14505,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 69,
+      "ToNodeId": 66,
+      "Kind": "Jump",
+      "Cost": 386.29004,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 70,
+      "ToNodeId": 58,
+      "Kind": "Jump",
+      "Cost": 145.24806,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 70,
+      "ToNodeId": 72,
+      "Kind": "Walk",
+      "Cost": 24.738634,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 71,
+      "ToNodeId": 57,
+      "Kind": "Jump",
+      "Cost": 158.25612,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 71,
+      "ToNodeId": 72,
+      "Kind": "Walk",
+      "Cost": 161,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 72,
+      "ToNodeId": 70,
+      "Kind": "Walk",
+      "Cost": 24.738634,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 72,
+      "ToNodeId": 71,
+      "Kind": "Walk",
+      "Cost": 161,
+      "InputTape": []
+    }
+  ]
+}

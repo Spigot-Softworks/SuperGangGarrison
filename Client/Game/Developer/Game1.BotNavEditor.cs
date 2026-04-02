@@ -2801,24 +2801,46 @@ public partial class Game1
             ?? ContentRoot.GetPath("BotNav");
         var fingerprint = BotNavigationLevelFingerprint.Compute(level);
         var lines = new List<string>();
-        var invalidCount = 0;
-        foreach (var classId in BotNavigationClasses.All)
-        {
-            var asset = BotNavigationAssetBuilder.Build(level, classId, fingerprint);
-            var validation = BotNavigationAssetValidator.Validate(level, asset);
-            BotNavigationAssetStore.SaveShipped(asset, outputDirectory);
-            if (!validation.IsStructurallyValid)
-            {
-                invalidCount += 1;
-            }
+        DeleteNavEditorLegacyClassAssets(outputDirectory, level.Name, level.MapAreaIndex);
+        DeleteNavEditorLegacyProfileAssets(outputDirectory, level.Name, level.MapAreaIndex);
+        var asset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint);
+        var validation = BotNavigationAssetValidator.Validate(level, asset);
+        BotNavigationAssetStore.SaveShipped(asset, outputDirectory);
+        var invalidCount = validation.IsStructurallyValid ? 0 : 1;
 
-            lines.Add($"{BotNavigationClasses.GetShortLabel(classId)} nodes={asset.Nodes.Count} edges={asset.Edges.Count} nav={(validation.IsStructurallyValid ? "ok" : validation.BuildSummary())}");
-        }
+        var classLabels = string.Join(
+            "/",
+            BotNavigationClasses.All.Select(BotNavigationClasses.GetShortLabel));
+        lines.Add($"modern [{classLabels}] nodes={asset.Nodes.Count} edges={asset.Edges.Count} nav={(validation.IsStructurallyValid ? "ok" : validation.BuildSummary())}");
 
         var summary = invalidCount > 0
-            ? $"nav rebuild finished with {invalidCount} invalid class asset(s)"
-            : "nav rebuild finished";
+            ? $"nav rebuild finished with {invalidCount} invalid profile asset(s) (Modern graph only; editor hints saved separately)"
+            : "nav rebuild finished (Modern graph only; editor hints saved separately)";
         return new NavEditorRebuildResult(true, summary, lines.ToArray(), level.Name, level.MapAreaIndex);
+    }
+
+    private static void DeleteNavEditorLegacyClassAssets(string outputDirectory, string levelName, int mapAreaIndex)
+    {
+        foreach (var classId in BotNavigationClasses.All)
+        {
+            var legacyPath = Path.Combine(outputDirectory, BotNavigationAssetStore.GetAssetFileName(levelName, mapAreaIndex, classId));
+            if (File.Exists(legacyPath))
+            {
+                File.Delete(legacyPath);
+            }
+        }
+    }
+
+    private static void DeleteNavEditorLegacyProfileAssets(string outputDirectory, string levelName, int mapAreaIndex)
+    {
+        foreach (var profile in BotNavigationProfiles.All)
+        {
+            var legacyPath = Path.Combine(outputDirectory, BotNavigationAssetStore.GetLegacyAssetFileName(levelName, mapAreaIndex, profile));
+            if (File.Exists(legacyPath))
+            {
+                File.Delete(legacyPath);
+            }
+        }
     }
 
     private BotNavigationHintAsset BuildNavEditorHintAssetSnapshot()

@@ -59,7 +59,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        return HasObstacleLineOfSight(medic.X, medic.Y, target.X, target.Y);
+        return HasMedicHealingLineOfSight(medic, target);
     }
 
     private void ApplyMedicHealing(PlayerEntity medic, PlayerEntity target)
@@ -123,9 +123,11 @@ public sealed partial class SimulationWorld
     {
         const float maxDistance = 300f;
         const float maxMouseSelectDistance = 150f;
-        const float aimSelectionThicknessRadius = 6f;
-        var aimDeltaX = aimWorldX - medic.X;
-        var aimDeltaY = aimWorldY - medic.Y;
+        const float aimSelectionThicknessRadius = 8f;
+        var aimOriginX = medic.X;
+        var aimOriginY = GetMedicAimOriginY(medic);
+        var aimDeltaX = aimWorldX - aimOriginX;
+        var aimDeltaY = aimWorldY - aimOriginY;
         if (aimDeltaX == 0f && aimDeltaY == 0f)
         {
             aimDeltaX = medic.FacingDirectionX;
@@ -139,8 +141,8 @@ public sealed partial class SimulationWorld
 
         var directionX = aimDeltaX / aimDistance;
         var directionY = aimDeltaY / aimDistance;
-        var aimEndX = medic.X + directionX * maxDistance;
-        var aimEndY = medic.Y + directionY * maxDistance;
+        var aimEndX = aimOriginX + directionX * maxDistance;
+        var aimEndY = aimOriginY + directionY * maxDistance;
         PlayerEntity? bestTarget = null;
         var bestScore = 0f;
         foreach (var player in EnumerateSimulatedPlayers())
@@ -157,8 +159,8 @@ public sealed partial class SimulationWorld
             }
 
             var hitDistance = GetThickLineIntersectionDistanceToPlayer(
-                medic.X,
-                medic.Y,
+                aimOriginX,
+                aimOriginY,
                 aimEndX,
                 aimEndY,
                 player,
@@ -166,10 +168,21 @@ public sealed partial class SimulationWorld
                 aimSelectionThicknessRadius);
             if (!hitDistance.HasValue)
             {
+                hitDistance = GetThickLineIntersectionDistanceToPlayer(
+                    medic.X,
+                    medic.Y,
+                    aimEndX,
+                    aimEndY,
+                    player,
+                    maxDistance,
+                    aimSelectionThicknessRadius);
+            }
+            if (!hitDistance.HasValue)
+            {
                 continue;
             }
 
-            if (!HasObstacleLineOfSight(medic.X, medic.Y, player.X, player.Y))
+            if (!HasMedicHealingLineOfSight(medic, player))
             {
                 continue;
             }
@@ -188,5 +201,25 @@ public sealed partial class SimulationWorld
         }
 
         return bestTarget;
+    }
+
+    private static float GetMedicAimOriginY(PlayerEntity medic)
+    {
+        return medic.Y - MathF.Min(8f, medic.Height * 0.25f);
+    }
+
+    private static float GetMedicTargetFocusY(PlayerEntity target)
+    {
+        return target.Y - MathF.Min(8f, target.Height * 0.25f);
+    }
+
+    private bool HasMedicHealingLineOfSight(PlayerEntity medic, PlayerEntity target)
+    {
+        var medicAimOriginY = GetMedicAimOriginY(medic);
+        var targetFocusY = GetMedicTargetFocusY(target);
+        return HasObstacleLineOfSight(medic.X, medic.Y, target.X, target.Y)
+            || HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, targetFocusY)
+            || HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, target.Y)
+            || HasObstacleLineOfSight(medic.X, medic.Y, target.X, targetFocusY);
     }
 }

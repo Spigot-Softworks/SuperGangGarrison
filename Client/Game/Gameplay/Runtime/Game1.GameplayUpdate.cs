@@ -289,13 +289,23 @@ public partial class Game1
         else
         {
             BeginBotDiagnosticsFrame(gameTime);
-            UpdatePracticeBots();
             _simulator.Step(
                 gameTime.ElapsedGameTime.TotalSeconds,
-                OnNavEditorTraversalCaptureBeforeTick,
-                OnNavEditorTraversalCaptureAfterTick);
+                OnPracticeSimulationBeforeTick,
+                OnPracticeSimulationAfterTick);
             FinalizeBotDiagnosticsFrame();
         }
+    }
+
+    private void OnPracticeSimulationBeforeTick()
+    {
+        UpdatePracticeBots();
+        OnNavEditorTraversalCaptureBeforeTick();
+    }
+
+    private void OnPracticeSimulationAfterTick()
+    {
+        OnNavEditorTraversalCaptureAfterTick();
     }
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
