@@ -388,6 +388,11 @@ public partial class Game1
 
     private int GetRenderWeaponAmmoCount(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeaponCurrentShells;
+        }
+
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return player.ExperimentalOffhandCurrentShells;
@@ -402,6 +407,11 @@ public partial class Game1
 
     private int GetRenderWeaponCooldownTicks(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeaponCooldownTicks;
+        }
+
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return player.ExperimentalOffhandCooldownTicks;
@@ -423,6 +433,11 @@ public partial class Game1
 
     private int GetRenderWeaponReloadTicks(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeaponReloadTicksUntilNextShell;
+        }
+
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
@@ -444,6 +459,11 @@ public partial class Game1
 
     private static int GetRenderWeaponMaxShells(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeaponMaxShells;
+        }
+
         return ShouldPresentExperimentalSoldierShotgun(player)
             ? player.ExperimentalOffhandMaxShells
             : player.MaxShells;
@@ -451,6 +471,11 @@ public partial class Game1
 
     private static PrimaryWeaponDefinition GetRenderWeaponStats(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeapon ?? player.PrimaryWeapon;
+        }
+
         return ShouldPresentExperimentalSoldierShotgun(player)
             ? player.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Shotgun
             : player.PrimaryWeapon;
@@ -458,17 +483,25 @@ public partial class Game1
 
     private static PlayerClass GetRenderWeaponPresentationClassId(PlayerEntity player)
     {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return player.AcquiredWeaponClassId ?? player.ClassId;
+        }
+
         return ShouldPresentExperimentalSoldierShotgun(player)
             ? PlayerClass.Engineer
             : player.ClassId;
     }
 
+    private static bool ShouldPresentAcquiredWeapon(PlayerEntity player)
+    {
+        return player.IsAcquiredWeaponPresented;
+    }
+
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
     {
         return player.ClassId == PlayerClass.Soldier
-            && player.HasExperimentalOffhandWeapon
-            && (player.ExperimentalOffhandDisplayTicksRemaining > 0
-                || player.ExperimentalOffhandReloadTicksUntilNextShell > 0);
+            && player.IsExperimentalOffhandPresented;
     }
 
     private static float WrapAnimationImage(float animationImage, float length)

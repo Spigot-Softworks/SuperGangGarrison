@@ -9,51 +9,52 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private enum ClientPowerViability
+    private enum ClientPowerToggleKind
     {
-        High,
-        Medium,
-        Risky,
+        SoldierShotgunSecondaryWeapon,
+        StickyGibBlood,
+        HealOnDamage,
+        HealOnKill,
+        RateOfFireOnDamage,
+        SoldierInstantReload,
+        SpeedOnDamage,
+        SpeedOnKill,
+        PassiveHealthRegeneration,
+        InvincibilityOnKill,
+        ProjectileSpeedMultiplier,
+        AirshotDamageMultiplier,
+        EnemyHealthPackDrops,
+        EnemyDroppedWeapons,
     }
 
-    private readonly record struct ClientPowerInvestigationEntry(
+    private readonly record struct ClientPowerToggleEntry(
+        ClientPowerToggleKind Kind,
         string Label,
-        ClientPowerViability Viability,
-        string HookSummary);
+        string Description);
 
     private readonly record struct ClientPowersLayout(
         Rectangle Panel,
-        Rectangle SoldierShotgunToggleBounds,
         Rectangle ListBounds,
         Rectangle BackBounds,
         int VisibleRowCount,
         bool CompactLayout);
 
-    private static readonly ClientPowerInvestigationEntry[] ClientPowerEntries =
+    private static readonly ClientPowerToggleEntry[] ClientPowerEntries =
     [
-        new("Soldier shotgun secondary (Space)", ClientPowerViability.High, "implemented via practice offhand seam"),
-        new("Drop weapon on death", ClientPowerViability.Risky, "needs dropped item + pickup system"),
-        new("Spinjump gravity multiplier", ClientPowerViability.High, "clean hook in player movement gravity"),
-        new("Spinjump damage multiplier", ClientPowerViability.Risky, "current sim has no clear spinjump damage seam"),
-        new("Heal on damage", ClientPowerViability.High, "damage pipeline already centralized"),
-        new("Heal on kill", ClientPowerViability.High, "clean hook in kill resolution"),
-        new("Speed on damage", ClientPowerViability.Medium, "needs temporary movement buff state"),
-        new("Speed on kill", ClientPowerViability.Medium, "needs temporary movement buff state"),
-        new("Reload on direct hit", ClientPowerViability.Medium, "multiple hit paths need one refill rule"),
-        new("Reload on kill", ClientPowerViability.High, "kill hook can grant ammo/refill"),
-        new("Extra jump on kill", ClientPowerViability.Medium, "needs temp air-jump grant beyond class max"),
-        new("Distance damage multiplier", ClientPowerViability.Medium, "needs per-weapon travel/distance pass"),
-        new("Rate of fire on damage", ClientPowerViability.Medium, "needs generic cooldown multiplier buff"),
-        new("Rate of fire on kill", ClientPowerViability.Medium, "needs generic cooldown multiplier buff"),
-        new("Passive health regeneration", ClientPowerViability.High, "clean per-tick hook in player state"),
-        new("Invincibility on kill (1s)", ClientPowerViability.High, "can reuse uber-style immunity gate"),
-        new("Damage resistance on kill", ClientPowerViability.Medium, "needs incoming damage scalar buff"),
-        new("Self explosive resist on kill", ClientPowerViability.Medium, "explosion ownership is already known"),
-        new("Damage multiplier on airshot", ClientPowerViability.Medium, "needs airborne hit check across weapons"),
-        new("+10% projectile size", ClientPowerViability.Risky, "projectile radii are mostly static constants"),
-        new("+10% projectile speed", ClientPowerViability.Medium, "localized to projectile spawn velocities"),
-        new("+10% explosive damage radius", ClientPowerViability.Medium, "needs dynamic blast radius plumbing"),
-        new("+10% explosive knockback power", ClientPowerViability.Medium, "localized to explosion impulse math"),
+        new(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon, "Soldier shotgun", "Fire Engineer's shotgun with Space in practice."),
+        new(ClientPowerToggleKind.StickyGibBlood, "Sticky gib blood", "Gib blood coats nearby players for 10s, then fades out."),
+        new(ClientPowerToggleKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
+        new(ClientPowerToggleKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),
+        new(ClientPowerToggleKind.RateOfFireOnDamage, "Rate of fire on hit", "Landing a hit instantly requeues primary fire if it is still cooling down."),
+        new(ClientPowerToggleKind.SoldierInstantReload, "Soldier instant reload on hit", "Landing a hit instantly refills 1 Soldier rocket."),
+        new(ClientPowerToggleKind.SpeedOnDamage, "Speed on damage", "20% movement boost for 2.5s after dealing damage."),
+        new(ClientPowerToggleKind.SpeedOnKill, "Speed on kill", "20% movement boost for 3s after kills."),
+        new(ClientPowerToggleKind.PassiveHealthRegeneration, "Passive regeneration", "Restore 3 health per second while alive."),
+        new(ClientPowerToggleKind.InvincibilityOnKill, "Invincibility on kill", "Gain 0.5s of superburst invulnerability on kills."),
+        new(ClientPowerToggleKind.ProjectileSpeedMultiplier, "Projectile speed +20%", "Boost spawned projectile launch speed by 20%."),
+        new(ClientPowerToggleKind.AirshotDamageMultiplier, "Airshot damage +25%", "Direct projectile airshots deal bonus damage and show yellow hit numbers."),
+        new(ClientPowerToggleKind.EnemyHealthPackDrops, "Enemies drop health packs", "10% chance for enemy kills to drop a temporary small or large health pack."),
+        new(ClientPowerToggleKind.EnemyDroppedWeapons, "Enemies drop weapons", "50% chance for enemy bot kills to drop a temporary primary weapon for Soldier to pick up with Q."),
     ];
 
     private void OpenClientPowersMenu(bool fromGameplay)
@@ -100,7 +101,7 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.Enter))
         {
-            TogglePracticeExperimentalSoldierShotgun();
+            TogglePracticeClientPower(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon);
             return;
         }
 
@@ -148,10 +149,26 @@ public partial class Game1
             return;
         }
 
-        if (layout.SoldierShotgunToggleBounds.Contains(mouse.Position))
+        if (!layout.ListBounds.Contains(mouse.Position))
         {
-            TogglePracticeExperimentalSoldierShotgun();
+            return;
         }
+
+        const int headerHeight = 30;
+        const int rowHeight = 30;
+        var clickedRow = (mouse.Y - (layout.ListBounds.Y + headerHeight + 6)) / rowHeight;
+        if (clickedRow < 0 || clickedRow >= layout.VisibleRowCount)
+        {
+            return;
+        }
+
+        var entryIndex = _clientPowersScrollOffset + clickedRow;
+        if (entryIndex < 0 || entryIndex >= ClientPowerEntries.Length)
+        {
+            return;
+        }
+
+        TogglePracticeClientPower(ClientPowerEntries[entryIndex].Kind);
     }
 
     private void DrawClientPowersMenu()
@@ -184,7 +201,7 @@ public partial class Game1
         DrawBitmapFontText("Client Powers", new Vector2(panel.X + padding, panel.Y + 22f), Color.White, compactLayout ? 1.08f : 1.2f);
 
         var summaryLines = WrapMenuParagraph(
-            "Practice-only staging surface. The list below scores each requested feature against the current legacy simulation and keeps the UI seam ready for future hook-up work.",
+            "Practice-only experimental toggles. These rows drive clean local-practice rules or client-side presentation hooks without bleeding into online flow.",
             compactLayout ? 74 : 88);
         var summaryY = panel.Y + 56f;
         for (var index = 0; index < summaryLines.Length; index += 1)
@@ -192,25 +209,13 @@ public partial class Game1
             DrawBitmapFontText(summaryLines[index], new Vector2(panel.X + padding, summaryY + (index * 18f)), new Color(210, 210, 210), 0.88f);
         }
 
-        DrawBitmapFontText("Practice Toggle", new Vector2(panel.X + padding, layout.SoldierShotgunToggleBounds.Y + 6f), new Color(232, 232, 232), 0.92f);
-        DrawMenuButtonScaled(
-            layout.SoldierShotgunToggleBounds,
-            _practiceExperimentalSoldierShotgunEnabled ? "Soldier Shotgun: Enabled" : "Soldier Shotgun: Disabled",
-            false,
-            compactLayout ? 0.9f : 1f);
-        DrawBitmapFontText(
-            "Soldier fires Engineer's shotgun with Space in practice. Mouse right stays unused for this experiment.",
-            new Vector2(panel.X + padding, layout.SoldierShotgunToggleBounds.Bottom + 10f),
-            new Color(210, 210, 210),
-            0.84f);
-
         _spriteBatch.Draw(_pixel, listBounds, new Color(21, 23, 28, 232));
         _spriteBatch.Draw(_pixel, new Rectangle(listBounds.X, listBounds.Y, listBounds.Width, 2), new Color(102, 108, 118));
         _spriteBatch.Draw(_pixel, new Rectangle(listBounds.X, listBounds.Bottom - 2, listBounds.Width, 2), new Color(12, 14, 18));
 
-        DrawBitmapFontText("Feature", new Vector2(labelX, listBounds.Y + 8f), new Color(230, 230, 230), 0.92f);
+        DrawBitmapFontText("Setting", new Vector2(labelX, listBounds.Y + 8f), new Color(230, 230, 230), 0.92f);
         DrawBitmapFontText("Status", new Vector2(statusX, listBounds.Y + 8f), new Color(230, 230, 230), 0.92f);
-        DrawBitmapFontText("Primary Hook", new Vector2(noteX, listBounds.Y + 8f), new Color(230, 230, 230), 0.92f);
+        DrawBitmapFontText("Effect", new Vector2(noteX, listBounds.Y + 8f), new Color(230, 230, 230), 0.92f);
 
         var endIndex = Math.Min(ClientPowerEntries.Length, _clientPowersScrollOffset + layout.VisibleRowCount);
         var rowY = listBounds.Y + headerHeight + 6;
@@ -221,17 +226,18 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, rowBounds, alternate ? new Color(34, 37, 43, 150) : new Color(27, 29, 35, 150));
 
             var entry = ClientPowerEntries[index];
-            var viabilityLabel = GetClientPowerViabilityLabel(entry.Viability);
-            var viabilityColor = GetClientPowerViabilityColor(entry.Viability);
+            var enabled = GetPracticeClientPowerEnabled(entry.Kind);
+            var stateLabel = enabled ? "Enabled" : "Disabled";
+            var stateColor = enabled ? new Color(118, 222, 160) : new Color(172, 172, 172);
             DrawBitmapFontText(TrimBitmapMenuText(entry.Label, labelColumnWidth, 0.9f), new Vector2(labelX, rowY + 2f), Color.White, 0.9f);
-            DrawBitmapFontText(TrimBitmapMenuText(viabilityLabel, statusColumnWidth, 0.9f), new Vector2(statusX, rowY + 2f), viabilityColor, 0.9f);
-            DrawBitmapFontText(TrimBitmapMenuText(entry.HookSummary, noteColumnWidth, 0.86f), new Vector2(noteX, rowY + 3f), new Color(205, 205, 205), 0.86f);
+            DrawBitmapFontText(TrimBitmapMenuText(stateLabel, statusColumnWidth, 0.9f), new Vector2(statusX, rowY + 2f), stateColor, 0.9f);
+            DrawBitmapFontText(TrimBitmapMenuText(entry.Description, noteColumnWidth, 0.86f), new Vector2(noteX, rowY + 3f), new Color(205, 205, 205), 0.86f);
             rowY += rowHeight;
         }
 
         DrawClientPowersScrollBar(listBounds, headerHeight, rowHeight, layout.VisibleRowCount);
 
-        var footerText = $"Showing {_clientPowersScrollOffset + 1}-{Math.Max(_clientPowersScrollOffset + 1, endIndex)} of {ClientPowerEntries.Length}. Use mouse wheel or Up/Down to review.";
+        var footerText = $"Showing {_clientPowersScrollOffset + 1}-{Math.Max(_clientPowersScrollOffset + 1, endIndex)} of {ClientPowerEntries.Length}. Click a row to toggle it.";
         DrawBitmapFontText(footerText, new Vector2(panel.X + padding, panel.Bottom - (compactLayout ? 62f : 68f)), new Color(210, 210, 210), 0.88f);
         DrawMenuButtonScaled(layout.BackBounds, _clientPowersOpenedFromGameplay ? "Back to Pause Menu" : "Back", false, 1f);
     }
@@ -249,13 +255,7 @@ public partial class Game1
         var compactLayout = panel.Width < 860 || panel.Height < 620;
         var padding = compactLayout ? 20 : 28;
         var buttonHeight = compactLayout ? 36 : 42;
-        var toggleWidth = compactLayout ? 290 : 330;
-        var toggleBounds = new Rectangle(
-            panel.Right - padding - toggleWidth,
-            panel.Y + (compactLayout ? 102 : 114),
-            toggleWidth,
-            buttonHeight);
-        var listTop = toggleBounds.Bottom + (compactLayout ? 34 : 42);
+        var listTop = panel.Y + (compactLayout ? 126 : 138);
         var listBottomMargin = compactLayout ? 86 : 94;
         var listBounds = new Rectangle(
             panel.X + padding,
@@ -272,7 +272,6 @@ public partial class Game1
 
         return new ClientPowersLayout(
             panel,
-            toggleBounds,
             listBounds,
             backBounds,
             visibleRowCount,
@@ -320,36 +319,121 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, thumbBounds, new Color(188, 190, 196));
     }
 
-    private static string GetClientPowerViabilityLabel(ClientPowerViability viability)
+    private bool GetPracticeClientPowerEnabled(ClientPowerToggleKind kind)
     {
-        return viability switch
+        return kind switch
         {
-            ClientPowerViability.High => "High",
-            ClientPowerViability.Medium => "Medium",
-            _ => "Risky",
+            ClientPowerToggleKind.SoldierShotgunSecondaryWeapon => _practiceExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
+            ClientPowerToggleKind.StickyGibBlood => _practiceStickyGibBloodEnabled,
+            ClientPowerToggleKind.HealOnDamage => _practiceExperimentalGameplaySettings.EnableHealOnDamage,
+            ClientPowerToggleKind.HealOnKill => _practiceExperimentalGameplaySettings.EnableHealOnKill,
+            ClientPowerToggleKind.RateOfFireOnDamage => _practiceExperimentalGameplaySettings.EnableRateOfFireMultiplierOnDamage,
+            ClientPowerToggleKind.SoldierInstantReload => _practiceExperimentalGameplaySettings.EnableSoldierInstantReload,
+            ClientPowerToggleKind.SpeedOnDamage => _practiceExperimentalGameplaySettings.EnableSpeedOnDamage,
+            ClientPowerToggleKind.SpeedOnKill => _practiceExperimentalGameplaySettings.EnableSpeedOnKill,
+            ClientPowerToggleKind.PassiveHealthRegeneration => _practiceExperimentalGameplaySettings.EnablePassiveHealthRegeneration,
+            ClientPowerToggleKind.InvincibilityOnKill => _practiceExperimentalGameplaySettings.EnableInvincibilityOnKill,
+            ClientPowerToggleKind.ProjectileSpeedMultiplier => _practiceExperimentalGameplaySettings.EnableProjectileSpeedMultiplier,
+            ClientPowerToggleKind.AirshotDamageMultiplier => _practiceExperimentalGameplaySettings.EnableAirshotDamageMultiplier,
+            ClientPowerToggleKind.EnemyHealthPackDrops => _practiceExperimentalGameplaySettings.EnableEnemyHealthPackDrops,
+            ClientPowerToggleKind.EnemyDroppedWeapons => _practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
+            _ => false,
         };
     }
 
-    private static Color GetClientPowerViabilityColor(ClientPowerViability viability)
+    private void TogglePracticeClientPower(ClientPowerToggleKind kind)
     {
-        return viability switch
+        switch (kind)
         {
-            ClientPowerViability.High => new Color(118, 222, 160),
-            ClientPowerViability.Medium => new Color(236, 198, 102),
-            _ => new Color(242, 126, 126),
-        };
+            case ClientPowerToggleKind.SoldierShotgunSecondaryWeapon:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSoldierShotgunSecondaryWeapon = !_practiceExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
+                };
+                break;
+            case ClientPowerToggleKind.StickyGibBlood:
+                _practiceStickyGibBloodEnabled = !_practiceStickyGibBloodEnabled;
+                break;
+            case ClientPowerToggleKind.HealOnDamage:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableHealOnDamage = !_practiceExperimentalGameplaySettings.EnableHealOnDamage,
+                };
+                break;
+            case ClientPowerToggleKind.HealOnKill:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableHealOnKill = !_practiceExperimentalGameplaySettings.EnableHealOnKill,
+                };
+                break;
+            case ClientPowerToggleKind.RateOfFireOnDamage:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableRateOfFireMultiplierOnDamage = !_practiceExperimentalGameplaySettings.EnableRateOfFireMultiplierOnDamage,
+                };
+                break;
+            case ClientPowerToggleKind.SoldierInstantReload:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSoldierInstantReload = !_practiceExperimentalGameplaySettings.EnableSoldierInstantReload,
+                };
+                break;
+            case ClientPowerToggleKind.SpeedOnDamage:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSpeedOnDamage = !_practiceExperimentalGameplaySettings.EnableSpeedOnDamage,
+                };
+                break;
+            case ClientPowerToggleKind.SpeedOnKill:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSpeedOnKill = !_practiceExperimentalGameplaySettings.EnableSpeedOnKill,
+                };
+                break;
+            case ClientPowerToggleKind.PassiveHealthRegeneration:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnablePassiveHealthRegeneration = !_practiceExperimentalGameplaySettings.EnablePassiveHealthRegeneration,
+                };
+                break;
+            case ClientPowerToggleKind.InvincibilityOnKill:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableInvincibilityOnKill = !_practiceExperimentalGameplaySettings.EnableInvincibilityOnKill,
+                };
+                break;
+            case ClientPowerToggleKind.ProjectileSpeedMultiplier:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableProjectileSpeedMultiplier = !_practiceExperimentalGameplaySettings.EnableProjectileSpeedMultiplier,
+                };
+                break;
+            case ClientPowerToggleKind.AirshotDamageMultiplier:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableAirshotDamageMultiplier = !_practiceExperimentalGameplaySettings.EnableAirshotDamageMultiplier,
+                };
+                break;
+            case ClientPowerToggleKind.EnemyHealthPackDrops:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableEnemyHealthPackDrops = !_practiceExperimentalGameplaySettings.EnableEnemyHealthPackDrops,
+                };
+                break;
+            case ClientPowerToggleKind.EnemyDroppedWeapons:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableEnemyDroppedWeapons = !_practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
+                };
+                break;
+        }
+
+        ApplyPracticeExperimentalGameplaySettings();
     }
 
     private ExperimentalGameplaySettings GetPracticeExperimentalGameplaySettings()
     {
-        return new ExperimentalGameplaySettings(
-            EnableSoldierShotgunSecondaryWeapon: _practiceExperimentalSoldierShotgunEnabled);
-    }
-
-    private void TogglePracticeExperimentalSoldierShotgun()
-    {
-        _practiceExperimentalSoldierShotgunEnabled = !_practiceExperimentalSoldierShotgunEnabled;
-        ApplyPracticeExperimentalGameplaySettings();
+        return _practiceExperimentalGameplaySettings;
     }
 
     private void ApplyPracticeExperimentalGameplaySettings()

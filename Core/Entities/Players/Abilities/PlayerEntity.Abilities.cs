@@ -240,24 +240,29 @@ public sealed partial class PlayerEntity
         UberTicksRemaining = int.Max(UberTicksRemaining, ticks);
     }
 
-    public bool ApplyContinuousHealing(float healing)
+    public int ApplyContinuousHealingAndGetAmount(float healing)
     {
         if (!IsAlive || healing <= 0f)
         {
-            return false;
+            return 0;
         }
 
         ContinuousHealingAccumulator += healing;
         var wholeHealing = (int)ContinuousHealingAccumulator;
         if (wholeHealing <= 0)
         {
-            return false;
+            return 0;
         }
 
         ContinuousHealingAccumulator -= wholeHealing;
         var previousHealth = Health;
         Health = int.Min(MaxHealth, Health + wholeHealing);
-        return Health > previousHealth;
+        return Math.Max(0, Health - previousHealth);
+    }
+
+    public bool ApplyContinuousHealing(float healing)
+    {
+        return ApplyContinuousHealingAndGetAmount(healing) > 0;
     }
 
     private void AdvanceSniperState()

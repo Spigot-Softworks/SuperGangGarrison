@@ -187,6 +187,8 @@ public partial class Game1
         _hostSetupOpen = false;
         _hostSetupEditField = HostSetupEditField.None;
         _practiceSetupOpen = false;
+        _lastToDieMenuOpen = false;
+        _lastToDiePerkMenuOpen = false;
         _clientPowersOpen = false;
         _clientPowersOpenedFromGameplay = false;
         CloseLobbyBrowser(clearStatus: false);
@@ -219,6 +221,7 @@ public partial class Game1
         _lastPredictedRenderSmoothingTimeSeconds = -1d;
         _pendingPredictedInputs.Clear();
         _gameplaySessionKind = GameplaySessionKind.None;
+        ResetLastToDieState();
         ResetSnapshotStateHistory();
         _menuStatusMessage = statusMessage ?? string.Empty;
         _autoBalanceNoticeText = string.Empty;

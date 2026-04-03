@@ -22,6 +22,8 @@ internal static class KeyboardInputMapper
             Taunt: keyboard.IsKeyDown(bindings.Taunt),
             FirePrimary: mouse.LeftButton == ButtonState.Pressed,
             FireSecondary: mouse.RightButton == ButtonState.Pressed,
+            FireSecondaryWeapon: keyboard.IsKeyDown(bindings.FireSecondaryWeapon),
+            InteractWeapon: keyboard.IsKeyDown(bindings.InteractWeapon),
             AimWorldX: cameraX + mouse.X,
             AimWorldY: cameraY + mouse.Y,
             DebugKill: false,

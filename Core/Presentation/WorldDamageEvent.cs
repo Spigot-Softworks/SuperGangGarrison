@@ -17,5 +17,6 @@ public readonly record struct WorldDamageEvent(
     float X,
     float Y,
     bool WasFatal,
+    DamageEventFlags Flags = DamageEventFlags.None,
     ulong EventId = 0,
     ulong SourceFrame = 0);

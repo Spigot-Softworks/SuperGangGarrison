@@ -27,6 +27,11 @@ public sealed partial class PlayerEntity
         int CurrentShells,
         int PrimaryCooldownTicks,
         int ReloadTicksUntilNextShell,
+        PrimaryWeaponDefinition? ExperimentalOffhandWeapon,
+        int ExperimentalOffhandCurrentShells,
+        int ExperimentalOffhandCooldownTicks,
+        int ExperimentalOffhandReloadTicksUntilNextShell,
+        bool IsExperimentalOffhandEquipped,
         float ContinuousDamageAccumulator,
         bool IsHeavyEating,
         int HeavyEatTicksRemaining,
@@ -113,6 +118,11 @@ public sealed partial class PlayerEntity
             CurrentShells,
             PrimaryCooldownTicks,
             ReloadTicksUntilNextShell,
+            ExperimentalOffhandWeapon,
+            ExperimentalOffhandCurrentShells,
+            ExperimentalOffhandCooldownTicks,
+            ExperimentalOffhandReloadTicksUntilNextShell,
+            IsExperimentalOffhandEquipped,
             ContinuousDamageAccumulator,
             IsHeavyEating,
             HeavyEatTicksRemaining,
@@ -199,6 +209,14 @@ public sealed partial class PlayerEntity
         CurrentShells = state.CurrentShells;
         PrimaryCooldownTicks = state.PrimaryCooldownTicks;
         ReloadTicksUntilNextShell = state.ReloadTicksUntilNextShell;
+        ExperimentalOffhandWeapon = state.ExperimentalOffhandWeapon;
+        ExperimentalOffhandCurrentShells = int.Clamp(
+            state.ExperimentalOffhandCurrentShells,
+            0,
+            state.ExperimentalOffhandWeapon?.MaxAmmo ?? 0);
+        ExperimentalOffhandCooldownTicks = Math.Max(0, state.ExperimentalOffhandCooldownTicks);
+        ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, state.ExperimentalOffhandReloadTicksUntilNextShell);
+        IsExperimentalOffhandEquipped = state.ExperimentalOffhandWeapon is not null && state.IsExperimentalOffhandEquipped;
         ContinuousDamageAccumulator = state.ContinuousDamageAccumulator;
         IsHeavyEating = state.IsHeavyEating;
         HeavyEatTicksRemaining = state.HeavyEatTicksRemaining;

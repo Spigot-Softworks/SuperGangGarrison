@@ -13,10 +13,14 @@ public partial class Game1
 {
     private SoundEffect? _menuMusic;
     private SoundEffectInstance? _menuMusicInstance;
+    private SoundEffect? _lastToDieMenuMusic;
+    private SoundEffectInstance? _lastToDieMenuMusicInstance;
     private SoundEffect? _faucetMusic;
     private SoundEffectInstance? _faucetMusicInstance;
     private SoundEffect? _ingameMusic;
     private SoundEffectInstance? _ingameMusicInstance;
+    private SoundEffect? _lastToDieIngameMusic;
+    private SoundEffectInstance? _lastToDieIngameMusicInstance;
     private SoundEffectInstance? _localChaingunSoundInstance;
     private SoundEffectInstance? _localFlamethrowerSoundInstance;
     private SoundEffectInstance? _localMedigunSoundInstance;
@@ -68,11 +72,42 @@ public partial class Game1
         TryLoadLoopedMusic(Path.Combine("Music", "ingamemusic.wav"), out _ingameMusic, out _ingameMusicInstance, 0.8f);
     }
 
+    private void LoadLastToDieMenuMusic()
+    {
+        if (!_audioAvailable)
+        {
+            return;
+        }
+
+        TryLoadLoopedMusic(
+            Path.Combine("Music", "menu-l2d.fixed.wav"),
+            out _lastToDieMenuMusic,
+            out _lastToDieMenuMusicInstance,
+            0.82f,
+            disableAudioOnFailure: false);
+    }
+
+    private void LoadLastToDieIngameMusic()
+    {
+        if (!_audioAvailable)
+        {
+            return;
+        }
+
+        TryLoadLoopedMusic(
+            Path.Combine("Music", "ingame_l2d.wav"),
+            out _lastToDieIngameMusic,
+            out _lastToDieIngameMusicInstance,
+            0.82f,
+            disableAudioOnFailure: false);
+    }
+
     private void TryLoadLoopedMusic(
         string relativePath,
         out SoundEffect? music,
         out SoundEffectInstance? musicInstance,
-        float volume = 1f)
+        float volume = 1f,
+        bool disableAudioOnFailure = true)
     {
         music = null;
         musicInstance = null;
@@ -93,15 +128,65 @@ public partial class Game1
         }
         catch (Exception ex)
         {
-            DisableAudio("initializing audio", ex);
+            try
+            {
+                musicInstance?.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                music?.Dispose();
+            }
+            catch
+            {
+            }
+
+            musicInstance = null;
+            music = null;
+
+            if (disableAudioOnFailure)
+            {
+                DisableAudio($"initializing {Path.GetFileName(relativePath)}", ex);
+                return;
+            }
+
+            AddConsoleLine($"optional music unavailable: {Path.GetFileName(relativePath)} ({ex.GetType().Name}: {ex.Message})");
         }
     }
 
     private void EnsureMenuMusicPlaying()
     {
-        if (IsServerLauncherMode || _menuMusicInstance is null || !_audioAvailable || !AllowsMenuMusic())
+        if (IsServerLauncherMode || !_audioAvailable || !AllowsMenuMusic())
         {
             StopMenuMusic();
+            StopLastToDieMenuMusic();
+            return;
+        }
+
+        if (IsLastToDieMenuActive() && _lastToDieMenuMusicInstance is not null)
+        {
+            StopMenuMusic();
+            try
+            {
+                if (_lastToDieMenuMusicInstance.State != SoundState.Playing)
+                {
+                    _lastToDieMenuMusicInstance.Play();
+                }
+            }
+            catch (Exception ex)
+            {
+                DisableAudio("starting Last To Die menu music", ex);
+            }
+
+            return;
+        }
+
+        StopLastToDieMenuMusic();
+        if (_menuMusicInstance is null)
+        {
             return;
         }
 
@@ -153,6 +238,20 @@ public partial class Game1
         }
     }
 
+    private void StopLastToDieMenuMusic()
+    {
+        try
+        {
+            if (_lastToDieMenuMusicInstance?.State == SoundState.Playing)
+            {
+                _lastToDieMenuMusicInstance.Stop();
+            }
+        }
+        catch
+        {
+        }
+    }
+
     private void StopFaucetMusic()
     {
         try
@@ -169,15 +268,41 @@ public partial class Game1
 
     private void EnsureIngameMusicPlaying()
     {
-        if (_ingameMusicInstance is null || !_audioAvailable || !AllowsIngameMusic())
+        if (!_audioAvailable || !AllowsIngameMusic())
         {
             StopIngameMusic();
+            StopLastToDieIngameMusic();
             return;
         }
 
         if (_world.MatchState.IsEnded)
         {
             StopIngameMusic();
+            StopLastToDieIngameMusic();
+            return;
+        }
+
+        if (IsLastToDieSessionActive && _lastToDieIngameMusicInstance is not null)
+        {
+            StopIngameMusic();
+            try
+            {
+                if (_lastToDieIngameMusicInstance.State != SoundState.Playing)
+                {
+                    _lastToDieIngameMusicInstance.Play();
+                }
+            }
+            catch (Exception ex)
+            {
+                DisableAudio("starting Last To Die in-game music", ex);
+            }
+
+            return;
+        }
+
+        StopLastToDieIngameMusic();
+        if (_ingameMusicInstance is null)
+        {
             return;
         }
 
@@ -201,6 +326,20 @@ public partial class Game1
             if (_ingameMusicInstance?.State == SoundState.Playing)
             {
                 _ingameMusicInstance.Stop();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void StopLastToDieIngameMusic()
+    {
+        try
+        {
+            if (_lastToDieIngameMusicInstance?.State == SoundState.Playing)
+            {
+                _lastToDieIngameMusicInstance.Stop();
             }
         }
         catch
@@ -253,6 +392,10 @@ public partial class Game1
         if (_ingameMusicInstance?.State == SoundState.Playing)
         {
             _ingameMusicInstance.Stop();
+        }
+        if (_lastToDieIngameMusicInstance?.State == SoundState.Playing)
+        {
+            _lastToDieIngameMusicInstance.Stop();
         }
 
         var sound = _runtimeAssets.GetSound(soundName);
@@ -362,12 +505,18 @@ public partial class Game1
         StopAndDisposeLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
         StopAndDisposeLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
         StopMenuMusic();
+        StopLastToDieMenuMusic();
         StopFaucetMusic();
         StopIngameMusic();
+        StopLastToDieIngameMusic();
         _menuMusicInstance?.Dispose();
         _menuMusicInstance = null;
         _menuMusic?.Dispose();
         _menuMusic = null;
+        _lastToDieMenuMusicInstance?.Dispose();
+        _lastToDieMenuMusicInstance = null;
+        _lastToDieMenuMusic?.Dispose();
+        _lastToDieMenuMusic = null;
         _faucetMusicInstance?.Dispose();
         _faucetMusicInstance = null;
         _faucetMusic?.Dispose();
@@ -376,6 +525,10 @@ public partial class Game1
         _ingameMusicInstance = null;
         _ingameMusic?.Dispose();
         _ingameMusic = null;
+        _lastToDieIngameMusicInstance?.Dispose();
+        _lastToDieIngameMusicInstance = null;
+        _lastToDieIngameMusic?.Dispose();
+        _lastToDieIngameMusic = null;
         AddConsoleLine($"audio disabled: {reason} ({ex.GetType().Name}: {ex.Message})");
     }
 

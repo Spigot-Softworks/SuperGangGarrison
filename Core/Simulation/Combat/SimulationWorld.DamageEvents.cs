@@ -12,7 +12,8 @@ public sealed partial class SimulationWorld
         float y,
         int amount,
         bool wasFatal,
-        PlayerEntity? playerTarget = null)
+        PlayerEntity? playerTarget = null,
+        DamageEventFlags flags = DamageEventFlags.None)
     {
         if (amount <= 0)
         {
@@ -30,6 +31,7 @@ public sealed partial class SimulationWorld
             x,
             y,
             wasFatal,
+            flags,
             SourceFrame: (ulong)Frame));
     }
 
@@ -48,7 +50,12 @@ public sealed partial class SimulationWorld
         return -1;
     }
 
-    private bool ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f)
+    private bool ApplyPlayerDamage(
+        PlayerEntity target,
+        int damage,
+        PlayerEntity? attacker,
+        float spyRevealAlpha = 0f,
+        DamageEventFlags damageFlags = DamageEventFlags.None)
     {
         if (damage <= 0 || !target.IsAlive)
         {
@@ -67,11 +74,18 @@ public sealed partial class SimulationWorld
             target.Y,
             appliedDamage,
             died,
-            target);
+            target,
+            damageFlags);
+        ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
         return died;
     }
 
-    private bool ApplyPlayerContinuousDamage(PlayerEntity target, float damage, PlayerEntity? attacker, float spyRevealAlpha = 0f)
+    private bool ApplyPlayerContinuousDamage(
+        PlayerEntity target,
+        float damage,
+        PlayerEntity? attacker,
+        float spyRevealAlpha = 0f,
+        DamageEventFlags damageFlags = DamageEventFlags.None)
     {
         if (damage <= 0f || !target.IsAlive)
         {
@@ -90,7 +104,9 @@ public sealed partial class SimulationWorld
             target.Y,
             appliedDamage,
             died,
-            target);
+            target,
+            damageFlags);
+        ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
         return died;
     }
 

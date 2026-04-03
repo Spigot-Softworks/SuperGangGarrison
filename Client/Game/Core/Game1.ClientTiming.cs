@@ -15,7 +15,8 @@ public partial class Game1
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
     private bool _pendingPredictedJumpPress;
-    private bool _pendingPredictedSecondaryPress;
+    private bool _pendingPredictedSecondaryAbilityPress;
+    private bool _pendingPredictedSecondaryWeaponPress;
     private uint _latchedJumpPressSequence;
 
     private int ConsumeClientTickCount(GameTime gameTime)
@@ -39,7 +40,8 @@ public partial class Game1
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
         _pendingPredictedJumpPress = false;
-        _pendingPredictedSecondaryPress = false;
+        _pendingPredictedSecondaryAbilityPress = false;
+        _pendingPredictedSecondaryWeaponPress = false;
         _latchedJumpPressSequence = 0;
     }
 
@@ -47,7 +49,7 @@ public partial class Game1
     {
         _latestPredictedLocalInput = networkInput;
 
-        if (!networkInput.Up && !networkInput.FireSecondary)
+        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.FireSecondaryWeapon)
         {
             return;
         }
@@ -60,12 +62,20 @@ public partial class Game1
             _pendingPredictedJumpPress = true;
         }
 
-        var secondaryPressed = networkInput.FireSecondary
+        var secondaryAbilityPressed = networkInput.FireSecondary
             && mouse.RightButton == ButtonState.Pressed
             && _previousMouse.RightButton != ButtonState.Pressed;
-        if (secondaryPressed)
+        if (secondaryAbilityPressed)
         {
-            _pendingPredictedSecondaryPress = true;
+            _pendingPredictedSecondaryAbilityPress = true;
+        }
+
+        var secondaryWeaponPressed = networkInput.FireSecondaryWeapon
+            && keyboard.IsKeyDown(_inputBindings.FireSecondaryWeapon)
+            && !_previousKeyboard.IsKeyDown(_inputBindings.FireSecondaryWeapon);
+        if (secondaryWeaponPressed)
+        {
+            _pendingPredictedSecondaryWeaponPress = true;
         }
     }
 
@@ -93,9 +103,11 @@ public partial class Game1
                 sentInputSequence,
                 outboundNetworkInput,
                 _pendingPredictedJumpPress,
-                _pendingPredictedSecondaryPress);
+                _pendingPredictedSecondaryAbilityPress,
+                _pendingPredictedSecondaryWeaponPress);
             _pendingPredictedJumpPress = false;
-            _pendingPredictedSecondaryPress = false;
+            _pendingPredictedSecondaryAbilityPress = false;
+            _pendingPredictedSecondaryWeaponPress = false;
         }
     }
 
@@ -134,6 +146,7 @@ public partial class Game1
             AdvanceExplosionVisuals();
             AdvanceImpactVisuals();
             AdvanceBloodVisuals();
+            AdvanceExperimentalHealingHudIndicators();
             AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
             AdvanceMineTrailVisuals();

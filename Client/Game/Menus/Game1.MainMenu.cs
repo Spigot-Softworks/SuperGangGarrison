@@ -17,7 +17,7 @@ public partial class Game1
         const float ybegin = 300f;
         const float spacing = 30f;
         const float width = 200f;
-        const int items = 7;
+        const int items = 8;
 
         if (mouse.X > xbegin && mouse.X < xbegin + width)
         {
@@ -47,9 +47,12 @@ public partial class Game1
                 OpenPracticeSetupMenu();
                 break;
             case 2:
-                OpenLobbyBrowser();
+                OpenLastToDieMenu();
                 break;
             case 3:
+                OpenLobbyBrowser();
+                break;
+            case 4:
                 _manualConnectOpen = true;
                 _editingConnectHost = true;
                 _editingConnectPort = false;
@@ -61,13 +64,13 @@ public partial class Game1
                 _editingPlayerName = false;
                 _menuStatusMessage = string.Empty;
                 break;
-            case 4:
+            case 5:
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 CloseCreditsMenu();
                 OpenOptionsMenu(fromGameplay: false);
                 break;
-            case 5:
+            case 6:
                 _manualConnectOpen = false;
                 CloseLobbyBrowser(clearStatus: false);
                 _optionsMenuOpen = false;
@@ -77,7 +80,7 @@ public partial class Game1
                 _menuStatusMessage = string.Empty;
                 OpenCreditsMenu();
                 break;
-            case 6:
+            case 7:
                 OpenQuitPrompt();
                 break;
         }
@@ -118,6 +121,13 @@ public partial class Game1
         if (_controlsMenuOpen)
         {
             DrawControlsMenu();
+            DrawDevMessagePopup();
+            return;
+        }
+
+        if (_lastToDieMenuOpen)
+        {
+            DrawLastToDieMenu();
             DrawDevMessagePopup();
             return;
         }
@@ -164,7 +174,7 @@ public partial class Game1
             return;
         }
 
-        string[] items = ["Host Game", "Practice", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
+        string[] items = ["Host Game", "Practice", "Last To Die", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
         var position = new Vector2(40f, 300f);
         const float itemSpacing = 30f;
         const float itemWidth = 212f;

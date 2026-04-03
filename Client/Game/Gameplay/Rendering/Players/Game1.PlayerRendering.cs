@@ -95,6 +95,8 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, rectangle, fallbackColor);
         }
 
+        DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
+
         if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
         {
             TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
@@ -103,15 +105,22 @@ public partial class Game1
         DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
         DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
         DrawChatBubble(player, cameraPosition);
-        if (_showHealthBarEnabled
-            && visibilityAlpha > 0f
-            && player.Team == _world.LocalPlayer.Team)
+        TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+    }
+
+    private void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
+    {
+        if (!_showHealthBarEnabled
+            || visibilityAlpha <= 0f
+            || (!ReferenceEquals(player, _world.LocalPlayer) && player.Team != _world.LocalPlayer.Team))
         {
-            var fillColor = new Color(130, 210, 255);
-            var backColor = new Color(18, 42, 66);
-            var borderColor = new Color(245, 250, 255);
-            DrawHealthBar(player, cameraPosition, fillColor, backColor, borderColor);
+            return;
         }
+
+        var fillColor = new Color(105, 215, 95);
+        var backColor = Color.Black;
+        var borderColor = Color.Black;
+        DrawHealthBar(player, cameraPosition, fillColor, backColor, borderColor);
     }
 
     private void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)

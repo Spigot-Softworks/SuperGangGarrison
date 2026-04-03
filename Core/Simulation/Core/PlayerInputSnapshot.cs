@@ -13,4 +13,6 @@ public readonly record struct PlayerInputSnapshot(
     float AimWorldX,
     float AimWorldY,
     bool DebugKill,
-    bool DropIntel = false);
+    bool DropIntel = false,
+    bool FireSecondaryWeapon = false,
+    bool InteractWeapon = false);

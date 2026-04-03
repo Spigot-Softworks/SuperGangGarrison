@@ -139,6 +139,7 @@ public sealed partial class SimulationWorld
         _pendingSoundEvents.Clear();
         _pendingVisualEvents.Clear();
         _pendingDamageEvents.Clear();
+        _pendingHealingEvents.Clear();
         _nextRedSpawnIndex = 0;
         _nextBlueSpawnIndex = 0;
         ClearDynamicEntities();
@@ -220,6 +221,7 @@ public sealed partial class SimulationWorld
         RemoveEntities(_sentries);
         RemoveEntities(_playerGibs);
         RemoveEntities(_bloodDrops);
+        RemoveEntities(_healthPacks);
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
     }

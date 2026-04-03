@@ -46,6 +46,8 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowPersistentSelfNameEnabled { get; set; }
+
     public ClientRecentConnectionSettings RecentConnection { get; set; } = new();
 
     public OpenGarrisonHostSettings HostDefaults { get; set; } = new();
@@ -109,6 +111,7 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
             RecentConnection = new ClientRecentConnectionSettings
             {
                 Host = document.RecentConnectionHost,
@@ -136,6 +139,7 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;
         preferences.HostSettings = HostDefaults.Clone();

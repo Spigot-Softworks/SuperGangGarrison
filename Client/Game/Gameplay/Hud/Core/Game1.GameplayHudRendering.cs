@@ -18,9 +18,11 @@ public partial class Game1
         DrawRespawnHud();
         DrawDeathCamHud();
         DrawWinBannerHud();
+        DrawLastToDieHud();
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
             DrawLocalHealthHud();
+            DrawExperimentalHealingHudIndicators();
             DrawAmmoHud();
             DrawSniperHud(mouse);
             DrawMedicHud();
@@ -31,6 +33,7 @@ public partial class Game1
 
         if (!deathCamActive)
         {
+            DrawPersistentSelfNameHud(cameraPosition);
             DrawHoveredPlayerNameHud(mouse, cameraPosition);
         }
 
@@ -74,6 +77,8 @@ public partial class Game1
             && !ShouldBlockGameplayForNavEditor()
             && !_consoleOpen
             && !_clientPowersOpen
+            && !_lastToDiePerkMenuOpen
+            && !IsLastToDieFailureOverlayActive()
             && !_practiceSetupOpen
             && !_inGameMenuOpen
             && !_pluginOptionsMenuOpen
@@ -99,6 +104,10 @@ public partial class Game1
         {
             DrawClientPowersMenu();
         }
+        else if (_lastToDiePerkMenuOpen)
+        {
+            DrawLastToDiePerkMenu();
+        }
         else if (_practiceSetupOpen)
         {
             DrawPracticeSetupMenu();
@@ -117,6 +126,7 @@ public partial class Game1
         }
 
         DrawQuitPrompt();
+        DrawLastToDieFailureOverlay();
 
         if (ShouldDrawSoftwareMenuCursor())
         {

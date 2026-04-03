@@ -129,7 +129,11 @@ public sealed partial class SimulationWorld
 
                 if (ApplyPlayerContinuousDamage(player, damage, owner, PlayerEntity.SpyMineRevealAlpha))
                 {
-                    KillPlayer(player, gibbed: true, killer: owner, weaponSpriteName: "MineKL");
+                    KillPlayer(
+                        player,
+                        gibbed: true,
+                        killer: owner,
+                        weaponSpriteName: mine.KillFeedWeaponSpriteNameOverride ?? "MineKL");
                 }
             }
         }

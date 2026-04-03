@@ -24,6 +24,9 @@ public sealed partial class SimulationWorld
             killer.AddKill();
             AwardKillPoints(player, killer, weaponSpriteName);
             AwardAssistPoints(assistingPlayer, player, killer);
+            ApplyExperimentalKillRewards(killer, player);
+            TrySpawnExperimentalEnemyHealthPackDrop(player, killer);
+            TrySpawnExperimentalEnemyDroppedWeapon(player, killer);
 
             if (MatchRules.Mode == GameModeKind.TeamDeathmatch && killer.Team != player.Team)
             {
@@ -453,18 +456,7 @@ public sealed partial class SimulationWorld
             return "DeadKL";
         }
 
-        return attacker.PrimaryWeapon.Kind switch
-        {
-            PrimaryWeaponKind.Medigun => "NeedleKL",
-            PrimaryWeaponKind.Rifle => "RifleKL",
-            PrimaryWeaponKind.MineLauncher => "MineKL",
-            PrimaryWeaponKind.Minigun => "MinigunKL",
-            PrimaryWeaponKind.FlameThrower => "FlameKL",
-            PrimaryWeaponKind.RocketLauncher => "RocketKL",
-            PrimaryWeaponKind.Revolver => "RevolverKL",
-            PrimaryWeaponKind.PelletGun => attacker.ClassId == PlayerClass.Engineer ? "ShotgunKL" : "ScatterKL",
-            _ => "DeadKL",
-        };
+        return CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.ClassId);
     }
 
     private void AdvanceNetworkRespawnTimer(byte slot)

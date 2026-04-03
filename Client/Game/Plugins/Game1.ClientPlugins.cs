@@ -127,7 +127,8 @@ public partial class Game1
             assistedByLocalPlayer,
             receivedByLocalPlayer,
             damageEvent.AttackerPlayerId,
-            damageEvent.AssistedByPlayerId));
+            damageEvent.AssistedByPlayerId,
+            (LocalDamageFlags)damageEvent.Flags));
     }
 
     private void TryDispatchLocalDamageEvent(int localPlayerId, SnapshotDamageEvent damageEvent)
@@ -151,7 +152,8 @@ public partial class Game1
             assistedByLocalPlayer,
             receivedByLocalPlayer,
             damageEvent.AttackerPlayerId,
-            damageEvent.AssistedByPlayerId));
+            damageEvent.AssistedByPlayerId,
+            LocalDamageFlags.None));
     }
 
     private void DrawClientPluginHud(Vector2 cameraTopLeft)

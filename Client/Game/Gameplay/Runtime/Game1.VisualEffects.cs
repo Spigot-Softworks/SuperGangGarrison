@@ -18,6 +18,10 @@ public partial class Game1
     private readonly List<BackstabVisual> _backstabVisuals = new();
     private readonly List<BloodVisual> _bloodVisuals = new();
     private readonly List<BloodSprayVisual> _bloodSprayVisuals = new();
+    private readonly Dictionary<int, StickyGibBloodCoating> _stickyGibBloodCoatings = new();
+    private readonly List<int> _staleStickyGibBloodPlayerIds = new();
+    private readonly HashSet<int> _processedStickyGibBloodDropIds = new();
+    private readonly List<int> _staleStickyGibBloodDropIds = new();
     private readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
     private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
@@ -41,6 +45,11 @@ public partial class Game1
         ResetBackstabVisuals();
         _bloodVisuals.Clear();
         _bloodSprayVisuals.Clear();
+        _stickyGibBloodCoatings.Clear();
+        _staleStickyGibBloodPlayerIds.Clear();
+        _processedStickyGibBloodDropIds.Clear();
+        _staleStickyGibBloodDropIds.Clear();
+        ResetExperimentalHealingHudIndicators();
         _pendingWeaponShellVisuals.Clear();
         _shellVisuals.Clear();
         _rocketSmokeVisuals.Clear();
@@ -231,6 +240,10 @@ public partial class Game1
         {
             _bloodVisuals.Clear();
             _bloodSprayVisuals.Clear();
+            _stickyGibBloodCoatings.Clear();
+            _staleStickyGibBloodPlayerIds.Clear();
+            _processedStickyGibBloodDropIds.Clear();
+            _staleStickyGibBloodDropIds.Clear();
             return;
         }
 
@@ -258,6 +271,103 @@ public partial class Game1
             spray.Y += spray.VelocityY;
             spray.VelocityX *= 0.97f;
         }
+
+        AdvanceStickyGibBloodCoatings();
+    }
+
+    private void AdvanceStickyGibBloodCoatings()
+    {
+        AdvanceStickyGibBloodContactCoatings();
+
+        if (_stickyGibBloodCoatings.Count == 0)
+        {
+            return;
+        }
+
+        _staleStickyGibBloodPlayerIds.Clear();
+        foreach (var entry in _stickyGibBloodCoatings)
+        {
+            var coatedPlayer = FindPlayerById(entry.Key);
+            if (coatedPlayer is null || !coatedPlayer.IsAlive)
+            {
+                _staleStickyGibBloodPlayerIds.Add(entry.Key);
+                continue;
+            }
+
+            entry.Value.TicksRemaining -= 1;
+            if (entry.Value.TicksRemaining <= 0)
+            {
+                _staleStickyGibBloodPlayerIds.Add(entry.Key);
+            }
+        }
+
+        for (var index = 0; index < _staleStickyGibBloodPlayerIds.Count; index += 1)
+        {
+            _stickyGibBloodCoatings.Remove(_staleStickyGibBloodPlayerIds[index]);
+        }
+
+        _staleStickyGibBloodPlayerIds.Clear();
+    }
+
+    private void AdvanceStickyGibBloodContactCoatings()
+    {
+        if (!IsPracticeSessionActive || !_practiceStickyGibBloodEnabled)
+        {
+            _processedStickyGibBloodDropIds.Clear();
+            _staleStickyGibBloodDropIds.Clear();
+            return;
+        }
+
+        for (var index = 0; index < _world.BloodDrops.Count; index += 1)
+        {
+            var bloodDrop = _world.BloodDrops[index];
+            if (_processedStickyGibBloodDropIds.Contains(bloodDrop.Id))
+            {
+                continue;
+            }
+
+            if (!TryGetStickyGibBloodTargetPlayer(bloodDrop.X, bloodDrop.Y, bloodDrop.Scale, out var coatedPlayer))
+            {
+                continue;
+            }
+
+            var intensity = Math.Clamp((int)MathF.Round(bloodDrop.Scale * 1.5f), 1, 3);
+            ApplyStickyGibBloodCoating(coatedPlayer, intensity);
+            _processedStickyGibBloodDropIds.Add(bloodDrop.Id);
+        }
+
+        if (_processedStickyGibBloodDropIds.Count == 0)
+        {
+            return;
+        }
+
+        _staleStickyGibBloodDropIds.Clear();
+        foreach (var processedDropId in _processedStickyGibBloodDropIds)
+        {
+            var isActive = false;
+            for (var bloodDropIndex = 0; bloodDropIndex < _world.BloodDrops.Count; bloodDropIndex += 1)
+            {
+                if (_world.BloodDrops[bloodDropIndex].Id != processedDropId)
+                {
+                    continue;
+                }
+
+                isActive = true;
+                break;
+            }
+
+            if (!isActive)
+            {
+                _staleStickyGibBloodDropIds.Add(processedDropId);
+            }
+        }
+
+        for (var index = 0; index < _staleStickyGibBloodDropIds.Count; index += 1)
+        {
+            _processedStickyGibBloodDropIds.Remove(_staleStickyGibBloodDropIds[index]);
+        }
+
+        _staleStickyGibBloodDropIds.Clear();
     }
 
     private void AdvanceShellVisuals()
@@ -1434,6 +1544,8 @@ public partial class Game1
 
     private void SpawnGibBloodImpactVisuals(float x, float y, int intensity)
     {
+        TryApplyStickyGibBloodCoating(x, y, intensity);
+
         var burstCount = Math.Max(6, intensity * 4);
         for (var index = 0; index < burstCount; index += 1)
         {
@@ -1456,6 +1568,128 @@ public partial class Game1
                 MathF.Cos(directionRadians) * speed,
                 MathF.Sin(directionRadians) * speed,
                 _visualRandom.Next(28, 57)));
+        }
+    }
+
+    private void TryApplyStickyGibBloodCoating(float x, float y, int intensity)
+    {
+        if (!IsPracticeSessionActive || !_practiceStickyGibBloodEnabled)
+        {
+            return;
+        }
+
+        var baseRadius = 18f + (Math.Max(1, intensity) * 4f);
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
+            {
+                continue;
+            }
+
+            var reach = baseRadius + (MathF.Max(player.Width, player.Height) * 0.25f);
+            var deltaX = player.X - x;
+            var deltaY = player.Y - y;
+            if ((deltaX * deltaX) + (deltaY * deltaY) > reach * reach)
+            {
+                continue;
+            }
+
+            ApplyStickyGibBloodCoating(player, intensity);
+        }
+    }
+
+    private void ApplyStickyGibBloodCoating(PlayerEntity player, int intensity)
+    {
+        if (!_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
+        {
+            coating = new StickyGibBloodCoating();
+            _stickyGibBloodCoatings[player.Id] = coating;
+        }
+
+        coating.TicksRemaining = StickyGibBloodCoating.LifetimeTicks;
+        coating.Intensity = Math.Clamp(
+            Math.Max(coating.Intensity, 0.42f) + (Math.Min(4, Math.Max(1, intensity)) * 0.08f),
+            0.42f,
+            1f);
+    }
+
+    private bool TryGetStickyGibBloodTargetPlayer(float x, float y, float scale, out PlayerEntity coatedPlayer)
+    {
+        var padding = 2f + (scale * 3f);
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
+            {
+                continue;
+            }
+
+            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+            if (x < left - padding
+                || x > right + padding
+                || y < top - padding
+                || y > bottom + padding)
+            {
+                continue;
+            }
+
+            coatedPlayer = player;
+            return true;
+        }
+
+        coatedPlayer = _world.LocalPlayer;
+        return false;
+    }
+
+    private void DrawExperimentalStickyGibBloodOverlay(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
+    {
+        if (!IsPracticeSessionActive
+            || !_practiceStickyGibBloodEnabled
+            || visibilityAlpha <= 0f
+            || !_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
+        {
+            return;
+        }
+
+        var sprite = _runtimeAssets.GetSprite("BloodS");
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var fadeAlpha = coating.TicksRemaining > StickyGibBloodCoating.FadeTicks
+            ? 1f
+            : coating.TicksRemaining / (float)StickyGibBloodCoating.FadeTicks;
+        var alpha = Math.Clamp(coating.Intensity * fadeAlpha * visibilityAlpha, 0f, 1f);
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+        var facingScale = GetPlayerFacingScale(player);
+        var splashCount = Math.Clamp(1 + (int)MathF.Floor(coating.Intensity * 3f), 1, 3);
+        for (var splashIndex = 0; splashIndex < splashCount; splashIndex += 1)
+        {
+            var frameIndex = Math.Abs((player.Id * 17) + (splashIndex * 7)) % sprite.Frames.Count;
+            var offsetX = ((splashIndex - 1) * 6f + ((Math.Abs(player.Id + (splashIndex * 11)) % 5) - 2f)) * facingScale;
+            var offsetY = splashIndex switch
+            {
+                0 => -7f,
+                1 => 0f,
+                _ => 6f,
+            };
+            var scale = 0.48f + (coating.Intensity * 0.16f) + (splashIndex * 0.04f);
+            _spriteBatch.Draw(
+                sprite.Frames[frameIndex],
+                new Vector2(roundedOrigin.X + offsetX - cameraPosition.X, roundedOrigin.Y + offsetY - cameraPosition.Y),
+                null,
+                Color.White * (alpha * (0.8f - (splashIndex * 0.12f))),
+                0f,
+                sprite.Origin.ToVector2(),
+                new Vector2(scale, scale),
+                SpriteEffects.None,
+                0f);
         }
     }
 
@@ -1624,6 +1858,16 @@ public partial class Game1
         public int BurnTicksRemaining { get; set; }
 
         public int BurnAnimationTicks { get; set; }
+
+        public int TicksRemaining { get; set; }
+    }
+
+    private sealed class StickyGibBloodCoating
+    {
+        public const int LifetimeTicks = 10 * ClientUpdateTicksPerSecond;
+        public const int FadeTicks = 2 * ClientUpdateTicksPerSecond;
+
+        public float Intensity { get; set; }
 
         public int TicksRemaining { get; set; }
     }

@@ -121,19 +121,27 @@ public sealed partial class SimulationWorld
             _world.SpawnFlare(owner, x, y, velocityX, velocityY);
         }
 
-        private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
+        private void SpawnRocket(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float speed,
+            float directionRadians,
+            bool explodeImmediately = false,
+            bool canGrantExperimentalInstantReloadOnHit = true,
+            string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRocket(owner, x, y, speed, directionRadians, explodeImmediately);
+            _world.SpawnRocket(owner, x, y, speed, directionRadians, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
         }
 
-        private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRevolverShot(owner, x, y, velocityX, velocityY);
+            _world.SpawnRevolverShot(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
-        private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnMine(owner, x, y, velocityX, velocityY);
+            _world.SpawnMine(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnNeedle(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -308,6 +316,40 @@ public sealed partial class SimulationWorld
                 killFeedWeaponSpriteNameOverride: "ShotgunKL");
         }
 
+        public void FireAcquiredWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            var weaponClassId = attacker.AcquiredWeaponClassId;
+            var weaponDefinition = attacker.AcquiredWeapon;
+            if (!weaponClassId.HasValue || weaponDefinition is null)
+            {
+                return;
+            }
+
+            var killFeedWeaponSpriteNameOverride = CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId.Value);
+            RegisterWeaponFireSound(attacker, weaponDefinition);
+            switch (weaponDefinition.Kind)
+            {
+                case PrimaryWeaponKind.Minigun:
+                    FireMinigun(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    break;
+                case PrimaryWeaponKind.MineLauncher:
+                    FireMineLauncher(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    break;
+                case PrimaryWeaponKind.Revolver:
+                    FireRevolver(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    break;
+                case PrimaryWeaponKind.Rifle:
+                    FireRifle(attacker, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    break;
+                case PrimaryWeaponKind.RocketLauncher:
+                    FireRocketLauncher(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    break;
+                case PrimaryWeaponKind.PelletGun:
+                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId.Value, killFeedWeaponSpriteNameOverride);
+                    break;
+            }
+        }
+
         public bool TryFirePyroPrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             if (!attacker.TryPreparePyroPrimaryFireAttempt())
@@ -346,12 +388,51 @@ public sealed partial class SimulationWorld
             var directionX = MathF.Cos(pelletAngle);
             var directionY = MathF.Sin(pelletAngle);
             var shotSpeed = attacker.PrimaryWeapon.MinShotSpeed + (_random.NextSingle() * attacker.PrimaryWeapon.AdditionalRandomShotSpeed);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * shotSpeed,
+                directionY * shotSpeed);
             SpawnShot(
                 attacker,
                 weaponOrigin.BaseX + directionX * 20f,
                 weaponOrigin.BaseY + 12f + directionY * 20f,
-                directionX * shotSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY);
+        }
+
+        private void FireMinigun(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string? killFeedWeaponSpriteNameOverride)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
+            var pelletAngle = baseAngle + spreadRadians;
+            var directionX = MathF.Cos(pelletAngle);
+            var directionY = MathF.Sin(pelletAngle);
+            var shotSpeed = weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * shotSpeed,
                 directionY * shotSpeed);
+            SpawnShot(
+                attacker,
+                weaponOrigin.BaseX + directionX * 20f,
+                weaponOrigin.BaseY + 12f + directionY * 20f,
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY,
+                killFeedWeaponSpriteNameOverride);
         }
     
         private void FireRifle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -405,6 +486,59 @@ public sealed partial class SimulationWorld
             }
         }
 
+        private void FireRifle(
+            PlayerEntity attacker,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteNameOverride)
+        {
+            const float rifleDistance = 2000f;
+
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var distance = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+            if (distance <= 0.0001f)
+            {
+                return;
+            }
+
+            var directionX = aimDeltaX / distance;
+            var directionY = aimDeltaY / distance;
+            var result = ResolveRifleHit(attacker, weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, rifleDistance);
+            RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true);
+            var damage = PlayerEntity.SniperBaseDamage;
+            if (result.HitPlayer is not null)
+            {
+                RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
+                if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpySniperRevealAlpha))
+                {
+                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: killFeedWeaponSpriteNameOverride, deadBodyAnimationKind: DeadBodyAnimationKind.Rifle);
+                }
+            }
+            else if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
+            {
+                DestroySentry(result.HitSentry, attacker);
+            }
+            else if (result.HitGenerator is not null)
+            {
+                TryDamageGenerator(result.HitGenerator.Team, damage, attacker);
+            }
+            else if (result.Distance < rifleDistance)
+            {
+                RegisterImpactEffect(
+                    weaponOrigin.BaseX + directionX * result.Distance,
+                    weaponOrigin.BaseY + directionY * result.Distance,
+                    PointDirectionDegrees(0f, 0f, directionX, directionY));
+            }
+        }
+
         public void FireQuoteBlade(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             RegisterSoundEvent(attacker, "BladeSnd");
@@ -424,12 +558,16 @@ public sealed partial class SimulationWorld
             var hitDamage = 3 + bonusDamage;
             var inheritedVelocityX = attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
             var inheritedVelocityY = attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * 12f,
+                directionY * 12f);
             SpawnBlade(
                 attacker,
                 weaponOrigin.BaseX + directionX * 5f,
                 weaponOrigin.BaseY + directionY * 5f,
-                directionX * 12f + inheritedVelocityX,
-                directionY * 12f + inheritedVelocityY,
+                launchedVelocityX + inheritedVelocityX,
+                launchedVelocityY + inheritedVelocityY,
                 hitDamage);
         }
     
@@ -457,12 +595,16 @@ public sealed partial class SimulationWorld
                 var directionX = MathF.Cos(pelletAngle);
                 var directionY = MathF.Sin(pelletAngle);
                 var pelletSpeed = weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed);
+                var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                    attacker,
+                    directionX * pelletSpeed,
+                    directionY * pelletSpeed);
                 SpawnShot(
                     attacker,
                     weaponOrigin.BaseX + directionX * 15f,
                     weaponOrigin.BaseY + directionY * 15f,
-                    directionX * pelletSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                    directionY * pelletSpeed,
+                    launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                    launchedVelocityY,
                     killFeedWeaponSpriteNameOverride);
             }
         }
@@ -495,12 +637,16 @@ public sealed partial class SimulationWorld
             spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
             var flameAngle = baseAngle + DegreesToRadians(spreadDegrees);
             var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(flameAngle) * flameSpeed,
+                MathF.Sin(flameAngle) * flameSpeed);
             SpawnFlame(
                 attacker,
                 spawnX,
                 spawnY,
-                MathF.Cos(flameAngle) * flameSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
-                MathF.Sin(flameAngle) * flameSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
+                launchedVelocityX + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                launchedVelocityY + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
             return true;
         }
 
@@ -518,12 +664,16 @@ public sealed partial class SimulationWorld
             var directionX = MathF.Cos(directionRadians);
             var directionY = MathF.Sin(directionRadians);
             var bubbleSpeed = 10f;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                directionX * bubbleSpeed,
+                directionY * bubbleSpeed);
             SpawnBubble(
                 attacker,
                 weaponOrigin.BaseX + directionX * 8f,
                 weaponOrigin.BaseY + directionY * 8f,
-                directionX * bubbleSpeed + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
-                directionY * bubbleSpeed + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
+                launchedVelocityX + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                launchedVelocityY + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
         }
     
         private void FireRocketLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -540,7 +690,44 @@ public sealed partial class SimulationWorld
             var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
-            SpawnRocket(attacker, spawnX, spawnY, attacker.PrimaryWeapon.MinShotSpeed, directionRadians, explodeImmediately);
+            SpawnRocket(
+                attacker,
+                spawnX,
+                spawnY,
+                _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, attacker.PrimaryWeapon.MinShotSpeed),
+                directionRadians,
+                explodeImmediately);
+        }
+
+        private void FireRocketLauncher(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteNameOverride)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
+            SpawnRocket(
+                attacker,
+                spawnX,
+                spawnY,
+                _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
+                directionRadians,
+                explodeImmediately,
+                canGrantExperimentalInstantReloadOnHit: false,
+                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
     
         private void FireRevolver(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -557,12 +744,49 @@ public sealed partial class SimulationWorld
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * attacker.PrimaryWeapon.SpreadDegrees);
             var bulletAngle = directionRadians + spreadRadians;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed,
+                MathF.Sin(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed);
             SpawnRevolverShot(
                 attacker,
                 weaponOrigin.BaseX,
                 shotOriginY,
-                MathF.Cos(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                MathF.Sin(bulletAngle) * attacker.PrimaryWeapon.MinShotSpeed);
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY);
+        }
+
+        private void FireRevolver(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteNameOverride)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var shotOriginY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + 1f;
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - shotOriginY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
+            var bulletAngle = directionRadians + spreadRadians;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(bulletAngle) * weaponDefinition.MinShotSpeed,
+                MathF.Sin(bulletAngle) * weaponDefinition.MinShotSpeed);
+            SpawnRevolverShot(
+                attacker,
+                weaponOrigin.BaseX,
+                shotOriginY,
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY,
+                killFeedWeaponSpriteNameOverride);
         }
     
         private void FireMineLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -583,12 +807,53 @@ public sealed partial class SimulationWorld
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(directionRadians) * attacker.PrimaryWeapon.MinShotSpeed,
+                MathF.Sin(directionRadians) * attacker.PrimaryWeapon.MinShotSpeed);
             SpawnMine(
                 attacker,
                 spawnX,
                 spawnY,
-                MathF.Cos(directionRadians) * attacker.PrimaryWeapon.MinShotSpeed,
-                MathF.Sin(directionRadians) * attacker.PrimaryWeapon.MinShotSpeed);
+                launchedVelocityX,
+                launchedVelocityY);
+        }
+
+        private void FireMineLauncher(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string killFeedWeaponSpriteNameOverride)
+        {
+            if (CountOwnedMines(attacker.Id) >= weaponDefinition.MaxAmmo)
+            {
+                return;
+            }
+
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(directionRadians) * weaponDefinition.MinShotSpeed,
+                MathF.Sin(directionRadians) * weaponDefinition.MinShotSpeed);
+            SpawnMine(
+                attacker,
+                spawnX,
+                spawnY,
+                launchedVelocityX,
+                launchedVelocityY,
+                killFeedWeaponSpriteNameOverride);
         }
     
         public void FireMedicNeedle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -605,12 +870,16 @@ public sealed partial class SimulationWorld
     
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var speed = 7f + (_random.NextSingle() * 3f);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(directionRadians) * speed,
+                MathF.Sin(directionRadians) * speed);
             SpawnNeedle(
                 attacker,
                 weaponOrigin.BaseX,
                 shotOriginY,
-                MathF.Cos(directionRadians) * speed + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                MathF.Sin(directionRadians) * speed);
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY);
         }
     
         private void RegisterWeaponFireSound(PlayerEntity attacker, PrimaryWeaponDefinition weaponDefinition)

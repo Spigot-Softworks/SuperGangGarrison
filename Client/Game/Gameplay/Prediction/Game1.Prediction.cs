@@ -23,7 +23,12 @@ public partial class Game1
     private bool _hasPredictedLocalActionState;
     private PlayerInputSnapshot _latestPredictedLocalInput;
 
-    private void RecordPredictedInput(uint sequence, PlayerInputSnapshot input, bool jumpPressed, bool secondaryPressed)
+    private void RecordPredictedInput(
+        uint sequence,
+        PlayerInputSnapshot input,
+        bool jumpPressed,
+        bool secondaryAbilityPressed,
+        bool secondaryWeaponPressed)
     {
         _latestPredictedLocalInput = input;
 
@@ -32,7 +37,7 @@ public partial class Game1
             return;
         }
 
-        _pendingPredictedInputs.Add(new PredictedLocalInput(sequence, input, jumpPressed, secondaryPressed));
+        _pendingPredictedInputs.Add(new PredictedLocalInput(sequence, input, jumpPressed, secondaryAbilityPressed, secondaryWeaponPressed));
         RebuildLocalPrediction(preserveRenderContinuity: false);
     }
 
@@ -245,5 +250,6 @@ public partial class Game1
         uint Sequence,
         PlayerInputSnapshot Input,
         bool JumpPressed,
-        bool SecondaryPressed);
+        bool SecondaryAbilityPressed,
+        bool SecondaryWeaponPressed);
 }

@@ -18,6 +18,16 @@ public partial class Game1
     private static readonly int[] PracticeCapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     private static readonly int[] PracticeRespawnOptions = [0, 3, 5, 10, 15];
     private static readonly int[] PracticeBotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    private static readonly HashSet<string> AllowedPracticeMapNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Valley",
+        "Montane",
+        "Harvest",
+        "Conflict",
+        "Eiger",
+        "Gallery",
+        "Waterway",
+    };
 
     private readonly record struct PracticeSetupLayout(
         Rectangle Panel,
@@ -383,6 +393,7 @@ public partial class Game1
             .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
 
         return SimpleLevelFactory.GetAvailableSourceLevels()
+            .Where(level => AllowedPracticeMapNames.Contains(level.Name))
             .Select(level =>
             {
                 var isCustomMap = Path.GetExtension(level.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);
@@ -477,8 +488,8 @@ public partial class Game1
 
     private int FindDefaultPracticeMapIndex()
     {
-        var truefortIndex = _practiceMapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Truefort", StringComparison.OrdinalIgnoreCase));
-        return truefortIndex >= 0 ? truefortIndex : 0;
+        var valleyIndex = _practiceMapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Valley", StringComparison.OrdinalIgnoreCase));
+        return valleyIndex >= 0 ? valleyIndex : 0;
     }
 
     private PracticeMapEntry? GetSelectedPracticeMapEntry()

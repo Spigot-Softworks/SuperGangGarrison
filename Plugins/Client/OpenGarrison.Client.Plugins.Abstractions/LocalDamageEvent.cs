@@ -12,4 +12,5 @@ public readonly record struct LocalDamageEvent(
     bool AssistedByLocalPlayer,
     bool ReceivedByLocalPlayer,
     int AttackerPlayerId,
-    int AssistedByPlayerId);
+    int AssistedByPlayerId,
+    LocalDamageFlags Flags = LocalDamageFlags.None);

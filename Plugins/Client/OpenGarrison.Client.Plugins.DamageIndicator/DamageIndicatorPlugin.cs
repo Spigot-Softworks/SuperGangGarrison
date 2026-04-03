@@ -19,6 +19,7 @@ public sealed class DamageIndicatorPlugin :
     private static readonly Color OffWhite = new(217, 217, 183);
     private static readonly Color WareyaGreen = new(0, 255, 0);
     private static readonly Color LorganRed = Color.Red;
+    private static readonly Color AirshotYellow = new(255, 230, 64);
     private readonly List<WorldDamageIndicator> _worldIndicators = new();
     private readonly List<HudDamageIndicator> _hudIndicators = new();
     private IOpenGarrisonClientPluginContext? _context;
@@ -27,6 +28,7 @@ public sealed class DamageIndicatorPlugin :
     private SoundEffect? _dingSound;
     private int _rollingDamage;
     private float _rollingDamageTimerSeconds;
+    private LocalDamageFlags _rollingDamageFlags;
 
     public string Id => "damageindicator";
 
@@ -48,6 +50,7 @@ public sealed class DamageIndicatorPlugin :
         _hudIndicators.Clear();
         _rollingDamage = 0;
         _rollingDamageTimerSeconds = 0f;
+        _rollingDamageFlags = LocalDamageFlags.None;
         try
         {
             _dingSound?.Dispose();
@@ -67,6 +70,7 @@ public sealed class DamageIndicatorPlugin :
             _hudIndicators.Clear();
             _rollingDamage = 0;
             _rollingDamageTimerSeconds = 0f;
+            _rollingDamageFlags = LocalDamageFlags.None;
             return;
         }
 
@@ -84,9 +88,10 @@ public sealed class DamageIndicatorPlugin :
             return;
         }
 
-        _hudIndicators.Add(new HudDamageIndicator(_rollingDamage));
+        _hudIndicators.Add(new HudDamageIndicator(_rollingDamage, _rollingDamageFlags));
         _rollingDamage = 0;
         _rollingDamageTimerSeconds = 0f;
+        _rollingDamageFlags = LocalDamageFlags.None;
     }
 
     public void OnGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
@@ -111,6 +116,7 @@ public sealed class DamageIndicatorPlugin :
         if (TryMergeWorldIndicator(e))
         {
             _rollingDamage += e.Amount;
+            _rollingDamageFlags |= e.Flags;
             _rollingDamageTimerSeconds = RollupIdleSeconds;
             return;
         }
@@ -119,8 +125,10 @@ public sealed class DamageIndicatorPlugin :
             e.TargetKind,
             e.TargetEntityId,
             e.TargetWorldPosition,
-            e.Amount));
+            e.Amount,
+            e.Flags));
         _rollingDamage += e.Amount;
+        _rollingDamageFlags |= e.Flags;
         _rollingDamageTimerSeconds = RollupIdleSeconds;
         PlayDing(e.TargetWorldPosition);
     }
@@ -211,6 +219,7 @@ public sealed class DamageIndicatorPlugin :
             var indicator = _worldIndicators[index];
             if (indicator.TargetKind != e.TargetKind
                 || indicator.TargetEntityId != e.TargetEntityId
+                || indicator.Flags != e.Flags
                 || indicator.AgeSeconds > 0.15f)
             {
                 continue;
@@ -274,6 +283,7 @@ public sealed class DamageIndicatorPlugin :
                 position + new Vector2(0f, indicator.YOffset),
                 scale,
                 Math.Clamp(1f - (indicator.AgeSeconds / WorldIndicatorLifetimeSeconds), 0f, 1f),
+                indicator.Flags,
                 centered: true,
                 bottomAligned: false);
         }
@@ -291,6 +301,7 @@ public sealed class DamageIndicatorPlugin :
                 position,
                 scale,
                 Math.Clamp(1f - (indicator.AgeSeconds / HudIndicatorLifetimeSeconds), 0f, 1f),
+                indicator.Flags,
                 centered: false,
                 bottomAligned: bottomAligned);
         }
@@ -304,7 +315,7 @@ public sealed class DamageIndicatorPlugin :
         }
 
         var (position, scale, bottomAligned) = GetHudAnchor(canvas, 0f);
-        DrawDamageText(canvas, $"-{_rollingDamage}", position, scale, 1f, centered: false, bottomAligned: bottomAligned);
+        DrawDamageText(canvas, $"-{_rollingDamage}", position, scale, 1f, _rollingDamageFlags, centered: false, bottomAligned: bottomAligned);
     }
 
     private Vector2 ResolveWorldIndicatorPosition(IOpenGarrisonClientHudCanvas canvas, WorldDamageIndicator indicator)
@@ -338,6 +349,7 @@ public sealed class DamageIndicatorPlugin :
         Vector2 position,
         float scale,
         float alpha,
+        LocalDamageFlags flags,
         bool centered,
         bool bottomAligned)
     {
@@ -354,13 +366,19 @@ public sealed class DamageIndicatorPlugin :
 
         if (_config.Style == 1)
         {
-            DrawText(canvas, text, drawPosition, LorganRed * alpha, scale, centered);
+            var lorganColor = flags.HasFlag(LocalDamageFlags.Airshot)
+                ? AirshotYellow
+                : LorganRed;
+            DrawText(canvas, text, drawPosition, lorganColor * alpha, scale, centered);
             return;
         }
 
         var shadowOffset = new Vector2(scale, scale);
+        var fillColor = flags.HasFlag(LocalDamageFlags.Airshot)
+            ? AirshotYellow
+            : WareyaGreen;
         DrawText(canvas, text, drawPosition + shadowOffset, OffWhite * alpha, scale, centered);
-        DrawText(canvas, text, drawPosition, WareyaGreen * alpha, scale, centered);
+        DrawText(canvas, text, drawPosition, fillColor * alpha, scale, centered);
     }
 
     private static void DrawText(IOpenGarrisonClientHudCanvas canvas, string text, Vector2 position, Color color, float scale, bool centered)
@@ -406,19 +424,22 @@ public sealed class DamageIndicatorPlugin :
         DamageTargetKind targetKind,
         int targetEntityId,
         Vector2 worldPosition,
-        int amount)
+        int amount,
+        LocalDamageFlags flags)
     {
         public DamageTargetKind TargetKind = targetKind;
         public int TargetEntityId = targetEntityId;
         public Vector2 WorldPosition = worldPosition;
         public int Amount = amount;
+        public LocalDamageFlags Flags = flags;
         public float AgeSeconds;
         public float YOffset;
     }
 
-    private struct HudDamageIndicator(int amount)
+    private struct HudDamageIndicator(int amount, LocalDamageFlags flags)
     {
         public int Amount = amount;
+        public LocalDamageFlags Flags = flags;
         public float AgeSeconds;
         public float YOffset;
     }

@@ -49,6 +49,8 @@ public partial class Game1
             || _inputBindings.MoveRight == key
             || _inputBindings.Taunt == key
             || _inputBindings.CallMedic == key
+            || _inputBindings.FireSecondaryWeapon == key
+            || _inputBindings.InteractWeapon == key
             || _inputBindings.ChangeTeam == key
             || _inputBindings.ChangeClass == key
             || _inputBindings.ShowScoreboard == key
@@ -105,6 +107,7 @@ public partial class Game1
         {
             var canToggleSelectionMenu = !_consoleOpen
                 && !_chatOpen
+                && !IsLastToDieSessionActive
                 && !_world.MatchState.IsEnded
                 && (!_killCamEnabled || _world.LocalDeathCam is null);
             if (canToggleSelectionMenu && changeTeamPressed)
@@ -168,19 +171,14 @@ public partial class Game1
         }
 
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
-        if (ShouldUsePracticeSoldierShotgunInputOverride())
-        {
-            fullInput = fullInput with
-            {
-                FireSecondary = keyboard.IsKeyDown(Keys.Space),
-            };
-        }
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = fullInput with
             {
                 FirePrimary = false,
                 FireSecondary = false,
+                FireSecondaryWeapon = false,
+                InteractWeapon = false,
             };
         }
 
@@ -201,10 +199,12 @@ public partial class Game1
             gameplayInput = gameplayInput with
             {
                 FirePrimary = false,
+                FireSecondaryWeapon = false,
             };
             networkInput = networkInput with
             {
                 FirePrimary = false,
+                FireSecondaryWeapon = false,
             };
         }
 
@@ -214,6 +214,8 @@ public partial class Game1
             {
                 FirePrimary = false,
                 FireSecondary = false,
+                FireSecondaryWeapon = false,
+                InteractWeapon = false,
                 BuildSentry = false,
                 DestroySentry = false,
             };
@@ -221,6 +223,8 @@ public partial class Game1
             {
                 FirePrimary = false,
                 FireSecondary = false,
+                FireSecondaryWeapon = false,
+                InteractWeapon = false,
                 BuildSentry = false,
                 DestroySentry = false,
             };
@@ -282,17 +286,11 @@ public partial class Game1
             Taunt = false,
             FirePrimary = false,
             FireSecondary = false,
+            FireSecondaryWeapon = false,
+            InteractWeapon = false,
             DebugKill = false,
             DropIntel = false,
         };
-    }
-
-    private bool ShouldUsePracticeSoldierShotgunInputOverride()
-    {
-        return IsPracticeSessionActive
-            && !_networkClient.IsConnected
-            && _world.LocalPlayer.ClassId == PlayerClass.Soldier
-            && _world.LocalPlayer.HasExperimentalOffhandWeapon;
     }
 
     private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
@@ -303,6 +301,11 @@ public partial class Game1
         }
         else
         {
+            if (ShouldSuspendOfflineGameplaySimulation())
+            {
+                return;
+            }
+
             BeginBotDiagnosticsFrame(gameTime);
             _simulator.Step(
                 gameTime.ElapsedGameTime.TotalSeconds,
@@ -321,6 +324,7 @@ public partial class Game1
     private void OnPracticeSimulationAfterTick()
     {
         OnNavEditorTraversalCaptureAfterTick();
+        AdvanceLastToDieSimulationTick();
     }
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
@@ -346,11 +350,13 @@ public partial class Game1
         PlayPendingVisualEvents();
         PlayPendingSoundEvents();
         DispatchPendingDamageEventsToPlugins();
+        QueuePendingExperimentalHealingHudIndicators();
         UpdateLocalRapidFireWeaponAudio();
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
         EnsureIngameMusicPlaying();
+        UpdateLastToDieSession(clientTicks);
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
     }
@@ -365,6 +371,8 @@ public partial class Game1
             || _classSelectAlpha > 0.02f
             || ShouldBlockGameplayForNavEditor()
             || _practiceSetupOpen
+            || _lastToDiePerkMenuOpen
+            || IsLastToDieFailureOverlayActive()
             || _inGameMenuOpen
             || _optionsMenuOpen
             || _pluginOptionsMenuOpen

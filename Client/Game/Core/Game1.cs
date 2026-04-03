@@ -66,6 +66,7 @@ public partial class Game1 : Game
         None,
         Online,
         Practice,
+        LastToDie,
     }
 
     private enum ControlsMenuBinding
@@ -76,6 +77,8 @@ public partial class Game1 : Game
         MoveDown,
         Taunt,
         CallMedic,
+        FireSecondaryWeapon,
+        InteractWeapon,
         ChangeTeam,
         ChangeClass,
         ShowScoreboard,
@@ -212,7 +215,8 @@ public partial class Game1 : Game
     private int _practiceRespawnSeconds = 5;
     private int _practiceEnemyBotCount;
     private int _practiceFriendlyBotCount;
-    private bool _practiceExperimentalSoldierShotgunEnabled;
+    private ExperimentalGameplaySettings _practiceExperimentalGameplaySettings = new();
+    private bool _practiceStickyGibBloodEnabled;
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
@@ -229,6 +233,7 @@ public partial class Game1 : Game
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
     private bool _showHealthBarEnabled;
+    private bool _showPersistentSelfNameEnabled;
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private ControlsMenuBinding? _pendingControlsBinding;
@@ -283,8 +288,10 @@ public partial class Game1 : Game
         _runtimeAssets = new GameMakerRuntimeAssetCache(GraphicsDevice, _assetManifest);
         _spriteFontOpaqueBoundsCache.Clear();
         LoadMenuMusic();
+        LoadLastToDieMenuMusic();
         LoadFaucetMusic();
         LoadIngameMusic();
+        LoadLastToDieIngameMusic();
         ApplyAudioMuteState();
         AddConsoleLine($"gm assets sprites={_assetManifest.Sprites.Count} backgrounds={_assetManifest.Backgrounds.Count} sounds={_assetManifest.Sounds.Count}");
         NotifyClientPluginsStarted();
@@ -295,15 +302,20 @@ public partial class Game1 : Game
         ShutdownClientPlugins();
         _menuMusicInstance?.Dispose();
         _menuMusic?.Dispose();
+        _lastToDieMenuMusicInstance?.Dispose();
+        _lastToDieMenuMusic?.Dispose();
         _faucetMusicInstance?.Dispose();
         _faucetMusic?.Dispose();
         _ingameMusicInstance?.Dispose();
         _ingameMusic?.Dispose();
+        _lastToDieIngameMusicInstance?.Dispose();
+        _lastToDieIngameMusic?.Dispose();
         StopHostedServer();
         _networkClient.Dispose();
         _runtimeAssets?.Dispose();
         _spriteFontOpaqueBoundsCache.Clear();
         _menuBackgroundTexture?.Dispose();
+        _lastToDieLogoTexture?.Dispose();
         _gameRenderTarget?.Dispose();
         _gameRenderTarget = null;
         _deathCamCaptureTarget?.Dispose();

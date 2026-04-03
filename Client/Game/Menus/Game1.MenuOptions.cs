@@ -14,7 +14,16 @@ public partial class Game1
 {
     private bool IsGameplayMenuOpen()
     {
-        return _clientPowersOpen || _practiceSetupOpen || _inGameMenuOpen || _optionsMenuOpen || _pluginOptionsMenuOpen || _controlsMenuOpen || _quitPromptOpen || ShouldBlockGameplayForNavEditor();
+        return _clientPowersOpen
+            || _practiceSetupOpen
+            || _lastToDiePerkMenuOpen
+            || IsLastToDieFailureOverlayActive()
+            || _inGameMenuOpen
+            || _optionsMenuOpen
+            || _pluginOptionsMenuOpen
+            || _controlsMenuOpen
+            || _quitPromptOpen
+            || ShouldBlockGameplayForNavEditor();
     }
 
     private bool IsGameplayInputBlocked()
@@ -30,6 +39,18 @@ public partial class Game1
 
     private void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
     {
+        if (IsLastToDieFailureOverlayActive())
+        {
+            UpdateLastToDieFailureOverlay(keyboard, mouse);
+            return;
+        }
+
+        if (_lastToDiePerkMenuOpen)
+        {
+            UpdateLastToDiePerkMenu(keyboard, mouse);
+            return;
+        }
+
         if (_quitPromptOpen)
         {
             UpdateQuitPrompt(keyboard, mouse);
@@ -224,6 +245,17 @@ public partial class Game1
 
     private string[] GetInGameMenuItems()
     {
+        if (IsLastToDieSessionActive)
+        {
+            return
+            [
+                "Options",
+                "Return to Game",
+                "Leave Last To Die",
+                "Quit Game",
+            ];
+        }
+
         if (IsPracticeSessionActive)
         {
             return
@@ -250,6 +282,26 @@ public partial class Game1
 
     private void ActivateInGameMenuItem(int menuIndex)
     {
+        if (IsLastToDieSessionActive)
+        {
+            switch (menuIndex)
+            {
+                case 0:
+                    OpenOptionsMenu(fromGameplay: true);
+                    CloseInGameMenu();
+                    return;
+                case 1:
+                    CloseInGameMenu();
+                    return;
+                case 2:
+                    ReturnToLastToDieMenu("Last To Die ended.");
+                    return;
+                case 3:
+                    OpenQuitPrompt();
+                    return;
+            }
+        }
+
         if (IsPracticeSessionActive)
         {
             switch (menuIndex)
@@ -324,7 +376,7 @@ public partial class Game1
     private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
         var hasPluginOptions = HasClientPluginOptions();
-        var items = hasPluginOptions ? 16 : 15;
+        var items = hasPluginOptions ? 17 : 16;
         GetOptionsMenuLayout(items, out var xbegin, out var ybegin, out var spacing, out var width, out _);
 
         if (IsKeyPressed(keyboard, Keys.Escape))
@@ -427,17 +479,21 @@ public partial class Game1
                 PersistClientSettings();
                 break;
             case 11:
-                _killCamEnabled = !_killCamEnabled;
+                _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
                 PersistClientSettings();
                 break;
             case 12:
+                _killCamEnabled = !_killCamEnabled;
+                PersistClientSettings();
+                break;
+            case 13:
                 _clientSettings.VSync = !_clientSettings.VSync;
                 ApplyGraphicsSettings();
                 break;
-            case 13:
+            case 14:
                 OpenControlsMenu(_optionsMenuOpenedFromGameplay);
                 break;
-            case 14:
+            case 15:
                 if (hasPluginOptions)
                 {
                     OpenPluginOptionsMenu(_optionsMenuOpenedFromGameplay);
@@ -447,7 +503,7 @@ public partial class Game1
                     CloseOptionsMenu();
                 }
                 break;
-            case 15:
+            case 16:
                 CloseOptionsMenu();
                 break;
         }
@@ -475,6 +531,7 @@ public partial class Game1
             "Show Healer:",
             "Show Healing:",
             "Additional Healthbar:",
+            "Persistent Self Name:",
             "Kill Cam:",
             "V Sync:",
             "Controls",
@@ -492,6 +549,7 @@ public partial class Game1
             _showHealerEnabled ? "Enabled" : "Disabled",
             _showHealingEnabled ? "Enabled" : "Disabled",
             _showHealthBarEnabled ? "Enabled" : "Disabled",
+            _showPersistentSelfNameEnabled ? "Enabled" : "Disabled",
             _killCamEnabled ? "Enabled" : "Disabled",
             _graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled",
             string.Empty,
@@ -994,6 +1052,8 @@ public partial class Game1
             (ControlsMenuBinding.MoveDown, "Move Down:", _inputBindings.MoveDown),
             (ControlsMenuBinding.Taunt, "Taunt:", _inputBindings.Taunt),
             (ControlsMenuBinding.CallMedic, "Call Medic:", _inputBindings.CallMedic),
+            (ControlsMenuBinding.FireSecondaryWeapon, "Secondary Weapon:", _inputBindings.FireSecondaryWeapon),
+            (ControlsMenuBinding.InteractWeapon, "Interact Weapon:", _inputBindings.InteractWeapon),
             (ControlsMenuBinding.ChangeTeam, "Change Team:", _inputBindings.ChangeTeam),
             (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
             (ControlsMenuBinding.ShowScoreboard, "Show Scores:", _inputBindings.ShowScoreboard),
@@ -1025,6 +1085,12 @@ public partial class Game1
                 break;
             case ControlsMenuBinding.CallMedic:
                 _inputBindings.CallMedic = key;
+                break;
+            case ControlsMenuBinding.FireSecondaryWeapon:
+                _inputBindings.FireSecondaryWeapon = key;
+                break;
+            case ControlsMenuBinding.InteractWeapon:
+                _inputBindings.InteractWeapon = key;
                 break;
             case ControlsMenuBinding.ChangeTeam:
                 _inputBindings.ChangeTeam = key;
@@ -1061,6 +1127,8 @@ public partial class Game1
             ControlsMenuBinding.MoveDown => "Move Down",
             ControlsMenuBinding.Taunt => "Taunt",
             ControlsMenuBinding.CallMedic => "Call Medic",
+            ControlsMenuBinding.FireSecondaryWeapon => "Secondary Weapon",
+            ControlsMenuBinding.InteractWeapon => "Interact Weapon",
             ControlsMenuBinding.ChangeTeam => "Change Team",
             ControlsMenuBinding.ChangeClass => "Change Class",
             ControlsMenuBinding.ShowScoreboard => "Show Scores",

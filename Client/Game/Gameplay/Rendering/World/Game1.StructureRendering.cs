@@ -269,4 +269,91 @@ public partial class Game1
             0f);
         return true;
     }
+
+    private void DrawHealthPack(HealthPackEntity healthPack, Vector2 cameraPosition)
+    {
+        var renderPosition = GetRenderPosition(healthPack.Id, healthPack.X, healthPack.Y);
+        var alpha = healthPack.Alpha;
+        var pulseSprite = _runtimeAssets.GetSprite("HealthPackPulseS");
+        if (pulseSprite is not null && pulseSprite.Frames.Count > 0)
+        {
+            var pulseFrameIndex = (int)((_world.Frame / 5) % pulseSprite.Frames.Count);
+            _spriteBatch.Draw(
+                pulseSprite.Frames[pulseFrameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null,
+                Color.White * alpha,
+                0f,
+                pulseSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+        }
+        else
+        {
+            var pulseRectangle = new Rectangle(
+                (int)(renderPosition.X - 14f - cameraPosition.X),
+                (int)(renderPosition.Y - 6f - cameraPosition.Y),
+                28,
+                12);
+            _spriteBatch.Draw(_pixel, pulseRectangle, new Color(130, 255, 150) * (0.4f * alpha));
+        }
+
+        var packSpriteName = healthPack.Size == HealthPackSize.Large
+            ? "HealthPackLargeS"
+            : "HealthPackSmallS";
+        var packSprite = _runtimeAssets.GetSprite(packSpriteName);
+        if (packSprite is not null && packSprite.Frames.Count > 0)
+        {
+            var packFrameIndex = (int)((_world.Frame / 5) % packSprite.Frames.Count);
+            _spriteBatch.Draw(
+                packSprite.Frames[packFrameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null,
+                Color.White * alpha,
+                0f,
+                packSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                0f);
+            return;
+        }
+
+        var fillColor = healthPack.Size == HealthPackSize.Large
+            ? new Color(140, 255, 140)
+            : new Color(200, 255, 200);
+        var packRectangle = new Rectangle(
+            (int)(renderPosition.X - 8f - cameraPosition.X),
+            (int)(renderPosition.Y - 8f - cameraPosition.Y),
+            16,
+            16);
+        _spriteBatch.Draw(_pixel, packRectangle, fillColor * alpha);
+        _spriteBatch.Draw(_pixel, new Rectangle(packRectangle.X + 6, packRectangle.Y + 2, 4, 12), new Color(220, 32, 32) * alpha);
+        _spriteBatch.Draw(_pixel, new Rectangle(packRectangle.X + 2, packRectangle.Y + 6, 12, 4), new Color(220, 32, 32) * alpha);
+    }
+
+    private void DrawDroppedWeapon(DroppedWeaponEntity droppedWeapon, Vector2 cameraPosition)
+    {
+        var renderPosition = GetRenderPosition(droppedWeapon.Id, droppedWeapon.X, droppedWeapon.Y);
+        var alpha = droppedWeapon.Alpha;
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(droppedWeapon.WeaponClassId).Presentation;
+        var spriteName = presentation.WorldSpriteName;
+        var frameIndex = droppedWeapon.Team == PlayerTeam.Blue ? 1 : 0;
+        var rotation = droppedWeapon.HasLanded
+            ? 0f
+            : MathF.Atan2(droppedWeapon.VerticalSpeed, droppedWeapon.HorizontalSpeed == 0f ? 1f : droppedWeapon.HorizontalSpeed);
+
+        if (spriteName is not null && TryDrawSprite(spriteName, frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White * alpha, rotation))
+        {
+            return;
+        }
+
+        var fallbackRectangle = new Rectangle(
+            (int)(renderPosition.X - 10f - cameraPosition.X),
+            (int)(renderPosition.Y - 3f - cameraPosition.Y),
+            20,
+            6);
+        _spriteBatch.Draw(_pixel, fallbackRectangle, new Color(230, 230, 230) * alpha);
+        _spriteBatch.Draw(_pixel, new Rectangle(fallbackRectangle.X, fallbackRectangle.Bottom, fallbackRectangle.Width, 2), Color.Black * (0.55f * alpha));
+    }
 }

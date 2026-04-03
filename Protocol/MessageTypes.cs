@@ -47,6 +47,8 @@ public enum InputButtons : ushort
     DebugKill = 1 << 8,
     DestroySentry = 1 << 9,
     DropIntel = 1 << 10,
+    FireSecondaryWeapon = 1 << 11,
+    InteractWeapon = 1 << 12,
 }
 
 public interface IProtocolMessage

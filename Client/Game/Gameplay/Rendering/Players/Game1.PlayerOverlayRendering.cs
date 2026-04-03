@@ -52,11 +52,11 @@ public partial class Game1
 
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
-        var barWidth = Math.Max(14, bounds.Width + 2);
-        const int barHeight = 5;
+        var barWidth = Math.Max(18, bounds.Width + 4);
+        const int barHeight = 4;
         const int verticalOffset = 14;
-        var barX = (int)MathF.Round((renderPosition.X - cameraPosition.X) - (barWidth * 0.5f));
-        var barY = (int)MathF.Round(renderPosition.Y + player.CollisionTopOffset - cameraPosition.Y) - verticalOffset;
+        var barX = bounds.Left + ((bounds.Width - barWidth) / 2);
+        var barY = bounds.Top - verticalOffset;
         var borderRectangle = new Rectangle(
             barX - 1,
             barY - 1,
@@ -75,7 +75,7 @@ public partial class Game1
             return;
         }
 
-        var fillWidth = (int)MathF.Round(barWidth * (player.Health / (float)player.MaxHealth));
+        var fillWidth = (int)MathF.Round(barWidth * Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f));
         if (fillWidth <= 0)
         {
             return;

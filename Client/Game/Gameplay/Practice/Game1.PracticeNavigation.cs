@@ -29,7 +29,7 @@ public partial class Game1
 
     private string GetPracticeNavigationDiagnosticsSummary()
     {
-        if (!IsPracticeSessionActive && _practiceNavigationAssets.Statuses.Count == 0)
+        if (!IsOfflineBotSessionActive && _practiceNavigationAssets.Statuses.Count == 0)
         {
             return "nav inactive";
         }

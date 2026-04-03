@@ -36,7 +36,9 @@ public sealed class RocketProjectileEntity : SimulationEntity
         float distanceToTravel = MaxDistanceToTravel,
         bool isFading = false,
         float fadeSourceTicksRemaining = 0f,
-        IReadOnlyList<int>? passedFriendlyPlayerIds = null) : base(id)
+        IReadOnlyList<int>? passedFriendlyPlayerIds = null,
+        bool canGrantExperimentalInstantReloadOnHit = true,
+        string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -51,6 +53,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         LastKnownRangeOriginX = lastKnownRangeOriginX ?? x;
         LastKnownRangeOriginY = lastKnownRangeOriginY ?? y;
         DistanceToTravel = MathF.Max(0f, distanceToTravel);
+        CanGrantExperimentalInstantReloadOnHit = canGrantExperimentalInstantReloadOnHit;
+        KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
@@ -85,6 +89,10 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public float LastKnownRangeOriginY { get; private set; }
 
     public float DistanceToTravel { get; private set; }
+
+    public bool CanGrantExperimentalInstantReloadOnHit { get; private set; }
+
+    public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public bool IsFading { get; private set; }
 

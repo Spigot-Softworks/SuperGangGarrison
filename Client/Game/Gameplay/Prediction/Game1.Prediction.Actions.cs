@@ -209,6 +209,11 @@ public partial class Game1
             return;
         }
 
+        if (player.HasExperimentalOffhandWeapon)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+
         if (player.ClassId == PlayerClass.Spy && TryPredictedStartSpyBackstab(player))
         {
             return;
@@ -228,6 +233,12 @@ public partial class Game1
     }
 
     private void ApplyPredictedSecondaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        ApplyPredictedSecondaryAbility(player, predictedInput);
+        ApplyPredictedSecondaryWeaponFire(player, predictedInput);
+    }
+
+    private void ApplyPredictedSecondaryAbility(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (player.IsTaunting)
         {
@@ -255,7 +266,7 @@ public partial class Game1
         }
 
         var useHeldSecondary = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
-        if ((!useHeldSecondary && !predictedInput.SecondaryPressed)
+        if ((!useHeldSecondary && !predictedInput.SecondaryAbilityPressed)
             || (useHeldSecondary && !predictedInput.Input.FireSecondary))
         {
             return;
@@ -307,6 +318,26 @@ public partial class Game1
         {
             SyncPredictedLocalPlayerState(player);
         }
+    }
+
+    private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        if (player.IsTaunting
+            || !predictedInput.SecondaryWeaponPressed
+            || predictedInput.Input.FirePrimary
+            || player.ClassId != PlayerClass.Soldier
+            || !player.HasExperimentalOffhandWeapon)
+        {
+            return;
+        }
+
+        player.EquipExperimentalOffhandWeapon();
+        if (!player.TryFireExperimentalOffhandWeapon())
+        {
+            return;
+        }
+
+        SyncPredictedLocalPlayerState(player);
     }
 
     private bool TryPredictedFirePrimaryWeapon(PlayerEntity player)

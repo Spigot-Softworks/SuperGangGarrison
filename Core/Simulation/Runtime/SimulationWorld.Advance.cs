@@ -57,6 +57,8 @@ public sealed partial class SimulationWorld
             ApplyRoomHazards(FriendlyDummy);
         }
 
+        AdvanceHealthPacks();
+        AdvanceDroppedWeapons();
         AdvanceAfterburnAlertBubbles();
 
         switch (MatchRules.Mode)

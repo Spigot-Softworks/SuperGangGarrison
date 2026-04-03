@@ -553,7 +553,7 @@ public partial class Game1
             yield break;
         }
 
-        if (IsPracticeSessionActive)
+        if (IsOfflineBotSessionActive)
         {
             foreach (var bot in EnumeratePracticeBotPlayersForView())
             {

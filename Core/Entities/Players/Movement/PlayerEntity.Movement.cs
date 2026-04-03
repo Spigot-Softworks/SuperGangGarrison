@@ -72,6 +72,7 @@ public sealed partial class PlayerEntity
             }
 
             AdvanceEngineerResources();
+            AdvanceExperimentalPowerState();
             AdvanceWeaponState();
             AdvanceHeavyState();
             AdvanceTauntState();

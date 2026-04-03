@@ -153,7 +153,31 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int ExperimentalOffhandReloadTicksUntilNextShell { get; private set; }
 
-    public int ExperimentalOffhandDisplayTicksRemaining { get; private set; }
+    public bool IsExperimentalOffhandEquipped { get; private set; }
+
+    public bool IsExperimentalOffhandPresented => ExperimentalOffhandWeapon is not null
+        && IsExperimentalOffhandEquipped;
+
+    public PlayerClass? AcquiredWeaponClassId { get; private set; }
+
+    public bool HasAcquiredWeapon => AcquiredWeaponClassId.HasValue;
+
+    public PrimaryWeaponDefinition? AcquiredWeapon => AcquiredWeaponClassId.HasValue
+        ? CharacterClassCatalog.GetDefinition(AcquiredWeaponClassId.Value).PrimaryWeapon
+        : null;
+
+    public int AcquiredWeaponCurrentShells { get; private set; }
+
+    public int AcquiredWeaponMaxShells => AcquiredWeapon?.MaxAmmo ?? 0;
+
+    public int AcquiredWeaponCooldownTicks { get; private set; }
+
+    public int AcquiredWeaponReloadTicksUntilNextShell { get; private set; }
+
+    public bool IsAcquiredWeaponEquipped { get; private set; }
+
+    public bool IsAcquiredWeaponPresented => HasAcquiredWeapon
+        && IsAcquiredWeaponEquipped;
 
     public float ContinuousDamageAccumulator { get; private set; }
 
@@ -275,15 +299,15 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private float PreviousSourceFacingDirectionX { get; set; } = 1f;
 
-    public float RunPower => ClassDefinition.RunPower;
+    public float RunPower => ClassDefinition.RunPower * GetExperimentalMovementSpeedMultiplier();
 
     public float JumpStrength => ClassDefinition.JumpStrength;
 
-    public float MaxRunSpeed => ClassDefinition.MaxRunSpeed;
+    public float MaxRunSpeed => ClassDefinition.MaxRunSpeed * GetExperimentalMovementSpeedMultiplier();
 
-    public float GroundAcceleration => ClassDefinition.GroundAcceleration;
+    public float GroundAcceleration => ClassDefinition.GroundAcceleration * GetExperimentalMovementSpeedMultiplier();
 
-    public float GroundDeceleration => ClassDefinition.GroundDeceleration;
+    public float GroundDeceleration => ClassDefinition.GroundDeceleration * GetExperimentalMovementSpeedMultiplier();
 
     public float Gravity => ClassDefinition.Gravity;
 
@@ -316,6 +340,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         PrimaryCooldownTicks = 0;
         ReloadTicksUntilNextShell = 0;
         ResetExperimentalOffhandRuntimeState(refillAmmo: true);
+        ResetAcquiredWeaponRuntimeState(refillAmmo: true);
+        ResetExperimentalPowerRuntimeState();
         FacingDirectionX = team == PlayerTeam.Blue ? -1f : 1f;
         AimDirectionDegrees = team == PlayerTeam.Blue ? 180f : 0f;
         ContinuousDamageAccumulator = 0f;
@@ -370,6 +396,15 @@ public sealed partial class PlayerEntity : SimulationEntity
         ResetPyroPrimaryStateFromCurrentAmmo();
         RemainingAirJumps = int.Min(RemainingAirJumps, MaxAirJumps);
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
+        if (classDefinition.Id != PlayerClass.Soldier)
+        {
+            SetAcquiredWeapon(null);
+        }
+        else
+        {
+            ResetAcquiredWeaponRuntimeState(refillAmmo: false);
+        }
+        ResetExperimentalPowerRuntimeState();
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ExtinguishAfterburn();
@@ -425,6 +460,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
+        SetAcquiredWeapon(null);
+        ResetExperimentalPowerRuntimeState();
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
@@ -603,7 +640,7 @@ public sealed partial class PlayerEntity : SimulationEntity
             ExperimentalOffhandCurrentShells = 0;
             ExperimentalOffhandCooldownTicks = 0;
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
-            ExperimentalOffhandDisplayTicksRemaining = 0;
+            IsExperimentalOffhandEquipped = false;
             return;
         }
 
@@ -614,7 +651,39 @@ public sealed partial class PlayerEntity : SimulationEntity
         ExperimentalOffhandReloadTicksUntilNextShell = refillAmmo
             ? 0
             : Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
-        ExperimentalOffhandDisplayTicksRemaining = 0;
+        IsExperimentalOffhandEquipped = false;
+    }
+
+    private void ResetAcquiredWeaponRuntimeState(bool refillAmmo)
+    {
+        if (!AcquiredWeaponClassId.HasValue)
+        {
+            AcquiredWeaponCurrentShells = 0;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
+            return;
+        }
+
+        var weaponDefinition = AcquiredWeapon;
+        if (weaponDefinition is null)
+        {
+            AcquiredWeaponClassId = null;
+            AcquiredWeaponCurrentShells = 0;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
+            return;
+        }
+
+        AcquiredWeaponCurrentShells = refillAmmo
+            ? weaponDefinition.MaxAmmo
+            : int.Clamp(AcquiredWeaponCurrentShells, 0, weaponDefinition.MaxAmmo);
+        AcquiredWeaponCooldownTicks = 0;
+        AcquiredWeaponReloadTicksUntilNextShell = refillAmmo
+            ? 0
+            : Math.Max(0, AcquiredWeaponReloadTicksUntilNextShell);
+        IsAcquiredWeaponEquipped = false;
     }
 }
 

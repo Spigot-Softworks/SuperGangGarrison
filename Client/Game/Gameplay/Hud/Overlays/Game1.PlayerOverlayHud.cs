@@ -81,47 +81,48 @@ public partial class Game1
             return;
         }
 
-        switch (_world.LocalPlayer.PrimaryWeapon.Kind)
+        var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
+        switch (displayedWeaponStats.Kind)
         {
             case PrimaryWeaponKind.FlameThrower:
                 DrawPyroAmmoHud();
-                return;
+                break;
             case PrimaryWeaponKind.Minigun:
                 DrawHeavyAmmoHud();
-                DrawHeavySandwichHud();
-                return;
+                if (!IsLocalDisplayedMainWeaponAcquired())
+                {
+                    DrawHeavySandwichHud();
+                }
+                break;
             case PrimaryWeaponKind.Blade:
                 DrawQuoteAmmoHud();
-                return;
+                break;
             case PrimaryWeaponKind.Rifle:
-                return;
+                break;
+            default:
+                var hudSpriteName = GetAmmoHudSpriteName();
+                if (hudSpriteName is not null && TryDrawScreenSprite(
+                        hudSpriteName,
+                        GetAmmoHudFrameIndex(),
+                        GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f),
+                        Color.White,
+                        new Vector2(2.4f, 2.4f)))
+                {
+                    if (GetLocalDisplayedMainWeaponPresentationClassId() != PlayerClass.Soldier)
+                    {
+                        DrawHudTextLeftAligned(
+                            GetLocalDisplayedMainWeaponCurrentShells().ToString(CultureInfo.InvariantCulture),
+                            GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f),
+                            AmmoHudTextColor,
+                            1f);
+                    }
+
+                    DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
+                }
+                break;
         }
 
-        var hudSpriteName = GetAmmoHudSpriteName();
-        if (hudSpriteName is null)
-        {
-            return;
-        }
-
-        if (TryDrawScreenSprite(
-            hudSpriteName,
-            GetAmmoHudFrameIndex(),
-            GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f),
-            Color.White,
-            new Vector2(2.4f, 2.4f)))
-        {
-            if (_world.LocalPlayer.ClassId != PlayerClass.Soldier)
-            {
-                DrawHudTextLeftAligned(
-                    GetPlayerCurrentShells(_world.LocalPlayer).ToString(CultureInfo.InvariantCulture),
-                    GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f),
-                    AmmoHudTextColor,
-                    1f);
-            }
-
-            DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
-        }
-
+        DrawAcquiredWeaponHud();
         DrawExperimentalOffhandHud();
 
         if (_world.LocalPlayer.ClassId == PlayerClass.Demoman)
@@ -155,14 +156,15 @@ public partial class Game1
             return;
         }
 
-        var currentShells = GetPlayerCurrentShells(_world.LocalPlayer);
-        var ammoFraction = _world.LocalPlayer.MaxShells <= 0
+        var currentShells = GetLocalDisplayedMainWeaponCurrentShells();
+        var maxShells = GetLocalDisplayedMainWeaponMaxShells();
+        var ammoFraction = maxShells <= 0
             ? 0f
-            : float.Clamp(currentShells / (float)_world.LocalPlayer.MaxShells, 0f, 1f);
+            : float.Clamp(currentShells / (float)maxShells, 0f, 1f);
         var barColor = Color.Lerp(AmmoHudBarColor, LowAmmoHudColor, 1f - ammoFraction);
-        var cooldownFraction = float.Clamp(Math.Max(GetPlayerPrimaryCooldownTicks(_world.LocalPlayer), GetPlayerReloadTicksUntilNextShell(_world.LocalPlayer)) / 25f, 0f, 1f);
+        var cooldownFraction = float.Clamp(Math.Max(GetLocalDisplayedMainWeaponCooldownTicks(), GetLocalDisplayedMainWeaponReloadTicks()) / 25f, 0f, 1f);
         barColor = Color.Lerp(barColor, HeavyCooldownHudColor, cooldownFraction);
-        DrawSourceAmmoHudBar(689f, 34f, currentShells, _world.LocalPlayer.MaxShells, barColor);
+        DrawSourceAmmoHudBar(689f, 34f, currentShells, maxShells, barColor);
     }
 
     private void DrawHeavySandwichHud()
@@ -294,6 +296,71 @@ public partial class Game1
             Color.Black);
     }
 
+    private void DrawAcquiredWeaponHud()
+    {
+        if (_world.LocalPlayer.ClassId != PlayerClass.Soldier
+            || !_world.LocalPlayer.HasAcquiredWeapon
+            || !_world.LocalPlayer.AcquiredWeaponClassId.HasValue)
+        {
+            return;
+        }
+
+        var weaponClassId = _world.LocalPlayer.AcquiredWeaponClassId.Value;
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(weaponClassId).Presentation;
+        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue
+            ? presentation.BlueTeamHudFrameOffset
+            : 0;
+        var iconPosition = GetSourceHudPoint(614f, 507f);
+        var iconTint = _world.LocalPlayer.IsAcquiredWeaponEquipped
+            ? Color.White
+            : Color.White * 0.72f;
+        var iconDrawn = presentation.HudSpriteName is not null && TryDrawScreenSprite(
+            presentation.HudSpriteName,
+            frameIndex,
+            iconPosition,
+            iconTint,
+            new Vector2(1.5f, 1.5f));
+        if (!iconDrawn)
+        {
+            DrawBitmapFontText(weaponClassId.ToString().ToUpperInvariant(), GetSourceHudPoint(586f, 510f), iconTint, 0.68f);
+        }
+
+        var currentShells = _world.LocalPlayer.AcquiredWeaponCurrentShells;
+        var maxShells = Math.Max(1, _world.LocalPlayer.AcquiredWeaponMaxShells);
+        var reloadProgress = currentShells >= maxShells
+            ? 1f
+            : _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell <= 0
+                ? 1f
+                : Math.Clamp(
+                    1f - (_world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell / (float)Math.Max(1, _world.LocalPlayer.AcquiredWeapon?.AmmoReloadTicks ?? 1)),
+                    0f,
+                    1f);
+        var ammoColor = currentShells <= Math.Max(1, maxShells / 4)
+            ? LowAmmoHudColor
+            : AmmoHudTextColor;
+
+        DrawBitmapFontText("Q", GetSourceHudPoint(610f, 500f), new Color(210, 210, 210), 0.72f);
+        DrawHudTextLeftAligned(
+            currentShells.ToString(CultureInfo.InvariantCulture),
+            GetSourceHudPoint(646f, 515f),
+            ammoColor,
+            0.9f);
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(610f, 531f, 55f, 5f),
+            currentShells,
+            maxShells,
+            false,
+            AmmoHudBarColor,
+            Color.Black);
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(610f, 538f, 55f, 4f),
+            reloadProgress,
+            1f,
+            false,
+            new Color(188, 188, 188),
+            Color.Black);
+    }
+
     private void DrawPyroFlareHud(int frameIndex)
     {
         var flareCount = GetPlayerCurrentShells(_world.LocalPlayer) / PlayerEntity.PyroFlareAmmoRequirement;
@@ -339,7 +406,7 @@ public partial class Game1
 
     private Rectangle GetReloadAmmoHudBarRectangle()
     {
-        return _world.LocalPlayer.ClassId == PlayerClass.Soldier
+        return GetLocalDisplayedMainWeaponPresentationClassId() == PlayerClass.Soldier
             ? GetSourceHudRectangle(689f, SourceAmmoHudBaseY + 90f, 34f, 8f)
             : GetSourceHudRectangle(700f, SourceAmmoHudBaseY + 90f, 50f, 8f);
     }
@@ -669,6 +736,18 @@ public partial class Game1
             new Vector2(chargeScaleX, 1f));
     }
 
+    private void DrawPersistentSelfNameHud(Vector2 cameraPosition)
+    {
+        if (!_showPersistentSelfNameEnabled
+            || _networkClient.IsSpectator
+            || !_world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
+        DrawPlayerNameHud(_world.LocalPlayer, cameraPosition);
+    }
+
     private void DrawHoveredPlayerNameHud(MouseState mouse, Vector2 cameraPosition)
     {
         var hoveredPlayer = GetHoveredPlayerForNameHud(mouse, cameraPosition);
@@ -677,25 +756,37 @@ public partial class Game1
             return;
         }
 
-        var label = GetHudPlayerLabel(hoveredPlayer);
+        if (_showPersistentSelfNameEnabled
+            && ReferenceEquals(hoveredPlayer, _world.LocalPlayer))
+        {
+            return;
+        }
+
+        DrawPlayerNameHud(hoveredPlayer, cameraPosition);
+    }
+
+    private void DrawPlayerNameHud(PlayerEntity player, Vector2 cameraPosition)
+    {
+        var label = GetHudPlayerLabel(player);
         if (string.IsNullOrWhiteSpace(label))
         {
             return;
         }
 
-        var visibilityAlpha = GetPlayerVisibilityAlpha(hoveredPlayer);
+        var visibilityAlpha = GetPlayerVisibilityAlpha(player);
         if (visibilityAlpha <= 0f)
         {
             return;
         }
 
-        var renderPosition = GetRenderPosition(hoveredPlayer, allowInterpolation: !ReferenceEquals(hoveredPlayer, _world.LocalPlayer));
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
         var screenPosition = new Vector2(
-            MathF.Round(renderPosition.X - cameraPosition.X),
-            MathF.Round(renderPosition.Y - cameraPosition.Y));
+            bounds.Left + (bounds.Width * 0.5f),
+            bounds.Top - 13f);
         var textHeight = MeasureBitmapFontHeight(1f);
-        var labelPosition = new Vector2(screenPosition.X, screenPosition.Y - 35f - textHeight);
-        var teamColor = hoveredPlayer.Team == PlayerTeam.Blue
+        var labelPosition = new Vector2(screenPosition.X, screenPosition.Y - textHeight);
+        var teamColor = player.Team == PlayerTeam.Blue
             ? new Color(80, 150, 240)
             : new Color(210, 90, 90);
         var alpha = Math.Clamp(visibilityAlpha, 0.55f, 1f);
@@ -769,15 +860,15 @@ public partial class Game1
 
     private string? GetAmmoHudSpriteName()
     {
-        return StockGameplayModCatalog.GetPrimaryItem(_world.LocalPlayer.ClassId).Presentation.HudSpriteName;
+        return StockGameplayModCatalog.GetPrimaryItem(GetLocalDisplayedMainWeaponPresentationClassId()).Presentation.HudSpriteName;
     }
 
     private int GetAmmoHudFrameIndex()
     {
-        var presentation = StockGameplayModCatalog.GetPrimaryItem(_world.LocalPlayer.ClassId).Presentation;
+        var presentation = StockGameplayModCatalog.GetPrimaryItem(GetLocalDisplayedMainWeaponPresentationClassId()).Presentation;
         if (presentation.UseAmmoCountForHudFrame)
         {
-            return GetPlayerCurrentShells(_world.LocalPlayer)
+            return GetLocalDisplayedMainWeaponCurrentShells()
                 + (_world.LocalPlayerTeam == PlayerTeam.Blue ? presentation.BlueTeamAmmoHudFrameOffset : 0);
         }
 
@@ -799,8 +890,30 @@ public partial class Game1
 
     private float GetAmmoReloadBarProgress(PlayerEntity player)
     {
-        var currentShells = GetPlayerCurrentShells(player);
-        if (currentShells >= player.MaxShells)
+        if (ReferenceEquals(player, _world.LocalPlayer) && player.IsAcquiredWeaponPresented)
+        {
+            var currentShells = player.AcquiredWeaponCurrentShells;
+            var maxShells = player.AcquiredWeaponMaxShells;
+            if (currentShells >= maxShells)
+            {
+                return 1f;
+            }
+
+            var reloadTicksUntilNextShell = player.AcquiredWeaponReloadTicksUntilNextShell;
+            if (reloadTicksUntilNextShell <= 0)
+            {
+                return 1f;
+            }
+
+            var reloadTicks = Math.Max(1, player.AcquiredWeapon?.AmmoReloadTicks ?? 1);
+            return Math.Clamp(
+                1f - (reloadTicksUntilNextShell / (float)reloadTicks),
+                0f,
+                1f);
+        }
+
+        var displayedShells = GetPlayerCurrentShells(player);
+        if (displayedShells >= player.MaxShells)
         {
             return 1f;
         }
@@ -810,7 +923,7 @@ public partial class Game1
             var refillTicks = GetPlayerMedicNeedleRefillTicks(player);
             if (refillTicks <= 0)
             {
-                return currentShells < player.MaxShells ? 1f : 0f;
+                return displayedShells < player.MaxShells ? 1f : 0f;
             }
 
             return Math.Clamp(
@@ -819,16 +932,63 @@ public partial class Game1
                 1f);
         }
 
-        var reloadTicksUntilNextShell = GetPlayerReloadTicksUntilNextShell(player);
-        if (reloadTicksUntilNextShell <= 0)
+        var reloadTicksRemaining = GetPlayerReloadTicksUntilNextShell(player);
+        if (reloadTicksRemaining <= 0)
         {
             return 1f;
         }
 
-        var reloadTicks = Math.Max(1, player.PrimaryWeapon.AmmoReloadTicks);
+        var reloadTicksTotal = Math.Max(1, player.PrimaryWeapon.AmmoReloadTicks);
         return Math.Clamp(
-            1f - (reloadTicksUntilNextShell / (float)reloadTicks),
+            1f - (reloadTicksRemaining / (float)reloadTicksTotal),
             0f,
             1f);
+    }
+
+    private bool IsLocalDisplayedMainWeaponAcquired()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented;
+    }
+
+    private PlayerClass GetLocalDisplayedMainWeaponPresentationClassId()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeaponClassId ?? _world.LocalPlayer.ClassId
+            : _world.LocalPlayer.ClassId;
+    }
+
+    private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStats()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeapon ?? _world.LocalPlayer.PrimaryWeapon
+            : _world.LocalPlayer.PrimaryWeapon;
+    }
+
+    private int GetLocalDisplayedMainWeaponCurrentShells()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeaponCurrentShells
+            : GetPlayerCurrentShells(_world.LocalPlayer);
+    }
+
+    private int GetLocalDisplayedMainWeaponMaxShells()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeaponMaxShells
+            : _world.LocalPlayer.MaxShells;
+    }
+
+    private int GetLocalDisplayedMainWeaponCooldownTicks()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeaponCooldownTicks
+            : GetPlayerPrimaryCooldownTicks(_world.LocalPlayer);
+    }
+
+    private int GetLocalDisplayedMainWeaponReloadTicks()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell
+            : GetPlayerReloadTicksUntilNextShell(_world.LocalPlayer);
     }
 }

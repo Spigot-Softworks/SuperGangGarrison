@@ -20,7 +20,8 @@ public sealed class MineProjectileEntity : SimulationEntity
         float x,
         float y,
         float velocityX,
-        float velocityY) : base(id)
+        float velocityY,
+        string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -28,6 +29,7 @@ public sealed class MineProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
+        KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
     }
 
     public PlayerTeam Team { get; }
@@ -45,6 +47,8 @@ public sealed class MineProjectileEntity : SimulationEntity
     public float VelocityX { get; private set; }
 
     public float VelocityY { get; private set; }
+
+    public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public bool IsStickied { get; private set; }
 

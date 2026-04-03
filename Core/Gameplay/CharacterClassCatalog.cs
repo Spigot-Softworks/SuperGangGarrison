@@ -63,6 +63,39 @@ public static class CharacterClassCatalog
         };
     }
 
+    public static bool SupportsExperimentalAcquiredWeapon(PlayerClass playerClass)
+    {
+        return playerClass switch
+        {
+            PlayerClass.Scout => true,
+            PlayerClass.Engineer => true,
+            PlayerClass.Soldier => true,
+            PlayerClass.Demoman => true,
+            PlayerClass.Heavy => true,
+            PlayerClass.Sniper => true,
+            PlayerClass.Spy => true,
+            _ => false,
+        };
+    }
+
+    public static string GetPrimaryWeaponKillFeedSprite(PlayerClass playerClass)
+    {
+        return playerClass switch
+        {
+            PlayerClass.Scout => "ScatterKL",
+            PlayerClass.Engineer => "ShotgunKL",
+            PlayerClass.Pyro => "FlameKL",
+            PlayerClass.Soldier => "RocketKL",
+            PlayerClass.Demoman => "MineKL",
+            PlayerClass.Heavy => "MinigunKL",
+            PlayerClass.Sniper => "RifleKL",
+            PlayerClass.Medic => "NeedleKL",
+            PlayerClass.Spy => "RevolverKL",
+            PlayerClass.Quote => "BladeKL",
+            _ => "DeadKL",
+        };
+    }
+
     private static PrimaryWeaponDefinition CreatePrimaryWeaponDefinition(GameplayItemDefinition item)
     {
         return new PrimaryWeaponDefinition(

@@ -52,10 +52,12 @@ public sealed partial class SimulationWorld
         var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
-        var secondaryPressed = input.FireSecondary && !previousInput.FireSecondary;
-        var allowHeldSecondary = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
+        var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
+        var secondaryWeaponPressed = input.FireSecondaryWeapon && !previousInput.FireSecondaryWeapon;
+        var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
+        var allowHeldSecondaryAbility = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
         var suppressPyroPrimaryThisTick = player.ClassId == PlayerClass.Pyro
-            && secondaryPressed
+            && secondaryAbilityPressed
             && player.CanFirePyroAirblast();
 
         var healthBeforeTick = player.Health;
@@ -73,6 +75,7 @@ public sealed partial class SimulationWorld
                 player.Y,
                 healthBeforeTick - player.Health,
                 afterburn.IsFatal);
+            ApplyExperimentalDamageRewards(burner, player, healthBeforeTick - player.Health);
         }
 
         if (afterburn.IsFatal)
@@ -108,12 +111,22 @@ public sealed partial class SimulationWorld
         {
             if (input.FireSecondary)
             {
-                TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
+                TryHandleNetworkSecondaryAbility(player, input, preAdvanceX, preAdvanceY);
             }
         }
-        else if ((allowHeldSecondary && input.FireSecondary) || (!allowHeldSecondary && secondaryPressed))
+        else if ((allowHeldSecondaryAbility && input.FireSecondary) || (!allowHeldSecondaryAbility && secondaryAbilityPressed))
         {
-            TryHandleNetworkSecondaryFire(player, input, preAdvanceX, preAdvanceY);
+            TryHandleNetworkSecondaryAbility(player, input, preAdvanceX, preAdvanceY);
+        }
+
+        if (secondaryWeaponPressed && !input.FirePrimary)
+        {
+            TryHandleNetworkSecondaryWeaponFire(player, input);
+        }
+
+        if (interactWeaponPressed)
+        {
+            TryHandleNetworkWeaponInteraction(player);
         }
 
         if (emitWallspinDust)
@@ -147,6 +160,8 @@ public sealed partial class SimulationWorld
         {
             return;
         }
+
+        ApplyExperimentalPassivePlayerEffects(player);
 
         if (allowDebugKill && killPressed)
         {
@@ -191,6 +206,29 @@ public sealed partial class SimulationWorld
         if (player.IsTaunting)
         {
             return;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher
+                && input.FirePrimary
+                && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
+            {
+                return;
+            }
+
+            if (!input.FirePrimary || !player.TryFireAcquiredWeapon())
+            {
+                return;
+            }
+
+            WeaponHandler.FireAcquiredWeapon(player, input.AimWorldX, input.AimWorldY);
+            return;
+        }
+
+        if (player.HasExperimentalOffhandWeapon && input.FirePrimary)
+        {
+            player.StowExperimentalOffhandWeapon();
         }
 
         if (player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
@@ -244,18 +282,17 @@ public sealed partial class SimulationWorld
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
     }
 
-    private void TryHandleNetworkSecondaryFire(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
+    private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
     {
         if (player.IsTaunting)
         {
             return;
         }
 
-        if (player.ClassId == PlayerClass.Soldier
-            && player.HasExperimentalOffhandWeapon
-            && player.TryFireExperimentalOffhandWeapon())
+        if (player.IsAcquiredWeaponEquipped
+            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher)
         {
-            WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+            DetonateOwnedMines(player.Id);
             return;
         }
 
@@ -327,6 +364,34 @@ public sealed partial class SimulationWorld
         {
             WeaponHandler.FireQuoteBlade(player, input.AimWorldX, input.AimWorldY);
         }
+    }
+
+    private void TryHandleNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (player.IsTaunting)
+        {
+            return;
+        }
+
+        if (player.ClassId != PlayerClass.Soldier
+            || !player.HasExperimentalOffhandWeapon
+            || player.IsAcquiredWeaponEquipped)
+        {
+            return;
+        }
+
+        player.EquipExperimentalOffhandWeapon();
+        if (!player.TryFireExperimentalOffhandWeapon())
+        {
+            return;
+        }
+
+        WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+    }
+
+    private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
+    {
+        TryHandleDroppedWeaponInteraction(player);
     }
 
     private bool TryStartSpyBackstab(PlayerEntity attacker, float aimWorldX, float aimWorldY)

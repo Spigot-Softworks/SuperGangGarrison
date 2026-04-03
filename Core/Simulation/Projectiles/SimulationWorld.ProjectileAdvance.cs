@@ -34,7 +34,8 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(shot.OwnerId);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, ShotProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, ShotProjectileEntity.DamagePerHit, out var damageFlags);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(
                             hitResult.HitPlayer,
@@ -95,7 +96,8 @@ public sealed partial class SimulationWorld
                             blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
                             blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
                         var owner = FindPlayerById(blade.OwnerId);
-                        if (ApplyPlayerDamage(hitResult.HitPlayer, blade.HitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
+                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, blade.HitDamage, out var damageFlags);
+                        if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                         {
                             KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
                         }
@@ -160,7 +162,8 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(needle.OwnerId);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, NeedleProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, NeedleProjectileEntity.DamagePerHit, out var damageFlags);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NeedleKL");
                     }
@@ -223,9 +226,13 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(shot.OwnerId);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, RevolverProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha))
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, RevolverProjectileEntity.DamagePerHit, out var damageFlags);
+                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
-                        KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "RevolverKL");
+                        KillPlayer(
+                            hitResult.HitPlayer,
+                            killer: owner,
+                            weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? "RevolverKL");
                     }
                 }
                 else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
@@ -448,9 +455,10 @@ public sealed partial class SimulationWorld
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
-                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(flare.OwnerId);
-                    var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, FlareProjectileEntity.DamagePerHit, owner, PlayerEntity.SpyDamageRevealAlpha);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, FlareProjectileEntity.DamagePerHit, out var damageFlags);
+                    var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags);
                     if (playerDied)
                     {
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "FlareKL");

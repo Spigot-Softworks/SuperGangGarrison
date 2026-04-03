@@ -40,12 +40,15 @@ public sealed partial class SimulationWorld
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
+    private readonly List<HealthPackEntity> _healthPacks = new();
+    private readonly List<DroppedWeaponEntity> _droppedWeapons = new();
     private readonly List<DeadBodyEntity> _deadBodies = new();
     private readonly List<SentryGibEntity> _sentryGibs = new();
     private readonly List<GeneratorState> _generators = new();
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
+    private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
     private readonly List<ScoreboardSpectatorEntry> _spectators = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
@@ -183,6 +186,10 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<BloodDropEntity> BloodDrops => _bloodDrops;
 
+    public IReadOnlyList<HealthPackEntity> HealthPacks => _healthPacks;
+
+    public IReadOnlyList<DroppedWeaponEntity> DroppedWeapons => _droppedWeapons;
+
     public IReadOnlyList<DeadBodyEntity> DeadBodies => _deadBodies;
 
     public IReadOnlyList<SentryGibEntity> SentryGibs => _sentryGibs;
@@ -192,6 +199,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<WorldVisualEvent> PendingVisualEvents => _pendingVisualEvents;
 
     public IReadOnlyList<WorldDamageEvent> PendingDamageEvents => _pendingDamageEvents;
+
+    public IReadOnlyList<WorldHealingEvent> PendingHealingEvents => _pendingHealingEvents;
 
     public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
 
@@ -285,6 +294,15 @@ public sealed partial class SimulationWorld
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
     {
         ExperimentalGameplaySettings = settings ?? new ExperimentalGameplaySettings();
+        if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops)
+        {
+            ClearHealthPacks();
+        }
+        if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons)
+        {
+            ClearDroppedWeapons();
+        }
+
         SyncExperimentalGameplayLoadout(LocalPlayerSlot, LocalPlayer);
     }
 
@@ -397,6 +415,18 @@ public sealed partial class SimulationWorld
         return damageEvents;
     }
 
+    public IReadOnlyList<WorldHealingEvent> DrainPendingHealingEvents()
+    {
+        if (_pendingHealingEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var healingEvents = _pendingHealingEvents.ToArray();
+        _pendingHealingEvents.Clear();
+        return healingEvents;
+    }
+
     private int AllocateEntityId()
     {
         return _nextEntityId++;
@@ -421,6 +451,7 @@ public sealed partial class SimulationWorld
         if (slot != LocalPlayerSlot)
         {
             player.SetExperimentalOffhandWeapon(null);
+            player.SetAcquiredWeapon(null);
             return;
         }
 
@@ -429,6 +460,11 @@ public sealed partial class SimulationWorld
                 && player.ClassId == PlayerClass.Soldier
                     ? CharacterClassCatalog.Shotgun
                     : null);
+        if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
+            || player.ClassId != PlayerClass.Soldier)
+        {
+            player.SetAcquiredWeapon(null);
+        }
     }
 
 }

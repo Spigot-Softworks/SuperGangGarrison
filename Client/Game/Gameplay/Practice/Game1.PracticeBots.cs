@@ -73,7 +73,7 @@ public partial class Game1
 
     private void SyncPracticeBotRoster(PlayerTeam localTeam)
     {
-        if (!IsPracticeSessionActive)
+        if (!IsOfflineBotSessionActive)
         {
             ResetPracticeBotManagerState(releaseWorldSlots: true);
             return;
@@ -124,19 +124,35 @@ public partial class Game1
     {
         var desiredSlots = new Dictionary<byte, PracticeBotSlotState>();
         var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
+
+        if (IsLastToDieSessionActive)
+        {
+            nextSlot = AppendRandomizedDesiredPracticeBotSlots(
+                desiredSlots,
+                nextSlot,
+                localTeam,
+                GetOfflineFriendlyBotCount());
+            _ = AppendRandomizedDesiredPracticeBotSlots(
+                desiredSlots,
+                nextSlot,
+                GetOpposingTeam(localTeam),
+                GetOfflineEnemyBotCount());
+            return desiredSlots;
+        }
+
         var classCycle = GetEligiblePracticeBotClassCycle();
         nextSlot = AppendDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             localTeam,
-            _practiceFriendlyBotCount,
+            GetOfflineFriendlyBotCount(),
             classCycle,
             classOffset: 0);
         _ = AppendDesiredPracticeBotSlots(
             desiredSlots,
             nextSlot,
             GetOpposingTeam(localTeam),
-            _practiceEnemyBotCount,
+            GetOfflineEnemyBotCount(),
             classCycle,
             classOffset: 3);
         return desiredSlots;
@@ -169,6 +185,57 @@ public partial class Game1
         }
 
         return nextSlot;
+    }
+
+    private byte AppendRandomizedDesiredPracticeBotSlots(
+        Dictionary<byte, PracticeBotSlotState> desiredSlots,
+        byte startSlot,
+        PlayerTeam team,
+        int count)
+    {
+        var nextSlot = startSlot;
+        var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
+        if (count <= 0)
+        {
+            return nextSlot;
+        }
+
+        var eligibleClasses = GetEligiblePracticeBotClassCycle();
+        if (eligibleClasses.Length == 0)
+        {
+            return nextSlot;
+        }
+
+        var eligibleSet = new HashSet<PlayerClass>(eligibleClasses);
+        var randomizedPool = BuildRandomizedPracticeBotClassPool(eligibleClasses);
+        var randomizedIndex = 0;
+        for (var index = 0; index < count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
+        {
+            var classId = _practiceBotSlots.TryGetValue(nextSlot, out var existing)
+                          && eligibleSet.Contains(existing.ClassId)
+                ? existing.ClassId
+                : randomizedPool[randomizedIndex++ % randomizedPool.Count];
+            desiredSlots[nextSlot] = new PracticeBotSlotState(
+                nextSlot,
+                team,
+                classId,
+                GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
+            nextSlot += 1;
+        }
+
+        return nextSlot;
+    }
+
+    private List<PlayerClass> BuildRandomizedPracticeBotClassPool(PlayerClass[] eligibleClasses)
+    {
+        var pool = eligibleClasses.ToList();
+        for (var index = pool.Count - 1; index > 0; index -= 1)
+        {
+            var swapIndex = _visualRandom.Next(index + 1);
+            (pool[index], pool[swapIndex]) = (pool[swapIndex], pool[index]);
+        }
+
+        return pool;
     }
 
     private PlayerClass[] GetEligiblePracticeBotClassCycle()
@@ -294,7 +361,7 @@ public partial class Game1
 
     private void UpdatePracticeBots()
     {
-        if (!IsPracticeSessionActive)
+        if (!IsOfflineBotSessionActive)
         {
             return;
         }

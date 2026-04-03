@@ -92,6 +92,16 @@ public partial class Game1
                 _spriteBatch.Draw(_pixel, gibRectangle, new Color(160, 170, 175));
             }
         }
+
+        foreach (var healthPack in _world.HealthPacks)
+        {
+            DrawHealthPack(healthPack, cameraPosition);
+        }
+
+        foreach (var droppedWeapon in _world.DroppedWeapons)
+        {
+            DrawDroppedWeapon(droppedWeapon, cameraPosition);
+        }
     }
 
     private void DrawGameplayMapMarkers(
@@ -236,6 +246,8 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
         }
 
+        DrawExperimentalStickyGibBloodOverlay(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+
         if (!GetPlayerIsHeavyEating(_world.LocalPlayer) && !_world.LocalPlayer.IsTaunting && !_world.IsPlayerHumiliated(_world.LocalPlayer))
         {
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
@@ -243,6 +255,7 @@ public partial class Game1
 
         DrawAfterburnOverlay(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer, allowInterpolation: false), cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
+        TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }
 
 }

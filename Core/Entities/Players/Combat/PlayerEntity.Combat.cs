@@ -43,14 +43,13 @@ public sealed partial class PlayerEntity
                 ExperimentalOffhandCurrentShells = int.Clamp(ExperimentalOffhandCurrentShells, 0, weaponDefinition.MaxAmmo);
                 ExperimentalOffhandCooldownTicks = Math.Max(0, ExperimentalOffhandCooldownTicks);
                 ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, ExperimentalOffhandReloadTicksUntilNextShell);
-                ExperimentalOffhandDisplayTicksRemaining = Math.Max(0, ExperimentalOffhandDisplayTicksRemaining);
             }
             else
             {
                 ExperimentalOffhandCurrentShells = 0;
                 ExperimentalOffhandCooldownTicks = 0;
                 ExperimentalOffhandReloadTicksUntilNextShell = 0;
-                ExperimentalOffhandDisplayTicksRemaining = 0;
+                IsExperimentalOffhandEquipped = false;
             }
 
             return;
@@ -62,14 +61,118 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCurrentShells = 0;
             ExperimentalOffhandCooldownTicks = 0;
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
-            ExperimentalOffhandDisplayTicksRemaining = 0;
+            IsExperimentalOffhandEquipped = false;
             return;
         }
 
         ExperimentalOffhandCurrentShells = weaponDefinition.MaxAmmo;
         ExperimentalOffhandCooldownTicks = 0;
         ExperimentalOffhandReloadTicksUntilNextShell = 0;
-        ExperimentalOffhandDisplayTicksRemaining = 0;
+        IsExperimentalOffhandEquipped = false;
+    }
+
+    public void EquipExperimentalOffhandWeapon()
+    {
+        if (ExperimentalOffhandWeapon is null || !IsAlive)
+        {
+            return;
+        }
+
+        IsExperimentalOffhandEquipped = true;
+    }
+
+    public void StowExperimentalOffhandWeapon()
+    {
+        IsExperimentalOffhandEquipped = false;
+    }
+
+    public void SetAcquiredWeapon(PlayerClass? weaponClassId)
+    {
+        if (!weaponClassId.HasValue
+            || ClassId != PlayerClass.Soldier
+            || !CharacterClassCatalog.SupportsExperimentalAcquiredWeapon(weaponClassId.Value))
+        {
+            weaponClassId = null;
+        }
+
+        if (weaponClassId == AcquiredWeaponClassId)
+        {
+            var weaponDefinition = AcquiredWeapon;
+            if (weaponDefinition is not null)
+            {
+                AcquiredWeaponCurrentShells = int.Clamp(AcquiredWeaponCurrentShells, 0, weaponDefinition.MaxAmmo);
+                AcquiredWeaponCooldownTicks = Math.Max(0, AcquiredWeaponCooldownTicks);
+                AcquiredWeaponReloadTicksUntilNextShell = Math.Max(0, AcquiredWeaponReloadTicksUntilNextShell);
+            }
+            else
+            {
+                AcquiredWeaponCurrentShells = 0;
+                AcquiredWeaponCooldownTicks = 0;
+                AcquiredWeaponReloadTicksUntilNextShell = 0;
+                IsAcquiredWeaponEquipped = false;
+            }
+
+            return;
+        }
+
+        AcquiredWeaponClassId = weaponClassId;
+        if (!weaponClassId.HasValue)
+        {
+            AcquiredWeaponCurrentShells = 0;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
+            return;
+        }
+
+        var acquiredWeapon = AcquiredWeapon;
+        AcquiredWeaponCurrentShells = acquiredWeapon?.MaxAmmo ?? 0;
+        AcquiredWeaponCooldownTicks = 0;
+        AcquiredWeaponReloadTicksUntilNextShell = 0;
+        IsAcquiredWeaponEquipped = false;
+    }
+
+    public void EquipAcquiredWeapon()
+    {
+        if (!HasAcquiredWeapon || !IsAlive)
+        {
+            return;
+        }
+
+        IsExperimentalOffhandEquipped = false;
+        IsAcquiredWeaponEquipped = true;
+    }
+
+    public void StowAcquiredWeapon()
+    {
+        IsAcquiredWeaponEquipped = false;
+    }
+
+    public bool TryFireAcquiredWeapon()
+    {
+        var weaponDefinition = AcquiredWeapon;
+        if (weaponDefinition is null
+            || !IsAlive
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || AcquiredWeaponCooldownTicks > 0
+            || AcquiredWeaponCurrentShells < weaponDefinition.AmmoPerShot)
+        {
+            return false;
+        }
+
+        IsExperimentalOffhandEquipped = false;
+        IsAcquiredWeaponEquipped = true;
+        AcquiredWeaponCurrentShells -= weaponDefinition.AmmoPerShot;
+        AcquiredWeaponCooldownTicks = weaponDefinition.ReloadDelayTicks;
+        if (weaponDefinition.AutoReloads
+            && AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+        }
+
+        return true;
     }
 
     public bool TryFireExperimentalOffhandWeapon()
@@ -86,11 +189,9 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        IsExperimentalOffhandEquipped = true;
         ExperimentalOffhandCurrentShells -= weaponDefinition.AmmoPerShot;
         ExperimentalOffhandCooldownTicks = weaponDefinition.ReloadDelayTicks;
-        ExperimentalOffhandDisplayTicksRemaining = Math.Max(
-            ExperimentalOffhandDisplayTicksRemaining,
-            weaponDefinition.ReloadDelayTicks);
         if (weaponDefinition.AutoReloads
             && ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
         {
@@ -295,6 +396,8 @@ public sealed partial class PlayerEntity
         IntelRechargeTicks = 0f;
         ContinuousDamageAccumulator = 0f;
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
+        SetAcquiredWeapon(null);
+        ResetExperimentalPowerRuntimeState();
         ExtinguishAfterburn();
         IsHeavyEating = false;
         HeavyEatTicksRemaining = 0;
@@ -358,7 +461,14 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCurrentShells = ExperimentalOffhandWeapon.MaxAmmo;
             ExperimentalOffhandCooldownTicks = 0;
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
-            ExperimentalOffhandDisplayTicksRemaining = 0;
+            IsExperimentalOffhandEquipped = false;
+        }
+        if (AcquiredWeapon is not null)
+        {
+            AcquiredWeaponCurrentShells = AcquiredWeapon.MaxAmmo;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
         }
         HeavyEatCooldownTicksRemaining = 0;
         ResetPyroPrimaryStateFromCurrentAmmo();
@@ -570,12 +680,10 @@ public sealed partial class PlayerEntity
 
     private int GetPrimaryCooldownAfterShot()
     {
-        if (ClassId == PlayerClass.Sniper && IsSniperScoped)
-        {
-            return PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks;
-        }
-
-        return PrimaryWeapon.ReloadDelayTicks;
+        var cooldownTicks = ClassId == PlayerClass.Sniper && IsSniperScoped
+            ? PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks
+            : PrimaryWeapon.ReloadDelayTicks;
+        return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
     }
 
     private void AdvanceWeaponState()
@@ -585,6 +693,7 @@ public sealed partial class PlayerEntity
             AdvancePyroWeaponState();
             AdvancePyroAirblastState();
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -603,6 +712,7 @@ public sealed partial class PlayerEntity
         if (PrimaryCooldownTicks > 0)
         {
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -610,6 +720,7 @@ public sealed partial class PlayerEntity
         {
             ReloadTicksUntilNextShell = 0;
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -617,6 +728,14 @@ public sealed partial class PlayerEntity
         {
             ReloadTicksUntilNextShell = 0;
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
+            return;
+        }
+
+        if (IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped)
+        {
+            AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -624,6 +743,7 @@ public sealed partial class PlayerEntity
         {
             ReloadTicksUntilNextShell -= 1;
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -632,6 +752,7 @@ public sealed partial class PlayerEntity
             CurrentShells = PrimaryWeapon.MaxAmmo;
             ReloadTicksUntilNextShell = 0;
             AdvanceExperimentalOffhandWeaponState();
+            AdvanceAcquiredWeaponState();
             return;
         }
 
@@ -642,6 +763,7 @@ public sealed partial class PlayerEntity
         }
 
         AdvanceExperimentalOffhandWeaponState();
+        AdvanceAcquiredWeaponState();
     }
 
     private void AdvancePyroWeaponState()
@@ -744,7 +866,7 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCurrentShells = 0;
             ExperimentalOffhandCooldownTicks = 0;
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
-            ExperimentalOffhandDisplayTicksRemaining = 0;
+            IsExperimentalOffhandEquipped = false;
             return;
         }
 
@@ -753,18 +875,13 @@ public sealed partial class PlayerEntity
             ExperimentalOffhandCooldownTicks -= 1;
         }
 
-        if (ExperimentalOffhandDisplayTicksRemaining > 0)
-        {
-            ExperimentalOffhandDisplayTicksRemaining -= 1;
-        }
-
         if (!weaponDefinition.AutoReloads)
         {
             ExperimentalOffhandReloadTicksUntilNextShell = 0;
             return;
         }
 
-        if (ExperimentalOffhandCooldownTicks > 0)
+        if (!IsExperimentalOffhandEquipped || ExperimentalOffhandCooldownTicks > 0)
         {
             return;
         }
@@ -792,6 +909,70 @@ public sealed partial class PlayerEntity
         if (ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
         {
             ExperimentalOffhandReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+        }
+    }
+
+    private void AdvanceAcquiredWeaponState()
+    {
+        var weaponDefinition = AcquiredWeapon;
+        if (weaponDefinition is null)
+        {
+            AcquiredWeaponCurrentShells = 0;
+            AcquiredWeaponCooldownTicks = 0;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            IsAcquiredWeaponEquipped = false;
+            return;
+        }
+
+        if (AcquiredWeaponCooldownTicks > 0)
+        {
+            AcquiredWeaponCooldownTicks -= 1;
+        }
+
+        if (!IsAcquiredWeaponEquipped)
+        {
+            return;
+        }
+
+        if (weaponDefinition.AmmoRegenPerTick > 0 && AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
+        {
+            AcquiredWeaponCurrentShells = int.Min(weaponDefinition.MaxAmmo, AcquiredWeaponCurrentShells + weaponDefinition.AmmoRegenPerTick);
+        }
+
+        if (!weaponDefinition.AutoReloads)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (AcquiredWeaponCooldownTicks > 0)
+        {
+            return;
+        }
+
+        if (AcquiredWeaponCurrentShells >= weaponDefinition.MaxAmmo)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        if (AcquiredWeaponReloadTicksUntilNextShell > 0)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell -= 1;
+            return;
+        }
+
+        if (weaponDefinition.RefillsAllAtOnce)
+        {
+            AcquiredWeaponCurrentShells = weaponDefinition.MaxAmmo;
+            AcquiredWeaponReloadTicksUntilNextShell = 0;
+            return;
+        }
+
+        AcquiredWeaponCurrentShells += 1;
+        if (AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
         }
     }
 }

@@ -127,6 +127,11 @@ public static class OpenGarrisonLegacyPreferencesMigration
             preferences.ShowHealthBarEnabled = showHealthBarEnabled;
         }
 
+        if (TryReadBool(root, "ShowPersistentSelfNameEnabled", out var showPersistentSelfNameEnabled))
+        {
+            preferences.ShowPersistentSelfNameEnabled = showPersistentSelfNameEnabled;
+        }
+
         if (TryGetProperty(root, "RecentConnection", out var recentConnection)
             && recentConnection.ValueKind is JsonValueKind.Object)
         {

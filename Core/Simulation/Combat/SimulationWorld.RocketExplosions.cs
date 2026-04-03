@@ -18,7 +18,7 @@ public sealed partial class SimulationWorld
         {
             var owner = world.FindPlayerById(rocket.OwnerId);
             RemoveAt(world, rocket.Id);
-            ApplyDirectHitDamage(world, rocket, owner, directHitPlayer, directHitSentry, directHitGenerator);
+            var hitEnemyPlayer = ApplyDirectHitDamage(world, rocket, owner, directHitPlayer, directHitSentry, directHitGenerator);
 
             world.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
             world.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
@@ -26,11 +26,12 @@ public sealed partial class SimulationWorld
             world.ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, RocketProjectileEntity.BlastRadius, 15f);
             world.RegisterExplosionTraces(rocket.X, rocket.Y);
 
-            ApplySplashDamageToPlayers(world, rocket, owner);
+            hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner);
             ApplySplashDamageToSentries(world, rocket, owner);
             ApplySplashDamageToGenerators(world, rocket, owner);
             TriggerMinesInBlast(world, rocket);
             DestroyBubblesInBlast(world, rocket);
+            world.TryApplyExperimentalSoldierRocketHitReloadReward(owner, rocket, hitEnemyPlayer);
         }
 
         private static void RemoveAt(SimulationWorld world, int rocketId)
@@ -45,7 +46,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static void ApplyDirectHitDamage(
+        private static bool ApplyDirectHitDamage(
             SimulationWorld world,
             RocketProjectileEntity rocket,
             PlayerEntity? owner,
@@ -53,11 +54,22 @@ public sealed partial class SimulationWorld
             SentryEntity? directHitSentry,
             GeneratorState? directHitGenerator)
         {
+            var hitEnemyPlayer = false;
             if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, owner))
             {
-                if (world.ApplyPlayerDamage(directHitPlayer, RocketProjectileEntity.DirectHitDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
+                hitEnemyPlayer = directHitPlayer.Team != rocket.Team;
+                var hitDamage = world.ApplyExperimentalAirshotDamageMultiplier(
+                    owner,
+                    directHitPlayer,
+                    RocketProjectileEntity.DirectHitDamage,
+                    out var damageFlags);
+                if (world.ApplyPlayerDamage(directHitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                 {
-                    world.KillPlayer(directHitPlayer, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
+                    world.KillPlayer(
+                        directHitPlayer,
+                        gibbed: true,
+                        killer: owner,
+                        weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
                 }
             }
 
@@ -73,10 +85,13 @@ public sealed partial class SimulationWorld
             {
                 world.TryDamageGenerator(directHitGenerator.Team, RocketProjectileEntity.DirectHitDamage, owner);
             }
+
+            return hitEnemyPlayer;
         }
 
-        private static void ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner)
+        private static bool ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner)
         {
+            var hitEnemyPlayer = false;
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
                 if (!player.IsAlive)
@@ -118,11 +133,18 @@ public sealed partial class SimulationWorld
 
                 var appliedDamage = RocketProjectileEntity.ExplosionDamage * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
+                hitEnemyPlayer = true;
                 if (world.ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
                 {
-                    world.KillPlayer(player, gibbed: true, killer: owner, weaponSpriteName: "RocketKL");
+                    world.KillPlayer(
+                        player,
+                        gibbed: true,
+                        killer: owner,
+                        weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
                 }
             }
+
+            return hitEnemyPlayer;
         }
 
         private static void ApplyPlayerImpulse(SimulationWorld world, PlayerEntity player, RocketProjectileEntity rocket, float distanceFactor)

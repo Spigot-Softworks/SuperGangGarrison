@@ -31,86 +31,30 @@ public partial class Game1
 
         var levelName = _world.Level.Name;
         _practiceMapEntries = BuildPracticeMapEntries();
-        _ = SelectPracticeMapEntry(levelName);
+        if (!SelectPracticeMapEntry(levelName))
+        {
+            NormalizePracticeSetupState();
+            levelName = GetSelectedPracticeMapEntry()?.LevelName ?? levelName;
+        }
+
         BeginPracticeSession(levelName);
     }
 
     private void BeginPracticeSession(string levelName)
     {
-        ResetPracticeBotManagerState(releaseWorldSlots: true);
-        ResetPracticeNavigationState();
-        _botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
-        ResetBotDiagnosticSample();
-        _networkClient.Disconnect();
-        _networkClient.ClearPendingTeamSelection();
-        _networkClient.ClearPendingClassSelection();
-        StopHostedServer();
-        StopLocalRapidFireWeaponAudio();
-        StopMenuMusic();
-        StopFaucetMusic();
-        StopIngameMusic();
-        ResetTransientPresentationEffects();
-        ResetProcessedNetworkEventHistory();
-        ResetClientTimingState();
-        ResetSnapshotStateHistory();
-        ResetBackstabVisuals();
-        _lastAppliedSnapshotFrame = 0;
-        _lastBufferedSnapshotFrame = 0;
-        _hasReceivedSnapshot = false;
-        _localPlayerSnapshotEntityId = null;
-        _hasPredictedLocalPlayerPosition = false;
-        _hasSmoothedLocalPlayerRenderPosition = false;
-        _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-        _lastPredictedRenderSmoothingTimeSeconds = -1d;
-        _pendingPredictedInputs.Clear();
-        _pendingNetworkVisualEvents.Clear();
-        _pendingNetworkDamageEvents.Clear();
-
-        ReinitializeSimulationForTickRate(_practiceTickRate);
-        _world.ConfigureExperimentalGameplaySettings(GetPracticeExperimentalGameplaySettings());
-        _world.ConfigureMatchDefaults(
-            timeLimitMinutes: _practiceTimeLimitMinutes,
-            capLimit: _practiceCapLimit,
-            respawnSeconds: _practiceRespawnSeconds);
-        if (!_world.TryLoadLevel(levelName))
+        if (!TryBeginOfflineBotSession(
+                levelName,
+                GameplaySessionKind.Practice,
+                _practiceTickRate,
+                GetPracticeExperimentalGameplaySettings(),
+                _practiceTimeLimitMinutes,
+                _practiceCapLimit,
+                _practiceRespawnSeconds,
+                openJoinMenus: true,
+                consoleSessionName: "practice"))
         {
-            _menuStatusMessage = $"Failed to load practice map: {levelName}";
             return;
         }
-
-        _world.PrepareLocalPlayerJoin();
-        _gameplaySessionKind = GameplaySessionKind.Practice;
-        LoadPracticeNavigationAssetsForCurrentLevel();
-        _pendingHostedConnectTicks = -1;
-        _pendingHostedConnectPort = 8190;
-        _practiceSetupOpen = false;
-        _clientPowersOpen = false;
-        _clientPowersOpenedFromGameplay = false;
-        _mainMenuOpen = false;
-        _manualConnectOpen = false;
-        _hostSetupOpen = false;
-        _hostSetupEditField = HostSetupEditField.None;
-        _creditsOpen = false;
-        _optionsMenuOpen = false;
-        _optionsMenuOpenedFromGameplay = false;
-        _pluginOptionsMenuOpen = false;
-        _pluginOptionsMenuOpenedFromGameplay = false;
-        _controlsMenuOpen = false;
-        _controlsMenuOpenedFromGameplay = false;
-        _inGameMenuOpen = false;
-        _quitPromptOpen = false;
-        _quitPromptHoverIndex = -1;
-        _consoleOpen = false;
-        _passwordPromptOpen = false;
-        _passwordEditBuffer = string.Empty;
-        _passwordPromptMessage = string.Empty;
-        _teamSelectOpen = true;
-        _classSelectOpen = false;
-        _pendingClassSelectTeam = null;
-        _menuStatusMessage = string.Empty;
-        InitializePracticeBotNamePoolForMatch();
-        ApplyPracticeDummyPreferencesBeforeJoin();
-        AddConsoleLine($"practice started on {levelName} tickrate={_practiceTickRate}");
     }
 
     private void ApplyPracticeTeamSelection(PlayerTeam localTeam)
@@ -150,11 +94,21 @@ public partial class Game1
 
     private string GetGameplayExitStatusMessage()
     {
+        if (IsLastToDieSessionActive)
+        {
+            return "Last To Die ended.";
+        }
+
         return IsPracticeSessionActive ? "Practice ended." : "Disconnected.";
     }
 
     private string GetOfflineSpectateUnavailableMessage()
     {
+        if (IsLastToDieSessionActive)
+        {
+            return "Spectator mode is not available in Last To Die.";
+        }
+
         return IsPracticeSessionActive
             ? "Spectator mode is not available in Practice."
             : "Spectator mode requires a network session.";

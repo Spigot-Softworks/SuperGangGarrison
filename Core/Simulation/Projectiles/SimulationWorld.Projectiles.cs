@@ -63,7 +63,7 @@ public sealed partial class SimulationWorld
         _entities.Add(needle.Id, needle);
     }
 
-    private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
         var shot = new RevolverProjectileEntity(
             AllocateEntityId(),
@@ -72,7 +72,8 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            killFeedWeaponSpriteNameOverride);
         _revolverShots.Add(shot);
         _entities.Add(shot.Id, shot);
     }
@@ -140,7 +141,15 @@ public sealed partial class SimulationWorld
         _entities.Add(flare.Id, flare);
     }
 
-    private void SpawnRocket(PlayerEntity owner, float x, float y, float speed, float directionRadians, bool explodeImmediately = false)
+    private void SpawnRocket(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float speed,
+        float directionRadians,
+        bool explodeImmediately = false,
+        bool canGrantExperimentalInstantReloadOnHit = true,
+        string? killFeedWeaponSpriteNameOverride = null)
     {
         var rocket = new RocketProjectileEntity(
             AllocateEntityId(),
@@ -152,7 +161,9 @@ public sealed partial class SimulationWorld
             directionRadians,
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
-            lastKnownRangeOriginY: owner.Y);
+            lastKnownRangeOriginY: owner.Y,
+            canGrantExperimentalInstantReloadOnHit: canGrantExperimentalInstantReloadOnHit,
+            killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {
             rocket.DelayExplosionUntilNextTick();
@@ -168,7 +179,7 @@ public sealed partial class SimulationWorld
         RocketProjectileSystem.AdvancePendingForOwner(this, ownerId);
     }
 
-    private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
         var mine = new MineProjectileEntity(
             AllocateEntityId(),
@@ -177,7 +188,8 @@ public sealed partial class SimulationWorld
             x,
             y,
             velocityX,
-            velocityY);
+            velocityY,
+            killFeedWeaponSpriteNameOverride);
         _mines.Add(mine);
         _entities.Add(mine.Id, mine);
     }
