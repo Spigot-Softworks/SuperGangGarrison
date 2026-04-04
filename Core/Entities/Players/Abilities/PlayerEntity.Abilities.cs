@@ -90,7 +90,7 @@ public sealed partial class PlayerEntity
 
     public bool TryToggleSniperScope()
     {
-        if (!IsAlive || ClassId != PlayerClass.Sniper || IsTaunting)
+        if (!IsAlive || !HasScopedSniperWeaponEquipped || IsTaunting)
         {
             return false;
         }
@@ -267,7 +267,7 @@ public sealed partial class PlayerEntity
 
     private void AdvanceSniperState()
     {
-        if (ClassId != PlayerClass.Sniper || !IsSniperScoped || PrimaryCooldownTicks > 0)
+        if (!HasScopedSniperWeaponEquipped || !IsSniperScoped || PrimaryCooldownTicks > 0)
         {
             SniperChargeTicks = 0;
             return;
@@ -321,7 +321,7 @@ public sealed partial class PlayerEntity
 
     private void AdvancePyroAirblastState()
     {
-        if (ClassId != PlayerClass.Pyro)
+        if (!HasPyroWeaponAvailable)
         {
             PyroAirblastCooldownTicks = 0;
             PyroFlareCooldownTicks = 0;

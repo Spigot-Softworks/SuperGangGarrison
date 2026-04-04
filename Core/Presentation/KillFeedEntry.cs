@@ -14,6 +14,8 @@ public sealed record KillFeedEntry(
     string VictimName,
     PlayerTeam VictimTeam,
     string MessageText = "",
+    int MessageHighlightStart = 0,
+    int MessageHighlightLength = 0,
     int KillerPlayerId = -1,
     int VictimPlayerId = -1,
     KillFeedSpecialType SpecialType = KillFeedSpecialType.None,

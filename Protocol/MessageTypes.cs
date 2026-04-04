@@ -348,6 +348,7 @@ public sealed record SnapshotGeneratorState(
 
 public sealed record SnapshotDeadBodyState(
     int Id,
+    int SourcePlayerId,
     byte Team,
     byte ClassId,
     byte AnimationKind,
@@ -445,6 +446,8 @@ public sealed record SnapshotKillFeedEntry(
     string VictimName,
     byte VictimTeam,
     string MessageText = "",
+    int MessageHighlightStart = 0,
+    int MessageHighlightLength = 0,
     int KillerPlayerId = -1,
     int VictimPlayerId = -1,
     KillFeedSpecialType SpecialType = KillFeedSpecialType.None,

@@ -56,7 +56,7 @@ public sealed partial class SimulationWorld
         var secondaryWeaponPressed = input.FireSecondaryWeapon && !previousInput.FireSecondaryWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         var allowHeldSecondaryAbility = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
-        var suppressPyroPrimaryThisTick = player.ClassId == PlayerClass.Pyro
+        var suppressPyroPrimaryThisTick = player.HasPyroWeaponEquipped
             && secondaryAbilityPressed
             && player.CanFirePyroAirblast();
 
@@ -217,6 +217,12 @@ public sealed partial class SimulationWorld
                 return;
             }
 
+            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.FlameThrower
+                && suppressPyroPrimaryThisTick)
+            {
+                return;
+            }
+
             if (!input.FirePrimary || !player.TryFireAcquiredWeapon())
             {
                 return;
@@ -290,9 +296,26 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsAcquiredWeaponEquipped
+            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.FlameThrower)
+        {
+            if (player.TryFirePyroAirblast())
+            {
+                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
+            }
+
+            return;
+        }
+
+        if (player.IsAcquiredWeaponEquipped
             && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher)
         {
             DetonateOwnedMines(player.Id);
+            return;
+        }
+
+        if (player.HasScopedSniperWeaponEquipped)
+        {
+            player.TryToggleSniperScope();
             return;
         }
 
@@ -325,12 +348,6 @@ public sealed partial class SimulationWorld
                 TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
             }
 
-            return;
-        }
-
-        if (player.ClassId == PlayerClass.Sniper)
-        {
-            player.TryToggleSniperScope();
             return;
         }
 
@@ -374,13 +391,16 @@ public sealed partial class SimulationWorld
         }
 
         if (player.ClassId != PlayerClass.Soldier
-            || !player.HasExperimentalOffhandWeapon
-            || player.IsAcquiredWeaponEquipped)
+            || !player.HasExperimentalOffhandWeapon)
         {
             return;
         }
 
-        player.EquipExperimentalOffhandWeapon();
+        if (!player.IsAcquiredWeaponEquipped)
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
         if (!player.TryFireExperimentalOffhandWeapon())
         {
             return;

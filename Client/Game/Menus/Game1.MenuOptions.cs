@@ -17,6 +17,8 @@ public partial class Game1
         return _clientPowersOpen
             || _practiceSetupOpen
             || _lastToDiePerkMenuOpen
+            || IsLastToDieStageClearOverlayActive()
+            || IsLastToDieDeathFocusPresentationActive()
             || IsLastToDieFailureOverlayActive()
             || _inGameMenuOpen
             || _optionsMenuOpen
@@ -42,6 +44,18 @@ public partial class Game1
         if (IsLastToDieFailureOverlayActive())
         {
             UpdateLastToDieFailureOverlay(keyboard, mouse);
+            return;
+        }
+
+        if (IsLastToDieDeathFocusPresentationActive())
+        {
+            UpdateLastToDieDeathFocusPresentation();
+            return;
+        }
+
+        if (IsLastToDieStageClearOverlayActive())
+        {
+            UpdateLastToDieStageClearOverlay(keyboard, mouse);
             return;
         }
 

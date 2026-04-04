@@ -41,7 +41,7 @@ public partial class Game1
 
     private static readonly ClientPowerToggleEntry[] ClientPowerEntries =
     [
-        new(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon, "Soldier shotgun", "Fire Engineer's shotgun with Space in practice."),
+        new(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon, "Soldier shotgun", "Press Space to fire secondary shotgun in practice."),
         new(ClientPowerToggleKind.StickyGibBlood, "Sticky gib blood", "Gib blood coats nearby players for 10s, then fades out."),
         new(ClientPowerToggleKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
         new(ClientPowerToggleKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),

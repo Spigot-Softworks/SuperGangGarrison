@@ -80,6 +80,16 @@ public partial class Game1
     private void DispatchPendingDamageEventsToPlugins()
     {
         var localDamageEvents = _world.DrainPendingDamageEvents();
+        for (var index = 0; index < localDamageEvents.Count; index += 1)
+        {
+            TryTrackLastToDieDamageDealt(localDamageEvents[index].AttackerPlayerId, localDamageEvents[index].Amount);
+        }
+
+        for (var index = 0; index < _pendingNetworkDamageEvents.Count; index += 1)
+        {
+            TryTrackLastToDieDamageDealt(_pendingNetworkDamageEvents[index].AttackerPlayerId, _pendingNetworkDamageEvents[index].Amount);
+        }
+
         if (_clientPluginHost is null)
         {
             _pendingNetworkDamageEvents.Clear();
@@ -104,6 +114,17 @@ public partial class Game1
         }
 
         _pendingNetworkDamageEvents.Clear();
+    }
+
+    private void TryTrackLastToDieDamageDealt(int attackerPlayerId, int amount)
+    {
+        var localPlayerId = GetClientPluginLocalPlayerId();
+        if (!localPlayerId.HasValue || attackerPlayerId != localPlayerId.Value)
+        {
+            return;
+        }
+
+        RegisterLastToDieLocalDamageDealt(amount);
     }
 
     private void TryDispatchLocalDamageEvent(int localPlayerId, WorldDamageEvent damageEvent)

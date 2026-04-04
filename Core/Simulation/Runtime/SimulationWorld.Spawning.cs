@@ -2,6 +2,22 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public bool TryMoveLocalPlayerToControlPointSpawn()
+    {
+        if (LocalPlayerAwaitingJoin || !LocalPlayer.IsAlive)
+        {
+            return false;
+        }
+
+        if (!TryResolveControlPointSpawn(LocalPlayer, LocalPlayer.Team, out var spawnX, out var spawnY))
+        {
+            return false;
+        }
+
+        SpawnPlayerResolved(LocalPlayer, LocalPlayer.Team, spawnX, spawnY, clearMedicHealingTarget: false);
+        return true;
+    }
+
     private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
     {
         player.Spawn(team, x, y);
@@ -139,6 +155,80 @@ public sealed partial class SimulationWorld
             }
         }
 
+        return false;
+    }
+
+    private bool TryResolveControlPointSpawn(PlayerEntity player, PlayerTeam team, out float spawnX, out float spawnY)
+    {
+        var marker = GetPreferredControlPointSpawnMarker(team);
+        if (marker is null)
+        {
+            spawnX = 0f;
+            spawnY = 0f;
+            return false;
+        }
+
+        return TryFindSafeControlPointSpawnPosition(player, team, marker.Value, out spawnX, out spawnY);
+    }
+
+    private RoomObjectMarker? GetPreferredControlPointSpawnMarker(PlayerTeam team)
+    {
+        if (MatchRules.Mode == GameModeKind.KingOfTheHill)
+        {
+            return GetSingleKothPoint()?.Marker
+                ?? Level.GetFirstRoomObject(RoomObjectType.ControlPoint);
+        }
+
+        if (MatchRules.Mode == GameModeKind.DoubleKingOfTheHill)
+        {
+            return GetDualKothPoint(team)?.Marker
+                ?? Level.GetFirstRoomObject(RoomObjectType.ControlPoint);
+        }
+
+        return Level.GetFirstRoomObject(RoomObjectType.ControlPoint)
+            ?? Level.GetFirstRoomObject(RoomObjectType.ArenaControlPoint);
+    }
+
+    private bool TryFindSafeControlPointSpawnPosition(PlayerEntity player, PlayerTeam team, RoomObjectMarker marker, out float spawnX, out float spawnY)
+    {
+        var markerCenterX = marker.CenterX;
+        var markerCenterY = marker.CenterY;
+        var horizontalOffsets = new[] { 0f, -16f, 16f, -32f, 32f, -48f, 48f, -64f, 64f };
+        const float verticalStartOffset = -96f;
+        const float verticalEndOffset = 96f;
+        const float verticalStep = 4f;
+
+        for (var horizontalIndex = 0; horizontalIndex < horizontalOffsets.Length; horizontalIndex += 1)
+        {
+            var candidateX = markerCenterX + horizontalOffsets[horizontalIndex];
+            float? nearestOpenCandidateY = null;
+            for (var candidateY = markerCenterY + verticalStartOffset; candidateY <= markerCenterY + verticalEndOffset; candidateY += verticalStep)
+            {
+                if (!player.CanOccupy(Level, team, candidateX, candidateY))
+                {
+                    continue;
+                }
+
+                if (!player.CanOccupy(Level, team, candidateX, candidateY + 1f))
+                {
+                    spawnX = candidateX;
+                    spawnY = candidateY;
+                    return true;
+                }
+
+                nearestOpenCandidateY ??= candidateY;
+            }
+
+            if (nearestOpenCandidateY.HasValue)
+            {
+                spawnX = candidateX;
+                spawnY = nearestOpenCandidateY.Value;
+                return true;
+            }
+        }
+
+        spawnX = 0f;
+        spawnY = 0f;
         return false;
     }
 }

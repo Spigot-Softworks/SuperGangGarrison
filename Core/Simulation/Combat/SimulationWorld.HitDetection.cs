@@ -27,6 +27,7 @@ public sealed partial class SimulationWorld
     {
         var deadBody = new DeadBodyEntity(
             AllocateEntityId(),
+            sourcePlayer.Id,
             sourcePlayer.ClassId,
             sourcePlayer.Team,
             DeadBodyAnimationKind.Default,
@@ -185,7 +186,7 @@ public sealed partial class SimulationWorld
         string? messageText = null,
         KillFeedSpecialType specialType = KillFeedSpecialType.None)
     {
-        RecordKillFeedEntry(victim, killer, weaponSpriteName, messageText, specialType);
+        RecordKillFeedEntry(victim, killer, weaponSpriteName, messageText, specialType: specialType);
     }
 
     internal bool CombatTestHasLineOfSight(PlayerEntity attacker, PlayerEntity target)

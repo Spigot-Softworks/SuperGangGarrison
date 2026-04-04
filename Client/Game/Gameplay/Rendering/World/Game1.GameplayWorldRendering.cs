@@ -23,14 +23,15 @@ public partial class Game1
         Rectangle worldBottomBorder,
         Rectangle worldLeftBorder,
         Rectangle worldRightBorder,
-        Rectangle spawnRectangle)
+        Rectangle spawnRectangle,
+        int? skippedDeadBodySourcePlayerId = null)
     {
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
-        DrawGameplayRemains(cameraPosition);
+        DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
         DrawGameplayPlayers(cameraPosition, playerRectangle);
         DrawBackstabVisuals(cameraPosition);
     }
@@ -171,10 +172,10 @@ public partial class Game1
         }
     }
 
-    private void DrawGameplayRemains(Vector2 cameraPosition)
+    private void DrawGameplayRemains(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
     {
         SyncRetainedDeadBodies();
-        DrawRetainedDeadBodies(cameraPosition);
+        DrawRetainedDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
 
         foreach (var playerGib in _world.PlayerGibs)
         {
@@ -198,6 +199,12 @@ public partial class Game1
 
         foreach (var deadBody in _world.DeadBodies)
         {
+            if (skippedDeadBodySourcePlayerId.HasValue
+                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+            {
+                continue;
+            }
+
             DrawDeadBody(deadBody, cameraPosition);
         }
     }

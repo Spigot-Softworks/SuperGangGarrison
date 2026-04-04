@@ -30,7 +30,7 @@ public partial class Game1
             return 0f;
         }
 
-        if (player.ClassId == PlayerClass.Sniper && _predictedLocalActionState.IsSniperScoped)
+        if (player.HasScopedSniperWeaponEquipped && _predictedLocalActionState.IsSniperScoped)
         {
             return PlayerEntity.SniperScopedMoveScale;
         }
@@ -45,7 +45,7 @@ public partial class Game1
 
     private float GetPredictedJumpScale(PlayerEntity player)
     {
-        if (player.ClassId == PlayerClass.Sniper && _predictedLocalActionState.IsSniperScoped)
+        if (player.HasScopedSniperWeaponEquipped && _predictedLocalActionState.IsSniperScoped)
         {
             return PlayerEntity.SniperScopedJumpScale;
         }

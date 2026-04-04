@@ -43,6 +43,7 @@ public static partial class ProtocolCodec
         {
             var deadBody = deadBodies[index];
             writer.Write(deadBody.Id);
+            writer.Write(deadBody.SourcePlayerId);
             writer.Write(deadBody.Team);
             writer.Write(deadBody.ClassId);
             writer.Write(deadBody.AnimationKind);
@@ -64,6 +65,7 @@ public static partial class ProtocolCodec
         for (var index = 0; index < count; index += 1)
         {
             deadBodies.Add(new SnapshotDeadBodyState(
+                reader.ReadInt32(),
                 reader.ReadInt32(),
                 reader.ReadByte(),
                 reader.ReadByte(),

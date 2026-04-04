@@ -74,6 +74,8 @@ public sealed class SimpleLevel
 
     public bool ControlPointSetupGatesActive { get; set; }
 
+    public TeamGateLockMask ForcedBlockingTeamGates { get; set; }
+
     public SpawnPoint GetSpawn(PlayerTeam team, int spawnIndex)
     {
         var teamSpawns = team == PlayerTeam.Blue ? BlueSpawns : RedSpawns;
@@ -122,6 +124,12 @@ public sealed class SimpleLevel
                     }
                     break;
                 case RoomObjectType.TeamGate:
+                    if (roomObject.Team.HasValue && IsForcedBlockingTeamGate(roomObject.Team.Value))
+                    {
+                        blockingGates.Add(roomObject);
+                        break;
+                    }
+
                     if (carryingIntel || (roomObject.Team.HasValue && roomObject.Team.Value != team))
                     {
                         blockingGates.Add(roomObject);
@@ -137,6 +145,16 @@ public sealed class SimpleLevel
         }
 
         return blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
+    }
+
+    private bool IsForcedBlockingTeamGate(PlayerTeam team)
+    {
+        return team switch
+        {
+            PlayerTeam.Red => (ForcedBlockingTeamGates & TeamGateLockMask.Red) != 0,
+            PlayerTeam.Blue => (ForcedBlockingTeamGates & TeamGateLockMask.Blue) != 0,
+            _ => false,
+        };
     }
 
     private static bool IsIntelGateBlocking(RoomObjectMarker roomObject, PlayerTeam team, bool carryingIntel)

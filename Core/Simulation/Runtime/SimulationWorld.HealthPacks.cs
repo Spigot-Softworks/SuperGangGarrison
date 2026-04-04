@@ -23,14 +23,16 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var appliedHealing = player.ApplyContinuousHealingAndGetAmount(healthPack.GetHealAmount(player));
-                if (appliedHealing <= 0)
+                if (ApplyHealingWithFeedback(
+                        player,
+                        healthPack.GetHealAmount(player),
+                        soundName: "CbntHealSnd",
+                        soundX: player.X,
+                        soundY: player.Y) <= 0)
                 {
                     continue;
                 }
 
-                RegisterHealingEvent(player, appliedHealing);
-                RegisterWorldSoundEvent("PickupSnd", healthPack.X, healthPack.Y);
                 pickedUp = true;
                 break;
             }
@@ -63,12 +65,14 @@ public sealed partial class SimulationWorld
 
     private void TrySpawnExperimentalEnemyHealthPackDrop(PlayerEntity victim, PlayerEntity? killer)
     {
+        var dropChance = ExperimentalGameplaySettings.EnemyHealthPackDropChance;
         if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops
+            || dropChance <= 0f
             || killer is null
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team
             || victim.Team == LocalPlayerTeam
-            || _random.NextSingle() > ExperimentalGameplaySettings.EnemyHealthPackDropChance)
+            || (dropChance < 1f && _random.NextSingle() > dropChance))
         {
             return;
         }

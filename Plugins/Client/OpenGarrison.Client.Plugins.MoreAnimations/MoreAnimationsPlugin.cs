@@ -15,6 +15,7 @@ public sealed class MoreAnimationsPlugin :
     IOpenGarrisonClientDeadBodyHooks
 {
     private const float LegacyAnimationSpeedPerTick = 0.33f;
+    private static readonly (int X, int Y)[] ChromaKeyFloodNeighbors = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     private IOpenGarrisonClientPluginContext? _context;
     private readonly Dictionary<string, LoadedAnimation> _animations = new(StringComparer.OrdinalIgnoreCase);
 
@@ -195,6 +196,7 @@ public sealed class MoreAnimationsPlugin :
     {
         var pixelData = new Rgba32[image.Width * image.Height];
         image.CopyPixelDataTo(pixelData);
+        ApplyChromaKeyTransparency(pixelData, image.Width, image.Height);
         var textureData = new XnaColor[pixelData.Length];
         for (var index = 0; index < pixelData.Length; index += 1)
         {
@@ -218,6 +220,80 @@ public sealed class MoreAnimationsPlugin :
         var texture = new Texture2D(_context!.GraphicsDevice, image.Width, image.Height);
         texture.SetData(textureData);
         return texture;
+    }
+
+    private static void ApplyChromaKeyTransparency(Rgba32[] pixelData, int width, int height)
+    {
+        if (pixelData.Length == 0 || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var visited = new bool[pixelData.Length];
+        var pending = new Queue<int>();
+
+        for (var x = 0; x < width; x += 1)
+        {
+            TryQueueChromaKeyIndex(x, 0, width, height, pixelData, visited, pending);
+            TryQueueChromaKeyIndex(x, height - 1, width, height, pixelData, visited, pending);
+        }
+
+        for (var y = 0; y < height; y += 1)
+        {
+            TryQueueChromaKeyIndex(0, y, width, height, pixelData, visited, pending);
+            TryQueueChromaKeyIndex(width - 1, y, width, height, pixelData, visited, pending);
+        }
+
+        while (pending.Count > 0)
+        {
+            var index = pending.Dequeue();
+            pixelData[index] = new Rgba32(0, 0, 0, 0);
+            var x = index % width;
+            var y = index / width;
+            for (var neighborIndex = 0; neighborIndex < ChromaKeyFloodNeighbors.Length; neighborIndex += 1)
+            {
+                var neighbor = ChromaKeyFloodNeighbors[neighborIndex];
+                TryQueueChromaKeyIndex(x + neighbor.X, y + neighbor.Y, width, height, pixelData, visited, pending);
+            }
+        }
+    }
+
+    private static void TryQueueChromaKeyIndex(
+        int x,
+        int y,
+        int width,
+        int height,
+        Rgba32[] pixelData,
+        bool[] visited,
+        Queue<int> pending)
+    {
+        if (x < 0 || y < 0 || x >= width || y >= height)
+        {
+            return;
+        }
+
+        var index = (y * width) + x;
+        if (visited[index])
+        {
+            return;
+        }
+
+        visited[index] = true;
+        if (!IsLegacyChromaKeyGreen(pixelData[index]))
+        {
+            return;
+        }
+
+        pending.Enqueue(index);
+    }
+
+    private static bool IsLegacyChromaKeyGreen(Rgba32 pixel)
+    {
+        return pixel.A >= 128
+            && pixel.G >= 90
+            && pixel.R <= 48
+            && pixel.G - pixel.R >= 56
+            && pixel.G - pixel.B >= 32;
     }
 
     private static IReadOnlyList<AnimationDefinition> GetDefinitions()

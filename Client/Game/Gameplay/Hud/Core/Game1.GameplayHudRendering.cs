@@ -9,6 +9,11 @@ public partial class Game1
 {
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
+        if (IsLastToDieDeathFocusPresentationActive())
+        {
+            return;
+        }
+
         var deathCamActive = _killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null;
         var localPlayerAlive = _world.LocalPlayer.IsAlive;
         DrawKillFeedHud();
@@ -19,6 +24,7 @@ public partial class Game1
         DrawDeathCamHud();
         DrawWinBannerHud();
         DrawLastToDieHud();
+        DrawLastToDieCombatFeedbackHud();
         if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
         {
             DrawLocalHealthHud();
@@ -55,6 +61,20 @@ public partial class Game1
 
     private void DrawGameplayModalOverlays(MouseState mouse)
     {
+        if (IsLastToDieDeathFocusPresentationActive())
+        {
+            if (IsLastToDieFailureOverlayActive())
+            {
+                DrawLastToDieFailureOverlay();
+                if (ShouldDrawSoftwareMenuCursor())
+                {
+                    DrawSoftwareMenuCursor(mouse);
+                }
+            }
+
+            return;
+        }
+
         if (_passwordPromptOpen)
         {
             DrawPasswordPrompt();
@@ -78,6 +98,7 @@ public partial class Game1
             && !_consoleOpen
             && !_clientPowersOpen
             && !_lastToDiePerkMenuOpen
+            && !IsLastToDieDeathFocusPresentationActive()
             && !IsLastToDieFailureOverlayActive()
             && !_practiceSetupOpen
             && !_inGameMenuOpen
@@ -103,6 +124,10 @@ public partial class Game1
         else if (_clientPowersOpen)
         {
             DrawClientPowersMenu();
+        }
+        else if (IsLastToDieStageClearOverlayActive())
+        {
+            DrawLastToDieStageClearOverlay();
         }
         else if (_lastToDiePerkMenuOpen)
         {

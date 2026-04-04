@@ -357,6 +357,7 @@ public partial class Game1
         PlayKillFeedAnnouncementSounds();
         EnsureIngameMusicPlaying();
         UpdateLastToDieSession(clientTicks);
+        UpdateLastToDieCombatFeedbackPresentation();
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
     }
@@ -371,6 +372,7 @@ public partial class Game1
             || _classSelectAlpha > 0.02f
             || ShouldBlockGameplayForNavEditor()
             || _practiceSetupOpen
+            || IsLastToDieStageClearOverlayActive()
             || _lastToDiePerkMenuOpen
             || IsLastToDieFailureOverlayActive()
             || _inGameMenuOpen

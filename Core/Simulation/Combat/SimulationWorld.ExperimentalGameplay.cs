@@ -104,11 +104,7 @@ public sealed partial class SimulationWorld
 
     private void ApplyExperimentalHealingReward(PlayerEntity player, float healing)
     {
-        var appliedHealing = player.ApplyContinuousHealingAndGetAmount(healing);
-        if (appliedHealing > 0)
-        {
-            RegisterHealingEvent(player, appliedHealing);
-        }
+        ApplyHealingWithFeedback(player, healing);
     }
 
     private void ApplyExperimentalPassivePlayerEffects(PlayerEntity player)

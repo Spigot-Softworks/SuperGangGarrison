@@ -243,15 +243,20 @@ public partial class Game1
         var isLocalInvolved = entry.KillerPlayerId == localPlayerId || entry.VictimPlayerId == localPlayerId;
         var hideVictimName = ShouldSuppressKillFeedVictimName(entry);
         var victimName = hideVictimName ? string.Empty : entry.VictimName;
+        SplitKillFeedMessage(entry, out var messagePrefix, out var messageHighlight, out var messageSuffix);
         var killerWidth = string.IsNullOrEmpty(entry.KillerName) ? 0f : MeasureBitmapFontWidth(entry.KillerName, 1f);
-        var messageWidth = string.IsNullOrEmpty(entry.MessageText) ? 0f : MeasureBitmapFontWidth(entry.MessageText, 1f);
+        var messagePrefixWidth = string.IsNullOrEmpty(messagePrefix) ? 0f : MeasureBitmapFontWidth(messagePrefix, 1f);
+        var messageHighlightWidth = string.IsNullOrEmpty(messageHighlight) ? 0f : MeasureBitmapFontWidth(messageHighlight, 1f);
+        var messageSuffixWidth = string.IsNullOrEmpty(messageSuffix) ? 0f : MeasureBitmapFontWidth(messageSuffix, 1f);
         var victimWidth = MeasureBitmapFontWidth(victimName, 1f);
         var weaponSprite = _runtimeAssets.GetSprite(entry.WeaponSpriteName);
         var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width : 0f;
         var hasWeaponIcon = weaponSprite is not null && weaponSprite.Frames.Count > 0;
         var contentWidth = killerWidth
             + (hasWeaponIcon ? weaponWidth + iconSpacing : 0f)
-            + messageWidth
+            + messagePrefixWidth
+            + messageHighlightWidth
+            + messageSuffixWidth
             + victimWidth;
         var backgroundWidth = contentWidth + leftPadding + rightPadding;
         var backgroundLeft = viewportWidth - backgroundWidth - 4f;
@@ -266,6 +271,8 @@ public partial class Game1
             isLocalInvolved ? new Color(235, 232, 198) : new Color(68, 61, 38));
 
         var currentX = backgroundLeft + leftPadding;
+        var messageColor = isLocalInvolved ? Color.Black : Color.White;
+        var highlightColor = new Color(232, 46, 46);
         if (!string.IsNullOrEmpty(entry.KillerName))
         {
             DrawBitmapFontText(entry.KillerName, new Vector2(currentX, y), GetKillFeedTextColor(entry.KillerTeam), 1f);
@@ -282,10 +289,22 @@ public partial class Game1
             currentX += weaponWidth + (iconSpacing * 0.5f);
         }
 
-        if (!string.IsNullOrEmpty(entry.MessageText))
+        if (!string.IsNullOrEmpty(messagePrefix))
         {
-            DrawBitmapFontText(entry.MessageText, new Vector2(currentX, y), isLocalInvolved ? Color.Black : Color.White, 1f);
-            currentX += messageWidth;
+            DrawBitmapFontText(messagePrefix, new Vector2(currentX, y), messageColor, 1f);
+            currentX += messagePrefixWidth;
+        }
+
+        if (!string.IsNullOrEmpty(messageHighlight))
+        {
+            DrawBitmapFontText(messageHighlight, new Vector2(currentX, y), highlightColor, 1f);
+            currentX += messageHighlightWidth;
+        }
+
+        if (!string.IsNullOrEmpty(messageSuffix))
+        {
+            DrawBitmapFontText(messageSuffix, new Vector2(currentX, y), messageColor, 1f);
+            currentX += messageSuffixWidth;
         }
 
         if (!string.IsNullOrEmpty(victimName))
@@ -311,7 +330,35 @@ public partial class Game1
             && previousEntry.VictimName == entry.VictimName
             && previousEntry.VictimTeam == entry.VictimTeam
             && previousEntry.MessageText == entry.MessageText
+            && previousEntry.MessageHighlightStart == entry.MessageHighlightStart
+            && previousEntry.MessageHighlightLength == entry.MessageHighlightLength
             && previousEntry.SpecialType == entry.SpecialType;
+    }
+
+    private static void SplitKillFeedMessage(KillFeedEntry entry, out string prefix, out string highlight, out string suffix)
+    {
+        var messageText = entry.MessageText ?? string.Empty;
+        if (string.IsNullOrEmpty(messageText))
+        {
+            prefix = string.Empty;
+            highlight = string.Empty;
+            suffix = string.Empty;
+            return;
+        }
+
+        var highlightStart = Math.Clamp(entry.MessageHighlightStart, 0, messageText.Length);
+        var highlightLength = Math.Clamp(entry.MessageHighlightLength, 0, messageText.Length - highlightStart);
+        if (highlightLength <= 0)
+        {
+            prefix = messageText;
+            highlight = string.Empty;
+            suffix = string.Empty;
+            return;
+        }
+
+        prefix = messageText[..highlightStart];
+        highlight = messageText.Substring(highlightStart, highlightLength);
+        suffix = messageText[(highlightStart + highlightLength)..];
     }
 
     private static Color GetKillFeedTextColor(PlayerTeam team)

@@ -179,6 +179,15 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsAcquiredWeaponPresented => HasAcquiredWeapon
         && IsAcquiredWeaponEquipped;
 
+    public bool HasPyroWeaponEquipped => ClassId == PlayerClass.Pyro
+        || (IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Pyro);
+
+    public bool HasPyroWeaponAvailable => ClassId == PlayerClass.Pyro
+        || AcquiredWeaponClassId == PlayerClass.Pyro;
+
+    public bool HasScopedSniperWeaponEquipped => ClassId == PlayerClass.Sniper
+        || (IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Sniper);
+
     public float ContinuousDamageAccumulator { get; private set; }
 
     public bool IsHeavyEating { get; private set; }
@@ -231,7 +240,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool PyroPrimaryRequiresReleaseAfterEmpty { get; private set; }
 
-    public int PyroPrimaryFuelScaled => ClassId == PlayerClass.Pyro
+    public int PyroPrimaryFuelScaled => HasPyroWeaponAvailable
         ? PyroPrimaryFuelScaledValue
         : CurrentShells * PyroPrimaryFuelScale;
 
@@ -266,6 +275,20 @@ public sealed partial class PlayerEntity : SimulationEntity
     public float Points { get; private set; }
 
     public int HealPoints { get; private set; }
+
+    public int CurrentCombo { get; private set; }
+
+    public int HighestCombo { get; private set; }
+
+    public int ComboTicksRemaining { get; private set; }
+
+    public int KillStreak { get; private set; }
+
+    public int HighestKillStreak { get; private set; }
+
+    public int CurrentMultiKillCount { get; private set; }
+
+    public int MultiKillTicksRemaining { get; private set; }
 
     public ulong BadgeMask { get; private set; }
 
@@ -374,6 +397,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
         ClearRecentDamageDealers();
+        ResetCombatPerformanceTracking();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -435,6 +459,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
         ClearRecentDamageDealers();
+        ResetCombatPerformanceTracking();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;
@@ -489,6 +514,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsUsingHealingCabinet = false;
         HealingCabinetSoundCooldownSecondsRemaining = 0f;
         ClearRecentDamageDealers();
+        ResetCombatPerformanceTracking();
         IsSpyCloaked = false;
         SpyCloakAlpha = 1f;
         SpyBackstabWindupTicksRemaining = 0;

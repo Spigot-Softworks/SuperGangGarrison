@@ -21,6 +21,8 @@ public partial class Game1
     private SoundEffectInstance? _ingameMusicInstance;
     private SoundEffect? _lastToDieIngameMusic;
     private SoundEffectInstance? _lastToDieIngameMusicInstance;
+    private SoundEffect? _lastToDieGameOverSound;
+    private SoundEffectInstance? _lastToDieGameOverSoundInstance;
     private SoundEffectInstance? _localChaingunSoundInstance;
     private SoundEffectInstance? _localFlamethrowerSoundInstance;
     private SoundEffectInstance? _localMedigunSoundInstance;
@@ -275,6 +277,13 @@ public partial class Game1
             return;
         }
 
+        if (IsLastToDieDeathFocusPresentationActive())
+        {
+            StopIngameMusic();
+            StopLastToDieIngameMusic();
+            return;
+        }
+
         if (_world.MatchState.IsEnded)
         {
             StopIngameMusic();
@@ -350,6 +359,11 @@ public partial class Game1
     private void PlayDeathCamSoundIfNeeded()
     {
         if (!_audioAvailable)
+        {
+            return;
+        }
+
+        if (IsLastToDieDeathFocusPresentationActive())
         {
             return;
         }
@@ -433,6 +447,84 @@ public partial class Game1
         }
     }
 
+    private void PlayLastToDieGameOverSound()
+    {
+        if (!_audioAvailable)
+        {
+            return;
+        }
+
+        if (_lastToDieGameOverSound is null)
+        {
+            var soundPath = FindLoopedMusicPath(Path.Combine("Music", "ltdgameover.fixed.wav"));
+            if (string.IsNullOrWhiteSpace(soundPath) || !File.Exists(soundPath))
+            {
+                return;
+            }
+
+            try
+            {
+                using var stream = File.OpenRead(soundPath);
+                _lastToDieGameOverSound = SoundEffect.FromStream(stream);
+                _lastToDieGameOverSoundInstance = _lastToDieGameOverSound.CreateInstance();
+                _lastToDieGameOverSoundInstance.IsLooped = false;
+                _lastToDieGameOverSoundInstance.Volume = 0.85f;
+            }
+            catch (Exception ex)
+            {
+                AddConsoleLine($"optional LTD game over sound unavailable: {Path.GetFileName(soundPath)} ({ex.GetType().Name}: {ex.Message})");
+                try
+                {
+                    _lastToDieGameOverSoundInstance?.Dispose();
+                }
+                catch
+                {
+                }
+
+                _lastToDieGameOverSoundInstance = null;
+                try
+                {
+                    _lastToDieGameOverSound?.Dispose();
+                }
+                catch
+                {
+                }
+
+                _lastToDieGameOverSound = null;
+                return;
+            }
+        }
+
+        if (_lastToDieGameOverSoundInstance is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _lastToDieGameOverSoundInstance.Stop();
+            _lastToDieGameOverSoundInstance.Play();
+        }
+        catch (Exception ex)
+        {
+            DisableAudio("starting LTD game over sound", ex);
+        }
+    }
+
+    private void StopLastToDieGameOverSound()
+    {
+        try
+        {
+            if (_lastToDieGameOverSoundInstance?.State == SoundState.Playing)
+            {
+                _lastToDieGameOverSoundInstance.Stop();
+            }
+        }
+        catch
+        {
+        }
+    }
+
     private void PlayPendingSoundEvents()
     {
         foreach (var soundEvent in _world.DrainPendingSoundEvents())
@@ -509,6 +601,7 @@ public partial class Game1
         StopFaucetMusic();
         StopIngameMusic();
         StopLastToDieIngameMusic();
+        StopLastToDieGameOverSound();
         _menuMusicInstance?.Dispose();
         _menuMusicInstance = null;
         _menuMusic?.Dispose();
@@ -529,6 +622,10 @@ public partial class Game1
         _lastToDieIngameMusicInstance = null;
         _lastToDieIngameMusic?.Dispose();
         _lastToDieIngameMusic = null;
+        _lastToDieGameOverSoundInstance?.Dispose();
+        _lastToDieGameOverSoundInstance = null;
+        _lastToDieGameOverSound?.Dispose();
+        _lastToDieGameOverSound = null;
         AddConsoleLine($"audio disabled: {reason} ({ex.GetType().Name}: {ex.Message})");
     }
 
@@ -666,11 +763,14 @@ public partial class Game1
         }
 
         var player = _world.LocalPlayer;
+        var activeWeaponKind = player.IsAcquiredWeaponPresented
+            ? player.AcquiredWeapon?.Kind
+            : player.PrimaryWeapon.Kind;
         if (_world.LocalPlayerAwaitingJoin
             || !player.IsAlive
             || player.IsTaunting
             || _world.MatchState.IsEnded
-            || player.PrimaryWeapon.Kind != weaponKind)
+            || activeWeaponKind != weaponKind)
         {
             return false;
         }

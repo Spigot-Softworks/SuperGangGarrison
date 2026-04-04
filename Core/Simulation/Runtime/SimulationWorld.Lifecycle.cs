@@ -22,6 +22,7 @@ public sealed partial class SimulationWorld
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();
+            TryRegisterKillStreakKill(killer, player);
             AwardKillPoints(player, killer, weaponSpriteName);
             AwardAssistPoints(assistingPlayer, player, killer);
             ApplyExperimentalKillRewards(killer, player);
@@ -240,6 +241,8 @@ public sealed partial class SimulationWorld
         PlayerEntity? killer,
         string weaponSpriteName,
         string? messageText = null,
+        int messageHighlightStart = 0,
+        int messageHighlightLength = 0,
         KillFeedSpecialType specialType = KillFeedSpecialType.None)
     {
         var isSelfKill = killer is not null && ReferenceEquals(killer, victim);
@@ -256,6 +259,8 @@ public sealed partial class SimulationWorld
                 victimName,
                 victim.Team,
                 resolvedMessageText,
+                messageHighlightStart,
+                messageHighlightLength,
                 KillerPlayerId: -1,
                 VictimPlayerId: victim.Id,
                 SpecialType: specialType,
@@ -267,6 +272,8 @@ public sealed partial class SimulationWorld
                 victimName,
                 victim.Team,
                 resolvedMessageText,
+                messageHighlightStart,
+                messageHighlightLength,
                 KillerPlayerId: killer.Id,
                 VictimPlayerId: victim.Id,
                 SpecialType: specialType,
@@ -288,6 +295,8 @@ public sealed partial class SimulationWorld
             && previousEntry.VictimName == entry.VictimName
             && previousEntry.VictimTeam == entry.VictimTeam
             && previousEntry.MessageText == entry.MessageText
+            && previousEntry.MessageHighlightStart == entry.MessageHighlightStart
+            && previousEntry.MessageHighlightLength == entry.MessageHighlightLength
             && previousEntry.KillerPlayerId == entry.KillerPlayerId
             && previousEntry.VictimPlayerId == entry.VictimPlayerId
             && previousEntry.SpecialType == entry.SpecialType;
@@ -319,7 +328,32 @@ public sealed partial class SimulationWorld
             string.Empty,
             team,
             messageText,
+            0,
+            0,
             playerId,
+            -1,
+            KillFeedSpecialType.None,
+            _nextKillFeedEventId++));
+    }
+
+    private void RecordKillFeedAnnouncement(PlayerEntity player, string prefix, string highlightedText, string suffix, string weaponSpriteName = "")
+    {
+        if (string.IsNullOrWhiteSpace(prefix) || string.IsNullOrWhiteSpace(highlightedText))
+        {
+            return;
+        }
+
+        var messageText = prefix + highlightedText + suffix;
+        AppendKillFeedEntry(new KillFeedEntry(
+            player.DisplayName,
+            player.Team,
+            weaponSpriteName,
+            string.Empty,
+            player.Team,
+            messageText,
+            prefix.Length,
+            highlightedText.Length,
+            player.Id,
             -1,
             KillFeedSpecialType.None,
             _nextKillFeedEventId++));
@@ -522,6 +556,7 @@ public sealed partial class SimulationWorld
 
         var deadBody = new DeadBodyEntity(
             AllocateEntityId(),
+            player.Id,
             player.ClassId,
             player.Team,
             animationKind,

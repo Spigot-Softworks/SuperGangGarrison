@@ -9,6 +9,7 @@ public sealed class DeadBodyEntity : SimulationEntity
 
     public DeadBodyEntity(
         int id,
+        int sourcePlayerId,
         PlayerClass classId,
         PlayerTeam team,
         DeadBodyAnimationKind animationKind,
@@ -20,6 +21,7 @@ public sealed class DeadBodyEntity : SimulationEntity
         float verticalSpeed,
         bool facingLeft) : base(id)
     {
+        SourcePlayerId = sourcePlayerId;
         ClassId = classId;
         Team = team;
         AnimationKind = animationKind;
@@ -32,6 +34,8 @@ public sealed class DeadBodyEntity : SimulationEntity
         FacingLeft = facingLeft;
         TicksRemaining = LifetimeTicks;
     }
+
+    public int SourcePlayerId { get; }
 
     public PlayerClass ClassId { get; }
 

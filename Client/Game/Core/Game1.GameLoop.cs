@@ -112,10 +112,15 @@ public partial class Game1
         var rawMouse = GetConstrainedMouseState(Mouse.GetState());
         var mouse = GetScaledMouseState(rawMouse);
         var cameraPosition = GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
-        PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
+        PrepareLastToDieDeathFocusOverlayIfNeeded(viewportWidth, viewportHeight);
+        if (!IsLastToDieDeathFocusPresentationActive())
+        {
+            PrepareDeathCamCaptureIfNeeded(viewportWidth, viewportHeight);
+        }
 
         BeginLogicalFrame(new Color(24, 32, 48));
-        if (!DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
+        if (!DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight)
+            && !DrawDeathCamCaptureOverlay(viewportWidth, viewportHeight))
         {
             DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight);
         }
@@ -125,7 +130,7 @@ public partial class Game1
         DrawNavEditorPresentationOverlay(rawMouse);
     }
 
-    private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight)
+    private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
     {
         var worldRectangle = new Rectangle(
             (int)-cameraPosition.X,
@@ -149,6 +154,17 @@ public partial class Game1
             16,
             16);
 
-        DrawGameplayWorld(cameraPosition, worldRectangle, playerRectangle, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
+        DrawGameplayWorld(
+            cameraPosition,
+            worldRectangle,
+            playerRectangle,
+            centerLine,
+            centerColumn,
+            worldTopBorder,
+            worldBottomBorder,
+            worldLeftBorder,
+            worldRightBorder,
+            spawnRectangle,
+            skippedDeadBodySourcePlayerId);
     }
 }

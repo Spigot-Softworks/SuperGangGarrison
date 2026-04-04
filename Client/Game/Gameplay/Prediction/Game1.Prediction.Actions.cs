@@ -92,7 +92,7 @@ public partial class Game1
 
     private void AdvancePredictedSniperState(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Sniper || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
+        if (!player.HasScopedSniperWeaponEquipped || !_predictedLocalActionState.IsSniperScoped || _predictedLocalActionState.PrimaryCooldownTicks > 0)
         {
             _predictedLocalActionState.SniperChargeTicks = 0;
             return;
@@ -298,7 +298,7 @@ public partial class Game1
             return;
         }
 
-        if (player.ClassId == PlayerClass.Sniper)
+        if (player.HasScopedSniperWeaponEquipped)
         {
             TryPredictedToggleSniperScope(player);
             return;
@@ -331,7 +331,11 @@ public partial class Game1
             return;
         }
 
-        player.EquipExperimentalOffhandWeapon();
+        if (!player.IsAcquiredWeaponEquipped)
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
         if (!player.TryFireExperimentalOffhandWeapon())
         {
             return;

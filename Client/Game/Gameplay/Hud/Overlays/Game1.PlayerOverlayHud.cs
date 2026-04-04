@@ -140,11 +140,12 @@ public partial class Game1
             return;
         }
 
-        var currentShells = GetPlayerCurrentShells(_world.LocalPlayer);
-        var barColor = currentShells <= (_world.LocalPlayer.MaxShells * 0.25f)
+        var currentShells = GetLocalDisplayedMainWeaponCurrentShells();
+        var maxShells = GetLocalDisplayedMainWeaponMaxShells();
+        var barColor = currentShells <= (maxShells * 0.25f)
             ? LowAmmoHudColor
             : AmmoHudBarColor;
-        DrawSourceAmmoHudBar(689f, 34f, currentShells, _world.LocalPlayer.MaxShells, barColor);
+        DrawSourceAmmoHudBar(689f, 34f, currentShells, maxShells, barColor);
         DrawPyroFlareHud(frameIndex);
     }
 
@@ -305,15 +306,13 @@ public partial class Game1
             return;
         }
 
-        var weaponClassId = _world.LocalPlayer.AcquiredWeaponClassId.Value;
+        var weaponClassId = GetLocalAlternatePrimaryWeaponPresentationClassId();
         var presentation = StockGameplayModCatalog.GetPrimaryItem(weaponClassId).Presentation;
         var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue
             ? presentation.BlueTeamHudFrameOffset
             : 0;
         var iconPosition = GetSourceHudPoint(614f, 507f);
-        var iconTint = _world.LocalPlayer.IsAcquiredWeaponEquipped
-            ? Color.White
-            : Color.White * 0.72f;
+        var iconTint = Color.White * 0.72f;
         var iconDrawn = presentation.HudSpriteName is not null && TryDrawScreenSprite(
             presentation.HudSpriteName,
             frameIndex,
@@ -325,16 +324,9 @@ public partial class Game1
             DrawBitmapFontText(weaponClassId.ToString().ToUpperInvariant(), GetSourceHudPoint(586f, 510f), iconTint, 0.68f);
         }
 
-        var currentShells = _world.LocalPlayer.AcquiredWeaponCurrentShells;
-        var maxShells = Math.Max(1, _world.LocalPlayer.AcquiredWeaponMaxShells);
-        var reloadProgress = currentShells >= maxShells
-            ? 1f
-            : _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell <= 0
-                ? 1f
-                : Math.Clamp(
-                    1f - (_world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell / (float)Math.Max(1, _world.LocalPlayer.AcquiredWeapon?.AmmoReloadTicks ?? 1)),
-                    0f,
-                    1f);
+        var currentShells = GetLocalAlternatePrimaryWeaponCurrentShells();
+        var maxShells = Math.Max(1, GetLocalAlternatePrimaryWeaponMaxShells());
+        var reloadProgress = GetLocalAlternatePrimaryWeaponReloadProgress();
         var ammoColor = currentShells <= Math.Max(1, maxShells / 4)
             ? LowAmmoHudColor
             : AmmoHudTextColor;
@@ -363,7 +355,7 @@ public partial class Game1
 
     private void DrawPyroFlareHud(int frameIndex)
     {
-        var flareCount = GetPlayerCurrentShells(_world.LocalPlayer) / PlayerEntity.PyroFlareAmmoRequirement;
+        var flareCount = GetLocalDisplayedMainWeaponCurrentShells() / PlayerEntity.PyroFlareAmmoRequirement;
         if (flareCount <= 0)
         {
             return;
@@ -695,7 +687,7 @@ public partial class Game1
 
     private void DrawSniperHud(MouseState mouse)
     {
-        if (_world.LocalPlayer.ClassId != PlayerClass.Sniper || !GetPlayerIsSniperScoped(_world.LocalPlayer))
+        if (!_world.LocalPlayer.HasScopedSniperWeaponEquipped || !GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
             return;
         }
@@ -990,5 +982,70 @@ public partial class Game1
         return _world.LocalPlayer.IsAcquiredWeaponPresented
             ? _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell
             : GetPlayerReloadTicksUntilNextShell(_world.LocalPlayer);
+    }
+
+    private PlayerClass GetLocalAlternatePrimaryWeaponPresentationClassId()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.ClassId
+            : _world.LocalPlayer.AcquiredWeaponClassId ?? _world.LocalPlayer.ClassId;
+    }
+
+    private PrimaryWeaponDefinition GetLocalAlternatePrimaryWeaponStats()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.PrimaryWeapon
+            : _world.LocalPlayer.AcquiredWeapon ?? _world.LocalPlayer.PrimaryWeapon;
+    }
+
+    private int GetLocalAlternatePrimaryWeaponCurrentShells()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? GetPlayerCurrentShells(_world.LocalPlayer)
+            : _world.LocalPlayer.AcquiredWeaponCurrentShells;
+    }
+
+    private int GetLocalAlternatePrimaryWeaponMaxShells()
+    {
+        return _world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _world.LocalPlayer.MaxShells
+            : _world.LocalPlayer.AcquiredWeaponMaxShells;
+    }
+
+    private float GetLocalAlternatePrimaryWeaponReloadProgress()
+    {
+        var currentShells = GetLocalAlternatePrimaryWeaponCurrentShells();
+        var maxShells = Math.Max(1, GetLocalAlternatePrimaryWeaponMaxShells());
+        if (currentShells >= maxShells)
+        {
+            return 1f;
+        }
+
+        if (_world.LocalPlayer.IsAcquiredWeaponPresented)
+        {
+            var reloadTicksUntilNextShell = GetPlayerReloadTicksUntilNextShell(_world.LocalPlayer);
+            if (reloadTicksUntilNextShell <= 0)
+            {
+                return 1f;
+            }
+
+            var reloadTicks = Math.Max(1, _world.LocalPlayer.PrimaryWeapon.AmmoReloadTicks);
+            return Math.Clamp(
+                1f - (reloadTicksUntilNextShell / (float)reloadTicks),
+                0f,
+                1f);
+        }
+
+        var acquiredReloadTicksUntilNextShell = _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell;
+        if (acquiredReloadTicksUntilNextShell <= 0)
+        {
+            return 1f;
+        }
+
+        var acquiredReloadTicks = Math.Max(1, GetLocalAlternatePrimaryWeaponStats().AmmoReloadTicks);
+        return Math.Clamp(
+            1f - (acquiredReloadTicksUntilNextShell / (float)acquiredReloadTicks),
+            0f,
+            1f);
     }
 }

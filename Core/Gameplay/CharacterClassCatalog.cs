@@ -69,6 +69,7 @@ public static class CharacterClassCatalog
         {
             PlayerClass.Scout => true,
             PlayerClass.Engineer => true,
+            PlayerClass.Pyro => true,
             PlayerClass.Soldier => true,
             PlayerClass.Demoman => true,
             PlayerClass.Heavy => true,

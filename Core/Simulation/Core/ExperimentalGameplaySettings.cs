@@ -12,9 +12,13 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableInvincibilityOnKill = false,
     bool EnableProjectileSpeedMultiplier = false,
     bool EnableAirshotDamageMultiplier = false,
+    bool EnableComboTracking = false,
+    bool EnableKillStreakTracking = false,
     bool EnableEnemyHealthPackDrops = false,
-    bool EnableEnemyDroppedWeapons = false)
+    bool EnableEnemyDroppedWeapons = false,
+    float EnemyHealthPackDropChance = 0.1f)
 {
+    public const float DefaultEnemyHealthPackDropChance = 0.1f;
     public const float HealOnDamageFraction = 0.35f;
     public const int HealOnKillAmount = 25;
     public const float PassiveHealthRegenerationPerSecond = 3f;
@@ -25,7 +29,8 @@ public sealed record ExperimentalGameplaySettings(
     public const float KillInvincibilityDurationSeconds = 0.5f;
     public const float ProjectileSpeedMultiplier = 1.2f;
     public const float AirshotDamageMultiplier = 1.25f;
-    public const float EnemyHealthPackDropChance = 0.1f;
+    public const float ComboTimeoutSeconds = 6f;
+    public const float MultiKillWindowSeconds = 3f;
     public const float EnemyHealthPackLargeChance = 0.5f;
     public const float EnemyDroppedWeaponChance = 0.5f;
 }

@@ -217,6 +217,11 @@ public partial class Game1
 
     private bool GetPlayerIsSniperScoped(PlayerEntity player)
     {
+        if (!player.HasScopedSniperWeaponEquipped)
+        {
+            return false;
+        }
+
         return IsUsingPredictedLocalState(player)
             ? _predictedLocalActionState.IsSniperScoped
             : player.IsSniperScoped;
@@ -231,7 +236,7 @@ public partial class Game1
 
     private int GetPlayerSniperRifleDamage(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Sniper || !GetPlayerIsSniperScoped(player))
+        if (!player.HasScopedSniperWeaponEquipped || !GetPlayerIsSniperScoped(player))
         {
             return PlayerEntity.SniperBaseDamage;
         }

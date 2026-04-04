@@ -52,6 +52,7 @@ public partial class Game1
 
     private void ReturnToLastToDieMenu(string? statusMessage = null)
     {
+        StopLastToDieGameOverSound();
         ReturnToMainMenu(statusMessage);
         OpenLastToDieMenu(statusMessage);
     }

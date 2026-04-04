@@ -67,6 +67,8 @@ public sealed partial class SimulationWorld
                 entry.VictimName,
                 (PlayerTeam)entry.VictimTeam,
                 entry.MessageText,
+                entry.MessageHighlightStart,
+                entry.MessageHighlightLength,
                 entry.KillerPlayerId,
                 entry.VictimPlayerId,
                 (KillFeedSpecialType)entry.SpecialType,
@@ -441,7 +443,8 @@ public sealed partial class SimulationWorld
             _deadBodies,
             static state => state.Id,
             static (entity, state) =>
-                entity.ClassId == (PlayerClass)state.ClassId
+                entity.SourcePlayerId == state.SourcePlayerId
+                && entity.ClassId == (PlayerClass)state.ClassId
                 && entity.Team == (PlayerTeam)state.Team
                 && entity.AnimationKind == (DeadBodyAnimationKind)state.AnimationKind
                 && entity.Width == state.Width
@@ -449,6 +452,7 @@ public sealed partial class SimulationWorld
                 && entity.FacingLeft == state.FacingLeft,
             state => new DeadBodyEntity(
                 state.Id,
+                state.SourcePlayerId,
                 (PlayerClass)state.ClassId,
                 (PlayerTeam)state.Team,
                 (DeadBodyAnimationKind)state.AnimationKind,

@@ -63,6 +63,7 @@ public sealed partial class PlayerEntity
         }
 
         AdvanceAssistTracking();
+        AdvanceCombatPerformanceTracking();
         var legacyStateTicks = ConsumeLegacyStateTicks(dt);
         for (var tick = 0; tick < legacyStateTicks; tick += 1)
         {
@@ -335,7 +336,7 @@ public sealed partial class PlayerEntity
             return 0f;
         }
 
-        if (ClassId == PlayerClass.Sniper && IsSniperScoped)
+        if (HasScopedSniperWeaponEquipped && IsSniperScoped)
         {
             return SniperScopedMoveScale;
         }
@@ -350,7 +351,7 @@ public sealed partial class PlayerEntity
 
     private float GetJumpScale()
     {
-        if (ClassId == PlayerClass.Sniper && IsSniperScoped)
+        if (HasScopedSniperWeaponEquipped && IsSniperScoped)
         {
             return SniperScopedJumpScale;
         }

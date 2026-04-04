@@ -112,16 +112,25 @@ public sealed partial class PlayerEntity
                 IsAcquiredWeaponEquipped = false;
             }
 
+            ResetAcquiredPyroStateFromCurrentAmmo();
+
             return;
         }
 
         AcquiredWeaponClassId = weaponClassId;
+        if (weaponClassId != PlayerClass.Sniper)
+        {
+            IsSniperScoped = false;
+            SniperChargeTicks = 0;
+        }
+
         if (!weaponClassId.HasValue)
         {
             AcquiredWeaponCurrentShells = 0;
             AcquiredWeaponCooldownTicks = 0;
             AcquiredWeaponReloadTicksUntilNextShell = 0;
             IsAcquiredWeaponEquipped = false;
+            ResetAcquiredPyroStateFromCurrentAmmo();
             return;
         }
 
@@ -130,6 +139,7 @@ public sealed partial class PlayerEntity
         AcquiredWeaponCooldownTicks = 0;
         AcquiredWeaponReloadTicksUntilNextShell = 0;
         IsAcquiredWeaponEquipped = false;
+        ResetAcquiredPyroStateFromCurrentAmmo();
     }
 
     public void EquipAcquiredWeapon()
@@ -146,6 +156,11 @@ public sealed partial class PlayerEntity
     public void StowAcquiredWeapon()
     {
         IsAcquiredWeaponEquipped = false;
+        if (AcquiredWeaponClassId == PlayerClass.Sniper)
+        {
+            IsSniperScoped = false;
+            SniperChargeTicks = 0;
+        }
     }
 
     public bool TryFireAcquiredWeapon()
@@ -160,6 +175,19 @@ public sealed partial class PlayerEntity
             || AcquiredWeaponCurrentShells < weaponDefinition.AmmoPerShot)
         {
             return false;
+        }
+
+        if (weaponDefinition.Kind == PrimaryWeaponKind.FlameThrower)
+        {
+            if (!TryPreparePyroPrimaryFireAttempt())
+            {
+                return false;
+            }
+
+            IsExperimentalOffhandEquipped = false;
+            IsAcquiredWeaponEquipped = true;
+            CommitPyroPrimaryWeaponShot();
+            return true;
         }
 
         IsExperimentalOffhandEquipped = false;
@@ -189,7 +217,7 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        IsExperimentalOffhandEquipped = true;
+        IsExperimentalOffhandEquipped = !IsAcquiredWeaponEquipped;
         ExperimentalOffhandCurrentShells -= weaponDefinition.AmmoPerShot;
         ExperimentalOffhandCooldownTicks = weaponDefinition.ReloadDelayTicks;
         if (weaponDefinition.AutoReloads
@@ -242,10 +270,19 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        SetPyroPrimaryFuelScaled(PyroPrimaryFuelScaledValue - (PyroAirblastCost * PyroPrimaryFuelScale));
+        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (PyroAirblastCost * PyroPrimaryFuelScale));
         PyroAirblastCooldownTicks = PyroAirblastReloadTicks;
-        PrimaryCooldownTicks = int.Max(PrimaryCooldownTicks, PyroAirblastNoFlameTicks);
-        ReloadTicksUntilNextShell = PyroAirblastReloadTicks;
+        if (IsUsingAcquiredPyroWeapon())
+        {
+            AcquiredWeaponCooldownTicks = int.Max(AcquiredWeaponCooldownTicks, PyroAirblastNoFlameTicks);
+            AcquiredWeaponReloadTicksUntilNextShell = PyroAirblastReloadTicks;
+        }
+        else
+        {
+            PrimaryCooldownTicks = int.Max(PrimaryCooldownTicks, PyroAirblastNoFlameTicks);
+            ReloadTicksUntilNextShell = PyroAirblastReloadTicks;
+        }
+
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
         return true;
@@ -254,16 +291,16 @@ public sealed partial class PlayerEntity
     public bool CanFirePyroAirblast()
     {
         return IsAlive
-            && ClassId == PlayerClass.Pyro
+            && HasPyroWeaponEquipped
             && !IsTaunting
             && PyroAirblastCooldownTicks <= 0
-            && PyroPrimaryFuelScaledValue >= PyroAirblastCost * PyroPrimaryFuelScale;
+            && GetPyroPrimaryFuelScaledValue() >= PyroAirblastCost * PyroPrimaryFuelScale;
     }
 
     public bool TryPreparePyroPrimaryFireAttempt()
     {
         if (!IsAlive
-            || ClassId != PlayerClass.Pyro
+            || !HasPyroWeaponEquipped
             || IsHeavyEating
             || IsTaunting
             || IsSpyCloaked
@@ -272,30 +309,45 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        if (PyroPrimaryFuelScaledValue > 0
-            && PyroPrimaryFuelScaledValue < PyroPrimaryFlameCostScaled)
+        var pyroFuelScaled = GetPyroPrimaryFuelScaledValue();
+        if (pyroFuelScaled > 0
+            && pyroFuelScaled < PyroPrimaryFlameCostScaled)
         {
-            SetPyroPrimaryFuelScaled(PyroPrimaryFuelScaledValue - PyroPrimaryFlameCostScaled);
+            SetPyroPrimaryFuelScaled(pyroFuelScaled - PyroPrimaryFlameCostScaled);
             PyroPrimaryRequiresReleaseAfterEmpty = true;
         }
 
-        return PrimaryCooldownTicks <= 0
-            && PyroPrimaryFuelScaledValue >= PyroPrimaryFlameCostScaled;
+        var cooldownTicks = IsUsingAcquiredPyroWeapon()
+            ? AcquiredWeaponCooldownTicks
+            : PrimaryCooldownTicks;
+        return cooldownTicks <= 0
+            && GetPyroPrimaryFuelScaledValue() >= PyroPrimaryFlameCostScaled;
     }
 
     public void CommitPyroPrimaryWeaponShot()
     {
-        if (ClassId != PlayerClass.Pyro)
+        if (!HasPyroWeaponEquipped)
         {
             return;
         }
 
-        SetPyroPrimaryFuelScaled(PyroPrimaryFuelScaledValue - PyroPrimaryFlameCostScaled);
-        PyroPrimaryRequiresReleaseAfterEmpty = PyroPrimaryFuelScaledValue <= 0;
-        PrimaryCooldownTicks = !PyroPrimaryRequiresReleaseAfterEmpty
-            ? PrimaryWeapon.ReloadDelayTicks
-            : PyroPrimaryEmptyCooldownTicks;
-        ReloadTicksUntilNextShell = PyroPrimaryRefillBufferTicks;
+        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - PyroPrimaryFlameCostScaled);
+        PyroPrimaryRequiresReleaseAfterEmpty = GetPyroPrimaryFuelScaledValue() <= 0;
+        if (IsUsingAcquiredPyroWeapon())
+        {
+            AcquiredWeaponCooldownTicks = !PyroPrimaryRequiresReleaseAfterEmpty
+                ? AcquiredWeapon?.ReloadDelayTicks ?? 0
+                : PyroPrimaryEmptyCooldownTicks;
+            AcquiredWeaponReloadTicksUntilNextShell = PyroPrimaryRefillBufferTicks;
+        }
+        else
+        {
+            PrimaryCooldownTicks = !PyroPrimaryRequiresReleaseAfterEmpty
+                ? PrimaryWeapon.ReloadDelayTicks
+                : PyroPrimaryEmptyCooldownTicks;
+            ReloadTicksUntilNextShell = PyroPrimaryRefillBufferTicks;
+        }
+
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = PyroFlameLoopMaintainTicks;
     }
@@ -303,22 +355,22 @@ public sealed partial class PlayerEntity
     public bool TryFirePyroFlare()
     {
         if (!IsAlive
-            || ClassId != PlayerClass.Pyro
+            || !HasPyroWeaponEquipped
             || IsTaunting
             || PyroFlareCooldownTicks > 0
-            || PyroPrimaryFuelScaledValue < PyroFlareCost * PyroPrimaryFuelScale)
+            || GetPyroPrimaryFuelScaledValue() < PyroFlareCost * PyroPrimaryFuelScale)
         {
             return false;
         }
 
-        SetPyroPrimaryFuelScaled(PyroPrimaryFuelScaledValue - (PyroFlareCost * PyroPrimaryFuelScale));
+        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (PyroFlareCost * PyroPrimaryFuelScale));
         PyroFlareCooldownTicks = PyroFlareReloadTicks;
         return true;
     }
 
     public void UpdatePyroPrimaryHoldState(bool isHoldingPrimary)
     {
-        if (ClassId != PlayerClass.Pyro || isHoldingPrimary)
+        if (!HasPyroWeaponEquipped || isHoldingPrimary)
         {
             return;
         }
@@ -472,6 +524,7 @@ public sealed partial class PlayerEntity
         }
         HeavyEatCooldownTicksRemaining = 0;
         ResetPyroPrimaryStateFromCurrentAmmo();
+        ResetAcquiredPyroStateFromCurrentAmmo();
         ReloadTicksUntilNextShell = 0;
         MedicNeedleRefillTicks = 0;
         ExtinguishAfterburn();
@@ -577,6 +630,65 @@ public sealed partial class PlayerEntity
         Deaths += 1;
     }
 
+    public void RegisterCombatComboHit(int comboTimeoutTicks)
+    {
+        if (!IsAlive || comboTimeoutTicks <= 0)
+        {
+            return;
+        }
+
+        CurrentCombo += 1;
+        HighestCombo = Math.Max(HighestCombo, CurrentCombo);
+        ComboTicksRemaining = Math.Max(1, comboTimeoutTicks);
+    }
+
+    public void RegisterKillStreakKill(int multiKillWindowTicks)
+    {
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        KillStreak += 1;
+        HighestKillStreak = Math.Max(HighestKillStreak, KillStreak);
+        CurrentMultiKillCount = MultiKillTicksRemaining > 0 && CurrentMultiKillCount > 0
+            ? CurrentMultiKillCount + 1
+            : 1;
+        MultiKillTicksRemaining = Math.Max(0, multiKillWindowTicks);
+    }
+
+    public void AdvanceCombatPerformanceTracking()
+    {
+        if (ComboTicksRemaining > 0)
+        {
+            ComboTicksRemaining -= 1;
+            if (ComboTicksRemaining <= 0)
+            {
+                CurrentCombo = 0;
+                ComboTicksRemaining = 0;
+            }
+        }
+
+        if (MultiKillTicksRemaining > 0)
+        {
+            MultiKillTicksRemaining -= 1;
+            if (MultiKillTicksRemaining <= 0)
+            {
+                CurrentMultiKillCount = 0;
+                MultiKillTicksRemaining = 0;
+            }
+        }
+    }
+
+    public void ResetCombatPerformanceTracking()
+    {
+        CurrentCombo = 0;
+        ComboTicksRemaining = 0;
+        KillStreak = 0;
+        CurrentMultiKillCount = 0;
+        MultiKillTicksRemaining = 0;
+    }
+
     public void ResetRoundStats()
     {
         Kills = 0;
@@ -585,6 +697,9 @@ public sealed partial class PlayerEntity
         Caps = 0;
         Points = 0f;
         HealPoints = 0;
+        HighestCombo = 0;
+        HighestKillStreak = 0;
+        ResetCombatPerformanceTracking();
     }
 
     public void SetBadgeMask(ulong badgeMask)
@@ -670,7 +785,7 @@ public sealed partial class PlayerEntity
 
     public int GetSniperRifleDamage()
     {
-        if (ClassId != PlayerClass.Sniper || !IsSniperScoped)
+        if (!HasScopedSniperWeaponEquipped || !IsSniperScoped)
         {
             return SniperBaseDamage;
         }
@@ -680,7 +795,7 @@ public sealed partial class PlayerEntity
 
     private int GetPrimaryCooldownAfterShot()
     {
-        var cooldownTicks = ClassId == PlayerClass.Sniper && IsSniperScoped
+        var cooldownTicks = HasScopedSniperWeaponEquipped && IsSniperScoped
             ? PrimaryWeapon.ReloadDelayTicks + SniperScopedReloadBonusTicks
             : PrimaryWeapon.ReloadDelayTicks;
         return ApplyExperimentalPrimaryCooldownMultiplier(cooldownTicks);
@@ -828,6 +943,11 @@ public sealed partial class PlayerEntity
 
     private int GetPyroPrimaryFuelMaxScaled()
     {
+        if (AcquiredWeaponClassId == PlayerClass.Pyro)
+        {
+            return (AcquiredWeapon?.MaxAmmo ?? 0) * PyroPrimaryFuelScale;
+        }
+
         return PrimaryWeapon.MaxAmmo * PyroPrimaryFuelScale;
     }
 
@@ -835,10 +955,7 @@ public sealed partial class PlayerEntity
     {
         if (ClassId != PlayerClass.Pyro)
         {
-            PyroPrimaryFuelScaledValue = 0;
-            IsPyroPrimaryRefilling = false;
-            PyroFlameLoopTicksRemaining = 0;
-            PyroPrimaryRequiresReleaseAfterEmpty = false;
+            ResetAcquiredPyroStateFromCurrentAmmo();
             return;
         }
 
@@ -847,15 +964,66 @@ public sealed partial class PlayerEntity
         PyroPrimaryRequiresReleaseAfterEmpty = false;
     }
 
+    private void ResetAcquiredPyroStateFromCurrentAmmo()
+    {
+        if (AcquiredWeaponClassId != PlayerClass.Pyro)
+        {
+            if (ClassId != PlayerClass.Pyro)
+            {
+                PyroPrimaryFuelScaledValue = 0;
+                IsPyroPrimaryRefilling = false;
+                PyroFlameLoopTicksRemaining = 0;
+                PyroPrimaryRequiresReleaseAfterEmpty = false;
+                PyroAirblastCooldownTicks = 0;
+                PyroFlareCooldownTicks = 0;
+            }
+
+            return;
+        }
+
+        PyroPrimaryFuelScaledValue = int.Clamp(
+            AcquiredWeaponCurrentShells * PyroPrimaryFuelScale,
+            0,
+            GetPyroPrimaryFuelMaxScaled());
+        AcquiredWeaponCurrentShells = int.Clamp(
+            PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale,
+            0,
+            AcquiredWeapon?.MaxAmmo ?? 0);
+        IsPyroPrimaryRefilling = false;
+        PyroFlameLoopTicksRemaining = 0;
+        PyroPrimaryRequiresReleaseAfterEmpty = false;
+        PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = 0;
+    }
+
     private void SetPyroPrimaryFuelScaled(int scaledFuel)
     {
-        if (ClassId != PlayerClass.Pyro)
+        if (!HasPyroWeaponAvailable)
         {
             return;
         }
 
         PyroPrimaryFuelScaledValue = int.Clamp(scaledFuel, 0, GetPyroPrimaryFuelMaxScaled());
+        if (IsUsingAcquiredPyroWeapon())
+        {
+            AcquiredWeaponCurrentShells = int.Clamp(
+                PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale,
+                0,
+                AcquiredWeapon?.MaxAmmo ?? 0);
+            return;
+        }
+
         CurrentShells = int.Clamp(PyroPrimaryFuelScaledValue / PyroPrimaryFuelScale, 0, PrimaryWeapon.MaxAmmo);
+    }
+
+    private int GetPyroPrimaryFuelScaledValue()
+    {
+        return PyroPrimaryFuelScaledValue;
+    }
+
+    private bool IsUsingAcquiredPyroWeapon()
+    {
+        return IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Pyro;
     }
 
     private void AdvanceExperimentalOffhandWeaponState()
@@ -924,6 +1092,12 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (weaponDefinition.Kind == PrimaryWeaponKind.FlameThrower)
+        {
+            AdvanceAcquiredPyroWeaponState();
+            return;
+        }
+
         if (AcquiredWeaponCooldownTicks > 0)
         {
             AcquiredWeaponCooldownTicks -= 1;
@@ -973,6 +1147,53 @@ public sealed partial class PlayerEntity
         if (AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
         {
             AcquiredWeaponReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+        }
+    }
+
+    private void AdvanceAcquiredPyroWeaponState()
+    {
+        if (AcquiredWeaponCooldownTicks > 0)
+        {
+            AcquiredWeaponCooldownTicks -= 1;
+        }
+
+        if (PyroFlameLoopTicksRemaining > 0)
+        {
+            PyroFlameLoopTicksRemaining -= 1;
+        }
+
+        if (!IsAcquiredWeaponEquipped)
+        {
+            return;
+        }
+
+        var refillStartedThisTick = false;
+        if (AcquiredWeaponReloadTicksUntilNextShell > 0)
+        {
+            AcquiredWeaponReloadTicksUntilNextShell -= 1;
+            if (AcquiredWeaponReloadTicksUntilNextShell <= 0)
+            {
+                AcquiredWeaponReloadTicksUntilNextShell = 0;
+                IsPyroPrimaryRefilling = true;
+                refillStartedThisTick = true;
+            }
+        }
+
+        if (!IsPyroPrimaryRefilling || refillStartedThisTick)
+        {
+            return;
+        }
+
+        if (GetPyroPrimaryFuelScaledValue() >= GetPyroPrimaryFuelMaxScaled())
+        {
+            IsPyroPrimaryRefilling = false;
+            return;
+        }
+
+        SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() + PyroPrimaryRefillScaledPerTick);
+        if (GetPyroPrimaryFuelScaledValue() >= GetPyroPrimaryFuelMaxScaled())
+        {
+            IsPyroPrimaryRefilling = false;
         }
     }
 }

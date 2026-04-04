@@ -45,7 +45,7 @@ public sealed partial class SimulationWorld
 
         if (specialType != KillFeedSpecialType.None)
         {
-            RecordKillFeedEntry(victim, killer, "DominationKL", messageText, specialType);
+            RecordKillFeedEntry(victim, killer, "DominationKL", messageText, specialType: specialType);
         }
     }
 }

@@ -212,6 +212,7 @@ internal static partial class ServerHelpers
     {
         return new SnapshotDeadBodyState(
             deadBody.Id,
+            deadBody.SourcePlayerId,
             (byte)deadBody.Team,
             (byte)deadBody.ClassId,
             (byte)deadBody.AnimationKind,
@@ -336,6 +337,8 @@ internal static partial class ServerHelpers
             entry.VictimName,
             (byte)entry.VictimTeam,
             entry.MessageText,
+            entry.MessageHighlightStart,
+            entry.MessageHighlightLength,
             entry.KillerPlayerId,
             entry.VictimPlayerId,
             (OpenGarrison.Protocol.KillFeedSpecialType)entry.SpecialType,

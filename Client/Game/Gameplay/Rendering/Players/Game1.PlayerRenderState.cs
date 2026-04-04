@@ -523,7 +523,7 @@ public partial class Game1
     private float GetPlayerBodyAnimationLength(PlayerEntity player)
     {
         return player.ClassId == PlayerClass.Quote
-            || player.IsSniperScoped
+            || (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
             || _world.IsPlayerHumiliated(player)
                 ? 2f
                 : 4f;

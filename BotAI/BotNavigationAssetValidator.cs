@@ -30,6 +30,16 @@ public static class BotNavigationAssetValidator
     private const float StartNodeSearchDistance = 144f;
     private const float GoalNodeSearchDistance = 220f;
 
+    public static bool SupportsAttackReachabilityAudit(GameModeKind mode)
+    {
+        return mode is GameModeKind.CaptureTheFlag
+            or GameModeKind.Generator
+            or GameModeKind.ControlPoint
+            or GameModeKind.Arena
+            or GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill;
+    }
+
     public static BotNavigationValidationResult Validate(SimpleLevel level, BotNavigationAsset asset)
     {
         ArgumentNullException.ThrowIfNull(level);
@@ -56,6 +66,33 @@ public static class BotNavigationAssetValidator
             ValidateAttackReachability(level, asset, graph, PlayerTeam.Red, issues);
             ValidateAttackReachability(level, asset, graph, PlayerTeam.Blue, issues);
         }
+        return issues.Count == 0
+            ? BotNavigationValidationResult.Valid
+            : new BotNavigationValidationResult(issues);
+    }
+
+    public static BotNavigationValidationResult AuditAttackReachability(SimpleLevel level, BotNavigationAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        if (!SupportsAttackReachabilityAudit(level.Mode))
+        {
+            return BotNavigationValidationResult.Valid;
+        }
+
+        if (asset.Nodes.Count == 0)
+        {
+            return new BotNavigationValidationResult(
+            [
+                new BotNavigationValidationIssue("empty-graph", "graph contains no navigation nodes"),
+            ]);
+        }
+
+        var issues = new List<BotNavigationValidationIssue>();
+        var graph = new BotNavigationRuntimeGraph(asset);
+        ValidateAttackReachability(level, asset, graph, PlayerTeam.Red, issues, useModernGoalSelection: asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph);
+        ValidateAttackReachability(level, asset, graph, PlayerTeam.Blue, issues, useModernGoalSelection: asset.BuildStrategy == BotNavigationBuildStrategy.ModernClientBotPointGraph);
         return issues.Count == 0
             ? BotNavigationValidationResult.Valid
             : new BotNavigationValidationResult(issues);
@@ -88,7 +125,8 @@ public static class BotNavigationAssetValidator
         BotNavigationAsset asset,
         BotNavigationRuntimeGraph graph,
         PlayerTeam team,
-        List<BotNavigationValidationIssue> issues)
+        List<BotNavigationValidationIssue> issues,
+        bool useModernGoalSelection = false)
     {
         var spawns = GetTeamSpawns(level, asset, team);
         if (spawns.Length == 0)
@@ -123,7 +161,9 @@ public static class BotNavigationAssetValidator
             for (var objectiveIndex = 0; objectiveIndex < objectives.Count; objectiveIndex += 1)
             {
                 var objective = objectives[objectiveIndex];
-                if (graph.TryFindRouteToGoalRadius(
+                if (useModernGoalSelection
+                    ? CanReachModernGoalNode(graph, startNode.Id, objective.X, objective.Y)
+                    : graph.TryFindRouteToGoalRadius(
                         startNode.Id,
                         objective.X,
                         objective.Y,
@@ -246,6 +286,8 @@ public static class BotNavigationAssetValidator
             GameModeKind.Generator => GetGeneratorObjectives(level, enemyTeam),
             GameModeKind.ControlPoint => GetControlPointObjectives(level),
             GameModeKind.Arena => GetArenaObjectives(level),
+            GameModeKind.KingOfTheHill => GetControlPointObjectives(level),
+            GameModeKind.DoubleKingOfTheHill => GetControlPointObjectives(level),
             _ => GetFallbackObjectives(level),
         };
     }
@@ -327,6 +369,25 @@ public static class BotNavigationAssetValidator
         }
 
         return null;
+    }
+
+    private static bool CanReachModernGoalNode(
+        BotNavigationRuntimeGraph graph,
+        int startNodeId,
+        float goalX,
+        float goalY)
+    {
+        if (!graph.TryGetNode(startNodeId, out _)
+            || !graph.TryFindNearestNode(goalX, goalY, maxDistance: 0f, requireGroundSupport: false, out var goalNode))
+        {
+            return false;
+        }
+
+        var goalWeights = graph.GetGoalWeights(goalNode.Id, maximumDepth: 130);
+        return goalWeights is not null
+            && startNodeId >= 0
+            && startNodeId < goalWeights.Length
+            && goalWeights[startNodeId] > 0;
     }
 
     private readonly record struct NavMarkerPoint(float X, float Y, string Label);

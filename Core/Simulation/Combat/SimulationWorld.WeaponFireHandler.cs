@@ -182,7 +182,10 @@ public sealed partial class SimulationWorld
 
         public (float X, float Y) GetPyroSecondaryOrigin(PlayerEntity attacker)
         {
-            var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var weaponClassId = attacker.IsAcquiredWeaponEquipped && attacker.AcquiredWeaponClassId == PlayerClass.Pyro
+                ? PlayerClass.Pyro
+                : attacker.ClassId;
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             return (weaponOrigin.BaseX, GetPyroOriginY(weaponOrigin));
         }
 
@@ -326,25 +329,33 @@ public sealed partial class SimulationWorld
             }
 
             var killFeedWeaponSpriteNameOverride = CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId.Value);
-            RegisterWeaponFireSound(attacker, weaponDefinition);
             switch (weaponDefinition.Kind)
             {
+                case PrimaryWeaponKind.FlameThrower:
+                    FireFlamethrower(attacker, weaponClassId.Value, aimWorldX, aimWorldY);
+                    break;
                 case PrimaryWeaponKind.Minigun:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FireMinigun(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
                     break;
                 case PrimaryWeaponKind.MineLauncher:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FireMineLauncher(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
                     break;
                 case PrimaryWeaponKind.Revolver:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FireRevolver(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
                     break;
                 case PrimaryWeaponKind.Rifle:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FireRifle(attacker, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
                     break;
                 case PrimaryWeaponKind.RocketLauncher:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FireRocketLauncher(attacker, weaponDefinition, weaponClassId.Value, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
                     break;
                 case PrimaryWeaponKind.PelletGun:
+                    RegisterWeaponFireSound(attacker, weaponDefinition);
                     FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId.Value, killFeedWeaponSpriteNameOverride);
                     break;
             }
@@ -513,13 +524,16 @@ public sealed partial class SimulationWorld
             var directionY = aimDeltaY / distance;
             var result = ResolveRifleHit(attacker, weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, rifleDistance);
             RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true);
-            var damage = PlayerEntity.SniperBaseDamage;
+            var damage = attacker.GetSniperRifleDamage();
             if (result.HitPlayer is not null)
             {
                 RegisterBloodEffect(result.HitPlayer.X, result.HitPlayer.Y, PointDirectionDegrees(weaponOrigin.BaseX, weaponOrigin.BaseY, result.HitPlayer.X, result.HitPlayer.Y) - 180f);
                 if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpySniperRevealAlpha))
                 {
-                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: killFeedWeaponSpriteNameOverride, deadBodyAnimationKind: DeadBodyAnimationKind.Rifle);
+                    var deadBodyAnimationKind = damage > PlayerEntity.SniperBaseDamage
+                        ? DeadBodyAnimationKind.Severe
+                        : DeadBodyAnimationKind.Rifle;
+                    KillPlayer(result.HitPlayer, killer: attacker, weaponSpriteName: killFeedWeaponSpriteNameOverride, deadBodyAnimationKind: deadBodyAnimationKind);
                 }
             }
             else if (result.HitSentry is not null && ApplySentryDamage(result.HitSentry, damage, attacker))
@@ -612,6 +626,47 @@ public sealed partial class SimulationWorld
         private bool FireFlamethrower(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker);
+            var sourceX = weaponOrigin.BaseX;
+            var sourceY = GetPyroOriginY(weaponOrigin);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - sourceY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX;
+            }
+
+            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var directionX = MathF.Cos(baseAngle);
+            var directionY = MathF.Sin(baseAngle);
+            var spawnX = sourceX + directionX * 25f;
+            var spawnY = sourceY + directionY * 25f;
+            if (IsFlameSpawnBlocked(sourceX, sourceY, spawnX, spawnY, attacker.Team))
+            {
+                return false;
+            }
+
+            var spreadSign = MathF.Sign((_random.NextSingle() * 2f) - 1f);
+            var spreadDegrees = spreadSign * MathF.Pow(_random.NextSingle() * 3f, 1.8f);
+            var maxRunSpeed = MathF.Max(0.0001f, attacker.MaxRunSpeed);
+            spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
+            var flameAngle = baseAngle + DegreesToRadians(spreadDegrees);
+            var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
+            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                attacker,
+                MathF.Cos(flameAngle) * flameSpeed,
+                MathF.Sin(flameAngle) * flameSpeed);
+            SpawnFlame(
+                attacker,
+                spawnX,
+                spawnY,
+                launchedVelocityX + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
+                launchedVelocityY + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
+            return true;
+        }
+
+        private bool FireFlamethrower(PlayerEntity attacker, PlayerClass weaponClassId, float aimWorldX, float aimWorldY)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var sourceX = weaponOrigin.BaseX;
             var sourceY = GetPyroOriginY(weaponOrigin);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;

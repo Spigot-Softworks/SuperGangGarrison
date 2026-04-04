@@ -7,22 +7,26 @@ using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string LastToDieStartingMapName = "Valley";
     private const string LastToDieExcludedRotationMapName = "Conflict";
-    private const int LastToDieStartingEnemyBotCount = 2;
+    private const int LastToDieStartingEnemyBotCount = 3;
     private const int LastToDieFinalEnemyBotCount = 10;
-    private const int LastToDieStartingStageMinutes = 7;
-    private const int LastToDieFinalStageMinutes = 15;
+    private const int LastToDieStartingStageMinutes = 3;
+    private const int LastToDieStageMinuteIncrement = 1;
+    private const int LastToDieFinalStageMinutes =
+        LastToDieStartingStageMinutes + ((LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) * LastToDieStageMinuteIncrement);
     private const int LastToDieStageCount = (LastToDieFinalEnemyBotCount - LastToDieStartingEnemyBotCount) + 1;
     private const int LastToDieMatchTimeLimitMinutes = 30;
     private const int LastToDieCapLimit = 5;
     private const int LastToDieRespawnSeconds = 5;
     private const int LastToDiePerkChoiceCount = 3;
+    private const int LastToDieStageClearFadeTicks = 24;
+    private const int LastToDieStageClearContinueDelayTicks = 18;
     private const int LastToDieFailureFadeTicks = 45;
     private const int LastToDieFailureContinueDelayTicks = 18;
     private const float LastToDieStageIntroDurationSeconds = 2f;
@@ -70,14 +74,24 @@ public partial class Game1
 
         public string CurrentLevelName { get; set; }
 
+        public bool AwaitingOpeningPerkSelection { get; set; }
+
         public HashSet<LastToDiePerkKind> ChosenPerks { get; } = [];
 
         public LastToDiePerkDefinition[] PendingPerkChoices { get; set; } = [];
+
+        public int LevelsCompleted { get; set; }
+
+        public int TotalKills { get; set; }
+
+        public int TotalDamageDealt { get; set; }
+
+        public int ObservedStageKills { get; set; }
     }
 
     private static readonly LastToDiePerkDefinition[] LastToDiePerkCatalog =
     [
-        new(LastToDiePerkKind.SoldierShotgun, "Soldier shotgun", "Fire Engineer's shotgun with Space."),
+        new(LastToDiePerkKind.SoldierShotgun, "Soldier shotgun", "Press Space to fire secondary shotgun."),
         new(LastToDiePerkKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
         new(LastToDiePerkKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),
         new(LastToDiePerkKind.RateOfFireOnDamage, "Rate of fire on hit", "Landing a hit instantly requeues primary fire."),
@@ -93,6 +107,8 @@ public partial class Game1
     private LastToDieRunState? _lastToDieRun;
     private bool _lastToDiePerkMenuOpen;
     private int _lastToDiePerkHoverIndex = -1;
+    private bool _lastToDieStageClearOverlayOpen;
+    private int _lastToDieStageClearOverlayTicks;
     private bool _lastToDieFailureOverlayOpen;
     private int _lastToDieFailureOverlayTicks;
 
@@ -115,7 +131,12 @@ public partial class Game1
     private bool ShouldSuspendOfflineGameplaySimulation()
     {
         return IsLastToDieSessionActive
-            && (_lastToDiePerkMenuOpen || IsLastToDieFailureOverlayActive());
+            && (_lastToDiePerkMenuOpen || IsLastToDieStageClearOverlayActive() || IsLastToDieFailurePresentationActive());
+    }
+
+    private bool IsLastToDieStageClearOverlayActive()
+    {
+        return _lastToDieStageClearOverlayOpen;
     }
 
     private bool IsLastToDieFailureOverlayActive()
@@ -130,9 +151,14 @@ public partial class Game1
 
     private void ResetLastToDieState()
     {
+        StopLastToDieGameOverSound();
         _lastToDieRun = null;
         _lastToDiePerkMenuOpen = false;
         _lastToDiePerkHoverIndex = -1;
+        _lastToDieStageClearOverlayOpen = false;
+        _lastToDieStageClearOverlayTicks = 0;
+        ClearLastToDieDeathFocusPresentation();
+        ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
     }
@@ -148,11 +174,17 @@ public partial class Game1
         }
 
         ResetLastToDieState();
-        _lastToDieRun = new LastToDieRunState(initialMap.LevelName);
+        _lastToDieRun = new LastToDieRunState(initialMap.LevelName)
+        {
+            AwaitingOpeningPerkSelection = true,
+        };
         if (!BeginLastToDieStage(initialMap.LevelName))
         {
             ResetLastToDieState();
+            return;
         }
+
+        OpenLastToDiePerkMenu();
     }
 
     private bool BeginLastToDieStage(string levelName)
@@ -179,15 +211,22 @@ public partial class Game1
 
         _lastToDiePerkMenuOpen = false;
         _lastToDiePerkHoverIndex = -1;
+        _lastToDieStageClearOverlayOpen = false;
+        _lastToDieStageClearOverlayTicks = 0;
+        ClearLastToDieDeathFocusPresentation();
+        ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
 
         _world.PrepareLocalPlayerJoin();
         _world.SetLocalPlayerTeam(PlayerTeam.Red);
         _world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        _world.TryMoveLocalPlayerToControlPointSpawn();
         SyncPracticeBotRoster(PlayerTeam.Red);
         _world.DespawnEnemyDummy();
         _world.DespawnFriendlyDummy();
+        ObserveLastToDieCombatFeedbackState();
+        _lastToDieRun.ObservedStageKills = 0;
 
         _lastToDieRun.CurrentLevelName = levelName;
         _lastToDieRun.StageRemainingTicks = _lastToDieRun.StageDurationMinutes * 60 * _config.TicksPerSecond;
@@ -228,6 +267,7 @@ public partial class Game1
         StopFaucetMusic();
         StopIngameMusic();
         StopLastToDieIngameMusic();
+        StopLastToDieGameOverSound();
         ResetTransientPresentationEffects();
         ResetProcessedNetworkEventHistory();
         ResetClientTimingState();
@@ -256,6 +296,10 @@ public partial class Game1
             _menuStatusMessage = $"Failed to load local map: {levelName}";
             return false;
         }
+
+        _world.Level.ForcedBlockingTeamGates = sessionKind == GameplaySessionKind.LastToDie
+            ? TeamGateLockMask.Red
+            : TeamGateLockMask.None;
 
         _world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
         _gameplaySessionKind = sessionKind;
@@ -303,7 +347,11 @@ public partial class Game1
 
     private void AdvanceLastToDieSimulationTick()
     {
-        if (!IsLastToDieSessionActive || _lastToDieRun is null || _lastToDiePerkMenuOpen || _lastToDieFailureOverlayOpen)
+        if (!IsLastToDieSessionActive
+            || _lastToDieRun is null
+            || _lastToDiePerkMenuOpen
+            || IsLastToDieStageClearOverlayActive()
+            || IsLastToDieFailurePresentationActive())
         {
             return;
         }
@@ -322,14 +370,20 @@ public partial class Game1
     private void UpdateLastToDieSession(int clientTicks)
     {
         _ = clientTicks;
-        if (!IsLastToDieSessionActive || _lastToDieRun is null || _lastToDiePerkMenuOpen || _lastToDieFailureOverlayOpen)
+        UpdateLastToDieRunStats();
+
+        if (!IsLastToDieSessionActive
+            || _lastToDieRun is null
+            || _lastToDiePerkMenuOpen
+            || IsLastToDieStageClearOverlayActive()
+            || IsLastToDieFailurePresentationActive())
         {
             return;
         }
 
         if (!_world.LocalPlayerAwaitingJoin && !_world.LocalPlayer.IsAlive)
         {
-            TriggerLastToDieFailure();
+            TriggerLastToDieDeathFocusFailure();
             return;
         }
 
@@ -356,10 +410,15 @@ public partial class Game1
 
     private void HandleLastToDieStageClear()
     {
-        if (_lastToDieRun is null || _lastToDiePerkMenuOpen || _lastToDieFailureOverlayOpen)
+        if (_lastToDieRun is null
+            || _lastToDiePerkMenuOpen
+            || IsLastToDieStageClearOverlayActive()
+            || IsLastToDieFailurePresentationActive())
         {
             return;
         }
+
+        _lastToDieRun.LevelsCompleted += 1;
 
         if (IsLastToDieFinalStage(_lastToDieRun))
         {
@@ -367,6 +426,28 @@ public partial class Game1
             return;
         }
 
+        OpenLastToDieStageClearOverlay();
+    }
+
+    private void OpenLastToDieStageClearOverlay()
+    {
+        StopIngameMusic();
+        StopLastToDieIngameMusic();
+        CloseInGameMenu();
+        if (_lastToDieStageClearOverlayOpen)
+        {
+            return;
+        }
+
+        _lastToDieStageClearOverlayOpen = true;
+        _lastToDieStageClearOverlayTicks = 0;
+    }
+
+    private void ContinueFromLastToDieStageClearOverlay()
+    {
+        _lastToDieStageClearOverlayOpen = false;
+        _lastToDieStageClearOverlayTicks = 0;
+        SuppressPrimaryFireUntilMouseRelease();
         OpenLastToDiePerkMenu();
     }
 
@@ -386,6 +467,13 @@ public partial class Game1
         var choices = BuildLastToDiePerkChoices(_lastToDieRun);
         if (choices.Length == 0)
         {
+            if (_lastToDieRun.AwaitingOpeningPerkSelection)
+            {
+                _lastToDieRun.AwaitingOpeningPerkSelection = false;
+                _lastToDieRun.PendingPerkChoices = [];
+                return;
+            }
+
             AdvanceLastToDieStage();
             return;
         }
@@ -417,7 +505,9 @@ public partial class Game1
 
         _lastToDieRun.StageNumber = Math.Min(LastToDieStageCount, _lastToDieRun.StageNumber + 1);
         _lastToDieRun.EnemyBotCount = Math.Min(LastToDieFinalEnemyBotCount, _lastToDieRun.EnemyBotCount + 1);
-        _lastToDieRun.StageDurationMinutes = Math.Min(LastToDieFinalStageMinutes, _lastToDieRun.StageDurationMinutes + 1);
+        _lastToDieRun.StageDurationMinutes = Math.Min(
+            LastToDieFinalStageMinutes,
+            _lastToDieRun.StageDurationMinutes + LastToDieStageMinuteIncrement);
         _lastToDieRun.PendingPerkChoices = [];
 
         var nextMap = SelectRandomLastToDieMap(_lastToDieRun.CurrentLevelName);
@@ -457,7 +547,7 @@ public partial class Game1
             candidates = rotationEntries;
         }
 
-        return candidates[_visualRandom.Next(candidates.Count)];
+        return candidates[RandomNumberGenerator.GetInt32(candidates.Count)];
     }
 
     private PracticeMapEntry? SelectInitialLastToDieMap()
@@ -467,24 +557,20 @@ public partial class Game1
             _practiceMapEntries = BuildPracticeMapEntries();
         }
 
-        return _practiceMapEntries.FirstOrDefault(entry =>
-                   string.Equals(entry.LevelName, LastToDieStartingMapName, StringComparison.OrdinalIgnoreCase)
-                   && entry.Mode == GameModeKind.KingOfTheHill)
-               ?? _practiceMapEntries.FirstOrDefault(entry =>
-                   string.Equals(entry.LevelName, LastToDieStartingMapName, StringComparison.OrdinalIgnoreCase))
-               ?? SelectRandomLastToDieMap(excludedLevelName: null);
+        return SelectRandomLastToDieMap(excludedLevelName: null);
     }
 
     private static bool IsEligibleLastToDieRotationMap(PracticeMapEntry entry)
     {
-        return !string.Equals(entry.LevelName, LastToDieExcludedRotationMapName, StringComparison.OrdinalIgnoreCase);
+        return entry.Mode == GameModeKind.KingOfTheHill
+            && !string.Equals(entry.LevelName, LastToDieExcludedRotationMapName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ShuffleLastToDiePerks(List<LastToDiePerkDefinition> definitions)
     {
         for (var index = definitions.Count - 1; index > 0; index -= 1)
         {
-            var swapIndex = Random.Shared.Next(index + 1);
+            var swapIndex = RandomNumberGenerator.GetInt32(index + 1);
             (definitions[index], definitions[swapIndex]) = (definitions[swapIndex], definitions[index]);
         }
     }
@@ -492,8 +578,11 @@ public partial class Game1
     private static ExperimentalGameplaySettings BuildLastToDieExperimentalGameplaySettings(LastToDieRunState run)
     {
         var settings = new ExperimentalGameplaySettings(
+            EnableComboTracking: true,
+            EnableKillStreakTracking: true,
             EnableEnemyHealthPackDrops: true,
-            EnableEnemyDroppedWeapons: true);
+            EnableEnemyDroppedWeapons: true,
+            EnemyHealthPackDropChance: 1f);
 
         foreach (var perk in run.ChosenPerks)
         {
@@ -542,6 +631,27 @@ public partial class Game1
         ChooseLastToDiePerk(_lastToDiePerkHoverIndex);
     }
 
+    private void UpdateLastToDieStageClearOverlay(KeyboardState keyboard, MouseState mouse)
+    {
+        if (!_lastToDieStageClearOverlayOpen)
+        {
+            return;
+        }
+
+        _lastToDieStageClearOverlayTicks += 1;
+        var readyForContinue = _lastToDieStageClearOverlayTicks >= LastToDieStageClearContinueDelayTicks;
+        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        if (!readyForContinue)
+        {
+            return;
+        }
+
+        if (clickPressed || IsKeyPressed(keyboard, Keys.Enter) || IsKeyPressed(keyboard, Keys.Space))
+        {
+            ContinueFromLastToDieStageClearOverlay();
+        }
+    }
+
     private bool TryGetLastToDiePerkHotkeySelection(KeyboardState keyboard, int choiceCount, out int selectedIndex)
     {
         selectedIndex = -1;
@@ -570,8 +680,21 @@ public partial class Game1
 
         var selected = _lastToDieRun.PendingPerkChoices[selectedIndex];
         _lastToDieRun.ChosenPerks.Add(selected.Kind);
+        _lastToDieRun.PendingPerkChoices = [];
         _lastToDiePerkMenuOpen = false;
         _lastToDiePerkHoverIndex = -1;
+        SuppressPrimaryFireUntilMouseRelease();
+
+        if (_lastToDieRun.AwaitingOpeningPerkSelection)
+        {
+            _lastToDieRun.AwaitingOpeningPerkSelection = false;
+            if (!BeginLastToDieStage(_lastToDieRun.CurrentLevelName))
+            {
+                ReturnToLastToDieMenu("Failed to start Last To Die.");
+            }
+            return;
+        }
+
         AdvanceLastToDieStage();
     }
 
@@ -630,7 +753,10 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
 
         DrawBitmapFontText("Perks", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1.22f);
-        DrawBitmapFontText("Choose 1 reward for the next stage.", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
+        var subtitle = _lastToDieRun.AwaitingOpeningPerkSelection
+            ? "Choose 1 perk."
+            : "Choose 1 reward for the next stage.";
+        DrawBitmapFontText(subtitle, new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
 
         for (var index = 0; index < _lastToDieRun.PendingPerkChoices.Length; index += 1)
         {
@@ -656,22 +782,51 @@ public partial class Game1
         }
     }
 
-    private void TriggerLastToDieFailure()
+    private void DrawLastToDieStageClearOverlay()
     {
-        if (_lastToDieFailureOverlayOpen)
+        if (!_lastToDieStageClearOverlayOpen || _lastToDieRun is null)
         {
             return;
         }
 
-        StopIngameMusic();
-        StopLastToDieIngameMusic();
-        CloseInGameMenu();
-        _lastToDieFailureOverlayOpen = true;
-        _lastToDieFailureOverlayTicks = 0;
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        var alpha = Math.Clamp(_lastToDieStageClearOverlayTicks / (float)LastToDieStageClearFadeTicks, 0f, 1f);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * (0.8f * alpha));
+
+        DrawHudTextCentered(
+            "YOU SURVIVED",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.34f),
+            new Color(240, 232, 208) * alpha,
+            2.7f);
+
+        var clearedText = $"Stage {_lastToDieRun.StageNumber} cleared.";
+        DrawHudTextCentered(
+            clearedText,
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.44f),
+            new Color(216, 206, 176) * alpha,
+            1.3f);
+
+        if (_lastToDieStageClearOverlayTicks < LastToDieStageClearContinueDelayTicks)
+        {
+            return;
+        }
+
+        DrawHudTextCentered(
+            "Press Enter or click to choose your next perk.",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.55f),
+            new Color(214, 214, 214) * alpha,
+            1f);
+    }
+
+    private void TriggerLastToDieFailure()
+    {
+        OpenLastToDieFailureOverlay();
     }
 
     private void UpdateLastToDieFailureOverlay(KeyboardState keyboard, MouseState mouse)
     {
+        _ = mouse;
         if (!_lastToDieFailureOverlayOpen)
         {
             return;
@@ -679,13 +834,12 @@ public partial class Game1
 
         _lastToDieFailureOverlayTicks += 1;
         var readyForContinue = _lastToDieFailureOverlayTicks >= LastToDieFailureContinueDelayTicks;
-        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         if (!readyForContinue)
         {
             return;
         }
 
-        if (clickPressed || IsKeyPressed(keyboard, Keys.Enter) || IsKeyPressed(keyboard, Keys.Escape))
+        if (IsKeyPressed(keyboard, Keys.Enter))
         {
             ReturnToLastToDieMenu();
         }
@@ -701,20 +855,86 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var alpha = Math.Clamp(_lastToDieFailureOverlayTicks / (float)LastToDieFailureFadeTicks, 0f, 1f);
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.9f, alpha));
+        var centerFadeAlpha = MathF.Min(0.9f, alpha * 1.1f);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * centerFadeAlpha);
 
-        var edgeAlpha = MathF.Min(0.68f, alpha * 0.8f);
+        var edgeAlpha = MathF.Min(0.56f, alpha * 0.7f);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, 96), new Color(120, 0, 0) * edgeAlpha);
         _spriteBatch.Draw(_pixel, new Rectangle(0, viewportHeight - 96, viewportWidth, 96), new Color(120, 0, 0) * edgeAlpha);
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, 96, viewportHeight), new Color(120, 0, 0) * edgeAlpha);
         _spriteBatch.Draw(_pixel, new Rectangle(viewportWidth - 96, 0, 96, viewportHeight), new Color(120, 0, 0) * edgeAlpha);
 
-        if (alpha < 0.2f)
+        if (_lastToDieDeathFocus is not null && alpha >= 0.25f)
+        {
+            DrawLastToDieFailureCorpse(viewportWidth, viewportHeight, alpha);
+        }
+
+        if (_lastToDieRun is null || alpha < 0.2f)
         {
             return;
         }
 
-        DrawHudTextCentered("YOU FAILED YOUR TEAM", new Vector2(viewportWidth / 2f, viewportHeight / 2f - 24f), new Color(230, 214, 214) * alpha, 3f);
+        DrawHudTextCentered(
+            "YOU FAILED YOUR TEAM",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.18f),
+            new Color(230, 214, 214) * alpha,
+            3f);
+
+        DrawHudTextCentered(
+            $"Kills: {_lastToDieRun.TotalKills}",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.74f),
+            new Color(220, 214, 214) * alpha,
+            1.15f);
+        DrawHudTextCentered(
+            $"Damage: {_lastToDieRun.TotalDamageDealt}",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.80f),
+            new Color(220, 214, 214) * alpha,
+            1.15f);
+        DrawHudTextCentered(
+            $"Matches clutched: {_lastToDieRun.LevelsCompleted}",
+            new Vector2(viewportWidth / 2f, viewportHeight * 0.86f),
+            new Color(220, 214, 214) * alpha,
+            1.15f);
+
+        if (_lastToDieFailureOverlayTicks >= LastToDieFailureContinueDelayTicks)
+        {
+            DrawHudTextCentered(
+                "Press Enter to continue.",
+                new Vector2(viewportWidth / 2f, viewportHeight * 0.93f),
+                new Color(214, 214, 214) * alpha,
+                1f);
+        }
+    }
+
+    private void UpdateLastToDieRunStats()
+    {
+        if (!IsLastToDieSessionActive || _lastToDieRun is null || _world.LocalPlayerAwaitingJoin)
+        {
+            return;
+        }
+
+        var currentKills = Math.Max(0, _world.LocalPlayer.Kills);
+        if (currentKills < _lastToDieRun.ObservedStageKills)
+        {
+            _lastToDieRun.ObservedStageKills = currentKills;
+            return;
+        }
+
+        if (currentKills > _lastToDieRun.ObservedStageKills)
+        {
+            _lastToDieRun.TotalKills += currentKills - _lastToDieRun.ObservedStageKills;
+            _lastToDieRun.ObservedStageKills = currentKills;
+        }
+    }
+
+    private void RegisterLastToDieLocalDamageDealt(int amount)
+    {
+        if (!IsLastToDieSessionActive || _lastToDieRun is null || amount <= 0)
+        {
+            return;
+        }
+
+        _lastToDieRun.TotalDamageDealt += amount;
     }
 
     private void DrawLastToDieHud()

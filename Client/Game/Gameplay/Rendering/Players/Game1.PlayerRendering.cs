@@ -21,6 +21,7 @@ public partial class Game1
 
     private readonly record struct RetainedDeadBodyVisual(
         int Id,
+        int SourcePlayerId,
         PlayerClass ClassId,
         PlayerTeam Team,
         DeadBodyAnimationKind AnimationKind,
@@ -128,6 +129,7 @@ public partial class Game1
         var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
         DrawDeadBodyVisual(
             deadBody.Id,
+            deadBody.SourcePlayerId,
             deadBody.ClassId,
             deadBody.Team,
             deadBody.AnimationKind,
@@ -140,13 +142,20 @@ public partial class Game1
             cameraPosition);
     }
 
-    private void DrawRetainedDeadBodies(Vector2 cameraPosition)
+    private void DrawRetainedDeadBodies(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
     {
         for (var index = 0; index < _retainedDeadBodies.Count; index += 1)
         {
             var deadBody = _retainedDeadBodies[index];
+            if (skippedDeadBodySourcePlayerId.HasValue
+                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+            {
+                continue;
+            }
+
             DrawDeadBodyVisual(
                 deadBody.Id,
+                deadBody.SourcePlayerId,
                 deadBody.ClassId,
                 deadBody.Team,
                 deadBody.AnimationKind,
@@ -179,6 +188,7 @@ public partial class Game1
             var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
             _trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(
                 deadBody.Id,
+                deadBody.SourcePlayerId,
                 deadBody.ClassId,
                 deadBody.Team,
                 deadBody.AnimationKind,
@@ -211,6 +221,7 @@ public partial class Game1
 
     private void DrawDeadBodyVisual(
         int id,
+        int sourcePlayerId,
         PlayerClass classId,
         PlayerTeam team,
         DeadBodyAnimationKind animationKind,
@@ -223,6 +234,7 @@ public partial class Game1
         Vector2 cameraPosition)
     {
         var renderPosition = new Vector2(x, y);
+        var pluginAnimationKind = ResolveClientPluginDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind);
         if (TryDrawClientPluginDeadBody(cameraPosition, new ClientDeadBodyRenderState(
             id,
             ToClientPluginClass(classId),
@@ -232,7 +244,7 @@ public partial class Game1
             height,
             facingLeft,
             ticksRemaining,
-            ToClientDeadBodyAnimationKind(animationKind))))
+            pluginAnimationKind)))
         {
             return;
         }
@@ -266,6 +278,25 @@ public partial class Game1
             (int)width,
             (int)height);
         _spriteBatch.Draw(_pixel, rectangle, team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
+    }
+
+    private ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)
+    {
+        if (ShouldUseLastToDieSoldierRifleDeathAnimation(sourcePlayerId, classId, team))
+        {
+            return ClientDeadBodyAnimationKind.Rifle;
+        }
+
+        return ToClientDeadBodyAnimationKind(animationKind);
+    }
+
+    private bool ShouldUseLastToDieSoldierRifleDeathAnimation(int sourcePlayerId, PlayerClass classId, PlayerTeam team)
+    {
+        return IsLastToDieSessionActive
+            && !_networkClient.IsSpectator
+            && sourcePlayerId == _world.LocalPlayer.Id
+            && classId == PlayerClass.Soldier
+            && team == PlayerTeam.Red;
     }
 
     private bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
@@ -590,7 +621,7 @@ public partial class Game1
                 false);
         }
 
-        if (player.IsSniperScoped)
+        if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
         {
             return new PlayerBodySpriteSelection(
                 GetTeamSpriteName(player.ClassId, player.Team, "CrouchS"),

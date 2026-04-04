@@ -689,20 +689,12 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             }
 
             var useIntelReturnFinalApproach = ShouldUseModernIntelReturnFinalApproach(world, player, destination);
-            var useEnemyIntelFinalApproach = ShouldUseModernEnemyIntelFinalApproach(world, player, destination);
             if (useIntelReturnFinalApproach)
             {
                 movementTarget = destination;
                 selectionReason = string.IsNullOrWhiteSpace(selectionReason)
                     ? "intel_home_direct"
                     : $"{selectionReason}:intel_home_direct";
-            }
-            else if (useEnemyIntelFinalApproach)
-            {
-                movementTarget = destination;
-                selectionReason = string.IsNullOrWhiteSpace(selectionReason)
-                    ? "intel_enemy_direct"
-                    : $"{selectionReason}:intel_enemy_direct";
             }
 
             var traversalKind = BotNavigationTraversalKind.Walk;
@@ -727,7 +719,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
                 LocksMovement: false,
                 Label: $"m{GetModernGoalWeight(goalWeights, currentNode.Id)}->{nextWeight}:{selectionReason}:{GetTraversalLabel(traversalKind)}",
                 TraversalKind: traversalKind,
-                MovementTargetUsesFeetCoordinates: !(useIntelReturnFinalApproach || useEnemyIntelFinalApproach));
+                MovementTargetUsesFeetCoordinates: !useIntelReturnFinalApproach);
         }
 
         ClearNavigationRoute(memory);
@@ -965,11 +957,6 @@ public sealed class ModernPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (!CanUseModernTraversal(world, player, navigationGraph, fromNode, candidateNode, edge))
-            {
-                continue;
-            }
-
             var candidateWeight = GetModernGoalWeight(goalWeights, candidateNode.Id);
             if (candidateWeight >= bestWeight)
             {
@@ -1035,18 +1022,13 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             movementTarget = fallbackMovementTarget;
         }
 
-        var currentNodeTargetY = GetModernNodeFeetY(navigationGraph, currentNode) - ModernPointSightYOffset;
-        var currentNodeAccessible = !LineHitsBlockingTeamGate(world, player.Team, player.IsCarryingIntel, player.X, player.Y, currentNode.X, currentNodeTargetY)
-            && HasModernObstacleLineOfSight(world, player.X, player.Y, currentNode.X, currentNodeTargetY);
-        var movementTargetProbeY = movementTarget.Y - ModernPointSightYOffset;
-        var movementTargetAccessible = !LineHitsBlockingTeamGate(world, player.Team, player.IsCarryingIntel, player.X, player.Y, movementTarget.X, movementTargetProbeY)
-            && HasModernObstacleLineOfSight(world, player.X, player.Y, movementTarget.X, movementTargetProbeY);
-        if (currentNodeAccessible || movementTargetAccessible)
+        if (HasModernObstacleLineOfSight(world, player.X, player.Y, currentNode.X, GetModernNodeFeetY(navigationGraph, currentNode) - ModernPointSightYOffset)
+            || HasModernObstacleLineOfSight(world, player.X, player.Y, movementTarget.X, movementTarget.Y - ModernPointSightYOffset))
         {
             return false;
         }
 
-        if (!TryAcquireModernCurrentNode(world, navigationGraph, player, memory, honorSecondAnchorBlock: false, out var reacquiredNode))
+        if (!TryAcquireNearestModernNode(navigationGraph, player, memory, honorSecondAnchorBlock: false, out var reacquiredNode))
         {
             return false;
         }
@@ -1791,39 +1773,13 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             && HasModernObstacleLineOfSight(world, player.X, player.Y, destination.X, destination.Y);
     }
 
-    private static bool ShouldUseModernEnemyIntelFinalApproach(
-        SimulationWorld world,
-        PlayerEntity player,
-        (float X, float Y) destination)
-    {
-        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag || player.IsCarryingIntel)
-        {
-            return false;
-        }
-
-        var enemyIntel = GetTeamIntel(world, GetOpposingTeam(player.Team));
-        return !enemyIntel.IsCarried
-            && destination.X == enemyIntel.X
-            && destination.Y == enemyIntel.Y
-            && MathF.Abs(player.X - destination.X) <= ModernIntelReturnFinalApproachDistanceX
-            && MathF.Abs(player.Bottom - destination.Y) <= ModernIntelReturnFinalApproachDistanceY
-            && HasModernObstacleLineOfSight(world, player.X, player.Y, destination.X, destination.Y);
-    }
-
     private static bool HasNodeLineOfSightToPlayer(
         SimulationWorld world,
         PlayerEntity player,
         BotNavigationRuntimeGraph navigationGraph,
         BotNavigationNode node)
     {
-        var targetY = GetModernNodeFeetY(navigationGraph, node) - ModernPointSightYOffset;
-        return HasModernObstacleLineOfSight(
-            world,
-            player.X,
-            player.Y,
-            node.X,
-            targetY)
-            && !LineHitsBlockingTeamGate(world, player.Team, player.IsCarryingIntel, player.X, player.Y, node.X, targetY);
+        return HasModernObstacleLineOfSight(world, player.X, player.Y, node.X, GetModernNodeFeetY(navigationGraph, node) - ModernPointSightYOffset);
     }
 
     private static bool CanUseModernTraversal(
@@ -1836,11 +1792,6 @@ public sealed class ModernPracticeBotController : IPracticeBotController
     {
         var currentFeetY = GetModernNodeFeetY(navigationGraph, currentNode);
         var candidateFeetY = GetModernNodeFeetY(navigationGraph, candidateNode);
-        if (LineHitsBlockingTeamGate(world, player.Team, player.IsCarryingIntel, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f))
-        {
-            return false;
-        }
-
         var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
         if (jumpRiseNeeded > GetModernJumpHeight(player.ClassId))
         {
@@ -2498,7 +2449,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             }
         }
 
-        return new ModernPathSelection((enemyIntel.X, enemyIntel.Y), AllowDirectPath: enemyIntel.IsDropped);
+        return new ModernPathSelection((enemyIntel.X, enemyIntel.Y), AllowDirectPath: false);
     }
 
     private static ModernPathSelection ResolveModernControlPointPath(
@@ -4580,7 +4531,8 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             && riseToTarget <= 18f
             && movingToward
             && HasModernForwardFootBlock(world, player, horizontal, 8f)
-            && HasModernJumpHeadClear(world, player, jumpHeight);
+            && HasModernJumpHeadClear(world, player, jumpHeight)
+            && HasModernLeadingJumpHeadClear(world, player, horizontal, jumpHeight);
     }
 
     private static bool TryShouldUseModernSlopeJump(
@@ -4634,7 +4586,8 @@ public sealed class ModernPracticeBotController : IPracticeBotController
             || riseToTarget < 18f
             || angleFromUp > 48f
             || !movingToward
-            || !HasModernJumpHeadClear(world, player, jumpHeight))
+            || !HasModernJumpHeadClear(world, player, jumpHeight)
+            || !HasModernLeadingJumpHeadClear(world, player, horizontal, jumpHeight))
         {
             return false;
         }
@@ -4648,6 +4601,22 @@ public sealed class ModernPracticeBotController : IPracticeBotController
     {
         var feetY = player.Bottom;
         return !LineHitsSolid(world, player.X, feetY - 2f, player.X, feetY - (jumpHeight + 2f));
+    }
+
+    private static bool HasModernLeadingJumpHeadClear(
+        SimulationWorld world,
+        PlayerEntity player,
+        int horizontal,
+        float jumpHeight)
+    {
+        var feetY = player.Bottom;
+        var probeX = horizontal switch
+        {
+            > 0 => player.Right - 1f,
+            < 0 => player.Left + 1f,
+            _ => player.X,
+        };
+        return !LineHitsSolid(world, probeX, feetY - 2f, probeX, feetY - (jumpHeight + 2f));
     }
 
     private static bool HasModernGroundContact(SimulationWorld world, PlayerEntity player)
@@ -5359,63 +5328,6 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         var directionX = (targetX - originX) / distance;
         var directionY = (targetY - originY) / distance;
         return GetModernObstacleIndex(world.Level).IntersectsAny(originX, originY, targetX, targetY, directionX, directionY, distance);
-    }
-
-    private static bool LineHitsBlockingTeamGate(
-        SimulationWorld world,
-        PlayerTeam team,
-        bool carryingIntel,
-        float originX,
-        float originY,
-        float targetX,
-        float targetY)
-    {
-        var distance = DistanceBetween(originX, originY, targetX, targetY);
-        if (distance <= 0.0001f)
-        {
-            foreach (var gate in world.Level.GetBlockingTeamGates(team, carryingIntel))
-            {
-                if (originX >= gate.Left
-                    && originX <= gate.Right
-                    && originY >= gate.Top
-                    && originY <= gate.Bottom)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        var directionX = (targetX - originX) / distance;
-        var directionY = (targetY - originY) / distance;
-        var lineLeft = MathF.Min(originX, targetX);
-        var lineTop = MathF.Min(originY, targetY);
-        var lineRight = MathF.Max(originX, targetX);
-        var lineBottom = MathF.Max(originY, targetY);
-        foreach (var gate in world.Level.GetBlockingTeamGates(team, carryingIntel))
-        {
-            if (!RectanglesOverlap(lineLeft, lineTop, lineRight, lineBottom, gate.Left, gate.Top, gate.Right, gate.Bottom))
-            {
-                continue;
-            }
-
-            if (GetRayIntersectionDistanceWithRectangle(
-                originX,
-                originY,
-                directionX,
-                directionY,
-                gate.Left,
-                gate.Top,
-                gate.Right,
-                gate.Bottom,
-                distance).HasValue)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool HasModernObstacleLineOfSight(
