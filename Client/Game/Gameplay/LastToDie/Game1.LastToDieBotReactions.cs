@@ -275,7 +275,8 @@ public partial class Game1
 
     private bool TryTriggerLastToDieBotReaction(byte slot, int bubbleFrame, LastToDieBotReactionState state)
     {
-        if (_world.Frame - state.LastReactionFrame < GetLastToDieBotReactionCooldownTicks())
+        if (!DoesLastToDieBotReactionBypassCooldown(bubbleFrame)
+            && _world.Frame - state.LastReactionFrame < GetLastToDieBotReactionCooldownTicks())
         {
             return false;
         }
@@ -287,6 +288,14 @@ public partial class Game1
 
         state.LastReactionFrame = _world.Frame;
         return true;
+    }
+
+    private static bool DoesLastToDieBotReactionBypassCooldown(int bubbleFrame)
+    {
+        return bubbleFrame is LastToDieBotReactionFrameZ1
+            or LastToDieBotReactionFrameZ4
+            or LastToDieBotReactionFrameZ7
+            or LastToDieBotReactionFrameZ9;
     }
 
     private bool CanLastToDieBotSeePlayer(PlayerEntity bot, PlayerEntity target)
