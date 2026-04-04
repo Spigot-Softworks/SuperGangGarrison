@@ -325,6 +325,7 @@ public partial class Game1
     {
         OnNavEditorTraversalCaptureAfterTick();
         AdvanceLastToDieSimulationTick();
+        UpdateLastToDieBotReactions();
     }
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)

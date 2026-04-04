@@ -96,7 +96,10 @@ public sealed partial class SimulationWorld
 
         if (tauntPressed)
         {
-            player.TryStartTaunt();
+            if (!TryHandleExperimentalRageActivation(player))
+            {
+                player.TryStartTaunt();
+            }
         }
 
         ApplyRoomForces(player);

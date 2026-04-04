@@ -102,6 +102,7 @@ public sealed partial class PlayerEntity
         ExperimentalPrimaryCooldownBuffTicksRemaining = 0;
         ExperimentalMovementSpeedMultiplierValue = 1f;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
+        ResetRageState();
     }
 
     private float GetExperimentalMovementSpeedMultiplier()

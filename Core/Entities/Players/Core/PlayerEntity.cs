@@ -210,6 +210,14 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int UberTicksRemaining { get; private set; }
 
+    public float RageCharge { get; private set; }
+
+    public bool IsRageReady { get; private set; }
+
+    public int RageTicksRemaining { get; private set; }
+
+    public bool IsRaging => RageTicksRemaining > 0;
+
     public int? MedicHealTargetId { get; private set; }
 
     public bool IsMedicHealing { get; private set; }

@@ -10,6 +10,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        ApplyExperimentalRageEffects();
         AdvanceMedicUberEffects();
         AdvanceCombatTraces();
         AdvanceShots();
@@ -60,6 +61,7 @@ public sealed partial class SimulationWorld
         AdvanceHealthPacks();
         AdvanceDroppedWeapons();
         AdvanceAfterburnAlertBubbles();
+        AdvanceExperimentalRageState();
 
         switch (MatchRules.Mode)
         {

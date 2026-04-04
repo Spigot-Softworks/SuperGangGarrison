@@ -4,6 +4,7 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableSoldierShotgunSecondaryWeapon = false,
     bool EnableHealOnDamage = false,
     bool EnableHealOnKill = false,
+    bool EnableRage = false,
     bool EnableRateOfFireMultiplierOnDamage = false,
     bool EnableSoldierInstantReload = false,
     bool EnableSpeedOnDamage = false,
@@ -22,6 +23,10 @@ public sealed record ExperimentalGameplaySettings(
     public const float HealOnDamageFraction = 0.35f;
     public const int HealOnKillAmount = 25;
     public const float PassiveHealthRegenerationPerSecond = 3f;
+    public const float RageMaxCharge = 500f;
+    public const float RageDamageDealtChargeMultiplier = 1f;
+    public const float RageDamageReceivedChargeMultiplier = 1f;
+    public const float RageDurationSeconds = 7f;
     public const float SpeedBoostMultiplier = 1.2f;
     public const float RateOfFireCooldownMultiplier = 0.8f;
     public const float OnDamageBuffDurationSeconds = 2.5f;

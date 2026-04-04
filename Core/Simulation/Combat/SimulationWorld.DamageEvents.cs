@@ -77,6 +77,7 @@ public sealed partial class SimulationWorld
             target,
             damageFlags);
         ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
+        ApplyExperimentalDamageTakenRewards(target, attacker, appliedDamage);
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
     }
@@ -108,6 +109,7 @@ public sealed partial class SimulationWorld
             target,
             damageFlags);
         ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
+        ApplyExperimentalDamageTakenRewards(target, attacker, appliedDamage);
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
     }

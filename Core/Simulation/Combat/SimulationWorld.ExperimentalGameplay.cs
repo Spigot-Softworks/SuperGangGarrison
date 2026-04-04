@@ -46,6 +46,13 @@ public sealed partial class SimulationWorld
             ApplyExperimentalHealingReward(attacker, appliedDamage * ExperimentalGameplaySettings.HealOnDamageFraction);
         }
 
+        if (ExperimentalGameplaySettings.EnableRage)
+        {
+            attacker.AddRageCharge(
+                appliedDamage * ExperimentalGameplaySettings.RageDamageDealtChargeMultiplier,
+                ExperimentalGameplaySettings.RageMaxCharge);
+        }
+
         if (ExperimentalGameplaySettings.EnableRateOfFireMultiplierOnDamage)
         {
             attacker.TryRequeuePrimaryFire();
@@ -57,6 +64,23 @@ public sealed partial class SimulationWorld
                 GetExperimentalDamageBuffTicks(),
                 ExperimentalGameplaySettings.SpeedBoostMultiplier);
         }
+    }
+
+    private void ApplyExperimentalDamageTakenRewards(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
+    {
+        if (appliedDamage <= 0
+            || attacker is null
+            || !ExperimentalGameplaySettings.EnableRage
+            || !IsExperimentalPracticePowerOwner(target)
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team)
+        {
+            return;
+        }
+
+        target.AddRageCharge(
+            appliedDamage * ExperimentalGameplaySettings.RageDamageReceivedChargeMultiplier,
+            ExperimentalGameplaySettings.RageMaxCharge);
     }
 
     private void ApplyExperimentalKillRewards(PlayerEntity? killer, PlayerEntity victim)

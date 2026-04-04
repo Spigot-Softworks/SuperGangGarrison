@@ -247,6 +247,11 @@ public sealed partial class SimulationWorld
 
     public bool IsPlayerHumiliated(PlayerEntity player)
     {
+        if (IsExperimentalRageHumiliationActiveForPlayer(player))
+        {
+            return true;
+        }
+
         if (!MatchState.IsEnded)
         {
             return false;
@@ -294,6 +299,12 @@ public sealed partial class SimulationWorld
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
     {
         ExperimentalGameplaySettings = settings ?? new ExperimentalGameplaySettings();
+        if (!ExperimentalGameplaySettings.EnableRage)
+        {
+            _experimentalRageEnemyHumiliationTicksRemaining = 0;
+            LocalPlayer.ClearRageState();
+        }
+
         if (!ExperimentalGameplaySettings.EnableEnemyHealthPackDrops)
         {
             ClearHealthPacks();

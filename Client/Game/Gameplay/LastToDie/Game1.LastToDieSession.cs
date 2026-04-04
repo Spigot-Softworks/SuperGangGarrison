@@ -14,7 +14,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const string LastToDieExcludedRotationMapName = "Conflict";
-    private const int LastToDieStartingEnemyBotCount = 3;
+    private const int LastToDieStartingEnemyBotCount = 2;
     private const int LastToDieFinalEnemyBotCount = 10;
     private const int LastToDieStartingStageMinutes = 3;
     private const int LastToDieStageMinuteIncrement = 1;
@@ -158,6 +158,7 @@ public partial class Game1
         _lastToDieStageClearOverlayOpen = false;
         _lastToDieStageClearOverlayTicks = 0;
         ClearLastToDieDeathFocusPresentation();
+        ResetLastToDieBotReactionState();
         ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
@@ -214,6 +215,7 @@ public partial class Game1
         _lastToDieStageClearOverlayOpen = false;
         _lastToDieStageClearOverlayTicks = 0;
         ClearLastToDieDeathFocusPresentation();
+        ResetLastToDieBotReactionState();
         ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
@@ -222,13 +224,14 @@ public partial class Game1
         _world.SetLocalPlayerTeam(PlayerTeam.Red);
         _world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         _world.TryMoveLocalPlayerToControlPointSpawn();
+        _lastToDieRun.CurrentLevelName = levelName;
         SyncPracticeBotRoster(PlayerTeam.Red);
         _world.DespawnEnemyDummy();
         _world.DespawnFriendlyDummy();
+        ObserveLastToDieBotReactionState();
         ObserveLastToDieCombatFeedbackState();
         _lastToDieRun.ObservedStageKills = 0;
 
-        _lastToDieRun.CurrentLevelName = levelName;
         _lastToDieRun.StageRemainingTicks = _lastToDieRun.StageDurationMinutes * 60 * _config.TicksPerSecond;
         _lastToDieRun.StageIntroTicksRemaining = GetLastToDieStageIntroDurationTicks();
 
@@ -429,6 +432,38 @@ public partial class Game1
         OpenLastToDieStageClearOverlay();
     }
 
+    private bool TryTriggerLastToDieStageVictoryForTesting()
+    {
+        if (!IsLastToDieSessionActive || _lastToDieRun is null)
+        {
+            return false;
+        }
+
+        if (IsLastToDieFailurePresentationActive())
+        {
+            return false;
+        }
+
+        if (IsLastToDieStageClearOverlayActive())
+        {
+            ContinueFromLastToDieStageClearOverlay();
+            return true;
+        }
+
+        if (_lastToDiePerkMenuOpen)
+        {
+            return true;
+        }
+
+        HandleLastToDieStageClear();
+        if (IsLastToDieStageClearOverlayActive())
+        {
+            ContinueFromLastToDieStageClearOverlay();
+        }
+
+        return true;
+    }
+
     private void OpenLastToDieStageClearOverlay()
     {
         StopIngameMusic();
@@ -580,6 +615,7 @@ public partial class Game1
         var settings = new ExperimentalGameplaySettings(
             EnableComboTracking: true,
             EnableKillStreakTracking: true,
+            EnableRage: true,
             EnableEnemyHealthPackDrops: true,
             EnableEnemyDroppedWeapons: true,
             EnemyHealthPackDropChance: 1f);
@@ -821,7 +857,14 @@ public partial class Game1
 
     private void TriggerLastToDieFailure()
     {
-        OpenLastToDieFailureOverlay();
+        if (_world.LocalPlayer.IsAlive)
+        {
+            _world.ForceKillLocalPlayer();
+            TriggerLastToDieDeathFocusFailure();
+            return;
+        }
+
+        TriggerLastToDieDeathFocusFailure();
     }
 
     private void UpdateLastToDieFailureOverlay(KeyboardState keyboard, MouseState mouse)

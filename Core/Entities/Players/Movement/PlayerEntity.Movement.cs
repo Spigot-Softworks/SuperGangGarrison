@@ -96,7 +96,9 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        canMove = !IsHeavyEating && !IsTaunting && !IsSpyBackstabAnimating;
+        canMove = !IsHeavyEating
+            && (!IsTaunting || IsRaging)
+            && !IsSpyBackstabAnimating;
         var preserveHorizontalMomentum = ClassId == PlayerClass.Spy && IsSpyBackstabAnimating;
 
         var horizontalDirection = 0f;
@@ -326,7 +328,7 @@ public sealed partial class PlayerEntity
 
     private float GetMovementScale(PlayerInputSnapshot input)
     {
-        if (IsHeavyEating || IsTaunting)
+        if (IsHeavyEating || (IsTaunting && !IsRaging))
         {
             return 0f;
         }

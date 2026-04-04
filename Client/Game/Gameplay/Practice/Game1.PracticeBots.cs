@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 namespace OpenGarrison.Client;
 
@@ -33,6 +34,14 @@ public partial class Game1
     private readonly Queue<string> _practiceAvailableBotDisplayNames = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can depend on the dedicated Modern bot controller without leaking implementation details into the client plumbing.")]
     private readonly IPracticeBotController _practiceBotController = new ModernPracticeBotController();
+    private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
+    [
+        (PlayerClass.Medic, PlayerClass.Heavy),
+        (PlayerClass.Medic, PlayerClass.Scout),
+        (PlayerClass.Medic, PlayerClass.Soldier),
+        (PlayerClass.Medic, PlayerClass.Pyro),
+        (PlayerClass.Medic, PlayerClass.Demoman),
+    ];
 
     private sealed class PracticeBotSlotState
     {
@@ -127,16 +136,10 @@ public partial class Game1
 
         if (IsLastToDieSessionActive)
         {
-            nextSlot = AppendRandomizedDesiredPracticeBotSlots(
+            nextSlot = AppendLastToDieDesiredPracticeBotSlots(
                 desiredSlots,
                 nextSlot,
-                localTeam,
-                GetOfflineFriendlyBotCount());
-            _ = AppendRandomizedDesiredPracticeBotSlots(
-                desiredSlots,
-                nextSlot,
-                GetOpposingTeam(localTeam),
-                GetOfflineEnemyBotCount());
+                localTeam);
             return desiredSlots;
         }
 
@@ -180,6 +183,34 @@ public partial class Game1
                 nextSlot,
                 team,
                 classId,
+                GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
+            nextSlot += 1;
+        }
+
+        return nextSlot;
+    }
+
+    private byte AppendLastToDieDesiredPracticeBotSlots(
+        Dictionary<byte, PracticeBotSlotState> desiredSlots,
+        byte startSlot,
+        PlayerTeam localTeam)
+    {
+        var nextSlot = startSlot;
+        nextSlot = AppendRandomizedDesiredPracticeBotSlots(
+            desiredSlots,
+            nextSlot,
+            localTeam,
+            GetOfflineFriendlyBotCount());
+
+        var enemyClasses = BuildLastToDieEnemyBotClassList(GetOfflineEnemyBotCount());
+        var enemyTeam = GetOpposingTeam(localTeam);
+        var teamLabel = enemyTeam == PlayerTeam.Blue ? "BLU" : "RED";
+        for (var index = 0; index < enemyClasses.Count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
+        {
+            desiredSlots[nextSlot] = new PracticeBotSlotState(
+                nextSlot,
+                enemyTeam,
+                enemyClasses[index],
                 GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
             nextSlot += 1;
         }
@@ -259,6 +290,98 @@ public partial class Game1
         }
 
         return status.IsLoaded && status.IsStructurallyValid;
+    }
+
+    private List<PlayerClass> BuildLastToDieEnemyBotClassList(int count)
+    {
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        if (_lastToDieRun is not null
+            && _lastToDieRun.StageNumber == 1
+            && count == 2)
+        {
+            var openingCombo = TryBuildLastToDieOpeningEnemyPair();
+            if (openingCombo is not null)
+            {
+                return [openingCombo.Value.Medic, openingCombo.Value.Partner];
+            }
+        }
+
+        var eligibleClasses = GetEligibleLastToDieBotClassCycle();
+        if (eligibleClasses.Length == 0)
+        {
+            return [];
+        }
+
+        var randomizedPool = BuildRandomizedPracticeBotClassPool(eligibleClasses);
+        var classList = new List<PlayerClass>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            classList.Add(randomizedPool[index % randomizedPool.Count]);
+        }
+
+        return classList;
+    }
+
+    private (PlayerClass Medic, PlayerClass Partner)? TryBuildLastToDieOpeningEnemyPair()
+    {
+        var eligibleClasses = new HashSet<PlayerClass>(GetEligibleLastToDieBotClassCycle());
+        var validCombos = LastToDieOpeningEnemyCombos
+            .Where(combo => eligibleClasses.Contains(combo.Medic) && eligibleClasses.Contains(combo.Partner))
+            .ToList();
+        if (validCombos.Count == 0)
+        {
+            return null;
+        }
+
+        return validCombos[_visualRandom.Next(validCombos.Count)];
+    }
+
+    private PlayerClass[] GetEligibleLastToDieBotClassCycle()
+    {
+        return GetEligiblePracticeBotClassCycle()
+            .Where(IsEligibleLastToDieBotClass)
+            .ToArray();
+    }
+
+    private bool IsEligibleLastToDieBotClass(PlayerClass classId)
+    {
+        if (classId == PlayerClass.Quote)
+        {
+            return false;
+        }
+
+        if (_lastToDieRun is not null
+            && _lastToDieRun.StageNumber < 3
+            && classId == PlayerClass.Sniper)
+        {
+            return false;
+        }
+
+        var levelName = _lastToDieRun?.CurrentLevelName ?? _world.Level.Name;
+        if (MatchesLastToDieRestrictedMap(levelName, "Harvest")
+            && classId == PlayerClass.Pyro)
+        {
+            return false;
+        }
+
+        if (MatchesLastToDieRestrictedMap(levelName, "Valley")
+            && classId == PlayerClass.Heavy)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool MatchesLastToDieRestrictedMap(string? levelName, string restrictedMapName)
+    {
+        return !string.IsNullOrWhiteSpace(levelName)
+            && (string.Equals(levelName, restrictedMapName, StringComparison.OrdinalIgnoreCase)
+                || levelName.Contains(restrictedMapName, StringComparison.OrdinalIgnoreCase));
     }
 
     private void InitializePracticeBotNamePoolForMatch()

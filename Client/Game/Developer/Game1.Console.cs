@@ -74,7 +74,7 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, connect <host> [port], disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, nav_edit <on|off|status|save|reload|rebuild>, spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, show_import, show_engineer, show_medic");
+                AddConsoleLine("help, clear, connect <host> [port], disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, nav_edit <on|off|status|save|reload|rebuild>, spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, show_import, show_engineer, show_medic");
                 break;
             case "clear":
                 _consoleHistory.Clear();
@@ -387,6 +387,24 @@ public partial class Game1
                 break;
             case "fill_uber":
                 AddConsoleLine(_world.TryFillLocalMedicUber() ? "medic uber filled" : "local player is not medic");
+                break;
+            case "ltd_win":
+                if (!IsLastToDieSessionActive)
+                {
+                    AddConsoleLine("ltd_win is only available during Last To Die.");
+                    break;
+                }
+
+                if (TryTriggerLastToDieStageVictoryForTesting())
+                {
+                    AddConsoleLine(_lastToDiePerkMenuOpen
+                        ? "last to die victory triggered; perk select opened."
+                        : "last to die victory triggered.");
+                }
+                else
+                {
+                    AddConsoleLine("could not trigger last to die victory right now.");
+                }
                 break;
             default:
                 if (TryHandleEnemyDummyConsoleCommand(commandText))
