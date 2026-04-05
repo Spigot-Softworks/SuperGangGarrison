@@ -21,18 +21,7 @@ public partial class Game1
 
         return _mainMenuOpen
             || _passwordPromptOpen
-            || _quitPromptOpen
-            || _teamSelectOpen
-            || _teamSelectAlpha > 0.02f
-            || _classSelectOpen
-            || _classSelectAlpha > 0.02f
-            || ShouldBlockGameplayForNavEditor()
-            || _clientPowersOpen
-            || _practiceSetupOpen
-            || _inGameMenuOpen
-            || _optionsMenuOpen
-            || _pluginOptionsMenuOpen
-            || _controlsMenuOpen;
+            || ShouldShowGameplayMouseCursor();
     }
 
     private void DrawSoftwareMenuCursor(MouseState mouse)

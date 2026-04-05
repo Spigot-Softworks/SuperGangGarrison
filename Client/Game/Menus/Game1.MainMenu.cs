@@ -14,67 +14,41 @@ public partial class Game1
 {
     private bool TryDrawOpenMenuOverlay()
     {
-        if (_optionsMenuOpen)
+        switch (GetActiveMainMenuOverlay())
         {
-            DrawOptionsMenu();
-            return true;
+            case MainMenuOverlayKind.OptionsMenu:
+                DrawOptionsMenu();
+                return true;
+            case MainMenuOverlayKind.PluginOptionsMenu:
+                DrawPluginOptionsMenu();
+                return true;
+            case MainMenuOverlayKind.ControlsMenu:
+                DrawControlsMenu();
+                return true;
+            case MainMenuOverlayKind.LastToDieMenu:
+                DrawLastToDieMenu();
+                return true;
+            case MainMenuOverlayKind.HostSetup:
+                DrawHostSetupMenu();
+                return true;
+            case MainMenuOverlayKind.ClientPowers:
+                DrawClientPowersMenu();
+                return true;
+            case MainMenuOverlayKind.PracticeSetup:
+                DrawPracticeSetupMenu();
+                return true;
+            case MainMenuOverlayKind.Credits:
+                DrawCreditsMenu();
+                return true;
+            case MainMenuOverlayKind.LobbyBrowser:
+                DrawLobbyBrowserMenu();
+                return true;
+            case MainMenuOverlayKind.ManualConnect:
+                DrawManualConnectMenu();
+                return true;
+            default:
+                return false;
         }
-
-        if (_pluginOptionsMenuOpen)
-        {
-            DrawPluginOptionsMenu();
-            return true;
-        }
-
-        if (_controlsMenuOpen)
-        {
-            DrawControlsMenu();
-            return true;
-        }
-
-        if (_lastToDieMenuOpen)
-        {
-            DrawLastToDieMenu();
-            return true;
-        }
-
-        if (_hostSetupOpen)
-        {
-            DrawHostSetupMenu();
-            return true;
-        }
-
-        if (_clientPowersOpen)
-        {
-            DrawClientPowersMenu();
-            return true;
-        }
-
-        if (_practiceSetupOpen)
-        {
-            DrawPracticeSetupMenu();
-            return true;
-        }
-
-        if (_creditsOpen)
-        {
-            DrawCreditsMenu();
-            return true;
-        }
-
-        if (_lobbyBrowserOpen)
-        {
-            DrawLobbyBrowserMenu();
-            return true;
-        }
-
-        if (_manualConnectOpen)
-        {
-            DrawManualConnectMenu();
-            return true;
-        }
-
-        return false;
     }
 
     private void UpdateMainMenu(KeyboardState keyboard, MouseState mouse)

@@ -89,23 +89,7 @@ public partial class Game1
         {
             DrawClassSelectHud();
         }
-        else if (!_teamSelectOpen
-            && _teamSelectAlpha <= 0.02f
-            && !_networkClient.IsSpectator
-            && _world.LocalPlayer.IsAlive
-            && (!_killCamEnabled || _world.LocalDeathCam is null)
-            && !ShouldBlockGameplayForNavEditor()
-            && !_consoleOpen
-            && !_clientPowersOpen
-            && !_lastToDieSurvivorMenuOpen
-            && !_lastToDiePerkMenuOpen
-            && !IsLastToDieDeathFocusPresentationActive()
-            && !IsLastToDieFailureOverlayActive()
-            && !_practiceSetupOpen
-            && !_inGameMenuOpen
-            && !_pluginOptionsMenuOpen
-            && !_optionsMenuOpen
-            && !_controlsMenuOpen)
+        else if (CanDrawGameplayCrosshair())
         {
             DrawCrosshair(mouse);
         }
@@ -118,41 +102,35 @@ public partial class Game1
         DrawNetworkDiagnosticsOverlay();
         DrawBotDiagnosticsOverlay();
 
-        if (_inGameMenuOpen)
+        switch (GetActiveGameplayOverlay())
         {
-            DrawInGameMenu();
-        }
-        else if (_clientPowersOpen)
-        {
-            DrawClientPowersMenu();
-        }
-        else if (IsLastToDieStageClearOverlayActive())
-        {
-            DrawLastToDieStageClearOverlay();
-        }
-        else if (_lastToDieSurvivorMenuOpen)
-        {
-            DrawLastToDieSurvivorMenu();
-        }
-        else if (_lastToDiePerkMenuOpen)
-        {
-            DrawLastToDiePerkMenu();
-        }
-        else if (_practiceSetupOpen)
-        {
-            DrawPracticeSetupMenu();
-        }
-        else if (_pluginOptionsMenuOpen)
-        {
-            DrawPluginOptionsMenu();
-        }
-        else if (_optionsMenuOpen)
-        {
-            DrawOptionsMenu();
-        }
-        else if (_controlsMenuOpen)
-        {
-            DrawControlsMenu();
+            case GameplayOverlayKind.InGameMenu:
+                DrawInGameMenu();
+                break;
+            case GameplayOverlayKind.ClientPowers:
+                DrawClientPowersMenu();
+                break;
+            case GameplayOverlayKind.LastToDieStageClear:
+                DrawLastToDieStageClearOverlay();
+                break;
+            case GameplayOverlayKind.LastToDieSurvivorMenu:
+                DrawLastToDieSurvivorMenu();
+                break;
+            case GameplayOverlayKind.LastToDiePerkMenu:
+                DrawLastToDiePerkMenu();
+                break;
+            case GameplayOverlayKind.PracticeSetup:
+                DrawPracticeSetupMenu();
+                break;
+            case GameplayOverlayKind.PluginOptionsMenu:
+                DrawPluginOptionsMenu();
+                break;
+            case GameplayOverlayKind.OptionsMenu:
+                DrawOptionsMenu();
+                break;
+            case GameplayOverlayKind.ControlsMenu:
+                DrawControlsMenu();
+                break;
         }
 
         DrawQuitPrompt();

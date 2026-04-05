@@ -37,10 +37,7 @@ public partial class Game1
     private void UpdateScoreboardState(KeyboardState keyboard)
     {
         _scoreboardOpen = !_mainMenuOpen
-            && !_inGameMenuOpen
-            && !_optionsMenuOpen
-            && !_pluginOptionsMenuOpen
-            && !_controlsMenuOpen
+            && !HasOpenGameplayOverlay()
             && !_consoleOpen
             && !_teamSelectOpen
             && !_classSelectOpen

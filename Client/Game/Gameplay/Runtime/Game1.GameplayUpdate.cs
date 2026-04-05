@@ -103,7 +103,7 @@ public partial class Game1
 
         UpdateSpectatorTrackingHotkeys(keyboard);
 
-        if (!_passwordPromptOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_clientPowersOpen && !_inGameMenuOpen)
+        if (!_passwordPromptOpen && !HasOpenGameplayOverlay())
         {
             var canToggleSelectionMenu = !_consoleOpen
                 && !_chatOpen
@@ -144,7 +144,7 @@ public partial class Game1
         {
             _classSelectOpen = false;
         }
-        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !_optionsMenuOpen && !_pluginOptionsMenuOpen && !_controlsMenuOpen && !_clientPowersOpen && !_inGameMenuOpen && pausePressed)
+        else if (!_consoleOpen && !_teamSelectOpen && !_classSelectOpen && !HasOpenGameplayOverlay() && pausePressed)
         {
             OpenInGameMenu();
         }
@@ -366,22 +366,7 @@ public partial class Game1
 
     private void UpdateGameplayWindowState()
     {
-        var wantsMouseVisible = _passwordPromptOpen
-            || _quitPromptOpen
-            || _teamSelectOpen
-            || _teamSelectAlpha > 0.02f
-            || _classSelectOpen
-            || _classSelectAlpha > 0.02f
-            || ShouldBlockGameplayForNavEditor()
-            || _practiceSetupOpen
-            || IsLastToDieStageClearOverlayActive()
-            || _lastToDieSurvivorMenuOpen
-            || _lastToDiePerkMenuOpen
-            || IsLastToDieFailureOverlayActive()
-            || _inGameMenuOpen
-            || _optionsMenuOpen
-            || _pluginOptionsMenuOpen
-            || _controlsMenuOpen;
+        var wantsMouseVisible = ShouldShowGameplayMouseCursor();
         IsMouseVisible = wantsMouseVisible && !ShouldUseSoftwareMenuCursor();
 
         var sourceTag = _world.Level.ImportedFromSource ? "src" : "fallback";

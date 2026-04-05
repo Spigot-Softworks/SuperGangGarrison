@@ -8,77 +8,52 @@ public partial class Game1
 {
     private bool TryUpdateOpenMenuOverlay(KeyboardState keyboard, MouseState mouse)
     {
-        if (_hostSetupOpen)
+        switch (GetActiveMainMenuOverlay())
         {
-            if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
-            {
-                if (!TryHandleServerLauncherBackAction())
+            case MainMenuOverlayKind.HostSetup:
+                if (keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape))
                 {
-                    _hostSetupOpen = false;
-                    _hostSetupEditField = HostSetupEditField.None;
+                    if (!TryHandleServerLauncherBackAction())
+                    {
+                        _hostSetupOpen = false;
+                        _hostSetupEditField = HostSetupEditField.None;
+                    }
+
+                    return true;
                 }
+
+                UpdateHostSetupMenu(mouse);
                 return true;
-            }
-
-            UpdateHostSetupMenu(mouse);
-            return true;
+            case MainMenuOverlayKind.ClientPowers:
+                UpdateClientPowersMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.PracticeSetup:
+                UpdatePracticeSetupMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.Credits:
+                UpdateCreditsMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.LobbyBrowser:
+                UpdateLobbyBrowserState(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.ManualConnect:
+                UpdateManualConnectMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.ControlsMenu:
+                UpdateControlsMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.LastToDieMenu:
+                UpdateLastToDieMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.PluginOptionsMenu:
+                UpdatePluginOptionsMenu(keyboard, mouse);
+                return true;
+            case MainMenuOverlayKind.OptionsMenu:
+                UpdateOptionsMenu(keyboard, mouse);
+                return true;
+            default:
+                return false;
         }
-
-        if (_clientPowersOpen)
-        {
-            UpdateClientPowersMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_practiceSetupOpen)
-        {
-            UpdatePracticeSetupMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_creditsOpen)
-        {
-            UpdateCreditsMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_lobbyBrowserOpen)
-        {
-            UpdateLobbyBrowserState(keyboard, mouse);
-            return true;
-        }
-
-        if (_manualConnectOpen)
-        {
-            UpdateManualConnectMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_controlsMenuOpen)
-        {
-            UpdateControlsMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_lastToDieMenuOpen)
-        {
-            UpdateLastToDieMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_pluginOptionsMenuOpen)
-        {
-            UpdatePluginOptionsMenu(keyboard, mouse);
-            return true;
-        }
-
-        if (_optionsMenuOpen)
-        {
-            UpdateOptionsMenu(keyboard, mouse);
-            return true;
-        }
-
-        return false;
     }
 
     private void UpdateMenuState(KeyboardState keyboard, MouseState mouse)
