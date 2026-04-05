@@ -179,6 +179,10 @@ public partial class Game1
         _pendingHostedConnectTicks = -1;
         _pendingHostedConnectPort = 8190;
         _mainMenuOpen = true;
+        _mainMenuPage = MainMenuPage.Root;
+        _mainMenuHoverIndex = -1;
+        _mainMenuBottomBarHover = false;
+        _optionsPageIndex = 0;
         ResetSpectatorTracking(enableTracking: false);
         _optionsMenuOpen = false;
         _optionsMenuOpenedFromGameplay = false;

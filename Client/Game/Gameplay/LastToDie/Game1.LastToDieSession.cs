@@ -31,6 +31,12 @@ public partial class Game1
     private const int LastToDieFailureContinueDelayTicks = 18;
     private const float LastToDieStageIntroDurationSeconds = 2f;
 
+    private enum LastToDieSurvivorKind
+    {
+        Soldier,
+        Demoknight,
+    }
+
     private enum LastToDiePerkKind
     {
         SoldierShotgun,
@@ -44,6 +50,16 @@ public partial class Game1
         InvincibilityOnKill,
         ProjectileSpeedMultiplier,
         AirshotDamageMultiplier,
+        DemoknightMeleeRange,
+        DemoknightLifesteal,
+        DemoknightMoveSpeed,
+        DemoknightKillHeal,
+        DemoknightKillInvincibility,
+        DemoknightChargeRate,
+        DemoknightChargeResistance,
+        DemoknightDamageMultiplier,
+        DemoknightFullHealOnKill,
+        DemoknightAttackSpeed,
     }
 
     private readonly record struct LastToDiePerkDefinition(
@@ -51,7 +67,12 @@ public partial class Game1
         string Label,
         string Description);
 
-    private readonly record struct LastToDiePerkMenuLayout(
+    private readonly record struct LastToDieSurvivorDefinition(
+        LastToDieSurvivorKind Kind,
+        string Label,
+        string Description);
+
+    private readonly record struct LastToDieChoiceMenuLayout(
         Rectangle Panel,
         Rectangle[] CardBounds);
 
@@ -76,6 +97,10 @@ public partial class Game1
 
         public bool AwaitingOpeningPerkSelection { get; set; }
 
+        public bool AwaitingOpeningSurvivorSelection { get; set; }
+
+        public LastToDieSurvivorKind SurvivorKind { get; set; } = LastToDieSurvivorKind.Soldier;
+
         public HashSet<LastToDiePerkKind> ChosenPerks { get; } = [];
 
         public LastToDiePerkDefinition[] PendingPerkChoices { get; set; } = [];
@@ -89,7 +114,19 @@ public partial class Game1
         public int ObservedStageKills { get; set; }
     }
 
-    private static readonly LastToDiePerkDefinition[] LastToDiePerkCatalog =
+    private static readonly LastToDieSurvivorDefinition[] LastToDieSurvivorCatalog =
+    [
+        new(
+            LastToDieSurvivorKind.Soldier,
+            "Soldier",
+            string.Empty),
+        new(
+            LastToDieSurvivorKind.Demoknight,
+            "Demoknight",
+            string.Empty),
+    ];
+
+    private static readonly LastToDiePerkDefinition[] LastToDieSoldierPerkCatalog =
     [
         new(LastToDiePerkKind.SoldierShotgun, "Soldier shotgun", "Press Space to fire secondary shotgun."),
         new(LastToDiePerkKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
@@ -104,7 +141,23 @@ public partial class Game1
         new(LastToDiePerkKind.AirshotDamageMultiplier, "Airshot damage +25%", "Direct projectile airshots deal bonus damage."),
     ];
 
+    private static readonly LastToDiePerkDefinition[] LastToDieDemoknightPerkCatalog =
+    [
+        new(LastToDiePerkKind.DemoknightMeleeRange, "+50% Melee range", "Increase Eyelander range by 50%."),
+        new(LastToDiePerkKind.DemoknightLifesteal, "+60% Lifesteal", "Restore 60% of dealt sword damage."),
+        new(LastToDiePerkKind.DemoknightMoveSpeed, "+30% movespeed", "Gain 30% passive movement speed."),
+        new(LastToDiePerkKind.DemoknightKillHeal, "+75hp on kill", "Restore 75 health on kill."),
+        new(LastToDiePerkKind.DemoknightKillInvincibility, "Invincibility (2s) on kill", "Gain 2 seconds of invulnerability after kills."),
+        new(LastToDiePerkKind.DemoknightChargeRate, "+80% rage charge rate", "Recharge the Demoknight charge meter 80% faster."),
+        new(LastToDiePerkKind.DemoknightChargeResistance, "+80% damage resistance during charge", "Take 80% less damage while charging."),
+        new(LastToDiePerkKind.DemoknightDamageMultiplier, "+40% damage", "Increase Eyelander damage by 40%."),
+        new(LastToDiePerkKind.DemoknightFullHealOnKill, "Full heal on kill", "Restore to full health on kill."),
+        new(LastToDiePerkKind.DemoknightAttackSpeed, "+50% attack speed", "Swing the Eyelander 50% faster."),
+    ];
+
     private LastToDieRunState? _lastToDieRun;
+    private bool _lastToDieSurvivorMenuOpen;
+    private int _lastToDieSurvivorHoverIndex = -1;
     private bool _lastToDiePerkMenuOpen;
     private int _lastToDiePerkHoverIndex = -1;
     private bool _lastToDieStageClearOverlayOpen;
@@ -131,7 +184,7 @@ public partial class Game1
     private bool ShouldSuspendOfflineGameplaySimulation()
     {
         return IsLastToDieSessionActive
-            && (_lastToDiePerkMenuOpen || IsLastToDieStageClearOverlayActive() || IsLastToDieFailurePresentationActive());
+            && (_lastToDieSurvivorMenuOpen || _lastToDiePerkMenuOpen || IsLastToDieStageClearOverlayActive() || IsLastToDieFailurePresentationActive());
     }
 
     private bool IsLastToDieStageClearOverlayActive()
@@ -153,6 +206,8 @@ public partial class Game1
     {
         StopLastToDieGameOverSound();
         _lastToDieRun = null;
+        _lastToDieSurvivorMenuOpen = false;
+        _lastToDieSurvivorHoverIndex = -1;
         _lastToDiePerkMenuOpen = false;
         _lastToDiePerkHoverIndex = -1;
         _lastToDieStageClearOverlayOpen = false;
@@ -177,6 +232,7 @@ public partial class Game1
         ResetLastToDieState();
         _lastToDieRun = new LastToDieRunState(initialMap.LevelName)
         {
+            AwaitingOpeningSurvivorSelection = true,
             AwaitingOpeningPerkSelection = true,
         };
         if (!BeginLastToDieStage(initialMap.LevelName))
@@ -185,7 +241,7 @@ public partial class Game1
             return;
         }
 
-        OpenLastToDiePerkMenu();
+        OpenLastToDieSurvivorMenu();
     }
 
     private bool BeginLastToDieStage(string levelName)
@@ -220,11 +276,8 @@ public partial class Game1
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
 
-        _world.PrepareLocalPlayerJoin();
-        _world.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        _world.TryMoveLocalPlayerToControlPointSpawn();
         _lastToDieRun.CurrentLevelName = levelName;
+        ApplySelectedLastToDieSurvivorToCurrentStage();
         SyncPracticeBotRoster(PlayerTeam.Red);
         _world.DespawnEnemyDummy();
         _world.DespawnFriendlyDummy();
@@ -236,8 +289,31 @@ public partial class Game1
         _lastToDieRun.StageIntroTicksRemaining = GetLastToDieStageIntroDurationTicks();
 
         AddConsoleLine(
-            $"last to die stage={_lastToDieRun.StageNumber} map={levelName} enemies={_lastToDieRun.EnemyBotCount} minutes={_lastToDieRun.StageDurationMinutes}");
+            $"last to die stage={_lastToDieRun.StageNumber} map={levelName} survivor={_lastToDieRun.SurvivorKind} enemies={_lastToDieRun.EnemyBotCount} minutes={_lastToDieRun.StageDurationMinutes}");
         return true;
+    }
+
+    private static PlayerClass GetLastToDieSurvivorPlayerClass(LastToDieSurvivorKind survivorKind)
+    {
+        return survivorKind switch
+        {
+            LastToDieSurvivorKind.Demoknight => PlayerClass.Demoman,
+            _ => PlayerClass.Soldier,
+        };
+    }
+
+    private void ApplySelectedLastToDieSurvivorToCurrentStage()
+    {
+        if (_lastToDieRun is null || _lastToDieRun.AwaitingOpeningSurvivorSelection)
+        {
+            return;
+        }
+
+        var playerClass = GetLastToDieSurvivorPlayerClass(_lastToDieRun.SurvivorKind);
+        _world.PrepareLocalPlayerJoin();
+        _world.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.CompleteLocalPlayerJoin(playerClass);
+        _world.TryMoveLocalPlayerToControlPointSpawn();
     }
 
     private bool TryBeginOfflineBotSession(
@@ -352,6 +428,7 @@ public partial class Game1
     {
         if (!IsLastToDieSessionActive
             || _lastToDieRun is null
+            || _lastToDieSurvivorMenuOpen
             || _lastToDiePerkMenuOpen
             || IsLastToDieStageClearOverlayActive()
             || IsLastToDieFailurePresentationActive())
@@ -377,6 +454,7 @@ public partial class Game1
 
         if (!IsLastToDieSessionActive
             || _lastToDieRun is null
+            || _lastToDieSurvivorMenuOpen
             || _lastToDiePerkMenuOpen
             || IsLastToDieStageClearOverlayActive()
             || IsLastToDieFailurePresentationActive())
@@ -414,6 +492,7 @@ public partial class Game1
     private void HandleLastToDieStageClear()
     {
         if (_lastToDieRun is null
+            || _lastToDieSurvivorMenuOpen
             || _lastToDiePerkMenuOpen
             || IsLastToDieStageClearOverlayActive()
             || IsLastToDieFailurePresentationActive())
@@ -455,6 +534,11 @@ public partial class Game1
             return true;
         }
 
+        if (_lastToDieSurvivorMenuOpen)
+        {
+            return true;
+        }
+
         HandleLastToDieStageClear();
         if (IsLastToDieStageClearOverlayActive())
         {
@@ -492,6 +576,19 @@ public partial class Game1
             && run.StageDurationMinutes >= LastToDieFinalStageMinutes;
     }
 
+    private void OpenLastToDieSurvivorMenu()
+    {
+        if (_lastToDieRun is null)
+        {
+            return;
+        }
+
+        StopIngameMusic();
+        StopLastToDieIngameMusic();
+        _lastToDieSurvivorMenuOpen = true;
+        _lastToDieSurvivorHoverIndex = -1;
+    }
+
     private void OpenLastToDiePerkMenu()
     {
         if (_lastToDieRun is null)
@@ -522,13 +619,22 @@ public partial class Game1
 
     private static LastToDiePerkDefinition[] BuildLastToDiePerkChoices(LastToDieRunState run)
     {
-        var available = LastToDiePerkCatalog
+        var available = GetLastToDiePerkCatalog(run.SurvivorKind)
             .Where(definition => !run.ChosenPerks.Contains(definition.Kind))
             .ToList();
         ShuffleLastToDiePerks(available);
         return available
             .Take(Math.Min(LastToDiePerkChoiceCount, available.Count))
             .ToArray();
+    }
+
+    private static LastToDiePerkDefinition[] GetLastToDiePerkCatalog(LastToDieSurvivorKind survivorKind)
+    {
+        return survivorKind switch
+        {
+            LastToDieSurvivorKind.Demoknight => LastToDieDemoknightPerkCatalog,
+            _ => LastToDieSoldierPerkCatalog,
+        };
     }
 
     private void AdvanceLastToDieStage()
@@ -613,6 +719,11 @@ public partial class Game1
     private static ExperimentalGameplaySettings BuildLastToDieExperimentalGameplaySettings(LastToDieRunState run)
     {
         var settings = new ExperimentalGameplaySettings(
+            EnableSoldierFastCapture: run.SurvivorKind == LastToDieSurvivorKind.Soldier,
+            EnableDemoknightFastCapture: run.SurvivorKind == LastToDieSurvivorKind.Demoknight,
+            EnableDemoknightKit: run.SurvivorKind == LastToDieSurvivorKind.Demoknight,
+            EnableCapturedPointHealingAura: true,
+            DemoknightSwordBaseDamage: run.SurvivorKind == LastToDieSurvivorKind.Demoknight ? 100 : ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage,
             EnableComboTracking: true,
             EnableKillStreakTracking: true,
             EnableRage: true,
@@ -635,11 +746,46 @@ public partial class Game1
                 LastToDiePerkKind.InvincibilityOnKill => settings with { EnableInvincibilityOnKill = true },
                 LastToDiePerkKind.ProjectileSpeedMultiplier => settings with { EnableProjectileSpeedMultiplier = true },
                 LastToDiePerkKind.AirshotDamageMultiplier => settings with { EnableAirshotDamageMultiplier = true },
+                LastToDiePerkKind.DemoknightMeleeRange => settings with { DemoknightSwordRangeMultiplier = 1.5f },
+                LastToDiePerkKind.DemoknightLifesteal => settings with { EnableHealOnDamage = true, HealOnDamageFraction = 0.6f },
+                LastToDiePerkKind.DemoknightMoveSpeed => settings with { PassiveMovementSpeedMultiplier = 1.3f },
+                LastToDiePerkKind.DemoknightKillHeal => settings with { EnableHealOnKill = true, HealOnKillAmount = 75 },
+                LastToDiePerkKind.DemoknightKillInvincibility => settings with { EnableInvincibilityOnKill = true, KillInvincibilityDurationSeconds = 2f },
+                LastToDiePerkKind.DemoknightChargeRate => settings with { DemoknightChargeRechargeMultiplier = 1.8f },
+                LastToDiePerkKind.DemoknightChargeResistance => settings with { DemoknightChargeDamageTakenMultiplier = 0.2f },
+                LastToDiePerkKind.DemoknightDamageMultiplier => settings with { DemoknightSwordDamageMultiplier = 1.4f },
+                LastToDiePerkKind.DemoknightFullHealOnKill => settings with { EnableFullHealOnKill = true },
+                LastToDiePerkKind.DemoknightAttackSpeed => settings with { DemoknightSwordCooldownMultiplier = 1f / 1.5f },
                 _ => settings,
             };
         }
 
         return settings;
+    }
+
+    private void UpdateLastToDieSurvivorMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        if (!_lastToDieSurvivorMenuOpen || _lastToDieRun is null)
+        {
+            return;
+        }
+
+        var layout = GetLastToDieChoiceMenuLayout(LastToDieSurvivorCatalog.Length);
+        _lastToDieSurvivorHoverIndex = GetLastToDieChoiceHoverIndex(mouse.Position, layout);
+
+        if (TryGetLastToDieChoiceHotkeySelection(keyboard, LastToDieSurvivorCatalog.Length, out var selectedIndex))
+        {
+            ChooseLastToDieSurvivor(selectedIndex);
+            return;
+        }
+
+        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        if (!clickPressed || _lastToDieSurvivorHoverIndex < 0)
+        {
+            return;
+        }
+
+        ChooseLastToDieSurvivor(_lastToDieSurvivorHoverIndex);
     }
 
     private void UpdateLastToDiePerkMenu(KeyboardState keyboard, MouseState mouse)
@@ -649,10 +795,10 @@ public partial class Game1
             return;
         }
 
-        var layout = GetLastToDiePerkMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
-        _lastToDiePerkHoverIndex = GetLastToDiePerkHoverIndex(mouse.Position, layout);
+        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
+        _lastToDiePerkHoverIndex = GetLastToDieChoiceHoverIndex(mouse.Position, layout);
 
-        if (TryGetLastToDiePerkHotkeySelection(keyboard, _lastToDieRun.PendingPerkChoices.Length, out var selectedIndex))
+        if (TryGetLastToDieChoiceHotkeySelection(keyboard, _lastToDieRun.PendingPerkChoices.Length, out var selectedIndex))
         {
             ChooseLastToDiePerk(selectedIndex);
             return;
@@ -688,7 +834,7 @@ public partial class Game1
         }
     }
 
-    private bool TryGetLastToDiePerkHotkeySelection(KeyboardState keyboard, int choiceCount, out int selectedIndex)
+    private bool TryGetLastToDieChoiceHotkeySelection(KeyboardState keyboard, int choiceCount, out int selectedIndex)
     {
         selectedIndex = -1;
         Keys[] digitKeys = [Keys.D1, Keys.D2, Keys.D3];
@@ -703,6 +849,25 @@ public partial class Game1
         }
 
         return false;
+    }
+
+    private void ChooseLastToDieSurvivor(int selectedIndex)
+    {
+        if (_lastToDieRun is null
+            || selectedIndex < 0
+            || selectedIndex >= LastToDieSurvivorCatalog.Length)
+        {
+            return;
+        }
+
+        var selected = LastToDieSurvivorCatalog[selectedIndex];
+        _lastToDieRun.SurvivorKind = selected.Kind;
+        _lastToDieRun.AwaitingOpeningSurvivorSelection = false;
+        _lastToDieSurvivorMenuOpen = false;
+        _lastToDieSurvivorHoverIndex = -1;
+        SuppressPrimaryFireUntilMouseRelease();
+        ApplySelectedLastToDieSurvivorToCurrentStage();
+        OpenLastToDiePerkMenu();
     }
 
     private void ChooseLastToDiePerk(int selectedIndex)
@@ -734,7 +899,7 @@ public partial class Game1
         AdvanceLastToDieStage();
     }
 
-    private LastToDiePerkMenuLayout GetLastToDiePerkMenuLayout(int choiceCount)
+    private LastToDieChoiceMenuLayout GetLastToDieChoiceMenuLayout(int choiceCount)
     {
         var panelWidth = Math.Min(ViewportWidth - 48, 980);
         var panelHeight = Math.Min(ViewportHeight - 40, 440);
@@ -756,10 +921,10 @@ public partial class Game1
             left += cardWidth + gap;
         }
 
-        return new LastToDiePerkMenuLayout(panel, cards);
+        return new LastToDieChoiceMenuLayout(panel, cards);
     }
 
-    private static int GetLastToDiePerkHoverIndex(Point mousePosition, LastToDiePerkMenuLayout layout)
+    private static int GetLastToDieChoiceHoverIndex(Point mousePosition, LastToDieChoiceMenuLayout layout)
     {
         for (var index = 0; index < layout.CardBounds.Length; index += 1)
         {
@@ -770,6 +935,41 @@ public partial class Game1
         }
 
         return -1;
+    }
+
+    private void DrawLastToDieSurvivorMenu()
+    {
+        if (!_lastToDieSurvivorMenuOpen || _lastToDieRun is null)
+        {
+            return;
+        }
+
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
+
+        var layout = GetLastToDieChoiceMenuLayout(LastToDieSurvivorCatalog.Length);
+        _spriteBatch.Draw(_pixel, layout.Panel, new Color(22, 24, 29, 242));
+        _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Y, layout.Panel.Width, 3), new Color(210, 210, 210));
+        _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
+
+        DrawBitmapFontText("Choose Survivor", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 24f), Color.White, 1.22f);
+        DrawBitmapFontText("Pick the survivor for this run.", new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
+
+        for (var index = 0; index < LastToDieSurvivorCatalog.Length; index += 1)
+        {
+            var choice = LastToDieSurvivorCatalog[index];
+            var bounds = layout.CardBounds[index];
+            var isHovered = index == _lastToDieSurvivorHoverIndex;
+            var backColor = isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232);
+            var accentColor = isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140);
+            _spriteBatch.Draw(_pixel, bounds, backColor);
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 3), accentColor);
+            _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
+
+            DrawBitmapFontText($"{index + 1}", new Vector2(bounds.X + 14f, bounds.Y + 12f), new Color(236, 224, 198), 1f);
+            DrawBitmapFontText(choice.Label, new Vector2(bounds.X + 14f, bounds.Y + 58f), Color.White, 1.3f);
+        }
     }
 
     private void DrawLastToDiePerkMenu()
@@ -783,7 +983,7 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
-        var layout = GetLastToDiePerkMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
+        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
         _spriteBatch.Draw(_pixel, layout.Panel, new Color(22, 24, 29, 242));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Y, layout.Panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));

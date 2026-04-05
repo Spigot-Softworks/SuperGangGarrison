@@ -76,7 +76,7 @@ public partial class Game1
         }
         else
         {
-            UpdateMainMenu(mouse);
+            UpdateMainMenu(keyboard, mouse);
         }
     }
 }

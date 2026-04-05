@@ -14,6 +14,15 @@ public partial class Game1
         DrawBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y), color, scale);
     }
 
+    private void DrawBitmapFontTextCentered(string text, Vector2 position, Color color, float scale, float rotation)
+    {
+        var width = MeasureBitmapFontWidth(text, scale);
+        var height = MeasureBitmapFontHeight(scale);
+        var topLeft = new Vector2(position.X - (width / 2f), position.Y);
+        var rotationCenter = new Vector2(position.X, position.Y + (height / 2f));
+        DrawSpriteFontText(BitmapFontDefinition, text, topLeft, color, scale, rotation, rotationCenter);
+    }
+
     private void DrawBitmapFontTextRightAligned(string text, Vector2 position, Color color, float scale)
     {
         var width = MeasureBitmapFontWidth(text, scale);

@@ -1,12 +1,30 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resources>
-  <resource name="AccesoryS" type="RESOURCE"/>
-  <resource name="RedClumpS" type="RESOURCE"/>
-  <resource name="BlueClumpS" type="RESOURCE"/>
-  <resource name="HandS" type="RESOURCE"/>
-  <resource name="HeadS" type="RESOURCE"/>
-  <resource name="GibS" type="RESOURCE"/>
-  <resource name="FeetS" type="RESOURCE"/>
-  <resource name="BloodS" type="RESOURCE"/>
-  <resource name="BloodDropS" type="RESOURCE"/>
+  <resource name="AccesoryS" type="RESOURCE" />
+  <resource name="RedClumpS" type="RESOURCE" />
+  <resource name="BlueClumpS" type="RESOURCE" />
+  <resource name="HandS" type="RESOURCE" />
+  <resource name="HeadS" type="RESOURCE" />
+  <resource name="GibS" type="RESOURCE" />
+  <resource name="FeetS" type="RESOURCE" />
+  <resource name="BloodS" type="RESOURCE" />
+  <resource name="BloodDropS" type="RESOURCE" />
+  <resource name="DemomanBlueHeadS" type="RESOURCE" />
+  <resource name="DemomanRedHeadS" type="RESOURCE" />
+  <resource name="EngineerBlueHeadS" type="RESOURCE" />
+  <resource name="EngineerRedHeadS" type="RESOURCE" />
+  <resource name="HeavyBlueHeadS" type="RESOURCE" />
+  <resource name="HeavyRedHeadS" type="RESOURCE" />
+  <resource name="MedicBlueHeadS" type="RESOURCE" />
+  <resource name="MedicRedHeadS" type="RESOURCE" />
+  <resource name="PyroBlueHeadS" type="RESOURCE" />
+  <resource name="PyroRedHeadS" type="RESOURCE" />
+  <resource name="ScoutBlueHeadS" type="RESOURCE" />
+  <resource name="ScoutRedHeadS" type="RESOURCE" />
+  <resource name="SniperBlueHeadS" type="RESOURCE" />
+  <resource name="SniperRedHeadS" type="RESOURCE" />
+  <resource name="SoldierBlueHeadS" type="RESOURCE" />
+  <resource name="SoldierRedHeadS" type="RESOURCE" />
+  <resource name="SpyBlueHeadS" type="RESOURCE" />
+  <resource name="SpyRedHeadS" type="RESOURCE" />
 </resources>

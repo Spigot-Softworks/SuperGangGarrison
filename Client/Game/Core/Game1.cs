@@ -69,6 +69,15 @@ public partial class Game1 : Game
         LastToDie,
     }
 
+    private enum MainMenuPage
+    {
+        Root,
+        PlayOnline,
+        PlayOffline,
+        Minigames,
+        Credits,
+    }
+
     private enum ControlsMenuBinding
     {
         MoveUp,
@@ -103,6 +112,17 @@ public partial class Game1 : Game
     private string? _menuBackgroundTexturePath;
     private string _menuBackgroundAttributionText = string.Empty;
     private SpriteFont _consoleFont = null!;
+    private SpriteFont _menuFont = null!;
+    private Texture2D? _menuBitmapFontTexture;
+    private readonly Dictionary<char, MenuBitmapGlyph> _menuBitmapFontGlyphs = new();
+    private int _menuBitmapFontLineHeight;
+    private int _menuBitmapFontSpacing = 1;
+    private Texture2D? _menuPlaqueTexture;
+    private Texture2D? _menuPlaqueTallTexture;
+    private Texture2D? _menuTextBoxTopTexture;
+    private Texture2D? _menuTextBoxMiddleTexture;
+    private Texture2D? _menuTextBoxBottomTexture;
+    private Texture2D? _menuTextBoxSoloTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
@@ -118,6 +138,7 @@ public partial class Game1 : Game
     private bool _wasLocalPlayerAlive = true;
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
+    private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
     private string _observedGameplayLevelName = string.Empty;
     private int _observedGameplayMapAreaIndex = -1;
     private MouseState _previousMouse;
@@ -189,8 +210,11 @@ public partial class Game1 : Game
     private bool _passwordPromptOpen;
     private string _passwordEditBuffer = string.Empty;
     private string _passwordPromptMessage = string.Empty;
+    private MainMenuPage _mainMenuPage = MainMenuPage.Root;
     private int _mainMenuHoverIndex = -1;
+    private bool _mainMenuBottomBarHover;
     private int _optionsHoverIndex = -1;
+    private int _optionsPageIndex;
     private int _pluginOptionsHoverIndex = -1;
     private int _pluginOptionsScrollOffset;
     private ClientPluginKeyOptionItem? _pendingPluginOptionsKeyItem;
@@ -285,8 +309,11 @@ public partial class Game1 : Game
         _pixel = new Texture2D(GraphicsDevice, 1, 1);
         _pixel.SetData(new[] { Color.White });
         _consoleFont = Content.Load<SpriteFont>("ConsoleFont");
+        _menuFont = Content.Load<SpriteFont>("MenuFont");
         _runtimeAssets = new GameMakerRuntimeAssetCache(GraphicsDevice, _assetManifest);
         _spriteFontOpaqueBoundsCache.Clear();
+        LoadMenuPlaqueTextures();
+        LoadMenuBitmapFont();
         LoadMenuMusic();
         LoadLastToDieMenuMusic();
         LoadFaucetMusic();
@@ -315,6 +342,13 @@ public partial class Game1 : Game
         _runtimeAssets?.Dispose();
         _spriteFontOpaqueBoundsCache.Clear();
         _menuBackgroundTexture?.Dispose();
+        _menuBitmapFontTexture?.Dispose();
+        _menuPlaqueTexture?.Dispose();
+        _menuPlaqueTallTexture?.Dispose();
+        _menuTextBoxTopTexture?.Dispose();
+        _menuTextBoxMiddleTexture?.Dispose();
+        _menuTextBoxBottomTexture?.Dispose();
+        _menuTextBoxSoloTexture?.Dispose();
         _lastToDieLogoTexture?.Dispose();
         _gameRenderTarget?.Dispose();
         _gameRenderTarget = null;
@@ -322,6 +356,15 @@ public partial class Game1 : Game
         _deathCamCaptureTarget = null;
         _menuBackgroundTexture = null;
         _menuBackgroundTexturePath = null;
+        _menuBitmapFontTexture = null;
+        _menuBitmapFontGlyphs.Clear();
+        _menuBitmapFontLineHeight = 0;
+        _menuPlaqueTexture = null;
+        _menuPlaqueTallTexture = null;
+        _menuTextBoxTopTexture = null;
+        _menuTextBoxMiddleTexture = null;
+        _menuTextBoxBottomTexture = null;
+        _menuTextBoxSoloTexture = null;
         PersistClientSettings();
         PersistInputBindings();
         base.UnloadContent();

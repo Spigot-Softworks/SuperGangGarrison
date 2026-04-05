@@ -10,4 +10,6 @@
   <resource name="ScattergunFS" type="RESOURCE"/>
   <resource name="FlamethrowerFS" type="RESOURCE"/>
   <resource name="BladeFS" type="RESOURCE"/>
+  <resource name="EyeLanderFS" type="RESOURCE"/>
+  <resource name="PaintrainFS" type="RESOURCE"/>
 </resources>

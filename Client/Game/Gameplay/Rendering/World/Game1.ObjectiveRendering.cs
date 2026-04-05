@@ -99,6 +99,7 @@ public partial class Game1
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
             var point = _world.ControlPoints[index];
+            DrawControlPointHealingAura(point, cameraPosition);
             var spriteName = point.Team switch
             {
                 PlayerTeam.Red => "ControlPointRedS",
@@ -112,6 +113,60 @@ public partial class Game1
                 TryDrawSprite(spriteName, 1, point.Marker.X, point.Marker.Y, cameraPosition, Color.White * pulseAlpha);
             }
         }
+    }
+
+    private void DrawControlPointHealingAura(ControlPointState point, Vector2 cameraPosition)
+    {
+        if (!point.HasHealingAura)
+        {
+            return;
+        }
+
+        var animationFrame = (int)((_world.Frame / 9) % 4);
+        var pulseAlpha = 0.12f + (animationFrame * 0.03f);
+        var outlineColor = new Color(72, 184, 96);
+        var highlightColor = new Color(156, 248, 180);
+        var accentColor = new Color(224, 255, 224);
+        var center = new Vector2(point.HealingAuraCenterX, point.HealingAuraCenterY);
+        var baseWidth = MathF.Max(36f, point.HealingAuraWidth * 0.82f);
+        var baseHeight = MathF.Max(24f, point.HealingAuraHeight * 0.72f);
+
+        for (var ringIndex = 0; ringIndex < 2; ringIndex += 1)
+        {
+            var step = (animationFrame + (ringIndex * 2)) % 4;
+            var ringWidth = baseWidth + (step * 12f);
+            var ringHeight = baseHeight + (step * 8f);
+            var ringAlpha = ringIndex == 0
+                ? 0.24f + (pulseAlpha * 0.35f)
+                : 0.12f + (pulseAlpha * 0.2f);
+            DrawWorldRectOutline(center, ringWidth, ringHeight, cameraPosition, outlineColor * ringAlpha, thickness: 2);
+        }
+
+        DrawWorldRectOutline(center, baseWidth - 10f, baseHeight - 8f, cameraPosition, highlightColor * 0.22f, thickness: 2);
+        DrawWorldLine(center.X - 5f, center.Y, center.X + 5f, center.Y, cameraPosition, accentColor * 0.2f, 2f);
+        DrawWorldLine(center.X, center.Y - 5f, center.X, center.Y + 5f, cameraPosition, accentColor * 0.2f, 2f);
+        TryDrawSprite("ControlPointNeutralS", 1, point.Marker.X, point.Marker.Y, cameraPosition, accentColor * (0.24f + pulseAlpha));
+    }
+
+    private void DrawWorldRectOutline(Vector2 center, float width, float height, Vector2 cameraPosition, Color color, int thickness)
+    {
+        if (width <= 1f || height <= 1f || thickness <= 0)
+        {
+            return;
+        }
+
+        var roundedWidth = Math.Max(2, (int)MathF.Round(width));
+        var roundedHeight = Math.Max(2, (int)MathF.Round(height));
+        var screenX = (int)MathF.Round(center.X - (roundedWidth / 2f) - cameraPosition.X);
+        var screenY = (int)MathF.Round(center.Y - (roundedHeight / 2f) - cameraPosition.Y);
+        var top = new Rectangle(screenX, screenY, roundedWidth, thickness);
+        var bottom = new Rectangle(screenX, screenY + roundedHeight - thickness, roundedWidth, thickness);
+        var left = new Rectangle(screenX, screenY, thickness, roundedHeight);
+        var right = new Rectangle(screenX + roundedWidth - thickness, screenY, thickness, roundedHeight);
+        _spriteBatch.Draw(_pixel, top, color);
+        _spriteBatch.Draw(_pixel, bottom, color);
+        _spriteBatch.Draw(_pixel, left, color);
+        _spriteBatch.Draw(_pixel, right, color);
     }
 
     private void DrawGenerators(Vector2 cameraPosition)

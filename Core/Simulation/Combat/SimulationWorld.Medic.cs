@@ -4,6 +4,11 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private const float AcquiredMedigunHealsplosionRadius = 155f;
+    private const float AcquiredMedigunHealsplosionMaxDamage = 110f;
+    private const float AcquiredMedigunHealsplosionSelfHealing = 120f;
+    private const float AcquiredMedigunHealsplosionMinimumDamageFactor = 0.12f;
+
     public string GetMedicSummary()
     {
         var healTarget = LocalPlayer.MedicHealTargetId.HasValue ? LocalPlayer.MedicHealTargetId.Value.ToString(CultureInfo.InvariantCulture) : "none";
@@ -221,5 +226,46 @@ public sealed partial class SimulationWorld
             || HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, targetFocusY)
             || HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, target.Y)
             || HasObstacleLineOfSight(medic.X, medic.Y, target.X, targetFocusY);
+    }
+
+    private bool TryTriggerAcquiredMedigunHealsplosion(PlayerEntity player)
+    {
+        if (!player.CanTriggerAcquiredMedigunHealsplosion())
+        {
+            return false;
+        }
+
+        RegisterWorldSoundEvent("HealExplosionSnd", player.X, player.Y);
+        RegisterVisualEffect("HealExplosion", player.X, player.Y);
+        ApplyHealingWithFeedback(player, AcquiredMedigunHealsplosionSelfHealing);
+
+        foreach (var candidate in EnumerateSimulatedPlayers())
+        {
+            if (!candidate.IsAlive || candidate.Team == player.Team || candidate.Id == player.Id)
+            {
+                continue;
+            }
+
+            var distance = GetExplosionDistanceToPlayer(candidate, player.X, player.Y);
+            if (distance >= AcquiredMedigunHealsplosionRadius)
+            {
+                continue;
+            }
+
+            var distanceFactor = 1f - (distance / AcquiredMedigunHealsplosionRadius);
+            if (distanceFactor <= AcquiredMedigunHealsplosionMinimumDamageFactor)
+            {
+                continue;
+            }
+
+            RegisterBloodEffect(candidate.X, candidate.Y, PointDirectionDegrees(player.X, player.Y, candidate.X, candidate.Y) - 180f, 3);
+            if (ApplyPlayerContinuousDamage(candidate, AcquiredMedigunHealsplosionMaxDamage * distanceFactor, player, PlayerEntity.SpyDamageRevealAlpha))
+            {
+                KillPlayer(candidate, killer: player, weaponSpriteName: "NeedleKL");
+            }
+        }
+
+        player.SetAcquiredWeapon(null);
+        return true;
     }
 }

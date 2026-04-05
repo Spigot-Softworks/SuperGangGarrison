@@ -10,22 +10,55 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private const int LastToDieComboBounceTicks = 16;
+    private const int LastToDieComboMilestonePopupTicks = 120;
     private const int LastToDieRageAnnouncementTicks = 28;
     private const int LastToDieRageShakeTicks = 18;
     private const float LastToDieComboScaleBonusDecayPerTick = 0.035f;
+    private const float LastToDieComboMilestoneScaleBonusDecayPerTick = 0.05f;
     private const float LastToDieComboBaseScale = 4.4f;
     private const float LastToDieComboScaleStepPerHit = 0.08f;
     private const float LastToDieComboMaxScaleGrowth = 1.15f;
     private const float LastToDieComboMaxScaleBonus = 0.8f;
+    private const float LastToDieComboMilestoneBaseScale = 1.9f;
+    private const float LastToDieComboMilestoneMaxScaleBonus = 0.65f;
     private const float LastToDieRagePopupBaseScale = 5.2f;
     private const float LastToDieRageShakeMagnitude = 10f;
     private const int LastToDieRageBarWidth = 170;
     private const int LastToDieRageBarHeight = 18;
 
+    private readonly record struct LastToDieComboMilestoneDefinition(int Threshold, string Text);
+
+    private static readonly LastToDieComboMilestoneDefinition[] LastToDieComboMilestones =
+    [
+        new(5, "Ok!"),
+        new(10, "Bussin'!"),
+        new(25, "Good!"),
+        new(35, "Neat!"),
+        new(45, "Not Bad!"),
+        new(55, "Solid!"),
+        new(65, "Smooth!"),
+        new(80, "Great!"),
+        new(95, "Tasty!"),
+        new(105, "Sweet!"),
+        new(115, "Tubular!"),
+        new(125, "Far out!"),
+        new(150, "Wicked!"),
+        new(175, "Fantastic!"),
+        new(185, "Bombastic!"),
+        new(200, "Sicknasty!"),
+        new(225, "Epic!"),
+        new(250, "Unbelievable!"),
+        new(275, "Finger Lickin'!"),
+    ];
+
     private int _lastToDieObservedCombo;
     private bool _lastToDieObservedRageActive;
+    private ulong _lastToDieObservedCombatAnnouncementEventId;
     private int _lastToDieComboBounceTicksRemaining;
     private float _lastToDieComboScaleBonus;
+    private string? _lastToDieComboMilestoneText;
+    private int _lastToDieComboMilestoneTicksRemaining;
+    private float _lastToDieComboMilestoneScaleBonus;
     private int _lastToDieRageAnnouncementTicksRemaining;
     private int _lastToDieRageShakeTicksRemaining;
     private Vector2 _lastToDieRageCurrentShakeOffset;
@@ -34,8 +67,12 @@ public partial class Game1
     {
         _lastToDieObservedCombo = 0;
         _lastToDieObservedRageActive = false;
+        _lastToDieObservedCombatAnnouncementEventId = 0;
         _lastToDieComboBounceTicksRemaining = 0;
         _lastToDieComboScaleBonus = 0f;
+        _lastToDieComboMilestoneText = null;
+        _lastToDieComboMilestoneTicksRemaining = 0;
+        _lastToDieComboMilestoneScaleBonus = 0f;
         _lastToDieRageAnnouncementTicksRemaining = 0;
         _lastToDieRageShakeTicksRemaining = 0;
         _lastToDieRageCurrentShakeOffset = Vector2.Zero;
@@ -47,11 +84,13 @@ public partial class Game1
         {
             _lastToDieObservedCombo = 0;
             _lastToDieObservedRageActive = false;
+            _lastToDieObservedCombatAnnouncementEventId = 0;
             return;
         }
 
         _lastToDieObservedCombo = _world.LocalPlayer.CurrentCombo;
         _lastToDieObservedRageActive = _world.LocalPlayer.IsRaging;
+        _lastToDieObservedCombatAnnouncementEventId = GetLatestObservedLastToDieCombatAnnouncementEventId();
     }
 
     private void UpdateLastToDieCombatFeedbackPresentation()
@@ -70,6 +109,23 @@ public partial class Game1
         if (_lastToDieComboScaleBonus > 0f)
         {
             _lastToDieComboScaleBonus = float.Max(0f, _lastToDieComboScaleBonus - LastToDieComboScaleBonusDecayPerTick);
+        }
+
+        if (_lastToDieComboMilestoneTicksRemaining > 0)
+        {
+            _lastToDieComboMilestoneTicksRemaining -= 1;
+            if (_lastToDieComboMilestoneTicksRemaining <= 0)
+            {
+                _lastToDieComboMilestoneText = null;
+                _lastToDieComboMilestoneTicksRemaining = 0;
+            }
+        }
+
+        if (_lastToDieComboMilestoneScaleBonus > 0f)
+        {
+            _lastToDieComboMilestoneScaleBonus = float.Max(
+                0f,
+                _lastToDieComboMilestoneScaleBonus - LastToDieComboMilestoneScaleBonusDecayPerTick);
         }
 
         if (_lastToDieRageAnnouncementTicksRemaining > 0)
@@ -97,6 +153,8 @@ public partial class Game1
             return;
         }
 
+        ObserveLastToDieCombatAnnouncementPopup();
+
         var currentCombo = _world.LocalPlayer.CurrentCombo;
         if (currentCombo > _lastToDieObservedCombo)
         {
@@ -104,6 +162,11 @@ public partial class Game1
             _lastToDieComboScaleBonus = float.Min(
                 LastToDieComboMaxScaleBonus,
                 _lastToDieComboScaleBonus + 0.12f);
+
+            if (TryGetLatestLastToDieComboMilestoneText(_lastToDieObservedCombo, currentCombo, out var milestoneText))
+            {
+                TriggerLastToDieCalloutPopup(milestoneText);
+            }
         }
         else if (currentCombo <= 0)
         {
@@ -164,6 +227,25 @@ public partial class Game1
 
         DrawBitmapFontTextCentered(comboText, drawPosition + shadowOffset, Color.White * alpha, scale);
         DrawBitmapFontTextCentered(comboText, drawPosition, new Color(214, 24, 24) * alpha, scale);
+
+        if (_lastToDieComboMilestoneTicksRemaining <= 0 || string.IsNullOrWhiteSpace(_lastToDieComboMilestoneText))
+        {
+            return;
+        }
+
+        var popupProgress = 1f - (_lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks);
+        var popupBounceScale = MathF.Sin(popupProgress * MathF.PI) * 0.28f;
+        var popupScale = LastToDieComboMilestoneBaseScale + _lastToDieComboMilestoneScaleBonus + popupBounceScale;
+        var popupAlpha = alpha * Math.Clamp(_lastToDieComboMilestoneTicksRemaining / (float)LastToDieComboMilestonePopupTicks, 0f, 1f);
+        var popupRiseOffset = (1f - popupProgress) * 16f;
+        var popupRotation = GetLastToDieComboMilestoneRotation(popupProgress);
+        var popupPosition = new Vector2(
+            drawPosition.X + (MeasureBitmapFontWidth(comboText, scale) * 0.58f) + 54f,
+            drawPosition.Y + 4f - popupRiseOffset);
+        var popupShadowOffset = new Vector2(4f, 4f);
+
+        DrawBitmapFontTextCentered(_lastToDieComboMilestoneText, popupPosition + popupShadowOffset, Color.White * popupAlpha, popupScale, popupRotation);
+        DrawBitmapFontTextCentered(_lastToDieComboMilestoneText, popupPosition, new Color(214, 24, 24) * popupAlpha, popupScale, popupRotation);
     }
 
     private void DrawLastToDieRageHud()
@@ -250,5 +332,136 @@ public partial class Game1
     private Vector2 GetLastToDieCameraShakeOffset()
     {
         return _lastToDieRageCurrentShakeOffset;
+    }
+
+    private static bool TryGetLatestLastToDieComboMilestoneText(int previousCombo, int currentCombo, out string text)
+    {
+        text = string.Empty;
+        if (currentCombo <= previousCombo)
+        {
+            return false;
+        }
+
+        var highestThreshold = -1;
+        for (var index = 0; index < LastToDieComboMilestones.Length; index += 1)
+        {
+            var milestone = LastToDieComboMilestones[index];
+            if (previousCombo >= milestone.Threshold || currentCombo < milestone.Threshold || milestone.Threshold <= highestThreshold)
+            {
+                continue;
+            }
+
+            highestThreshold = milestone.Threshold;
+            text = milestone.Text;
+        }
+
+        if (TryGetLatestLastToDieRecurringUnholyThreshold(previousCombo, currentCombo, out var unholyThreshold)
+            && unholyThreshold > highestThreshold)
+        {
+            text = "Unholy!";
+            return true;
+        }
+
+        return highestThreshold >= 0;
+    }
+
+    private static bool TryGetLatestLastToDieRecurringUnholyThreshold(int previousCombo, int currentCombo, out int threshold)
+    {
+        threshold = -1;
+        if (currentCombo < 300)
+        {
+            return false;
+        }
+
+        var currentStep = (currentCombo - 300) / 25;
+        threshold = 300 + (currentStep * 25);
+        return threshold > previousCombo;
+    }
+
+    private void ObserveLastToDieCombatAnnouncementPopup()
+    {
+        var localPlayerId = _world.LocalPlayer.Id;
+        var latestObservedEventId = _lastToDieObservedCombatAnnouncementEventId;
+        string? latestAnnouncementText = null;
+
+        foreach (var entry in _world.KillFeed)
+        {
+            if (entry.EventId <= _lastToDieObservedCombatAnnouncementEventId)
+            {
+                continue;
+            }
+
+            latestObservedEventId = Math.Max(latestObservedEventId, entry.EventId);
+            if (entry.KillerPlayerId != localPlayerId
+                || entry.VictimPlayerId >= 0
+                || entry.MessageHighlightLength <= 0
+                || string.IsNullOrWhiteSpace(entry.MessageText))
+            {
+                continue;
+            }
+
+            latestAnnouncementText = BuildLastToDieCombatAnnouncementPopupText(entry);
+        }
+
+        _lastToDieObservedCombatAnnouncementEventId = latestObservedEventId;
+        if (!string.IsNullOrWhiteSpace(latestAnnouncementText))
+        {
+            TriggerLastToDieCalloutPopup(latestAnnouncementText);
+        }
+    }
+
+    private static string BuildLastToDieCombatAnnouncementPopupText(KillFeedEntry entry)
+    {
+        var messageHighlight = entry.MessageText.Substring(entry.MessageHighlightStart, entry.MessageHighlightLength).Trim();
+        if (string.IsNullOrWhiteSpace(messageHighlight))
+        {
+            return string.Empty;
+        }
+
+        return messageHighlight.EndsWith('!') ? messageHighlight : messageHighlight + "!";
+    }
+
+    private ulong GetLatestObservedLastToDieCombatAnnouncementEventId()
+    {
+        ulong latestEventId = 0;
+        var localPlayerId = _world.LocalPlayer.Id;
+        foreach (var entry in _world.KillFeed)
+        {
+            if (entry.KillerPlayerId == localPlayerId
+                && entry.VictimPlayerId < 0
+                && entry.MessageHighlightLength > 0)
+            {
+                latestEventId = Math.Max(latestEventId, entry.EventId);
+            }
+        }
+
+        return latestEventId;
+    }
+
+    private void TriggerLastToDieCalloutPopup(string text)
+    {
+        _lastToDieComboMilestoneText = text;
+        _lastToDieComboMilestoneTicksRemaining = LastToDieComboMilestonePopupTicks;
+        _lastToDieComboMilestoneScaleBonus = LastToDieComboMilestoneMaxScaleBonus;
+    }
+
+    private static float GetLastToDieComboMilestoneRotation(float popupProgress)
+    {
+        const float introProgress = 0.22f;
+        const float outroProgress = 0.76f;
+
+        if (popupProgress < introProgress)
+        {
+            var introT = 1f - (popupProgress / introProgress);
+            return introT * introT * MathF.PI * 1.4f;
+        }
+
+        if (popupProgress > outroProgress)
+        {
+            var outroT = (popupProgress - outroProgress) / (1f - outroProgress);
+            return -(outroT * outroT) * MathF.PI * 1.15f;
+        }
+
+        return 0f;
     }
 }

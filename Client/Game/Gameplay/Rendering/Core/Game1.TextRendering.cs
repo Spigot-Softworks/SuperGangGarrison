@@ -23,12 +23,17 @@ public partial class Game1
 
     private void DrawBitmapFontText(string text, Vector2 position, Color color, float scale = 1f)
     {
-        DrawSpriteFontText(BitmapFontDefinition, text, position, color, scale);
+        DrawBitmapFontText(text, position, color, scale, 0f);
+    }
+
+    private void DrawBitmapFontText(string text, Vector2 position, Color color, float scale, float rotation)
+    {
+        DrawSpriteFontText(BitmapFontDefinition, text, position, color, scale, rotation);
     }
 
     private void DrawCountFontText(string text, Vector2 position, Color color, float scale = 1f)
     {
-        DrawSpriteFontText(CountFontDefinition, text, position, color, scale);
+        DrawSpriteFontText(CountFontDefinition, text, position, color, scale, 0f);
     }
 
     private void DrawCountFontTextCentered(string text, Vector2 position, Color color, float scale = 1f)
@@ -39,7 +44,7 @@ public partial class Game1
 
     private void DrawTimerFontText(string text, Vector2 position, Color color, float scale = 1f)
     {
-        DrawSpriteFontText(TimerFontDefinition, text, position, color, scale);
+        DrawSpriteFontText(TimerFontDefinition, text, position, color, scale, 0f);
     }
 
     private void DrawTimerFontTextRightAligned(string text, Vector2 position, Color color, float scale = 1f)
@@ -65,7 +70,14 @@ public partial class Game1
         return MeasureSpriteFontHeight(BitmapFontDefinition, scale);
     }
 
-    private void DrawSpriteFontText(SpriteFontDefinition definition, string text, Vector2 position, Color color, float scale)
+    private void DrawSpriteFontText(
+        SpriteFontDefinition definition,
+        string text,
+        Vector2 position,
+        Color color,
+        float scale,
+        float rotation,
+        Vector2? rotationCenter = null)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -79,7 +91,7 @@ public partial class Game1
         }
 
         var metrics = GetSpriteFontMetrics(definition, fontSprite);
-        var cursor = SnapTextPosition(position);
+        var cursor = rotation == 0f ? SnapTextPosition(position) : position;
         for (var index = 0; index < text.Length; index += 1)
         {
             var character = text[index];
@@ -102,7 +114,24 @@ public partial class Game1
             var drawPosition = definition.IsProportional
                 ? new Vector2(cursor.X - (glyphMetrics.LeftTrim * scale), cursor.Y)
                 : cursor;
-            _spriteBatch.Draw(frame, SnapTextPosition(drawPosition), null, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+            if (rotation == 0f || rotationCenter is null)
+            {
+                _spriteBatch.Draw(frame, SnapTextPosition(drawPosition), null, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+            }
+            else
+            {
+                _spriteBatch.Draw(
+                    frame,
+                    rotationCenter.Value,
+                    null,
+                    color,
+                    rotation,
+                    (rotationCenter.Value - drawPosition) / scale,
+                    scale,
+                    SpriteEffects.None,
+                    0f);
+            }
+
             cursor.X += GetSpriteFontCharacterAdvance(definition, metrics, glyphMetrics.VisibleWidth, isLastCharacter) * scale;
         }
     }

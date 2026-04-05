@@ -97,6 +97,7 @@ public partial class Game1
             && !ShouldBlockGameplayForNavEditor()
             && !_consoleOpen
             && !_clientPowersOpen
+            && !_lastToDieSurvivorMenuOpen
             && !_lastToDiePerkMenuOpen
             && !IsLastToDieDeathFocusPresentationActive()
             && !IsLastToDieFailureOverlayActive()
@@ -128,6 +129,10 @@ public partial class Game1
         else if (IsLastToDieStageClearOverlayActive())
         {
             DrawLastToDieStageClearOverlay();
+        }
+        else if (_lastToDieSurvivorMenuOpen)
+        {
+            DrawLastToDieSurvivorMenu();
         }
         else if (_lastToDiePerkMenuOpen)
         {

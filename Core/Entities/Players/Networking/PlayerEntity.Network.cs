@@ -13,6 +13,9 @@ public sealed partial class PlayerEntity
         float LegacyStateTickAccumulator,
         LegacyMovementState MovementState,
         bool IsGrounded,
+        bool IsExperimentalDemoknightChargeDashActive,
+        bool IsExperimentalDemoknightChargeFlightActive,
+        float ExperimentalDemoknightChargeAcceleration,
         int Health,
         float Metal,
         bool IsCarryingIntel,
@@ -104,6 +107,9 @@ public sealed partial class PlayerEntity
             LegacyStateTickAccumulator,
             MovementState,
             IsGrounded,
+            IsExperimentalDemoknightChargeDashActive,
+            IsExperimentalDemoknightChargeFlightActive,
+            ExperimentalDemoknightChargeAcceleration,
             Health,
             Metal,
             IsCarryingIntel,
@@ -195,6 +201,9 @@ public sealed partial class PlayerEntity
         LegacyStateTickAccumulator = state.LegacyStateTickAccumulator;
         MovementState = state.MovementState;
         IsGrounded = state.IsGrounded;
+        IsExperimentalDemoknightChargeDashActive = state.IsExperimentalDemoknightChargeDashActive;
+        IsExperimentalDemoknightChargeFlightActive = state.IsExperimentalDemoknightChargeFlightActive;
+        ExperimentalDemoknightChargeAcceleration = state.ExperimentalDemoknightChargeAcceleration;
         Health = state.Health;
         Metal = state.Metal;
         IsCarryingIntel = state.IsCarryingIntel;
@@ -345,6 +354,9 @@ public sealed partial class PlayerEntity
             ? (LegacyMovementState)movementState
             : LegacyMovementState.None;
         IsGrounded = isGrounded;
+        IsExperimentalDemoknightChargeDashActive = false;
+        IsExperimentalDemoknightChargeFlightActive = false;
+        ExperimentalDemoknightChargeAcceleration = 0f;
         IsAlive = isAlive;
         Health = int.Clamp(health, 0, MaxHealth);
         CurrentShells = int.Clamp(currentShells, 0, MaxShells);

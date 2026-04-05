@@ -13,6 +13,8 @@
   <resource name="RevolverKL" type="RESOURCE"/>
   <resource name="NeedleKL" type="RESOURCE"/>
   <resource name="BladeKL" type="RESOURCE"/>
+  <resource name="EyelanderKL" type="RESOURCE"/>
+  <resource name="PaintrainKL" type="RESOURCE"/>
   <resource name="BubbleKL" type="RESOURCE"/>
   <resource name="TurretKL" type="RESOURCE"/>
   <resource name="KnifeKL" type="RESOURCE"/>

@@ -124,9 +124,11 @@ public partial class Game1
         var currentCooldownTicks = GetRenderWeaponCooldownTicks(player);
         var currentReloadTicks = GetRenderWeaponReloadTicks(player);
         var reloadRestarted = currentReloadTicks > renderState.PreviousReloadTicks;
+        var cooldownRestarted = currentCooldownTicks > renderState.PreviousCooldownTicks;
         var shotStarted = currentCooldownTicks > 0
             && (currentAmmoCount < renderState.PreviousAmmoCount
-                || renderState.PreviousCooldownTicks <= 0);
+                || renderState.PreviousCooldownTicks <= 0
+                || cooldownRestarted);
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
         var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
@@ -388,6 +390,11 @@ public partial class Game1
 
     private int GetRenderWeaponAmmoCount(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return 1;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeaponCurrentShells;
@@ -433,6 +440,11 @@ public partial class Game1
 
     private int GetRenderWeaponReloadTicks(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return 0;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeaponReloadTicksUntilNextShell;
@@ -459,6 +471,11 @@ public partial class Game1
 
     private static int GetRenderWeaponMaxShells(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return 1;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeaponMaxShells;
@@ -471,6 +488,11 @@ public partial class Game1
 
     private static PrimaryWeaponDefinition GetRenderWeaponStats(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            return CharacterClassCatalog.ExperimentalDemoknightEyelander;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeapon ?? player.PrimaryWeapon;

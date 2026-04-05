@@ -461,11 +461,27 @@ public sealed partial class SimulationWorld
     {
         if (slot != LocalPlayerSlot)
         {
+            player.SetExperimentalDemoknightEnabled(false);
+            player.SetExperimentalPassiveMovementSpeedMultiplier(ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
+            player.SetExperimentalDemoknightSwordRangeMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordRangeMultiplier);
+            player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
+            player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
+            player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
+            player.SetExperimentalDemoknightChargeRechargeMultiplier(ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
             player.SetExperimentalOffhandWeapon(null);
             player.SetAcquiredWeapon(null);
             return;
         }
 
+        player.SetExperimentalDemoknightEnabled(
+            ExperimentalGameplaySettings.EnableDemoknightKit
+            && player.ClassId == PlayerClass.Demoman);
+        player.SetExperimentalPassiveMovementSpeedMultiplier(ExperimentalGameplaySettings.PassiveMovementSpeedMultiplier);
+        player.SetExperimentalDemoknightSwordRangeMultiplier(ExperimentalGameplaySettings.DemoknightSwordRangeMultiplier);
+        player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DemoknightSwordBaseDamage);
+        player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DemoknightSwordDamageMultiplier);
+        player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DemoknightSwordCooldownMultiplier);
+        player.SetExperimentalDemoknightChargeRechargeMultiplier(ExperimentalGameplaySettings.DemoknightChargeRechargeMultiplier);
         player.SetExperimentalOffhandWeapon(
             ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon
                 && player.ClassId == PlayerClass.Soldier

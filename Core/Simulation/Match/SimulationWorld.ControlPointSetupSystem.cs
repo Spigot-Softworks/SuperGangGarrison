@@ -148,6 +148,16 @@ public sealed partial class SimulationWorld
                 if (closestIndex >= 0)
                 {
                     world._controlPointZones.Add(new ControlPointZone(zone, closestIndex));
+                    var point = world._controlPoints[closestIndex];
+                    var currentArea = point.HealingAuraWidth * point.HealingAuraHeight;
+                    var zoneArea = zone.Width * zone.Height;
+                    if (zoneArea >= currentArea)
+                    {
+                        point.HealingAuraCenterX = zone.CenterX;
+                        point.HealingAuraCenterY = zone.CenterY;
+                        point.HealingAuraWidth = Math.Max(48f, zone.Width);
+                        point.HealingAuraHeight = Math.Max(28f, zone.Height);
+                    }
                 }
             }
         }
@@ -243,6 +253,7 @@ public sealed partial class SimulationWorld
                 point.RedCappers = 0;
                 point.BlueCappers = 0;
                 point.IsLocked = false;
+                point.HasHealingAura = false;
             }
         }
     }

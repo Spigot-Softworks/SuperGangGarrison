@@ -5,7 +5,7 @@ public sealed partial class PlayerEntity
 
     public bool TryStartTaunt()
     {
-        if (!IsAlive || IsTaunting || IsHeavyEating || IsSpyCloaked || IsSpyBackstabAnimating)
+        if (!IsAlive || IsTaunting || IsHeavyEating || IsSpyCloaked || IsSpyBackstabAnimating || IsExperimentalDemoknightCharging)
         {
             return false;
         }
@@ -228,6 +228,36 @@ public sealed partial class PlayerEntity
         MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
         MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;
         return true;
+    }
+
+    public bool TryFireAcquiredMedicNeedle()
+    {
+        if (!IsAlive
+            || !HasAcquiredMedigunEquipped
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || MedicNeedleCooldownTicks > 0
+            || AcquiredWeaponCurrentShells <= 0)
+        {
+            return false;
+        }
+
+        IsExperimentalOffhandEquipped = false;
+        IsAcquiredWeaponEquipped = true;
+        AcquiredWeaponCurrentShells -= 1;
+        MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
+        MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;
+        return true;
+    }
+
+    public bool CanTriggerAcquiredMedigunHealsplosion()
+    {
+        return IsAlive
+            && HasAcquiredMedigunEquipped
+            && !IsHeavyEating
+            && !IsTaunting
+            && !IsSpyCloaked;
     }
 
     public void RefreshUber(int ticks = DefaultUberRefreshTicks)

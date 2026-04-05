@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 
 namespace OpenGarrison.Client;
@@ -23,7 +24,12 @@ internal sealed class ClientPluginStateStore
     public bool IsPluginEnabled(string pluginId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
-        return !_document.PluginEnabledStates.TryGetValue(pluginId, out var enabled) || enabled;
+        if (_document.PluginEnabledStates.TryGetValue(pluginId, out var enabled))
+        {
+            return enabled;
+        }
+
+        return !string.Equals(pluginId, "randombackgrounds", StringComparison.OrdinalIgnoreCase);
     }
 
     public void SetPluginEnabled(string pluginId, bool enabled)

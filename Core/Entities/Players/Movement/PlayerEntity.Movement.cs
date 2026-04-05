@@ -15,6 +15,7 @@ public sealed partial class PlayerEntity
         IsGrounded = false;
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
+        ResetExperimentalDemoknightChargeMovementState();
     }
 
     public void ResolveBlockingOverlap(SimpleLevel level, PlayerTeam team)
@@ -101,28 +102,44 @@ public sealed partial class PlayerEntity
             && !IsSpyBackstabAnimating;
         var preserveHorizontalMomentum = ClassId == PlayerClass.Spy && IsSpyBackstabAnimating;
 
+        var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
         var horizontalDirection = 0f;
-        if (canMove && input.Left)
+        if (!isDemoknightChargeDriving)
         {
-            horizontalDirection -= 1f;
+            if (canMove && input.Left)
+            {
+                horizontalDirection -= 1f;
+            }
+            if (canMove && input.Right)
+            {
+                horizontalDirection += 1f;
+            }
         }
-        if (canMove && input.Right)
+        else
         {
-            horizontalDirection += 1f;
+            ExperimentalDemoknightChargeWantsLift = input.Up;
+            ApplyExperimentalDemoknightChargeDrive(dt);
         }
 
-        if (horizontalDirection != 0f)
+        if (!isDemoknightChargeDriving && horizontalDirection != 0f)
         {
             FacingDirectionX = horizontalDirection;
         }
 
         if (!preserveHorizontalMomentum)
         {
+            var hasHorizontalInput = canMove && (input.Left || input.Right);
+            if (isDemoknightChargeDriving)
+            {
+                hasHorizontalInput = false;
+                horizontalDirection = 0f;
+            }
+
             HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
                 HorizontalSpeed,
                 RunPower,
                 GetMovementScale(input),
-                canMove && (input.Left || input.Right),
+                hasHorizontalInput,
                 horizontalDirection,
                 MovementState,
                 IsCarryingIntel,
@@ -130,7 +147,7 @@ public sealed partial class PlayerEntity
                 isHumiliated);
         }
 
-        ClampMovementSpeedsToSourceStepMaximum();
+        ClampMovementSpeedsToMovementMaximum();
 
         // Source wall-rub spinjump logic assumes we resolve incidental overlap
         // before checking whether the player is standing on something.
@@ -298,7 +315,15 @@ public sealed partial class PlayerEntity
 
             if (remainingX != 0f && !CanOccupy(level, team, X + MathF.Sign(remainingX), Y))
             {
-                if (TryStepUpForObstacle(level, team, MathF.Sign(remainingX)))
+                if (TryHandleExperimentalDemoknightChargeHorizontalCollision(
+                    level,
+                    team,
+                    MathF.Sign(remainingX),
+                    ref remainingX))
+                {
+                    collisionRectified = true;
+                }
+                else if (TryStepUpForObstacle(level, team, MathF.Sign(remainingX)))
                 {
                     MovementState = LegacyMovementState.None;
                     collisionRectified = true;
@@ -324,6 +349,7 @@ public sealed partial class PlayerEntity
         }
 
         RefreshGroundSupport(level, team, allowDropdownFallThrough);
+        RefreshExperimentalDemoknightChargeFlightState(level, allowDropdownFallThrough);
     }
 
     private float GetMovementScale(PlayerInputSnapshot input)
@@ -353,6 +379,11 @@ public sealed partial class PlayerEntity
 
     private float GetJumpScale()
     {
+        if (IsExperimentalDemoknightCharging)
+        {
+            return 0f;
+        }
+
         if (HasScopedSniperWeaponEquipped && IsSniperScoped)
         {
             return SniperScopedJumpScale;
@@ -529,11 +560,128 @@ public sealed partial class PlayerEntity
             / LegacyMovementModel.SourceTicksPerSecond;
     }
 
-    private void ClampMovementSpeedsToSourceStepMaximum()
+    private void ClampMovementSpeedsToMovementMaximum()
     {
-        var maxSpeed = LegacyMovementModel.MaxStepSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond;
-        HorizontalSpeed = float.Clamp(HorizontalSpeed, -maxSpeed, maxSpeed);
-        VerticalSpeed = float.Clamp(VerticalSpeed, -maxSpeed, maxSpeed);
+        var maxHorizontalSpeedPerTick = IsExperimentalDemoknightCharging
+            ? 30f
+            : LegacyMovementModel.MaxStepSpeedPerTick;
+        var maxVerticalSpeedPerTick = IsExperimentalDemoknightCharging
+            ? 20f
+            : LegacyMovementModel.MaxStepSpeedPerTick;
+        HorizontalSpeed = float.Clamp(HorizontalSpeed, -maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
+        VerticalSpeed = float.Clamp(VerticalSpeed, -maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
+    }
+
+    private void ApplyExperimentalDemoknightChargeDrive(float deltaSeconds)
+    {
+        if (!IsExperimentalDemoknightCharging || !IsExperimentalDemoknightChargeDashActive || deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        var sourceTicks = LegacyMovementModel.SourceTicksPerSecond * deltaSeconds;
+        var drivePerTick = ExperimentalDemoknightGroundChargeDrivePerTick;
+        if (IsExperimentalDemoknightChargeFlightActive)
+        {
+            drivePerTick = ExperimentalDemoknightFlightChargeDrivePerTick
+                + (ExperimentalDemoknightChargeAcceleration * ExperimentalDemoknightFlightChargeAccelerationDrivePerTick);
+            MovementState = LegacyMovementState.FriendlyJuggle;
+        }
+
+        HorizontalSpeed += FacingDirectionX * drivePerTick * LegacyMovementModel.SourceTicksPerSecond * sourceTicks;
+    }
+
+    private bool TryHandleExperimentalDemoknightChargeHorizontalCollision(
+        SimpleLevel level,
+        PlayerTeam team,
+        float horizontalDirection,
+        ref float remainingX)
+    {
+        if (!IsExperimentalDemoknightCharging || horizontalDirection == 0f)
+        {
+            return false;
+        }
+
+        if (TryStepUpForObstacle(level, team, horizontalDirection))
+        {
+            ExperimentalDemoknightChargeAcceleration = MathF.Min(
+                8f,
+                ExperimentalDemoknightChargeAcceleration + ExperimentalDemoknightChargeTrimpAccelerationGainPerTick);
+
+            if (ExperimentalDemoknightChargeWantsLift)
+            {
+                VerticalSpeed -= 7.5f * ExperimentalDemoknightChargeAcceleration * LegacyMovementModel.SourceTicksPerSecond;
+            }
+
+            if (IsExperimentalDemoknightChargeWantsFlight(level))
+            {
+                IsExperimentalDemoknightChargeFlightActive = true;
+                MovementState = LegacyMovementState.FriendlyJuggle;
+            }
+            else
+            {
+                MovementState = LegacyMovementState.None;
+            }
+
+            return true;
+        }
+
+        if (IsExperimentalDemoknightChargeFlightActive
+            && IsExperimentalDemoknightChargeAirborne(level)
+            && ExperimentalDemoknightChargeAcceleration >= ExperimentalDemoknightChargeBounceAccelerationThreshold)
+        {
+            var bounceMultiplier = 1.2f + (ExperimentalDemoknightChargeAcceleration * 0.15f);
+            HorizontalSpeed = -HorizontalSpeed * bounceMultiplier;
+            VerticalSpeed -= 4f * ExperimentalDemoknightChargeAcceleration * LegacyMovementModel.SourceTicksPerSecond;
+            IsExperimentalDemoknightChargeDashActive = false;
+            remainingX = 0f;
+            MovementState = LegacyMovementState.FriendlyJuggle;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void RefreshExperimentalDemoknightChargeFlightState(SimpleLevel level, bool allowDropdownFallThrough)
+    {
+        if (!IsExperimentalDemoknightCharging)
+        {
+            IsExperimentalDemoknightChargeFlightActive = false;
+            ExperimentalDemoknightChargeWantsLift = false;
+            return;
+        }
+
+        if (!IsExperimentalDemoknightChargeDashActive && IsGrounded)
+        {
+            ExperimentalDemoknightChargeAcceleration = 0f;
+        }
+
+        if (IsExperimentalDemoknightChargeWantsFlight(level, allowDropdownFallThrough))
+        {
+            IsExperimentalDemoknightChargeFlightActive = true;
+            MovementState = LegacyMovementState.FriendlyJuggle;
+        }
+        else if (!IsExperimentalDemoknightChargeAirborne(level, allowDropdownFallThrough))
+        {
+            IsExperimentalDemoknightChargeFlightActive = false;
+            if (MovementState == LegacyMovementState.FriendlyJuggle)
+            {
+                MovementState = LegacyMovementState.None;
+            }
+        }
+    }
+
+    private bool IsExperimentalDemoknightChargeWantsFlight(SimpleLevel level, bool allowDropdownFallThrough = false)
+    {
+        return ExperimentalDemoknightChargeWantsLift
+            && ExperimentalDemoknightChargeAcceleration > ExperimentalDemoknightChargeFlightActivationAcceleration
+            && IsExperimentalDemoknightChargeAirborne(level, allowDropdownFallThrough);
+    }
+
+    private bool IsExperimentalDemoknightChargeAirborne(SimpleLevel level, bool allowDropdownFallThrough = false)
+    {
+        return CanOccupy(level, Team, X, Y + 1f)
+            && !IsStandingOnDropdownPlatform(level, allowDropdownFallThrough);
     }
 
     private void MoveContact(SimpleLevel level, PlayerTeam team, float deltaX, float deltaY)

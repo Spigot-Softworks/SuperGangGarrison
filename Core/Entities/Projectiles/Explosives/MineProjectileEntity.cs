@@ -1,3 +1,5 @@
+using System;
+
 namespace OpenGarrison.Core;
 
 public sealed class MineProjectileEntity : SimulationEntity
@@ -32,9 +34,9 @@ public sealed class MineProjectileEntity : SimulationEntity
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
     }
 
-    public PlayerTeam Team { get; }
+    public PlayerTeam Team { get; private set; }
 
-    public int OwnerId { get; }
+    public int OwnerId { get; private set; }
 
     public float X { get; private set; }
 
@@ -98,6 +100,17 @@ public sealed class MineProjectileEntity : SimulationEntity
     {
         VelocityX = velocityX;
         VelocityY = velocityY;
+    }
+
+    public void Reflect(int ownerId, PlayerTeam team, float directionRadians, float speedFloor)
+    {
+        var currentSpeed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
+        var reflectedSpeed = MathF.Max(currentSpeed, MathF.Max(0f, speedFloor));
+        OwnerId = ownerId;
+        Team = team;
+        Unstick();
+        VelocityX = MathF.Cos(directionRadians) * reflectedSpeed;
+        VelocityY = MathF.Sin(directionRadians) * reflectedSpeed;
     }
 
     public void Destroy()

@@ -383,6 +383,28 @@ public partial class Game1
         TryPlaySound(sound, 0.6f, 0f, 0f);
     }
 
+    private void PlayDemoknightChargeReadySoundIfNeeded()
+    {
+        var player = _world.LocalPlayer;
+        var currentChargeTicks = player.IsExperimentalDemoknightEnabled && player.IsAlive
+            ? player.ExperimentalDemoknightChargeTicksRemaining
+            : PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
+        var reachedReadyThisTick = player.IsExperimentalDemoknightEnabled
+            && player.IsAlive
+            && !player.IsExperimentalDemoknightCharging
+            && _previousLocalDemoknightChargeTicks < PlayerEntity.ExperimentalDemoknightChargeMaxTicks
+            && currentChargeTicks >= PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
+
+        _previousLocalDemoknightChargeTicks = currentChargeTicks;
+        if (!reachedReadyThisTick || !_audioAvailable)
+        {
+            return;
+        }
+
+        var sound = _runtimeAssets.GetSound(ExperimentalDemoknightCatalog.ChargeReadySoundName);
+        TryPlaySound(sound, 0.8f, 0f, 0f);
+    }
+
     private void PlayRoundEndSoundIfNeeded()
     {
         if (!_audioAvailable)
@@ -418,7 +440,7 @@ public partial class Game1
 
     private void PlayKillFeedAnnouncementSounds()
     {
-        if (!_audioAvailable)
+        if (!_audioAvailable || _mainMenuOpen || IsLastToDieFailurePresentationActive())
         {
             return;
         }
@@ -552,7 +574,10 @@ public partial class Game1
                 continue;
             }
 
-            var sound = _runtimeAssets.GetSound(soundEvent.SoundName);
+            var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                ? "ExplosionSnd"
+                : soundEvent.SoundName;
+            var sound = _runtimeAssets.GetSound(resolvedSoundName);
             if (sound is null)
             {
                 continue;

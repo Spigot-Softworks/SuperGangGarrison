@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using OpenGarrison.Core;
 
@@ -11,78 +12,51 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void UpdateMainMenu(MouseState mouse)
+    private void UpdateMainMenu(KeyboardState keyboard, MouseState mouse)
     {
-        const float xbegin = 40f;
-        const float ybegin = 300f;
-        const float spacing = 30f;
-        const float width = 200f;
-        const int items = 8;
-
-        if (mouse.X > xbegin && mouse.X < xbegin + width)
+        if (IsKeyPressed(keyboard, Keys.Escape))
         {
-            _mainMenuHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-            if (_mainMenuHoverIndex < 0 || _mainMenuHoverIndex >= items)
+            if (_optionsMenuOpen)
             {
-                _mainMenuHoverIndex = -1;
+                CloseOptionsMenu();
+                return;
             }
-        }
-        else
-        {
-            _mainMenuHoverIndex = -1;
+
+            if (_mainMenuPage != MainMenuPage.Root)
+            {
+                OpenMainMenuPage(MainMenuPage.Root);
+            }
+            else
+            {
+                OpenQuitPrompt();
+            }
+            return;
         }
 
-        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
-        if (!clickPressed || _mainMenuHoverIndex < 0)
+        if (_optionsMenuOpen)
         {
             return;
         }
 
-        switch (_mainMenuHoverIndex)
+        var buttons = BuildMainMenuButtons();
+        _mainMenuHoverIndex = -1;
+        _mainMenuBottomBarHover = false;
+        for (var index = 0; index < buttons.Count; index += 1)
         {
-            case 0:
-                OpenHostSetupMenu();
-                break;
-            case 1:
-                OpenPracticeSetupMenu();
-                break;
-            case 2:
-                OpenLastToDieMenu();
-                break;
-            case 3:
-                OpenLobbyBrowser();
-                break;
-            case 4:
-                _manualConnectOpen = true;
-                _editingConnectHost = true;
-                _editingConnectPort = false;
-                _optionsMenuOpen = false;
-                _pluginOptionsMenuOpen = false;
-                _controlsMenuOpen = false;
-                CloseLobbyBrowser(clearStatus: false);
-                _creditsOpen = false;
-                _editingPlayerName = false;
-                _menuStatusMessage = string.Empty;
-                break;
-            case 5:
-                _manualConnectOpen = false;
-                CloseLobbyBrowser(clearStatus: false);
-                CloseCreditsMenu();
-                OpenOptionsMenu(fromGameplay: false);
-                break;
-            case 6:
-                _manualConnectOpen = false;
-                CloseLobbyBrowser(clearStatus: false);
-                _optionsMenuOpen = false;
-                _pluginOptionsMenuOpen = false;
-                _controlsMenuOpen = false;
-                _editingPlayerName = false;
-                _menuStatusMessage = string.Empty;
-                OpenCreditsMenu();
-                break;
-            case 7:
-                OpenQuitPrompt();
-                break;
+            if (!buttons[index].Bounds.Contains(mouse.Position))
+            {
+                continue;
+            }
+
+            _mainMenuHoverIndex = index;
+            _mainMenuBottomBarHover = buttons[index].IsBottomBarButton;
+            break;
+        }
+
+        var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
+        if (clickPressed && _mainMenuHoverIndex >= 0)
+        {
+            buttons[_mainMenuHoverIndex].Activate();
         }
     }
 
@@ -174,24 +148,8 @@ public partial class Game1
             return;
         }
 
-        string[] items = ["Host Game", "Practice", "Last To Die", "Join (lobby)", "Join (manual)", "Options", "Credits", "Quit"];
-        var position = new Vector2(40f, 300f);
-        const float itemSpacing = 30f;
-        const float itemWidth = 212f;
-        DrawMenuPanelBackdrop(
-            new Rectangle(
-                (int)MathF.Round(position.X - 12f),
-                (int)MathF.Round(position.Y - 24f),
-                (int)MathF.Round(itemWidth + 28f),
-                (int)MathF.Round((items.Length * itemSpacing) + 24f)),
-            0.82f);
-        DrawMenuPlaqueRows(position, items.Length, itemSpacing, itemWidth, 0.72f);
-        for (var index = 0; index < items.Length; index += 1)
-        {
-            var color = index == _mainMenuHoverIndex ? Color.Red : Color.White;
-            DrawBitmapFontText(items[index], position, color, 1f);
-            position.Y += itemSpacing;
-        }
+        var buttons = BuildMainMenuButtons();
+        DrawCurrentMainMenuPage(buttons);
 
         DrawMenuStatusText();
         DrawQuitPrompt();
@@ -237,17 +195,17 @@ public partial class Game1
     {
         var aspectRatio = viewportHeight <= 0 ? (16f / 9f) : viewportWidth / (float)viewportHeight;
         var fileName = aspectRatio <= 1.27f
-            ? "background-5x4.jpg"
+            ? "background-5x4.png"
             : aspectRatio <= 1.4f
-                ? "background-4x3.jpg"
-                : "background.jpg";
+                ? "background-4x3.png"
+                : "background.png";
         var path = ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
         if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
         {
             return path;
         }
 
-        var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.jpg");
+        var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.png");
         return !string.IsNullOrWhiteSpace(fallbackPath) && File.Exists(fallbackPath)
             ? fallbackPath
             : null;
@@ -361,7 +319,135 @@ public partial class Game1
             return;
         }
 
-        DrawBitmapFontText(_menuStatusMessage, new Vector2(40f, 520f), new Color(235, 225, 180), 1f);
+        var position = new Vector2(ViewportWidth * 0.5f, ViewportHeight - 104f);
+        var shadowPosition = position + Vector2.One * 2f;
+        var scale = ViewportHeight < 540 ? 0.75f : 0.9f;
+        var text = _menuStatusMessage;
+        var shadowSize = _menuFont.MeasureString(text) * scale;
+        var textSize = shadowSize;
+        _spriteBatch.DrawString(_menuFont, text, shadowPosition - new Vector2(shadowSize.X * 0.5f, 0f), Color.Black * 0.6f, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_menuFont, text, position - new Vector2(textSize.X * 0.5f, 0f), new Color(235, 225, 180), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    }
+
+    private void OpenMainMenuPage(MainMenuPage page)
+    {
+        _mainMenuPage = page;
+        _mainMenuHoverIndex = -1;
+        _mainMenuBottomBarHover = false;
+    }
+
+    private List<MenuPageButton> BuildMainMenuButtons()
+    {
+        var buttons = new List<MenuPageButton>();
+        var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
+        var layout = GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null);
+
+        for (var index = 0; index < stackedActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
+        {
+            buttons.Add(new MenuPageButton(stackedActions[index].Label, layout.StackedButtonBounds[index], stackedActions[index].Activate));
+        }
+
+        buttons.Add(new MenuPageButton(soloAction.Label, layout.SoloButtonBounds, soloAction.Activate));
+
+        if (bottomBarAction is not null && layout.BottomBarButtonBounds.HasValue)
+        {
+            buttons.Add(new MenuPageButton(bottomBarLabel, layout.BottomBarButtonBounds.Value, bottomBarAction, IsBottomBarButton: true));
+        }
+
+        return buttons;
+    }
+
+    private void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
+    {
+        var (stackedActions, soloAction, bottomBarLabel, bottomBarAction) = GetCurrentMainMenuActions();
+        var layout = GetCenteredPlaqueMenuLayout(tall: false, stackedActions.Count, includeBottomBarButton: bottomBarAction is not null);
+        var hoveredStackedIndex = -1;
+        var soloHovered = false;
+        var bottomHovered = false;
+
+        for (var index = 0; index < buttons.Count; index += 1)
+        {
+            if (index != _mainMenuHoverIndex)
+            {
+                continue;
+            }
+
+            if (buttons[index].IsBottomBarButton)
+            {
+                bottomHovered = true;
+            }
+            else if (index < stackedActions.Count)
+            {
+                hoveredStackedIndex = index;
+            }
+            else
+            {
+                soloHovered = true;
+            }
+        }
+
+        DrawPlaqueMenuLayout(layout, stackedActions, soloAction, bottomBarAction is not null, bottomBarLabel, hoveredStackedIndex, soloHovered, bottomHovered, 1.15f);
+    }
+
+    private (List<MenuPageAction> StackedActions, MenuPageAction SoloAction, string BottomBarLabel, Action? BottomBarAction) GetCurrentMainMenuActions()
+    {
+        return _mainMenuPage switch
+        {
+            MainMenuPage.PlayOnline => (
+                [
+                    new MenuPageAction("Host Match", OpenHostSetupMenu),
+                    new MenuPageAction("Join (IP)", OpenManualConnectMenu),
+                    new MenuPageAction("Join (Lobby)", OpenLobbyBrowser),
+                ],
+                new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
+                string.Empty,
+                null),
+            MainMenuPage.PlayOffline => (
+                [
+                    new MenuPageAction("Practice", OpenPracticeSetupMenu),
+                    new MenuPageAction("Minigames", () => OpenMainMenuPage(MainMenuPage.Minigames)),
+                ],
+                new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
+                string.Empty,
+                null),
+            MainMenuPage.Minigames => (
+                [
+                    new MenuPageAction("Last to Die", () => OpenLastToDieMenu()),
+                ],
+                new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
+                string.Empty,
+                null),
+            MainMenuPage.Credits => (
+                [
+                    new MenuPageAction("Play Credits", OpenCreditsMenu),
+                ],
+                new MenuPageAction("Back", () => OpenMainMenuPage(MainMenuPage.Root)),
+                string.Empty,
+                null),
+            _ => (
+                [
+                    new MenuPageAction("Play Online", () => OpenMainMenuPage(MainMenuPage.PlayOnline)),
+                    new MenuPageAction("Play Offline", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
+                    new MenuPageAction("Settings", () => OpenOptionsMenu(fromGameplay: false)),
+                ],
+                new MenuPageAction("Credits", () => OpenMainMenuPage(MainMenuPage.Credits)),
+                "Quit",
+                OpenQuitPrompt),
+        };
+    }
+
+    private void OpenManualConnectMenu()
+    {
+        _manualConnectOpen = true;
+        _editingConnectHost = true;
+        _editingConnectPort = false;
+        _optionsMenuOpen = false;
+        _pluginOptionsMenuOpen = false;
+        _controlsMenuOpen = false;
+        CloseLobbyBrowser(clearStatus: false);
+        _creditsOpen = false;
+        _editingPlayerName = false;
+        _menuStatusMessage = string.Empty;
     }
 
     private Rectangle GetCreditsPanelBounds()

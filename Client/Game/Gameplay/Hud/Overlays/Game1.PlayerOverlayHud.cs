@@ -81,6 +81,12 @@ public partial class Game1
             return;
         }
 
+        if (_world.LocalPlayer.IsExperimentalDemoknightEnabled)
+        {
+            DrawDemoknightHud();
+            return;
+        }
+
         var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
         switch (displayedWeaponStats.Kind)
         {
@@ -124,11 +130,63 @@ public partial class Game1
 
         DrawAcquiredWeaponHud();
         DrawExperimentalOffhandHud();
+        DrawAcquiredMedigunPrompt();
 
         if (_world.LocalPlayer.ClassId == PlayerClass.Demoman)
         {
             DrawDemomanStickyHud();
         }
+    }
+
+    private void DrawDemoknightHud()
+    {
+        var presentation = StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation;
+        var frameIndex = _world.LocalPlayer.Team == PlayerTeam.Blue
+            ? presentation.BlueTeamHudFrameOffset
+            : 0;
+        if (presentation.HudSpriteName is not null)
+        {
+            TryDrawScreenSprite(
+                presentation.HudSpriteName,
+                frameIndex,
+                GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f),
+                Color.White,
+                new Vector2(2.4f, 2.4f));
+        }
+
+        var meterColor = _world.LocalPlayer.IsExperimentalDemoknightCharging
+            ? new Color(226, 188, 92)
+            : AmmoHudBarColor;
+        var meterFraction = _world.LocalPlayer.ExperimentalDemoknightChargeFraction;
+        var isChargeReady = !_world.LocalPlayer.IsExperimentalDemoknightCharging
+            && _world.LocalPlayer.ExperimentalDemoknightChargeTicksRemaining >= PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
+        var statusText = _world.LocalPlayer.IsExperimentalDemoknightCharging
+            ? "CHARGING"
+            : isChargeReady
+                ? "READY"
+                : "RECHARGING";
+        DrawBitmapFontText("SWING", GetSourceHudPoint(694f, 498f), new Color(210, 210, 210), 0.72f);
+        DrawBitmapFontText("CHARGE", GetSourceHudPoint(690f, 514f), new Color(210, 210, 210), 0.72f);
+        if (!isChargeReady
+            || !TryDrawScreenSprite(
+                ExperimentalDemoknightCatalog.FullChargeHudSpriteName,
+                0,
+                GetSourceHudPoint(713f, 540f),
+                Color.White,
+                Vector2.One))
+        {
+            DrawHudTextLeftAligned(statusText, GetSourceHudPoint(689f, 540f), meterColor, 0.9f);
+        }
+
+        DrawScreenHealthBar(
+            GetSourceHudRectangle(689f, SourceAmmoHudBaseY + 90f, 50f, 8f),
+            meterFraction,
+            1f,
+            false,
+            meterColor,
+            Color.Black);
+        DrawBitmapFontText("M1", GetSourceHudPoint(756f, 498f), new Color(240, 232, 208), 0.72f);
+        DrawBitmapFontText("M2", GetSourceHudPoint(756f, 514f), new Color(240, 232, 208), 0.72f);
     }
 
     private void DrawPyroAmmoHud()
@@ -295,6 +353,21 @@ public partial class Game1
             false,
             new Color(188, 188, 188),
             Color.Black);
+    }
+
+    private void DrawAcquiredMedigunPrompt()
+    {
+        if (_world.LocalPlayer.ClassId != PlayerClass.Soldier
+            || !_world.LocalPlayer.HasAcquiredMedigunEquipped)
+        {
+            return;
+        }
+
+        var position = new Vector2(ViewportWidth / 2f, ViewportHeight - 102f);
+        var shadowColor = Color.White * 0.95f;
+        var textColor = new Color(210, 28, 28);
+        DrawBitmapFontTextCentered("LEFT CLICK FOR HEALSPLOSION", position + new Vector2(2f, 2f), shadowColor, 1.2f);
+        DrawBitmapFontTextCentered("LEFT CLICK FOR HEALSPLOSION", position, textColor, 1.2f);
     }
 
     private void DrawAcquiredWeaponHud()
@@ -884,6 +957,11 @@ public partial class Game1
     {
         if (ReferenceEquals(player, _world.LocalPlayer) && player.IsAcquiredWeaponPresented)
         {
+            if (player.AcquiredWeaponClassId == PlayerClass.Medic)
+            {
+                return GetMedicNeedleReloadProgress(player.AcquiredWeaponCurrentShells, player.AcquiredWeaponMaxShells, player.MedicNeedleRefillTicks);
+            }
+
             var currentShells = player.AcquiredWeaponCurrentShells;
             var maxShells = player.AcquiredWeaponMaxShells;
             if (currentShells >= maxShells)
@@ -912,16 +990,7 @@ public partial class Game1
 
         if (player.ClassId == PlayerClass.Medic)
         {
-            var refillTicks = GetPlayerMedicNeedleRefillTicks(player);
-            if (refillTicks <= 0)
-            {
-                return displayedShells < player.MaxShells ? 1f : 0f;
-            }
-
-            return Math.Clamp(
-                1f - (refillTicks / (float)PlayerEntity.MedicNeedleRefillTicksDefault),
-                0f,
-                1f);
+            return GetMedicNeedleReloadProgress(displayedShells, player.MaxShells, GetPlayerMedicNeedleRefillTicks(player));
         }
 
         var reloadTicksRemaining = GetPlayerReloadTicksUntilNextShell(player);
@@ -1036,6 +1105,14 @@ public partial class Game1
                 1f);
         }
 
+        if (_world.LocalPlayer.AcquiredWeaponClassId == PlayerClass.Medic)
+        {
+            return GetMedicNeedleReloadProgress(
+                _world.LocalPlayer.AcquiredWeaponCurrentShells,
+                _world.LocalPlayer.AcquiredWeaponMaxShells,
+                _world.LocalPlayer.MedicNeedleRefillTicks);
+        }
+
         var acquiredReloadTicksUntilNextShell = _world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell;
         if (acquiredReloadTicksUntilNextShell <= 0)
         {
@@ -1045,6 +1122,24 @@ public partial class Game1
         var acquiredReloadTicks = Math.Max(1, GetLocalAlternatePrimaryWeaponStats().AmmoReloadTicks);
         return Math.Clamp(
             1f - (acquiredReloadTicksUntilNextShell / (float)acquiredReloadTicks),
+            0f,
+            1f);
+    }
+
+    private static float GetMedicNeedleReloadProgress(int currentShells, int maxShells, int refillTicks)
+    {
+        if (currentShells >= maxShells)
+        {
+            return 1f;
+        }
+
+        if (refillTicks <= 0)
+        {
+            return currentShells < maxShells ? 1f : 0f;
+        }
+
+        return Math.Clamp(
+            1f - (refillTicks / (float)PlayerEntity.MedicNeedleRefillTicksDefault),
             0f,
             1f);
     }

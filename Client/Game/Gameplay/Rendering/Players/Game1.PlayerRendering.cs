@@ -91,6 +91,8 @@ public partial class Game1
         var fallbackColor = aliveColor * visibilityAlpha;
         var spriteTint = GetPlayerColor(player, Color.White);
         var bodySelection = GetPlayerBodySpriteSelection(player);
+        DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
+        DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         if (!TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, rectangle, fallbackColor);
@@ -249,7 +251,7 @@ public partial class Game1
             return;
         }
 
-        var spriteName = GetDeadBodySpriteName(classId, team);
+        var spriteName = GetDeadBodySpriteName(classId, team, animationKind);
         if (spriteName is not null)
         {
             var sprite = _runtimeAssets.GetSprite(spriteName);
@@ -282,24 +284,53 @@ public partial class Game1
 
     private ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)
     {
-        if (ShouldUseLastToDieSoldierRifleDeathAnimation(sourcePlayerId, classId, team))
+        if (TryGetForcedLastToDieDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind, out var forcedAnimationKind))
         {
-            return ClientDeadBodyAnimationKind.Rifle;
+            return forcedAnimationKind;
         }
 
         return ToClientDeadBodyAnimationKind(animationKind);
     }
 
-    private bool ShouldUseLastToDieSoldierRifleDeathAnimation(int sourcePlayerId, PlayerClass classId, PlayerTeam team)
+    private bool TryGetForcedLastToDieDeadBodyAnimationKind(
+        int sourcePlayerId,
+        PlayerClass classId,
+        PlayerTeam team,
+        DeadBodyAnimationKind deadBodyAnimationKind,
+        out ClientDeadBodyAnimationKind forcedAnimationKind)
     {
-        return IsLastToDieSessionActive
-            && !_networkClient.IsSpectator
-            && sourcePlayerId == _world.LocalPlayer.Id
-            && classId == PlayerClass.Soldier
-            && team == PlayerTeam.Red;
+        if (!IsLastToDieSessionActive
+            || _networkClient.IsSpectator
+            || sourcePlayerId != _world.LocalPlayer.Id
+            || team != PlayerTeam.Red
+            || deadBodyAnimationKind == DeadBodyAnimationKind.Decapitated)
+        {
+            forcedAnimationKind = default;
+            return false;
+        }
+
+        forcedAnimationKind = classId switch
+        {
+            PlayerClass.Soldier => ClientDeadBodyAnimationKind.Rifle,
+            PlayerClass.Demoman => ClientDeadBodyAnimationKind.Rifle,
+            _ => default,
+        };
+        return forcedAnimationKind != default;
     }
 
     private bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
+    {
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        return TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: true);
+    }
+
+    private bool TryDrawPlayerSpriteAtPosition(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        Color tint,
+        PlayerBodySpriteSelection bodySelection,
+        bool drawIntelOverlay)
     {
         var isHeavyEating = GetPlayerIsHeavyEating(player);
         var spriteName = isHeavyEating
@@ -318,7 +349,6 @@ public partial class Game1
             return false;
         }
 
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
         var facingScale = GetPlayerFacingScale(player);
         var scale = new Vector2(facingScale, 1f);
         var frameIndex = isHeavyEating
@@ -334,7 +364,7 @@ public partial class Game1
             roundedOrigin.X - cameraPosition.X,
             roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
 
-        if (!isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
+        if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
         {
             DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
         }
@@ -363,7 +393,7 @@ public partial class Game1
                 0f);
         }
 
-        if (!isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
+        if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
         {
             DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
         }
@@ -504,6 +534,18 @@ public partial class Game1
 
     private bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
     {
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        return TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
+    }
+
+    private bool TryDrawWeaponSpriteAtPosition(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        Color tint,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
         if (GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
         {
             return false;
@@ -537,7 +579,6 @@ public partial class Game1
         var facingScale = GetPlayerFacingScale(player);
         var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
         var rotation = GetWeaponRotation(player);
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
         var drawX = roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale;
@@ -569,6 +610,120 @@ public partial class Game1
         }
 
         return true;
+    }
+
+    private void DrawExperimentalDemoknightChargeBlur(
+        PlayerEntity player,
+        Vector2 cameraPosition,
+        Color spriteTint,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
+        if (!player.IsExperimentalDemoknightCharging || visibilityAlpha <= 0.05f)
+        {
+            return;
+        }
+
+        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var blurDirection = GetExperimentalDemoknightChargeBlurDirection(player);
+        if (blurDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
+        var blurTint = spriteTint * 0.45f;
+        for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
+        {
+            var offsetDistance = 5f + (blurIndex * 6f);
+            var blurPosition = renderPosition - blurDirection * offsetDistance;
+            var blurAlpha = visibilityAlpha * (blurIndex == 0 ? 0.18f : 0.1f);
+            var tint = blurTint * blurAlpha;
+            TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
+            if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
+            {
+                TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, visibilityAlpha: 1f, bodySelection);
+            }
+        }
+    }
+
+    private void DrawCapturedPointHealingGhosting(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
+        if (!_world.IsPlayerInsideCapturedPointHealingAuraForVisuals(player) || visibilityAlpha <= 0.05f)
+        {
+            return;
+        }
+
+        var pulse = 0.5f + (0.5f * MathF.Sin((float)(_world.Frame * 0.18f) + player.Id));
+        var baseAlpha = visibilityAlpha * (0.2f + (pulse * 0.14f));
+        if (baseAlpha <= 0.01f)
+        {
+            return;
+        }
+
+        var outerTint = new Color(105, 230, 120) * (baseAlpha * 0.9f);
+        var midTint = new Color(150, 250, 165) * (baseAlpha * 0.95f);
+        var innerTint = new Color(220, 255, 225) * (baseAlpha * 0.75f);
+        var offsets = new[]
+        {
+            new Vector2(-3f, 0f),
+            new Vector2(3f, 0f),
+            new Vector2(0f, -3f),
+            new Vector2(0f, 3f),
+            new Vector2(-2f, -2f),
+            new Vector2(2f, -2f),
+            new Vector2(-2f, 2f),
+            new Vector2(2f, 2f),
+        };
+
+        for (var index = 0; index < offsets.Length; index += 1)
+        {
+            TryDrawPlayerSpriteAtPosition(
+                player,
+                renderPosition + offsets[index],
+                cameraPosition,
+                outerTint,
+                bodySelection,
+                drawIntelOverlay: false);
+        }
+
+        TryDrawPlayerSpriteAtPosition(
+            player,
+            renderPosition + new Vector2(0f, -1f),
+            cameraPosition,
+            midTint,
+            bodySelection,
+            drawIntelOverlay: false);
+        TryDrawPlayerSpriteAtPosition(
+            player,
+            renderPosition,
+            cameraPosition,
+            innerTint,
+            bodySelection,
+            drawIntelOverlay: false);
+    }
+
+    private Vector2 GetExperimentalDemoknightChargeBlurDirection(PlayerEntity player)
+    {
+        var velocity = ReferenceEquals(player, _world.LocalPlayer) && _hasPredictedLocalPlayerPosition
+            ? _predictedLocalPlayerVelocity
+            : new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
+        if (velocity.LengthSquared() <= 0.01f)
+        {
+            velocity = new Vector2(player.FacingDirectionX, 0f);
+        }
+
+        if (velocity.LengthSquared() <= 0.01f)
+        {
+            return Vector2.Zero;
+        }
+
+        velocity.Normalize();
+        return velocity;
     }
 
     private Vector2 GetWeaponAnchorOrigin(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)
@@ -813,7 +968,9 @@ public partial class Game1
 
     private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
     {
-        var presentation = StockGameplayModCatalog.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
+        var presentation = player.IsExperimentalDemoknightEnabled
+            ? StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation
+            : StockGameplayModCatalog.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
         return new(
             presentation.WorldSpriteName,
             presentation.RecoilSpriteName,
@@ -870,8 +1027,13 @@ public partial class Game1
         return GetTeamSpriteName(classId, team, "S");
     }
 
-    private static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team)
+    private static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
     {
+        if (animationKind == DeadBodyAnimationKind.Decapitated)
+        {
+            return ExperimentalDemoknightCatalog.GetDecapitatedDeadBodySpriteName(classId, team);
+        }
+
         return GetTeamSpriteName(classId, team, "DeadS");
     }
 

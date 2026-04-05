@@ -27,6 +27,9 @@
   <resource name="Gibbing" type="RESOURCE"/>
   <resource name="CompressionBlastSnd" type="RESOURCE"/>
   <resource name="BladeSnd" type="RESOURCE"/>
+  <resource name="EyelanderSnd" type="RESOURCE"/>
+  <resource name="ChargeSnd" type="RESOURCE"/>
+  <resource name="rechargeSnd" type="RESOURCE"/>
   <resource name="NoticeSnd" type="RESOURCE"/>
   <resource name="DeathCamSnd" type="RESOURCE"/>
   <resource name="UberStartSnd" type="RESOURCE"/>

@@ -55,7 +55,8 @@ public sealed partial class SimulationWorld
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
         var secondaryWeaponPressed = input.FireSecondaryWeapon && !previousInput.FireSecondaryWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
-        var allowHeldSecondaryAbility = player.ClassId is PlayerClass.Demoman or PlayerClass.Quote;
+        var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
+            || player.HasAcquiredMedigunEquipped;
         var suppressPyroPrimaryThisTick = player.HasPyroWeaponEquipped
             && secondaryAbilityPressed
             && player.CanFirePyroAirblast();
@@ -213,6 +214,16 @@ public sealed partial class SimulationWorld
 
         if (player.IsAcquiredWeaponEquipped)
         {
+            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.Medigun)
+            {
+                if (input.FirePrimary)
+                {
+                    TryTriggerAcquiredMedigunHealsplosion(player);
+                }
+
+                return;
+            }
+
             if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher
                 && input.FirePrimary
                 && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
@@ -250,6 +261,17 @@ public sealed partial class SimulationWorld
             {
                 player.ClearMedicHealingTarget();
             }
+            return;
+        }
+
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            if (!input.FirePrimary || !player.TryFireExperimentalDemoknightSword())
+            {
+                return;
+            }
+
+            WeaponHandler.FireExperimentalDemoknightSword(player, input.AimWorldX, input.AimWorldY);
             return;
         }
 
@@ -299,6 +321,17 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsAcquiredWeaponEquipped
+            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.Medigun)
+        {
+            if (player.TryFireAcquiredMedicNeedle())
+            {
+                WeaponHandler.FireAcquiredMedicNeedle(player, input.AimWorldX, input.AimWorldY);
+            }
+
+            return;
+        }
+
+        if (player.IsAcquiredWeaponEquipped
             && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.FlameThrower)
         {
             if (player.TryFirePyroAirblast())
@@ -324,6 +357,20 @@ public sealed partial class SimulationWorld
 
         if (player.ClassId == PlayerClass.Demoman)
         {
+            if (player.IsExperimentalDemoknightEnabled)
+            {
+                if (player.IsExperimentalDemoknightCharging)
+                {
+                    player.CancelExperimentalDemoknightCharge(depleteMeter: true);
+                }
+                else if (player.TryStartExperimentalDemoknightCharge())
+                {
+                    RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+                }
+
+                return;
+            }
+
             DetonateOwnedMines(player.Id);
             return;
         }
@@ -432,6 +479,16 @@ public sealed partial class SimulationWorld
 
         SpawnStabAnimation(attacker, directionDegrees);
         return true;
+    }
+
+    private static bool ShouldUseHeldSecondaryAbility(PlayerEntity player)
+    {
+        if (player.ClassId == PlayerClass.Demoman)
+        {
+            return !player.IsExperimentalDemoknightEnabled;
+        }
+
+        return player.ClassId == PlayerClass.Quote;
     }
 
     private void TryActivatePendingSpyBackstab(PlayerEntity player)

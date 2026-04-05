@@ -42,12 +42,12 @@ public sealed partial class SimulationWorld
                     {
                         if (redCappersByPoint[zone.ControlPointIndex].Add(player.Id))
                         {
-                            redCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(player);
+                            redCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(world, player);
                         }
                     }
                     else if (blueCappersByPoint[zone.ControlPointIndex].Add(player.Id))
                     {
-                        blueCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(player);
+                        blueCapStrengthByPoint[zone.ControlPointIndex] += GetCapStrength(world, player);
                     }
                 }
             }
@@ -161,9 +161,29 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static int GetCapStrength(PlayerEntity player)
+        private static int GetCapStrength(SimulationWorld world, PlayerEntity player)
         {
-            return player.ClassId == PlayerClass.Scout ? 2 : 1;
+            if (player.ClassId == PlayerClass.Scout)
+            {
+                return 2;
+            }
+
+            if (world.ExperimentalGameplaySettings.EnableSoldierFastCapture
+                && player.ClassId == PlayerClass.Soldier
+                && world.IsExperimentalPracticePowerOwner(player))
+            {
+                return 2;
+            }
+
+            if (world.ExperimentalGameplaySettings.EnableDemoknightFastCapture
+                && player.ClassId == PlayerClass.Demoman
+                && player.IsExperimentalDemoknightEnabled
+                && world.IsExperimentalPracticePowerOwner(player))
+            {
+                return 2;
+            }
+
+            return 1;
         }
 
         private static bool IsLocked(SimulationWorld world, ControlPointState point)
@@ -243,6 +263,8 @@ public sealed partial class SimulationWorld
             point.Cappers = 0;
             point.RedCappers = 0;
             point.BlueCappers = 0;
+            point.HasHealingAura = world.ExperimentalGameplaySettings.EnableCapturedPointHealingAura
+                && team == PlayerTeam.Red;
 
             var capperIds = team == PlayerTeam.Red ? redCappersByPoint[pointIndex] : blueCappersByPoint[pointIndex];
             if (capperIds.Count > 0)

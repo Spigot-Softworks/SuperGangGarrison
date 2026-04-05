@@ -87,7 +87,8 @@ public partial class Game1
         var sprite = _runtimeAssets.GetSprite(gib.SpriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
-            var size = (int)(6f * PlayerGibEntity.Scale);
+            var gibScale = GetPlayerGibRenderScale(gib);
+            var size = (int)(6f * gibScale);
             var rectangle = new Rectangle(
                 (int)(gib.X - (size / 2f) - cameraPosition.X),
                 (int)(gib.Y - (size / 2f) - cameraPosition.Y),
@@ -98,6 +99,7 @@ public partial class Game1
         }
 
         var frameIndex = Math.Clamp(gib.FrameIndex, 0, sprite.Frames.Count - 1);
+        var renderScale = GetPlayerGibRenderScale(gib);
         _spriteBatch.Draw(
             sprite.Frames[frameIndex],
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
@@ -105,9 +107,22 @@ public partial class Game1
             Color.White * gib.Alpha,
             gib.RotationDegrees * (MathF.PI / 180f),
             sprite.Origin.ToVector2(),
-            new Vector2(PlayerGibEntity.Scale, PlayerGibEntity.Scale),
+            new Vector2(renderScale, renderScale),
             SpriteEffects.None,
             0f);
+    }
+
+    private static float GetPlayerGibRenderScale(PlayerGibEntity gib)
+    {
+        return IsExperimentalDemoknightDecapHeadSprite(gib.SpriteName)
+            ? 1f
+            : PlayerGibEntity.Scale;
+    }
+
+    private static bool IsExperimentalDemoknightDecapHeadSprite(string spriteName)
+    {
+        return !string.Equals(spriteName, "HeadS", StringComparison.Ordinal)
+            && spriteName.EndsWith("HeadS", StringComparison.Ordinal);
     }
 
     private void DrawBloodDrop(BloodDropEntity bloodDrop, Vector2 cameraPosition)

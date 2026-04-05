@@ -56,6 +56,16 @@ public static class StockGameplayModCatalog
             : Definition.Items[loadout.UtilityItemId];
     }
 
+    public static GameplayItemDefinition GetExperimentalDemoknightEyelanderItem()
+    {
+        return Definition.Items[ExperimentalDemoknightCatalog.EyelanderItemId];
+    }
+
+    public static GameplayItemDefinition GetExperimentalDemoknightPaintrainItem()
+    {
+        return Definition.Items[ExperimentalDemoknightCatalog.PaintrainItemId];
+    }
+
     private static GameplayModPackDefinition CreateDefinition()
     {
         var items = new Dictionary<string, GameplayItemDefinition>(StringComparer.Ordinal)
@@ -240,6 +250,48 @@ public static class StockGameplayModCatalog
                 hudSpriteName: "BladeAmmoS",
                 weaponOffsetX: 0f,
                 weaponOffsetY: -3f,
+                blueTeamHudFrameOffset: 1),
+            [ExperimentalDemoknightCatalog.EyelanderItemId] = CreateWeaponItem(
+                ExperimentalDemoknightCatalog.EyelanderItemId,
+                "Eyelander",
+                BuiltInGameplayBehaviorIds.Blade,
+                maxAmmo: 100,
+                ammoPerUse: 0,
+                projectilesPerUse: 1,
+                useDelaySourceTicks: 5,
+                reloadSourceTicks: 0,
+                spreadDegrees: 4f,
+                minProjectileSpeed: 10f,
+                additionalProjectileSpeed: 2f,
+                autoReloads: false,
+                ammoRegenPerTick: 1,
+                worldSpriteName: ExperimentalDemoknightCatalog.EyelanderWorldSpriteName,
+                recoilSpriteName: ExperimentalDemoknightCatalog.EyelanderRecoilSpriteName,
+                reloadSpriteName: ExperimentalDemoknightCatalog.EyelanderWorldSpriteName,
+                hudSpriteName: ExperimentalDemoknightCatalog.HudSpriteName,
+                weaponOffsetX: -15f,
+                weaponOffsetY: -40f,
+                blueTeamHudFrameOffset: 1),
+            [ExperimentalDemoknightCatalog.PaintrainItemId] = CreateWeaponItem(
+                ExperimentalDemoknightCatalog.PaintrainItemId,
+                "Pain Train",
+                BuiltInGameplayBehaviorIds.Blade,
+                maxAmmo: 100,
+                ammoPerUse: 0,
+                projectilesPerUse: 1,
+                useDelaySourceTicks: 5,
+                reloadSourceTicks: 0,
+                spreadDegrees: 4f,
+                minProjectileSpeed: 10f,
+                additionalProjectileSpeed: 2f,
+                autoReloads: false,
+                ammoRegenPerTick: 1,
+                worldSpriteName: ExperimentalDemoknightCatalog.PaintrainWorldSpriteName,
+                recoilSpriteName: ExperimentalDemoknightCatalog.PaintrainRecoilSpriteName,
+                reloadSpriteName: ExperimentalDemoknightCatalog.PaintrainWorldSpriteName,
+                hudSpriteName: ExperimentalDemoknightCatalog.HudSpriteName,
+                weaponOffsetX: -9f,
+                weaponOffsetY: -40f,
                 blueTeamHudFrameOffset: 1),
 
             ["ability.engineer-pda"] = CreateAbilityItem("ability.engineer-pda", "Engineer PDA", GameplayEquipmentSlot.Secondary, BuiltInGameplayBehaviorIds.EngineerPda),

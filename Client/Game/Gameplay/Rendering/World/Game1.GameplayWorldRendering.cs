@@ -248,6 +248,9 @@ public partial class Game1
             : Color.OrangeRed;
         var playerSpriteTint = GetPlayerColor(_world.LocalPlayer, Color.White);
         var bodySelection = GetPlayerBodySpriteSelection(_world.LocalPlayer);
+        var renderPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: false);
+        DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
+        DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);
@@ -260,7 +263,7 @@ public partial class Game1
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
-        DrawAfterburnOverlay(_world.LocalPlayer, GetRenderPosition(_world.LocalPlayer, allowInterpolation: false), cameraPosition, visibilityAlpha);
+        DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
         TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
     }

@@ -71,6 +71,18 @@ public partial class Game1
         return explosion;
     }
 
+    private static ExplosionVisual CreateHealExplosionVisual(float x, float y)
+    {
+        var explosion = CreateExplosionVisual(x, y);
+        explosion.LargeSpriteColor = new Color(255, 128, 128);
+        explosion.SmallSpriteColor = new Color(255, 64, 64);
+        explosion.FallbackOuterColor = new Color(230, 36, 36);
+        explosion.FallbackInnerColor = new Color(255, 196, 196);
+        explosion.LargeScaleMultiplier = 1.2f;
+        explosion.SmallScaleMultiplier = 1.15f;
+        return explosion;
+    }
+
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
     {
         explosion = CreateExplosionVisual(soundEvent.X, soundEvent.Y);
@@ -767,8 +779,8 @@ public partial class Game1
 
         foreach (var explosion in _explosions)
         {
-            DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.2f, 0.92f, startingFrameBias: 3);
-            DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.45f, 0.78f, startingFrameBias: 2);
+            DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.2f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
+            DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.45f * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
         }
     }
 
@@ -778,6 +790,7 @@ public partial class Game1
         LoadedGameMakerSprite? sprite,
         float scale,
         float alpha,
+        Color tint,
         int startingFrameBias)
     {
         if (sprite is null || sprite.Frames.Count == 0)
@@ -793,7 +806,7 @@ public partial class Game1
             sprite.Frames[frameIndex],
             new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
             null,
-            Color.White * alpha,
+            tint * alpha,
             0f,
             sprite.Origin.ToVector2(),
             new Vector2(scale, scale),
@@ -846,8 +859,8 @@ public partial class Game1
                 (int)MathF.Round(explosion.Y - cameraPosition.Y - innerRadius),
                 (int)MathF.Round(innerRadius * 2f),
                 (int)MathF.Round(innerRadius * 2f));
-            _spriteBatch.Draw(_pixel, outerRectangle, new Color(255, 182, 68) * alpha);
-            _spriteBatch.Draw(_pixel, innerRectangle, new Color(255, 240, 180) * alpha);
+            _spriteBatch.Draw(_pixel, outerRectangle, explosion.FallbackOuterColor * alpha);
+            _spriteBatch.Draw(_pixel, innerRectangle, explosion.FallbackInnerColor * alpha);
         }
     }
 
@@ -1305,6 +1318,12 @@ public partial class Game1
             return;
         }
 
+        if (string.Equals(effectName, "HealExplosion", StringComparison.OrdinalIgnoreCase))
+        {
+            _explosions.Add(CreateHealExplosionVisual(x, y));
+            return;
+        }
+
         if (string.Equals(effectName, "Impact", StringComparison.OrdinalIgnoreCase))
         {
             _impactVisuals.Add(new ImpactVisual(x, y, directionDegrees * (MathF.PI / 180f)));
@@ -1710,6 +1729,18 @@ public partial class Game1
         public int ElapsedSourceTicks { get; set; }
 
         public float PendingSourceTicks { get; set; }
+
+        public Color LargeSpriteColor { get; set; } = Color.White;
+
+        public Color SmallSpriteColor { get; set; } = Color.White;
+
+        public Color FallbackOuterColor { get; set; } = new(255, 182, 68);
+
+        public Color FallbackInnerColor { get; set; } = new(255, 240, 180);
+
+        public float LargeScaleMultiplier { get; set; } = 1f;
+
+        public float SmallScaleMultiplier { get; set; } = 1f;
     }
 
     private sealed class BubblePopVisual

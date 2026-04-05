@@ -16,7 +16,8 @@ public sealed partial class SimulationWorld
         return player is not null
             && ExperimentalGameplaySettings.EnableRage
             && IsExperimentalPracticePowerOwner(player)
-            && player.ClassId == PlayerClass.Soldier;
+            && (player.ClassId == PlayerClass.Soldier
+                || player.IsExperimentalDemoknightEnabled);
     }
 
     private bool TryHandleExperimentalRageActivation(PlayerEntity player)

@@ -1,6 +1,10 @@
 namespace OpenGarrison.Core;
 
 public sealed record ExperimentalGameplaySettings(
+    bool EnableSoldierFastCapture = false,
+    bool EnableDemoknightFastCapture = false,
+    bool EnableDemoknightKit = false,
+    bool EnableCapturedPointHealingAura = false,
     bool EnableSoldierShotgunSecondaryWeapon = false,
     bool EnableHealOnDamage = false,
     bool EnableHealOnKill = false,
@@ -17,11 +21,23 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableKillStreakTracking = false,
     bool EnableEnemyHealthPackDrops = false,
     bool EnableEnemyDroppedWeapons = false,
-    float EnemyHealthPackDropChance = 0.1f)
+    float EnemyHealthPackDropChance = 0.1f,
+    float HealOnDamageFraction = 0.35f,
+    int HealOnKillAmount = 25,
+    float KillInvincibilityDurationSeconds = 0.5f,
+    float PassiveMovementSpeedMultiplier = 1f,
+    float DemoknightSwordRangeMultiplier = 1f,
+    int DemoknightSwordBaseDamage = 42,
+    float DemoknightSwordDamageMultiplier = 1f,
+    float DemoknightSwordCooldownMultiplier = 1f,
+    float DemoknightChargeRechargeMultiplier = 1f,
+    float DemoknightChargeDamageTakenMultiplier = 1f,
+    bool EnableFullHealOnKill = false)
 {
+    public const float CapturedPointHealingPerSecond = 8f;
     public const float DefaultEnemyHealthPackDropChance = 0.1f;
-    public const float HealOnDamageFraction = 0.35f;
-    public const int HealOnKillAmount = 25;
+    public const float DefaultHealOnDamageFraction = 0.35f;
+    public const int DefaultHealOnKillAmount = 25;
     public const float PassiveHealthRegenerationPerSecond = 3f;
     public const float RageMaxCharge = 500f;
     public const float RageDamageDealtChargeMultiplier = 1f;
@@ -31,7 +47,14 @@ public sealed record ExperimentalGameplaySettings(
     public const float RateOfFireCooldownMultiplier = 0.8f;
     public const float OnDamageBuffDurationSeconds = 2.5f;
     public const float OnKillBuffDurationSeconds = 3f;
-    public const float KillInvincibilityDurationSeconds = 0.5f;
+    public const float DefaultKillInvincibilityDurationSeconds = 0.5f;
+    public const float DefaultPassiveMovementSpeedMultiplier = 1f;
+    public const float DefaultDemoknightSwordRangeMultiplier = 1f;
+    public const int DefaultDemoknightSwordBaseDamage = 42;
+    public const float DefaultDemoknightSwordDamageMultiplier = 1f;
+    public const float DefaultDemoknightSwordCooldownMultiplier = 1f;
+    public const float DefaultDemoknightChargeRechargeMultiplier = 1f;
+    public const float DefaultDemoknightChargeDamageTakenMultiplier = 1f;
     public const float ProjectileSpeedMultiplier = 1.2f;
     public const float AirshotDamageMultiplier = 1.25f;
     public const float ComboTimeoutSeconds = 6f;

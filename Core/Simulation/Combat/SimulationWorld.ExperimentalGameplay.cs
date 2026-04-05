@@ -4,6 +4,15 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public bool IsPlayerInsideCapturedPointHealingAuraForVisuals(PlayerEntity? player)
+    {
+        return player is not null
+            && IsExperimentalPracticePowerOwner(player)
+            && ExperimentalGameplaySettings.EnableCapturedPointHealingAura
+            && player.IsAlive
+            && IsPlayerInsideCapturedPointHealingAura(player);
+    }
+
     private bool IsExperimentalPracticePowerOwner(PlayerEntity? player)
     {
         return player is not null
@@ -28,6 +37,11 @@ public sealed partial class SimulationWorld
     private float GetExperimentalPassiveHealthRegenerationPerTick()
     {
         return ExperimentalGameplaySettings.PassiveHealthRegenerationPerSecond / Math.Max(1, Config.TicksPerSecond);
+    }
+
+    private float GetExperimentalCapturedPointHealingPerTick()
+    {
+        return ExperimentalGameplaySettings.CapturedPointHealingPerSecond / Math.Max(1, Config.TicksPerSecond);
     }
 
     private void ApplyExperimentalDamageRewards(PlayerEntity? attacker, PlayerEntity target, int appliedDamage)
@@ -98,6 +112,11 @@ public sealed partial class SimulationWorld
             ApplyExperimentalHealingReward(killer, ExperimentalGameplaySettings.HealOnKillAmount);
         }
 
+        if (ExperimentalGameplaySettings.EnableFullHealOnKill)
+        {
+            killer.ForceSetHealth(killer.MaxHealth);
+        }
+
         if (ExperimentalGameplaySettings.EnableSpeedOnKill)
         {
             killer.GrantExperimentalMovementBoost(
@@ -131,6 +150,34 @@ public sealed partial class SimulationWorld
         ApplyHealingWithFeedback(player, healing);
     }
 
+    private int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, int damage)
+    {
+        if (damage <= 0
+            || !IsExperimentalPracticePowerOwner(target)
+            || !target.IsExperimentalDemoknightCharging)
+        {
+            return damage;
+        }
+
+        return Math.Max(
+            1,
+            (int)MathF.Round(damage * ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier));
+    }
+
+    private float ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, float damage)
+    {
+        if (damage <= 0f
+            || !IsExperimentalPracticePowerOwner(target)
+            || !target.IsExperimentalDemoknightCharging)
+        {
+            return damage;
+        }
+
+        return MathF.Max(
+            0.01f,
+            damage * ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier);
+    }
+
     private void ApplyExperimentalPassivePlayerEffects(PlayerEntity player)
     {
         if (!IsExperimentalPracticePowerOwner(player))
@@ -138,12 +185,49 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (!ExperimentalGameplaySettings.EnablePassiveHealthRegeneration)
+        if (ExperimentalGameplaySettings.EnablePassiveHealthRegeneration)
         {
-            return;
+            player.ApplyContinuousHealingAndGetAmount(GetExperimentalPassiveHealthRegenerationPerTick());
         }
 
-        player.ApplyContinuousHealingAndGetAmount(GetExperimentalPassiveHealthRegenerationPerTick());
+        if (ExperimentalGameplaySettings.EnableCapturedPointHealingAura
+            && IsPlayerInsideCapturedPointHealingAura(player))
+        {
+            player.ApplyContinuousHealingAndGetAmount(GetExperimentalCapturedPointHealingPerTick());
+        }
+    }
+
+    private bool IsPlayerInsideCapturedPointHealingAura(PlayerEntity player)
+    {
+        if (!player.IsAlive)
+        {
+            return false;
+        }
+
+        for (var pointIndex = 0; pointIndex < _controlPoints.Count; pointIndex += 1)
+        {
+            var point = _controlPoints[pointIndex];
+            if (!point.HasHealingAura || point.Team != player.Team)
+            {
+                continue;
+            }
+
+            for (var zoneIndex = 0; zoneIndex < _controlPointZones.Count; zoneIndex += 1)
+            {
+                var zone = _controlPointZones[zoneIndex];
+                if (zone.ControlPointIndex != pointIndex)
+                {
+                    continue;
+                }
+
+                if (player.IntersectsMarker(zone.Marker.CenterX, zone.Marker.CenterY, zone.Marker.Width, zone.Marker.Height))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private float ApplyExperimentalProjectileSpeedMultiplier(PlayerEntity attacker, float launchSpeed)

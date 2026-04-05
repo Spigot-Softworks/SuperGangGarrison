@@ -26,6 +26,8 @@ public static class CharacterClassCatalog
 
     public static PrimaryWeaponDefinition Blade { get; } = CreatePrimaryWeaponDefinition(StockGameplayModCatalog.Definition.Items["weapon.blade"]);
 
+    public static PrimaryWeaponDefinition ExperimentalDemoknightEyelander { get; } = CreatePrimaryWeaponDefinition(StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem());
+
     public static CharacterClassDefinition Scout { get; } = CreateDefinition(PlayerClass.Scout);
 
     public static CharacterClassDefinition Engineer { get; } = CreateDefinition(PlayerClass.Engineer);
@@ -74,6 +76,7 @@ public static class CharacterClassCatalog
             PlayerClass.Demoman => true,
             PlayerClass.Heavy => true,
             PlayerClass.Sniper => true,
+            PlayerClass.Medic => true,
             PlayerClass.Spy => true,
             _ => false,
         };

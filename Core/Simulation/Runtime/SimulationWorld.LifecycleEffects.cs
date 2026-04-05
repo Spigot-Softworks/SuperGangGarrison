@@ -77,6 +77,42 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private void TrySpawnExperimentalDemoknightDecapitationRemains(PlayerEntity victim, float launchDirectionX, float launchDirectionY)
+    {
+        var headSpriteName = ExperimentalDemoknightCatalog.GetDecapitatedHeadSpriteName(victim.ClassId, victim.Team);
+        if (string.IsNullOrWhiteSpace(headSpriteName))
+        {
+            return;
+        }
+
+        var directionLength = MathF.Sqrt((launchDirectionX * launchDirectionX) + (launchDirectionY * launchDirectionY));
+        var normalizedDirectionX = directionLength <= 0.0001f ? 1f : launchDirectionX / directionLength;
+        var normalizedDirectionY = directionLength <= 0.0001f ? 0f : launchDirectionY / directionLength;
+        var spawnX = victim.X;
+        var spawnY = victim.Y - (victim.Height * 0.42f);
+        var velocityX = (normalizedDirectionX * 6f) + ((_random.NextSingle() * 4f) - 2f);
+        var velocityY = (normalizedDirectionY * 2.5f) - 6f - (_random.NextSingle() * 2f);
+        var rotationSpeed = (_random.NextSingle() * 160f) - 80f;
+        var headGib = new PlayerGibEntity(
+            AllocateEntityId(),
+            headSpriteName,
+            frameIndex: 0,
+            spawnX,
+            spawnY,
+            velocityX,
+            velocityY,
+            rotationSpeed,
+            horizontalFriction: 0.55f,
+            rotationFriction: 0.55f,
+            lifetimeTicks: 250,
+            bloodChance: 1.3f);
+        _playerGibs.Add(headGib);
+        _entities.Add(headGib.Id, headGib);
+
+        RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
+        SpawnBloodDrops(spawnX, spawnY, 18, 8f, 12f, spreadRadius: 6f);
+    }
+
     private static IEnumerable<PlayerGibPartDefinition> GetPlayerGibParts(PlayerEntity player)
     {
         switch (player.ClassId)

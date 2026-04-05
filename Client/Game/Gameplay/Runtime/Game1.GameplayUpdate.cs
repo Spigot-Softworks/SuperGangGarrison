@@ -353,6 +353,7 @@ public partial class Game1
         DispatchPendingDamageEventsToPlugins();
         QueuePendingExperimentalHealingHudIndicators();
         UpdateLocalRapidFireWeaponAudio();
+        PlayDemoknightChargeReadySoundIfNeeded();
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
@@ -374,6 +375,7 @@ public partial class Game1
             || ShouldBlockGameplayForNavEditor()
             || _practiceSetupOpen
             || IsLastToDieStageClearOverlayActive()
+            || _lastToDieSurvivorMenuOpen
             || _lastToDiePerkMenuOpen
             || IsLastToDieFailureOverlayActive()
             || _inGameMenuOpen

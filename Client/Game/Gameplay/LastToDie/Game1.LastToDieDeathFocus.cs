@@ -21,9 +21,20 @@ public partial class Game1
 
     private sealed class LastToDieDeathFocusState
     {
-        public LastToDieDeathFocusState(int sourcePlayerId, Vector2 worldPosition, float width, float height, bool facingLeft)
+        public LastToDieDeathFocusState(
+            int sourcePlayerId,
+            PlayerClass classId,
+            PlayerTeam team,
+            DeadBodyAnimationKind animationKind,
+            Vector2 worldPosition,
+            float width,
+            float height,
+            bool facingLeft)
         {
             SourcePlayerId = sourcePlayerId;
+            ClassId = classId;
+            Team = team;
+            AnimationKind = animationKind;
             WorldPosition = worldPosition;
             Width = width;
             Height = height;
@@ -31,6 +42,12 @@ public partial class Game1
         }
 
         public int SourcePlayerId { get; }
+
+        public PlayerClass ClassId { get; }
+
+        public PlayerTeam Team { get; }
+
+        public DeadBodyAnimationKind AnimationKind { get; }
 
         public Vector2 WorldPosition { get; }
 
@@ -76,17 +93,32 @@ public partial class Game1
         CloseInGameMenu();
 
         var localPlayer = _world.LocalPlayer;
+        var fallbackClassId = GetLastToDieLocalDeathFocusClassId();
+        var fallbackAnimationKind = GetLastToDieLocalDeathFocusAnimationKind(fallbackClassId);
         var focusState = new LastToDieDeathFocusState(
             localPlayer.Id,
+            fallbackClassId,
+            localPlayer.Team,
+            fallbackAnimationKind,
             new Vector2(localPlayer.X, localPlayer.Y),
             localPlayer.Width,
             localPlayer.Height,
             IsFacingLeftByAim(localPlayer));
 
-        if (TryGetLastToDieLocalCorpseVisual(out var corpsePosition, out var corpseWidth, out var corpseHeight, out var corpseFacingLeft))
+        if (TryGetLastToDieLocalCorpseVisual(
+            out var corpseClassId,
+            out var corpseTeam,
+            out var corpseAnimationKind,
+            out var corpsePosition,
+            out var corpseWidth,
+            out var corpseHeight,
+            out var corpseFacingLeft))
         {
             focusState = new LastToDieDeathFocusState(
                 localPlayer.Id,
+                corpseClassId,
+                corpseTeam,
+                corpseAnimationKind,
                 corpsePosition,
                 corpseWidth,
                 corpseHeight,
@@ -96,7 +128,14 @@ public partial class Game1
         _lastToDieDeathFocus = focusState;
     }
 
-    private bool TryGetLastToDieLocalCorpseVisual(out Vector2 worldPosition, out float width, out float height, out bool facingLeft)
+    private bool TryGetLastToDieLocalCorpseVisual(
+        out PlayerClass classId,
+        out PlayerTeam team,
+        out DeadBodyAnimationKind animationKind,
+        out Vector2 worldPosition,
+        out float width,
+        out float height,
+        out bool facingLeft)
     {
         for (var index = 0; index < _world.DeadBodies.Count; index += 1)
         {
@@ -106,6 +145,9 @@ public partial class Game1
                 continue;
             }
 
+            classId = deadBody.ClassId;
+            team = deadBody.Team;
+            animationKind = deadBody.AnimationKind;
             worldPosition = new Vector2(deadBody.X, deadBody.Y);
             width = deadBody.Width;
             height = deadBody.Height;
@@ -113,6 +155,9 @@ public partial class Game1
             return true;
         }
 
+        classId = default;
+        team = default;
+        animationKind = DeadBodyAnimationKind.Default;
         worldPosition = default;
         width = 0f;
         height = 0f;
@@ -275,23 +320,58 @@ public partial class Game1
         GraphicsDevice.SetRenderTarget(_lastToDieFailureCorpseTarget);
         GraphicsDevice.Clear(Color.Transparent);
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        var syntheticTicksRemaining = Math.Max(
+            0,
+            DeadBodyEntity.LifetimeTicks - GetLastToDieDeathFocusCorpseElapsedTicks(_lastToDieDeathFocus));
         var pluginAnimationKind = ResolveClientPluginDeadBodyAnimationKind(
             _lastToDieDeathFocus.SourcePlayerId,
-            PlayerClass.Soldier,
-            PlayerTeam.Red,
-            DeadBodyAnimationKind.Rifle);
+            _lastToDieDeathFocus.ClassId,
+            _lastToDieDeathFocus.Team,
+            _lastToDieDeathFocus.AnimationKind);
         _lastToDieFailureCorpseTargetHasVisual = TryDrawClientPluginDeadBody(Vector2.Zero, new ClientDeadBodyRenderState(
             -1,
-            ToClientPluginClass(PlayerClass.Soldier),
-            ToClientPluginTeam(PlayerTeam.Red),
+            ToClientPluginClass(_lastToDieDeathFocus.ClassId),
+            ToClientPluginTeam(_lastToDieDeathFocus.Team),
             corpsePosition,
             _lastToDieDeathFocus.Width,
             _lastToDieDeathFocus.Height,
             _lastToDieDeathFocus.FacingLeft,
-            0,
+            syntheticTicksRemaining,
             pluginAnimationKind));
+        if (!_lastToDieFailureCorpseTargetHasVisual)
+        {
+            _lastToDieFailureCorpseTargetHasVisual = TryDrawLastToDieFailureCorpseSprite(corpsePosition, _lastToDieDeathFocus);
+        }
+
         _spriteBatch.End();
         GraphicsDevice.SetRenderTarget(null);
+    }
+
+    private bool TryDrawLastToDieFailureCorpseSprite(Vector2 corpsePosition, LastToDieDeathFocusState focusState)
+    {
+        var spriteName = GetDeadBodySpriteName(focusState.ClassId, focusState.Team, focusState.AnimationKind);
+        if (spriteName is null)
+        {
+            return false;
+        }
+
+        var sprite = _runtimeAssets.GetSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        _spriteBatch.Draw(
+            sprite.Frames[0],
+            corpsePosition,
+            null,
+            Color.White,
+            0f,
+            sprite.Origin.ToVector2(),
+            new Vector2(focusState.FacingLeft ? -1f : 1f, 1f),
+            SpriteEffects.None,
+            0f);
+        return true;
     }
 
     private void DrawLastToDieDeathFocusCorpse(Vector2 cameraPosition)
@@ -307,9 +387,9 @@ public partial class Game1
         DrawDeadBodyVisual(
             id: -1,
             sourcePlayerId: _lastToDieDeathFocus.SourcePlayerId,
-            classId: PlayerClass.Soldier,
-            team: PlayerTeam.Red,
-            animationKind: DeadBodyAnimationKind.Rifle,
+            classId: _lastToDieDeathFocus.ClassId,
+            team: _lastToDieDeathFocus.Team,
+            animationKind: _lastToDieDeathFocus.AnimationKind,
             x: _lastToDieDeathFocus.WorldPosition.X,
             y: _lastToDieDeathFocus.WorldPosition.Y,
             width: _lastToDieDeathFocus.Width,
@@ -348,7 +428,24 @@ public partial class Game1
             (int)MathF.Round(corpsePositionFallback.Y - (_lastToDieDeathFocus.Height * LastToDieFailureCorpseScale * 0.5f)),
             (int)MathF.Round(_lastToDieDeathFocus.Width * LastToDieFailureCorpseScale),
             (int)MathF.Round(_lastToDieDeathFocus.Height * LastToDieFailureCorpseScale));
-        _spriteBatch.Draw(_pixel, fallbackRectangle, new Color(90, 30, 30) * alpha);
+        var fallbackColor = _lastToDieDeathFocus.Team == PlayerTeam.Blue
+            ? new Color(24, 45, 80)
+            : new Color(90, 30, 30);
+        _spriteBatch.Draw(_pixel, fallbackRectangle, fallbackColor * alpha);
+    }
+
+    private PlayerClass GetLastToDieLocalDeathFocusClassId()
+    {
+        return _lastToDieRun?.SurvivorKind == LastToDieSurvivorKind.Demoknight
+            ? PlayerClass.Demoman
+            : PlayerClass.Soldier;
+    }
+
+    private static DeadBodyAnimationKind GetLastToDieLocalDeathFocusAnimationKind(PlayerClass classId)
+    {
+        return classId == PlayerClass.Soldier
+            ? DeadBodyAnimationKind.Rifle
+            : DeadBodyAnimationKind.Default;
     }
 
     private bool DrawLastToDieDeathFocusOverlay(int viewportWidth, int viewportHeight)

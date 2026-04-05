@@ -16,6 +16,7 @@ public partial class Game1
     {
         return _clientPowersOpen
             || _practiceSetupOpen
+            || _lastToDieSurvivorMenuOpen
             || _lastToDiePerkMenuOpen
             || IsLastToDieStageClearOverlayActive()
             || IsLastToDieDeathFocusPresentationActive()
@@ -56,6 +57,12 @@ public partial class Game1
         if (IsLastToDieStageClearOverlayActive())
         {
             UpdateLastToDieStageClearOverlay(keyboard, mouse);
+            return;
+        }
+
+        if (_lastToDieSurvivorMenuOpen)
+        {
+            UpdateLastToDieSurvivorMenu(keyboard, mouse);
             return;
         }
 
@@ -111,6 +118,7 @@ public partial class Game1
     {
         _optionsMenuOpen = true;
         _optionsMenuOpenedFromGameplay = fromGameplay;
+        _optionsPageIndex = 0;
         _pluginOptionsMenuOpen = false;
         _pendingPluginOptionsKeyItem = null;
         _selectedPluginOptionsPluginId = null;
@@ -389,10 +397,6 @@ public partial class Game1
 
     private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
     {
-        var hasPluginOptions = HasClientPluginOptions();
-        var items = hasPluginOptions ? 17 : 16;
-        GetOptionsMenuLayout(items, out var xbegin, out var ybegin, out var spacing, out var width, out _);
-
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
             if (_editingPlayerName)
@@ -411,17 +415,17 @@ public partial class Game1
             return;
         }
 
-        if (mouse.X > xbegin && mouse.X < xbegin + width)
+        var buttons = BuildOptionsMenuButtons();
+        _optionsHoverIndex = -1;
+        for (var index = 0; index < buttons.Count; index += 1)
         {
-            _optionsHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-            if (_optionsHoverIndex < 0 || _optionsHoverIndex >= items)
+            if (!buttons[index].Bounds.Contains(mouse.Position))
             {
-                _optionsHoverIndex = -1;
+                continue;
             }
-        }
-        else
-        {
-            _optionsHoverIndex = -1;
+
+            _optionsHoverIndex = index;
+            break;
         }
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
@@ -430,97 +434,7 @@ public partial class Game1
             return;
         }
 
-        switch (_optionsHoverIndex)
-        {
-            case 0:
-                _editingPlayerName = true;
-                _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
-                break;
-            case 1:
-                _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
-                ApplyGraphicsSettings();
-                break;
-            case 2:
-                _musicMode = GetNextMusicMode(_musicMode);
-                StopMenuMusic();
-                StopFaucetMusic();
-                StopIngameMusic();
-                PersistClientSettings();
-                break;
-            case 3:
-                _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
-                ApplyGraphicsSettings();
-                break;
-            case 4:
-                _particleMode = (_particleMode + 2) % 3;
-                PersistClientSettings();
-                break;
-            case 5:
-                _gibLevel = _gibLevel switch
-                {
-                    0 => 1,
-                    1 => 2,
-                    2 => 3,
-                    _ => 0,
-                };
-                PersistClientSettings();
-                break;
-            case 6:
-                _corpseDurationMode = _corpseDurationMode == ClientSettings.CorpseDurationInfinite
-                    ? ClientSettings.CorpseDurationDefault
-                    : ClientSettings.CorpseDurationInfinite;
-                if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
-                {
-                    ResetRetainedDeadBodies();
-                }
-
-                PersistClientSettings();
-                break;
-            case 7:
-                _healerRadarEnabled = !_healerRadarEnabled;
-                PersistClientSettings();
-                break;
-            case 8:
-                _showHealerEnabled = !_showHealerEnabled;
-                PersistClientSettings();
-                break;
-            case 9:
-                _showHealingEnabled = !_showHealingEnabled;
-                PersistClientSettings();
-                break;
-            case 10:
-                _showHealthBarEnabled = !_showHealthBarEnabled;
-                PersistClientSettings();
-                break;
-            case 11:
-                _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
-                PersistClientSettings();
-                break;
-            case 12:
-                _killCamEnabled = !_killCamEnabled;
-                PersistClientSettings();
-                break;
-            case 13:
-                _clientSettings.VSync = !_clientSettings.VSync;
-                ApplyGraphicsSettings();
-                break;
-            case 14:
-                OpenControlsMenu(_optionsMenuOpenedFromGameplay);
-                break;
-            case 15:
-                if (hasPluginOptions)
-                {
-                    OpenPluginOptionsMenu(_optionsMenuOpenedFromGameplay);
-                }
-                else
-                {
-                    CloseOptionsMenu();
-                }
-                break;
-            case 16:
-                CloseOptionsMenu();
-                break;
-        }
+        buttons[_optionsHoverIndex].Activate();
     }
 
     private void DrawOptionsMenu()
@@ -528,75 +442,17 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.8f);
-        var compactLayout = ViewportHeight < 540;
-        var textScale = compactLayout ? 0.92f : 1f;
-        var hasPluginOptions = HasClientPluginOptions();
-
-        var labels = new List<string>
+        var actions = GetVisibleOptionsMenuActions(out _);
+        var stackedActions = new List<MenuPageAction>(actions)
         {
-            "Player name:",
-            "Fullscreen:",
-            "Music:",
-            "Ingame Aspect Ratio:",
-            "Particles:",
-            "Gibs:",
-            "Corpses:",
-            "Healer Radar:",
-            "Show Healer:",
-            "Show Healing:",
-            "Additional Healthbar:",
-            "Persistent Self Name:",
-            "Kill Cam:",
-            "V Sync:",
-            "Controls",
+            new("Next Page", AdvanceOptionsPage),
         };
-        var values = new List<string>
-        {
-            _editingPlayerName ? _playerNameEditBuffer + "_" : _world.LocalPlayer.DisplayName,
-            _graphics.IsFullScreen ? "On" : "Off",
-            GetMusicModeLabel(_musicMode),
-            GetIngameResolutionLabel(_ingameResolution),
-            GetParticleModeLabel(_particleMode),
-            GetGibLevelLabel(_gibLevel),
-            GetCorpseDurationLabel(_corpseDurationMode),
-            _healerRadarEnabled ? "Enabled" : "Disabled",
-            _showHealerEnabled ? "Enabled" : "Disabled",
-            _showHealingEnabled ? "Enabled" : "Disabled",
-            _showHealthBarEnabled ? "Enabled" : "Disabled",
-            _showPersistentSelfNameEnabled ? "Enabled" : "Disabled",
-            _killCamEnabled ? "Enabled" : "Disabled",
-            _graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled",
-            string.Empty,
-        };
-        if (hasPluginOptions)
-        {
-            labels.Add("Plugin Options");
-            values.Add(string.Empty);
-        }
-
-        labels.Add("Back");
-        values.Add(string.Empty);
-
-        GetOptionsMenuLayout(labels.Count, out var xbegin, out var ybegin, out var spacing, out var width, out var valueX);
-        DrawMenuPanelBackdrop(
-            new Rectangle(
-                (int)xbegin - 12,
-                (int)(ybegin - spacing),
-                (int)(width + 132f),
-                Math.Max((int)spacing, (int)(labels.Count * spacing + spacing * 0.5f))),
-            0.82f);
-        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), labels.Count, spacing, width + 116f, 0.7f);
-
-        var labelPosition = new Vector2(xbegin, ybegin);
-        for (var index = 0; index < labels.Count; index += 1)
-        {
-            var color = _editingPlayerName && index == 0
-                ? Color.Orange
-                : index == _optionsHoverIndex ? Color.Red : Color.White;
-            DrawBitmapFontText(labels[index], labelPosition, color, textScale);
-            DrawBitmapFontText(values[index], new Vector2(valueX, labelPosition.Y), color, textScale);
-            labelPosition.Y += spacing;
-        }
+        var layout = GetCenteredPlaqueMenuLayout(tall: true, stackedActions.Count, includeBottomBarButton: false);
+        var hoveredStackedIndex = _optionsHoverIndex >= 0 && _optionsHoverIndex < stackedActions.Count
+            ? _optionsHoverIndex
+            : -1;
+        var soloHovered = _optionsHoverIndex == stackedActions.Count;
+        DrawPlaqueMenuLayout(layout, stackedActions, new MenuPageAction("Back", CloseOptionsMenu), false, string.Empty, hoveredStackedIndex, soloHovered, false);
     }
 
     private void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
@@ -1235,6 +1091,148 @@ public partial class Game1
         return corpseDurationMode == ClientSettings.CorpseDurationInfinite
             ? "Infinite"
             : "300 ticks";
+    }
+
+    private List<MenuPageButton> BuildOptionsMenuButtons()
+    {
+        var buttons = new List<MenuPageButton>();
+        var visibleActions = GetVisibleOptionsMenuActions(out _);
+        var stackedCount = visibleActions.Count + 1;
+        var layout = GetCenteredPlaqueMenuLayout(tall: true, stackedCount, includeBottomBarButton: false);
+
+        for (var index = 0; index < visibleActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
+        {
+            buttons.Add(new MenuPageButton(visibleActions[index].Label, layout.StackedButtonBounds[index], visibleActions[index].Activate));
+        }
+
+        if (visibleActions.Count < layout.StackedButtonBounds.Length)
+        {
+            buttons.Add(new MenuPageButton("Next Page", layout.StackedButtonBounds[visibleActions.Count], AdvanceOptionsPage));
+        }
+
+        buttons.Add(new MenuPageButton("Back", layout.SoloButtonBounds, CloseOptionsMenu));
+        return buttons;
+    }
+
+    private List<MenuPageAction> GetVisibleOptionsMenuActions(out int pageCount)
+    {
+        const int itemsPerPage = 5;
+        var allActions = BuildOptionsMenuActions();
+        pageCount = Math.Max(1, (int)Math.Ceiling(allActions.Count / (float)itemsPerPage));
+        _optionsPageIndex = ((_optionsPageIndex % pageCount) + pageCount) % pageCount;
+        var startIndex = _optionsPageIndex * itemsPerPage;
+        var count = Math.Min(itemsPerPage, Math.Max(0, allActions.Count - startIndex));
+        return count > 0
+            ? allActions.GetRange(startIndex, count)
+            : [];
+    }
+
+    private List<MenuPageAction> BuildOptionsMenuActions()
+    {
+        var actions = new List<MenuPageAction>
+        {
+            new($"Player Name: {(_editingPlayerName ? _playerNameEditBuffer + "_" : _world.LocalPlayer.DisplayName)}", () =>
+            {
+                _editingPlayerName = true;
+                _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
+            }),
+            new($"Fullscreen: {(_graphics.IsFullScreen ? "On" : "Off")}", () =>
+            {
+                _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
+                ApplyGraphicsSettings();
+            }),
+            new($"Music: {GetMusicModeLabel(_musicMode)}", () =>
+            {
+                _musicMode = GetNextMusicMode(_musicMode);
+                StopMenuMusic();
+                StopFaucetMusic();
+                StopIngameMusic();
+                PersistClientSettings();
+            }),
+            new($"Aspect Ratio: {GetIngameResolutionLabel(_ingameResolution)}", () =>
+            {
+                _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
+                ApplyGraphicsSettings();
+            }),
+            new($"Particles: {GetParticleModeLabel(_particleMode)}", () =>
+            {
+                _particleMode = (_particleMode + 2) % 3;
+                PersistClientSettings();
+            }),
+            new($"Gibs: {GetGibLevelLabel(_gibLevel)}", () =>
+            {
+                _gibLevel = _gibLevel switch
+                {
+                    0 => 1,
+                    1 => 2,
+                    2 => 3,
+                    _ => 0,
+                };
+                PersistClientSettings();
+            }),
+            new($"Corpses: {GetCorpseDurationLabel(_corpseDurationMode)}", () =>
+            {
+                _corpseDurationMode = _corpseDurationMode == ClientSettings.CorpseDurationInfinite
+                    ? ClientSettings.CorpseDurationDefault
+                    : ClientSettings.CorpseDurationInfinite;
+                if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
+                {
+                    ResetRetainedDeadBodies();
+                }
+
+                PersistClientSettings();
+            }),
+            new($"Healer Radar: {(_healerRadarEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _healerRadarEnabled = !_healerRadarEnabled;
+                PersistClientSettings();
+            }),
+            new($"Show Healer: {(_showHealerEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _showHealerEnabled = !_showHealerEnabled;
+                PersistClientSettings();
+            }),
+            new($"Show Healing: {(_showHealingEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _showHealingEnabled = !_showHealingEnabled;
+                PersistClientSettings();
+            }),
+            new($"Healthbar: {(_showHealthBarEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _showHealthBarEnabled = !_showHealthBarEnabled;
+                PersistClientSettings();
+            }),
+            new($"Persistent Name: {(_showPersistentSelfNameEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
+                PersistClientSettings();
+            }),
+            new($"Kill Cam: {(_killCamEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _killCamEnabled = !_killCamEnabled;
+                PersistClientSettings();
+            }),
+            new($"V Sync: {(_graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled")}", () =>
+            {
+                _clientSettings.VSync = !_clientSettings.VSync;
+                ApplyGraphicsSettings();
+            }),
+            new("Controls", () => OpenControlsMenu(_optionsMenuOpenedFromGameplay)),
+        };
+
+        if (HasClientPluginOptions())
+        {
+            actions.Add(new MenuPageAction("Plugin Options", () => OpenPluginOptionsMenu(_optionsMenuOpenedFromGameplay)));
+        }
+
+        return actions;
+    }
+
+    private void AdvanceOptionsPage()
+    {
+        GetVisibleOptionsMenuActions(out var pageCount);
+        _optionsPageIndex = (_optionsPageIndex + 1) % Math.Max(1, pageCount);
+        _optionsHoverIndex = -1;
     }
 
     private void GetOptionsMenuLayout(int rowCount, out float xbegin, out float ybegin, out float spacing, out float width, out float valueX)

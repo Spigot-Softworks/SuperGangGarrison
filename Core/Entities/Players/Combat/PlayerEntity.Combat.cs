@@ -113,6 +113,7 @@ public sealed partial class PlayerEntity
             }
 
             ResetAcquiredPyroStateFromCurrentAmmo();
+            ResetAcquiredMedicNeedleStateIfUnavailable();
 
             return;
         }
@@ -131,6 +132,7 @@ public sealed partial class PlayerEntity
             AcquiredWeaponReloadTicksUntilNextShell = 0;
             IsAcquiredWeaponEquipped = false;
             ResetAcquiredPyroStateFromCurrentAmmo();
+            ResetAcquiredMedicNeedleStateIfUnavailable();
             return;
         }
 
@@ -140,6 +142,7 @@ public sealed partial class PlayerEntity
         AcquiredWeaponReloadTicksUntilNextShell = 0;
         IsAcquiredWeaponEquipped = false;
         ResetAcquiredPyroStateFromCurrentAmmo();
+        ResetAcquiredMedicNeedleStateIfUnavailable();
     }
 
     public void EquipAcquiredWeapon()
@@ -1098,6 +1101,12 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (AcquiredWeaponClassId == PlayerClass.Medic)
+        {
+            AdvanceAcquiredMedicWeaponState(weaponDefinition);
+            return;
+        }
+
         if (AcquiredWeaponCooldownTicks > 0)
         {
             AcquiredWeaponCooldownTicks -= 1;
@@ -1148,6 +1157,47 @@ public sealed partial class PlayerEntity
         {
             AcquiredWeaponReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
         }
+    }
+
+    private void AdvanceAcquiredMedicWeaponState(PrimaryWeaponDefinition weaponDefinition)
+    {
+        if (MedicNeedleCooldownTicks > 0)
+        {
+            MedicNeedleCooldownTicks -= 1;
+        }
+
+        AcquiredWeaponCooldownTicks = MedicNeedleCooldownTicks;
+        AcquiredWeaponReloadTicksUntilNextShell = 0;
+
+        if (AcquiredWeaponCurrentShells >= weaponDefinition.MaxAmmo)
+        {
+            MedicNeedleRefillTicks = 0;
+            return;
+        }
+
+        if (MedicNeedleRefillTicks <= 0)
+        {
+            MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;
+            return;
+        }
+
+        MedicNeedleRefillTicks -= 1;
+        if (MedicNeedleRefillTicks <= 0)
+        {
+            AcquiredWeaponCurrentShells = weaponDefinition.MaxAmmo;
+            MedicNeedleRefillTicks = 0;
+        }
+    }
+
+    private void ResetAcquiredMedicNeedleStateIfUnavailable()
+    {
+        if (ClassId == PlayerClass.Medic || AcquiredWeaponClassId == PlayerClass.Medic)
+        {
+            return;
+        }
+
+        MedicNeedleCooldownTicks = 0;
+        MedicNeedleRefillTicks = 0;
     }
 
     private void AdvanceAcquiredPyroWeaponState()

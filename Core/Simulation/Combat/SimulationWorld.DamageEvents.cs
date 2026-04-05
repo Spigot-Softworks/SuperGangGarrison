@@ -62,6 +62,12 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        if (damage <= 0)
+        {
+            return false;
+        }
+
         var healthBefore = target.Health;
         var died = target.ApplyDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
@@ -90,6 +96,12 @@ public sealed partial class SimulationWorld
         DamageEventFlags damageFlags = DamageEventFlags.None)
     {
         if (damage <= 0f || !target.IsAlive)
+        {
+            return false;
+        }
+
+        damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        if (damage <= 0f)
         {
             return false;
         }

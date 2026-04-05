@@ -18,3 +18,8 @@
 /processor:FontDescriptionProcessor
 /build:ConsoleFont.spritefont
 
+#begin MenuFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/build:MenuFont.spritefont
+

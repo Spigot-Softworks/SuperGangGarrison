@@ -39,6 +39,15 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int QuoteBladeEnergyCost = 15;
     public const int QuoteBladeLifetimeTicks = 15;
     public const int QuoteBladeMaxOut = 1;
+    public const float ExperimentalDemoknightSwordBaseRange = 48f;
+    public const int ExperimentalDemoknightSwordCooldownTicks = 18;
+    public const int ExperimentalDemoknightChargeMaxTicks = 100;
+    public const float ExperimentalDemoknightGroundChargeDrivePerTick = 3f;
+    public const float ExperimentalDemoknightFlightChargeDrivePerTick = 1.8f;
+    public const float ExperimentalDemoknightFlightChargeAccelerationDrivePerTick = 0.15f;
+    public const float ExperimentalDemoknightChargeTrimpAccelerationGainPerTick = 0.35f;
+    public const float ExperimentalDemoknightChargeFlightActivationAcceleration = 1.3f;
+    public const float ExperimentalDemoknightChargeBounceAccelerationThreshold = 5f;
     public const int PyroAirblastCost = 40;
     public const int PyroAirblastReloadTicks = 40;
     public const int PyroAirblastNoFlameTicks = 15;
@@ -182,6 +191,9 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool HasPyroWeaponEquipped => ClassId == PlayerClass.Pyro
         || (IsAcquiredWeaponEquipped && AcquiredWeaponClassId == PlayerClass.Pyro);
 
+    public bool HasAcquiredMedigunEquipped => IsAcquiredWeaponEquipped
+        && AcquiredWeaponClassId == PlayerClass.Medic;
+
     public bool HasPyroWeaponAvailable => ClassId == PlayerClass.Pyro
         || AcquiredWeaponClassId == PlayerClass.Pyro;
 
@@ -237,6 +249,20 @@ public sealed partial class PlayerEntity : SimulationEntity
     public int QuoteBubbleCount { get; private set; }
 
     public int QuoteBladesOut { get; private set; }
+
+    public bool IsExperimentalDemoknightEnabled { get; private set; }
+
+    public bool IsExperimentalDemoknightCharging { get; private set; }
+
+    public int ExperimentalDemoknightChargeTicksRemaining { get; private set; }
+
+    public float ExperimentalDemoknightChargeFraction => ExperimentalDemoknightChargeTicksRemaining / (float)ExperimentalDemoknightChargeMaxTicks;
+
+    public bool IsExperimentalDemoknightChargeDashActive { get; private set; }
+
+    public bool IsExperimentalDemoknightChargeFlightActive { get; private set; }
+
+    public float ExperimentalDemoknightChargeAcceleration { get; private set; }
 
     public int PyroAirblastCooldownTicks { get; private set; }
 
