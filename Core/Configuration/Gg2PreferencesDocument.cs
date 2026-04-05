@@ -51,6 +51,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
+    public bool SpriteDropShadowEnabled { get; set; }
+
     public string RecentConnectionHost { get; set; } = "127.0.0.1";
 
     public int RecentConnectionPort { get; set; } = 8190;
@@ -90,6 +92,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
+            SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
             RecentConnectionPort = ini.GetInt(ConnectionSection, "Port", 8190),
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
@@ -124,6 +127,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
+        ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
 
         ini.SetString(ServerSection, "MapRotation", HostSettings.MapRotationFile);
         ini.SetBool(ServerSection, "Dedicated", HostSettings.DedicatedModeEnabled);

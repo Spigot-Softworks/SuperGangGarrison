@@ -28,6 +28,7 @@ public partial class Game1
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
+        _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
 
         _world.SetLocalPlayerName(_clientSettings.PlayerName);
         _world.SetLocalPlayerBadgeMask(BadgeCatalog.ParseRewardString(_clientSettings.Rewards));
@@ -55,6 +56,7 @@ public partial class Game1
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
+        _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.RecentConnection.Host = SanitizeHost(_connectHostBuffer);
         _clientSettings.RecentConnection.Port = ParsePortOrDefault(_connectPortBuffer, 8190);
         _hostSetupState.ApplyTo(_clientSettings);

@@ -258,18 +258,15 @@ public partial class Game1
             if (sprite is not null && sprite.Frames.Count > 0)
             {
                 var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-                _spriteBatch.Draw(
+                DrawSpriteFrameWithOptionalShadow(
                     sprite.Frames[0],
                     new Vector2(
                         roundedOrigin.X - cameraPosition.X,
                         roundedOrigin.Y - cameraPosition.Y),
-                    null,
                     Color.White,
                     0f,
                     sprite.Origin.ToVector2(),
-                    new Vector2(facingLeft ? -1f : 1f, 1f),
-                    SpriteEffects.None,
-                    0f);
+                    new Vector2(facingLeft ? -1f : 1f, 1f));
                 return;
             }
         }
@@ -369,28 +366,22 @@ public partial class Game1
             DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
         }
 
-        _spriteBatch.Draw(
+        DrawSpriteFrameWithOptionalShadow(
             sprite.Frames[frameIndex],
             position,
-            null,
             tint,
             0f,
             sprite.Origin.ToVector2(),
-            scale,
-            SpriteEffects.None,
-            0f);
+            scale);
         if (player.IsUbered)
         {
-            _spriteBatch.Draw(
+            DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[frameIndex],
                 position,
-                null,
                 GetUberOverlayColor(player.Team) * 0.7f,
                 0f,
                 sprite.Origin.ToVector2(),
-                scale,
-                SpriteEffects.None,
-                0f);
+                scale);
         }
 
         if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
@@ -421,18 +412,15 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(
+        DrawSpriteFrameWithOptionalShadow(
             sprite.Frames[0],
             new Vector2(
                 roundedOrigin.X - cameraPosition.X,
                 roundedOrigin.Y + bodySelection.EquipmentOffset - cameraPosition.Y),
-            null,
             tint,
             0f,
             sprite.Origin.ToVector2(),
-            scale,
-            SpriteEffects.None,
-            0f);
+            scale);
     }
 
     private void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
@@ -456,18 +444,15 @@ public partial class Game1
             timerFrame += 12;
         }
 
-        _spriteBatch.Draw(
+        DrawSpriteFrameWithOptionalShadow(
             timerSprite.Frames[Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)],
             new Vector2(
                 roundedOrigin.X + 2f - cameraPosition.X,
                 roundedOrigin.Y - 33f - cameraPosition.Y),
-            null,
             Color.White,
             0f,
             timerSprite.Origin.ToVector2(),
-            new Vector2(2f, 2f),
-            SpriteEffects.None,
-            0f);
+            new Vector2(2f, 2f));
     }
 
     private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player)
@@ -585,28 +570,22 @@ public partial class Game1
         var drawY = roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
         var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
         var scale = new Vector2(facingScale, 1f);
-        _spriteBatch.Draw(
+        DrawSpriteFrameWithOptionalShadow(
             sprite.Frames[frameIndex],
             position,
-            null,
             tint,
             rotation,
             sprite.Origin.ToVector2(),
-            scale,
-            SpriteEffects.None,
-            0f);
+            scale);
         if (player.IsUbered)
         {
-            _spriteBatch.Draw(
+            DrawSpriteFrameWithOptionalShadow(
                 sprite.Frames[frameIndex],
                 position,
-                null,
                 GetUberOverlayColor(player.Team) * 0.7f,
                 rotation,
                 sprite.Origin.ToVector2(),
-                scale,
-                SpriteEffects.None,
-                0f);
+                scale);
         }
 
         return true;
@@ -658,53 +637,33 @@ public partial class Game1
             return;
         }
 
-        var pulse = 0.5f + (0.5f * MathF.Sin((float)(_world.Frame * 0.18f) + player.Id));
-        var baseAlpha = visibilityAlpha * (0.2f + (pulse * 0.14f));
-        if (baseAlpha <= 0.01f)
+        var blurDirection = GetExperimentalDemoknightChargeBlurDirection(player);
+        if (blurDirection.LengthSquared() <= 0.0001f)
         {
-            return;
+            blurDirection = new Vector2(player.FacingDirectionX, 0f);
         }
 
-        var outerTint = new Color(105, 230, 120) * (baseAlpha * 0.9f);
-        var midTint = new Color(150, 250, 165) * (baseAlpha * 0.95f);
-        var innerTint = new Color(220, 255, 225) * (baseAlpha * 0.75f);
-        var offsets = new[]
+        var pulse = 0.5f + (0.5f * MathF.Sin((float)(_world.Frame * 0.16f) + player.Id));
+        var blurTint = new Color(150, 245, 165);
+        for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
         {
-            new Vector2(-3f, 0f),
-            new Vector2(3f, 0f),
-            new Vector2(0f, -3f),
-            new Vector2(0f, 3f),
-            new Vector2(-2f, -2f),
-            new Vector2(2f, -2f),
-            new Vector2(-2f, 2f),
-            new Vector2(2f, 2f),
-        };
-
-        for (var index = 0; index < offsets.Length; index += 1)
-        {
+            var offsetDistance = 2f + (blurIndex * 2.5f);
+            var blurPosition = renderPosition - blurDirection * offsetDistance;
+            var blurAlpha = visibilityAlpha * ((blurIndex == 0 ? 0.12f : 0.07f) + (pulse * 0.05f));
+            var tint = blurTint * blurAlpha;
             TryDrawPlayerSpriteAtPosition(
                 player,
-                renderPosition + offsets[index],
+                blurPosition,
                 cameraPosition,
-                outerTint,
+                tint,
                 bodySelection,
                 drawIntelOverlay: false);
-        }
 
-        TryDrawPlayerSpriteAtPosition(
-            player,
-            renderPosition + new Vector2(0f, -1f),
-            cameraPosition,
-            midTint,
-            bodySelection,
-            drawIntelOverlay: false);
-        TryDrawPlayerSpriteAtPosition(
-            player,
-            renderPosition,
-            cameraPosition,
-            innerTint,
-            bodySelection,
-            drawIntelOverlay: false);
+            if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
+            {
+                TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, visibilityAlpha: 1f, bodySelection);
+            }
+        }
     }
 
     private Vector2 GetExperimentalDemoknightChargeBlurDirection(PlayerEntity player)

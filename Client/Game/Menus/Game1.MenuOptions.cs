@@ -1207,6 +1207,11 @@ public partial class Game1
                 _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
                 PersistClientSettings();
             }),
+            new($"Sprite Shadow: {(_spriteDropShadowEnabled ? "Enabled" : "Disabled")}", () =>
+            {
+                _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
+                PersistClientSettings();
+            }),
             new($"Kill Cam: {(_killCamEnabled ? "Enabled" : "Disabled")}", () =>
             {
                 _killCamEnabled = !_killCamEnabled;

@@ -87,17 +87,51 @@ public partial class Game1
         }
 
         var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
-        _spriteBatch.Draw(
+        DrawSpriteFrameWithOptionalShadow(
             sprite.Frames[clampedFrameIndex],
             new Vector2(worldX - cameraPosition.X, worldY - cameraPosition.Y),
-            null,
             tint,
             rotation,
             sprite.Origin.ToVector2(),
-            Vector2.One,
-            SpriteEffects.None,
-            0f);
+            Vector2.One);
         return true;
+    }
+
+    private void DrawSpriteFrameWithOptionalShadow(
+        Texture2D frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        if (_spriteDropShadowEnabled && tint.A > 0)
+        {
+            var shadowAlpha = ((tint.A / 255f) * 0.32f);
+            var shadowTint = new Color(0, 0, 0) * shadowAlpha;
+            _spriteBatch.Draw(
+                frame,
+                position + new Vector2(1f, 1f),
+                null,
+                shadowTint,
+                rotation,
+                origin,
+                scale,
+                effects,
+                0f);
+        }
+
+        _spriteBatch.Draw(
+            frame,
+            position,
+            null,
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            0f);
     }
 
     private static float GetVelocityRotation(float velocityX, float velocityY)
