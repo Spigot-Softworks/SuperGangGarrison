@@ -4028,7 +4028,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         return visibleTicks < _modernSpyReactTicksThreshold;
     }
 
-    private void UpdateModernSpyVisibilityMemory(IReadOnlyList<PlayerEntity> allPlayers)
+    private void UpdateModernSpyVisibilityMemory(List<PlayerEntity> allPlayers)
     {
         var activeSpyIds = new HashSet<int>();
         for (var index = 0; index < allPlayers.Count; index += 1)
@@ -4152,7 +4152,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         firePrimary = false;
     }
 
-    private void ApplyModernSoldierCloseRangeAdjustment(
+    private static void ApplyModernSoldierCloseRangeAdjustment(
         SimulationWorld world,
         PlayerEntity player,
         ModernCombatTarget? combatTarget,
@@ -4186,7 +4186,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         horizontal = player.X > target.X ? -1 : 1;
     }
 
-    private void UpdateModernCombatMemory(PlayerEntity player, BotMemory memory)
+    private static void UpdateModernCombatMemory(PlayerEntity player, BotMemory memory)
     {
         if (memory.ModernReloadCounterTicks > 0)
         {
@@ -4222,7 +4222,7 @@ public sealed class ModernPracticeBotController : IPracticeBotController
         }
     }
 
-    private void EnsureModernCombatMemoryInitialized(BotMemory memory, BotTimingProfile timing)
+    private static void EnsureModernCombatMemoryInitialized(BotMemory memory, BotTimingProfile timing)
     {
         if (memory.ModernBeenHealingSwitchTicks <= 0)
         {

@@ -6,3 +6,8 @@ Gang-Garrison-2/
 /NextPrioritiesAndBugs.txt
 .codex-dotnet/
 /.tmp*/
+%TEMP%/
+.DS_Store
+Thumbs.db
+*.user
+*.suo

@@ -12,6 +12,71 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private bool TryDrawOpenMenuOverlay()
+    {
+        if (_optionsMenuOpen)
+        {
+            DrawOptionsMenu();
+            return true;
+        }
+
+        if (_pluginOptionsMenuOpen)
+        {
+            DrawPluginOptionsMenu();
+            return true;
+        }
+
+        if (_controlsMenuOpen)
+        {
+            DrawControlsMenu();
+            return true;
+        }
+
+        if (_lastToDieMenuOpen)
+        {
+            DrawLastToDieMenu();
+            return true;
+        }
+
+        if (_hostSetupOpen)
+        {
+            DrawHostSetupMenu();
+            return true;
+        }
+
+        if (_clientPowersOpen)
+        {
+            DrawClientPowersMenu();
+            return true;
+        }
+
+        if (_practiceSetupOpen)
+        {
+            DrawPracticeSetupMenu();
+            return true;
+        }
+
+        if (_creditsOpen)
+        {
+            DrawCreditsMenu();
+            return true;
+        }
+
+        if (_lobbyBrowserOpen)
+        {
+            DrawLobbyBrowserMenu();
+            return true;
+        }
+
+        if (_manualConnectOpen)
+        {
+            DrawManualConnectMenu();
+            return true;
+        }
+
+        return false;
+    }
+
     private void UpdateMainMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (IsKeyPressed(keyboard, Keys.Escape))
@@ -78,81 +143,15 @@ public partial class Game1
 
         DrawMenuBackgroundAttribution();
 
-        if (_optionsMenuOpen)
+        if (!TryDrawOpenMenuOverlay())
         {
-            DrawOptionsMenu();
-            DrawDevMessagePopup();
-            return;
+            var buttons = BuildMainMenuButtons();
+            DrawCurrentMainMenuPage(buttons);
+
+            DrawMenuStatusText();
+            DrawQuitPrompt();
         }
 
-        if (_pluginOptionsMenuOpen)
-        {
-            DrawPluginOptionsMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_controlsMenuOpen)
-        {
-            DrawControlsMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_lastToDieMenuOpen)
-        {
-            DrawLastToDieMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_hostSetupOpen)
-        {
-            DrawHostSetupMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_clientPowersOpen)
-        {
-            DrawClientPowersMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_practiceSetupOpen)
-        {
-            DrawPracticeSetupMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_creditsOpen)
-        {
-            DrawCreditsMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_lobbyBrowserOpen)
-        {
-            DrawLobbyBrowserMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        if (_manualConnectOpen)
-        {
-            DrawManualConnectMenu();
-            DrawDevMessagePopup();
-            return;
-        }
-
-        var buttons = BuildMainMenuButtons();
-        DrawCurrentMainMenuPage(buttons);
-
-        DrawMenuStatusText();
-        DrawQuitPrompt();
         DrawDevMessagePopup();
     }
 

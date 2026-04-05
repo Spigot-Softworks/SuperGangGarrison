@@ -4,31 +4,12 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private static readonly int[] PracticeTickRateOptions = [30, 60, 120];
-    private static readonly int[] PracticeTimeLimitOptions = [5, 10, 15, 20, 30, 45, 60];
-    private static readonly int[] PracticeCapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    private static readonly int[] PracticeRespawnOptions = [0, 3, 5, 10, 15];
-    private static readonly int[] PracticeBotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    private static readonly HashSet<string> AllowedPracticeMapNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Valley",
-        "Montane",
-        "Harvest",
-        "Conflict",
-        "Eiger",
-        "Gallery",
-        "Waterway",
-    };
-
     private readonly record struct PracticeSetupLayout(
         Rectangle Panel,
         Rectangle MapLeftBounds,
@@ -365,47 +346,6 @@ public partial class Game1
             compactLayout);
     }
 
-    private void NormalizePracticeSetupState()
-    {
-        if (_practiceMapEntries.Count == 0)
-        {
-            _practiceMapIndex = 0;
-        }
-        else
-        {
-            if (_practiceMapIndex < 0 || _practiceMapIndex >= _practiceMapEntries.Count)
-            {
-                _practiceMapIndex = FindDefaultPracticeMapIndex();
-            }
-        }
-
-        _practiceTickRate = NormalizePracticeOption(_practiceTickRate, PracticeTickRateOptions, SimulationConfig.DefaultTicksPerSecond);
-        _practiceTimeLimitMinutes = NormalizePracticeOption(_practiceTimeLimitMinutes, PracticeTimeLimitOptions, 15);
-        _practiceCapLimit = NormalizePracticeOption(_practiceCapLimit, PracticeCapLimitOptions, 5);
-        _practiceRespawnSeconds = NormalizePracticeOption(_practiceRespawnSeconds, PracticeRespawnOptions, 5);
-        _practiceEnemyBotCount = NormalizePracticeOption(_practiceEnemyBotCount, PracticeBotCountOptions, 0);
-        _practiceFriendlyBotCount = NormalizePracticeOption(_practiceFriendlyBotCount, PracticeBotCountOptions, 0);
-    }
-
-    private static List<PracticeMapEntry> BuildPracticeMapEntries()
-    {
-        var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
-            .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
-
-        return SimpleLevelFactory.GetAvailableSourceLevels()
-            .Where(level => AllowedPracticeMapNames.Contains(level.Name))
-            .Select(level =>
-            {
-                var isCustomMap = Path.GetExtension(level.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);
-                var displayName = stockDefinitions.TryGetValue(level.Name, out var definition)
-                    ? definition.DisplayName
-                    : level.Name;
-                return new PracticeMapEntry(level.Name, displayName, level.Mode, isCustomMap);
-            })
-            .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
     private void DrawPracticeSelectorRow(
         Rectangle leftBounds,
         Rectangle valueBounds,
@@ -420,115 +360,9 @@ public partial class Game1
         DrawMenuButtonScaled(rightBounds, ">", false, buttonScale);
     }
 
-    private void CyclePracticeMap(int direction)
-    {
-        if (_practiceMapEntries.Count == 0)
-        {
-            _menuStatusMessage = "No local maps are available for Practice.";
-            return;
-        }
-
-        var count = _practiceMapEntries.Count;
-        _practiceMapIndex = ((_practiceMapIndex + direction) % count + count) % count;
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeTickRate(int direction)
-    {
-        _practiceTickRate = CyclePracticeOption(_practiceTickRate, PracticeTickRateOptions, direction, SimulationConfig.DefaultTicksPerSecond);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeTimeLimit(int direction)
-    {
-        _practiceTimeLimitMinutes = CyclePracticeOption(_practiceTimeLimitMinutes, PracticeTimeLimitOptions, direction, 15);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeCapLimit(int direction)
-    {
-        _practiceCapLimit = CyclePracticeOption(_practiceCapLimit, PracticeCapLimitOptions, direction, 5);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeRespawn(int direction)
-    {
-        _practiceRespawnSeconds = CyclePracticeOption(_practiceRespawnSeconds, PracticeRespawnOptions, direction, 5);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeEnemyBots(int direction)
-    {
-        _practiceEnemyBotCount = CyclePracticeOption(_practiceEnemyBotCount, PracticeBotCountOptions, direction, 0);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private void CyclePracticeFriendlyBots(int direction)
-    {
-        _practiceFriendlyBotCount = CyclePracticeOption(_practiceFriendlyBotCount, PracticeBotCountOptions, direction, 0);
-        _menuStatusMessage = string.Empty;
-    }
-
-    private bool SelectPracticeMapEntry(string? levelName)
-    {
-        if (string.IsNullOrWhiteSpace(levelName))
-        {
-            return false;
-        }
-
-        var index = _practiceMapEntries.FindIndex(entry => string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase));
-        if (index < 0)
-        {
-            return false;
-        }
-
-        _practiceMapIndex = index;
-        return true;
-    }
-
-    private int FindDefaultPracticeMapIndex()
-    {
-        var valleyIndex = _practiceMapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Valley", StringComparison.OrdinalIgnoreCase));
-        return valleyIndex >= 0 ? valleyIndex : 0;
-    }
-
-    private PracticeMapEntry? GetSelectedPracticeMapEntry()
-    {
-        return _practiceMapIndex >= 0 && _practiceMapIndex < _practiceMapEntries.Count
-            ? _practiceMapEntries[_practiceMapIndex]
-            : null;
-    }
-
     private static Rectangle OffsetPracticeRow(Rectangle bounds, int offsetY)
     {
         return new Rectangle(bounds.X, bounds.Y + offsetY, bounds.Width, bounds.Height);
-    }
-
-    private static int NormalizePracticeOption(int currentValue, int[] options, int fallback)
-    {
-        return options.Contains(currentValue) ? currentValue : fallback;
-    }
-
-    private static int CyclePracticeOption(int currentValue, int[] options, int direction, int fallback)
-    {
-        var normalized = NormalizePracticeOption(currentValue, options, fallback);
-        var currentIndex = 0;
-        for (var index = 0; index < options.Length; index += 1)
-        {
-            if (options[index] == normalized)
-            {
-                currentIndex = index;
-                break;
-            }
-        }
-
-        var nextIndex = (currentIndex + direction) % options.Length;
-        if (nextIndex < 0)
-        {
-            nextIndex += options.Length;
-        }
-
-        return options[nextIndex];
     }
 
     private static string GetPracticeMapDisplayLabel(PracticeMapEntry entry)
@@ -546,10 +380,5 @@ public partial class Game1
         return entry.IsCustomMap
             ? $"{entry.DisplayName} [{modeLabel}] (Custom)"
             : $"{entry.DisplayName} [{modeLabel}]";
-    }
-
-    private static string GetPracticeBotCountLabel(int count)
-    {
-        return count <= 0 ? "Off" : count.ToString(CultureInfo.InvariantCulture);
     }
 }

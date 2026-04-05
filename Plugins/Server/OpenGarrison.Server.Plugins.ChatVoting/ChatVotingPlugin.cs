@@ -412,7 +412,7 @@ public sealed class ChatVotingPlugin :
         return false;
     }
 
-    private int GetRequiredYesVotes(int eligibleCount)
+    private static int GetRequiredYesVotes(int eligibleCount)
     {
         return Math.Max(1, (eligibleCount / 2) + 1);
     }

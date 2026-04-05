@@ -84,7 +84,7 @@ public static class SnapshotDelta
         };
     }
 
-    private static IReadOnlyList<T> MergeEntities<T>(
+    private static List<T> MergeEntities<T>(
         IReadOnlyList<T>? baseline,
         IReadOnlyList<T> updates,
         IReadOnlyList<int> removedIds,
