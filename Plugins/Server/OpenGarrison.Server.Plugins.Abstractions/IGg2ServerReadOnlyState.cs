@@ -21,4 +21,10 @@ public interface IOpenGarrisonServerReadOnlyState
     int BlueCaps { get; }
 
     IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers();
+
+    bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value);
+
+    bool TryGetPlayerReplicatedStateFloat(byte slot, string ownerPluginId, string stateKey, out float value);
+
+    bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value);
 }

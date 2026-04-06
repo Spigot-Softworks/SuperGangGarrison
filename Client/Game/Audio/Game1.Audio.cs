@@ -36,72 +36,27 @@ public partial class Game1
 
     private void LoadMenuMusic()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        var candidates = Enumerable.Range(1, 6)
-            .Select(static index => $"menumusic{index}.wav")
-            .Where(static fileName => FindLoopedMusicPath(Path.Combine("Music", fileName)) is not null)
-            .ToArray();
-        if (candidates.Length == 0)
-        {
-            return;
-        }
-
-        var chosen = candidates[Random.Shared.Next(candidates.Length)];
-        TryLoadLoopedMusic(Path.Combine("Music", chosen), out _menuMusic, out _menuMusicInstance, 0.8f);
+        _gameplayAudioMusicController.LoadMenuMusic();
     }
 
     private void LoadFaucetMusic()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        TryLoadLoopedMusic(Path.Combine("Music", "faucetmusic.wav"), out _faucetMusic, out _faucetMusicInstance, 0.8f);
+        _gameplayAudioMusicController.LoadFaucetMusic();
     }
 
     private void LoadIngameMusic()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        TryLoadLoopedMusic(Path.Combine("Music", "ingamemusic.wav"), out _ingameMusic, out _ingameMusicInstance, 0.8f);
+        _gameplayAudioMusicController.LoadIngameMusic();
     }
 
     private void LoadLastToDieMenuMusic()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        TryLoadLoopedMusic(
-            Path.Combine("Music", "menu-l2d.fixed.wav"),
-            out _lastToDieMenuMusic,
-            out _lastToDieMenuMusicInstance,
-            0.82f,
-            disableAudioOnFailure: false);
+        _gameplayAudioMusicController.LoadLastToDieMenuMusic();
     }
 
     private void LoadLastToDieIngameMusic()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        TryLoadLoopedMusic(
-            Path.Combine("Music", "ingame_l2d.wav"),
-            out _lastToDieIngameMusic,
-            out _lastToDieIngameMusicInstance,
-            0.82f,
-            disableAudioOnFailure: false);
+        _gameplayAudioMusicController.LoadLastToDieIngameMusic();
     }
 
     private void TryLoadLoopedMusic(
@@ -161,436 +116,77 @@ public partial class Game1
 
     private void EnsureMenuMusicPlaying()
     {
-        if (IsServerLauncherMode || !_audioAvailable || !AllowsMenuMusic())
-        {
-            StopMenuMusic();
-            StopLastToDieMenuMusic();
-            return;
-        }
-
-        if (IsLastToDieMenuActive() && _lastToDieMenuMusicInstance is not null)
-        {
-            StopMenuMusic();
-            try
-            {
-                if (_lastToDieMenuMusicInstance.State != SoundState.Playing)
-                {
-                    _lastToDieMenuMusicInstance.Play();
-                }
-            }
-            catch (Exception ex)
-            {
-                DisableAudio("starting Last To Die menu music", ex);
-            }
-
-            return;
-        }
-
-        StopLastToDieMenuMusic();
-        if (_menuMusicInstance is null)
-        {
-            return;
-        }
-
-        try
-        {
-            if (_menuMusicInstance.State != SoundState.Playing)
-            {
-                _menuMusicInstance.Play();
-            }
-        }
-        catch (Exception ex)
-        {
-            DisableAudio("starting menu music", ex);
-        }
+        _gameplayAudioMusicController.EnsureMenuMusicPlaying();
     }
 
     private void EnsureFaucetMusicPlaying()
     {
-        if (_faucetMusicInstance is null || !_audioAvailable || !AllowsMenuMusic())
-        {
-            StopFaucetMusic();
-            return;
-        }
-
-        try
-        {
-            if (_faucetMusicInstance.State != SoundState.Playing)
-            {
-                _faucetMusicInstance.Play();
-            }
-        }
-        catch (Exception ex)
-        {
-            DisableAudio("starting faucet music", ex);
-        }
+        _gameplayAudioMusicController.EnsureFaucetMusicPlaying();
     }
 
     private void StopMenuMusic()
     {
-        try
-        {
-            if (_menuMusicInstance?.State == SoundState.Playing)
-            {
-                _menuMusicInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopMenuMusic();
     }
 
     private void StopLastToDieMenuMusic()
     {
-        try
-        {
-            if (_lastToDieMenuMusicInstance?.State == SoundState.Playing)
-            {
-                _lastToDieMenuMusicInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopLastToDieMenuMusic();
     }
 
     private void StopFaucetMusic()
     {
-        try
-        {
-            if (_faucetMusicInstance?.State == SoundState.Playing)
-            {
-                _faucetMusicInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopFaucetMusic();
     }
 
     private void EnsureIngameMusicPlaying()
     {
-        if (!_audioAvailable || !AllowsIngameMusic())
-        {
-            StopIngameMusic();
-            StopLastToDieIngameMusic();
-            return;
-        }
-
-        if (IsLastToDieDeathFocusPresentationActive())
-        {
-            StopIngameMusic();
-            StopLastToDieIngameMusic();
-            return;
-        }
-
-        if (_world.MatchState.IsEnded)
-        {
-            StopIngameMusic();
-            StopLastToDieIngameMusic();
-            return;
-        }
-
-        if (IsLastToDieSessionActive && _lastToDieIngameMusicInstance is not null)
-        {
-            StopIngameMusic();
-            try
-            {
-                if (_lastToDieIngameMusicInstance.State != SoundState.Playing)
-                {
-                    _lastToDieIngameMusicInstance.Play();
-                }
-            }
-            catch (Exception ex)
-            {
-                DisableAudio("starting Last To Die in-game music", ex);
-            }
-
-            return;
-        }
-
-        StopLastToDieIngameMusic();
-        if (_ingameMusicInstance is null)
-        {
-            return;
-        }
-
-        try
-        {
-            if (_ingameMusicInstance.State != SoundState.Playing)
-            {
-                _ingameMusicInstance.Play();
-            }
-        }
-        catch (Exception ex)
-        {
-            DisableAudio("starting in-game music", ex);
-        }
+        _gameplayAudioMusicController.EnsureIngameMusicPlaying();
     }
 
     private void StopIngameMusic()
     {
-        try
-        {
-            if (_ingameMusicInstance?.State == SoundState.Playing)
-            {
-                _ingameMusicInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopIngameMusic();
     }
 
     private void StopLastToDieIngameMusic()
     {
-        try
-        {
-            if (_lastToDieIngameMusicInstance?.State == SoundState.Playing)
-            {
-                _lastToDieIngameMusicInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopLastToDieIngameMusic();
     }
 
     private void PlayDeathCamSoundIfNeeded()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        if (IsLastToDieDeathFocusPresentationActive())
-        {
-            return;
-        }
-
-        if (!_killCamEnabled || _world.LocalPlayer.IsAlive || _world.LocalDeathCam is null)
-        {
-            return;
-        }
-
-        var deathCam = _world.LocalDeathCam;
-        if (GetDeathCamElapsedTicks(deathCam) < DeathCamFocusDelayTicks || _wasDeathCamActive)
-        {
-            return;
-        }
-
-        var sound = _runtimeAssets.GetSound("DeathCamSnd");
-        TryPlaySound(sound, 0.6f, 0f, 0f);
+        _gameplayAudioEventController.PlayDeathCamSoundIfNeeded();
     }
 
     private void PlayDemoknightChargeReadySoundIfNeeded()
     {
-        var player = _world.LocalPlayer;
-        var currentChargeTicks = player.IsExperimentalDemoknightEnabled && player.IsAlive
-            ? player.ExperimentalDemoknightChargeTicksRemaining
-            : PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
-        var reachedReadyThisTick = player.IsExperimentalDemoknightEnabled
-            && player.IsAlive
-            && !player.IsExperimentalDemoknightCharging
-            && _previousLocalDemoknightChargeTicks < PlayerEntity.ExperimentalDemoknightChargeMaxTicks
-            && currentChargeTicks >= PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
-
-        _previousLocalDemoknightChargeTicks = currentChargeTicks;
-        if (!reachedReadyThisTick || !_audioAvailable)
-        {
-            return;
-        }
-
-        var sound = _runtimeAssets.GetSound(ExperimentalDemoknightCatalog.ChargeReadySoundName);
-        TryPlaySound(sound, 0.8f, 0f, 0f);
+        _gameplayAudioEventController.PlayDemoknightChargeReadySoundIfNeeded();
     }
 
     private void PlayRoundEndSoundIfNeeded()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        if (!_world.MatchState.IsEnded || _wasMatchEnded)
-        {
-            return;
-        }
-
-        var soundName = _world.MatchState.WinnerTeam switch
-        {
-            PlayerTeam.Red when _world.LocalPlayer.Team == PlayerTeam.Red => "VictorySnd",
-            PlayerTeam.Blue when _world.LocalPlayer.Team == PlayerTeam.Blue => "VictorySnd",
-            null => "FailureSnd",
-            _ => "FailureSnd",
-        };
-
-        if (_ingameMusicInstance?.State == SoundState.Playing)
-        {
-            _ingameMusicInstance.Stop();
-        }
-        if (_lastToDieIngameMusicInstance?.State == SoundState.Playing)
-        {
-            _lastToDieIngameMusicInstance.Stop();
-        }
-
-        var sound = _runtimeAssets.GetSound(soundName);
-        TryPlaySound(sound, 0.8f, 0f, 0f);
+        _gameplayAudioEventController.PlayRoundEndSoundIfNeeded();
     }
 
     private void PlayKillFeedAnnouncementSounds()
     {
-        if (!_audioAvailable || _mainMenuOpen || IsLastToDieFailurePresentationActive())
-        {
-            return;
-        }
-
-        for (var index = 0; index < _world.KillFeed.Count; index += 1)
-        {
-            var entry = _world.KillFeed[index];
-            if (entry.EventId == 0
-                || entry.SpecialType == KillFeedSpecialType.None
-                || !ShouldProcessNetworkEvent(entry.EventId, _processedKillFeedEventIds, _processedKillFeedEventOrder))
-            {
-                continue;
-            }
-
-            var localPlayerId = GetResolvedLocalPlayerId();
-            if (entry.KillerPlayerId != localPlayerId && entry.VictimPlayerId != localPlayerId)
-            {
-                continue;
-            }
-
-            var soundName = entry.SpecialType == KillFeedSpecialType.Domination
-                ? "DominationSnd"
-                : "RevengeSnd";
-            var sound = _runtimeAssets.GetSound(soundName);
-            TryPlaySound(sound, 0.85f, 0f, 0f);
-        }
+        _gameplayAudioEventController.PlayKillFeedAnnouncementSounds();
     }
 
     private void PlayLastToDieGameOverSound()
     {
-        if (!_audioAvailable)
-        {
-            return;
-        }
-
-        if (_lastToDieGameOverSound is null)
-        {
-            var soundPath = FindLoopedMusicPath(Path.Combine("Music", "ltdgameover.fixed.wav"));
-            if (string.IsNullOrWhiteSpace(soundPath) || !File.Exists(soundPath))
-            {
-                return;
-            }
-
-            try
-            {
-                using var stream = File.OpenRead(soundPath);
-                _lastToDieGameOverSound = SoundEffect.FromStream(stream);
-                _lastToDieGameOverSoundInstance = _lastToDieGameOverSound.CreateInstance();
-                _lastToDieGameOverSoundInstance.IsLooped = false;
-                _lastToDieGameOverSoundInstance.Volume = 0.85f;
-            }
-            catch (Exception ex)
-            {
-                AddConsoleLine($"optional LTD game over sound unavailable: {Path.GetFileName(soundPath)} ({ex.GetType().Name}: {ex.Message})");
-                try
-                {
-                    _lastToDieGameOverSoundInstance?.Dispose();
-                }
-                catch
-                {
-                }
-
-                _lastToDieGameOverSoundInstance = null;
-                try
-                {
-                    _lastToDieGameOverSound?.Dispose();
-                }
-                catch
-                {
-                }
-
-                _lastToDieGameOverSound = null;
-                return;
-            }
-        }
-
-        if (_lastToDieGameOverSoundInstance is null)
-        {
-            return;
-        }
-
-        try
-        {
-            _lastToDieGameOverSoundInstance.Stop();
-            _lastToDieGameOverSoundInstance.Play();
-        }
-        catch (Exception ex)
-        {
-            DisableAudio("starting LTD game over sound", ex);
-        }
+        _gameplayAudioMusicController.PlayLastToDieGameOverSound();
     }
 
     private void StopLastToDieGameOverSound()
     {
-        try
-        {
-            if (_lastToDieGameOverSoundInstance?.State == SoundState.Playing)
-            {
-                _lastToDieGameOverSoundInstance.Stop();
-            }
-        }
-        catch
-        {
-        }
+        _gameplayAudioMusicController.StopLastToDieGameOverSound();
     }
 
     private void PlayPendingSoundEvents()
     {
-        foreach (var soundEvent in _world.DrainPendingSoundEvents())
-        {
-            if (!ShouldProcessNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds, _processedNetworkSoundEventOrder))
-            {
-                continue;
-            }
-
-            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                && TryCreateExplosionVisual(soundEvent, out var explosion))
-            {
-                _explosions.Add(explosion!);
-            }
-
-            NotifyClientPluginsWorldSound(soundEvent);
-
-            if (!_audioAvailable)
-            {
-                continue;
-            }
-
-            if (ShouldSuppressManagedLocalRapidFireSound(soundEvent))
-            {
-                continue;
-            }
-
-            var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                ? "ExplosionSnd"
-                : soundEvent.SoundName;
-            var sound = _runtimeAssets.GetSound(resolvedSoundName);
-            if (sound is null)
-            {
-                continue;
-            }
-
-            var (volume, pan) = GetWorldSoundMix(soundEvent.X, soundEvent.Y);
-            if (volume <= 0f)
-            {
-                continue;
-            }
-
-            TryPlaySound(sound, volume, 0f, pan);
-        }
+        _gameplayAudioEventController.PlayPendingSoundEvents();
     }
 
     private void TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)
@@ -618,9 +214,7 @@ public partial class Game1
         }
 
         _audioAvailable = false;
-        StopAndDisposeLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
-        StopAndDisposeLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
-        StopAndDisposeLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
+        _gameplayRapidFireAudioController.StopAndDisposeLocalRapidFireWeaponAudio();
         StopMenuMusic();
         StopLastToDieMenuMusic();
         StopFaucetMusic();
@@ -656,24 +250,7 @@ public partial class Game1
 
     private static string? FindLoopedMusicPath(string relativePath)
     {
-        var candidatePaths = new[]
-        {
-            Path.Combine("Content", "Sounds", relativePath),
-            Path.Combine("OpenGarrison.Core", "Content", "Sounds", relativePath),
-            Path.Combine("Sounds", relativePath),
-            relativePath,
-        };
-
-        for (var index = 0; index < candidatePaths.Length; index += 1)
-        {
-            var resolved = ProjectSourceLocator.FindFile(candidatePaths[index]);
-            if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
-            {
-                return resolved;
-            }
-        }
-
-        return null;
+        return GameplayAudioMusicController.FindLoopedMusicPath(relativePath);
     }
 
     private bool AllowsMenuMusic()
@@ -688,77 +265,7 @@ public partial class Game1
 
     private void UpdateLocalRapidFireWeaponAudio()
     {
-        if (!_audioAvailable)
-        {
-            StopLocalRapidFireWeaponAudio();
-            return;
-        }
-
-        UpdateLocalRapidFireWeaponAudio(
-            PrimaryWeaponKind.Minigun,
-            "ChaingunSnd",
-            ref _localChaingunSoundInstance);
-        UpdateLocalRapidFireWeaponAudio(
-            PrimaryWeaponKind.FlameThrower,
-            "FlamethrowerSnd",
-            ref _localFlamethrowerSoundInstance);
-        UpdateLocalRapidFireWeaponAudio(
-            PrimaryWeaponKind.Medigun,
-            "MedigunSnd",
-            ref _localMedigunSoundInstance);
-    }
-
-    private void UpdateLocalRapidFireWeaponAudio(
-        PrimaryWeaponKind weaponKind,
-        string soundName,
-        ref SoundEffectInstance? instance)
-    {
-        if (!IsLocalRapidFireWeaponSoundActive(weaponKind))
-        {
-            StopLocalRapidFireWeaponSound(ref instance);
-            return;
-        }
-
-        if (instance is null)
-        {
-            var sound = _runtimeAssets.GetSound(soundName);
-            if (sound is null)
-            {
-                return;
-            }
-
-            try
-            {
-                instance = sound.CreateInstance();
-                instance.IsLooped = true;
-            }
-            catch (Exception ex)
-            {
-                DisableAudio($"starting {soundName}", ex);
-                return;
-            }
-        }
-
-        var (volume, pan) = GetWorldSoundMix(_world.LocalPlayer.X, _world.LocalPlayer.Y);
-        if (volume <= 0f)
-        {
-            StopLocalRapidFireWeaponSound(ref instance);
-            return;
-        }
-
-        try
-        {
-            instance.Volume = volume;
-            instance.Pan = pan;
-            if (instance.State != SoundState.Playing)
-            {
-                instance.Play();
-            }
-        }
-        catch (Exception ex)
-        {
-            DisableAudio($"maintaining {soundName}", ex);
-        }
+        _gameplayRapidFireAudioController.UpdateLocalRapidFireWeaponAudio();
     }
 
     private void ToggleAudioMute()
@@ -782,119 +289,21 @@ public partial class Game1
 
     private bool IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind weaponKind)
     {
-        if (_mainMenuOpen)
-        {
-            return false;
-        }
-
-        var player = _world.LocalPlayer;
-        var activeWeaponKind = player.IsAcquiredWeaponPresented
-            ? player.AcquiredWeapon?.Kind
-            : player.PrimaryWeapon.Kind;
-        if (_world.LocalPlayerAwaitingJoin
-            || !player.IsAlive
-            || player.IsTaunting
-            || _world.MatchState.IsEnded
-            || activeWeaponKind != weaponKind)
-        {
-            return false;
-        }
-
-        if (weaponKind == PrimaryWeaponKind.Minigun && GetPlayerIsHeavyEating(player))
-        {
-            return false;
-        }
-
-        if (weaponKind == PrimaryWeaponKind.FlameThrower)
-        {
-            return player.PyroFlameLoopTicksRemaining > 0;
-        }
-
-        if (weaponKind == PrimaryWeaponKind.Medigun)
-        {
-            return player.IsMedicHealing && player.MedicHealTargetId.HasValue;
-        }
-
-        return player.PrimaryCooldownTicks > 0;
+        return _gameplayRapidFireAudioController.IsLocalRapidFireWeaponSoundActive(weaponKind);
     }
 
     private bool ShouldSuppressManagedLocalRapidFireSound(WorldSoundEvent soundEvent)
     {
-        var soundName = soundEvent.SoundName;
-        if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind.Minigun)
-                && AudioDistanceSquared(soundEvent.X, soundEvent.Y, _world.LocalPlayer.X, _world.LocalPlayer.Y) <= 576f;
-        }
-
-        if (string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
-        {
-            return IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind.FlameThrower)
-                && AudioDistanceSquared(soundEvent.X, soundEvent.Y, _world.LocalPlayer.X, _world.LocalPlayer.Y) <= 576f;
-        }
-
-        return false;
+        return _gameplayRapidFireAudioController.ShouldSuppressManagedLocalRapidFireSound(soundEvent);
     }
 
     private (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)
     {
-        var dx = worldX - _world.LocalPlayer.X;
-        var dy = worldY - _world.LocalPlayer.Y;
-        var distance = MathF.Sqrt(dx * dx + dy * dy);
-        var volume = Math.Clamp(1f - (distance / 1200f), 0f, 1f) * 0.6f;
-        var pan = Math.Clamp(dx / 600f, -1f, 1f);
-        return (volume, pan);
+        return _gameplayRapidFireAudioController.GetWorldSoundMix(worldX, worldY);
     }
 
     private void StopLocalRapidFireWeaponAudio()
     {
-        StopLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
-        StopLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
-        StopLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
-    }
-
-    private static void StopLocalRapidFireWeaponSound(ref SoundEffectInstance? instance)
-    {
-        try
-        {
-            if (instance?.State == SoundState.Playing)
-            {
-                instance.Stop();
-            }
-        }
-        catch
-        {
-        }
-    }
-
-    private static void StopAndDisposeLocalRapidFireWeaponSound(ref SoundEffectInstance? instance)
-    {
-        try
-        {
-            if (instance?.State == SoundState.Playing)
-            {
-                instance.Stop();
-            }
-        }
-        catch
-        {
-        }
-
-        try
-        {
-            instance?.Dispose();
-        }
-        catch
-        {
-        }
-
-        instance = null;
-    }
-
-    private static float AudioDistanceSquared(float x1, float y1, float x2, float y2)
-    {
-        var deltaX = x2 - x1;
-        var deltaY = y2 - y1;
-        return (deltaX * deltaX) + (deltaY * deltaY);
+        _gameplayRapidFireAudioController.StopLocalRapidFireWeaponAudio();
     }
 }

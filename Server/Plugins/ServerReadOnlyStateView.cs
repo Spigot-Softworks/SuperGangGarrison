@@ -53,4 +53,37 @@ internal sealed class ServerReadOnlyStateView(
             })
             .ToArray();
     }
+
+    public bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value)
+    {
+        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        {
+            return player.TryGetReplicatedStateInt(ownerPluginId, stateKey, out value);
+        }
+
+        value = default;
+        return false;
+    }
+
+    public bool TryGetPlayerReplicatedStateFloat(byte slot, string ownerPluginId, string stateKey, out float value)
+    {
+        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        {
+            return player.TryGetReplicatedStateFloat(ownerPluginId, stateKey, out value);
+        }
+
+        value = default;
+        return false;
+    }
+
+    public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
+    {
+        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        {
+            return player.TryGetReplicatedStateBool(ownerPluginId, stateKey, out value);
+        }
+
+        value = default;
+        return false;
+    }
 }

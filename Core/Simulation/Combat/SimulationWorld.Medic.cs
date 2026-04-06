@@ -1,3 +1,4 @@
+using OpenGarrison.GameplayModding;
 using System.Globalization;
 
 namespace OpenGarrison.Core;
@@ -17,7 +18,7 @@ public sealed partial class SimulationWorld
 
     public bool TryFillLocalMedicUber()
     {
-        if (LocalPlayer.ClassId != PlayerClass.Medic)
+        if (!LocalPlayer.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
             return false;
         }
@@ -28,7 +29,7 @@ public sealed partial class SimulationWorld
 
     private void UpdateMedicHealing(PlayerEntity medic, float aimWorldX, float aimWorldY)
     {
-        if (medic.ClassId != PlayerClass.Medic)
+        if (!medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
             return;
         }
@@ -105,7 +106,7 @@ public sealed partial class SimulationWorld
     {
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (!player.IsAlive || player.ClassId != PlayerClass.Medic || !player.IsMedicUbering)
+            if (!player.IsAlive || !player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber) || !player.IsMedicUbering)
             {
                 continue;
             }

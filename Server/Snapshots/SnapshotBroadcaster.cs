@@ -223,7 +223,15 @@ sealed class SnapshotBroadcaster
             ChatBubbleFrameIndex: 0,
             ChatBubbleAlpha: 0f,
             Assists: 0,
-            BadgeMask: client.BadgeMask);
+            BadgeMask: client.BadgeMask,
+            GameplayModPackId: string.Empty,
+            GameplayLoadoutId: string.Empty,
+            GameplayPrimaryItemId: string.Empty,
+            GameplaySecondaryItemId: string.Empty,
+            GameplayUtilityItemId: string.Empty,
+            GameplayEquippedSlot: 0,
+            GameplayEquippedItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty);
     }
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()

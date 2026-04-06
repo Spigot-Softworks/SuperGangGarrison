@@ -19,6 +19,7 @@ public static partial class ProtocolCodec
     private const int MaxPluginPayloadBytes = 1024;
     private const int MaxAssetNameBytes = 64;
     private const int MaxKillMessageBytes = 160;
+    private const int MaxGameplayIdBytes = 96;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     public static byte[] Serialize(IProtocolMessage message)

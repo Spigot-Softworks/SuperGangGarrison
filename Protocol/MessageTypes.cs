@@ -264,7 +264,16 @@ public sealed record SnapshotPlayerState(
     bool PyroPrimaryRequiresReleaseAfterEmpty = false,
     int HeavyEatCooldownTicksRemaining = 0,
     short Assists = 0,
-    ulong BadgeMask = 0);
+    ulong BadgeMask = 0,
+    string GameplayModPackId = "",
+    string GameplayLoadoutId = "",
+    string GameplayPrimaryItemId = "",
+    string GameplaySecondaryItemId = "",
+    string GameplayUtilityItemId = "",
+    byte GameplayEquippedSlot = 0,
+    string GameplayEquippedItemId = "",
+    string GameplayAcquiredItemId = "",
+    IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -458,6 +467,21 @@ public sealed record SnapshotDamageEvent(
     bool WasFatal,
     ulong EventId = 0,
     ulong SourceFrame = 0);
+
+public enum SnapshotReplicatedStateValueKind : byte
+{
+    Whole = 1,
+    Scalar = 2,
+    Toggle = 3,
+}
+
+public sealed record SnapshotReplicatedStateEntry(
+    string OwnerId,
+    string Key,
+    SnapshotReplicatedStateValueKind Kind,
+    int IntValue = 0,
+    float FloatValue = 0f,
+    bool BoolValue = false);
 
 public sealed record SnapshotKillFeedEntry(
     string KillerName,

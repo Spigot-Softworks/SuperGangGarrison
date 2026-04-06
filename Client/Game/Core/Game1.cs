@@ -106,6 +106,11 @@ public partial class Game1 : Game
     private readonly GameplayImpactEffectsController _gameplayImpactEffectsController;
     private readonly GameplayGoreEffectsController _gameplayGoreEffectsController;
     private readonly GameplaySmokeEffectsController _gameplaySmokeEffectsController;
+    private readonly GameplayMaterialEffectsController _gameplayMaterialEffectsController;
+    private readonly GameplayVisualEventController _gameplayVisualEventController;
+    private readonly GameplayAudioMusicController _gameplayAudioMusicController;
+    private readonly GameplayAudioEventController _gameplayAudioEventController;
+    private readonly GameplayRapidFireAudioController _gameplayRapidFireAudioController;
     private readonly GameplayLocalStatusHudController _gameplayLocalStatusHudController;
     private readonly GameplayMedicHudController _gameplayMedicHudController;
     private readonly GameplayEngineerHudController _gameplayEngineerHudController;
@@ -299,6 +304,11 @@ public partial class Game1 : Game
         _gameplayImpactEffectsController = new GameplayImpactEffectsController(this);
         _gameplayGoreEffectsController = new GameplayGoreEffectsController(this);
         _gameplaySmokeEffectsController = new GameplaySmokeEffectsController(this);
+        _gameplayMaterialEffectsController = new GameplayMaterialEffectsController(this);
+        _gameplayVisualEventController = new GameplayVisualEventController(this);
+        _gameplayAudioMusicController = new GameplayAudioMusicController(this);
+        _gameplayAudioEventController = new GameplayAudioEventController(this);
+        _gameplayRapidFireAudioController = new GameplayRapidFireAudioController(this);
         _gameplayLocalStatusHudController = new GameplayLocalStatusHudController(this);
         _gameplayMedicHudController = new GameplayMedicHudController(this);
         _gameplayEngineerHudController = new GameplayEngineerHudController(this);

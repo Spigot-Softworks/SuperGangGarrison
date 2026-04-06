@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -80,7 +81,29 @@ internal static partial class ServerHelpers
             player.PyroPrimaryRequiresReleaseAfterEmpty,
             player.HeavyEatCooldownTicksRemaining,
             (short)player.Assists,
-            player.BadgeMask);
+            player.BadgeMask,
+            player.GameplayLoadoutState.ModPackId,
+            player.GameplayLoadoutState.LoadoutId,
+            player.GameplayLoadoutState.PrimaryItemId,
+            player.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
+            player.GameplayLoadoutState.UtilityItemId ?? string.Empty,
+            (byte)player.GameplayLoadoutState.EquippedSlot,
+            player.GameplayLoadoutState.EquippedItemId,
+            player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+            player.GetReplicatedStateEntries()
+                .Select(static entry => new SnapshotReplicatedStateEntry(
+                    entry.OwnerId,
+                    entry.Key,
+                    entry.Kind switch
+                    {
+                        GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
+                        GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
+                        _ => SnapshotReplicatedStateValueKind.Toggle,
+                    },
+                    entry.IntValue,
+                    entry.FloatValue,
+                    entry.BoolValue))
+                .ToArray());
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

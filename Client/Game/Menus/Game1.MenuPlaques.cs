@@ -73,14 +73,22 @@ public partial class Game1
         _menuBitmapFontLineHeight = 0;
         _menuBitmapFontSpacing = 1;
 
-        var texturePath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuFontAtlas.png");
-        var metadataPath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", "MenuFontAtlas.json");
+        if (!TryLoadMenuBitmapFont("MenuBuildFontAtlas.png", "MenuBuildFontAtlas.json"))
+        {
+            TryLoadMenuBitmapFont("MenuFontAtlas.png", "MenuFontAtlas.json");
+        }
+    }
+
+    private bool TryLoadMenuBitmapFont(string textureFileName, string metadataFileName)
+    {
+        var texturePath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", textureFileName);
+        var metadataPath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", metadataFileName);
         if (string.IsNullOrWhiteSpace(texturePath)
             || string.IsNullOrWhiteSpace(metadataPath)
             || !File.Exists(texturePath)
             || !File.Exists(metadataPath))
         {
-            return;
+            return false;
         }
 
         using (var stream = File.OpenRead(texturePath))
@@ -88,12 +96,10 @@ public partial class Game1
             _menuBitmapFontTexture = Texture2D.FromStream(GraphicsDevice, stream);
         }
 
-        var metadata = JsonSerializer.Deserialize<MenuBitmapFontData>(
-            File.ReadAllText(metadataPath),
-            MenuBitmapFontJsonOptions);
+        var metadata = JsonSerializer.Deserialize<MenuBitmapFontData>(File.ReadAllText(metadataPath), MenuBitmapFontJsonOptions);
         if (metadata is null)
         {
-            return;
+            return false;
         }
 
         _menuBitmapFontLineHeight = Math.Max(1, metadata.LineHeight);
@@ -106,6 +112,8 @@ public partial class Game1
             var advance = Math.Max(1, glyph.Advance);
             _menuBitmapFontGlyphs[character] = new MenuBitmapGlyph(sourceRect, advance);
         }
+
+        return _menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0;
     }
 
     private Texture2D? LoadMenuTexture(params string[] pathParts)

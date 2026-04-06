@@ -1,5 +1,7 @@
 namespace OpenGarrison.Core;
 
+using OpenGarrison.GameplayModding;
+
 public sealed partial class PlayerEntity
 {
     internal readonly record struct PredictionState(
@@ -92,7 +94,8 @@ public sealed partial class PlayerEntity
         int? LastDamageDealerPlayerId = null,
         int LastDamageDealerAssistTicksRemaining = 0,
         int? SecondToLastDamageDealerPlayerId = null,
-        int SecondToLastDamageDealerAssistTicksRemaining = 0);
+        int SecondToLastDamageDealerAssistTicksRemaining = 0,
+        GameplayReplicatedStateEntry[]? ReplicatedStateEntries = null);
 
     internal PredictionState CapturePredictionState()
     {
@@ -186,7 +189,8 @@ public sealed partial class PlayerEntity
             LastDamageDealerPlayerId,
             LastDamageDealerAssistTicksRemaining,
             SecondToLastDamageDealerPlayerId,
-            SecondToLastDamageDealerAssistTicksRemaining);
+            SecondToLastDamageDealerAssistTicksRemaining,
+            GetReplicatedStateEntries().ToArray());
     }
 
     internal void RestorePredictionState(in PredictionState state)
@@ -284,6 +288,8 @@ public sealed partial class PlayerEntity
         LastDamageDealerAssistTicksRemaining = state.LastDamageDealerAssistTicksRemaining;
         SecondToLastDamageDealerPlayerId = state.SecondToLastDamageDealerPlayerId;
         SecondToLastDamageDealerAssistTicksRemaining = state.SecondToLastDamageDealerAssistTicksRemaining;
+        ReplaceReplicatedStateEntries(state.ReplicatedStateEntries ?? []);
+        RefreshGameplayLoadoutState();
     }
 
     public void ApplyNetworkState(
@@ -341,7 +347,16 @@ public sealed partial class PlayerEntity
         bool pyroPrimaryRequiresReleaseAfterEmpty = false,
         int heavyEatCooldownTicksRemaining = 0,
         int assists = 0,
-        ulong badgeMask = 0)
+        ulong badgeMask = 0,
+        string gameplayModPackId = "",
+        string gameplayLoadoutId = "",
+        string gameplayPrimaryItemId = "",
+        string gameplaySecondaryItemId = "",
+        string gameplayUtilityItemId = "",
+        byte gameplayEquippedSlot = 0,
+        string gameplayEquippedItemId = "",
+        string gameplayAcquiredItemId = "",
+        IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -478,5 +493,51 @@ public sealed partial class PlayerEntity
         {
             ExtinguishAfterburn();
         }
+
+        ApplyReplicatedGameplayLoadoutState(
+            gameplayModPackId,
+            gameplayLoadoutId,
+            gameplayPrimaryItemId,
+            gameplaySecondaryItemId,
+            gameplayUtilityItemId,
+            gameplayEquippedSlot,
+            gameplayEquippedItemId,
+            gameplayAcquiredItemId);
+        ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+    }
+
+    private void ApplyReplicatedGameplayLoadoutState(
+        string gameplayModPackId,
+        string gameplayLoadoutId,
+        string gameplayPrimaryItemId,
+        string gameplaySecondaryItemId,
+        string gameplayUtilityItemId,
+        byte gameplayEquippedSlot,
+        string gameplayEquippedItemId,
+        string gameplayAcquiredItemId)
+    {
+        if (string.IsNullOrWhiteSpace(gameplayModPackId)
+            || string.IsNullOrWhiteSpace(gameplayLoadoutId)
+            || string.IsNullOrWhiteSpace(gameplayPrimaryItemId)
+            || string.IsNullOrWhiteSpace(gameplayEquippedItemId))
+        {
+            RefreshGameplayLoadoutState();
+            return;
+        }
+
+        var equippedSlot = Enum.IsDefined(typeof(GameplayEquipmentSlot), (int)gameplayEquippedSlot)
+            ? (GameplayEquipmentSlot)gameplayEquippedSlot
+            : GameplayEquipmentSlot.Primary;
+
+        GameplayLoadoutState = new GameplayPlayerLoadoutState(
+            ModPackId: gameplayModPackId,
+            ClassId: CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(ClassId).ClassId,
+            LoadoutId: gameplayLoadoutId,
+            PrimaryItemId: gameplayPrimaryItemId,
+            SecondaryItemId: string.IsNullOrWhiteSpace(gameplaySecondaryItemId) ? null : gameplaySecondaryItemId,
+            UtilityItemId: string.IsNullOrWhiteSpace(gameplayUtilityItemId) ? null : gameplayUtilityItemId,
+            EquippedSlot: equippedSlot,
+            EquippedItemId: gameplayEquippedItemId,
+            AcquiredItemId: string.IsNullOrWhiteSpace(gameplayAcquiredItemId) ? null : gameplayAcquiredItemId);
     }
 }

@@ -57,6 +57,12 @@ public interface IOpenGarrisonClientReadOnlyState
 
     bool IsPlayerCloaked(int playerId);
 
+    bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value);
+
+    bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value);
+
+    bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value);
+
     bool WasKeyPressedThisFrame(Keys key);
 
     IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers();

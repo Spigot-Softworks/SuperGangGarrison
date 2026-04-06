@@ -290,6 +290,15 @@ public static partial class ProtocolCodec
             writer.Write(player.HeavyEatCooldownTicksRemaining);
             writer.Write(player.Assists);
             writer.Write(player.BadgeMask);
+            WriteString(writer, player.GameplayModPackId, MaxGameplayIdBytes, nameof(player.GameplayModPackId));
+            WriteString(writer, player.GameplayLoadoutId, MaxGameplayIdBytes, nameof(player.GameplayLoadoutId));
+            WriteString(writer, player.GameplayPrimaryItemId, MaxGameplayIdBytes, nameof(player.GameplayPrimaryItemId));
+            WriteString(writer, player.GameplaySecondaryItemId, MaxGameplayIdBytes, nameof(player.GameplaySecondaryItemId));
+            WriteString(writer, player.GameplayUtilityItemId, MaxGameplayIdBytes, nameof(player.GameplayUtilityItemId));
+            writer.Write(player.GameplayEquippedSlot);
+            WriteString(writer, player.GameplayEquippedItemId, MaxGameplayIdBytes, nameof(player.GameplayEquippedItemId));
+            WriteString(writer, player.GameplayAcquiredItemId, MaxGameplayIdBytes, nameof(player.GameplayAcquiredItemId));
+            WriteReplicatedStateEntries(writer, player.ReplicatedStates);
         }
     }
 
@@ -362,9 +371,52 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
                 reader.ReadInt16(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                reader.ReadByte(),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                ReadReplicatedStateEntries(reader)));
         }
 
         return players;
+    }
+
+    private static void WriteReplicatedStateEntries(BinaryWriter writer, IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
+    {
+        var count = entries?.Count ?? 0;
+        writer.Write((byte)count);
+        for (var index = 0; index < count; index += 1)
+        {
+            var entry = entries![index];
+            WriteString(writer, entry.OwnerId, MaxPluginIdBytes, nameof(entry.OwnerId));
+            WriteString(writer, entry.Key, MaxGameplayIdBytes, nameof(entry.Key));
+            writer.Write((byte)entry.Kind);
+            writer.Write(entry.IntValue);
+            writer.Write(entry.FloatValue);
+            writer.Write(entry.BoolValue);
+        }
+    }
+
+    private static List<SnapshotReplicatedStateEntry> ReadReplicatedStateEntries(BinaryReader reader)
+    {
+        var count = reader.ReadByte();
+        var entries = new List<SnapshotReplicatedStateEntry>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            entries.Add(new SnapshotReplicatedStateEntry(
+                ReadString(reader, MaxPluginIdBytes),
+                ReadString(reader, MaxGameplayIdBytes),
+                (SnapshotReplicatedStateValueKind)reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadBoolean()));
+        }
+
+        return entries;
     }
 }

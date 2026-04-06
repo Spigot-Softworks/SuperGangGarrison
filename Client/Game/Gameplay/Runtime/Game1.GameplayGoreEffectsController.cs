@@ -216,7 +216,7 @@ public partial class Game1
 
         public void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
         {
-            var normalizedDirection = Game1.NormalizeDirectionDegrees(directionDegrees);
+            var normalizedDirection = NormalizeDirectionDegrees(directionDegrees);
             for (var index = 0; index < _game._backstabVisuals.Count; index += 1)
             {
                 var animation = _game._backstabVisuals[index].Animation;
@@ -230,12 +230,12 @@ public partial class Game1
                     continue;
                 }
 
-                if (Game1.DistanceSquared(animation.X, animation.Y, x, y) > 16f)
+                if (DistanceSquared(animation.X, animation.Y, x, y) > 16f)
                 {
                     continue;
                 }
 
-                if (Game1.GetAngleDifferenceDegrees(animation.DirectionDegrees, normalizedDirection) > 8f)
+                if (GetAngleDifferenceDegrees(animation.DirectionDegrees, normalizedDirection) > 8f)
                 {
                     continue;
                 }
@@ -543,6 +543,34 @@ public partial class Game1
 
             ownerPosition = _game.GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _game._world.LocalPlayer));
             return true;
+        }
+
+        private static float NormalizeDirectionDegrees(float directionDegrees)
+        {
+            while (directionDegrees < 0f)
+            {
+                directionDegrees += 360f;
+            }
+
+            while (directionDegrees >= 360f)
+            {
+                directionDegrees -= 360f;
+            }
+
+            return directionDegrees;
+        }
+
+        private static float GetAngleDifferenceDegrees(float left, float right)
+        {
+            var difference = MathF.Abs(NormalizeDirectionDegrees(left) - NormalizeDirectionDegrees(right));
+            return MathF.Min(difference, 360f - difference);
+        }
+
+        private static float DistanceSquared(float x1, float y1, float x2, float y2)
+        {
+            var deltaX = x2 - x1;
+            var deltaY = y2 - y1;
+            return (deltaX * deltaX) + (deltaY * deltaY);
         }
     }
 }

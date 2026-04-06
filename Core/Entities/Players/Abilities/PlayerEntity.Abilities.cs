@@ -245,6 +245,7 @@ public sealed partial class PlayerEntity
 
         IsExperimentalOffhandEquipped = false;
         IsAcquiredWeaponEquipped = true;
+        RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= 1;
         MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
         MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;

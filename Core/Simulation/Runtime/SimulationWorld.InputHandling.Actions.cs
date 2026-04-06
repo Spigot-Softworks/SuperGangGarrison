@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -11,7 +13,7 @@ public sealed partial class SimulationWorld
 
         if (player.IsAcquiredWeaponEquipped)
         {
-            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.Medigun)
+            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
             {
                 if (input.FirePrimary)
                 {
@@ -21,14 +23,14 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher
+            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher)
                 && input.FirePrimary
                 && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
             {
                 return;
             }
 
-            if (player.AcquiredWeapon?.Kind == PrimaryWeaponKind.FlameThrower
+            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Flamethrower)
                 && suppressPyroPrimaryThisTick)
             {
                 return;
@@ -48,7 +50,7 @@ public sealed partial class SimulationWorld
             player.StowExperimentalOffhandWeapon();
         }
 
-        if (player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
             if (input.FirePrimary)
             {
@@ -78,7 +80,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Quote)
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
         {
             if (input.FirePrimary && player.TryFireQuoteBubble())
             {
@@ -88,7 +90,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Pyro)
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             if (input.FirePrimary && !suppressPyroPrimaryThisTick)
             {
@@ -98,7 +100,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Demoman && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MineLauncher) && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
         {
             return;
         }
@@ -119,7 +121,7 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsAcquiredWeaponEquipped
-            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.Medigun)
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
             if (player.TryFireAcquiredMedicNeedle())
             {
@@ -130,7 +132,7 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsAcquiredWeaponEquipped
-            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.FlameThrower)
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
         {
             if (player.TryFirePyroAirblast())
             {
@@ -141,19 +143,20 @@ public sealed partial class SimulationWorld
         }
 
         if (player.IsAcquiredWeaponEquipped
-            && player.AcquiredWeapon?.Kind == PrimaryWeaponKind.MineLauncher)
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher))
         {
             DetonateOwnedMines(player.Id);
             return;
         }
 
-        if (player.HasScopedSniperWeaponEquipped)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.SniperScope)
+            || player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Rifle))
         {
             player.TryToggleSniperScope();
             return;
         }
 
-        if (player.ClassId == PlayerClass.Demoman)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.DemomanDetonate))
         {
             if (player.IsExperimentalDemoknightEnabled)
             {
@@ -173,7 +176,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Engineer)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.EngineerPda))
         {
             if (!TryDestroySentry(player))
             {
@@ -183,13 +186,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Heavy)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.HeavySandvich))
         {
             player.TryStartHeavySelfHeal();
             return;
         }
 
-        if (player.ClassId == PlayerClass.Pyro)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PyroAirblast))
         {
             if (player.TryFirePyroAirblast())
             {
@@ -199,7 +202,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Spy)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.SpyCloak))
         {
             if (!input.FirePrimary)
             {
@@ -209,7 +212,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.ClassId == PlayerClass.Medic)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedicNeedlegun)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
             if (player.TryFireMedicNeedle())
             {
@@ -226,7 +230,7 @@ public sealed partial class SimulationWorld
             }
         }
 
-        if (player.ClassId == PlayerClass.Quote && player.TryFireQuoteBlade())
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow) && player.TryFireQuoteBlade())
         {
             WeaponHandler.FireQuoteBlade(player, input.AimWorldX, input.AimWorldY);
         }
@@ -282,12 +286,12 @@ public sealed partial class SimulationWorld
 
     private static bool ShouldUseHeldSecondaryAbility(PlayerEntity player)
     {
-        if (player.ClassId == PlayerClass.Demoman)
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.DemomanDetonate))
         {
             return !player.IsExperimentalDemoknightEnabled;
         }
 
-        return player.ClassId == PlayerClass.Quote;
+        return player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow);
     }
 
     private void TryActivatePendingSpyBackstab(PlayerEntity player)

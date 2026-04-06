@@ -18,6 +18,14 @@ public interface IOpenGarrisonServerPluginContext
 
     void BroadcastMessageToClients(string targetPluginId, string messageType, string payload);
 
+    bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value);
+
+    bool SetPlayerReplicatedStateFloat(byte slot, string stateKey, float value);
+
+    bool SetPlayerReplicatedStateBool(byte slot, string stateKey, bool value);
+
+    bool ClearPlayerReplicatedState(byte slot, string stateKey);
+
     void RegisterCommand(IOpenGarrisonServerCommand command);
 
     void Log(string message);

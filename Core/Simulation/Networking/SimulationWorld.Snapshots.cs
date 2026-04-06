@@ -87,7 +87,44 @@ public sealed partial class SimulationWorld
             snapshotPlayer.PyroPrimaryRequiresReleaseAfterEmpty,
             snapshotPlayer.HeavyEatCooldownTicksRemaining,
             snapshotPlayer.Assists,
-            snapshotPlayer.BadgeMask);
+            snapshotPlayer.BadgeMask,
+            snapshotPlayer.GameplayModPackId,
+            snapshotPlayer.GameplayLoadoutId,
+            snapshotPlayer.GameplayPrimaryItemId,
+            snapshotPlayer.GameplaySecondaryItemId,
+            snapshotPlayer.GameplayUtilityItemId,
+            snapshotPlayer.GameplayEquippedSlot,
+            snapshotPlayer.GameplayEquippedItemId,
+            snapshotPlayer.GameplayAcquiredItemId,
+            ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates));
+    }
+
+    private static GameplayReplicatedStateEntry[] ConvertReplicatedStateEntries(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
+    {
+        if (entries is null || entries.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new GameplayReplicatedStateEntry[entries.Count];
+        for (var index = 0; index < entries.Count; index += 1)
+        {
+            var entry = entries[index];
+            result[index] = new GameplayReplicatedStateEntry(
+                entry.OwnerId,
+                entry.Key,
+                entry.Kind switch
+                {
+                    SnapshotReplicatedStateValueKind.Whole => GameplayReplicatedStateValueKind.Whole,
+                    SnapshotReplicatedStateValueKind.Scalar => GameplayReplicatedStateValueKind.Scalar,
+                    _ => GameplayReplicatedStateValueKind.Toggle,
+                },
+                entry.IntValue,
+                entry.FloatValue,
+                entry.BoolValue);
+        }
+
+        return result;
     }
 
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)

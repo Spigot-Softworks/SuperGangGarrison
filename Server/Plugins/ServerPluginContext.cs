@@ -11,6 +11,10 @@ internal sealed class ServerPluginContext(
     IOpenGarrisonServerAdminOperations adminOperations,
     Action<byte, string, string, string> sendMessageToClient,
     Action<string, string, string> broadcastMessageToClients,
+    Func<string, byte, string, int, bool> setPlayerReplicatedStateInt,
+    Func<string, byte, string, float, bool> setPlayerReplicatedStateFloat,
+    Func<string, byte, string, bool, bool> setPlayerReplicatedStateBool,
+    Func<string, byte, string, bool> clearPlayerReplicatedState,
     PluginCommandRegistry commandRegistry,
     Action<string> log) : IOpenGarrisonServerPluginContext
 {
@@ -34,6 +38,26 @@ internal sealed class ServerPluginContext(
     public void BroadcastMessageToClients(string targetPluginId, string messageType, string payload)
     {
         broadcastMessageToClients(targetPluginId, messageType, payload);
+    }
+
+    public bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value)
+    {
+        return setPlayerReplicatedStateInt(PluginId, slot, stateKey, value);
+    }
+
+    public bool SetPlayerReplicatedStateFloat(byte slot, string stateKey, float value)
+    {
+        return setPlayerReplicatedStateFloat(PluginId, slot, stateKey, value);
+    }
+
+    public bool SetPlayerReplicatedStateBool(byte slot, string stateKey, bool value)
+    {
+        return setPlayerReplicatedStateBool(PluginId, slot, stateKey, value);
+    }
+
+    public bool ClearPlayerReplicatedState(byte slot, string stateKey)
+    {
+        return clearPlayerReplicatedState(PluginId, slot, stateKey);
     }
 
     public void RegisterCommand(IOpenGarrisonServerCommand command)

@@ -109,6 +109,7 @@ public sealed partial class PlayerEntity
         LegacyStateTickAccumulator = 0f;
         MovementState = LegacyMovementState.None;
         ClearChatBubble();
+        RefreshGameplayLoadoutState();
     }
 
     public void ForceSetAmmo(int shells)
@@ -155,6 +156,7 @@ public sealed partial class PlayerEntity
         ReloadTicksUntilNextShell = 0;
         MedicNeedleRefillTicks = 0;
         ExtinguishAfterburn();
+        RefreshGameplayLoadoutState();
     }
 
     public void AdvanceEngineerResources()

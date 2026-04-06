@@ -73,6 +73,7 @@ internal static class ServerPluginRuntimeFactory
             .RegisterAll();
 
         pluginHost = new PluginHost(
+            () => world,
             commandRegistry,
             serverState,
             adminOperations,

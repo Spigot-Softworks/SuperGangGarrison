@@ -1,9 +1,11 @@
+using OpenGarrison.Core;
 using OpenGarrison.Server.Plugins;
 
 namespace OpenGarrison.Server;
 
 internal sealed class PluginHost
 {
+    private readonly Func<SimulationWorld> _worldGetter;
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly IOpenGarrisonServerReadOnlyState _serverState;
     private readonly IOpenGarrisonServerAdminOperations _adminOperations;
@@ -16,6 +18,7 @@ internal sealed class PluginHost
     private readonly List<PluginLoader.LoadedPlugin> _loadedPlugins = new();
 
     public PluginHost(
+        Func<SimulationWorld> worldGetter,
         PluginCommandRegistry commandRegistry,
         IOpenGarrisonServerReadOnlyState serverState,
         IOpenGarrisonServerAdminOperations adminOperations,
@@ -26,6 +29,7 @@ internal sealed class PluginHost
         string mapsDirectory,
         Action<string> log)
     {
+        _worldGetter = worldGetter;
         _commandRegistry = commandRegistry;
         _serverState = serverState;
         _adminOperations = adminOperations;
@@ -193,8 +197,27 @@ internal sealed class PluginHost
             _adminOperations,
             (slot, targetPluginId, messageType, payload) => _sendMessageToClient(slot, plugin.Id, targetPluginId, messageType, payload),
             (targetPluginId, messageType, payload) => _broadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload),
+            (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateInt(pluginId, key, stateValue), ownerId, stateKey, value),
+            (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateFloat(pluginId, key, stateValue), ownerId, stateKey, value),
+            (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateBool(pluginId, key, stateValue), ownerId, stateKey, value),
+            (ownerId, slot, stateKey) =>
+            {
+                return _worldGetter().TryGetNetworkPlayer(slot, out var player)
+                    && player.ClearReplicatedState(ownerId, stateKey);
+            },
             _commandRegistry,
             _log);
+    }
+
+    private bool TrySetPlayerReplicatedState<TValue>(
+        byte slot,
+        Func<PlayerEntity, string, string, TValue, bool> setter,
+        string ownerId,
+        string stateKey,
+        TValue value)
+    {
+        return _worldGetter().TryGetNetworkPlayer(slot, out var player)
+            && setter(player, ownerId, stateKey, value);
     }
 
     private string ResolvePluginDirectory(IOpenGarrisonServerPlugin plugin, string pluginDirectory)

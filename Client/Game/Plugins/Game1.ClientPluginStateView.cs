@@ -87,6 +87,39 @@ public partial class Game1
             return game.FindPlayerById(playerId) is { } player && game.GetPlayerIsSpyCloaked(player);
         }
 
+        public bool TryGetPlayerReplicatedStateInt(int playerId, string ownerPluginId, string stateKey, out int value)
+        {
+            if (game.FindPlayerById(playerId) is { } player)
+            {
+                return player.TryGetReplicatedStateInt(ownerPluginId, stateKey, out value);
+            }
+
+            value = default;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateFloat(int playerId, string ownerPluginId, string stateKey, out float value)
+        {
+            if (game.FindPlayerById(playerId) is { } player)
+            {
+                return player.TryGetReplicatedStateFloat(ownerPluginId, stateKey, out value);
+            }
+
+            value = default;
+            return false;
+        }
+
+        public bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value)
+        {
+            if (game.FindPlayerById(playerId) is { } player)
+            {
+                return player.TryGetReplicatedStateBool(ownerPluginId, stateKey, out value);
+            }
+
+            value = default;
+            return false;
+        }
+
         public bool WasKeyPressedThisFrame(Keys key)
         {
             return game._clientPluginKeyboard.IsKeyDown(key) && !game._clientPluginPreviousKeyboard.IsKeyDown(key);
