@@ -7,6 +7,7 @@ namespace OpenGarrison.Client.Plugins.ShowPing;
 public sealed class ShowPingPlugin :
     IOpenGarrisonClientPlugin,
     IOpenGarrisonClientHudHooks,
+    IOpenGarrisonClientScoreboardHooks,
     IOpenGarrisonClientOptionsHooks
 {
     private static readonly Color PingGreen = new(0, 255, 0);
@@ -54,6 +55,26 @@ public sealed class ShowPingPlugin :
             new Vector2(_config.PositionX, _config.PositionY),
             color,
             _config.SizeTenths / 10f);
+    }
+
+    public ClientScoreboardPanelLocation ScoreboardPanelLocation => ClientScoreboardPanelLocation.HeaderRight;
+
+    public int ScoreboardPanelOrder => 0;
+
+    public void OnScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
+    {
+        if (_context is null || !_context.ClientState.IsConnected)
+        {
+            return;
+        }
+
+        var ping = _context.ClientState.LocalPingMilliseconds;
+        var (label, color) = GetDisplayState(ping);
+        canvas.DrawBitmapTextRightAligned(
+            $"Ping: {label}",
+            new Vector2(state.ScoreboardBounds.Right - 12f, state.ScoreboardBounds.Y + 48f),
+            color * state.Alpha,
+            1f);
     }
 
     public IReadOnlyList<ClientPluginOptionsSection> GetOptionsSections()

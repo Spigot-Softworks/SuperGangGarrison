@@ -57,6 +57,7 @@ public sealed class TeamOnlyMinimapPlugin :
         _context = context;
         _configPath = Path.Combine(context.ConfigDirectory, "teamonlyminimap.json");
         _config = TeamOnlyMinimapConfig.Load(_configPath);
+        context.Ui.RegisterMenuEntry("toggle-minimap", "Toggle Minimap", ClientPluginMenuLocation.InGameMenu, ToggleFromMenu);
     }
 
     public void Shutdown()
@@ -486,6 +487,13 @@ public sealed class TeamOnlyMinimapPlugin :
     {
         update(_config);
         SaveConfig();
+    }
+
+    private void ToggleFromMenu()
+    {
+        _config.Enabled = !_config.Enabled;
+        SaveConfig();
+        _context?.Ui.ShowNotice(_config.Enabled ? "Team minimap enabled." : "Team minimap disabled.", 160, playSound: false);
     }
 
     private void SaveConfig()

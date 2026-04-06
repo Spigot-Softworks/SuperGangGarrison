@@ -86,6 +86,19 @@ internal sealed class ServerIncomingMessageDispatcher(
                     sessionManager.HandleControlCommand(controlClient, command);
                 }
                 break;
+            case ClientPluginMessage pluginMessage:
+                if (TryGetAuthorizedClient(remoteEndPoint, out var pluginClient))
+                {
+                    pluginClient.LastSeen = elapsedGetter();
+                    pluginHostGetter()?.NotifyClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+                        pluginClient.Slot,
+                        pluginClient.Name,
+                        pluginMessage.SourcePluginId,
+                        pluginMessage.TargetPluginId,
+                        pluginMessage.MessageTypeName,
+                        pluginMessage.Payload));
+                }
+                break;
         }
     }
 

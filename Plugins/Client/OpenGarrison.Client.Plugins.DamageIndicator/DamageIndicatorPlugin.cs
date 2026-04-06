@@ -182,17 +182,21 @@ public sealed class DamageIndicatorPlugin :
 
     private void LoadDingSound()
     {
-        var dingPath = Path.Combine(_context?.PluginDirectory ?? string.Empty, "dingaling.wav");
-        if (!File.Exists(dingPath))
+        if (_context is null)
         {
-            _context?.Log($"ding sound missing at {dingPath}");
             return;
         }
 
         try
         {
-            using var stream = File.OpenRead(dingPath);
-            _dingSound = SoundEffect.FromStream(stream);
+            _context.Assets.RegisterSoundAsset("ding", "dingaling.wav");
+            if (!_context.Assets.TryGetSoundAsset("ding", out var dingSound))
+            {
+                _context.Log("registered ding sound was not available after registration");
+                return;
+            }
+
+            _dingSound = dingSound;
         }
         catch (Exception ex)
         {

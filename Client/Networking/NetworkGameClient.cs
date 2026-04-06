@@ -202,6 +202,20 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new PlayerProfileUpdateMessage(playerName, badgeMask));
     }
 
+    public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    {
+        if (!IsConnected || string.IsNullOrWhiteSpace(sourcePluginId) || string.IsNullOrWhiteSpace(targetPluginId) || string.IsNullOrWhiteSpace(messageType))
+        {
+            return;
+        }
+
+        Send(new ClientPluginMessage(
+            sourcePluginId.Trim(),
+            targetPluginId.Trim(),
+            messageType.Trim(),
+            payload ?? string.Empty));
+    }
+
     public uint SendInput(PlayerInputSnapshot input)
     {
         if (!IsConnected)

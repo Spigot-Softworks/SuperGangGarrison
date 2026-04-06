@@ -5,6 +5,7 @@ using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using OpenGarrison.Client.Plugins;
 
 namespace OpenGarrison.Client;
 
@@ -85,6 +86,18 @@ public partial class Game1
                 alpha,
                 1f);
         }
+
+        _clientPluginHost?.NotifyScoreboardDraw(
+            new ScoreboardCanvas(this),
+            new ClientScoreboardRenderState(
+                scoreboardBounds,
+                alpha,
+                serverMetaLabel,
+                mapMetaLabel,
+                redTeam.Count,
+                blueTeam.Count,
+                redCenterText,
+                blueCenterText));
     }
 
     private List<PlayerEntity> GetScoreboardPlayers(PlayerTeam team)

@@ -6,6 +6,8 @@ public sealed class RandomBackgroundsPlugin :
     IOpenGarrisonClientPlugin,
     IOpenGarrisonClientMainMenuHooks
 {
+    private IOpenGarrisonClientPluginContext? _context;
+    private string[] _availableBackgrounds = [];
     private string? _selectedBackgroundPath;
     private string _selectedAttributionText = string.Empty;
 
@@ -17,6 +19,8 @@ public sealed class RandomBackgroundsPlugin :
 
     public void Initialize(IOpenGarrisonClientPluginContext context)
     {
+        _context = context;
+        context.Ui.RegisterMenuEntry("shuffle-background", "Shuffle Background", ClientPluginMenuLocation.MainMenuRoot, SelectRandomBackground);
         var backgroundsDirectory = Path.Combine(context.PluginDirectory, "Resources", "PrOF", "Backgrounds");
         if (!Directory.Exists(backgroundsDirectory))
         {
@@ -24,21 +28,22 @@ public sealed class RandomBackgroundsPlugin :
             return;
         }
 
-        var availableBackgrounds = Directory.EnumerateFiles(backgroundsDirectory, "*.png", SearchOption.TopDirectoryOnly)
+        _availableBackgrounds = Directory.EnumerateFiles(backgroundsDirectory, "*.png", SearchOption.TopDirectoryOnly)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (availableBackgrounds.Length == 0)
+        if (_availableBackgrounds.Length == 0)
         {
             context.Log($"no background images found at {backgroundsDirectory}");
             return;
         }
 
-        _selectedBackgroundPath = availableBackgrounds[Random.Shared.Next(availableBackgrounds.Length)];
-        _selectedAttributionText = GetAttributionText(Path.GetFileName(_selectedBackgroundPath));
+        SelectRandomBackground();
     }
 
     public void Shutdown()
     {
+        _context = null;
+        _availableBackgrounds = [];
         _selectedBackgroundPath = null;
         _selectedAttributionText = string.Empty;
     }
@@ -48,6 +53,18 @@ public sealed class RandomBackgroundsPlugin :
         return string.IsNullOrWhiteSpace(_selectedBackgroundPath)
             ? null
             : new ClientPluginMainMenuBackgroundOverride(_selectedBackgroundPath, _selectedAttributionText);
+    }
+
+    private void SelectRandomBackground()
+    {
+        if (_availableBackgrounds.Length == 0)
+        {
+            return;
+        }
+
+        _selectedBackgroundPath = _availableBackgrounds[Random.Shared.Next(_availableBackgrounds.Length)];
+        _selectedAttributionText = GetAttributionText(Path.GetFileName(_selectedBackgroundPath));
+        _context?.Log($"selected random background: {Path.GetFileName(_selectedBackgroundPath)}");
     }
 
     private static string GetAttributionText(string? fileName)

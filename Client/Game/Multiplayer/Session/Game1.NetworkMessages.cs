@@ -53,6 +53,9 @@ public partial class Game1
                 case ControlAckMessage ack:
                     HandleControlAckMessage(ack);
                     break;
+                case ServerPluginMessage serverPluginMessage:
+                    NotifyClientPluginsServerMessage(serverPluginMessage);
+                    break;
                 case SnapshotMessage snapshot:
                     TryHandleSnapshotMessage(
                         snapshot,

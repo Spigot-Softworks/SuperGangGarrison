@@ -28,7 +28,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, barRectangle, Color.Black * alpha);
         TryDrawScreenSprite("GameNoticeS", 0, new Vector2(25f, noticeTextY), tint, new Vector2(2f, 2f));
 
-        var text = GetNoticeText(_notice.Kind);
+        var text = _notice.Text;
         if (!string.IsNullOrEmpty(text))
         {
             DrawHudTextLeftAligned(text, new Vector2(50f, noticeTextY), tint, 1f);
@@ -71,6 +71,12 @@ public partial class Game1
 
     private void UpdateNoticeState()
     {
+        if (_notice is null && _queuedPluginNotices.Count > 0)
+        {
+            var queuedNotice = _queuedPluginNotices.Dequeue();
+            ShowNoticeText(queuedNotice.Text, queuedNotice.TicksRemaining, queuedNotice.PlaySound);
+        }
+
         if (_notice is null)
         {
             return;
@@ -98,18 +104,43 @@ public partial class Game1
         }
 
         _notice = null;
+        if (_queuedPluginNotices.Count > 0)
+        {
+            var queuedNotice = _queuedPluginNotices.Dequeue();
+            ShowNoticeText(queuedNotice.Text, queuedNotice.TicksRemaining, queuedNotice.PlaySound);
+        }
     }
 
     private void ShowNotice(NoticeKind kind)
     {
-        _notice = new NoticeState(kind, 0.1f, false, 200);
-        if (!_audioAvailable)
+        ShowNoticeText(GetNoticeText(kind), 200, playSound: true);
+    }
+
+    private void ShowNoticeText(string text, int durationTicks, bool playSound)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        _notice = new NoticeState(text, 0.1f, false, Math.Max(1, durationTicks), playSound);
+        if (!playSound || !_audioAvailable)
         {
             return;
         }
 
         var sound = _runtimeAssets.GetSound("NoticeSnd");
         TryPlaySound(sound, 0.9f, 0f, 0f);
+    }
+
+    private void QueuePluginNotice(string text, int durationTicks, bool playSound)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        _queuedPluginNotices.Enqueue(new QueuedPluginNotice(text, Math.Max(1, durationTicks), playSound));
     }
 
     private static string GetNoticeText(NoticeKind kind)

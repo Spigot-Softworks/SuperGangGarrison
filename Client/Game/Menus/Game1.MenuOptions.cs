@@ -3,6 +3,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
+using OpenGarrison.Client.Plugins;
 
 namespace OpenGarrison.Client;
 
@@ -165,7 +167,7 @@ public partial class Game1
         const float ybegin = 300f;
         const float spacing = 30f;
         const float width = 220f;
-        var items = GetInGameMenuItems();
+        var items = GetInGameMenuActions();
 
         if (_inGameMenuAwaitingEscapeRelease)
         {
@@ -183,7 +185,7 @@ public partial class Game1
         if (mouse.X > xbegin && mouse.X < xbegin + width)
         {
             _inGameMenuHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-            if (_inGameMenuHoverIndex < 0 || _inGameMenuHoverIndex >= items.Length)
+            if (_inGameMenuHoverIndex < 0 || _inGameMenuHoverIndex >= items.Count)
             {
                 _inGameMenuHoverIndex = -1;
             }
@@ -199,114 +201,65 @@ public partial class Game1
             return;
         }
 
-        ActivateInGameMenuItem(_inGameMenuHoverIndex);
+        items[_inGameMenuHoverIndex].Activate();
     }
 
-    private string[] GetInGameMenuItems()
+    private List<MenuPageAction> GetInGameMenuActions()
     {
         if (IsLastToDieSessionActive)
         {
-            return
-            [
-                "Options",
-                "Return to Game",
-                "Leave Last To Die",
-                "Quit Game",
-            ];
+            var lastToDieActions = new List<MenuPageAction>
+            {
+                new("Options", () =>
+                {
+                    OpenOptionsMenu(fromGameplay: true);
+                    CloseInGameMenu();
+                }),
+                new("Return to Game", CloseInGameMenu),
+                new("Leave Last To Die", () => ReturnToLastToDieMenu("Last To Die ended.")),
+                new("Quit Game", OpenQuitPrompt),
+            };
+            AddPluginMenuActions(lastToDieActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
+            return lastToDieActions;
         }
 
         if (IsPracticeSessionActive)
         {
-            return
-            [
-                "Options",
-                "Practice Setup",
-                "Experimental Settings",
-                "Restart Practice",
-                "Return to Game",
-                "Leave Practice",
-                "Quit Game",
-            ];
-        }
-
-        var leaveLabel = IsPracticeSessionActive ? "Leave Practice" : "Disconnect";
-        return
-        [
-            "Options",
-            "Return to Game",
-            leaveLabel,
-            "Quit Game",
-        ];
-    }
-
-    private void ActivateInGameMenuItem(int menuIndex)
-    {
-        if (IsLastToDieSessionActive)
-        {
-            switch (menuIndex)
+            var practiceActions = new List<MenuPageAction>
             {
-                case 0:
+                new("Options", () =>
+                {
                     OpenOptionsMenu(fromGameplay: true);
                     CloseInGameMenu();
-                    return;
-                case 1:
-                    CloseInGameMenu();
-                    return;
-                case 2:
-                    ReturnToLastToDieMenu("Last To Die ended.");
-                    return;
-                case 3:
-                    OpenQuitPrompt();
-                    return;
-            }
-        }
-
-        if (IsPracticeSessionActive)
-        {
-            switch (menuIndex)
-            {
-                case 0:
-                    OpenOptionsMenu(fromGameplay: true);
-                    CloseInGameMenu();
-                    return;
-                case 1:
-                    OpenPracticeSetupMenu();
-                    return;
-                case 2:
-                    OpenClientPowersMenu(fromGameplay: true);
-                    return;
-                case 3:
+                }),
+                new("Practice Setup", OpenPracticeSetupMenu),
+                new("Experimental Settings", () => OpenClientPowersMenu(fromGameplay: true)),
+                new("Restart Practice", () =>
+                {
                     CloseInGameMenu();
                     RestartPracticeSession();
-                    return;
-                case 4:
-                    CloseInGameMenu();
-                    return;
-                case 5:
-                    ReturnToMainMenu(GetGameplayExitStatusMessage());
-                    return;
-                case 6:
-                    OpenQuitPrompt();
-                    return;
-            }
+                }),
+                new("Return to Game", CloseInGameMenu),
+                new("Leave Practice", () => ReturnToMainMenu(GetGameplayExitStatusMessage())),
+                new("Quit Game", OpenQuitPrompt),
+            };
+            AddPluginMenuActions(practiceActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
+            return practiceActions;
         }
 
-        switch (menuIndex)
+        var defaultActions = new List<MenuPageAction>
         {
-            case 0:
+            new("Options", () =>
+            {
                 OpenOptionsMenu(fromGameplay: true);
                 CloseInGameMenu();
-                break;
-            case 1:
-                CloseInGameMenu();
-                break;
-            case 2:
-                ReturnToMainMenu(GetGameplayExitStatusMessage());
-                break;
-            case 3:
-                OpenQuitPrompt();
-                break;
-        }
+            }),
+            new("Return to Game", CloseInGameMenu),
+            new("Disconnect", () => ReturnToMainMenu(GetGameplayExitStatusMessage())),
+            new("Quit Game", OpenQuitPrompt),
+        };
+        AddPluginMenuActions(defaultActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
+        return defaultActions;
     }
 
     private void DrawInGameMenu()
@@ -315,19 +268,19 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
 
-        var items = GetInGameMenuItems();
+        var items = GetInGameMenuActions();
         const float xbegin = 40f;
         const float ybegin = 300f;
         const float spacing = 30f;
         const float width = 220f;
-        DrawMenuPanelBackdrop(new Rectangle((int)xbegin - 12, (int)ybegin - 24, (int)width + 28, items.Length * (int)spacing + 24), 0.82f);
-        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), items.Length, spacing, width, 0.72f);
+        DrawMenuPanelBackdrop(new Rectangle((int)xbegin - 12, (int)ybegin - 24, (int)width + 28, items.Count * (int)spacing + 24), 0.82f);
+        DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), items.Count, spacing, width, 0.72f);
 
         var position = new Vector2(xbegin, ybegin);
-        for (var index = 0; index < items.Length; index += 1)
+        for (var index = 0; index < items.Count; index += 1)
         {
             var color = index == _inGameMenuHoverIndex ? Color.Red : Color.White;
-            DrawBitmapFontText(items[index], position, color, 1f);
+            DrawBitmapFontText(items[index].Label, position, color, 1f);
             position.Y += spacing;
         }
     }

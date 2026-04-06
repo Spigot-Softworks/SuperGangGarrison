@@ -34,9 +34,12 @@ sealed class SnapshotBroadcaster
         _sendSnapshot = sendSnapshot;
     }
 
+    public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; }
+
     public void ResetTransientEvents()
     {
         _transientEventBuffer.Reset(_clientsBySlot.Values);
+        LastCapturedTransientEvents = default;
     }
 
     public void BroadcastSnapshot()
@@ -47,6 +50,7 @@ sealed class SnapshotBroadcaster
         }
 
         var transientEvents = _transientEventBuffer.CaptureCurrentEvents(_world);
+        LastCapturedTransientEvents = transientEvents;
         foreach (var client in _clientsBySlot.Values)
         {
             SendSnapshot(client, transientEvents.VisualEvents, transientEvents.DamageEvents, transientEvents.SoundEvents);

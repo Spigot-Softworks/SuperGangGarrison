@@ -140,21 +140,25 @@ public sealed class LowHealthIndicatorPlugin :
 
     private void LoadWarningSound()
     {
-        var soundPath = Path.Combine(_context?.PluginDirectory ?? string.Empty, "Resources", "PrOF", "boop.wav");
-        if (!File.Exists(soundPath))
+        if (_context is null)
         {
-            _context?.Log($"warning sound missing at {soundPath}");
             return;
         }
 
         try
         {
-            using var stream = File.OpenRead(soundPath);
-            _warningSound = SoundEffect.FromStream(stream);
+            _context.Assets.RegisterSoundAsset("warning", "Resources/PrOF/boop.wav");
+            if (!_context.Assets.TryGetSoundAsset("warning", out var warningSound))
+            {
+                _context.Log("registered warning sound was not available after registration");
+                return;
+            }
+
+            _warningSound = warningSound;
         }
         catch (Exception ex)
         {
-            _context?.Log($"failed to load warning sound: {ex.Message}");
+            _context.Log($"failed to load warning sound: {ex.Message}");
         }
     }
 

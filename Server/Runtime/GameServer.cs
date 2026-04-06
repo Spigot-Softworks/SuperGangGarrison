@@ -390,7 +390,7 @@ sealed class GameServer
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
                 if (ticks > 0)
                 {
-                    _eventReporter.PublishGameplayEvents();
+                    _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
                 }
 
                 if (ticks > 0 && _world.Frame % _config.TicksPerSecond == 0)
@@ -444,6 +444,8 @@ sealed class GameServer
             _snapshotBroadcaster,
             _eventReporter.ApplyMapTransition,
             _outboundMessaging.SendMessage,
+            _outboundMessaging.SendPluginMessage,
+            _outboundMessaging.BroadcastPluginMessage,
             Console.WriteLine,
             Path.Combine(RuntimePaths.ApplicationRoot, "Plugins"),
             Path.Combine(RuntimePaths.ConfigDirectory, "plugins"),

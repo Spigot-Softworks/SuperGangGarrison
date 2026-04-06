@@ -35,12 +35,12 @@ public sealed class BubbleWheelPlugin :
 
     public void Shutdown()
     {
-        DisposeTexture(ref _bubbleWheelStrip);
-        DisposeTexture(ref _menuWheelZ);
-        DisposeTexture(ref _menuWheelX);
-        DisposeTexture(ref _menuWheelC);
-        DisposeTexture(ref _menuWheelX2R);
-        DisposeTexture(ref _menuWheelX2B);
+        _bubbleWheelStrip = null;
+        _menuWheelZ = null;
+        _menuWheelX = null;
+        _menuWheelC = null;
+        _menuWheelX2R = null;
+        _menuWheelX2B = null;
     }
 
     public void OnClientStarting()
@@ -227,52 +227,36 @@ public sealed class BubbleWheelPlugin :
             return;
         }
 
-        var resourceDirectory = Path.Combine(_context.PluginDirectory, "Resources", "PrOF", "BubbleWheel");
-        _bubbleWheelStrip = LoadTexture(resourceDirectory, "BubbleWheelStrip.png");
-        _menuWheelZ = LoadTexture(resourceDirectory, "MenuWheelZ.png");
-        _menuWheelX = LoadTexture(resourceDirectory, "MenuWheelX.png");
-        _menuWheelC = LoadTexture(resourceDirectory, "MenuWheelC.png");
-        _menuWheelX2R = LoadTexture(resourceDirectory, "MenuWheelX2R.png");
-        _menuWheelX2B = LoadTexture(resourceDirectory, "MenuWheelX2B.png");
+        _bubbleWheelStrip = RegisterTexture("bubblewheel-strip", "Resources/PrOF/BubbleWheel/BubbleWheelStrip.png");
+        _menuWheelZ = RegisterTexture("bubblewheel-z", "Resources/PrOF/BubbleWheel/MenuWheelZ.png");
+        _menuWheelX = RegisterTexture("bubblewheel-x", "Resources/PrOF/BubbleWheel/MenuWheelX.png");
+        _menuWheelC = RegisterTexture("bubblewheel-c", "Resources/PrOF/BubbleWheel/MenuWheelC.png");
+        _menuWheelX2R = RegisterTexture("bubblewheel-x2r", "Resources/PrOF/BubbleWheel/MenuWheelX2R.png");
+        _menuWheelX2B = RegisterTexture("bubblewheel-x2b", "Resources/PrOF/BubbleWheel/MenuWheelX2B.png");
     }
 
-    private Texture2D? LoadTexture(string directory, string fileName)
+    private Texture2D? RegisterTexture(string assetId, string relativePath)
     {
-        var path = Path.Combine(directory, fileName);
-        if (!File.Exists(path))
+        if (_context is null)
         {
-            _context?.Log($"missing texture at {path}");
             return null;
         }
-
         try
         {
-            using var stream = File.OpenRead(path);
-            return Texture2D.FromStream(_context!.GraphicsDevice, stream);
+            _context.Assets.RegisterTextureAsset(assetId, relativePath);
+            if (_context.Assets.TryGetTextureAsset(assetId, out var texture))
+            {
+                return texture;
+            }
+
+            _context.Log($"registered texture asset unavailable: {assetId}");
+            return null;
         }
         catch (Exception ex)
         {
-            _context?.Log($"failed to load texture {fileName}: {ex.Message}");
+            _context.Log($"failed to load texture {assetId}: {ex.Message}");
             return null;
         }
-    }
-
-    private static void DisposeTexture(ref Texture2D? texture)
-    {
-        if (texture is null)
-        {
-            return;
-        }
-
-        try
-        {
-            texture.Dispose();
-        }
-        catch
-        {
-        }
-
-        texture = null;
     }
 
     private void ResetHoverSelectionState()

@@ -75,6 +75,7 @@ public partial class Game1
         UpdateBubbleMenuState(keyboard, mouse);
         UpdateScoreboardState(keyboard);
         AdvanceGameplaySimulation(gameTime, networkInput);
+        DispatchClientSemanticGameplayEvents();
         UpdateGameplayPresentation(gameTime, keyboard, mouse, clientTicks);
         UpdateGameplayWindowState();
         FinalizeGameplayFrame(keyboard, mouse);

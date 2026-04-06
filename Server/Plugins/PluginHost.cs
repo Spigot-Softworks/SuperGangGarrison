@@ -7,6 +7,8 @@ internal sealed class PluginHost
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly IOpenGarrisonServerReadOnlyState _serverState;
     private readonly IOpenGarrisonServerAdminOperations _adminOperations;
+    private readonly Action<byte, string, string, string, string> _sendMessageToClient;
+    private readonly Action<string, string, string, string> _broadcastMessageToClients;
     private readonly Action<string> _log;
     private readonly string _pluginsRootDirectory;
     private readonly string _pluginConfigRoot;
@@ -17,6 +19,8 @@ internal sealed class PluginHost
         PluginCommandRegistry commandRegistry,
         IOpenGarrisonServerReadOnlyState serverState,
         IOpenGarrisonServerAdminOperations adminOperations,
+        Action<byte, string, string, string, string> sendMessageToClient,
+        Action<string, string, string, string> broadcastMessageToClients,
         string pluginsDirectory,
         string pluginConfigRoot,
         string mapsDirectory,
@@ -25,6 +29,8 @@ internal sealed class PluginHost
         _commandRegistry = commandRegistry;
         _serverState = serverState;
         _adminOperations = adminOperations;
+        _sendMessageToClient = sendMessageToClient;
+        _broadcastMessageToClients = broadcastMessageToClients;
         _pluginsRootDirectory = pluginsDirectory;
         _pluginConfigRoot = pluginConfigRoot;
         _mapsDirectory = mapsDirectory;
@@ -116,6 +122,24 @@ internal sealed class PluginHost
 
     public void NotifyKillFeedEntry(KillFeedEvent e) => Dispatch<IOpenGarrisonServerGameplayHooks>(hook => hook.OnKillFeedEntry(e));
 
+    public void NotifyDamage(OpenGarrisonServerDamageEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnDamage(e));
+
+    public void NotifyDeath(OpenGarrisonServerDeathEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnDeath(e));
+
+    public void NotifyAssist(OpenGarrisonServerAssistEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnAssist(e));
+
+    public void NotifyBuild(OpenGarrisonServerBuildableEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnBuild(e));
+
+    public void NotifyDestroy(OpenGarrisonServerBuildableEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnDestroy(e));
+
+    public void NotifyIntelEvent(OpenGarrisonServerIntelEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnIntelEvent(e));
+
+    public void NotifyControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnControlPointStateChanged(e));
+
+    public void NotifyPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerSpawned(e));
+
+    public void NotifyClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e) => Dispatch<IOpenGarrisonServerPluginMessageHooks>(hook => hook.OnClientPluginMessage(e));
+
     public void ShutdownPlugins()
     {
         for (var index = _loadedPlugins.Count - 1; index >= 0; index -= 1)
@@ -167,6 +191,8 @@ internal sealed class PluginHost
             _mapsDirectory,
             _serverState,
             _adminOperations,
+            (slot, targetPluginId, messageType, payload) => _sendMessageToClient(slot, plugin.Id, targetPluginId, messageType, payload),
+            (targetPluginId, messageType, payload) => _broadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload),
             _commandRegistry,
             _log);
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using Microsoft.Xna.Framework.Input;
 
 namespace OpenGarrison.Client;
 
@@ -46,6 +47,43 @@ internal sealed class ClientPluginStateStore
         SaveDocument();
     }
 
+    public Keys GetPluginHotkey(string pluginId, string hotkeyId, Keys defaultKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hotkeyId);
+
+        if (_document.PluginHotkeyStates.TryGetValue(pluginId, out var pluginHotkeys)
+            && pluginHotkeys.TryGetValue(hotkeyId, out var serializedKey)
+            && Enum.TryParse<Keys>(serializedKey, ignoreCase: true, out var parsedKey))
+        {
+            return parsedKey;
+        }
+
+        return defaultKey;
+    }
+
+    public void SetPluginHotkey(string pluginId, string hotkeyId, Keys key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hotkeyId);
+
+        if (!_document.PluginHotkeyStates.TryGetValue(pluginId, out var pluginHotkeys))
+        {
+            pluginHotkeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _document.PluginHotkeyStates[pluginId] = pluginHotkeys;
+        }
+
+        var serializedKey = key.ToString();
+        if (pluginHotkeys.TryGetValue(hotkeyId, out var currentValue)
+            && string.Equals(currentValue, serializedKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        pluginHotkeys[hotkeyId] = serializedKey;
+        SaveDocument();
+    }
+
     private void SaveDocument()
     {
         try
@@ -61,6 +99,18 @@ internal sealed class ClientPluginStateStore
                          .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
             {
                 normalized.PluginEnabledStates[entry.Key] = entry.Value;
+            }
+
+            foreach (var pluginEntry in _document.PluginHotkeyStates
+                         .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                var normalizedHotkeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var hotkeyEntry in pluginEntry.Value.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    normalizedHotkeys[hotkeyEntry.Key] = hotkeyEntry.Value;
+                }
+
+                normalized.PluginHotkeyStates[pluginEntry.Key] = normalizedHotkeys;
             }
 
             File.WriteAllText(_path, JsonSerializer.Serialize(normalized, SerializerOptions));
@@ -106,6 +156,30 @@ internal sealed class ClientPluginStateStore
             normalized.PluginEnabledStates[entry.Key] = entry.Value;
         }
 
+        foreach (var pluginEntry in document.PluginHotkeyStates)
+        {
+            if (string.IsNullOrWhiteSpace(pluginEntry.Key))
+            {
+                continue;
+            }
+
+            var normalizedHotkeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var hotkeyEntry in pluginEntry.Value)
+            {
+                if (string.IsNullOrWhiteSpace(hotkeyEntry.Key) || string.IsNullOrWhiteSpace(hotkeyEntry.Value))
+                {
+                    continue;
+                }
+
+                normalizedHotkeys[hotkeyEntry.Key] = hotkeyEntry.Value;
+            }
+
+            if (normalizedHotkeys.Count > 0)
+            {
+                normalized.PluginHotkeyStates[pluginEntry.Key] = normalizedHotkeys;
+            }
+        }
+
         return normalized;
     }
 }
@@ -113,4 +187,6 @@ internal sealed class ClientPluginStateStore
 internal sealed class ClientPluginStateDocument
 {
     public Dictionary<string, bool> PluginEnabledStates { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public Dictionary<string, Dictionary<string, string>> PluginHotkeyStates { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

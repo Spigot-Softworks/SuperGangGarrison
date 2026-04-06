@@ -9,11 +9,24 @@ internal sealed class ServerRuntimeEventReporter(
     Action<string, (string Key, object? Value)[]> writeEvent,
     ServerMapMetadataResolver mapMetadataResolver)
 {
+    private readonly Dictionary<int, bool> _lastObservedPlayerAliveById = new();
     private int _lastObservedRedCaps;
     private int _lastObservedBlueCaps;
     private MatchPhase _lastObservedMatchPhase;
     private int _lastObservedKillFeedCount;
     private readonly Dictionary<int, int> _lastObservedPlayerCapsById = new();
+    private readonly Dictionary<int, bool> _lastObservedSentryBuiltById = new();
+    private readonly HashSet<int> _observedSpawnedPlayerIds = new();
+    private bool _lastObservedRedIntelAtBase;
+    private bool _lastObservedRedIntelDropped;
+    private float _lastObservedRedIntelX;
+    private float _lastObservedRedIntelY;
+    private bool _lastObservedBlueIntelAtBase;
+    private bool _lastObservedBlueIntelDropped;
+    private float _lastObservedBlueIntelX;
+    private float _lastObservedBlueIntelY;
+    private readonly Dictionary<int, (PlayerTeam? Team, PlayerTeam? CappingTeam, int Cappers, int ProgressTicks, bool IsLocked)> _lastObservedControlPointStates = new();
+    private readonly Dictionary<PlayerTeam, bool> _lastObservedGeneratorDestroyedStates = new();
 
     public void ResetObservedGameplayState()
     {
@@ -21,11 +34,52 @@ internal sealed class ServerRuntimeEventReporter(
         _lastObservedBlueCaps = world.BlueCaps;
         _lastObservedMatchPhase = world.MatchState.Phase;
         _lastObservedKillFeedCount = world.KillFeed.Count;
+        _lastObservedPlayerAliveById.Clear();
         _lastObservedPlayerCapsById.Clear();
+        _lastObservedSentryBuiltById.Clear();
+        _observedSpawnedPlayerIds.Clear();
+        _lastObservedControlPointStates.Clear();
+        _lastObservedGeneratorDestroyedStates.Clear();
         foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
         {
+            _lastObservedPlayerAliveById[player.Id] = player.IsAlive;
             _lastObservedPlayerCapsById[player.Id] = player.Caps;
+            if (player.IsAlive)
+            {
+                _observedSpawnedPlayerIds.Add(player.Id);
+            }
         }
+
+        foreach (var sentry in world.Sentries)
+        {
+            _lastObservedSentryBuiltById[sentry.Id] = sentry.IsBuilt;
+        }
+
+        for (var index = 0; index < world.ControlPoints.Count; index += 1)
+        {
+            var point = world.ControlPoints[index];
+            _lastObservedControlPointStates[point.Index] = (
+                point.Team,
+                point.CappingTeam,
+                point.Cappers,
+                (int)MathF.Round(point.CappingTicks),
+                point.IsLocked);
+        }
+
+        for (var index = 0; index < world.Generators.Count; index += 1)
+        {
+            var generator = world.Generators[index];
+            _lastObservedGeneratorDestroyedStates[generator.Team] = generator.IsDestroyed;
+        }
+
+        _lastObservedRedIntelAtBase = world.RedIntel.IsAtBase;
+        _lastObservedRedIntelDropped = world.RedIntel.IsDropped;
+        _lastObservedRedIntelX = world.RedIntel.X;
+        _lastObservedRedIntelY = world.RedIntel.Y;
+        _lastObservedBlueIntelAtBase = world.BlueIntel.IsAtBase;
+        _lastObservedBlueIntelDropped = world.BlueIntel.IsDropped;
+        _lastObservedBlueIntelX = world.BlueIntel.X;
+        _lastObservedBlueIntelY = world.BlueIntel.Y;
     }
 
     public void WriteEvent(string eventName, params (string Key, object? Value)[] fields)
@@ -39,8 +93,13 @@ internal sealed class ServerRuntimeEventReporter(
         ResetObservedGameplayState();
     }
 
-    public void PublishGameplayEvents()
+    public void PublishGameplayEvents(SnapshotTransientEvents transientEvents)
     {
+        PublishDamageEvents(transientEvents);
+        PublishSpawnEvents();
+        PublishBuildableEvents();
+        PublishIntelEvents();
+        PublishControlPointEvents();
         PublishPlayerCapEvents();
 
         if (world.RedCaps != _lastObservedRedCaps || world.BlueCaps != _lastObservedBlueCaps)
@@ -232,5 +291,349 @@ internal sealed class ServerRuntimeEventReporter(
         {
             _lastObservedPlayerCapsById.Remove(stalePlayerIds[index]);
         }
+    }
+
+    private void PublishDamageEvents(SnapshotTransientEvents transientEvents)
+    {
+        var pluginHost = pluginHostGetter();
+        for (var index = 0; index < transientEvents.DamageEvents.Length; index += 1)
+        {
+            var damageEvent = transientEvents.DamageEvents[index];
+            var attacker = FindPlayerById(damageEvent.AttackerPlayerId);
+            var assistant = FindPlayerById(damageEvent.AssistedByPlayerId);
+            var victim = damageEvent.TargetKind == (byte)DamageTargetKind.Player
+                ? FindPlayerById(damageEvent.TargetEntityId)
+                : null;
+
+            pluginHost?.NotifyDamage(new OpenGarrisonServerDamageEvent(
+                world.Frame,
+                damageEvent.Amount,
+                (DamageTargetKind)damageEvent.TargetKind,
+                damageEvent.TargetEntityId,
+                damageEvent.WasFatal,
+                damageEvent.AttackerPlayerId,
+                attacker?.DisplayName ?? string.Empty,
+                attacker?.Team,
+                damageEvent.AssistedByPlayerId,
+                assistant?.DisplayName ?? string.Empty,
+                assistant?.Team,
+                victim?.Id ?? -1,
+                victim?.DisplayName ?? string.Empty,
+                victim?.Team,
+                damageEvent.X,
+                damageEvent.Y,
+                DamageEventFlags.None));
+
+            if (!damageEvent.WasFatal || victim is null)
+            {
+                continue;
+            }
+
+            var latestKillFeedEntry = FindLatestKillFeedEntryForVictim(victim.Id);
+            pluginHost?.NotifyDeath(new OpenGarrisonServerDeathEvent(
+                world.Frame,
+                victim.Id,
+                victim.DisplayName,
+                victim.Team,
+                damageEvent.AttackerPlayerId,
+                attacker?.DisplayName ?? string.Empty,
+                attacker?.Team,
+                damageEvent.AssistedByPlayerId,
+                assistant?.DisplayName ?? string.Empty,
+                assistant?.Team,
+                latestKillFeedEntry?.WeaponSpriteName ?? string.Empty,
+                latestKillFeedEntry?.MessageText ?? string.Empty));
+
+            if (assistant is not null && attacker is not null)
+            {
+                pluginHost?.NotifyAssist(new OpenGarrisonServerAssistEvent(
+                    world.Frame,
+                    assistant.Id,
+                    assistant.DisplayName,
+                    assistant.Team,
+                    attacker.Id,
+                    attacker.DisplayName,
+                    attacker.Team,
+                    victim.Id,
+                    victim.DisplayName,
+                    victim.Team,
+                    latestKillFeedEntry?.WeaponSpriteName ?? string.Empty));
+            }
+        }
+    }
+
+    private void PublishSpawnEvents()
+    {
+        var activePlayerIds = new HashSet<int>();
+        var pluginHost = pluginHostGetter();
+        foreach (var (slot, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            activePlayerIds.Add(player.Id);
+            var wasAlive = _lastObservedPlayerAliveById.GetValueOrDefault(player.Id, player.IsAlive);
+            if (!wasAlive && player.IsAlive)
+            {
+                var isRespawn = _observedSpawnedPlayerIds.Contains(player.Id);
+                pluginHost?.NotifyPlayerSpawned(new OpenGarrisonServerPlayerSpawnEvent(
+                    world.Frame,
+                    slot,
+                    player.Id,
+                    player.DisplayName,
+                    player.Team,
+                    player.ClassId,
+                    player.X,
+                    player.Y,
+                    isRespawn));
+                _observedSpawnedPlayerIds.Add(player.Id);
+            }
+
+            _lastObservedPlayerAliveById[player.Id] = player.IsAlive;
+        }
+
+        var staleIds = _lastObservedPlayerAliveById.Keys.Where(playerId => !activePlayerIds.Contains(playerId)).ToArray();
+        for (var index = 0; index < staleIds.Length; index += 1)
+        {
+            _lastObservedPlayerAliveById.Remove(staleIds[index]);
+            _observedSpawnedPlayerIds.Remove(staleIds[index]);
+        }
+    }
+
+    private void PublishBuildableEvents()
+    {
+        var pluginHost = pluginHostGetter();
+        var activeSentryIds = new HashSet<int>();
+        foreach (var sentry in world.Sentries)
+        {
+            activeSentryIds.Add(sentry.Id);
+            var wasBuilt = _lastObservedSentryBuiltById.GetValueOrDefault(sentry.Id, false);
+            if (!wasBuilt && sentry.IsBuilt)
+            {
+                var owner = FindPlayerById(sentry.OwnerPlayerId);
+                pluginHost?.NotifyBuild(new OpenGarrisonServerBuildableEvent(
+                    world.Frame,
+                    OpenGarrisonServerBuildableKind.Sentry,
+                    sentry.Id,
+                    sentry.OwnerPlayerId,
+                    owner?.DisplayName ?? string.Empty,
+                    sentry.Team,
+                    sentry.X,
+                    sentry.Y));
+            }
+
+            _lastObservedSentryBuiltById[sentry.Id] = sentry.IsBuilt;
+        }
+
+        var removedSentryIds = _lastObservedSentryBuiltById.Keys.Where(id => !activeSentryIds.Contains(id)).ToArray();
+        for (var index = 0; index < removedSentryIds.Length; index += 1)
+        {
+            pluginHost?.NotifyDestroy(new OpenGarrisonServerBuildableEvent(
+                world.Frame,
+                OpenGarrisonServerBuildableKind.Sentry,
+                removedSentryIds[index],
+                0,
+                string.Empty,
+                null,
+                0f,
+                0f));
+            _lastObservedSentryBuiltById.Remove(removedSentryIds[index]);
+        }
+
+        for (var index = 0; index < world.Generators.Count; index += 1)
+        {
+            var generator = world.Generators[index];
+            var wasDestroyed = _lastObservedGeneratorDestroyedStates.GetValueOrDefault(generator.Team, generator.IsDestroyed);
+            if (!wasDestroyed && generator.IsDestroyed)
+            {
+                pluginHost?.NotifyDestroy(new OpenGarrisonServerBuildableEvent(
+                    world.Frame,
+                    OpenGarrisonServerBuildableKind.Generator,
+                    (int)generator.Team,
+                    0,
+                    string.Empty,
+                    generator.Team,
+                    generator.Marker.CenterX,
+                    generator.Marker.CenterY));
+            }
+
+            _lastObservedGeneratorDestroyedStates[generator.Team] = generator.IsDestroyed;
+        }
+    }
+
+    private void PublishIntelEvents()
+    {
+        PublishIntelEventsForState(
+            world.RedIntel,
+            ref _lastObservedRedIntelAtBase,
+            ref _lastObservedRedIntelDropped,
+            ref _lastObservedRedIntelX,
+            ref _lastObservedRedIntelY);
+        PublishIntelEventsForState(
+            world.BlueIntel,
+            ref _lastObservedBlueIntelAtBase,
+            ref _lastObservedBlueIntelDropped,
+            ref _lastObservedBlueIntelX,
+            ref _lastObservedBlueIntelY);
+    }
+
+    private void PublishIntelEventsForState(
+        TeamIntelligenceState intel,
+        ref bool wasAtBase,
+        ref bool wasDropped,
+        ref float previousX,
+        ref float previousY)
+    {
+        var pluginHost = pluginHostGetter();
+        var actingTeam = intel.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        if ((wasAtBase || wasDropped) && intel.IsCarried)
+        {
+            var actor = FindPlayerCarryingEnemyIntel(actingTeam);
+            pluginHost?.NotifyIntelEvent(new OpenGarrisonServerIntelEvent(
+                world.Frame,
+                OpenGarrisonServerIntelEventKind.PickedUp,
+                intel.Team,
+                actingTeam,
+                actor?.Id ?? -1,
+                actor?.DisplayName ?? string.Empty,
+                intel.X,
+                intel.Y));
+        }
+        else if (!wasDropped && !wasAtBase && intel.IsDropped)
+        {
+            var actor = FindClosestPlayer(previousX, previousY, actingTeam);
+            pluginHost?.NotifyIntelEvent(new OpenGarrisonServerIntelEvent(
+                world.Frame,
+                OpenGarrisonServerIntelEventKind.Dropped,
+                intel.Team,
+                actingTeam,
+                actor?.Id ?? -1,
+                actor?.DisplayName ?? string.Empty,
+                intel.X,
+                intel.Y));
+        }
+        else if (wasDropped && intel.IsAtBase)
+        {
+            var kind = intel.Team == PlayerTeam.Red
+                ? world.BlueCaps > _lastObservedBlueCaps
+                    ? OpenGarrisonServerIntelEventKind.Captured
+                    : OpenGarrisonServerIntelEventKind.Returned
+                : world.RedCaps > _lastObservedRedCaps
+                    ? OpenGarrisonServerIntelEventKind.Captured
+                    : OpenGarrisonServerIntelEventKind.Returned;
+            pluginHost?.NotifyIntelEvent(new OpenGarrisonServerIntelEvent(
+                world.Frame,
+                kind,
+                intel.Team,
+                actingTeam,
+                -1,
+                string.Empty,
+                intel.X,
+                intel.Y));
+        }
+
+        wasAtBase = intel.IsAtBase;
+        wasDropped = intel.IsDropped;
+        previousX = intel.X;
+        previousY = intel.Y;
+    }
+
+    private void PublishControlPointEvents()
+    {
+        var pluginHost = pluginHostGetter();
+        for (var index = 0; index < world.ControlPoints.Count; index += 1)
+        {
+            var point = world.ControlPoints[index];
+            var currentState = (
+                point.Team,
+                point.CappingTeam,
+                point.Cappers,
+                (int)MathF.Round(point.CappingTicks),
+                point.IsLocked);
+            var previousState = _lastObservedControlPointStates.GetValueOrDefault(point.Index, currentState);
+            if (!Equals(previousState, currentState))
+            {
+                pluginHost?.NotifyControlPointStateChanged(new OpenGarrisonServerControlPointStateEvent(
+                    world.Frame,
+                    point.Index,
+                    point.Team,
+                    point.CappingTeam,
+                    point.Cappers,
+                    point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
+                    point.IsLocked,
+                    point.Marker.CenterX,
+                    point.Marker.CenterY));
+            }
+
+            _lastObservedControlPointStates[point.Index] = currentState;
+        }
+    }
+
+    private PlayerEntity? FindPlayerById(int playerId)
+    {
+        if (playerId <= 0)
+        {
+            return null;
+        }
+
+        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (player.Id == playerId)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
+    private KillFeedEntry? FindLatestKillFeedEntryForVictim(int victimPlayerId)
+    {
+        for (var index = world.KillFeed.Count - 1; index >= 0; index -= 1)
+        {
+            var entry = world.KillFeed[index];
+            if (entry.VictimPlayerId == victimPlayerId)
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    private PlayerEntity? FindPlayerCarryingEnemyIntel(PlayerTeam team)
+    {
+        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (player.Team == team && player.IsCarryingIntel)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
+    private PlayerEntity? FindClosestPlayer(float x, float y, PlayerTeam? team = null)
+    {
+        PlayerEntity? closest = null;
+        var closestDistanceSquared = float.MaxValue;
+        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        {
+            if (team.HasValue && player.Team != team.Value)
+            {
+                continue;
+            }
+
+            var deltaX = player.X - x;
+            var deltaY = player.Y - y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+            if (distanceSquared >= closestDistanceSquared)
+            {
+                continue;
+            }
+
+            closest = player;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        return closest;
     }
 }

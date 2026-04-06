@@ -23,6 +23,11 @@ public interface IOpenGarrisonClientHudHooks
     void OnGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas);
 }
 
+public interface IOpenGarrisonClientScoreboardLegacyHooks
+{
+    void OnScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state);
+}
+
 public interface IOpenGarrisonClientDamageHooks
 {
     void OnLocalDamage(LocalDamageEvent e);

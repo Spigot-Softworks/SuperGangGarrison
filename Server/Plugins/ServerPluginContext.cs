@@ -9,6 +9,8 @@ internal sealed class ServerPluginContext(
     string mapsDirectory,
     IOpenGarrisonServerReadOnlyState serverState,
     IOpenGarrisonServerAdminOperations adminOperations,
+    Action<byte, string, string, string> sendMessageToClient,
+    Action<string, string, string> broadcastMessageToClients,
     PluginCommandRegistry commandRegistry,
     Action<string> log) : IOpenGarrisonServerPluginContext
 {
@@ -23,6 +25,16 @@ internal sealed class ServerPluginContext(
     public IOpenGarrisonServerReadOnlyState ServerState { get; } = serverState;
 
     public IOpenGarrisonServerAdminOperations AdminOperations { get; } = adminOperations;
+
+    public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload)
+    {
+        sendMessageToClient(slot, targetPluginId, messageType, payload);
+    }
+
+    public void BroadcastMessageToClients(string targetPluginId, string messageType, string payload)
+    {
+        broadcastMessageToClients(targetPluginId, messageType, payload);
+    }
 
     public void RegisterCommand(IOpenGarrisonServerCommand command)
     {

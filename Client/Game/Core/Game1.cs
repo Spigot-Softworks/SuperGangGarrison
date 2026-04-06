@@ -180,6 +180,7 @@ public partial class Game1 : Game
     private NoticeState? _notice;
     private bool _hadLocalSentry;
     private bool _wasCarryingIntel;
+    private readonly Queue<QueuedPluginNotice> _queuedPluginNotices = new();
     private bool _startupSplashOpen = true;
     private int _startupSplashTicks;
     private float _startupSplashFrame;
@@ -450,21 +451,33 @@ public partial class Game1 : Game
 
     private sealed class NoticeState
     {
-        public NoticeState(NoticeKind kind, float alpha, bool done, int ticksRemaining)
+        public NoticeState(string text, float alpha, bool done, int ticksRemaining, bool playSound)
         {
-            Kind = kind;
+            Text = text;
             Alpha = alpha;
             Done = done;
             TicksRemaining = ticksRemaining;
+            PlaySound = playSound;
         }
 
-        public NoticeKind Kind { get; set; }
+        public string Text { get; set; }
 
         public float Alpha { get; set; }
 
         public bool Done { get; set; }
 
         public int TicksRemaining { get; set; }
+
+        public bool PlaySound { get; set; }
+    }
+
+    private sealed class QueuedPluginNotice(string text, int ticksRemaining, bool playSound)
+    {
+        public string Text { get; } = text;
+
+        public int TicksRemaining { get; } = ticksRemaining;
+
+        public bool PlaySound { get; } = playSound;
     }
 
     private sealed class ChatLine

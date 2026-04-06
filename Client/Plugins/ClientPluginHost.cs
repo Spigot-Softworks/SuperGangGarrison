@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
 
 namespace OpenGarrison.Client;
@@ -15,6 +16,8 @@ internal sealed class ClientPluginHost
     private readonly ClientPluginStateStore _stateStore;
     private readonly List<ClientPluginLoader.DiscoveredPlugin> _discoveredPlugins = new();
     private readonly List<LoadedPluginEntry> _loadedPlugins = new();
+    private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<RegisteredMenuEntry>> _registeredMenuEntries = new(StringComparer.OrdinalIgnoreCase);
     private ClientPluginLifecyclePhase _lifecyclePhase;
 
     public ClientPluginHost(
@@ -94,11 +97,81 @@ internal sealed class ClientPluginHost
 
     public void NotifyClientFrame(ClientFrameEvent e) => Dispatch<IOpenGarrisonClientUpdateHooks>(hook => hook.OnClientFrame(e));
 
-    public void NotifyGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas) => Dispatch<IOpenGarrisonClientHudHooks>(hook => hook.OnGameplayHudDraw(canvas));
+    public void NotifyGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
+    {
+        var orderedEntries = _loadedPlugins
+            .OrderBy(entry => entry.LoadedPlugin.Plugin is IOpenGarrisonClientHudOrderHooks orderedHook ? orderedHook.GameplayHudOrder : 0)
+            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        for (var index = 0; index < orderedEntries.Length; index += 1)
+        {
+            DispatchHook<IOpenGarrisonClientHudHooks>(orderedEntries[index], hook => hook.OnGameplayHudDraw(canvas), "runtime");
+        }
+    }
 
     public void NotifyLocalDamage(LocalDamageEvent e) => Dispatch<IOpenGarrisonClientDamageHooks>(hook => hook.OnLocalDamage(e));
 
     public void NotifyWorldSound(ClientWorldSoundEvent e) => Dispatch<IOpenGarrisonClientSoundHooks>(hook => hook.OnWorldSound(e));
+
+    public void NotifyServerPluginMessage(ClientPluginMessageEnvelope e) => Dispatch<IOpenGarrisonClientPluginMessageHooks>(hook => hook.OnServerPluginMessage(e));
+
+    public void NotifyShotFired(ClientShotFiredEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnShotFired(e));
+
+    public void NotifyHitConfirmed(ClientHitConfirmedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHitConfirmed(e));
+
+    public void NotifyLocalKill(ClientLocalKillEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalKill(e));
+
+    public void NotifyLocalDeath(ClientLocalDeathEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalDeath(e));
+
+    public void NotifyPickup(ClientPickupEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnPickup(e));
+
+    public void NotifyHeal(ClientHealEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHeal(e));
+
+    public void NotifyIgnited(ClientIgniteEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIgnited(e));
+
+    public void NotifyExtinguished(ClientExtinguishEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnExtinguished(e));
+
+    public void NotifyObjectiveStateChanged(ClientObjectiveStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnObjectiveStateChanged(e));
+
+    public void NotifyRoundPhaseChanged(ClientRoundPhaseChangedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnRoundPhaseChanged(e));
+
+    public void NotifyKillFeed(ClientKillFeedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnKillFeed(e));
+
+    public void NotifyScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
+    {
+        var orderedEntries = _loadedPlugins
+            .OrderBy(entry => GetScoreboardLocation(entry.LoadedPlugin.Plugin))
+            .ThenBy(entry => GetScoreboardOrder(entry.LoadedPlugin.Plugin))
+            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        for (var index = 0; index < orderedEntries.Length; index += 1)
+        {
+            var entry = orderedEntries[index];
+            DispatchHook<IOpenGarrisonClientScoreboardHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "runtime");
+            DispatchHook<IOpenGarrisonClientScoreboardLegacyHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "runtime");
+        }
+    }
+
+    public IReadOnlyList<ClientPluginMenuEntry> GetMenuEntries(ClientPluginMenuLocation location)
+    {
+        var entries = new List<ClientPluginMenuEntry>();
+        foreach (var pluginEntries in _registeredMenuEntries.Values)
+        {
+            for (var index = 0; index < pluginEntries.Count; index += 1)
+            {
+                var entry = pluginEntries[index];
+                if (entry.Location != location)
+                {
+                    continue;
+                }
+
+                entries.Add(new ClientPluginMenuEntry(entry.PluginId, entry.MenuEntryId, entry.Label, entry.Activate));
+            }
+        }
+
+        entries.Sort((left, right) => string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase));
+        return entries;
+    }
 
     public Vector2 GetCameraOffset()
     {
@@ -287,6 +360,8 @@ internal sealed class ClientPluginHost
             {
                 _log($"[plugin] shutdown failed for {_loadedPlugins[index].DiscoveredPlugin.PluginId}: {ex.Message}");
             }
+
+            DisposePluginResources(_loadedPlugins[index]);
         }
     }
 
@@ -294,6 +369,8 @@ internal sealed class ClientPluginHost
     {
         ResetLoadedPluginsForDiscovery();
         _discoveredPlugins.Clear();
+        _registeredHotkeys.Clear();
+        _registeredMenuEntries.Clear();
         _discoveredPlugins.AddRange(discoveredPlugins);
 
         for (var index = 0; index < _discoveredPlugins.Count; index += 1)
@@ -320,6 +397,8 @@ internal sealed class ClientPluginHost
             {
                 _log($"[plugin] shutdown failed for {_loadedPlugins[index].DiscoveredPlugin.PluginId}: {ex.Message}");
             }
+
+            DisposePluginResources(_loadedPlugins[index]);
         }
 
         _loadedPlugins.Clear();
@@ -331,18 +410,13 @@ internal sealed class ClientPluginHost
     {
         if (loadedPlugin?.LoadedPlugin.Plugin is not IOpenGarrisonClientOptionsHooks hook)
         {
-            return [];
+            return GetRegisteredHotkeySections(discoveredPlugin.PluginId);
         }
 
         try
         {
             var pluginSections = hook.GetOptionsSections();
-            if (pluginSections.Count == 0)
-            {
-                return [];
-            }
-
-            var sections = new List<ClientPluginOptionsSection>(pluginSections.Count);
+            var sections = new List<ClientPluginOptionsSection>(pluginSections.Count + 1);
             for (var sectionIndex = 0; sectionIndex < pluginSections.Count; sectionIndex += 1)
             {
                 var section = pluginSections[sectionIndex];
@@ -351,12 +425,75 @@ internal sealed class ClientPluginHost
                     : section);
             }
 
+            sections.AddRange(GetRegisteredHotkeySections(discoveredPlugin.PluginId));
             return sections;
         }
         catch (Exception ex)
         {
             _log($"[plugin] options query failed for {discoveredPlugin.PluginId}: {ex.Message}");
+            return GetRegisteredHotkeySections(discoveredPlugin.PluginId);
+        }
+    }
+
+    private List<ClientPluginOptionsSection> GetRegisteredHotkeySections(string pluginId)
+    {
+        if (!_registeredHotkeys.TryGetValue(pluginId, out var hotkeys) || hotkeys.Count == 0)
+        {
             return [];
+        }
+
+        var items = new List<ClientPluginOptionItem>(hotkeys.Count);
+        for (var index = 0; index < hotkeys.Count; index += 1)
+        {
+            var hotkeyId = hotkeys[index].HotkeyId;
+            var displayName = hotkeys[index].DisplayName;
+            items.Add(new ClientPluginKeyOptionItem(
+                displayName,
+                () => GetRegisteredHotkey(pluginId, hotkeyId)?.CurrentKey ?? Keys.None,
+                value => SetRegisteredHotkey(pluginId, hotkeyId, value)));
+        }
+
+        return
+        [
+            new ClientPluginOptionsSection("Hotkeys", items),
+        ];
+    }
+
+    private RegisteredHotkey? GetRegisteredHotkey(string pluginId, string hotkeyId)
+    {
+        if (!_registeredHotkeys.TryGetValue(pluginId, out var hotkeys))
+        {
+            return null;
+        }
+
+        for (var index = 0; index < hotkeys.Count; index += 1)
+        {
+            if (string.Equals(hotkeys[index].HotkeyId, hotkeyId, StringComparison.OrdinalIgnoreCase))
+            {
+                return hotkeys[index];
+            }
+        }
+
+        return null;
+    }
+
+    private void SetRegisteredHotkey(string pluginId, string hotkeyId, Keys value)
+    {
+        if (!_registeredHotkeys.TryGetValue(pluginId, out var hotkeys))
+        {
+            return;
+        }
+
+        for (var index = 0; index < hotkeys.Count; index += 1)
+        {
+            if (!string.Equals(hotkeys[index].HotkeyId, hotkeyId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            hotkeys[index] = hotkeys[index] with { CurrentKey = value };
+            _stateStore.SetPluginHotkey(pluginId, hotkeyId, value);
+            return;
         }
     }
 
@@ -440,6 +577,9 @@ internal sealed class ClientPluginHost
                 DispatchHook<IOpenGarrisonClientLifecycleHooks>(entry, hook => hook.OnClientStopped(), "stopped");
             }
 
+            DisposePluginResources(entry);
+            _registeredHotkeys.Remove(entry.DiscoveredPlugin.PluginId);
+            _registeredMenuEntries.Remove(entry.DiscoveredPlugin.PluginId);
             _loadedPlugins.RemoveAt(index);
             _log($"[plugin] unloaded {entry.DiscoveredPlugin.DisplayName} ({entry.DiscoveredPlugin.PluginId})");
             return true;
@@ -467,13 +607,127 @@ internal sealed class ClientPluginHost
         var configDirectory = Path.Combine(_pluginConfigRoot, plugin.Id);
         Directory.CreateDirectory(pluginDirectory);
         Directory.CreateDirectory(configDirectory);
+        var assetRegistry = new ClientPluginAssetRegistry(plugin.Id, pluginDirectory, _graphicsDevice);
         return new ClientPluginContext(
             plugin.Id,
             pluginDirectory,
             configDirectory,
             _graphicsDevice,
             _clientState,
+            assetRegistry,
+            (hotkeyId, displayName, defaultKey) => RegisterHotkey(plugin.Id, hotkeyId, displayName, defaultKey),
+            hotkeyId => WasHotkeyPressed(plugin.Id, hotkeyId),
+            (menuEntryId, label, location, activate) => RegisterMenuEntry(plugin.Id, menuEntryId, label, location, activate),
+            (text, durationTicks, playSound) => ShowNotice(plugin.Id, text, durationTicks, playSound),
+            (targetPluginId, messageType, payload) => SendMessageToServer(plugin.Id, targetPluginId, messageType, payload),
             _log);
+    }
+
+    private Keys RegisterHotkey(string pluginId, string hotkeyId, string displayName, Keys defaultKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hotkeyId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
+        if (!_registeredHotkeys.TryGetValue(pluginId, out var hotkeys))
+        {
+            hotkeys = new List<RegisteredHotkey>();
+            _registeredHotkeys[pluginId] = hotkeys;
+        }
+
+        var resolvedKey = _stateStore.GetPluginHotkey(pluginId, hotkeyId, defaultKey);
+        for (var index = 0; index < hotkeys.Count; index += 1)
+        {
+            if (!string.Equals(hotkeys[index].HotkeyId, hotkeyId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            hotkeys[index] = hotkeys[index] with
+            {
+                DisplayName = displayName,
+                DefaultKey = defaultKey,
+                CurrentKey = resolvedKey,
+            };
+            return resolvedKey;
+        }
+
+        hotkeys.Add(new RegisteredHotkey(hotkeyId, displayName, defaultKey, resolvedKey));
+        hotkeys.Sort((left, right) => string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase));
+        return resolvedKey;
+    }
+
+    private bool WasHotkeyPressed(string pluginId, string hotkeyId)
+    {
+        var registeredHotkey = GetRegisteredHotkey(pluginId, hotkeyId);
+        return registeredHotkey is not null && _clientState.WasKeyPressedThisFrame(registeredHotkey.CurrentKey);
+    }
+
+    private void RegisterMenuEntry(string pluginId, string menuEntryId, string label, ClientPluginMenuLocation location, Action activate)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(menuEntryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+
+        if (!_registeredMenuEntries.TryGetValue(pluginId, out var menuEntries))
+        {
+            menuEntries = new List<RegisteredMenuEntry>();
+            _registeredMenuEntries[pluginId] = menuEntries;
+        }
+
+        for (var index = 0; index < menuEntries.Count; index += 1)
+        {
+            if (!string.Equals(menuEntries[index].MenuEntryId, menuEntryId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            menuEntries[index] = menuEntries[index] with
+            {
+                Label = label,
+                Location = location,
+                Activate = activate,
+            };
+            return;
+        }
+
+        menuEntries.Add(new RegisteredMenuEntry(pluginId, menuEntryId, label, location, activate));
+    }
+
+    private void ShowNotice(string pluginId, string text, int durationTicks, bool playSound)
+    {
+        if (_clientState is not ClientPluginUiSink sink)
+        {
+            _log($"[plugin] client plugin notice surface unavailable for {pluginId}.");
+            return;
+        }
+
+        try
+        {
+            sink.EnqueuePluginNotice(text, durationTicks, playSound);
+        }
+        catch (Exception ex)
+        {
+            _log($"[plugin] notice enqueue failed for {pluginId}: {ex.Message}");
+        }
+    }
+
+    private void SendMessageToServer(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    {
+        if (_clientState is not ClientPluginMessageSink sink)
+        {
+            _log($"[plugin] client plugin messaging unavailable for {sourcePluginId}.");
+            return;
+        }
+
+        try
+        {
+            sink.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+        }
+        catch (Exception ex)
+        {
+            _log($"[plugin] message send failed for {sourcePluginId}: {ex.Message}");
+        }
     }
 
     private void Dispatch<THook>(Action<THook> callback) where THook : class
@@ -501,6 +755,32 @@ internal sealed class ClientPluginHost
         }
     }
 
+    private static void DisposePluginResources(LoadedPluginEntry entry)
+    {
+        if (entry.LoadedPlugin.Context is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+
+    private static ClientScoreboardPanelLocation GetScoreboardLocation(IOpenGarrisonClientPlugin plugin)
+    {
+        return plugin switch
+        {
+            IOpenGarrisonClientScoreboardHooks scoreboardHooks => scoreboardHooks.ScoreboardPanelLocation,
+            _ => ClientScoreboardPanelLocation.Footer,
+        };
+    }
+
+    private static int GetScoreboardOrder(IOpenGarrisonClientPlugin plugin)
+    {
+        return plugin switch
+        {
+            IOpenGarrisonClientScoreboardHooks scoreboardHooks => scoreboardHooks.ScoreboardPanelOrder,
+            _ => 0,
+        };
+    }
+
     private enum ClientPluginLifecyclePhase
     {
         Created,
@@ -513,7 +793,36 @@ internal sealed class ClientPluginHost
     private sealed record LoadedPluginEntry(
         ClientPluginLoader.DiscoveredPlugin DiscoveredPlugin,
         ClientPluginLoader.LoadedPlugin LoadedPlugin);
+
+    private sealed record RegisteredHotkey(
+        string HotkeyId,
+        string DisplayName,
+        Keys DefaultKey,
+        Keys CurrentKey);
+
+    private sealed record RegisteredMenuEntry(
+        string PluginId,
+        string MenuEntryId,
+        string Label,
+        ClientPluginMenuLocation Location,
+        Action Activate);
 }
+
+internal interface ClientPluginMessageSink
+{
+    void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload);
+}
+
+internal interface ClientPluginUiSink
+{
+    void EnqueuePluginNotice(string text, int durationTicks, bool playSound);
+}
+
+internal sealed record ClientPluginMenuEntry(
+    string PluginId,
+    string MenuEntryId,
+    string Label,
+    Action Activate);
 
 internal sealed record ClientPluginOptionsEntry(
     string PluginId,

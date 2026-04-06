@@ -14,6 +14,9 @@ public static partial class ProtocolCodec
     private const int MaxReasonBytes = 128;
     private const int MaxPasswordBytes = 64;
     private const int MaxChatBytes = 180;
+    private const int MaxPluginIdBytes = 80;
+    private const int MaxPluginMessageTypeBytes = 80;
+    private const int MaxPluginPayloadBytes = 1024;
     private const int MaxAssetNameBytes = 64;
     private const int MaxKillMessageBytes = 160;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -107,6 +110,18 @@ public static partial class ProtocolCodec
                 WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));
                 writer.Write(profileUpdate.BadgeMask);
                 break;
+            case ClientPluginMessage clientPluginMessage:
+                WriteString(writer, clientPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(clientPluginMessage.SourcePluginId));
+                WriteString(writer, clientPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(clientPluginMessage.TargetPluginId));
+                WriteString(writer, clientPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(clientPluginMessage.MessageTypeName));
+                WriteString(writer, clientPluginMessage.Payload, MaxPluginPayloadBytes, nameof(clientPluginMessage.Payload));
+                break;
+            case ServerPluginMessage serverPluginMessage:
+                WriteString(writer, serverPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(serverPluginMessage.SourcePluginId));
+                WriteString(writer, serverPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(serverPluginMessage.TargetPluginId));
+                WriteString(writer, serverPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(serverPluginMessage.MessageTypeName));
+                WriteString(writer, serverPluginMessage.Payload, MaxPluginPayloadBytes, nameof(serverPluginMessage.Payload));
+                break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);
                 break;
@@ -187,6 +202,16 @@ public static partial class ProtocolCodec
                 MessageType.PlayerProfileUpdate => new PlayerProfileUpdateMessage(
                     ReadString(reader, MaxPlayerNameBytes),
                     reader.ReadUInt64()),
+                MessageType.ClientPluginMessage => new ClientPluginMessage(
+                    ReadString(reader, MaxPluginIdBytes),
+                    ReadString(reader, MaxPluginIdBytes),
+                    ReadString(reader, MaxPluginMessageTypeBytes),
+                    ReadString(reader, MaxPluginPayloadBytes)),
+                MessageType.ServerPluginMessage => new ServerPluginMessage(
+                    ReadString(reader, MaxPluginIdBytes),
+                    ReadString(reader, MaxPluginIdBytes),
+                    ReadString(reader, MaxPluginMessageTypeBytes),
+                    ReadString(reader, MaxPluginPayloadBytes)),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };

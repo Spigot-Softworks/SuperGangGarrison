@@ -19,6 +19,15 @@ public partial class Game1
     private readonly List<SnapshotDamageEvent> _pendingNetworkDamageEvents = new();
     private readonly HashSet<ulong> _processedNetworkDamageEventIds = new();
     private readonly Queue<ulong> _processedNetworkDamageEventOrder = new();
+    private ClientRoundPhase _clientPluginPreviousMatchPhase;
+    private bool _clientPluginPreviousLocalAlive;
+    private int _clientPluginPreviousLocalHealth;
+    private int _clientPluginPreviousLocalAmmo;
+    private int _clientPluginPreviousLocalPrimaryCooldownTicks;
+    private bool _clientPluginPreviousLocalCarryingIntel;
+    private bool _clientPluginPreviousLocalBurning;
+    private int _clientPluginPreviousKillFeedCount;
+    private readonly Dictionary<int, (ClientPluginTeam Team, ClientPluginTeam CappingTeam, float Progress, bool IsLocked)> _clientPluginPreviousObjectiveStates = new();
     private ClientPluginHost? _clientPluginHost;
     private ClientPluginStateView? _clientPluginStateView;
 
@@ -30,6 +39,7 @@ public partial class Game1
         _clientPluginStateView = new ClientPluginStateView(this);
         _clientPluginHost = new ClientPluginHost(_clientPluginStateView, GraphicsDevice, pluginsDirectory, pluginConfigRoot, pluginStatePath, AddConsoleLine);
         _clientPluginHost.LoadPlugins();
+        ResetClientPluginGameplayEventState();
         _clientPluginHost.NotifyClientStarting();
     }
 
@@ -138,7 +148,7 @@ public partial class Game1
             return;
         }
 
-        _clientPluginHost?.NotifyLocalDamage(new LocalDamageEvent(
+        var pluginEvent = new LocalDamageEvent(
             damageEvent.Amount,
             (ClientPluginDamageTargetKind)damageEvent.TargetKind,
             damageEvent.TargetEntityId,
@@ -149,7 +159,21 @@ public partial class Game1
             receivedByLocalPlayer,
             damageEvent.AttackerPlayerId,
             damageEvent.AssistedByPlayerId,
-            (LocalDamageFlags)damageEvent.Flags));
+            (LocalDamageFlags)damageEvent.Flags);
+        _clientPluginHost?.NotifyLocalDamage(pluginEvent);
+        if (dealtByLocalPlayer || assistedByLocalPlayer)
+        {
+            _clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
+                pluginEvent.Amount,
+                pluginEvent.TargetKind,
+                pluginEvent.TargetEntityId,
+                pluginEvent.TargetWorldPosition,
+                pluginEvent.TargetWasKilled,
+                pluginEvent.AttackerPlayerId,
+                pluginEvent.AssistedByPlayerId,
+                pluginEvent.Flags,
+                (ulong)Math.Max(0, _world.Frame)));
+        }
     }
 
     private void TryDispatchLocalDamageEvent(int localPlayerId, SnapshotDamageEvent damageEvent)
@@ -163,7 +187,7 @@ public partial class Game1
             return;
         }
 
-        _clientPluginHost?.NotifyLocalDamage(new LocalDamageEvent(
+        var pluginEvent = new LocalDamageEvent(
             damageEvent.Amount,
             (ClientPluginDamageTargetKind)damageEvent.TargetKind,
             damageEvent.TargetEntityId,
@@ -174,7 +198,21 @@ public partial class Game1
             receivedByLocalPlayer,
             damageEvent.AttackerPlayerId,
             damageEvent.AssistedByPlayerId,
-            LocalDamageFlags.None));
+            LocalDamageFlags.None);
+        _clientPluginHost?.NotifyLocalDamage(pluginEvent);
+        if (dealtByLocalPlayer || assistedByLocalPlayer)
+        {
+            _clientPluginHost?.NotifyHitConfirmed(new ClientHitConfirmedEvent(
+                pluginEvent.Amount,
+                pluginEvent.TargetKind,
+                pluginEvent.TargetEntityId,
+                pluginEvent.TargetWorldPosition,
+                pluginEvent.TargetWasKilled,
+                pluginEvent.AttackerPlayerId,
+                pluginEvent.AssistedByPlayerId,
+                pluginEvent.Flags,
+                (ulong)Math.Max(0, _world.Frame)));
+        }
     }
 
     private void DrawClientPluginHud(Vector2 cameraTopLeft)
@@ -217,6 +255,15 @@ public partial class Game1
         _clientPluginHost?.NotifyWorldSound(new ClientWorldSoundEvent(
             soundEvent.SoundName,
             new Vector2(soundEvent.X, soundEvent.Y)));
+    }
+
+    private void NotifyClientPluginsServerMessage(ServerPluginMessage message)
+    {
+        _clientPluginHost?.NotifyServerPluginMessage(new ClientPluginMessageEnvelope(
+            message.SourcePluginId,
+            message.TargetPluginId,
+            message.MessageTypeName,
+            message.Payload));
     }
 
     private Vector2 GetClientPluginCameraOffset()
@@ -433,6 +480,236 @@ public partial class Game1
         };
     }
 
+    private static ClientRoundPhase ToClientRoundPhase(MatchPhase matchPhase)
+    {
+        return matchPhase switch
+        {
+            MatchPhase.Running => ClientRoundPhase.Running,
+            MatchPhase.Ended => ClientRoundPhase.Ended,
+            _ => ClientRoundPhase.Unknown,
+        };
+    }
+
+    private void DispatchClientSemanticGameplayEvents()
+    {
+        DispatchPendingDamageEventsToPlugins();
+        DispatchClientRoundPhaseEvents();
+        DispatchClientLocalPlayerStateEvents();
+        DispatchClientObjectiveEvents();
+        DispatchClientKillFeedEvents();
+    }
+
+    private void ResetClientPluginGameplayEventState()
+    {
+        _clientPluginPreviousMatchPhase = ToClientRoundPhase(_world.MatchState.Phase);
+        _clientPluginPreviousLocalAlive = _world.LocalPlayer.IsAlive;
+        _clientPluginPreviousLocalHealth = _world.LocalPlayer.Health;
+        _clientPluginPreviousLocalAmmo = _world.LocalPlayer.CurrentShells;
+        _clientPluginPreviousLocalPrimaryCooldownTicks = _world.LocalPlayer.PrimaryCooldownTicks;
+        _clientPluginPreviousLocalCarryingIntel = _world.LocalPlayer.IsCarryingIntel;
+        _clientPluginPreviousLocalBurning = _world.LocalPlayer.IsBurning;
+        _clientPluginPreviousKillFeedCount = _world.KillFeed.Count;
+        _clientPluginPreviousObjectiveStates.Clear();
+        for (var index = 0; index < _world.ControlPoints.Count; index += 1)
+        {
+            var point = _world.ControlPoints[index];
+            _clientPluginPreviousObjectiveStates[point.Index] = (
+                ToClientPluginTeam(point.Team),
+                ToClientPluginTeam(point.CappingTeam),
+                point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
+                point.IsLocked);
+        }
+    }
+
+    private void DispatchClientRoundPhaseEvents()
+    {
+        if (_clientPluginHost is null)
+        {
+            _clientPluginPreviousMatchPhase = ToClientRoundPhase(_world.MatchState.Phase);
+            return;
+        }
+
+        var currentPhase = ToClientRoundPhase(_world.MatchState.Phase);
+        if (currentPhase != _clientPluginPreviousMatchPhase)
+        {
+            _clientPluginHost.NotifyRoundPhaseChanged(new ClientRoundPhaseChangedEvent(
+                _clientPluginPreviousMatchPhase,
+                currentPhase,
+                (ulong)Math.Max(0, _world.Frame)));
+            _clientPluginPreviousMatchPhase = currentPhase;
+        }
+    }
+
+    private void DispatchClientLocalPlayerStateEvents()
+    {
+        var pluginHost = _clientPluginHost;
+        var localPlayer = _world.LocalPlayer;
+        if (pluginHost is null || _networkClient.IsSpectator)
+        {
+            _clientPluginPreviousLocalAlive = localPlayer.IsAlive;
+            _clientPluginPreviousLocalHealth = localPlayer.Health;
+            _clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
+            _clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
+            _clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
+            _clientPluginPreviousLocalBurning = localPlayer.IsBurning;
+            return;
+        }
+
+        if (_clientPluginPreviousLocalAlive && !localPlayer.IsAlive)
+        {
+            var latestEntry = FindLatestKillFeedEntryForVictim(localPlayer.Id);
+            pluginHost.NotifyLocalDeath(new ClientLocalDeathEvent(
+                latestEntry?.KillerPlayerId ?? -1,
+                latestEntry?.KillerName ?? string.Empty,
+                ToClientPluginTeam(latestEntry?.KillerTeam),
+                latestEntry?.WeaponSpriteName ?? string.Empty,
+                latestEntry?.MessageText ?? string.Empty,
+                (ulong)Math.Max(0, _world.Frame)));
+        }
+
+        if (localPlayer.IsAlive)
+        {
+            var healedAmount = localPlayer.Health - _clientPluginPreviousLocalHealth;
+            if (healedAmount > 0)
+            {
+                pluginHost.NotifyHeal(new ClientHealEvent(
+                    healedAmount,
+                    localPlayer.Health,
+                    localPlayer.MaxHealth,
+                    (ulong)Math.Max(0, _world.Frame)));
+            }
+
+            var firedShot = localPlayer.CurrentShells < _clientPluginPreviousLocalAmmo
+                || (_clientPluginPreviousLocalPrimaryCooldownTicks <= 0 && localPlayer.PrimaryCooldownTicks > 0);
+            if (firedShot)
+            {
+                pluginHost.NotifyShotFired(new ClientShotFiredEvent(
+                    GetClientPluginLocalPlayerId(),
+                    ToClientPluginClass(localPlayer.ClassId),
+                    new Vector2(localPlayer.X, localPlayer.Y),
+                    (ulong)Math.Max(0, _world.Frame)));
+            }
+
+            if (!_clientPluginPreviousLocalCarryingIntel && localPlayer.IsCarryingIntel)
+            {
+                pluginHost.NotifyPickup(new ClientPickupEvent(
+                    ClientGameplayPickupKind.Intel,
+                    new Vector2(localPlayer.X, localPlayer.Y),
+                    (ulong)Math.Max(0, _world.Frame)));
+            }
+        }
+
+        if (!_clientPluginPreviousLocalBurning && localPlayer.IsBurning)
+        {
+            pluginHost.NotifyIgnited(new ClientIgniteEvent(
+                localPlayer.BurnedByPlayerId ?? -1,
+                localPlayer.BurnIntensity,
+                (ulong)Math.Max(0, _world.Frame)));
+        }
+        else if (_clientPluginPreviousLocalBurning && !localPlayer.IsBurning)
+        {
+            pluginHost.NotifyExtinguished(new ClientExtinguishEvent((ulong)Math.Max(0, _world.Frame)));
+        }
+
+        _clientPluginPreviousLocalAlive = localPlayer.IsAlive;
+        _clientPluginPreviousLocalHealth = localPlayer.Health;
+        _clientPluginPreviousLocalAmmo = localPlayer.CurrentShells;
+        _clientPluginPreviousLocalPrimaryCooldownTicks = localPlayer.PrimaryCooldownTicks;
+        _clientPluginPreviousLocalCarryingIntel = localPlayer.IsCarryingIntel;
+        _clientPluginPreviousLocalBurning = localPlayer.IsBurning;
+    }
+
+    private void DispatchClientObjectiveEvents()
+    {
+        var pluginHost = _clientPluginHost;
+        if (pluginHost is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _world.ControlPoints.Count; index += 1)
+        {
+            var point = _world.ControlPoints[index];
+            var currentState = (
+                ToClientPluginTeam(point.Team),
+                ToClientPluginTeam(point.CappingTeam),
+                point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
+                point.IsLocked);
+            var previousState = _clientPluginPreviousObjectiveStates.GetValueOrDefault(point.Index, currentState);
+            if (!Equals(previousState, currentState))
+            {
+                pluginHost.NotifyObjectiveStateChanged(new ClientObjectiveStateEvent(
+                    ClientObjectiveEventKind.ControlPoint,
+                    point.Index,
+                    currentState.Item1,
+                    currentState.Item2,
+                    currentState.Item3,
+                    currentState.Item4,
+                    new Vector2(point.Marker.CenterX, point.Marker.CenterY),
+                    (ulong)Math.Max(0, _world.Frame)));
+            }
+
+            _clientPluginPreviousObjectiveStates[point.Index] = currentState;
+        }
+    }
+
+    private void DispatchClientKillFeedEvents()
+    {
+        var pluginHost = _clientPluginHost;
+        if (pluginHost is null)
+        {
+            _clientPluginPreviousKillFeedCount = _world.KillFeed.Count;
+            return;
+        }
+
+        if (_world.KillFeed.Count < _clientPluginPreviousKillFeedCount)
+        {
+            _clientPluginPreviousKillFeedCount = 0;
+        }
+
+        var localPlayerId = GetClientPluginLocalPlayerId();
+        for (var index = _clientPluginPreviousKillFeedCount; index < _world.KillFeed.Count; index += 1)
+        {
+            var entry = _world.KillFeed[index];
+            var killFeedEvent = new ClientKillFeedEvent(
+                entry.KillerPlayerId,
+                entry.KillerName,
+                ToClientPluginTeam(entry.KillerTeam),
+                entry.VictimPlayerId,
+                entry.VictimName,
+                ToClientPluginTeam(entry.VictimTeam),
+                entry.WeaponSpriteName,
+                entry.MessageText,
+                (ulong)Math.Max(0, _world.Frame));
+            pluginHost.NotifyKillFeed(killFeedEvent);
+            if (localPlayerId.HasValue && entry.KillerPlayerId == localPlayerId.Value)
+            {
+                pluginHost.NotifyLocalKill(new ClientLocalKillEvent(
+                    entry.VictimPlayerId,
+                    entry.VictimName,
+                    ToClientPluginTeam(entry.VictimTeam),
+                    entry.WeaponSpriteName,
+                    entry.MessageText,
+                    (ulong)Math.Max(0, _world.Frame)));
+            }
+        }
+
+        _clientPluginPreviousKillFeedCount = _world.KillFeed.Count;
+    }
+
+    private KillFeedEntry? FindLatestKillFeedEntryForVictim(int victimPlayerId)
+    {
+        for (var index = _world.KillFeed.Count - 1; index >= 0; index -= 1)
+        {
+            if (_world.KillFeed[index].VictimPlayerId == victimPlayerId)
+            {
+                return _world.KillFeed[index];
+            }
+        }
+
+        return null;
+    }
+
     private static ClientDeadBodyAnimationKind ToClientDeadBodyAnimationKind(DeadBodyAnimationKind animationKind)
     {
         return animationKind switch
@@ -443,7 +720,7 @@ public partial class Game1
         };
     }
 
-    private sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState
+    private sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState, ClientPluginMessageSink, ClientPluginUiSink
     {
         public bool IsConnected => game._networkClient.IsConnected;
 
@@ -566,6 +843,16 @@ public partial class Game1
         public IReadOnlyList<ClientObjectiveMarker> GetObjectiveMarkers()
         {
             return game.GetClientPluginObjectiveMarkers();
+        }
+
+        public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+        {
+            game._networkClient.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+        }
+
+        public void EnqueuePluginNotice(string text, int durationTicks, bool playSound)
+        {
+            game.QueuePluginNotice(text, durationTicks, playSound);
         }
     }
 
@@ -692,6 +979,116 @@ public partial class Game1
                 sourceRectangle,
                 rotation,
                 origin);
+        }
+    }
+
+    private sealed class ScoreboardCanvas(Game1 game) : IOpenGarrisonClientScoreboardCanvas
+    {
+        public int ViewportWidth => game.ViewportWidth;
+
+        public int ViewportHeight => game.ViewportHeight;
+
+        public Vector2 CameraTopLeft => Vector2.Zero;
+
+        public Vector2 WorldToScreen(Vector2 worldPosition)
+        {
+            return worldPosition;
+        }
+
+        public float MeasureBitmapTextWidth(string text, float scale)
+        {
+            return game.MeasureBitmapFontWidth(text, scale);
+        }
+
+        public float MeasureBitmapTextHeight(float scale)
+        {
+            return game.MeasureBitmapFontHeight(scale);
+        }
+
+        public void DrawBitmapText(string text, Vector2 position, Color color, float scale = 1f)
+        {
+            game.DrawBitmapFontText(text, position, color, scale);
+        }
+
+        public void DrawBitmapTextCentered(string text, Vector2 position, Color color, float scale = 1f)
+        {
+            game.DrawBitmapFontTextCentered(text, position, color, scale);
+        }
+
+        public void DrawBitmapTextRightAligned(string text, Vector2 position, Color color, float scale = 1f)
+        {
+            game.DrawBitmapFontTextRightAligned(text, position, color, scale);
+        }
+
+        public void FillScreenRectangle(Rectangle rectangle, Color color)
+        {
+            game._spriteBatch.Draw(game._pixel, rectangle, color);
+        }
+
+        public void DrawScreenRectangleOutline(Rectangle rectangle, Color color, int thickness = 1)
+        {
+            var safeThickness = Math.Max(1, thickness);
+            game._spriteBatch.Draw(game._pixel, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, safeThickness), color);
+            game._spriteBatch.Draw(game._pixel, new Rectangle(rectangle.X, rectangle.Bottom - safeThickness, rectangle.Width, safeThickness), color);
+            game._spriteBatch.Draw(game._pixel, new Rectangle(rectangle.X, rectangle.Y, safeThickness, rectangle.Height), color);
+            game._spriteBatch.Draw(game._pixel, new Rectangle(rectangle.Right - safeThickness, rectangle.Y, safeThickness, rectangle.Height), color);
+        }
+
+        public void DrawScreenLine(Vector2 start, Vector2 endPoint, Color color, float thickness = 1f)
+        {
+            var edge = endPoint - start;
+            var angle = MathF.Atan2(edge.Y, edge.X);
+            var length = edge.Length();
+            if (length <= 0.01f)
+            {
+                return;
+            }
+
+            game._spriteBatch.Draw(
+                game._pixel,
+                start,
+                null,
+                color,
+                angle,
+                Vector2.Zero,
+                new Vector2(length, thickness),
+                SpriteEffects.None,
+                0f);
+        }
+
+        public bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale)
+        {
+            return game.TryDrawScreenSprite(spriteName, frameIndex, position, tint, scale);
+        }
+
+        public bool TryDrawWorldSprite(string spriteName, int frameIndex, Vector2 worldPosition, Color tint, float rotation = 0f)
+        {
+            return game.TryDrawSprite(spriteName, frameIndex, worldPosition.X, worldPosition.Y, Vector2.Zero, tint, rotation);
+        }
+
+        public bool TryGetLevelBackgroundTexture(out Texture2D texture)
+        {
+            texture = game.GetClientPluginLevelBackgroundTexture()!;
+            return texture is not null;
+        }
+
+        public void DrawScreenTexture(Texture2D texture, Vector2 position, Color tint, Vector2 scale, Rectangle? sourceRectangle = null, float rotation = 0f, Vector2? origin = null)
+        {
+            game._spriteBatch.Draw(
+                texture,
+                position,
+                sourceRectangle,
+                tint,
+                rotation,
+                origin ?? Vector2.Zero,
+                scale,
+                SpriteEffects.None,
+                0f);
+        }
+
+        public void DrawWorldTexture(Texture2D texture, Vector2 worldPosition, Color tint, Vector2 scale, Rectangle? sourceRectangle = null, float rotation = 0f, Vector2? origin = null)
+        {
+            DrawScreenTexture(texture, worldPosition, tint, scale, sourceRectangle, rotation, origin);
         }
     }
 }

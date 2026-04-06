@@ -14,6 +14,10 @@ public interface IOpenGarrisonServerPluginContext
 
     IOpenGarrisonServerAdminOperations AdminOperations { get; }
 
+    void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload);
+
+    void BroadcastMessageToClients(string targetPluginId, string messageType, string payload);
+
     void RegisterCommand(IOpenGarrisonServerCommand command);
 
     void Log(string message);

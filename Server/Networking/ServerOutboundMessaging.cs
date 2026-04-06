@@ -107,6 +107,30 @@ internal sealed class ServerOutboundMessaging(
             : $"[chat] {client.Name}: {sanitized}");
     }
 
+    public void SendPluginMessage(byte slot, string sourcePluginId, string targetPluginId, string messageType, string payload)
+    {
+        if (!clientsBySlot.TryGetValue(slot, out var client) || !client.IsAuthorized)
+        {
+            return;
+        }
+
+        SendMessage(client.EndPoint, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload));
+    }
+
+    public void BroadcastPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    {
+        var message = new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+        foreach (var client in clientsBySlot.Values)
+        {
+            if (!client.IsAuthorized)
+            {
+                continue;
+            }
+
+            SendMessage(client.EndPoint, message);
+        }
+    }
+
     public void NotifyClientsOfShutdown()
     {
         if (clientsBySlot.Count == 0)

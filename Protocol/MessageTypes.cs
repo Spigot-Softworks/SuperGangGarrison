@@ -23,6 +23,8 @@ public enum MessageType : byte
     ChatRelay = 16,
     SnapshotAck = 17,
     PlayerProfileUpdate = 18,
+    ClientPluginMessage = 19,
+    ServerPluginMessage = 20,
 }
 
 public enum ControlCommandKind : byte
@@ -179,6 +181,24 @@ public sealed record SnapshotAckMessage(ulong Frame) : IProtocolMessage
 public sealed record PlayerProfileUpdateMessage(string Name, ulong BadgeMask) : IProtocolMessage
 {
     public MessageType Type => MessageType.PlayerProfileUpdate;
+}
+
+public sealed record ClientPluginMessage(
+    string SourcePluginId,
+    string TargetPluginId,
+    string MessageTypeName,
+    string Payload) : IProtocolMessage
+{
+    public MessageType Type => MessageType.ClientPluginMessage;
+}
+
+public sealed record ServerPluginMessage(
+    string SourcePluginId,
+    string TargetPluginId,
+    string MessageTypeName,
+    string Payload) : IProtocolMessage
+{
+    public MessageType Type => MessageType.ServerPluginMessage;
 }
 
 public sealed record SnapshotPlayerState(

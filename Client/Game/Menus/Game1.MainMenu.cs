@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -398,15 +399,42 @@ public partial class Game1
                 string.Empty,
                 null),
             _ => (
-                [
-                    new MenuPageAction("Play Online", () => OpenMainMenuPage(MainMenuPage.PlayOnline)),
-                    new MenuPageAction("Play Offline", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
-                    new MenuPageAction("Settings", () => OpenOptionsMenu(fromGameplay: false)),
-                ],
+                BuildRootMainMenuActions(),
                 new MenuPageAction("Credits", () => OpenMainMenuPage(MainMenuPage.Credits)),
                 "Quit",
                 OpenQuitPrompt),
         };
+    }
+
+    private List<MenuPageAction> BuildRootMainMenuActions()
+    {
+        var actions = new List<MenuPageAction>
+        {
+            new MenuPageAction("Play Online", () => OpenMainMenuPage(MainMenuPage.PlayOnline)),
+            new MenuPageAction("Play Offline", () => OpenMainMenuPage(MainMenuPage.PlayOffline)),
+            new MenuPageAction("Settings", () => OpenOptionsMenu(fromGameplay: false)),
+        };
+
+        AddPluginMenuActions(actions, ClientPluginMenuLocation.MainMenuRoot);
+        return actions;
+    }
+
+    private void AddPluginMenuActions(List<MenuPageAction> actions, ClientPluginMenuLocation location, int insertIndex = -1)
+    {
+        var pluginEntries = _clientPluginHost?.GetMenuEntries(location) ?? [];
+        if (pluginEntries.Count == 0)
+        {
+            return;
+        }
+
+        var insertionIndex = insertIndex < 0
+            ? actions.Count
+            : Math.Clamp(insertIndex, 0, actions.Count);
+        for (var index = 0; index < pluginEntries.Count; index += 1)
+        {
+            var entry = pluginEntries[index];
+            actions.Insert(insertionIndex + index, new MenuPageAction(entry.Label, entry.Activate));
+        }
     }
 
     private void OpenManualConnectMenu()
