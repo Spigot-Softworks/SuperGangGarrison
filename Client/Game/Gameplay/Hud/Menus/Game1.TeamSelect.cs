@@ -159,10 +159,7 @@ public partial class Game1
         {
             if (_networkClient.IsConnected)
             {
-                _networkClient.QueueSpectateSelection();
-                _teamSelectOpen = false;
-                _classSelectOpen = false;
-                _menuStatusMessage = "Switching to spectator mode...";
+                BeginOnlineSpectateSelection();
             }
             else
             {
@@ -189,28 +186,11 @@ public partial class Game1
 
         if (_networkClient.IsConnected)
         {
-            _networkClient.QueueTeamSelection(selectedTeam);
-            if (_networkClient.IsSpectator)
-            {
-                _teamSelectOpen = false;
-                _classSelectOpen = false;
-                _menuStatusMessage = selectedTeam switch
-                {
-                    PlayerTeam.Red => "Joining RED team...",
-                    PlayerTeam.Blue => "Joining BLU team...",
-                    _ => "Joining team...",
-                };
-                return;
-            }
-        }
-        else
-        {
-            _world.SetLocalPlayerTeam(selectedTeam);
-            ApplyPracticeTeamSelection(selectedTeam);
+            BeginOnlineTeamSelection(selectedTeam);
+            return;
         }
 
-        _teamSelectOpen = false;
-        _classSelectOpen = true;
+        ApplyOfflineTeamSelection(selectedTeam);
     }
 
     private PlayerTeam GetAutoSelectedTeam(PlayerTeam? balance)

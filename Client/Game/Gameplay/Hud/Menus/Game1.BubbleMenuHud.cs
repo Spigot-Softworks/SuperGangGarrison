@@ -48,7 +48,7 @@ public partial class Game1
 
     private void UpdateBubbleMenuState(KeyboardState keyboard, MouseState mouse)
     {
-        if (_mainMenuOpen || HasOpenGameplayOverlay() || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen || _world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive || _world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
+        if (ShouldCloseBubbleMenuForGameplayState())
         {
             BeginClosingBubbleMenu();
             AdvanceBubbleMenuAnimation();

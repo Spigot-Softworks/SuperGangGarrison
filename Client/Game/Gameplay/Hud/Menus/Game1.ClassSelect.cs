@@ -32,14 +32,14 @@ public partial class Game1
         if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
         {
             ApplyDirectClassSelection(PlayerClass.Quote);
-            _classSelectOpen = false;
+            CloseGameplaySelectionMenus();
             return;
         }
 
         if (TryGetClassSelectHotkeySelection(keyboard, out var hotkeyClass))
         {
             ApplyDirectClassSelection(hotkeyClass);
-            _classSelectOpen = false;
+            CloseGameplaySelectionMenus();
             return;
         }
 
@@ -64,7 +64,7 @@ public partial class Game1
 
         SuppressPrimaryFireUntilMouseRelease();
         ApplyClassSelection(_classSelectHoverIndex);
-        _classSelectOpen = false;
+        CloseGameplaySelectionMenus();
     }
 
     private void DrawClassSelectHud()
@@ -144,15 +144,9 @@ public partial class Game1
         {
             _networkClient.QueueClassSelection(selectedClass);
         }
-        else if (_world.LocalPlayerAwaitingJoin)
-        {
-            _world.CompleteLocalPlayerJoin(selectedClass);
-            ApplyPracticeDummyPreferencesAfterJoin();
-        }
         else
         {
-            _world.TrySetLocalClass(selectedClass);
-            ApplyPracticeDummyPreferencesAfterJoin();
+            ApplyOfflineClassSelection(selectedClass);
         }
     }
 

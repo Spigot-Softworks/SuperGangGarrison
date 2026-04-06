@@ -129,14 +129,8 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        CloseManualConnectMenu(clearStatus: true);
-        CloseLobbyBrowser(clearStatus: true);
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _creditsOpen = false;
-        _controlsMenuOpen = false;
-        InitializeHostedServerConsole(reset: true);
-        PrimeHostedServerConsoleState(
+        PrepareHostedServerLaunchUi(closeHostSetup: false, disconnectNetworkClient: false);
+        PrepareHostedServerConsoleLaunchState(
             serverName,
             port,
             maxPlayers,
@@ -144,10 +138,11 @@ public partial class Game1
             capLimit,
             respawnSeconds,
             lobbyAnnounce,
-            autoBalance);
-        AppendHostedServerLog("launcher", $"Start Server pressed for UDP port {port}.");
+            autoBalance,
+            resetConsole: true,
+            launcherLogMessage: $"Start Server pressed for UDP port {port}.");
 
-        if (!TryStartHostedServer(
+        if (!TryStartHostedServerBackground(
                 serverName,
                 port,
                 maxPlayers,
@@ -159,13 +154,14 @@ public partial class Game1
                 autoBalance,
                 requestedMap,
                 mapRotationFile,
+                resetConsole: false,
                 out var error))
         {
             _menuStatusMessage = error;
             return;
         }
 
-        _pendingHostedConnectTicks = -1;
+        CancelPendingHostedLocalConnect();
         _pendingHostedConnectPort = port;
         _hostSetupEditField = HostSetupEditField.None;
         _hostSetupTab = HostSetupTab.ServerConsole;
@@ -185,14 +181,8 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        CloseManualConnectMenu(clearStatus: true);
-        CloseLobbyBrowser(clearStatus: true);
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _creditsOpen = false;
-        _controlsMenuOpen = false;
-        InitializeHostedServerConsole(reset: true);
-        PrimeHostedServerConsoleState(
+        PrepareHostedServerLaunchUi(closeHostSetup: false, disconnectNetworkClient: false);
+        PrepareHostedServerConsoleLaunchState(
             serverName,
             port,
             maxPlayers,
@@ -200,7 +190,8 @@ public partial class Game1
             capLimit,
             respawnSeconds,
             lobbyAnnounce,
-            autoBalance);
+            autoBalance,
+            resetConsole: true);
 
         if (!TryStartHostedServerInTerminal(
                 serverName,

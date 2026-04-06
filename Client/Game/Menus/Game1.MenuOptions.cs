@@ -8,22 +8,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private bool IsGameplayMenuOpen()
-    {
-        return HasOpenGameplayBlockingMenu();
-    }
-
-    private bool IsGameplayInputBlocked()
-    {
-        return !IsActive
-            || IsGameplayMenuOpen()
-            || _consoleOpen
-            || _chatOpen
-            || _teamSelectOpen
-            || _classSelectOpen
-            || _passwordPromptOpen;
-    }
-
     private void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
     {
         switch (GetActiveGameplayOverlay())

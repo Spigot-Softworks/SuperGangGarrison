@@ -14,7 +14,7 @@ public partial class Game1
             return;
         }
 
-        var deathCamActive = _killCamEnabled && !_world.LocalPlayer.IsAlive && _world.LocalDeathCam is not null;
+        var deathCamActive = !_world.LocalPlayer.IsAlive && IsGameplayDeathCamActive();
         var localPlayerAlive = _world.LocalPlayer.IsAlive;
         DrawKillFeedHud();
         DrawChatHud();
@@ -43,14 +43,14 @@ public partial class Game1
             DrawHoveredPlayerNameHud(mouse, cameraPosition);
         }
 
-        if (!deathCamActive)
+        if (CanDrawGameplayBuildHud())
         {
             DrawBuildMenuHud();
         }
 
         DrawNoticeHud();
         DrawScoreboardHud();
-        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
+        if (CanDrawGameplayBubbleHud())
         {
             DrawBubbleMenuHud();
         }

@@ -23,7 +23,7 @@ public partial class Game1
 
     private void UpdateBuildMenuState(KeyboardState keyboard, MouseState mouse)
     {
-        if (_mainMenuOpen || HasOpenGameplayOverlay() || _consoleOpen || _chatOpen || _teamSelectOpen || _classSelectOpen || _passwordPromptOpen)
+        if (ShouldCloseBuildMenuForGameplayState())
         {
             BeginClosingBuildMenu();
             AdvanceBuildMenuAnimation();
@@ -31,20 +31,6 @@ public partial class Game1
         }
 
         var player = _world.LocalPlayer;
-        if (_networkClient.IsSpectator || _world.LocalPlayerAwaitingJoin || !player.IsAlive || player.ClassId != PlayerClass.Engineer)
-        {
-            BeginClosingBuildMenu();
-            AdvanceBuildMenuAnimation();
-            return;
-        }
-
-        if (_world.IsPlayerHumiliated(player))
-        {
-            BeginClosingBuildMenu();
-            AdvanceBuildMenuAnimation();
-            return;
-        }
-
         var specialPressed = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Released;
         if (specialPressed)
         {

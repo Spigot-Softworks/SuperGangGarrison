@@ -10,84 +10,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        ApplyExperimentalRageEffects();
-        AdvanceMedicUberEffects();
-        AdvanceCombatTraces();
-        AdvanceShots();
-        AdvanceBubbles();
-        AdvanceBlades();
-        AdvanceNeedles();
-        AdvanceRevolverShots();
-        AdvanceStabAnimations();
-        AdvanceStabMasks();
-        AdvanceFlames();
-        AdvanceFlares();
-        AdvanceRockets();
-        AdvanceMines();
-        AdvancePlayerGibs();
-        AdvanceBloodDrops();
-        AdvanceDeadBodies();
-        AdvanceKillFeed();
-        AdvanceLocalDeathCam();
-        AdvanceSentryGibs();
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
-        {
-            AdvanceNetworkPlayerChatBubbleState(NetworkPlayerSlots[index]);
-        }
-
-        if (EnemyPlayerEnabled)
-        {
-            EnemyPlayer.AdvanceChatBubbleState();
-        }
-
-        FriendlyDummy.AdvanceChatBubbleState();
-        for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
-        {
-            AdvancePlayableNetworkPlayer(NetworkPlayerSlots[index]);
-        }
-
-        AdvanceEnemyDummy();
-
-        if (FriendlyDummyEnabled && FriendlyDummy.IsAlive)
-        {
-            ApplyRoomForces(FriendlyDummy);
-            FriendlyDummy.Advance(default, false, Level, FriendlyDummy.Team, Config.FixedDeltaSeconds);
-            UpdateSpawnRoomState(FriendlyDummy);
-            TryActivatePendingSpyBackstab(FriendlyDummy);
-            ApplyHealingCabinets(FriendlyDummy);
-            ApplyRoomHazards(FriendlyDummy);
-        }
-
-        AdvanceHealthPacks();
-        AdvanceDroppedWeapons();
-        AdvanceAfterburnAlertBubbles();
-        AdvanceExperimentalRageState();
-
-        switch (MatchRules.Mode)
-        {
-            case GameModeKind.Arena:
-                UpdateArenaState();
-                break;
-            case GameModeKind.ControlPoint:
-                UpdateControlPointState();
-                break;
-            case GameModeKind.KingOfTheHill:
-            case GameModeKind.DoubleKingOfTheHill:
-                UpdateControlPointState();
-                UpdateKothState();
-                break;
-            case GameModeKind.Generator:
-                UpdateGeneratorState();
-                break;
-            case GameModeKind.TeamDeathmatch:
-                break;
-            default:
-                UpdateCaptureTheFlagState();
-                break;
-        }
-
-        AdvanceMatchState();
-        AdvanceSentries();
+        AdvancePrePlayerSimulationPhase();
+        AdvancePlayerSimulationPhase();
+        AdvancePostPlayerSimulationPhase();
         _previousLocalInput = _localInput;
         Frame += 1;
     }

@@ -340,31 +340,15 @@ public partial class Game1
         _networkClient.ClearPendingTeamSelection();
         _networkClient.ClearPendingClassSelection();
         StopHostedServer();
-        StopLocalRapidFireWeaponAudio();
+        ResetGameplayTransitionEffects();
         StopMenuMusic();
         StopLastToDieMenuMusic();
         StopFaucetMusic();
-        StopIngameMusic();
         StopLastToDieIngameMusic();
         StopLastToDieGameOverSound();
-        ResetTransientPresentationEffects();
-        ResetProcessedNetworkEventHistory();
-        ResetClientTimingState();
-        ResetSnapshotStateHistory();
-        ResetBackstabVisuals();
-        _lastAppliedSnapshotFrame = 0;
-        _lastBufferedSnapshotFrame = 0;
-        _hasReceivedSnapshot = false;
-        _localPlayerSnapshotEntityId = null;
-        _hasPredictedLocalPlayerPosition = false;
-        _hasSmoothedLocalPlayerRenderPosition = false;
-        _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
-        _lastPredictedRenderSmoothingTimeSeconds = -1d;
-        _pendingPredictedInputs.Clear();
-        _pendingNetworkVisualEvents.Clear();
-        _pendingNetworkDamageEvents.Clear();
 
         ReinitializeSimulationForTickRate(tickRate);
+        ResetGameplayRuntimeState();
         _world.ConfigureExperimentalGameplaySettings(experimentalSettings);
         _world.ConfigureMatchDefaults(
             timeLimitMinutes: timeLimitMinutes,
@@ -381,37 +365,8 @@ public partial class Game1
             : TeamGateLockMask.None;
 
         _world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
-        _gameplaySessionKind = sessionKind;
         LoadPracticeNavigationAssetsForCurrentLevel();
-        _pendingHostedConnectTicks = -1;
-        _pendingHostedConnectPort = 8190;
-        _practiceSetupOpen = false;
-        _lastToDieMenuOpen = false;
-        _lastToDiePerkMenuOpen = false;
-        _clientPowersOpen = false;
-        _clientPowersOpenedFromGameplay = false;
-        _mainMenuOpen = false;
-        _manualConnectOpen = false;
-        _hostSetupOpen = false;
-        _hostSetupEditField = HostSetupEditField.None;
-        _creditsOpen = false;
-        _optionsMenuOpen = false;
-        _optionsMenuOpenedFromGameplay = false;
-        _pluginOptionsMenuOpen = false;
-        _pluginOptionsMenuOpenedFromGameplay = false;
-        _controlsMenuOpen = false;
-        _controlsMenuOpenedFromGameplay = false;
-        _inGameMenuOpen = false;
-        _quitPromptOpen = false;
-        _quitPromptHoverIndex = -1;
-        _consoleOpen = false;
-        _passwordPromptOpen = false;
-        _passwordEditBuffer = string.Empty;
-        _passwordPromptMessage = string.Empty;
-        _teamSelectOpen = openJoinMenus;
-        _classSelectOpen = false;
-        _pendingClassSelectTeam = null;
-        _menuStatusMessage = string.Empty;
+        EnterGameplaySession(sessionKind, openJoinMenus, statusMessage: string.Empty);
         InitializePracticeBotNamePoolForMatch();
 
         if (openJoinMenus)

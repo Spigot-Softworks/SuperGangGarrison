@@ -1,5 +1,7 @@
 #nullable enable
 
+using OpenGarrison.Core;
+
 namespace OpenGarrison.Client;
 
 public partial class Game1
@@ -166,6 +168,71 @@ public partial class Game1
         return HasOpenGameplayOverlay() || ShouldBlockGameplayForNavEditor();
     }
 
+    private bool IsGameplayDeathCamActive()
+    {
+        return _killCamEnabled && _world.LocalDeathCam is not null;
+    }
+
+    private bool IsGameplaySelectionOverlayVisible()
+    {
+        return _teamSelectOpen
+            || _teamSelectAlpha > 0.02f
+            || _classSelectOpen
+            || _classSelectAlpha > 0.02f;
+    }
+
+    private bool CanShowGameplayScoreboard()
+    {
+        return !_mainMenuOpen
+            && !HasOpenGameplayOverlay()
+            && !_consoleOpen
+            && !_teamSelectOpen
+            && !_classSelectOpen;
+    }
+
+    private bool ShouldCloseBubbleMenuForGameplayState()
+    {
+        return _mainMenuOpen
+            || HasOpenGameplayOverlay()
+            || _consoleOpen
+            || _chatOpen
+            || _teamSelectOpen
+            || _classSelectOpen
+            || _passwordPromptOpen
+            || _world.LocalPlayerAwaitingJoin
+            || !_world.LocalPlayer.IsAlive
+            || _world.MatchState.IsEnded
+            || IsGameplayDeathCamActive();
+    }
+
+    private bool CanDrawGameplayBubbleHud()
+    {
+        return !_networkClient.IsSpectator
+            && _world.LocalPlayer.IsAlive
+            && !IsGameplayDeathCamActive();
+    }
+
+    private bool ShouldCloseBuildMenuForGameplayState()
+    {
+        return _mainMenuOpen
+            || HasOpenGameplayOverlay()
+            || _consoleOpen
+            || _chatOpen
+            || _teamSelectOpen
+            || _classSelectOpen
+            || _passwordPromptOpen
+            || _networkClient.IsSpectator
+            || _world.LocalPlayerAwaitingJoin
+            || !_world.LocalPlayer.IsAlive
+            || _world.LocalPlayer.ClassId != PlayerClass.Engineer
+            || _world.IsPlayerHumiliated(_world.LocalPlayer);
+    }
+
+    private bool CanDrawGameplayBuildHud()
+    {
+        return !IsGameplayDeathCamActive();
+    }
+
     private bool ShouldSuppressGameplayHudForActiveOverlay()
     {
         return GetActiveGameplayOverlay() switch
@@ -183,7 +250,7 @@ public partial class Game1
             && _teamSelectAlpha <= 0.02f
             && !_networkClient.IsSpectator
             && _world.LocalPlayer.IsAlive
-            && (!_killCamEnabled || _world.LocalDeathCam is null)
+            && !IsGameplayDeathCamActive()
             && !ShouldBlockGameplayForNavEditor()
             && !_consoleOpen
             && !ShouldSuppressGameplayHudForActiveOverlay();
@@ -192,10 +259,7 @@ public partial class Game1
     private bool ShouldShowGameplayMouseCursor()
     {
         return _passwordPromptOpen
-            || _teamSelectOpen
-            || _teamSelectAlpha > 0.02f
-            || _classSelectOpen
-            || _classSelectAlpha > 0.02f
+            || IsGameplaySelectionOverlayVisible()
             || HasOpenGameplayBlockingMenu();
     }
 }

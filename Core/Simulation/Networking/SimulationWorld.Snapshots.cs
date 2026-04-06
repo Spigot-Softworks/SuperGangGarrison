@@ -6,142 +6,25 @@ public sealed partial class SimulationWorld
 {
     public bool ApplySnapshot(SnapshotMessage snapshot, byte localPlayerSlot = 1)
     {
-        if ((!string.Equals(Level.Name, snapshot.LevelName, StringComparison.OrdinalIgnoreCase)
-                || Level.MapAreaIndex != snapshot.MapAreaIndex)
-            && !TryLoadLevel(snapshot.LevelName, snapshot.MapAreaIndex, preservePlayerStats: false))
+        if (!EnsureSnapshotLevelLoaded(snapshot))
         {
             return false;
         }
 
-        MatchRules = MatchRules with
-        {
-            Mode = (GameModeKind)snapshot.GameMode,
-            TimeLimitTicks = Math.Max(snapshot.TimeRemainingTicks, MatchRules.TimeLimitTicks),
-        };
-        MatchState = new MatchState(
-            (MatchPhase)snapshot.MatchPhase,
-            snapshot.TimeRemainingTicks,
-            snapshot.WinnerTeam == 0 ? null : (PlayerTeam)snapshot.WinnerTeam);
-        LocalDeathCam = snapshot.LocalDeathCam is null
-            ? null
-            : new LocalDeathCamState(
-                snapshot.LocalDeathCam.FocusX,
-                snapshot.LocalDeathCam.FocusY,
-                snapshot.LocalDeathCam.KillMessage,
-                snapshot.LocalDeathCam.KillerName,
-                snapshot.LocalDeathCam.KillerTeam == 0 ? null : (PlayerTeam)snapshot.LocalDeathCam.KillerTeam,
-                snapshot.LocalDeathCam.Health,
-                snapshot.LocalDeathCam.MaxHealth,
-                snapshot.LocalDeathCam.RemainingTicks,
-                snapshot.LocalDeathCam.InitialTicks);
-        RedCaps = snapshot.RedCaps;
-        BlueCaps = snapshot.BlueCaps;
-        SpectatorCount = Math.Max(0, snapshot.SpectatorCount);
-        _spectators.Clear();
-        for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
-        {
-            var player = snapshot.Players[playerIndex];
-            if ((!player.IsSpectator && !player.IsAwaitingJoin) || string.IsNullOrWhiteSpace(player.Name))
-            {
-                continue;
-            }
+        ApplySnapshotWorldState(snapshot);
 
-            _spectators.Add(new ScoreboardSpectatorEntry(
-                player.Name,
-                player.BadgeMask,
-                player.IsAwaitingJoin));
-        }
-        ApplySnapshotControlPoints(snapshot);
-        ApplySnapshotKoth(snapshot);
-        ApplySnapshotGenerators(snapshot);
-        RedIntel.ApplyNetworkState(snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshot.RedIntel.IsAtBase, snapshot.RedIntel.IsDropped, snapshot.RedIntel.ReturnTicksRemaining);
-        BlueIntel.ApplyNetworkState(snapshot.BlueIntel.X, snapshot.BlueIntel.Y, snapshot.BlueIntel.IsAtBase, snapshot.BlueIntel.IsDropped, snapshot.BlueIntel.ReturnTicksRemaining);
-        _killFeed.Clear();
-        for (var killFeedIndex = 0; killFeedIndex < snapshot.KillFeed.Count; killFeedIndex += 1)
-        {
-            var entry = snapshot.KillFeed[killFeedIndex];
-            _killFeed.Add(new KillFeedEntry(
-                entry.KillerName,
-                (PlayerTeam)entry.KillerTeam,
-                entry.WeaponSpriteName,
-                entry.VictimName,
-                (PlayerTeam)entry.VictimTeam,
-                entry.MessageText,
-                entry.MessageHighlightStart,
-                entry.MessageHighlightLength,
-                entry.KillerPlayerId,
-                entry.VictimPlayerId,
-                (KillFeedSpecialType)entry.SpecialType,
-                entry.EventId));
-        }
-        _killFeedTrimTicks = _killFeed.Count > 0 ? KillFeedLifetimeTicks : 0;
-
-        var localPlayerState = snapshot.Players.FirstOrDefault(player => player.Slot == localPlayerSlot);
-        var isSpectatorSnapshot = localPlayerState?.IsSpectator ?? !IsPlayableNetworkPlayerSlot(localPlayerSlot);
-        if (localPlayerState is null && !isSpectatorSnapshot)
+        if (!TryResolveSnapshotLocalPlayerState(
+                snapshot,
+                localPlayerSlot,
+                out var localPlayerState,
+                out var isSpectatorSnapshot))
         {
             return false;
         }
 
-        if (localPlayerState is not null && !localPlayerState.IsSpectator)
-        {
-            ApplySnapshotPlayer(LocalPlayer, localPlayerState);
-            TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
-            TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, localPlayerState.RespawnTicks);
-        }
-        else
-        {
-            TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, true);
-            TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, 0);
-            LocalDeathCam = null;
-            LocalPlayer.ClearMedicHealingTarget();
-            LocalPlayer.Kill();
-        }
-
-        var remotePlayerStates = snapshot.Players
-            .Where(player => !player.IsSpectator)
-            .Where(player => IsPlayableNetworkPlayerSlot(player.Slot))
-            .Where(player => isSpectatorSnapshot || player.Slot != localPlayerSlot)
-            .OrderBy(player => player.Slot)
-            .ToList();
-        EnemyPlayerEnabled = false;
-        _enemyDummyRespawnTicks = 0;
-        ClearEnemyInputOverride();
-        EnemyPlayer.Kill();
-        FriendlyDummyEnabled = false;
-        FriendlyDummy.Kill();
-        SyncRemoteSnapshotPlayers(remotePlayerStates);
-
-        if (localPlayerState is not null && !localPlayerState.IsSpectator)
-        {
-            TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, LocalPlayer.Team);
-        }
+        ApplySnapshotPlayerState(snapshot, localPlayerSlot, localPlayerState, isSpectatorSnapshot);
         ApplySnapshotTransientEntities(snapshot);
-        _combatTraces.Clear();
-        for (var traceIndex = 0; traceIndex < snapshot.CombatTraces.Count; traceIndex += 1)
-        {
-            var trace = snapshot.CombatTraces[traceIndex];
-            _combatTraces.Add(new CombatTrace(
-                trace.StartX,
-                trace.StartY,
-                trace.EndX,
-                trace.EndY,
-                trace.TicksRemaining,
-                trace.HitCharacter,
-                (PlayerTeam)trace.Team,
-                trace.IsSniperTracer));
-        }
-        _pendingSoundEvents.Clear();
-        for (var soundIndex = 0; soundIndex < snapshot.SoundEvents.Count; soundIndex += 1)
-        {
-            var soundEvent = snapshot.SoundEvents[soundIndex];
-            _pendingSoundEvents.Add(new WorldSoundEvent(
-                soundEvent.SoundName,
-                soundEvent.X,
-                soundEvent.Y,
-                soundEvent.EventId,
-                soundEvent.SourceFrame));
-        }
+        ApplySnapshotEventQueues(snapshot);
 
         return true;
     }

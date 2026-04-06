@@ -36,11 +36,7 @@ public partial class Game1
 
     private void UpdateScoreboardState(KeyboardState keyboard)
     {
-        _scoreboardOpen = !_mainMenuOpen
-            && !HasOpenGameplayOverlay()
-            && !_consoleOpen
-            && !_teamSelectOpen
-            && !_classSelectOpen
+        _scoreboardOpen = CanShowGameplayScoreboard()
             && keyboard.IsKeyDown(_inputBindings.ShowScoreboard);
 
         if (_scoreboardOpen)
