@@ -75,150 +75,32 @@ public partial class Game1
 
     private void DrawPlayer(PlayerEntity player, Vector2 cameraPosition, Color aliveColor, Color deadColor)
     {
-        if (!player.IsAlive)
-        {
-            return;
-        }
-
-        var visibilityAlpha = GetPlayerVisibilityAlpha(player);
-        if (visibilityAlpha <= 0f)
-        {
-            return;
-        }
-
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var rectangle = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
-        var fallbackColor = aliveColor * visibilityAlpha;
-        var spriteTint = GetPlayerColor(player, Color.White);
-        var bodySelection = GetPlayerBodySpriteSelection(player);
-        DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
-        DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
-        if (!TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
-        {
-            _spriteBatch.Draw(_pixel, rectangle, fallbackColor);
-        }
-
-        DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
-
-        if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
-        {
-            TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
-        }
-
-        DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
-        DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
-        DrawChatBubble(player, cameraPosition);
-        TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+        _gameplayPlayerRenderController.DrawPlayer(player, cameraPosition, aliveColor, deadColor);
     }
 
     private void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
     {
-        if (!_showHealthBarEnabled
-            || visibilityAlpha <= 0f
-            || (!ReferenceEquals(player, _world.LocalPlayer) && player.Team != _world.LocalPlayer.Team))
-        {
-            return;
-        }
-
-        var fillColor = new Color(105, 215, 95);
-        var backColor = Color.Black;
-        var borderColor = Color.Black;
-        DrawHealthBar(player, cameraPosition, fillColor, backColor, borderColor);
+        _gameplayPlayerStatusEffectRenderController.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
     }
 
     private void DrawDeadBody(DeadBodyEntity deadBody, Vector2 cameraPosition)
     {
-        var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-        DrawDeadBodyVisual(
-            deadBody.Id,
-            deadBody.SourcePlayerId,
-            deadBody.ClassId,
-            deadBody.Team,
-            deadBody.AnimationKind,
-            renderPosition.X,
-            renderPosition.Y,
-            deadBody.Width,
-            deadBody.Height,
-            deadBody.FacingLeft,
-            deadBody.TicksRemaining,
-            cameraPosition);
+        _gameplayDeadBodyRenderController.DrawDeadBody(deadBody, cameraPosition);
     }
 
     private void DrawRetainedDeadBodies(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
     {
-        for (var index = 0; index < _retainedDeadBodies.Count; index += 1)
-        {
-            var deadBody = _retainedDeadBodies[index];
-            if (skippedDeadBodySourcePlayerId.HasValue
-                && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
-            {
-                continue;
-            }
-
-            DrawDeadBodyVisual(
-                deadBody.Id,
-                deadBody.SourcePlayerId,
-                deadBody.ClassId,
-                deadBody.Team,
-                deadBody.AnimationKind,
-                deadBody.X,
-                deadBody.Y,
-                deadBody.Width,
-                deadBody.Height,
-                deadBody.FacingLeft,
-                deadBody.TicksRemaining,
-                cameraPosition);
-        }
+        _gameplayDeadBodyRenderController.DrawRetainedDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
     }
 
     private void SyncRetainedDeadBodies()
     {
-        if (_corpseDurationMode != ClientSettings.CorpseDurationInfinite)
-        {
-            ResetRetainedDeadBodies();
-            return;
-        }
-
-        _staleTrackedDeadBodyIds.Clear();
-        foreach (var trackedId in _trackedDeadBodyVisuals.Keys)
-        {
-            _staleTrackedDeadBodyIds.Add(trackedId);
-        }
-
-        foreach (var deadBody in _world.DeadBodies)
-        {
-            var renderPosition = GetRenderPosition(deadBody.Id, deadBody.X, deadBody.Y);
-            _trackedDeadBodyVisuals[deadBody.Id] = new RetainedDeadBodyVisual(
-                deadBody.Id,
-                deadBody.SourcePlayerId,
-                deadBody.ClassId,
-                deadBody.Team,
-                deadBody.AnimationKind,
-                renderPosition.X,
-                renderPosition.Y,
-                deadBody.Width,
-                deadBody.Height,
-                deadBody.FacingLeft,
-                deadBody.TicksRemaining);
-            _staleTrackedDeadBodyIds.Remove(deadBody.Id);
-        }
-
-        for (var index = 0; index < _staleTrackedDeadBodyIds.Count; index += 1)
-        {
-            var deadBodyId = _staleTrackedDeadBodyIds[index];
-            if (_trackedDeadBodyVisuals.TryGetValue(deadBodyId, out var retainedDeadBody))
-            {
-                _retainedDeadBodies.Add(retainedDeadBody);
-                _trackedDeadBodyVisuals.Remove(deadBodyId);
-            }
-        }
+        _gameplayDeadBodyRenderController.SyncRetainedDeadBodies();
     }
 
     private void ResetRetainedDeadBodies()
     {
-        _trackedDeadBodyVisuals.Clear();
-        _retainedDeadBodies.Clear();
-        _staleTrackedDeadBodyIds.Clear();
+        _gameplayDeadBodyRenderController.ResetRetainedDeadBodies();
     }
 
     private void DrawDeadBodyVisual(
@@ -235,58 +117,12 @@ public partial class Game1
         int ticksRemaining,
         Vector2 cameraPosition)
     {
-        var renderPosition = new Vector2(x, y);
-        var pluginAnimationKind = ResolveClientPluginDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind);
-        if (TryDrawClientPluginDeadBody(cameraPosition, new ClientDeadBodyRenderState(
-            id,
-            ToClientPluginClass(classId),
-            ToClientPluginTeam(team),
-            renderPosition,
-            width,
-            height,
-            facingLeft,
-            ticksRemaining,
-            pluginAnimationKind)))
-        {
-            return;
-        }
-
-        var spriteName = GetDeadBodySpriteName(classId, team, animationKind);
-        if (spriteName is not null)
-        {
-            var sprite = _runtimeAssets.GetSprite(spriteName);
-            if (sprite is not null && sprite.Frames.Count > 0)
-            {
-                var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-                DrawSpriteFrameWithOptionalShadow(
-                    sprite.Frames[0],
-                    new Vector2(
-                        roundedOrigin.X - cameraPosition.X,
-                        roundedOrigin.Y - cameraPosition.Y),
-                    Color.White,
-                    0f,
-                    sprite.Origin.ToVector2(),
-                    new Vector2(facingLeft ? -1f : 1f, 1f));
-                return;
-            }
-        }
-
-        var rectangle = new Rectangle(
-            (int)(renderPosition.X - (width / 2f) - cameraPosition.X),
-            (int)(renderPosition.Y - (height / 2f) - cameraPosition.Y),
-            (int)width,
-            (int)height);
-        _spriteBatch.Draw(_pixel, rectangle, team == PlayerTeam.Blue ? new Color(24, 45, 80) : new Color(90, 30, 30));
+        _gameplayDeadBodyRenderController.DrawDeadBodyVisual(id, sourcePlayerId, classId, team, animationKind, x, y, width, height, facingLeft, ticksRemaining, cameraPosition);
     }
 
     private ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)
     {
-        if (TryGetForcedLastToDieDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind, out var forcedAnimationKind))
-        {
-            return forcedAnimationKind;
-        }
-
-        return ToClientDeadBodyAnimationKind(animationKind);
+        return _gameplayDeadBodyRenderController.ResolveClientPluginDeadBodyAnimationKind(sourcePlayerId, classId, team, animationKind);
     }
 
     private bool TryGetForcedLastToDieDeadBodyAnimationKind(
@@ -296,29 +132,12 @@ public partial class Game1
         DeadBodyAnimationKind deadBodyAnimationKind,
         out ClientDeadBodyAnimationKind forcedAnimationKind)
     {
-        if (!IsLastToDieSessionActive
-            || _networkClient.IsSpectator
-            || sourcePlayerId != _world.LocalPlayer.Id
-            || team != PlayerTeam.Red
-            || deadBodyAnimationKind == DeadBodyAnimationKind.Decapitated)
-        {
-            forcedAnimationKind = default;
-            return false;
-        }
-
-        forcedAnimationKind = classId switch
-        {
-            PlayerClass.Soldier => ClientDeadBodyAnimationKind.Rifle,
-            PlayerClass.Demoman => ClientDeadBodyAnimationKind.Rifle,
-            _ => default,
-        };
-        return forcedAnimationKind != default;
+        return _gameplayDeadBodyRenderController.TryGetForcedLastToDieDeadBodyAnimationKind(sourcePlayerId, classId, team, deadBodyAnimationKind, out forcedAnimationKind);
     }
 
     private bool TryDrawPlayerSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, PlayerBodySpriteSelection bodySelection)
     {
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        return TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: true);
+        return _gameplayPlayerSpriteRenderController.TryDrawPlayerSprite(player, cameraPosition, tint, bodySelection);
     }
 
     private bool TryDrawPlayerSpriteAtPosition(
@@ -329,67 +148,7 @@ public partial class Game1
         PlayerBodySpriteSelection bodySelection,
         bool drawIntelOverlay)
     {
-        var isHeavyEating = GetPlayerIsHeavyEating(player);
-        var spriteName = isHeavyEating
-            ? GetHeavyEatSpriteName(player)
-            : player.IsTaunting
-                ? GetTauntSpriteName(player)
-                : bodySelection.SpriteName;
-        if (spriteName is null)
-        {
-            return false;
-        }
-
-        var sprite = _runtimeAssets.GetSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return false;
-        }
-
-        var facingScale = GetPlayerFacingScale(player);
-        var scale = new Vector2(facingScale, 1f);
-        var frameIndex = isHeavyEating
-            ? GetHeavyEatSpriteFrameIndex(GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
-            : player.IsTaunting
-                ? GetTauntSpriteFrameIndex(player, sprite.Frames.Count)
-                : bodySelection.IsHumiliated
-                    ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
-                    : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
-        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-        var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
-        var position = new Vector2(
-            roundedOrigin.X - cameraPosition.X,
-            roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
-
-        if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
-        {
-            DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
-        }
-
-        DrawSpriteFrameWithOptionalShadow(
-            sprite.Frames[frameIndex],
-            position,
-            tint,
-            0f,
-            sprite.Origin.ToVector2(),
-            scale);
-        if (player.IsUbered)
-        {
-            DrawSpriteFrameWithOptionalShadow(
-                sprite.Frames[frameIndex],
-                position,
-                GetUberOverlayColor(player.Team) * 0.7f,
-                0f,
-                sprite.Origin.ToVector2(),
-                scale);
-        }
-
-        if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
-        {
-            DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
-        }
-
-        return true;
+        return _gameplayPlayerSpriteRenderController.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, tint, bodySelection, drawIntelOverlay);
     }
 
     private void DrawIntelUnderlaySprite(
@@ -400,127 +159,42 @@ public partial class Game1
         PlayerBodySpriteSelection bodySelection,
         Vector2 roundedOrigin)
     {
-        var spriteName = GetTeamSpriteName(player.ClassId, player.Team, "IntelS");
-        if (spriteName is null)
-        {
-            return;
-        }
-
-        var sprite = _runtimeAssets.GetSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        DrawSpriteFrameWithOptionalShadow(
-            sprite.Frames[0],
-            new Vector2(
-                roundedOrigin.X - cameraPosition.X,
-                roundedOrigin.Y + bodySelection.EquipmentOffset - cameraPosition.Y),
-            tint,
-            0f,
-            sprite.Origin.ToVector2(),
-            scale);
+        _gameplayPlayerSpriteRenderController.DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
     }
 
     private void DrawCarriedIntelTimerSprite(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
     {
-        var timerSprite = _runtimeAssets.GetSprite("IntelTimerS");
-        if (timerSprite is null || timerSprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        var rechargeTicks = float.Clamp(GetPlayerIntelRechargeTicks(player), 0f, PlayerEntity.IntelRechargeMaxTicks);
-        if (rechargeTicks >= PlayerEntity.IntelRechargeMaxTicks)
-        {
-            return;
-        }
-
-        var progress = rechargeTicks / PlayerEntity.IntelRechargeMaxTicks;
-        var timerFrame = Math.Clamp((int)MathF.Floor(progress * 12f), 0, 12);
-        if (GetCarriedIntelTeam(player) == PlayerTeam.Blue)
-        {
-            timerFrame += 12;
-        }
-
-        DrawSpriteFrameWithOptionalShadow(
-            timerSprite.Frames[Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)],
-            new Vector2(
-                roundedOrigin.X + 2f - cameraPosition.X,
-                roundedOrigin.Y - 33f - cameraPosition.Y),
-            Color.White,
-            0f,
-            timerSprite.Origin.ToVector2(),
-            new Vector2(2f, 2f));
+        _gameplayPlayerSpriteRenderController.DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
     }
 
     private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player)
     {
-        return player.Team == PlayerTeam.Blue
-            ? PlayerTeam.Red
-            : PlayerTeam.Blue;
+        return GameplayPlayerSpriteRenderController.GetCarriedIntelTeamProxy(player);
     }
 
     private static int GetPlayerBodySpriteFrameIndex(float animationImage, int frameCount)
     {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        return Math.Clamp((int)MathF.Floor(WrapAnimationImage(animationImage, frameCount)), 0, frameCount - 1);
+        return GameplayPlayerSpriteRenderController.GetPlayerBodySpriteFrameIndexProxy(animationImage, frameCount);
     }
 
     private int GetHumiliationSpriteFrameIndex(PlayerEntity player, float animationImage, int frameCount)
     {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        const int framesPerPose = 3;
-        if (frameCount <= framesPerPose)
-        {
-            return Math.Clamp((int)MathF.Floor(animationImage), 0, frameCount - 1);
-        }
-
-        var poseCount = Math.Max(1, Math.Min(frameCount / framesPerPose, 11));
-        var poseOffset = Math.Abs(unchecked((GetPlayerStateKey(player) * 97) + 13)) % poseCount;
-        var poseFrame = Math.Clamp((int)MathF.Floor(animationImage), 0, framesPerPose - 1);
-        return Math.Clamp((poseOffset * framesPerPose) + poseFrame, 0, frameCount - 1);
+        return _gameplayPlayerSpriteRenderController.GetHumiliationSpriteFrameIndex(player, animationImage, frameCount);
     }
 
     private static int GetTauntSpriteFrameIndex(PlayerEntity player, int frameCount)
     {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        return Math.Clamp((int)MathF.Floor(player.TauntFrameIndex), 0, frameCount - 1);
+        return GameplayPlayerSpriteRenderController.GetTauntSpriteFrameIndexProxy(player, frameCount);
     }
 
     private static int GetHeavyEatSpriteFrameIndex(int heavyEatTicksRemaining, int frameCount, PlayerTeam team)
     {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        var expectedFrames = Math.Max(1, (int)MathF.Ceiling(PlayerEntity.HeavyEatDurationTicks * 0.25f) + 1);
-        var hasTeamVariants = frameCount >= expectedFrames * 2;
-        var perTeamFrames = hasTeamVariants ? frameCount / 2 : frameCount;
-        var elapsedTicks = Math.Clamp(PlayerEntity.HeavyEatDurationTicks - heavyEatTicksRemaining, 0, PlayerEntity.HeavyEatDurationTicks);
-        var animationIndex = Math.Clamp((int)MathF.Floor(elapsedTicks * 0.25f), 0, perTeamFrames - 1);
-        var teamOffset = team == PlayerTeam.Blue && hasTeamVariants ? perTeamFrames : 0;
-        return Math.Clamp(animationIndex + teamOffset, 0, frameCount - 1);
+        return GameplayPlayerSpriteRenderController.GetHeavyEatSpriteFrameIndexProxy(heavyEatTicksRemaining, frameCount, team);
     }
 
     private bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
     {
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        return TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
+        return _gameplayWeaponRenderController.TryDrawWeaponSprite(player, cameraPosition, tint, visibilityAlpha, bodySelection);
     }
 
     private bool TryDrawWeaponSpriteAtPosition(
@@ -531,64 +205,7 @@ public partial class Game1
         float visibilityAlpha,
         PlayerBodySpriteSelection bodySelection)
     {
-        if (GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
-        {
-            return false;
-        }
-
-        var weaponDefinition = GetWeaponRenderDefinition(player);
-        if (weaponDefinition.NormalSpriteName is null)
-        {
-            return false;
-        }
-
-        var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
-        var spriteName = weaponAnimationMode switch
-        {
-            WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
-            WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
-            WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
-            _ => weaponDefinition.NormalSpriteName,
-        };
-        if (spriteName is null)
-        {
-            return false;
-        }
-
-        var sprite = _runtimeAssets.GetSprite(spriteName);
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return false;
-        }
-
-        var facingScale = GetPlayerFacingScale(player);
-        var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-        var rotation = GetWeaponRotation(player);
-        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-        var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-        var drawX = roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale;
-        var drawY = roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
-        var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
-        var scale = new Vector2(facingScale, 1f);
-        DrawSpriteFrameWithOptionalShadow(
-            sprite.Frames[frameIndex],
-            position,
-            tint,
-            rotation,
-            sprite.Origin.ToVector2(),
-            scale);
-        if (player.IsUbered)
-        {
-            DrawSpriteFrameWithOptionalShadow(
-                sprite.Frames[frameIndex],
-                position,
-                GetUberOverlayColor(player.Team) * 0.7f,
-                rotation,
-                sprite.Origin.ToVector2(),
-                scale);
-        }
-
-        return true;
+        return _gameplayWeaponRenderController.TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
     }
 
     private void DrawExperimentalDemoknightChargeBlur(
@@ -598,31 +215,7 @@ public partial class Game1
         float visibilityAlpha,
         PlayerBodySpriteSelection bodySelection)
     {
-        if (!player.IsExperimentalDemoknightCharging || visibilityAlpha <= 0.05f)
-        {
-            return;
-        }
-
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var blurDirection = GetExperimentalDemoknightChargeBlurDirection(player);
-        if (blurDirection.LengthSquared() <= 0.0001f)
-        {
-            return;
-        }
-
-        var blurTint = spriteTint * 0.45f;
-        for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
-        {
-            var offsetDistance = 5f + (blurIndex * 6f);
-            var blurPosition = renderPosition - blurDirection * offsetDistance;
-            var blurAlpha = visibilityAlpha * (blurIndex == 0 ? 0.18f : 0.1f);
-            var tint = blurTint * blurAlpha;
-            TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
-            if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
-            {
-                TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, visibilityAlpha: 1f, bodySelection);
-            }
-        }
+        _gameplayPlayerStatusEffectRenderController.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
     }
 
     private void DrawCapturedPointHealingGhosting(
@@ -632,500 +225,141 @@ public partial class Game1
         float visibilityAlpha,
         PlayerBodySpriteSelection bodySelection)
     {
-        if (!_world.IsPlayerInsideCapturedPointHealingAuraForVisuals(player) || visibilityAlpha <= 0.05f)
-        {
-            return;
-        }
-
-        var blurDirection = GetExperimentalDemoknightChargeBlurDirection(player);
-        if (blurDirection.LengthSquared() <= 0.0001f)
-        {
-            blurDirection = new Vector2(player.FacingDirectionX, 0f);
-        }
-
-        var pulse = 0.5f + (0.5f * MathF.Sin((float)(_world.Frame * 0.16f) + player.Id));
-        var blurTint = new Color(150, 245, 165);
-        for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
-        {
-            var offsetDistance = 2f + (blurIndex * 2.5f);
-            var blurPosition = renderPosition - blurDirection * offsetDistance;
-            var blurAlpha = visibilityAlpha * ((blurIndex == 0 ? 0.12f : 0.07f) + (pulse * 0.05f));
-            var tint = blurTint * blurAlpha;
-            TryDrawPlayerSpriteAtPosition(
-                player,
-                blurPosition,
-                cameraPosition,
-                tint,
-                bodySelection,
-                drawIntelOverlay: false);
-
-            if (!GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_world.IsPlayerHumiliated(player))
-            {
-                TryDrawWeaponSpriteAtPosition(player, blurPosition, cameraPosition, tint, visibilityAlpha: 1f, bodySelection);
-            }
-        }
+        _gameplayPlayerStatusEffectRenderController.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
     }
 
     private Vector2 GetExperimentalDemoknightChargeBlurDirection(PlayerEntity player)
     {
-        var velocity = ReferenceEquals(player, _world.LocalPlayer) && _hasPredictedLocalPlayerPosition
-            ? _predictedLocalPlayerVelocity
-            : new Vector2(player.HorizontalSpeed, player.VerticalSpeed);
-        if (velocity.LengthSquared() <= 0.01f)
-        {
-            velocity = new Vector2(player.FacingDirectionX, 0f);
-        }
-
-        if (velocity.LengthSquared() <= 0.01f)
-        {
-            return Vector2.Zero;
-        }
-
-        velocity.Normalize();
-        return velocity;
+        return _gameplayPlayerStatusEffectRenderController.GetExperimentalDemoknightChargeBlurDirection(player);
     }
 
     private Vector2 GetWeaponAnchorOrigin(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)
     {
-        if (weaponDefinition.NormalSpriteName is not null)
-        {
-            var normalSprite = _runtimeAssets.GetSprite(weaponDefinition.NormalSpriteName);
-            if (normalSprite is not null)
-            {
-                return normalSprite.Origin.ToVector2();
-            }
-        }
-
-        return currentSprite.Origin.ToVector2();
+        return _gameplayWeaponRenderController.GetWeaponAnchorOrigin(weaponDefinition, currentSprite);
     }
 
     private Vector2 GetWeaponShellSpawnOrigin(PlayerEntity player)
     {
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        return GetRoundedPlayerSpriteOrigin(renderPosition);
+        return _gameplayWeaponRenderController.GetWeaponShellSpawnOrigin(player);
     }
 
     private PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
     {
-        var renderState = _playerRenderStates.GetValueOrDefault(GetPlayerStateKey(player));
-        var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, GetPlayerBodyAnimationLength(player));
-        var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
-        var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
-        var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
-        if (_world.IsPlayerHumiliated(player))
-        {
-            return new PlayerBodySpriteSelection(
-                GetTeamSpriteName(player.ClassId, player.Team, "HS"),
-                animationImage,
-                0f,
-                0f,
-                false,
-                true);
-        }
-
-        var noNewAnimation = player.ClassId == PlayerClass.Quote;
-        if (noNewAnimation)
-        {
-            return new PlayerBodySpriteSelection(
-                GetPlayerSpriteName(player),
-                animationImage,
-                0f,
-                0f,
-                false,
-                false);
-        }
-
-        if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
-        {
-            return new PlayerBodySpriteSelection(
-                GetTeamSpriteName(player.ClassId, player.Team, "CrouchS"),
-                WrapAnimationImage(animationImage, 2f),
-                0f,
-                0f,
-                false,
-                false);
-        }
-
-        string? spriteName;
-        var bodyYOffset = 0f;
-        var isRunSprite = false;
-        var isHeavySlowWalk = false;
-        if (appearsAirborne)
-        {
-            spriteName = GetTeamSpriteName(player.ClassId, player.Team, "JumpS");
-        }
-        else if (horizontalSourceStepSpeed < 0.2f)
-        {
-            spriteName = GetStandingSpriteName(player);
-            if (spriteName is not null && spriteName.Contains("Lean", StringComparison.Ordinal))
-            {
-                bodyYOffset = 6f;
-            }
-        }
-        else if (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f)
-        {
-            spriteName = GetTeamSpriteName(player.ClassId, player.Team, "WalkS");
-            isHeavySlowWalk = true;
-        }
-        else
-        {
-            spriteName = GetTeamSpriteName(player.ClassId, player.Team, "RunS");
-            isRunSprite = true;
-        }
-
-        var equipmentOffset = bodyYOffset;
-        if (isRunSprite
-            && !appearsAirborne
-            && (Math.Abs((int)MathF.Floor(animationImage) % 2) == 0))
-        {
-            equipmentOffset -= 2f;
-        }
-
-        if (isHeavySlowWalk || player.ClassId == PlayerClass.Soldier)
-        {
-            equipmentOffset = bodyYOffset;
-        }
-        else if (horizontalSourceStepSpeed < 3f && equipmentOffset < bodyYOffset)
-        {
-            bodyYOffset += 2f;
-            equipmentOffset += 2f;
-        }
-
-        return new PlayerBodySpriteSelection(
-            spriteName,
-            animationImage,
-            bodyYOffset,
-            equipmentOffset,
-            player.IsCarryingIntel,
-            false);
+        return _gameplayPlayerSpriteRenderController.GetPlayerBodySpriteSelection(player);
     }
 
     private string? GetStandingSpriteName(PlayerEntity player)
     {
-        var leanDirection = GetPlayerLeanDirection(player);
-        if (leanDirection == LeanDirection.None)
-        {
-            return GetTeamSpriteName(player.ClassId, player.Team, "StandS");
-        }
-
-        var facingLeft = IsFacingLeftByAim(player);
-        var suffix = leanDirection switch
-        {
-            LeanDirection.Left => facingLeft ? "LeanRS" : "LeanLS",
-            LeanDirection.Right => facingLeft ? "LeanLS" : "LeanRS",
-            _ => "StandS",
-        };
-
-        return GetTeamSpriteName(player.ClassId, player.Team, suffix);
+        return _gameplayPlayerSpriteRenderController.GetStandingSpriteName(player);
     }
 
     private LeanDirection GetPlayerLeanDirection(PlayerEntity player)
     {
-        var bottom = player.Bottom + 2f;
-        var openRight = !IsPointBlockedForPlayer(player, player.X + 6f, bottom)
-            && !IsPointBlockedForPlayer(player, player.X + 2f, bottom);
-        var openLeft = !IsPointBlockedForPlayer(player, player.X - 7f, bottom)
-            && !IsPointBlockedForPlayer(player, player.X - 3f, bottom);
-
-        var leanDirection = LeanDirection.None;
-        if (openRight)
-        {
-            leanDirection = LeanDirection.Right;
-        }
-
-        if (openLeft)
-        {
-            leanDirection = LeanDirection.Left;
-        }
-
-        if (openRight && openLeft)
-        {
-            openRight = !IsPointBlockedForPlayer(player, player.Right - 1f, bottom);
-            openLeft = !IsPointBlockedForPlayer(player, player.Left, bottom);
-            leanDirection = LeanDirection.None;
-            if (openRight)
-            {
-                leanDirection = LeanDirection.Right;
-            }
-
-            if (openLeft)
-            {
-                leanDirection = LeanDirection.Left;
-            }
-        }
-
-        return leanDirection;
+        return _gameplayPlayerSpriteRenderController.GetPlayerLeanDirection(player);
     }
 
     private bool IsPointBlockedForPlayer(PlayerEntity player, float x, float y)
     {
-        foreach (var solid in _world.Level.Solids)
-        {
-            if (x >= solid.Left && x < solid.Right && y >= solid.Top && y < solid.Bottom)
-            {
-                return true;
-            }
-        }
-
-        foreach (var gate in _world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
-        {
-            if (x >= gate.Left && x < gate.Right && y >= gate.Top && y < gate.Bottom)
-            {
-                return true;
-            }
-        }
-
-        foreach (var wall in _world.Level.GetRoomObjects(RoomObjectType.PlayerWall))
-        {
-            if (x >= wall.Left && x < wall.Right && y >= wall.Top && y < wall.Bottom)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return _gameplayPlayerSpriteRenderController.IsPointBlockedForPlayer(player, x, y);
     }
 
     private WeaponAnimationMode GetPlayerWeaponAnimationMode(PlayerEntity player)
     {
-        return _playerRenderStates.TryGetValue(GetPlayerStateKey(player), out var renderState)
-            ? renderState.WeaponAnimationMode
-            : WeaponAnimationMode.Idle;
+        return _gameplayWeaponRenderController.GetPlayerWeaponAnimationMode(player);
     }
 
     private int GetWeaponSpriteFrameIndex(PlayerEntity player, WeaponAnimationMode weaponAnimationMode, WeaponRenderDefinition weaponDefinition, int frameCount)
     {
-        if (frameCount <= 0)
-        {
-            return 0;
-        }
-
-        if (weaponAnimationMode == WeaponAnimationMode.Idle)
-        {
-            if (player.ClassId == PlayerClass.Medic && player.IsMedicHealing && frameCount >= 4)
-            {
-                return player.Team == PlayerTeam.Blue ? 3 : 2;
-            }
-
-            return Math.Clamp(player.Team == PlayerTeam.Blue ? 1 : 0, 0, frameCount - 1);
-        }
-
-        if (!_playerRenderStates.TryGetValue(GetPlayerStateKey(player), out var renderState))
-        {
-            return 0;
-        }
-
-        var perTeamFrames = Math.Max(1, frameCount / 2);
-        var durationSeconds = MathF.Max(renderState.WeaponAnimationDurationSeconds, 0.0001f);
-        var animationPosition = (renderState.WeaponAnimationElapsedSeconds / durationSeconds) * perTeamFrames;
-        var animationFrame = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.LoopRecoilWhileActive
-            ? Math.Clamp((int)MathF.Floor(WrapAnimationImage(animationPosition, perTeamFrames)), 0, perTeamFrames - 1)
-            : Math.Clamp((int)MathF.Floor(animationPosition), 0, perTeamFrames - 1);
-        var teamOffset = player.Team == PlayerTeam.Blue ? perTeamFrames : 0;
-        return Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
+        return _gameplayWeaponRenderController.GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, frameCount);
     }
 
     private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
     {
-        var presentation = player.IsExperimentalDemoknightEnabled
-            ? StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation
-            : StockGameplayModCatalog.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
-        return new(
-            presentation.WorldSpriteName,
-            presentation.RecoilSpriteName,
-            presentation.ReloadSpriteName,
-            presentation.WeaponOffsetX,
-            presentation.WeaponOffsetY,
-            GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks),
-            GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
-            GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks),
-            presentation.LoopRecoilWhileActive);
+        return GameplayWeaponRenderController.GetWeaponRenderDefinitionProxy(player);
     }
 
     private static float GetSourceTicksAsSeconds(float ticks)
     {
-        return ticks / (float)LegacyMovementModel.SourceTicksPerSecond;
+        return GameplayWeaponRenderController.GetSourceTicksAsSecondsProxy(ticks);
     }
 
     private static float GetPlayerFacingScale(PlayerEntity player)
     {
-        return IsFacingLeftByAim(player) ? -1f : 1f;
+        return GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
     }
 
     private static bool IsFacingLeftByAim(PlayerEntity player)
     {
-        var radians = MathF.PI * player.AimDirectionDegrees / 180f;
-        return MathF.Cos(radians) < 0f;
+        return GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player);
     }
 
     private static float GetWeaponRotation(PlayerEntity player)
     {
-        var radians = MathF.PI * player.AimDirectionDegrees / 180f;
-        return IsFacingLeftByAim(player) ? radians + MathF.PI : radians;
+        return GameplayWeaponRenderController.GetWeaponRotation(player);
     }
 
     private static string? GetTauntSpriteName(PlayerEntity player)
     {
-        return GetTeamSpriteName(player.ClassId, player.Team, "TauntS");
+        return GameplayPlayerSpriteRenderController.GetTauntSpriteName(player);
     }
 
     private static string? GetHeavyEatSpriteName(PlayerEntity player)
     {
-        return player.ClassId == PlayerClass.Heavy
-            ? GetTeamSpriteName(player.ClassId, player.Team, "OmnomnomnomS")
-            : null;
+        return GameplayPlayerSpriteRenderController.GetHeavyEatSpriteName(player);
     }
 
     private static string? GetPlayerSpriteName(PlayerEntity player)
     {
-        return GetPlayerSpriteName(player.ClassId, player.Team);
+        return GameplayPlayerSpriteRenderController.GetPlayerSpriteName(player);
     }
 
     private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)
     {
-        return GetTeamSpriteName(classId, team, "S");
+        return GameplayPlayerSpriteRenderController.GetPlayerSpriteName(classId, team);
     }
 
     private static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
     {
-        if (animationKind == DeadBodyAnimationKind.Decapitated)
-        {
-            return ExperimentalDemoknightCatalog.GetDecapitatedDeadBodySpriteName(classId, team);
-        }
-
-        return GetTeamSpriteName(classId, team, "DeadS");
+        return GameplayPlayerSpriteRenderController.GetDeadBodySpriteName(classId, team, animationKind);
     }
 
     private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)
     {
-        var prefix = GetPlayerSpritePrefix(classId);
-        if (prefix is null)
-        {
-            return null;
-        }
-
-        var teamName = team switch
-        {
-            PlayerTeam.Red => "Red",
-            PlayerTeam.Blue => "Blue",
-            _ => null,
-        };
-
-        return teamName is null
-            ? null
-            : $"{prefix}{teamName}{suffix}";
+        return GameplayPlayerSpriteRenderController.GetTeamSpriteNameProxy(classId, team, suffix);
     }
 
     private static string? GetPlayerSpritePrefix(PlayerClass classId)
     {
-        return classId switch
-        {
-            PlayerClass.Scout => "Scout",
-            PlayerClass.Engineer => "Engineer",
-            PlayerClass.Pyro => "Pyro",
-            PlayerClass.Soldier => "Soldier",
-            PlayerClass.Demoman => "Demoman",
-            PlayerClass.Heavy => "Heavy",
-            PlayerClass.Sniper => "Sniper",
-            PlayerClass.Medic => "Medic",
-            PlayerClass.Spy => "Spy",
-            PlayerClass.Quote => "Querly",
-            _ => null,
-        };
+        return GameplayPlayerSpriteRenderController.GetPlayerSpritePrefixProxy(classId);
     }
 
     private Color GetPlayerColor(PlayerEntity player, Color baseColor)
     {
-        return baseColor * GetPlayerVisibilityAlpha(player);
+        return _gameplayPlayerStatusEffectRenderController.GetPlayerColor(player, baseColor);
     }
 
     private static Color GetUberOverlayColor(PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? Color.Blue : Color.Red;
+        return GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(team);
     }
 
     private void DrawAfterburnOverlay(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha)
     {
-        if (!player.IsAlive || !player.IsBurning)
-        {
-            return;
-        }
-
-        var alpha = player.BurnVisualAlpha * visibilityAlpha;
-        if (alpha <= 0f)
-        {
-            return;
-        }
-
-        var count = player.BurnVisualCount;
-        if (count <= 0)
-        {
-            return;
-        }
-
-        var sprite = _runtimeAssets.GetSprite("FlameS");
-        var sourceFrame = (int)((_world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _config.TicksPerSecond);
-        var flameColor = Color.White * alpha;
-        for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
-        {
-            player.GetBurnVisualOffset(flameIndex, sourceFrame, out var offsetX, out var offsetY);
-            if (sprite is not null && sprite.Frames.Count > 0)
-            {
-                var frameIndex = player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count);
-                _spriteBatch.Draw(
-                    sprite.Frames[frameIndex],
-                    new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y),
-                    null,
-                    flameColor,
-                    0f,
-                    sprite.Origin.ToVector2(),
-                    Vector2.One,
-                    SpriteEffects.None,
-                    0f);
-                continue;
-            }
-
-            var flameRectangle = new Rectangle(
-                (int)(renderPosition.X + offsetX - 2f - cameraPosition.X),
-                (int)(renderPosition.Y + offsetY - 2f - cameraPosition.Y),
-                4,
-                4);
-            _spriteBatch.Draw(_pixel, flameRectangle, flameColor);
-        }
+        _gameplayPlayerStatusEffectRenderController.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
     }
 
     private void DrawDominationIndicator(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
     {
-        if (!player.IsDominatingLocalViewer || visibilityAlpha <= 0f)
-        {
-            return;
-        }
-
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var frameIndex = player.Team == PlayerTeam.Blue ? 1 : 0;
-        DrawCenteredHudSprite(
-            "DominationS",
-            frameIndex,
-            new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y - 35f),
-            Color.White * visibilityAlpha,
-            Vector2.One);
+        _gameplayPlayerStatusEffectRenderController.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
     }
 
     private IEnumerable<PlayerEntity> EnumerateRenderablePlayers()
     {
-        if (!_networkClient.IsSpectator)
-        {
-            yield return _world.LocalPlayer;
-        }
-
-        foreach (var player in EnumerateRemotePlayersForView())
-        {
-            yield return player;
-        }
+        return _gameplayPlayerRenderController.EnumerateRenderablePlayers();
     }
 
     private static string GetHudPlayerLabel(PlayerEntity player)
     {
-        return player.DisplayName;
+        return GameplayPlayerRenderController.GetHudPlayerLabel(player);
     }
 }
