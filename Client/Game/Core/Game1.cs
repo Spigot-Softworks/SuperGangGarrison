@@ -99,6 +99,23 @@ public partial class Game1 : Game
 
     private const int ProcessedNetworkEventHistoryLimit = 4096;
     private readonly GameStartupMode _startupMode;
+    private readonly FrameController _frameController;
+    private readonly GameplayController _gameplayController;
+    private readonly GameplayScreenStateController _gameplayScreenStateController;
+    private readonly GameplayPresentationStateController _gameplayPresentationStateController;
+    private readonly GameplayImpactEffectsController _gameplayImpactEffectsController;
+    private readonly GameplayGoreEffectsController _gameplayGoreEffectsController;
+    private readonly GameplaySmokeEffectsController _gameplaySmokeEffectsController;
+    private readonly GameplaySessionController _gameplaySessionController;
+    private readonly GameplayOverlayStateController _gameplayOverlayStateController;
+    private readonly GameplayResetController _gameplayResetController;
+    private readonly MenuController _menuController;
+    private readonly OptionsMenuController _optionsMenuController;
+    private readonly MainMenuPageController _mainMenuPageController;
+    private readonly PluginOptionsMenuController _pluginOptionsMenuController;
+    private readonly ControlsMenuController _controlsMenuController;
+    private readonly InGameMenuController _inGameMenuController;
+    private readonly GameplayOverlayController _gameplayOverlayController;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D? _gameRenderTarget;
     private SimulationConfig _config = null!;
@@ -261,6 +278,23 @@ public partial class Game1 : Game
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
         _startupMode = startupMode;
+        _frameController = new FrameController(this);
+        _gameplayController = new GameplayController(this);
+        _gameplayScreenStateController = new GameplayScreenStateController(this);
+        _gameplayPresentationStateController = new GameplayPresentationStateController(this);
+        _gameplayImpactEffectsController = new GameplayImpactEffectsController(this);
+        _gameplayGoreEffectsController = new GameplayGoreEffectsController(this);
+        _gameplaySmokeEffectsController = new GameplaySmokeEffectsController(this);
+        _gameplaySessionController = new GameplaySessionController(this);
+        _gameplayOverlayStateController = new GameplayOverlayStateController(this);
+        _gameplayResetController = new GameplayResetController(this);
+        _menuController = new MenuController(this);
+        _optionsMenuController = new OptionsMenuController(this);
+        _mainMenuPageController = new MainMenuPageController(this);
+        _pluginOptionsMenuController = new PluginOptionsMenuController(this);
+        _controlsMenuController = new ControlsMenuController(this);
+        _inGameMenuController = new InGameMenuController(this);
+        _gameplayOverlayController = new GameplayOverlayController(this);
         _clientSettings = ClientSettings.Load();
         _inputBindings = InputBindingsSettings.Load();
         _hostedServerRuntime = new HostedServerRuntimeController(_hostedServerConsole);
@@ -369,50 +403,7 @@ public partial class Game1 : Game
     {
         BeginNetworkDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
-        var clientTicks = ConsumeClientTickCount(gameTime);
-        var windowActive = IsActive;
-        var keyboard = windowActive ? Keyboard.GetState() : default;
-        var rawMouse = windowActive ? GetConstrainedMouseState(Mouse.GetState()) : default;
-        var mouse = windowActive ? GetScaledMouseState(rawMouse) : default;
-        if (!_wasWindowActive && windowActive)
-        {
-            _previousKeyboard = keyboard;
-            _previousMouse = mouse;
-        }
-
-        _clientPluginPreviousKeyboard = _previousKeyboard;
-        _clientPluginKeyboard = keyboard;
-
-        _wasWindowActive = windowActive;
-        if (TryHandlePasswordPromptCancel(keyboard, mouse))
-        {
-            NotifyClientPluginsFrame(gameTime, clientTicks);
-            FinalizeNetworkDiagnosticsFrame();
-            base.Update(gameTime);
-            return;
-        }
-
-        var muteAudioPressed = keyboard.IsKeyDown(Keys.F12) && !_previousKeyboard.IsKeyDown(Keys.F12);
-        if (muteAudioPressed)
-        {
-            ToggleAudioMute();
-        }
-
-        var toggleConsolePressed = keyboard.IsKeyDown(_inputBindings.ToggleConsole) && !_previousKeyboard.IsKeyDown(_inputBindings.ToggleConsole);
-        if (toggleConsolePressed && !_mainMenuOpen)
-        {
-            _consoleOpen = !_consoleOpen;
-        }
-
-        if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
-        {
-            NotifyClientPluginsFrame(gameTime, clientTicks);
-            FinalizeNetworkDiagnosticsFrame();
-            base.Update(gameTime);
-            return;
-        }
-
-        UpdateGameplayFrame(gameTime, keyboard, mouse, rawMouse, clientTicks);
+        var clientTicks = _frameController.Update(gameTime);
         NotifyClientPluginsFrame(gameTime, clientTicks);
         FinalizeNetworkDiagnosticsFrame();
 
@@ -423,15 +414,134 @@ public partial class Game1 : Game
     {
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         GraphicsDevice.Clear(new Color(24, 32, 48));
-
-        if (TryDrawNonGameplayFrame())
-        {
-            base.Draw(gameTime);
-            return;
-        }
-        DrawGameplayFrame(gameTime);
+        _frameController.Draw(gameTime);
 
         base.Draw(gameTime);
+    }
+
+    private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
+    {
+        _frameController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
+    }
+
+    private MainMenuOverlayKind GetActiveMainMenuOverlay()
+    {
+        return _menuController.GetActiveOverlay();
+    }
+
+    private void OpenOptionsMenu(bool fromGameplay)
+    {
+        _optionsMenuController.OpenOptionsMenu(fromGameplay);
+    }
+
+    private void CloseOptionsMenu()
+    {
+        _optionsMenuController.CloseOptionsMenu();
+    }
+
+    private void OpenPluginOptionsMenu(bool fromGameplay)
+    {
+        _optionsMenuController.OpenPluginOptionsMenu(fromGameplay);
+    }
+
+    private void ClosePluginOptionsMenu()
+    {
+        _optionsMenuController.ClosePluginOptionsMenu();
+    }
+
+    private void OpenControlsMenu(bool fromGameplay)
+    {
+        _controlsMenuController.OpenControlsMenu(fromGameplay);
+    }
+
+    private void CloseControlsMenu()
+    {
+        _controlsMenuController.CloseControlsMenu();
+    }
+
+    private void UpdateOptionsMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        _optionsMenuController.UpdateOptionsMenu(keyboard, mouse);
+    }
+
+    private void DrawOptionsMenu()
+    {
+        _optionsMenuController.DrawOptionsMenu();
+    }
+
+    private void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        _pluginOptionsMenuController.UpdatePluginOptionsMenu(keyboard, mouse);
+    }
+
+    private void DrawPluginOptionsMenu()
+    {
+        _pluginOptionsMenuController.DrawPluginOptionsMenu();
+    }
+
+    private bool HasClientPluginOptions()
+    {
+        return _pluginOptionsMenuController.HasClientPluginOptions();
+    }
+
+    private void UpdateControlsMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        _controlsMenuController.UpdateControlsMenu(keyboard, mouse);
+    }
+
+    private void DrawControlsMenu()
+    {
+        _controlsMenuController.DrawControlsMenu();
+    }
+
+    private void OpenInGameMenu()
+    {
+        _inGameMenuController.OpenInGameMenu();
+    }
+
+    private void CloseInGameMenu()
+    {
+        _inGameMenuController.CloseInGameMenu();
+    }
+
+    private void UpdateInGameMenu(KeyboardState keyboard, MouseState mouse)
+    {
+        _inGameMenuController.UpdateInGameMenu(keyboard, mouse);
+    }
+
+    private void DrawInGameMenu()
+    {
+        _inGameMenuController.DrawInGameMenu();
+    }
+
+    private GameplayOverlayKind GetActiveGameplayOverlay()
+    {
+        return _gameplayOverlayController.GetActiveOverlay();
+    }
+
+    private void UpdateGameplayMenuState(KeyboardState keyboard, MouseState mouse)
+    {
+        _gameplayOverlayController.Update(keyboard, mouse);
+    }
+
+    private void OpenMainMenuPage(MainMenuPage page)
+    {
+        _mainMenuPageController.OpenMainMenuPage(page);
+    }
+
+    private List<MenuPageButton> BuildMainMenuButtons()
+    {
+        return _mainMenuPageController.BuildMainMenuButtons();
+    }
+
+    private void DrawCurrentMainMenuPage(IReadOnlyList<MenuPageButton> buttons)
+    {
+        _mainMenuPageController.DrawCurrentMainMenuPage(buttons);
+    }
+
+    private void AddPluginMenuActions(List<MenuPageAction> actions, ClientPluginMenuLocation location, int insertIndex = -1)
+    {
+        _mainMenuPageController.AddPluginMenuActions(actions, location, insertIndex);
     }
 
 

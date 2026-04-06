@@ -12,49 +12,17 @@ public partial class Game1
 
     private void TryStartPracticeFromSetup()
     {
-        var selectedMap = GetSelectedPracticeMapEntry();
-        if (selectedMap is null)
-        {
-            _menuStatusMessage = "Select a local map before starting Practice.";
-            return;
-        }
-
-        BeginPracticeSession(selectedMap.LevelName);
+        _gameplaySessionController.TryStartPracticeFromSetup();
     }
 
     private void RestartPracticeSession()
     {
-        if (!IsPracticeSessionActive)
-        {
-            return;
-        }
-
-        var levelName = _world.Level.Name;
-        _practiceMapEntries = BuildPracticeMapEntries();
-        if (!SelectPracticeMapEntry(levelName))
-        {
-            NormalizePracticeSetupState();
-            levelName = GetSelectedPracticeMapEntry()?.LevelName ?? levelName;
-        }
-
-        BeginPracticeSession(levelName);
+        _gameplaySessionController.RestartPracticeSession();
     }
 
     private void BeginPracticeSession(string levelName)
     {
-        if (!TryBeginOfflineBotSession(
-                levelName,
-                GameplaySessionKind.Practice,
-                _practiceTickRate,
-                GetPracticeExperimentalGameplaySettings(),
-                _practiceTimeLimitMinutes,
-                _practiceCapLimit,
-                _practiceRespawnSeconds,
-                openJoinMenus: true,
-                consoleSessionName: "practice"))
-        {
-            return;
-        }
+        _gameplaySessionController.BeginPracticeSession(levelName);
     }
 
     private void ApplyPracticeTeamSelection(PlayerTeam localTeam)

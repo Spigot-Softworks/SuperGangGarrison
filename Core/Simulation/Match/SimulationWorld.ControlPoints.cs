@@ -27,7 +27,7 @@ public sealed partial class SimulationWorld
 
     private void AdvanceControlPointMatchState()
     {
-        MatchObjectiveFlowSystem.AdvanceControlPointMatchState(this);
+        _runtimeController.AdvanceLegacyControlPointMatchState();
     }
 
     private void ApplySnapshotControlPoints(SnapshotMessage snapshot)

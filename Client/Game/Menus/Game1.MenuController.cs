@@ -1,0 +1,366 @@
+#nullable enable
+
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using System;
+using System.IO;
+using OpenGarrison.Core;
+
+namespace OpenGarrison.Client;
+
+public partial class Game1
+{
+    private sealed class MenuController
+    {
+        private readonly Game1 _game;
+        private readonly MenuOverlayController _overlayController;
+
+        public MenuController(Game1 game)
+        {
+            _game = game;
+            _overlayController = new MenuOverlayController(game);
+        }
+
+        public void Update(KeyboardState keyboard, MouseState mouse)
+        {
+            EnsureMenuMusicPlaying();
+            _game.StopFaucetMusic();
+            _game.StopIngameMusic();
+
+            _game.UpdateLobbyBrowserResponses();
+            if (_game.UpdateDevMessagePopup(keyboard, mouse))
+            {
+                return;
+            }
+
+            if (_game._quitPromptOpen)
+            {
+                _game.UpdateQuitPrompt(keyboard, mouse);
+                return;
+            }
+
+            if (!_overlayController.TryUpdate(keyboard, mouse))
+            {
+                UpdateMainMenu(keyboard, mouse);
+            }
+        }
+
+        public void Draw()
+        {
+            var viewportWidth = _game.ViewportWidth;
+            var viewportHeight = _game.ViewportHeight;
+
+            EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
+
+            if (_game._menuBackgroundTexture is not null)
+            {
+                _game._spriteBatch.Draw(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+            }
+            else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
+            {
+                _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
+            }
+
+            DrawMenuBackgroundAttribution();
+
+            if (!_overlayController.TryDraw())
+            {
+                var buttons = _game.BuildMainMenuButtons();
+                _game.DrawCurrentMainMenuPage(buttons);
+                _game.DrawMenuStatusText();
+                _game.DrawQuitPrompt();
+            }
+
+            _game.DrawDevMessagePopup();
+        }
+
+        public MainMenuOverlayKind GetActiveOverlay()
+        {
+            return _overlayController.GetActiveOverlay();
+        }
+
+        private void UpdateMainMenu(KeyboardState keyboard, MouseState mouse)
+        {
+            if (_game.IsKeyPressed(keyboard, Keys.Escape))
+            {
+                if (_game._optionsMenuOpen)
+                {
+                    _game.CloseOptionsMenu();
+                    return;
+                }
+
+                if (_game._mainMenuPage != MainMenuPage.Root)
+                {
+                    _game.OpenMainMenuPage(MainMenuPage.Root);
+                }
+                else
+                {
+                    _game.OpenQuitPrompt();
+                }
+
+                return;
+            }
+
+            if (_game._optionsMenuOpen)
+            {
+                return;
+            }
+
+            var buttons = _game.BuildMainMenuButtons();
+            _game._mainMenuHoverIndex = -1;
+            _game._mainMenuBottomBarHover = false;
+            for (var index = 0; index < buttons.Count; index += 1)
+            {
+                if (!buttons[index].Bounds.Contains(mouse.Position))
+                {
+                    continue;
+                }
+
+                _game._mainMenuHoverIndex = index;
+                _game._mainMenuBottomBarHover = buttons[index].IsBottomBarButton;
+                break;
+            }
+
+            var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
+            if (clickPressed && _game._mainMenuHoverIndex >= 0)
+            {
+                buttons[_game._mainMenuHoverIndex].Activate();
+            }
+        }
+
+        private void EnsureMenuMusicPlaying()
+        {
+            _game.EnsureMenuMusicPlaying();
+        }
+
+        private void EnsureMenuBackgroundTexture(int viewportWidth, int viewportHeight)
+        {
+            var (path, attributionText) = GetMenuBackgroundSelection(viewportWidth, viewportHeight);
+            _game._menuBackgroundAttributionText = attributionText;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                DisposeMenuBackgroundTexture();
+                return;
+            }
+
+            if (_game._menuBackgroundTexture is not null
+                && string.Equals(_game._menuBackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            DisposeMenuBackgroundTexture();
+            using var stream = File.OpenRead(path);
+            _game._menuBackgroundTexture = Texture2D.FromStream(_game.GraphicsDevice, stream);
+            _game._menuBackgroundTexturePath = path;
+        }
+
+        private (string? Path, string AttributionText) GetMenuBackgroundSelection(int viewportWidth, int viewportHeight)
+        {
+            var pluginOverride = _game.GetClientPluginMainMenuBackgroundOverride();
+            if (pluginOverride is not null
+                && !string.IsNullOrWhiteSpace(pluginOverride.ImagePath)
+                && File.Exists(pluginOverride.ImagePath))
+            {
+                return (pluginOverride.ImagePath, pluginOverride.AttributionText);
+            }
+
+            return (GetDefaultMenuBackgroundPath(viewportWidth, viewportHeight), string.Empty);
+        }
+
+        private static string? GetDefaultMenuBackgroundPath(int viewportWidth, int viewportHeight)
+        {
+            var aspectRatio = viewportHeight <= 0 ? (16f / 9f) : viewportWidth / (float)viewportHeight;
+            var fileName = aspectRatio <= 1.27f
+                ? "background-5x4.png"
+                : aspectRatio <= 1.4f
+                    ? "background-4x3.png"
+                    : "background.png";
+            var path = ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            {
+                return path;
+            }
+
+            var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.png");
+            return !string.IsNullOrWhiteSpace(fallbackPath) && File.Exists(fallbackPath)
+                ? fallbackPath
+                : null;
+        }
+
+        private void DisposeMenuBackgroundTexture()
+        {
+            _game._menuBackgroundTexture?.Dispose();
+            _game._menuBackgroundTexture = null;
+            _game._menuBackgroundTexturePath = null;
+        }
+
+        private void DrawMenuBackgroundAttribution()
+        {
+            if (string.IsNullOrWhiteSpace(_game._menuBackgroundAttributionText))
+            {
+                return;
+            }
+
+            var scale = _game.ViewportHeight < 540 ? 0.82f : 0.95f;
+            var position = new Vector2(_game.ViewportWidth - 18f, _game.ViewportHeight - 18f);
+            _game.DrawBitmapFontTextRightAligned(_game._menuBackgroundAttributionText, position + Vector2.One, Color.Black * 0.75f, scale);
+            _game.DrawBitmapFontTextRightAligned(_game._menuBackgroundAttributionText, position, Color.White, scale);
+        }
+
+        private sealed class MenuOverlayController
+        {
+            private readonly Game1 _game;
+
+            public MenuOverlayController(Game1 game)
+            {
+                _game = game;
+            }
+
+            public MainMenuOverlayKind GetActiveOverlay()
+            {
+                if (_game._hostSetupOpen)
+                {
+                    return MainMenuOverlayKind.HostSetup;
+                }
+
+                if (_game._clientPowersOpen)
+                {
+                    return MainMenuOverlayKind.ClientPowers;
+                }
+
+                if (_game._practiceSetupOpen)
+                {
+                    return MainMenuOverlayKind.PracticeSetup;
+                }
+
+                if (_game._creditsOpen)
+                {
+                    return MainMenuOverlayKind.Credits;
+                }
+
+                if (_game._lobbyBrowserOpen)
+                {
+                    return MainMenuOverlayKind.LobbyBrowser;
+                }
+
+                if (_game._manualConnectOpen)
+                {
+                    return MainMenuOverlayKind.ManualConnect;
+                }
+
+                if (_game._controlsMenuOpen)
+                {
+                    return MainMenuOverlayKind.ControlsMenu;
+                }
+
+                if (_game._lastToDieMenuOpen)
+                {
+                    return MainMenuOverlayKind.LastToDieMenu;
+                }
+
+                if (_game._pluginOptionsMenuOpen)
+                {
+                    return MainMenuOverlayKind.PluginOptionsMenu;
+                }
+
+                if (_game._optionsMenuOpen)
+                {
+                    return MainMenuOverlayKind.OptionsMenu;
+                }
+
+                return MainMenuOverlayKind.None;
+            }
+
+            public bool TryUpdate(KeyboardState keyboard, MouseState mouse)
+            {
+                switch (GetActiveOverlay())
+                {
+                    case MainMenuOverlayKind.HostSetup:
+                        if (keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape))
+                        {
+                            if (!_game.TryHandleServerLauncherBackAction())
+                            {
+                                _game._hostSetupOpen = false;
+                                _game._hostSetupEditField = HostSetupEditField.None;
+                            }
+
+                            return true;
+                        }
+
+                        _game.UpdateHostSetupMenu(mouse);
+                        return true;
+                    case MainMenuOverlayKind.ClientPowers:
+                        _game.UpdateClientPowersMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.PracticeSetup:
+                        _game.UpdatePracticeSetupMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.Credits:
+                        _game.UpdateCreditsMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.LobbyBrowser:
+                        _game.UpdateLobbyBrowserState(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.ManualConnect:
+                        _game.UpdateManualConnectMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.ControlsMenu:
+                        _game.UpdateControlsMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.LastToDieMenu:
+                        _game.UpdateLastToDieMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.PluginOptionsMenu:
+                        _game.UpdatePluginOptionsMenu(keyboard, mouse);
+                        return true;
+                    case MainMenuOverlayKind.OptionsMenu:
+                        _game.UpdateOptionsMenu(keyboard, mouse);
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            public bool TryDraw()
+            {
+                switch (GetActiveOverlay())
+                {
+                    case MainMenuOverlayKind.OptionsMenu:
+                        _game.DrawOptionsMenu();
+                        return true;
+                    case MainMenuOverlayKind.PluginOptionsMenu:
+                        _game.DrawPluginOptionsMenu();
+                        return true;
+                    case MainMenuOverlayKind.ControlsMenu:
+                        _game.DrawControlsMenu();
+                        return true;
+                    case MainMenuOverlayKind.LastToDieMenu:
+                        _game.DrawLastToDieMenu();
+                        return true;
+                    case MainMenuOverlayKind.HostSetup:
+                        _game.DrawHostSetupMenu();
+                        return true;
+                    case MainMenuOverlayKind.ClientPowers:
+                        _game.DrawClientPowersMenu();
+                        return true;
+                    case MainMenuOverlayKind.PracticeSetup:
+                        _game.DrawPracticeSetupMenu();
+                        return true;
+                    case MainMenuOverlayKind.Credits:
+                        _game.DrawCreditsMenu();
+                        return true;
+                    case MainMenuOverlayKind.LobbyBrowser:
+                        _game.DrawLobbyBrowserMenu();
+                        return true;
+                    case MainMenuOverlayKind.ManualConnect:
+                        _game.DrawManualConnectMenu();
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+    }
+}

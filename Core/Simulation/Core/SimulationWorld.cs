@@ -4,6 +4,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private readonly RuntimeController _runtimeController;
+    private readonly RuntimeQueryController _runtimeQueryController;
     public const int MaxPlayableNetworkPlayers = 20;
     public const byte LocalPlayerSlot = 1;
     public const byte FirstSpectatorSlot = 128;
@@ -268,6 +270,8 @@ public sealed partial class SimulationWorld
 
     public SimulationWorld(SimulationConfig? config = null)
     {
+        _runtimeController = new RuntimeController(this);
+        _runtimeQueryController = new RuntimeQueryController(this);
         Config = config ?? new SimulationConfig();
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel();
         RedIntel = CreateIntelState(PlayerTeam.Red);

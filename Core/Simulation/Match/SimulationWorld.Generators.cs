@@ -42,14 +42,14 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void UpdateGeneratorState()
+    private static void UpdateGeneratorState()
     {
-        MatchObjectiveFlowSystem.UpdateGeneratorState(this);
+        // Generator objectives are passive; combat systems drive state changes.
     }
 
     private void AdvanceGeneratorMatchState()
     {
-        MatchObjectiveFlowSystem.AdvanceGeneratorMatchState(this);
+        _runtimeController.AdvanceLegacyGeneratorMatchState();
     }
 
     private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker = null)

@@ -40,76 +40,7 @@ public partial class Game1
 
     private void UpdateGameplayScreenState(KeyboardState keyboard)
     {
-        var escapePressed = keyboard.IsKeyDown(Keys.Escape) && !_previousKeyboard.IsKeyDown(Keys.Escape);
-        var changeTeamPressed = IsKeyPressed(keyboard, _inputBindings.ChangeTeam);
-        var changeClassPressed = IsKeyPressed(keyboard, _inputBindings.ChangeClass);
-        if (_chatSubmitAwaitingOpenKeyRelease
-            && !IsChatShortcutHeld(keyboard))
-        {
-            _chatSubmitAwaitingOpenKeyRelease = false;
-        }
-
-        var openPublicChatPressed = CanUseGameplayChatShortcut() && IsChatShortcutPressed(keyboard, Keys.Y);
-        var openTeamChatPressed = CanUseGameplayChatShortcut() && IsChatShortcutPressed(keyboard, Keys.U);
-        var pausePressed = GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || escapePressed;
-
-        if (CanOpenGameplayChat()
-            && (openPublicChatPressed || openTeamChatPressed))
-        {
-            OpenChat(teamOnly: openTeamChatPressed);
-            return;
-        }
-
-        if (_chatOpen && escapePressed)
-        {
-            ResetChatInputState();
-            return;
-        }
-
-        UpdateSpectatorTrackingHotkeys(keyboard);
-
-        if (CanToggleGameplaySelectionMenus())
-        {
-            if (changeTeamPressed)
-            {
-                ToggleGameplayTeamSelection();
-            }
-            else if (!_world.LocalPlayerAwaitingJoin && changeClassPressed)
-            {
-                ToggleGameplayClassSelection();
-            }
-        }
-
-        if (_consoleOpen && escapePressed)
-        {
-            _consoleOpen = false;
-        }
-        else if (_chatOpen && escapePressed)
-        {
-            ResetChatInputState();
-        }
-        else if (_teamSelectOpen && escapePressed && !_world.LocalPlayerAwaitingJoin)
-        {
-            CloseGameplaySelectionMenus();
-        }
-        else if (_classSelectOpen && escapePressed)
-        {
-            CloseGameplaySelectionMenus();
-        }
-        else if (CanOpenInGamePauseMenu() && pausePressed)
-        {
-            OpenInGameMenu();
-        }
-
-        if (_world.MatchState.IsEnded || (_killCamEnabled && _world.LocalDeathCam is not null))
-        {
-            CloseGameplaySelectionMenus();
-        }
-
-        if (_passwordPromptOpen)
-        {
-            CloseGameplaySelectionMenus();
-        }
+        _gameplayScreenStateController.UpdateGameplayScreenState(keyboard);
     }
 
     private void FinalizeGameplayFrame(KeyboardState keyboard, MouseState mouse)

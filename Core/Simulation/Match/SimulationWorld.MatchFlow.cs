@@ -4,17 +4,17 @@ public sealed partial class SimulationWorld
 {
     private void UpdateCaptureTheFlagState()
     {
-        MatchObjectiveFlowSystem.UpdateCaptureTheFlagState(this);
+        _runtimeController.AdvanceLegacyCaptureTheFlagState();
     }
 
     private void UpdateArenaState()
     {
-        MatchObjectiveFlowSystem.UpdateArenaState(this);
+        _runtimeController.AdvanceLegacyArenaState();
     }
 
     private void AdvanceMatchState()
     {
-        MatchObjectiveFlowSystem.AdvanceMatchState(this);
+        _runtimeController.AdvanceLegacyMatchState();
     }
 
     private static bool NearlyEqual(float left, float right)

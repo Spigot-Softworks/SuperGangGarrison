@@ -37,18 +37,9 @@ public partial class Game1
 
     private void ResetTransientPresentationEffects()
     {
-        _explosions.Clear();
-        _impactVisuals.Clear();
-        _airBlasts.Clear();
-        _bubblePops.Clear();
+        _gameplayImpactEffectsController.ResetTransientEffects();
         ResetRetainedDeadBodies();
-        ResetBackstabVisuals();
-        _bloodVisuals.Clear();
-        _bloodSprayVisuals.Clear();
-        _stickyGibBloodCoatings.Clear();
-        _staleStickyGibBloodPlayerIds.Clear();
-        _processedStickyGibBloodDropIds.Clear();
-        _staleStickyGibBloodDropIds.Clear();
+        _gameplayGoreEffectsController.ResetTransientEffects();
         ResetExperimentalHealingHudIndicators();
         _pendingWeaponShellVisuals.Clear();
         _shellVisuals.Clear();
@@ -62,127 +53,19 @@ public partial class Game1
         _pendingNetworkDamageEvents.Clear();
     }
 
-    private static ExplosionVisual CreateExplosionVisual(float x, float y, int initialElapsedSourceTicks = 1)
-    {
-        var explosion = new ExplosionVisual(x, y)
-        {
-            ElapsedSourceTicks = Math.Clamp(initialElapsedSourceTicks, 0, ExplosionVisual.LifetimeSourceTicks - 1),
-        };
-        return explosion;
-    }
-
-    private static ExplosionVisual CreateHealExplosionVisual(float x, float y)
-    {
-        var explosion = CreateExplosionVisual(x, y);
-        explosion.LargeSpriteColor = new Color(255, 128, 128);
-        explosion.SmallSpriteColor = new Color(255, 64, 64);
-        explosion.FallbackOuterColor = new Color(230, 36, 36);
-        explosion.FallbackInnerColor = new Color(255, 196, 196);
-        explosion.LargeScaleMultiplier = 1.2f;
-        explosion.SmallScaleMultiplier = 1.15f;
-        return explosion;
-    }
-
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
     {
-        explosion = CreateExplosionVisual(soundEvent.X, soundEvent.Y);
-        if (soundEvent.SourceFrame == 0)
-        {
-            return true;
-        }
-
-        var currentFrame = (ulong)Math.Max(0L, _world.Frame);
-        if (currentFrame <= soundEvent.SourceFrame)
-        {
-            return true;
-        }
-
-        var elapsedSourceTicks = (currentFrame - soundEvent.SourceFrame)
-            * (LegacyMovementModel.SourceTicksPerSecond / (float)_config.TicksPerSecond);
-        if (elapsedSourceTicks >= ExplosionVisual.LifetimeSourceTicks)
-        {
-            explosion = null;
-            return false;
-        }
-
-        explosion.ElapsedSourceTicks = Math.Clamp((int)MathF.Floor(elapsedSourceTicks), 0, ExplosionVisual.LifetimeSourceTicks - 1);
-        explosion.PendingSourceTicks = Math.Clamp(elapsedSourceTicks - explosion.ElapsedSourceTicks, 0f, 1f);
-        return true;
+        return _gameplayImpactEffectsController.TryCreateExplosionVisual(soundEvent, out explosion);
     }
 
     private void AdvanceExplosionVisuals()
     {
-        for (var index = _airBlasts.Count - 1; index >= 0; index -= 1)
-        {
-            _airBlasts[index].TicksRemaining -= 1;
-            if (_airBlasts[index].TicksRemaining <= 0)
-            {
-                _airBlasts.RemoveAt(index);
-            }
-        }
-
-        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
-        if (sourceTickAdvance <= 0f)
-        {
-            return;
-        }
-
-        for (var index = _bubblePops.Count - 1; index >= 0; index -= 1)
-        {
-            var bubblePop = _bubblePops[index];
-            bubblePop.PendingSourceTicks += sourceTickAdvance;
-            while (bubblePop.PendingSourceTicks >= 1f && bubblePop.ElapsedSourceTicks < BubblePopVisual.LifetimeSourceTicks)
-            {
-                bubblePop.PendingSourceTicks -= 1f;
-                bubblePop.ElapsedSourceTicks += 1;
-            }
-
-            if (bubblePop.ElapsedSourceTicks >= BubblePopVisual.LifetimeSourceTicks)
-            {
-                _bubblePops.RemoveAt(index);
-            }
-        }
-
-        for (var index = _explosions.Count - 1; index >= 0; index -= 1)
-        {
-            var explosion = _explosions[index];
-            explosion.PendingSourceTicks += sourceTickAdvance;
-            while (explosion.PendingSourceTicks >= 1f && explosion.ElapsedSourceTicks < ExplosionVisual.LifetimeSourceTicks)
-            {
-                explosion.PendingSourceTicks -= 1f;
-                explosion.ElapsedSourceTicks += 1;
-            }
-
-            if (explosion.ElapsedSourceTicks >= ExplosionVisual.LifetimeSourceTicks)
-            {
-                _explosions.RemoveAt(index);
-            }
-        }
+        _gameplayImpactEffectsController.AdvanceExplosionVisuals();
     }
 
     private void AdvanceImpactVisuals()
     {
-        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
-        if (sourceTickAdvance <= 0f)
-        {
-            return;
-        }
-
-        for (var index = _impactVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            var impact = _impactVisuals[index];
-            impact.PendingSourceTicks += sourceTickAdvance;
-            while (impact.PendingSourceTicks >= 1f && impact.ElapsedSourceTicks < ImpactVisual.LifetimeSourceTicks)
-            {
-                impact.PendingSourceTicks -= 1f;
-                impact.ElapsedSourceTicks += 1;
-            }
-
-            if (impact.ElapsedSourceTicks >= ImpactVisual.LifetimeSourceTicks)
-            {
-                _impactVisuals.RemoveAt(index);
-            }
-        }
+        _gameplayImpactEffectsController.AdvanceImpactVisuals();
     }
 
     private void AdvanceLooseSheetVisuals()
@@ -248,138 +131,7 @@ public partial class Game1
 
     private void AdvanceBloodVisuals()
     {
-        if (_gibLevel == 0)
-        {
-            _bloodVisuals.Clear();
-            _bloodSprayVisuals.Clear();
-            _stickyGibBloodCoatings.Clear();
-            _staleStickyGibBloodPlayerIds.Clear();
-            _processedStickyGibBloodDropIds.Clear();
-            _staleStickyGibBloodDropIds.Clear();
-            return;
-        }
-
-        for (var index = _bloodVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _bloodVisuals[index].TicksRemaining -= 1;
-            if (_bloodVisuals[index].TicksRemaining <= 0)
-            {
-                _bloodVisuals.RemoveAt(index);
-            }
-        }
-
-        for (var index = _bloodSprayVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            var spray = _bloodSprayVisuals[index];
-            spray.TicksRemaining -= 1;
-            if (spray.TicksRemaining <= 0)
-            {
-                _bloodSprayVisuals.RemoveAt(index);
-                continue;
-            }
-
-            spray.VelocityY = MathF.Min(BloodDropEntity.MaxSpeed, spray.VelocityY + 0.35f);
-            spray.X += spray.VelocityX;
-            spray.Y += spray.VelocityY;
-            spray.VelocityX *= 0.97f;
-        }
-
-        AdvanceStickyGibBloodCoatings();
-    }
-
-    private void AdvanceStickyGibBloodCoatings()
-    {
-        AdvanceStickyGibBloodContactCoatings();
-
-        if (_stickyGibBloodCoatings.Count == 0)
-        {
-            return;
-        }
-
-        _staleStickyGibBloodPlayerIds.Clear();
-        foreach (var entry in _stickyGibBloodCoatings)
-        {
-            var coatedPlayer = FindPlayerById(entry.Key);
-            if (coatedPlayer is null || !coatedPlayer.IsAlive)
-            {
-                _staleStickyGibBloodPlayerIds.Add(entry.Key);
-                continue;
-            }
-
-            entry.Value.TicksRemaining -= 1;
-            if (entry.Value.TicksRemaining <= 0)
-            {
-                _staleStickyGibBloodPlayerIds.Add(entry.Key);
-            }
-        }
-
-        for (var index = 0; index < _staleStickyGibBloodPlayerIds.Count; index += 1)
-        {
-            _stickyGibBloodCoatings.Remove(_staleStickyGibBloodPlayerIds[index]);
-        }
-
-        _staleStickyGibBloodPlayerIds.Clear();
-    }
-
-    private void AdvanceStickyGibBloodContactCoatings()
-    {
-        if (!IsPracticeSessionActive || !_practiceStickyGibBloodEnabled)
-        {
-            _processedStickyGibBloodDropIds.Clear();
-            _staleStickyGibBloodDropIds.Clear();
-            return;
-        }
-
-        for (var index = 0; index < _world.BloodDrops.Count; index += 1)
-        {
-            var bloodDrop = _world.BloodDrops[index];
-            if (_processedStickyGibBloodDropIds.Contains(bloodDrop.Id))
-            {
-                continue;
-            }
-
-            if (!TryGetStickyGibBloodTargetPlayer(bloodDrop.X, bloodDrop.Y, bloodDrop.Scale, out var coatedPlayer))
-            {
-                continue;
-            }
-
-            var intensity = Math.Clamp((int)MathF.Round(bloodDrop.Scale * 1.5f), 1, 3);
-            ApplyStickyGibBloodCoating(coatedPlayer, intensity);
-            _processedStickyGibBloodDropIds.Add(bloodDrop.Id);
-        }
-
-        if (_processedStickyGibBloodDropIds.Count == 0)
-        {
-            return;
-        }
-
-        _staleStickyGibBloodDropIds.Clear();
-        foreach (var processedDropId in _processedStickyGibBloodDropIds)
-        {
-            var isActive = false;
-            for (var bloodDropIndex = 0; bloodDropIndex < _world.BloodDrops.Count; bloodDropIndex += 1)
-            {
-                if (_world.BloodDrops[bloodDropIndex].Id != processedDropId)
-                {
-                    continue;
-                }
-
-                isActive = true;
-                break;
-            }
-
-            if (!isActive)
-            {
-                _staleStickyGibBloodDropIds.Add(processedDropId);
-            }
-        }
-
-        for (var index = 0; index < _staleStickyGibBloodDropIds.Count; index += 1)
-        {
-            _processedStickyGibBloodDropIds.Remove(_staleStickyGibBloodDropIds[index]);
-        }
-
-        _staleStickyGibBloodDropIds.Clear();
+        _gameplayGoreEffectsController.AdvanceBloodVisuals();
     }
 
     private void AdvanceShellVisuals()
@@ -473,395 +225,62 @@ public partial class Game1
 
     private void AdvanceBackstabVisuals()
     {
-        if (_backstabVisuals.Count == 0)
-        {
-            return;
-        }
-
-        var sourceTickAdvance = _clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
-        if (sourceTickAdvance <= 0f)
-        {
-            return;
-        }
-
-        for (var index = _backstabVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            var visual = _backstabVisuals[index];
-            visual.PendingSourceTicks += sourceTickAdvance;
-            var removeVisual = false;
-            while (visual.PendingSourceTicks >= 1f && !visual.Animation.IsExpired)
-            {
-                visual.PendingSourceTicks -= 1f;
-                if (!TryGetBackstabOwnerPosition(visual.Animation.OwnerId, out var ownerPosition))
-                {
-                    removeVisual = true;
-                    break;
-                }
-
-                visual.Animation.AdvanceOneTick(ownerPosition.X, ownerPosition.Y);
-            }
-
-            if (removeVisual || visual.Animation.IsExpired)
-            {
-                _backstabVisuals.RemoveAt(index);
-            }
-        }
+        _gameplayGoreEffectsController.AdvanceBackstabVisuals();
     }
 
     private void DrawBackstabVisuals(Vector2 cameraPosition)
     {
-        for (var index = 0; index < _backstabVisuals.Count; index += 1)
-        {
-            DrawStabAnimation(_backstabVisuals[index].Animation, cameraPosition);
-        }
+        _gameplayGoreEffectsController.DrawBackstabVisuals(cameraPosition);
     }
 
     private void AdvanceRocketSmokeVisuals()
     {
-        if (_particleMode == 1)
-        {
-            _rocketSmokeVisuals.Clear();
-            return;
-        }
-
-        foreach (var rocket in _world.Rockets)
-        {
-            if (_particleMode == 2 && ((_world.Frame + rocket.Id) & 1) != 0)
-            {
-                continue;
-            }
-
-            var velocityX = rocket.X - rocket.PreviousX;
-            var velocityY = rocket.Y - rocket.PreviousY;
-            if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
-            {
-                continue;
-            }
-
-            _rocketSmokeVisuals.Add(new RocketSmokeVisual(
-                rocket.X - (velocityX * 1.3f),
-                rocket.Y - (velocityY * 1.3f)));
-            if (_particleMode == 0)
-            {
-                _rocketSmokeVisuals.Add(new RocketSmokeVisual(
-                    rocket.X - (velocityX * 0.75f),
-                    rocket.Y - (velocityY * 0.75f)));
-            }
-        }
-
-        for (var index = _rocketSmokeVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _rocketSmokeVisuals[index].TicksRemaining -= 1;
-            if (_rocketSmokeVisuals[index].TicksRemaining <= 0)
-            {
-                _rocketSmokeVisuals.RemoveAt(index);
-            }
-        }
+        _gameplaySmokeEffectsController.AdvanceRocketSmokeVisuals();
     }
 
     private void AdvanceFlameSmokeVisuals()
     {
-        if (_particleMode == 1)
-        {
-            _mineTrailVisuals.Clear();
-            _wallspinDustVisuals.Clear();
-            _blastJumpFlameVisuals.Clear();
-            _flameSmokeVisuals.Clear();
-            return;
-        }
-
-        foreach (var flame in _world.Flames)
-        {
-            var smokeChance = _particleMode == 2 ? 4 : 2;
-            if (flame.IsAttached || _visualRandom.Next(smokeChance) != 0)
-            {
-                continue;
-            }
-
-            _flameSmokeVisuals.Add(new FlameSmokeVisual(flame.X, flame.Y - 8f));
-        }
-
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!player.IsAlive || !IsBlastJumpVisualState(player.MovementState))
-            {
-                continue;
-            }
-
-            var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-            if (_visualRandom.NextSingle() < GetBlastJumpFlameProbability())
-            {
-                _blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
-                    renderPosition.X,
-                    renderPosition.Y + (player.Height * 0.5f) + 1f,
-                    _visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
-                    _visualRandom.Next()));
-            }
-
-            if (_particleMode != 0)
-            {
-                continue;
-            }
-
-            var smokeProbability = GetBlastJumpSmokeProbability(player);
-            if (_visualRandom.NextSingle() >= smokeProbability)
-            {
-                continue;
-            }
-
-            var smokeX = renderPosition.X - (player.HorizontalSpeed * (float)_config.FixedDeltaSeconds * 1.2f);
-            var smokeY = renderPosition.Y - (player.VerticalSpeed * (float)_config.FixedDeltaSeconds * 1.2f) + (player.Height * 0.5f) + 2f;
-            _flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
-        }
-
-        AdvanceWallspinDustVisuals();
-
-        for (var index = _blastJumpFlameVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _blastJumpFlameVisuals[index].TicksRemaining -= 1;
-            if (_blastJumpFlameVisuals[index].TicksRemaining <= 0)
-            {
-                _blastJumpFlameVisuals.RemoveAt(index);
-            }
-        }
-
-        for (var index = _flameSmokeVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _flameSmokeVisuals[index].TicksRemaining -= 1;
-            if (_flameSmokeVisuals[index].TicksRemaining <= 0)
-            {
-                _flameSmokeVisuals.RemoveAt(index);
-            }
-        }
+        _gameplaySmokeEffectsController.AdvanceFlameSmokeVisuals();
     }
 
     private void AdvanceWallspinDustVisuals()
     {
-        for (var index = _wallspinDustVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _wallspinDustVisuals[index].TicksRemaining -= 1;
-            if (_wallspinDustVisuals[index].TicksRemaining <= 0)
-            {
-                _wallspinDustVisuals.RemoveAt(index);
-            }
-        }
+        _gameplaySmokeEffectsController.AdvanceWallspinDustVisuals();
     }
 
     private void SpawnWallspinDustVisual(float x, float y, int emissionTicks = 1)
     {
-        for (var emissionIndex = 0; emissionIndex < emissionTicks; emissionIndex += 1)
-        {
-            _wallspinDustVisuals.Add(new WallspinDustVisual(
-                x,
-                y,
-                _visualRandom.Next(GetWallspinDustMinimumLifetimeTicks(), GetWallspinDustMaximumLifetimeTicks() + 1)));
-        }
+        _gameplaySmokeEffectsController.SpawnWallspinDustVisual(x, y, emissionTicks);
     }
 
     private void AdvanceMineTrailVisuals()
     {
-        if (_particleMode == 1)
-        {
-            _mineTrailVisuals.Clear();
-            return;
-        }
-
-        foreach (var mine in _world.Mines)
-        {
-            if (mine.IsStickied || (_particleMode == 2 && ((_world.Frame + mine.Id) & 1) != 0))
-            {
-                continue;
-            }
-
-            var velocityX = mine.X - mine.PreviousX;
-            var velocityY = mine.Y - mine.PreviousY;
-            if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
-            {
-                continue;
-            }
-
-            _mineTrailVisuals.Add(new MineTrailVisual(mine.X, mine.Y));
-        }
-
-        for (var index = _mineTrailVisuals.Count - 1; index >= 0; index -= 1)
-        {
-            _mineTrailVisuals[index].TicksRemaining -= 1;
-            if (_mineTrailVisuals[index].TicksRemaining <= 0)
-            {
-                _mineTrailVisuals.RemoveAt(index);
-            }
-        }
+        _gameplaySmokeEffectsController.AdvanceMineTrailVisuals();
     }
 
     private void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
     {
-        var sprite = _runtimeAssets.GetSprite("FlameS");
-        for (var index = 0; index < _blastJumpFlameVisuals.Count; index += 1)
-        {
-            var flame = _blastJumpFlameVisuals[index];
-            var progress = 1f - (flame.TicksRemaining / (float)flame.InitialTicks);
-            var alpha = 1f - (progress * 0.7f);
-            var scale = MathF.Max(0.25f, 0.7f - (progress * 0.35f));
-            if (sprite is not null && sprite.Frames.Count > 0)
-            {
-                var frameIndex = Math.Abs(flame.FrameSeed + ((int)(_world.Frame + index))) % sprite.Frames.Count;
-                _spriteBatch.Draw(
-                    sprite.Frames[frameIndex],
-                    new Vector2(flame.X - cameraPosition.X, flame.Y - cameraPosition.Y),
-                    null,
-                    Color.White * alpha,
-                    0f,
-                    sprite.Origin.ToVector2(),
-                    new Vector2(scale, scale),
-                    SpriteEffects.None,
-                    0f);
-                continue;
-            }
-
-            var flameSize = Math.Max(2, (int)MathF.Round(8f * scale));
-            var flameRectangle = new Rectangle(
-                (int)(flame.X - (flameSize / 2f) - cameraPosition.X),
-                (int)(flame.Y - (flameSize / 2f) - cameraPosition.Y),
-                flameSize,
-                flameSize);
-            _spriteBatch.Draw(_pixel, flameRectangle, new Color(255, 170, 90) * alpha);
-        }
+        _gameplaySmokeEffectsController.DrawBlastJumpFlameVisuals(cameraPosition);
     }
 
     private void DrawRocketSmokeVisuals(Vector2 cameraPosition)
     {
-        for (var index = 0; index < _rocketSmokeVisuals.Count; index += 1)
-        {
-            var smoke = _rocketSmokeVisuals[index];
-            var progress = 1f - (smoke.TicksRemaining / (float)RocketSmokeVisual.LifetimeTicks);
-            var alpha = 0.7f * (1f - progress);
-            var radius = 4f + (progress * 8f);
-            var color = new Color(176, 176, 176) * alpha;
-            var smokeRectangle = new Rectangle(
-                (int)(smoke.X - radius - cameraPosition.X),
-                (int)(smoke.Y - radius - cameraPosition.Y),
-                (int)(radius * 2f),
-                (int)(radius * 2f));
-            _spriteBatch.Draw(_pixel, smokeRectangle, color);
-        }
+        _gameplaySmokeEffectsController.DrawRocketSmokeVisuals(cameraPosition);
     }
 
     private void DrawFlameSmokeVisuals(Vector2 cameraPosition)
     {
-        for (var index = 0; index < _flameSmokeVisuals.Count; index += 1)
-        {
-            var smoke = _flameSmokeVisuals[index];
-            var progress = 1f - (smoke.TicksRemaining / (float)FlameSmokeVisual.LifetimeTicks);
-            var alpha = 0.55f * (1f - progress);
-            var radius = 3f + (progress * 6f);
-            var color = new Color(160, 160, 160) * alpha;
-            var smokeRectangle = new Rectangle(
-                (int)(smoke.X - radius - cameraPosition.X),
-                (int)(smoke.Y - radius - (progress * 9f) - cameraPosition.Y),
-                (int)(radius * 2f),
-                (int)(radius * 2f));
-            _spriteBatch.Draw(_pixel, smokeRectangle, color);
-        }
+        _gameplaySmokeEffectsController.DrawFlameSmokeVisuals(cameraPosition);
     }
 
     private void DrawExplosionVisuals(Vector2 cameraPosition)
     {
-        DrawAirBlastVisuals(cameraPosition);
-        DrawBubblePopVisuals(cameraPosition);
-        DrawFallbackExplosionVisuals(cameraPosition);
-        var largeSprite = _runtimeAssets.GetSprite("ExplosionS");
-        var smallSprite = _runtimeAssets.GetSprite("ExplosionSmallS");
-        if ((largeSprite is null || largeSprite.Frames.Count == 0)
-            && (smallSprite is null || smallSprite.Frames.Count == 0))
-        {
-            return;
-        }
-
-        foreach (var explosion in _explosions)
-        {
-            DrawExplosionSprite(explosion, cameraPosition, largeSprite, 2.2f * explosion.LargeScaleMultiplier, 0.92f, explosion.LargeSpriteColor, startingFrameBias: 3);
-            DrawExplosionSprite(explosion, cameraPosition, smallSprite, 1.45f * explosion.SmallScaleMultiplier, 0.78f, explosion.SmallSpriteColor, startingFrameBias: 2);
-        }
-    }
-
-    private void DrawExplosionSprite(
-        ExplosionVisual explosion,
-        Vector2 cameraPosition,
-        LoadedGameMakerSprite? sprite,
-        float scale,
-        float alpha,
-        Color tint,
-        int startingFrameBias)
-    {
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        var rawFrameIndex = explosion.ElapsedSourceTicks == 0
-            ? Math.Min(startingFrameBias, sprite.Frames.Count - 1)
-            : (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks);
-        var frameIndex = Math.Clamp(rawFrameIndex, 0, sprite.Frames.Count - 1);
-        _spriteBatch.Draw(
-            sprite.Frames[frameIndex],
-            new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
-            null,
-            tint * alpha,
-            0f,
-            sprite.Origin.ToVector2(),
-            new Vector2(scale, scale),
-            SpriteEffects.None,
-            0f);
+        _gameplayImpactEffectsController.DrawExplosionVisuals(cameraPosition);
     }
 
     private void DrawImpactVisuals(Vector2 cameraPosition)
     {
-        var sprite = _runtimeAssets.GetSprite("ImpactS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        for (var index = 0; index < _impactVisuals.Count; index += 1)
-        {
-            var impact = _impactVisuals[index];
-            var secondStage = impact.ElapsedSourceTicks >= (ImpactVisual.LifetimeSourceTicks / 2);
-            var alpha = secondStage ? 0.5f : 1f;
-            var scale = secondStage ? 1f : 0.5f;
-            _spriteBatch.Draw(
-                sprite.Frames[0],
-                new Vector2(impact.X - cameraPosition.X, impact.Y - cameraPosition.Y),
-                null,
-                Color.White * alpha,
-                impact.RotationRadians,
-                sprite.Origin.ToVector2(),
-                new Vector2(scale, scale),
-                SpriteEffects.None,
-                0f);
-        }
-    }
-
-    private void DrawFallbackExplosionVisuals(Vector2 cameraPosition)
-    {
-        foreach (var explosion in _explosions)
-        {
-            var progress = explosion.ElapsedSourceTicks / (float)ExplosionVisual.LifetimeSourceTicks;
-            var radius = 12f + (progress * 18f);
-            var innerRadius = radius * 0.5f;
-            var alpha = MathHelper.Clamp(1f - progress, 0f, 1f);
-            var outerRectangle = new Rectangle(
-                (int)MathF.Round(explosion.X - cameraPosition.X - radius),
-                (int)MathF.Round(explosion.Y - cameraPosition.Y - radius),
-                (int)MathF.Round(radius * 2f),
-                (int)MathF.Round(radius * 2f));
-            var innerRectangle = new Rectangle(
-                (int)MathF.Round(explosion.X - cameraPosition.X - innerRadius),
-                (int)MathF.Round(explosion.Y - cameraPosition.Y - innerRadius),
-                (int)MathF.Round(innerRadius * 2f),
-                (int)MathF.Round(innerRadius * 2f));
-            _spriteBatch.Draw(_pixel, outerRectangle, explosion.FallbackOuterColor * alpha);
-            _spriteBatch.Draw(_pixel, innerRectangle, explosion.FallbackInnerColor * alpha);
-        }
+        _gameplayImpactEffectsController.DrawImpactVisuals(cameraPosition);
     }
 
     private void DrawLooseSheetVisuals(Vector2 cameraPosition)
@@ -903,170 +322,19 @@ public partial class Game1
         }
     }
 
-    private void DrawBubblePopVisuals(Vector2 cameraPosition)
-    {
-        var sprite = _runtimeAssets.GetSprite("PopS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var bubblePop in _bubblePops)
-        {
-            var frameIndex = Math.Clamp(
-                (int)MathF.Floor(bubblePop.ElapsedSourceTicks * sprite.Frames.Count / (float)BubblePopVisual.LifetimeSourceTicks),
-                0,
-                sprite.Frames.Count - 1);
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(bubblePop.X - cameraPosition.X, bubblePop.Y - cameraPosition.Y),
-                null,
-                Color.White,
-                0f,
-                sprite.Origin.ToVector2(),
-                Vector2.One,
-                SpriteEffects.None,
-                0f);
-        }
-    }
-
-    private void DrawAirBlastVisuals(Vector2 cameraPosition)
-    {
-        var sprite = _runtimeAssets.GetSprite("AirBlastS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var airBlast in _airBlasts)
-        {
-            var elapsedTicks = AirBlastVisual.LifetimeTicks - airBlast.TicksRemaining;
-            var frameIndex = Math.Clamp((int)MathF.Floor(elapsedTicks * sprite.Frames.Count / (float)AirBlastVisual.LifetimeTicks), 0, sprite.Frames.Count - 1);
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(airBlast.X - cameraPosition.X, airBlast.Y - cameraPosition.Y),
-                null,
-                Color.White,
-                airBlast.RotationRadians,
-                sprite.Origin.ToVector2(),
-                Vector2.One,
-                SpriteEffects.None,
-                0f);
-        }
-    }
-
     private void DrawBloodVisuals(Vector2 cameraPosition)
     {
-        if (_gibLevel == 0)
-        {
-            return;
-        }
-
-        var sprite = _runtimeAssets.GetSprite("BloodS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var blood in _bloodVisuals)
-        {
-            var elapsedTicks = BloodVisual.LifetimeTicks - blood.TicksRemaining;
-            var frameIndex = Math.Clamp(elapsedTicks, 0, sprite.Frames.Count - 1);
-            var scale = elapsedTicks < 2 ? 0.5f : 1f;
-            var alpha = elapsedTicks < 2 ? 1f : 0.5f;
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(blood.X - cameraPosition.X, blood.Y - cameraPosition.Y),
-                null,
-                Color.White * alpha,
-                0f,
-                sprite.Origin.ToVector2(),
-                new Vector2(scale, scale),
-                SpriteEffects.None,
-                0f);
-        }
-
-        var bloodDropSprite = _runtimeAssets.GetSprite("BloodDropS");
-        for (var index = 0; index < _bloodSprayVisuals.Count; index += 1)
-        {
-            var spray = _bloodSprayVisuals[index];
-            var alpha = Math.Clamp(spray.TicksRemaining / (float)spray.InitialTicks, 0f, 1f);
-            if (bloodDropSprite is not null && bloodDropSprite.Frames.Count > 0)
-            {
-                _spriteBatch.Draw(
-                    bloodDropSprite.Frames[0],
-                    new Vector2(spray.X - cameraPosition.X, spray.Y - cameraPosition.Y),
-                    null,
-                    Color.White * alpha,
-                    0f,
-                    bloodDropSprite.Origin.ToVector2(),
-                    Vector2.One,
-                    SpriteEffects.None,
-                    0f);
-                continue;
-            }
-
-            var rectangle = new Rectangle(
-                (int)(spray.X - cameraPosition.X),
-                (int)(spray.Y - cameraPosition.Y),
-                2,
-                2);
-            _spriteBatch.Draw(_pixel, rectangle, Color.White * alpha);
-        }
+        _gameplayGoreEffectsController.DrawBloodVisuals(cameraPosition);
     }
 
     private void DrawMineTrailVisuals(Vector2 cameraPosition)
     {
-        var sprite = _runtimeAssets.GetSprite("MineTrailS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        for (var index = 0; index < _mineTrailVisuals.Count; index += 1)
-        {
-            var trail = _mineTrailVisuals[index];
-            var progress = 1f - (trail.TicksRemaining / (float)MineTrailVisual.LifetimeTicks);
-            var frameIndex = Math.Clamp((int)MathF.Floor(progress * sprite.Frames.Count), 0, sprite.Frames.Count - 1);
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(trail.X - cameraPosition.X, trail.Y - cameraPosition.Y),
-                null,
-                Color.White,
-                0f,
-                sprite.Origin.ToVector2(),
-                Vector2.One,
-                SpriteEffects.None,
-                0f);
-        }
+        _gameplaySmokeEffectsController.DrawMineTrailVisuals(cameraPosition);
     }
 
     private void DrawWallspinDustVisuals(Vector2 cameraPosition)
     {
-        var sprite = _runtimeAssets.GetSprite("SpeedBoostS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        for (var index = 0; index < _wallspinDustVisuals.Count; index += 1)
-        {
-            var dust = _wallspinDustVisuals[index];
-            var progress = 1f - (dust.TicksRemaining / (float)dust.TotalLifetimeTicks);
-            var alpha = progress < 0.5f
-                ? MathHelper.Lerp(0.7f, 0.5f, progress * 2f)
-                : MathHelper.Lerp(0.5f, 0f, (progress - 0.5f) * 2f);
-            _spriteBatch.Draw(
-                sprite.Frames[0],
-                new Vector2(dust.X - cameraPosition.X, dust.Y - cameraPosition.Y),
-                null,
-                Color.White * alpha,
-                -MathHelper.PiOver2,
-                sprite.Origin.ToVector2(),
-                Vector2.One,
-                SpriteEffects.None,
-                0f);
-        }
+        _gameplaySmokeEffectsController.DrawWallspinDustVisuals(cameraPosition);
     }
 
     private void DrawShellVisuals(Vector2 cameraPosition)
@@ -1312,33 +580,13 @@ public partial class Game1
 
     private void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
     {
-        if (string.Equals(effectName, "Explosion", StringComparison.OrdinalIgnoreCase))
+        if (_gameplayImpactEffectsController.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
         {
-            _explosions.Add(CreateExplosionVisual(x, y));
             return;
         }
 
-        if (string.Equals(effectName, "HealExplosion", StringComparison.OrdinalIgnoreCase))
+        if (_gameplayGoreEffectsController.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
         {
-            _explosions.Add(CreateHealExplosionVisual(x, y));
-            return;
-        }
-
-        if (string.Equals(effectName, "Impact", StringComparison.OrdinalIgnoreCase))
-        {
-            _impactVisuals.Add(new ImpactVisual(x, y, directionDegrees * (MathF.PI / 180f)));
-            return;
-        }
-
-        if (string.Equals(effectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
-        {
-            _airBlasts.Add(new AirBlastVisual(x, y, directionDegrees * (MathF.PI / 180f)));
-            return;
-        }
-
-        if (string.Equals(effectName, "Pop", StringComparison.OrdinalIgnoreCase))
-        {
-            _bubblePops.Add(new BubblePopVisual(x, y));
             return;
         }
 
@@ -1354,40 +602,7 @@ public partial class Game1
             return;
         }
 
-        if (string.Equals(effectName, "BackstabBlue", StringComparison.OrdinalIgnoreCase))
-        {
-            SpawnBackstabVisual(ownerId: count, PlayerTeam.Blue, x, y, directionDegrees);
-            return;
-        }
-
-        if (string.Equals(effectName, "BackstabRed", StringComparison.OrdinalIgnoreCase))
-        {
-            SpawnBackstabVisual(ownerId: count, PlayerTeam.Red, x, y, directionDegrees);
-            return;
-        }
-
-        if (string.Equals(effectName, "GibBlood", StringComparison.OrdinalIgnoreCase))
-        {
-            if (_gibLevel == 0)
-            {
-                return;
-            }
-
-            SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
-            return;
-        }
-
-        if (!string.Equals(effectName, "Blood", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        if (_gibLevel == 0)
-        {
-            return;
-        }
-
-        SpawnBloodImpactVisuals(x, y, directionDegrees, Math.Max(1, count));
+        return;
     }
 
     private void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
@@ -1406,60 +621,12 @@ public partial class Game1
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
     {
-        var normalizedDirection = NormalizeDirectionDegrees(directionDegrees);
-        for (var index = 0; index < _backstabVisuals.Count; index += 1)
-        {
-            var animation = _backstabVisuals[index].Animation;
-            if (ownerId != 0 && animation.OwnerId == ownerId)
-            {
-                return;
-            }
-
-            if (animation.Team != team)
-            {
-                continue;
-            }
-
-            if (DistanceSquared(animation.X, animation.Y, x, y) > 16f)
-            {
-                continue;
-            }
-
-            if (GetAngleDifferenceDegrees(animation.DirectionDegrees, normalizedDirection) > 8f)
-            {
-                continue;
-            }
-
-            return;
-        }
-
-        _backstabVisuals.Add(new BackstabVisual(
-            new StabAnimEntity(_nextClientBackstabVisualId--, ownerId, team, x, y, normalizedDirection)));
-    }
-
-    private bool TryGetBackstabOwnerPosition(int ownerId, out Vector2 ownerPosition)
-    {
-        if (ownerId == 0)
-        {
-            ownerPosition = default;
-            return false;
-        }
-
-        var owner = FindPlayerById(ownerId);
-        if (owner is null || !owner.IsAlive || owner.ClassId != PlayerClass.Spy)
-        {
-            ownerPosition = default;
-            return false;
-        }
-
-        ownerPosition = GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _world.LocalPlayer));
-        return true;
+        _gameplayGoreEffectsController.SpawnBackstabVisual(ownerId, team, x, y, directionDegrees);
     }
 
     private void ResetBackstabVisuals()
     {
-        _backstabVisuals.Clear();
-        _nextClientBackstabVisualId = -1;
+        _gameplayGoreEffectsController.ResetBackstabVisuals();
     }
 
     private static float NormalizeDirectionDegrees(float directionDegrees)
@@ -1534,182 +701,9 @@ public partial class Game1
         return (int)MathF.Ceiling(GetSourceTicksAsSeconds(30f) * ClientUpdateTicksPerSecond);
     }
 
-    private void SpawnBloodImpactVisuals(float x, float y, float directionDegrees, int burstCount)
-    {
-        for (var index = 0; index < burstCount; index += 1)
-        {
-            var spreadDegrees = directionDegrees + (_visualRandom.NextSingle() * 57f) - 28f;
-            var spreadRadians = spreadDegrees * (MathF.PI / 180f);
-            var distance = burstCount > 1 ? _visualRandom.NextSingle() * 8f : 0f;
-            _bloodVisuals.Add(new BloodVisual(
-                x + MathF.Cos(spreadRadians) * distance,
-                y + MathF.Sin(spreadRadians) * distance));
-        }
-
-        var sprayCount = Math.Clamp((burstCount * 2) + 4, 6, 14);
-        for (var index = 0; index < sprayCount; index += 1)
-        {
-            var spreadDegrees = directionDegrees + (_visualRandom.NextSingle() * 57f) - 28f;
-            var spreadRadians = spreadDegrees * (MathF.PI / 180f);
-            var speed = 4f + (_visualRandom.NextSingle() * 14f);
-            _bloodSprayVisuals.Add(new BloodSprayVisual(
-                x,
-                y,
-                MathF.Cos(spreadRadians) * speed,
-                MathF.Sin(spreadRadians) * speed,
-                _visualRandom.Next(24, 47)));
-        }
-    }
-
-    private void SpawnGibBloodImpactVisuals(float x, float y, int intensity)
-    {
-        TryApplyStickyGibBloodCoating(x, y, intensity);
-
-        var burstCount = Math.Max(6, intensity * 4);
-        for (var index = 0; index < burstCount; index += 1)
-        {
-            var directionRadians = _visualRandom.NextSingle() * MathF.Tau;
-            var distance = _visualRandom.NextSingle() * 11f;
-            _bloodVisuals.Add(new BloodVisual(
-                x + MathF.Cos(directionRadians) * distance,
-                y + MathF.Sin(directionRadians) * distance));
-        }
-
-        var sprayCount = Math.Max(14, intensity * 10);
-        for (var index = 0; index < sprayCount; index += 1)
-        {
-            var directionRadians = _visualRandom.NextSingle() * MathF.Tau;
-            var speed = 6f + (_visualRandom.NextSingle() * 16f);
-            var startRadius = _visualRandom.NextSingle() * 8f;
-            _bloodSprayVisuals.Add(new BloodSprayVisual(
-                x + MathF.Cos(directionRadians) * startRadius,
-                y + MathF.Sin(directionRadians) * startRadius,
-                MathF.Cos(directionRadians) * speed,
-                MathF.Sin(directionRadians) * speed,
-                _visualRandom.Next(28, 57)));
-        }
-    }
-
-    private void TryApplyStickyGibBloodCoating(float x, float y, int intensity)
-    {
-        if (!IsPracticeSessionActive || !_practiceStickyGibBloodEnabled)
-        {
-            return;
-        }
-
-        var baseRadius = 18f + (Math.Max(1, intensity) * 4f);
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
-            {
-                continue;
-            }
-
-            var reach = baseRadius + (MathF.Max(player.Width, player.Height) * 0.25f);
-            var deltaX = player.X - x;
-            var deltaY = player.Y - y;
-            if ((deltaX * deltaX) + (deltaY * deltaY) > reach * reach)
-            {
-                continue;
-            }
-
-            ApplyStickyGibBloodCoating(player, intensity);
-        }
-    }
-
-    private void ApplyStickyGibBloodCoating(PlayerEntity player, int intensity)
-    {
-        if (!_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
-        {
-            coating = new StickyGibBloodCoating();
-            _stickyGibBloodCoatings[player.Id] = coating;
-        }
-
-        coating.TicksRemaining = StickyGibBloodCoating.LifetimeTicks;
-        coating.Intensity = Math.Clamp(
-            Math.Max(coating.Intensity, 0.42f) + (Math.Min(4, Math.Max(1, intensity)) * 0.08f),
-            0.42f,
-            1f);
-    }
-
-    private bool TryGetStickyGibBloodTargetPlayer(float x, float y, float scale, out PlayerEntity coatedPlayer)
-    {
-        var padding = 2f + (scale * 3f);
-        foreach (var player in EnumerateRenderablePlayers())
-        {
-            if (!player.IsAlive || GetPlayerVisibilityAlpha(player) <= 0f)
-            {
-                continue;
-            }
-
-            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
-            if (x < left - padding
-                || x > right + padding
-                || y < top - padding
-                || y > bottom + padding)
-            {
-                continue;
-            }
-
-            coatedPlayer = player;
-            return true;
-        }
-
-        coatedPlayer = _world.LocalPlayer;
-        return false;
-    }
-
     private void DrawExperimentalStickyGibBloodOverlay(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
     {
-        if (!IsPracticeSessionActive
-            || !_practiceStickyGibBloodEnabled
-            || visibilityAlpha <= 0f
-            || !_stickyGibBloodCoatings.TryGetValue(player.Id, out var coating))
-        {
-            return;
-        }
-
-        var sprite = _runtimeAssets.GetSprite("BloodS");
-        if (sprite is null || sprite.Frames.Count == 0)
-        {
-            return;
-        }
-
-        var fadeAlpha = coating.TicksRemaining > StickyGibBloodCoating.FadeTicks
-            ? 1f
-            : coating.TicksRemaining / (float)StickyGibBloodCoating.FadeTicks;
-        var alpha = Math.Clamp(coating.Intensity * fadeAlpha * visibilityAlpha, 0f, 1f);
-        if (alpha <= 0f)
-        {
-            return;
-        }
-
-        var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-        var facingScale = GetPlayerFacingScale(player);
-        var splashCount = Math.Clamp(1 + (int)MathF.Floor(coating.Intensity * 3f), 1, 3);
-        for (var splashIndex = 0; splashIndex < splashCount; splashIndex += 1)
-        {
-            var frameIndex = Math.Abs((player.Id * 17) + (splashIndex * 7)) % sprite.Frames.Count;
-            var offsetX = ((splashIndex - 1) * 6f + ((Math.Abs(player.Id + (splashIndex * 11)) % 5) - 2f)) * facingScale;
-            var offsetY = splashIndex switch
-            {
-                0 => -7f,
-                1 => 0f,
-                _ => 6f,
-            };
-            var scale = 0.48f + (coating.Intensity * 0.16f) + (splashIndex * 0.04f);
-            _spriteBatch.Draw(
-                sprite.Frames[frameIndex],
-                new Vector2(roundedOrigin.X + offsetX - cameraPosition.X, roundedOrigin.Y + offsetY - cameraPosition.Y),
-                null,
-                Color.White * (alpha * (0.8f - (splashIndex * 0.12f))),
-                0f,
-                sprite.Origin.ToVector2(),
-                new Vector2(scale, scale),
-                SpriteEffects.None,
-                0f);
-        }
+        _gameplayGoreEffectsController.DrawExperimentalStickyGibBloodOverlay(player, cameraPosition, visibilityAlpha);
     }
 
     private sealed class ExplosionVisual

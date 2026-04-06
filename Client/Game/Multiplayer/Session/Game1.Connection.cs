@@ -25,53 +25,23 @@ public partial class Game1
         string? requestedMap,
         string? mapRotationFile)
     {
-        PrepareHostedServerLaunchUi(closeHostSetup: true, disconnectNetworkClient: true);
-
-        if (!TryStartHostedServerBackground(
-                serverName,
-                port,
-                maxPlayers,
-                password,
-                timeLimitMinutes,
-                capLimit,
-                respawnSeconds,
-                lobbyAnnounce,
-                autoBalance,
-                requestedMap,
-                mapRotationFile,
-                resetConsole: false,
-                out var error))
-        {
-            _menuStatusMessage = error;
-            return;
-        }
-
-        BeginPendingHostedLocalConnect(port, delayTicks: 20, "Starting local server...");
+        _gameplaySessionController.BeginHostedGame(
+            serverName,
+            port,
+            maxPlayers,
+            password,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            lobbyAnnounce,
+            autoBalance,
+            requestedMap,
+            mapRotationFile);
     }
 
     private bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
     {
-        if (_networkClient.Connect(host, port, _world.LocalPlayer.DisplayName, _world.LocalPlayer.BadgeMask, out var error))
-        {
-            RecordRecentConnection(host, port);
-            ResetGameplayRuntimeState();
-            CloseLobbyBrowser(clearStatus: false);
-            SetNetworkStatus($"Connecting to {host}:{port}...");
-            if (addConsoleFeedback)
-            {
-                AddNetworkConsoleLine($"connecting to {host}:{port} over udp");
-            }
-
-            return true;
-        }
-
-        SetNetworkStatus($"Connect failed: {error}");
-        if (addConsoleFeedback)
-        {
-            AddNetworkConsoleLine($"connect failed: {error}");
-        }
-
-        return false;
+        return _gameplaySessionController.TryConnectToServer(host, port, addConsoleFeedback);
     }
 
     private void ShowAutoBalanceNotice(string text, int seconds)

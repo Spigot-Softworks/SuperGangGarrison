@@ -90,6 +90,11 @@ public sealed partial class SimulationWorld
 
     private void AdvanceKothMatchState()
     {
+        _runtimeController.AdvanceLegacyKothMatchState();
+    }
+
+    private void AdvanceKothMatchStateCore()
+    {
         if (MatchState.IsEnded)
         {
             return;

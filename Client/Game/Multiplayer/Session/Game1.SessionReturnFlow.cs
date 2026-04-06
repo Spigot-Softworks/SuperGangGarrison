@@ -8,20 +8,11 @@ public partial class Game1
 {
     private void ReturnToMainMenu(string? statusMessage = null)
     {
-        ResetActiveSessionState();
-        ResetToMainMenuState(statusMessage);
+        _gameplaySessionController.ReturnToMainMenu(statusMessage);
     }
 
     private void ResetActiveSessionState()
     {
-        ResetPracticeBotManagerState(releaseWorldSlots: true);
-        ResetPracticeNavigationState();
-        _networkClient.Disconnect();
-        ResetGameplayTransitionEffects();
-        ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
-        ResetGameplayRuntimeState();
-        StopHostedServer();
-        ResetSpectatorTracking(enableTracking: false);
-        ResetLastToDieState();
+        _gameplaySessionController.ResetActiveSessionState();
     }
 }

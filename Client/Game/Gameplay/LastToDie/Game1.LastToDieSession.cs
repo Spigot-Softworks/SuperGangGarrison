@@ -246,51 +246,7 @@ public partial class Game1
 
     private bool BeginLastToDieStage(string levelName)
     {
-        if (_lastToDieRun is null)
-        {
-            return false;
-        }
-
-        var settings = BuildLastToDieExperimentalGameplaySettings(_lastToDieRun);
-        if (!TryBeginOfflineBotSession(
-                levelName,
-                GameplaySessionKind.LastToDie,
-                _practiceTickRate,
-                settings,
-                LastToDieMatchTimeLimitMinutes,
-                LastToDieCapLimit,
-                LastToDieRespawnSeconds,
-                openJoinMenus: false,
-                consoleSessionName: "last to die"))
-        {
-            return false;
-        }
-
-        _lastToDiePerkMenuOpen = false;
-        _lastToDiePerkHoverIndex = -1;
-        _lastToDieStageClearOverlayOpen = false;
-        _lastToDieStageClearOverlayTicks = 0;
-        ClearLastToDieDeathFocusPresentation();
-        ResetLastToDieBotReactionState();
-        ResetLastToDieCombatFeedbackPresentation();
-        _lastToDieFailureOverlayOpen = false;
-        _lastToDieFailureOverlayTicks = 0;
-
-        _lastToDieRun.CurrentLevelName = levelName;
-        ApplySelectedLastToDieSurvivorToCurrentStage();
-        SyncPracticeBotRoster(PlayerTeam.Red);
-        _world.DespawnEnemyDummy();
-        _world.DespawnFriendlyDummy();
-        ObserveLastToDieBotReactionState();
-        ObserveLastToDieCombatFeedbackState();
-        _lastToDieRun.ObservedStageKills = 0;
-
-        _lastToDieRun.StageRemainingTicks = _lastToDieRun.StageDurationMinutes * 60 * _config.TicksPerSecond;
-        _lastToDieRun.StageIntroTicksRemaining = GetLastToDieStageIntroDurationTicks();
-
-        AddConsoleLine(
-            $"last to die stage={_lastToDieRun.StageNumber} map={levelName} survivor={_lastToDieRun.SurvivorKind} enemies={_lastToDieRun.EnemyBotCount} minutes={_lastToDieRun.StageDurationMinutes}");
-        return true;
+        return _gameplaySessionController.BeginLastToDieStage(levelName);
     }
 
     private static PlayerClass GetLastToDieSurvivorPlayerClass(LastToDieSurvivorKind survivorKind)
@@ -327,56 +283,16 @@ public partial class Game1
         bool openJoinMenus,
         string consoleSessionName)
     {
-        if (sessionKind != GameplaySessionKind.LastToDie)
-        {
-            ResetLastToDieState();
-        }
-
-        ResetPracticeBotManagerState(releaseWorldSlots: true);
-        ResetPracticeNavigationState();
-        _botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
-        ResetBotDiagnosticSample();
-        _networkClient.Disconnect();
-        _networkClient.ClearPendingTeamSelection();
-        _networkClient.ClearPendingClassSelection();
-        StopHostedServer();
-        ResetGameplayTransitionEffects();
-        StopMenuMusic();
-        StopLastToDieMenuMusic();
-        StopFaucetMusic();
-        StopLastToDieIngameMusic();
-        StopLastToDieGameOverSound();
-
-        ReinitializeSimulationForTickRate(tickRate);
-        ResetGameplayRuntimeState();
-        _world.ConfigureExperimentalGameplaySettings(experimentalSettings);
-        _world.ConfigureMatchDefaults(
-            timeLimitMinutes: timeLimitMinutes,
-            capLimit: capLimit,
-            respawnSeconds: respawnSeconds);
-        if (!_world.TryLoadLevel(levelName))
-        {
-            _menuStatusMessage = $"Failed to load local map: {levelName}";
-            return false;
-        }
-
-        _world.Level.ForcedBlockingTeamGates = sessionKind == GameplaySessionKind.LastToDie
-            ? TeamGateLockMask.Red
-            : TeamGateLockMask.None;
-
-        _world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
-        LoadPracticeNavigationAssetsForCurrentLevel();
-        EnterGameplaySession(sessionKind, openJoinMenus, statusMessage: string.Empty);
-        InitializePracticeBotNamePoolForMatch();
-
-        if (openJoinMenus)
-        {
-            _world.PrepareLocalPlayerJoin();
-            ApplyPracticeDummyPreferencesBeforeJoin();
-        }
-
-        AddConsoleLine($"{consoleSessionName} started on {levelName} tickrate={tickRate}");
-        return true;
+        return _gameplaySessionController.TryBeginOfflineBotSession(
+            levelName,
+            sessionKind,
+            tickRate,
+            experimentalSettings,
+            timeLimitMinutes,
+            capLimit,
+            respawnSeconds,
+            openJoinMenus,
+            consoleSessionName);
     }
 
     private void AdvanceLastToDieSimulationTick()
