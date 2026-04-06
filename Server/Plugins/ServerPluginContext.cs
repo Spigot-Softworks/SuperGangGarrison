@@ -1,4 +1,6 @@
 using OpenGarrison.Server.Plugins;
+using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Server;
 
@@ -6,11 +8,13 @@ internal sealed class ServerPluginContext(
     string pluginId,
     string pluginDirectory,
     string configDirectory,
+    OpenGarrisonPluginManifest manifest,
+    OpenGarrisonPluginHostApi hostApi,
     string mapsDirectory,
     IOpenGarrisonServerReadOnlyState serverState,
     IOpenGarrisonServerAdminOperations adminOperations,
-    Action<byte, string, string, string> sendMessageToClient,
-    Action<string, string, string> broadcastMessageToClients,
+    Action<byte, string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToClient,
+    Action<string, string, string, PluginMessagePayloadFormat, ushort> broadcastMessageToClients,
     Func<string, byte, string, int, bool> setPlayerReplicatedStateInt,
     Func<string, byte, string, float, bool> setPlayerReplicatedStateFloat,
     Func<string, byte, string, bool, bool> setPlayerReplicatedStateBool,
@@ -24,20 +28,24 @@ internal sealed class ServerPluginContext(
 
     public string ConfigDirectory { get; } = configDirectory;
 
+    public OpenGarrisonPluginManifest Manifest { get; } = manifest;
+
+    public OpenGarrisonPluginHostApi HostApi { get; } = hostApi;
+
     public string MapsDirectory { get; } = mapsDirectory;
 
     public IOpenGarrisonServerReadOnlyState ServerState { get; } = serverState;
 
     public IOpenGarrisonServerAdminOperations AdminOperations { get; } = adminOperations;
 
-    public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload)
+    public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
     {
-        sendMessageToClient(slot, targetPluginId, messageType, payload);
+        sendMessageToClient(slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion);
     }
 
-    public void BroadcastMessageToClients(string targetPluginId, string messageType, string payload)
+    public void BroadcastMessageToClients(string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
     {
-        broadcastMessageToClients(targetPluginId, messageType, payload);
+        broadcastMessageToClients(targetPluginId, messageType, payload, payloadFormat, schemaVersion);
     }
 
     public bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value)

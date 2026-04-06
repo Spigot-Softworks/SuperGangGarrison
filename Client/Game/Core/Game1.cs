@@ -146,6 +146,7 @@ public partial class Game1 : Game
     private Texture2D _pixel = null!;
     private Texture2D? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
+    private string? _menuBackgroundFailedPath;
     private string _menuBackgroundAttributionText = string.Empty;
     private SpriteFont _consoleFont = null!;
     private SpriteFont _menuFont = null!;

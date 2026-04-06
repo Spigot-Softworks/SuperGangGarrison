@@ -84,6 +84,15 @@ public partial class Game1
             return;
         }
 
+        if (!float.IsFinite(position.X)
+            || !float.IsFinite(position.Y)
+            || !float.IsFinite(scale)
+            || !float.IsFinite(rotation)
+            || scale <= 0f)
+        {
+            return;
+        }
+
         if (!TryGetSpriteFont(definition, out var fontSprite))
         {
             DrawConsoleTextLeftAligned(text, position, color, scale);
@@ -143,6 +152,11 @@ public partial class Game1
             return 0f;
         }
 
+        if (!float.IsFinite(scale) || scale <= 0f)
+        {
+            return 0f;
+        }
+
         if (!TryGetSpriteFont(definition, out var fontSprite))
         {
             return _consoleFont.MeasureString(text).X * scale;
@@ -176,6 +190,11 @@ public partial class Game1
 
     private float MeasureSpriteFontHeight(SpriteFontDefinition definition, float scale)
     {
+        if (!float.IsFinite(scale) || scale <= 0f)
+        {
+            return 0f;
+        }
+
         if (!TryGetSpriteFont(definition, out var fontSprite) || fontSprite.Frames.Count == 0)
         {
             return _consoleFont.LineSpacing * scale;

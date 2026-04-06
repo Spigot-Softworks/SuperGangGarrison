@@ -68,7 +68,9 @@ public partial class Game1
                 message.SourcePluginId,
                 message.TargetPluginId,
                 message.MessageTypeName,
-                message.Payload));
+                message.Payload,
+                message.PayloadFormat,
+                message.SchemaVersion));
         }
 
         public Vector2 GetClientPluginCameraOffset()

@@ -1,15 +1,11 @@
 using Microsoft.Xna.Framework.Graphics;
+using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client.Plugins;
 
-public interface IOpenGarrisonClientPluginContext
+public interface IOpenGarrisonClientPluginContext : IOpenGarrisonPluginHostContext
 {
-    string PluginId { get; }
-
-    string PluginDirectory { get; }
-
-    string ConfigDirectory { get; }
-
     GraphicsDevice GraphicsDevice { get; }
 
     IOpenGarrisonClientReadOnlyState ClientState { get; }
@@ -20,7 +16,15 @@ public interface IOpenGarrisonClientPluginContext
 
     IOpenGarrisonClientPluginUi Ui { get; }
 
-    void SendMessageToServer(string targetPluginId, string messageType, string payload);
+    void SendMessageToServer(
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion);
 
-    void Log(string message);
+    void SendMessageToServer(string targetPluginId, string messageType, string payload)
+    {
+        SendMessageToServer(targetPluginId, messageType, payload, PluginMessagePayloadFormat.Text, schemaVersion: 1);
+    }
 }

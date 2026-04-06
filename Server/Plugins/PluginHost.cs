@@ -1,4 +1,6 @@
 using OpenGarrison.Core;
+using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
 
 namespace OpenGarrison.Server;
@@ -9,12 +11,13 @@ internal sealed class PluginHost
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly IOpenGarrisonServerReadOnlyState _serverState;
     private readonly IOpenGarrisonServerAdminOperations _adminOperations;
-    private readonly Action<byte, string, string, string, string> _sendMessageToClient;
-    private readonly Action<string, string, string, string> _broadcastMessageToClients;
+    private readonly Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> _sendMessageToClient;
+    private readonly Action<string, string, string, string, PluginMessagePayloadFormat, ushort> _broadcastMessageToClients;
     private readonly Action<string> _log;
     private readonly string _pluginsRootDirectory;
     private readonly string _pluginConfigRoot;
     private readonly string _mapsDirectory;
+    private readonly OpenGarrisonPluginHostApi _hostApi = OpenGarrisonPluginHostApi.CreateServerDefault();
     private readonly List<PluginLoader.LoadedPlugin> _loadedPlugins = new();
 
     public PluginHost(
@@ -22,8 +25,8 @@ internal sealed class PluginHost
         PluginCommandRegistry commandRegistry,
         IOpenGarrisonServerReadOnlyState serverState,
         IOpenGarrisonServerAdminOperations adminOperations,
-        Action<byte, string, string, string, string> sendMessageToClient,
-        Action<string, string, string, string> broadcastMessageToClients,
+        Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToClient,
+        Action<string, string, string, string, PluginMessagePayloadFormat, ushort> broadcastMessageToClients,
         string pluginsDirectory,
         string pluginConfigRoot,
         string mapsDirectory,
@@ -78,9 +81,29 @@ internal sealed class PluginHost
 
     public void NotifyHelloReceived(HelloReceivedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnHelloReceived(e));
 
-    public void NotifyClientConnected(ClientConnectedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnClientConnected(e));
+    public void NotifyClientConnected(ClientConnectedEvent e)
+    {
+        Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnClientConnected(e));
+        Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerJoined(new OpenGarrisonServerPlayerJoinedEvent(
+            _worldGetter().Frame,
+            e.Slot,
+            e.PlayerName,
+            e.EndPoint,
+            e.IsAuthorized,
+            e.IsSpectator)));
+    }
 
-    public void NotifyClientDisconnected(ClientDisconnectedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnClientDisconnected(e));
+    public void NotifyClientDisconnected(ClientDisconnectedEvent e)
+    {
+        Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnClientDisconnected(e));
+        Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerLeft(new OpenGarrisonServerPlayerLeftEvent(
+            _worldGetter().Frame,
+            e.Slot,
+            e.PlayerName,
+            e.EndPoint,
+            e.Reason,
+            e.WasAuthorized)));
+    }
 
     public void NotifyPasswordAccepted(PasswordAcceptedEvent e) => Dispatch<IOpenGarrisonServerClientHooks>(hook => hook.OnPasswordAccepted(e));
 
@@ -140,7 +163,22 @@ internal sealed class PluginHost
 
     public void NotifyControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnControlPointStateChanged(e));
 
-    public void NotifyPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) => Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerSpawned(e));
+    public void NotifyPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e)
+    {
+        Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerSpawned(e));
+        if (e.IsRespawn)
+        {
+            Dispatch<IOpenGarrisonServerSemanticGameplayHooks>(hook => hook.OnPlayerRespawned(new OpenGarrisonServerPlayerRespawnEvent(
+                e.Frame,
+                e.Slot,
+                e.PlayerId,
+                e.PlayerName,
+                e.Team,
+                e.PlayerClass,
+                e.WorldX,
+                e.WorldY)));
+        }
+    }
 
     public void NotifyClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e) => Dispatch<IOpenGarrisonServerPluginMessageHooks>(hook => hook.OnClientPluginMessage(e));
 
@@ -181,7 +219,7 @@ internal sealed class PluginHost
         return Directory.EnumerateFiles(_pluginsRootDirectory, "*.dll", SearchOption.TopDirectoryOnly).Any();
     }
 
-    private IOpenGarrisonServerPluginContext CreateContext(IOpenGarrisonServerPlugin plugin, string pluginDirectory)
+    private IOpenGarrisonServerPluginContext CreateContext(IOpenGarrisonServerPlugin plugin, OpenGarrisonPluginManifest manifest, string pluginDirectory)
     {
         pluginDirectory = ResolvePluginDirectory(plugin, pluginDirectory);
         var configDirectory = ResolveConfigDirectory(plugin.Id);
@@ -192,11 +230,13 @@ internal sealed class PluginHost
             plugin.Id,
             pluginDirectory,
             configDirectory,
+            manifest,
+            _hostApi,
             _mapsDirectory,
             _serverState,
             _adminOperations,
-            (slot, targetPluginId, messageType, payload) => _sendMessageToClient(slot, plugin.Id, targetPluginId, messageType, payload),
-            (targetPluginId, messageType, payload) => _broadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload),
+            (slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion) => _sendMessageToClient(slot, plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => _broadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateInt(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateFloat(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateBool(pluginId, key, stateValue), ownerId, stateKey, value),

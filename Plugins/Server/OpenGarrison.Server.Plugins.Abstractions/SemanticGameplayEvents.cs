@@ -106,21 +106,53 @@ public readonly record struct OpenGarrisonServerPlayerSpawnEvent(
     float WorldY,
     bool IsRespawn);
 
+public readonly record struct OpenGarrisonServerPlayerJoinedEvent(
+    long Frame,
+    byte Slot,
+    string PlayerName,
+    string EndPoint,
+    bool IsAuthorized,
+    bool IsSpectator);
+
+public readonly record struct OpenGarrisonServerPlayerLeftEvent(
+    long Frame,
+    byte Slot,
+    string PlayerName,
+    string EndPoint,
+    string Reason,
+    bool WasAuthorized);
+
+public readonly record struct OpenGarrisonServerPlayerRespawnEvent(
+    long Frame,
+    byte Slot,
+    int PlayerId,
+    string PlayerName,
+    PlayerTeam Team,
+    PlayerClass PlayerClass,
+    float WorldX,
+    float WorldY);
+
 public interface IOpenGarrisonServerSemanticGameplayHooks
 {
-    void OnDamage(OpenGarrisonServerDamageEvent e);
+    void OnDamage(OpenGarrisonServerDamageEvent e) { }
 
-    void OnDeath(OpenGarrisonServerDeathEvent e);
+    void OnDeath(OpenGarrisonServerDeathEvent e) { }
 
-    void OnAssist(OpenGarrisonServerAssistEvent e);
+    void OnAssist(OpenGarrisonServerAssistEvent e) { }
 
-    void OnBuild(OpenGarrisonServerBuildableEvent e);
+    void OnBuild(OpenGarrisonServerBuildableEvent e) { }
 
-    void OnDestroy(OpenGarrisonServerBuildableEvent e);
+    void OnDestroy(OpenGarrisonServerBuildableEvent e) { }
 
-    void OnIntelEvent(OpenGarrisonServerIntelEvent e);
+    void OnIntelEvent(OpenGarrisonServerIntelEvent e) { }
 
-    void OnControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e);
+    void OnControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e) { }
 
-    void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e);
+    void OnPlayerJoined(OpenGarrisonServerPlayerJoinedEvent e) { }
+
+    void OnPlayerLeft(OpenGarrisonServerPlayerLeftEvent e) { }
+
+    void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) { }
+
+    void OnPlayerRespawned(OpenGarrisonServerPlayerRespawnEvent e) { }
 }

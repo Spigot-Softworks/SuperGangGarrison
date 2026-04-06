@@ -12,7 +12,8 @@ public sealed class BubbleWheelPlugin :
     private const int StripFrameCount = 20;
     private static readonly Vector2 WheelOrigin = new(100f, 100f);
     private IOpenGarrisonClientPluginContext? _context;
-    private Texture2D? _bubbleWheelStrip;
+    private ClientPluginTextureAtlas _bubbleWheelStripAtlas;
+    private bool _hasBubbleWheelStripAtlas;
     private Texture2D? _menuWheelZ;
     private Texture2D? _menuWheelX;
     private Texture2D? _menuWheelC;
@@ -35,7 +36,8 @@ public sealed class BubbleWheelPlugin :
 
     public void Shutdown()
     {
-        _bubbleWheelStrip = null;
+        _bubbleWheelStripAtlas = default;
+        _hasBubbleWheelStripAtlas = false;
         _menuWheelZ = null;
         _menuWheelX = null;
         _menuWheelC = null;
@@ -119,28 +121,22 @@ public sealed class BubbleWheelPlugin :
     public bool TryDrawBubbleMenu(IOpenGarrisonClientHudCanvas canvas, ClientBubbleMenuRenderState renderState)
     {
         EnsureTexturesLoaded();
-        if (_bubbleWheelStrip is null)
+        if (!_hasBubbleWheelStripAtlas)
         {
             return false;
         }
 
         var center = new Vector2(canvas.ViewportWidth / 2f, canvas.ViewportHeight / 2f);
-        var stripFrameWidth = _bubbleWheelStrip.Width / StripFrameCount;
-        if (stripFrameWidth <= 0)
-        {
-            return false;
-        }
-
         for (var index = 0; index < 10; index += 1)
         {
             var frameIndex = index == renderState.SelectedSlot ? index + 10 : index;
-            var sourceRectangle = new Rectangle(
-                stripFrameWidth * frameIndex,
-                0,
-                stripFrameWidth,
-                _bubbleWheelStrip.Height);
+            if (!_bubbleWheelStripAtlas.TryGetFrameSourceRectangle(frameIndex, out var sourceRectangle))
+            {
+                continue;
+            }
+
             canvas.DrawScreenTexture(
-                _bubbleWheelStrip,
+                _bubbleWheelStripAtlas.Texture,
                 center,
                 Color.White * renderState.Alpha,
                 Vector2.One,
@@ -222,12 +218,17 @@ public sealed class BubbleWheelPlugin :
 
     private void EnsureTexturesLoaded()
     {
-        if (_context is null || _bubbleWheelStrip is not null)
+        if (_context is null || _hasBubbleWheelStripAtlas)
         {
             return;
         }
 
-        _bubbleWheelStrip = RegisterTexture("bubblewheel-strip", "Resources/PrOF/BubbleWheel/BubbleWheelStrip.png");
+        _hasBubbleWheelStripAtlas = TryRegisterTextureAtlas(
+            "bubblewheel-strip",
+            "Resources/PrOF/BubbleWheel/BubbleWheelStrip.png",
+            StripFrameCount,
+            1,
+            out _bubbleWheelStripAtlas);
         _menuWheelZ = RegisterTexture("bubblewheel-z", "Resources/PrOF/BubbleWheel/MenuWheelZ.png");
         _menuWheelX = RegisterTexture("bubblewheel-x", "Resources/PrOF/BubbleWheel/MenuWheelX.png");
         _menuWheelC = RegisterTexture("bubblewheel-c", "Resources/PrOF/BubbleWheel/MenuWheelC.png");
@@ -256,6 +257,41 @@ public sealed class BubbleWheelPlugin :
         {
             _context.Log($"failed to load texture {assetId}: {ex.Message}");
             return null;
+        }
+    }
+
+    private bool TryRegisterTextureAtlas(string assetId, string relativePath, int columns, int rows, out ClientPluginTextureAtlas atlas)
+    {
+        atlas = default;
+        if (_context is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            _context.Assets.RegisterTextureAsset(assetId, relativePath);
+            if (!_context.Assets.TryGetTextureAsset(assetId, out var texture))
+            {
+                _context.Log($"registered texture asset unavailable: {assetId}");
+                return false;
+            }
+
+            var frameWidth = texture.Width / Math.Max(1, columns);
+            var frameHeight = texture.Height / Math.Max(1, rows);
+            _context.Assets.RegisterTextureAtlasAsset(assetId, relativePath, frameWidth, frameHeight);
+            if (_context.Assets.TryGetTextureAtlasAsset(assetId, out atlas))
+            {
+                return true;
+            }
+
+            _context.Log($"registered texture atlas unavailable: {assetId}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _context.Log($"failed to load texture atlas {assetId}: {ex.Message}");
+            return false;
         }
     }
 

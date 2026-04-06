@@ -1,22 +1,40 @@
+using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
+
 namespace OpenGarrison.Server.Plugins;
 
-public interface IOpenGarrisonServerPluginContext
+public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostContext
 {
-    string PluginId { get; }
-
-    string PluginDirectory { get; }
-
-    string ConfigDirectory { get; }
-
     string MapsDirectory { get; }
 
     IOpenGarrisonServerReadOnlyState ServerState { get; }
 
     IOpenGarrisonServerAdminOperations AdminOperations { get; }
 
-    void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload);
+    void SendMessageToClient(
+        byte slot,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion);
 
-    void BroadcastMessageToClients(string targetPluginId, string messageType, string payload);
+    void BroadcastMessageToClients(
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion);
+
+    void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload)
+    {
+        SendMessageToClient(slot, targetPluginId, messageType, payload, PluginMessagePayloadFormat.Text, schemaVersion: 1);
+    }
+
+    void BroadcastMessageToClients(string targetPluginId, string messageType, string payload)
+    {
+        BroadcastMessageToClients(targetPluginId, messageType, payload, PluginMessagePayloadFormat.Text, schemaVersion: 1);
+    }
 
     bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value);
 
@@ -27,6 +45,4 @@ public interface IOpenGarrisonServerPluginContext
     bool ClearPlayerReplicatedState(byte slot, string stateKey);
 
     void RegisterCommand(IOpenGarrisonServerCommand command);
-
-    void Log(string message);
 }

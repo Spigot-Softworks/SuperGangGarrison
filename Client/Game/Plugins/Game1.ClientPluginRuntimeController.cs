@@ -43,8 +43,8 @@ public partial class Game1
             }
 
             _game._clientPluginHost.NotifyClientStopping();
-            _game._clientPluginHost.ShutdownPlugins();
             _game._clientPluginHost.NotifyClientStopped();
+            _game._clientPluginHost.ShutdownPlugins();
             _game._clientPluginHost = null;
             _game._clientPluginStateView = null;
         }

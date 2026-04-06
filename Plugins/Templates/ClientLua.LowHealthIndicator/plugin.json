@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.client.lua-low-health-indicator",
+  "displayName": "Lua Low Health Indicator",
+  "version": "0.1.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Lua version of the Low Health Indicator plugin built on client update and audio seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "lua",
+    "audio",
+    "health"
+  ]
+}

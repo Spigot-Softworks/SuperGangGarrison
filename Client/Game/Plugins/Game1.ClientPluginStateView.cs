@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -129,9 +130,9 @@ public partial class Game1
         public IReadOnlyList<ClientSentryMarker> GetSentryMarkers() => game.GetClientPluginSentryMarkers();
         public IReadOnlyList<ClientObjectiveMarker> GetObjectiveMarkers() => game.GetClientPluginObjectiveMarkers();
 
-        public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+        public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
         {
-            game._networkClient.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+            game._networkClient.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion);
         }
 
         public void EnqueuePluginNotice(string text, int durationTicks, bool playSound)

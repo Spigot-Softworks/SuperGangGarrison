@@ -1,4 +1,5 @@
 using System;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
 
@@ -55,6 +56,7 @@ public sealed partial class PlayerEntity
 
             IsExperimentalOffhandEquipped = false;
             IsAcquiredWeaponEquipped = true;
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
             RefreshGameplayLoadoutState();
             CommitPyroPrimaryWeaponShot();
             return true;
@@ -62,6 +64,7 @@ public sealed partial class PlayerEntity
 
         IsExperimentalOffhandEquipped = false;
         IsAcquiredWeaponEquipped = true;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= weaponDefinition.AmmoPerShot;
         AcquiredWeaponCooldownTicks = weaponDefinition.ReloadDelayTicks;
@@ -88,6 +91,9 @@ public sealed partial class PlayerEntity
         }
 
         IsExperimentalOffhandEquipped = !IsAcquiredWeaponEquipped;
+        SelectedGameplayEquippedSlot = IsExperimentalOffhandEquipped
+            ? GameplayEquipmentSlot.Secondary
+            : SelectedGameplayEquippedSlot;
         RefreshGameplayLoadoutState();
         ExperimentalOffhandCurrentShells -= weaponDefinition.AmmoPerShot;
         ExperimentalOffhandCooldownTicks = weaponDefinition.ReloadDelayTicks;

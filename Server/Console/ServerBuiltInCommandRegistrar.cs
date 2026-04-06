@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Server.Plugins;
 
 namespace OpenGarrison.Server;
@@ -157,6 +158,75 @@ internal sealed class ServerBuiltInCommandRegistrar(
                 return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetClass(slot, playerClass)
                     ? [$"[server] slot {slot} class set to {playerClass}."]
                     : [$"[server] unable to set class for slot {slot}."]);
+            });
+        commandRegistry.RegisterBuiltIn(
+            "loadouts",
+            "List a player's available gameplay loadouts.",
+            "loadouts <slot>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseSlot(arguments, out var slot))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: loadouts <slot>"]);
+                }
+
+                var player = context.ServerState.GetPlayers().FirstOrDefault(candidate => candidate.Slot == slot);
+                if (player.Slot != slot || !player.PlayerClass.HasValue)
+                {
+                    return Task.FromResult<IReadOnlyList<string>>([$"[server] no playable player at slot {slot}."]);
+                }
+
+                var loadouts = context.ServerState.GetAvailableGameplayLoadouts(slot);
+                if (loadouts.Count == 0)
+                {
+                    return Task.FromResult<IReadOnlyList<string>>([$"[server] no gameplay loadouts available for slot {slot}."]);
+                }
+
+                var lines = new List<string>
+                {
+                    $"[server] loadouts | slot={slot} | class={player.PlayerClass.Value} | selected={player.GameplayLoadoutId}"
+                };
+                for (var index = 0; index < loadouts.Count; index += 1)
+                {
+                    var loadout = loadouts[index];
+                    var selectedMarker = loadout.IsSelected ? "*" : " ";
+                    lines.Add(
+                        $"[server] {selectedMarker} {index + 1}. {loadout.DisplayName} | id={loadout.LoadoutId} | " +
+                        $"primary={loadout.PrimaryItemId} | secondary={loadout.SecondaryItemId ?? "-"} | utility={loadout.UtilityItemId ?? "-"}");
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(lines);
+            });
+        commandRegistry.RegisterBuiltIn(
+            "loadout",
+            "Set a player's gameplay loadout by id, display name, or numeric choice.",
+            "loadout <slot> <id|name|index>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseSlotAndRequiredArgument(arguments, out var slot, out var loadoutSelection))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: loadout <slot> <id|name|index>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetGameplayLoadout(slot, loadoutSelection)
+                    ? [$"[server] slot {slot} loadout updated."]
+                    : [$"[server] unable to set loadout for slot {slot}."]);
+            });
+        commandRegistry.RegisterBuiltIn(
+            "equipslot",
+            "Set a player's gameplay equipped slot.",
+            "equipslot <slot> <primary|secondary|utility>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseSlotAndRequiredArgument(arguments, out var slot, out var slotText)
+                    || !Enum.TryParse<GameplayEquipmentSlot>(slotText, ignoreCase: true, out var equippedSlot))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: equipslot <slot> <primary|secondary|utility>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetGameplayEquippedSlot(slot, equippedSlot)
+                    ? [$"[server] slot {slot} equipped slot set to {equippedSlot}."]
+                    : [$"[server] unable to set equipped slot for slot {slot}."]);
             });
         commandRegistry.RegisterBuiltIn(
             "kill",

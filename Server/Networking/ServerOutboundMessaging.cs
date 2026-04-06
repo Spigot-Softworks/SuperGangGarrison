@@ -107,19 +107,32 @@ internal sealed class ServerOutboundMessaging(
             : $"[chat] {client.Name}: {sanitized}");
     }
 
-    public void SendPluginMessage(byte slot, string sourcePluginId, string targetPluginId, string messageType, string payload)
+    public void SendPluginMessage(
+        byte slot,
+        string sourcePluginId,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
     {
         if (!clientsBySlot.TryGetValue(slot, out var client) || !client.IsAuthorized)
         {
             return;
         }
 
-        SendMessage(client.EndPoint, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload));
+        SendMessage(client.EndPoint, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
     }
 
-    public void BroadcastPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    public void BroadcastPluginMessage(
+        string sourcePluginId,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
     {
-        var message = new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+        var message = new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion);
         foreach (var client in clientsBySlot.Values)
         {
             if (!client.IsAuthorized)

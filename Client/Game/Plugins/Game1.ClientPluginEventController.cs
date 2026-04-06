@@ -37,6 +37,7 @@ public partial class Game1
         public void DispatchClientSemanticGameplayEvents()
         {
             DispatchPendingDamageEventsToPlugins();
+            DispatchPendingHealingEventsToPlugins();
             DispatchClientRoundPhaseEvents();
             DispatchClientLocalPlayerStateEvents();
             DispatchClientObjectiveEvents();
@@ -59,6 +60,7 @@ public partial class Game1
             _game._clientPluginPreviousLocalBurning = _game._world.LocalPlayer.IsBurning;
             _game._clientPluginPreviousKillFeedCount = _game._world.KillFeed.Count;
             _game._clientPluginPreviousObjectiveStates.Clear();
+            _game._clientPluginPreviousGeneratorStates.Clear();
             for (var index = 0; index < _game._world.ControlPoints.Count; index += 1)
             {
                 var point = _game._world.ControlPoints[index];
@@ -67,6 +69,17 @@ public partial class Game1
                     ToClientPluginTeam(point.CappingTeam),
                     point.CapTimeTicks <= 0 ? 0f : Math.Clamp(point.CappingTicks / point.CapTimeTicks, 0f, 1f),
                     point.IsLocked);
+            }
+
+            _game._clientPluginPreviousRedIntelState = CaptureIntelState(_game._world.RedIntel, PlayerTeam.Red);
+            _game._clientPluginPreviousBlueIntelState = CaptureIntelState(_game._world.BlueIntel, PlayerTeam.Blue);
+            for (var index = 0; index < _game._world.Generators.Count; index += 1)
+            {
+                var generator = _game._world.Generators[index];
+                _game._clientPluginPreviousGeneratorStates[generator.Team] = (
+                    generator.Health,
+                    generator.MaxHealth,
+                    generator.IsDestroyed);
             }
         }
 
@@ -107,6 +120,32 @@ public partial class Game1
             }
 
             _game._pendingNetworkDamageEvents.Clear();
+        }
+
+        private void DispatchPendingHealingEventsToPlugins()
+        {
+            var pluginHost = _game._clientPluginHost;
+            var localPlayerId = _game.GetClientPluginLocalPlayerId();
+            var healingEvents = _game._world.DrainPendingHealingEvents();
+            if (pluginHost is null || !localPlayerId.HasValue)
+            {
+                return;
+            }
+
+            for (var index = 0; index < healingEvents.Count; index += 1)
+            {
+                var healingEvent = healingEvents[index];
+                if (healingEvent.TargetPlayerId != localPlayerId.Value || healingEvent.Amount <= 0)
+                {
+                    continue;
+                }
+
+                pluginHost.NotifyHeal(new ClientHealEvent(
+                    healingEvent.Amount,
+                    _game._world.LocalPlayer.Health,
+                    _game._world.LocalPlayer.MaxHealth,
+                    healingEvent.SourceFrame));
+            }
         }
 
         private void TryTrackLastToDieDamageDealt(int attackerPlayerId, int amount)
@@ -244,16 +283,6 @@ public partial class Game1
 
             if (localPlayer.IsAlive)
             {
-                var healedAmount = localPlayer.Health - _game._clientPluginPreviousLocalHealth;
-                if (healedAmount > 0)
-                {
-                    pluginHost.NotifyHeal(new ClientHealEvent(
-                        healedAmount,
-                        localPlayer.Health,
-                        localPlayer.MaxHealth,
-                        (ulong)Math.Max(0, _game._world.Frame)));
-                }
-
                 var firedShot = localPlayer.CurrentShells < _game._clientPluginPreviousLocalAmmo
                     || (_game._clientPluginPreviousLocalPrimaryCooldownTicks <= 0 && localPlayer.PrimaryCooldownTicks > 0);
                 if (firedShot)
@@ -323,6 +352,31 @@ public partial class Game1
 
                 _game._clientPluginPreviousObjectiveStates[point.Index] = currentState;
             }
+
+            DispatchIntelStateEvent(pluginHost, _game._world.RedIntel, PlayerTeam.Red, ref _game._clientPluginPreviousRedIntelState);
+            DispatchIntelStateEvent(pluginHost, _game._world.BlueIntel, PlayerTeam.Blue, ref _game._clientPluginPreviousBlueIntelState);
+
+            for (var index = 0; index < _game._world.Generators.Count; index += 1)
+            {
+                var generator = _game._world.Generators[index];
+                var currentState = (
+                    generator.Health,
+                    generator.MaxHealth,
+                    generator.IsDestroyed);
+                var previousState = _game._clientPluginPreviousGeneratorStates.GetValueOrDefault(generator.Team, currentState);
+                if (!Equals(previousState, currentState))
+                {
+                    pluginHost.NotifyGeneratorStateChanged(new ClientGeneratorStateEvent(
+                        ToClientPluginTeam(generator.Team),
+                        generator.Health,
+                        generator.MaxHealth,
+                        generator.IsDestroyed,
+                        new Vector2(generator.Marker.CenterX, generator.Marker.CenterY),
+                        (ulong)Math.Max(0, _game._world.Frame)));
+                }
+
+                _game._clientPluginPreviousGeneratorStates[generator.Team] = currentState;
+            }
         }
 
         private void DispatchClientKillFeedEvents()
@@ -380,6 +434,47 @@ public partial class Game1
             }
 
             return null;
+        }
+
+        private void DispatchIntelStateEvent(
+            ClientPluginHost pluginHost,
+            TeamIntelligenceState intel,
+            PlayerTeam intelTeam,
+            ref (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) previousState)
+        {
+            var currentState = CaptureIntelState(intel, intelTeam);
+            if (!Equals(previousState, currentState))
+            {
+                pluginHost.NotifyIntelStateChanged(new ClientIntelStateEvent(
+                    ToClientPluginTeam(intel.Team),
+                    currentState.CarrierTeam,
+                    currentState.IsAtBase,
+                    currentState.IsDropped,
+                    currentState.ReturnProgress,
+                    new Vector2(intel.X, intel.Y),
+                    (ulong)Math.Max(0, _game._world.Frame)));
+            }
+
+            previousState = currentState;
+        }
+
+        private static (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) CaptureIntelState(
+            TeamIntelligenceState intel,
+            PlayerTeam intelTeam)
+        {
+            var carrierTeam = intel.IsCarried
+                ? ToClientPluginTeam(intelTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red)
+                : ClientPluginTeam.None;
+            var returnProgress = intel.IsDropped
+                ? 1f - Math.Clamp(intel.ReturnTicksRemaining / (float)PlayerEntity.IntelRechargeMaxTicks, 0f, 1f)
+                : (intel.IsAtBase ? 1f : 0f);
+            return (
+                intel.IsAtBase,
+                intel.IsDropped,
+                carrierTeam,
+                returnProgress,
+                intel.X,
+                intel.Y);
         }
     }
 }

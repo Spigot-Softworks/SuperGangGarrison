@@ -1,5 +1,6 @@
 using System.Net;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
 
@@ -60,6 +61,34 @@ internal sealed class ServerAdminOperations(
 
     public bool TrySetClass(byte slot, PlayerClass playerClass) => sessionManagerGetter().TrySetClientClass(slot, playerClass);
 
+    public bool TrySetGameplayLoadout(byte slot, string loadoutId)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            || string.IsNullOrWhiteSpace(loadoutId))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        if (!TryResolveGameplayLoadoutSelection(player.ClassId, loadoutId, out var resolvedLoadoutId))
+        {
+            return false;
+        }
+
+        return world.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
+    }
+
+    public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerGameplayEquippedSlot(slot, equippedSlot);
+    }
+
     public bool TryForceKill(byte slot)
     {
         if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
@@ -115,5 +144,54 @@ internal sealed class ServerAdminOperations(
     public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
     {
         return mapRotationManagerGetter().TrySetNextRoundMap(levelName, mapAreaIndex);
+    }
+
+    private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)
+    {
+        loadoutId = string.Empty;
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var gameplayClass = runtimeRegistry.GetClassDefinition(playerClass);
+        var candidates = gameplayClass.Loadouts.Values
+            .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(loadout => loadout.Id, StringComparer.Ordinal)
+            .ToArray();
+        var trimmedSelection = selection.Trim();
+        if (trimmedSelection.Length == 0)
+        {
+            return false;
+        }
+
+        if (gameplayClass.Loadouts.ContainsKey(trimmedSelection))
+        {
+            loadoutId = trimmedSelection;
+            return true;
+        }
+
+        if (int.TryParse(trimmedSelection, out var parsedIndex)
+            && parsedIndex >= 1
+            && parsedIndex <= candidates.Length)
+        {
+            loadoutId = candidates[parsedIndex - 1].Id;
+            return true;
+        }
+
+        var exactDisplayMatch = candidates.FirstOrDefault(loadout =>
+            string.Equals(loadout.DisplayName, trimmedSelection, StringComparison.OrdinalIgnoreCase));
+        if (exactDisplayMatch is not null)
+        {
+            loadoutId = exactDisplayMatch.Id;
+            return true;
+        }
+
+        var prefixMatches = candidates
+            .Where(loadout => loadout.DisplayName.StartsWith(trimmedSelection, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (prefixMatches.Length == 1)
+        {
+            loadoutId = prefixMatches[0].Id;
+            return true;
+        }
+
+        return false;
     }
 }

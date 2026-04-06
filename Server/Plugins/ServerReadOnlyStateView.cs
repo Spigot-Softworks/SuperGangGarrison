@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
@@ -36,10 +37,12 @@ internal sealed class ServerReadOnlyStateView(
                 var isSpectator = IsSpectatorSlot(client.Slot);
                 PlayerTeam? team = null;
                 PlayerClass? playerClass = null;
-                if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var player))
+                PlayerEntity? player = null;
+                if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
                 {
-                    team = player.Team;
-                    playerClass = player.ClassId;
+                    player = networkPlayer;
+                    team = networkPlayer.Team;
+                    playerClass = networkPlayer.ClassId;
                 }
 
                 return new OpenGarrisonServerPlayerInfo(
@@ -49,8 +52,34 @@ internal sealed class ServerReadOnlyStateView(
                     client.IsAuthorized,
                     team,
                     playerClass,
-                    client.EndPoint.ToString());
+                    client.EndPoint.ToString(),
+                    player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
+                    player?.GameplayLoadoutState.EquippedSlot ?? GameplayEquipmentSlot.Primary,
+                    player?.GameplayLoadoutState.EquippedItemId ?? string.Empty);
             })
+            .ToArray();
+    }
+
+    public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot)
+    {
+        var world = worldGetter();
+        if (!world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return Array.Empty<OpenGarrisonServerGameplayLoadoutInfo>();
+        }
+
+        var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(player.ClassId);
+        return gameplayClass.Loadouts
+            .Values
+            .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(loadout => loadout.Id, StringComparer.Ordinal)
+            .Select(loadout => new OpenGarrisonServerGameplayLoadoutInfo(
+                loadout.Id,
+                loadout.DisplayName,
+                loadout.PrimaryItemId,
+                loadout.SecondaryItemId,
+                loadout.UtilityItemId,
+                string.Equals(loadout.Id, player.GameplayLoadoutState.LoadoutId, StringComparison.Ordinal)))
             .ToArray();
     }
 

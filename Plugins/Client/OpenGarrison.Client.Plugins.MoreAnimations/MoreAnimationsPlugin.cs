@@ -12,12 +12,14 @@ namespace OpenGarrison.Client.Plugins.MoreAnimations;
 public sealed class MoreAnimationsPlugin :
     IOpenGarrisonClientPlugin,
     IOpenGarrisonClientLifecycleHooks,
+    IOpenGarrisonClientUpdateHooks,
     IOpenGarrisonClientDeadBodyHooks
 {
     private const float LegacyAnimationSpeedPerTick = 0.33f;
     private static readonly (int X, int Y)[] ChromaKeyFloodNeighbors = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     private IOpenGarrisonClientPluginContext? _context;
     private readonly Dictionary<string, LoadedAnimation> _animations = new(StringComparer.OrdinalIgnoreCase);
+    private int _nextDefinitionIndex;
 
     public string Id => "moreanimations";
 
@@ -28,6 +30,7 @@ public sealed class MoreAnimationsPlugin :
     public void Initialize(IOpenGarrisonClientPluginContext context)
     {
         _context = context;
+        ResetAnimationLoadState();
     }
 
     public void Shutdown()
@@ -38,6 +41,7 @@ public sealed class MoreAnimationsPlugin :
         }
 
         _animations.Clear();
+        ResetAnimationLoadState();
     }
 
     public void OnClientStarting()
@@ -46,7 +50,6 @@ public sealed class MoreAnimationsPlugin :
 
     public void OnClientStarted()
     {
-        EnsureAnimationsLoaded();
     }
 
     public void OnClientStopping()
@@ -57,6 +60,11 @@ public sealed class MoreAnimationsPlugin :
     {
     }
 
+    public void OnClientFrame(ClientFrameEvent e)
+    {
+        LoadNextAnimation();
+    }
+
     public bool TryDrawDeadBody(IOpenGarrisonClientHudCanvas canvas, ClientDeadBodyRenderState deadBody)
     {
         if (deadBody.AnimationKind == ClientDeadBodyAnimationKind.Default
@@ -65,7 +73,6 @@ public sealed class MoreAnimationsPlugin :
             return false;
         }
 
-        EnsureAnimationsLoaded();
         if (!TryResolveAnimationKey(deadBody, out var animationKey)
             || !_animations.TryGetValue(animationKey, out var animation)
             || animation.Frames.Count == 0)
@@ -126,23 +133,28 @@ public sealed class MoreAnimationsPlugin :
         return !string.IsNullOrWhiteSpace(animationKey);
     }
 
-    private void EnsureAnimationsLoaded()
+    private void ResetAnimationLoadState()
     {
-        if (_context is null || _animations.Count > 0)
+        _nextDefinitionIndex = 0;
+    }
+
+    private void LoadNextAnimation()
+    {
+        if (_context is null || _nextDefinitionIndex >= GetDefinitions().Count)
         {
             return;
         }
 
         var animationDirectory = Path.Combine(_context.PluginDirectory, "Animations");
-        foreach (var definition in GetDefinitions())
+        var definition = GetDefinitions()[_nextDefinitionIndex];
+        var path = Path.Combine(animationDirectory, definition.FileName);
+        var animation = LoadAnimation(path, definition.FrameCount, definition.Origin);
+        if (animation is not null)
         {
-            var path = Path.Combine(animationDirectory, definition.FileName);
-            var animation = LoadAnimation(path, definition.FrameCount, definition.Origin);
-            if (animation is not null)
-            {
-                _animations[definition.Key] = animation;
-            }
+            _animations[definition.Key] = animation;
         }
+
+        _nextDefinitionIndex += 1;
     }
 
     private LoadedAnimation? LoadAnimation(string path, int frameCount, Vector2 origin)

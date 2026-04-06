@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "style": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0
+    },
+    "playDing": {
+      "type": "boolean",
+      "default": true
+    },
+    "moveCounterForHud": {
+      "type": "boolean",
+      "default": false
+    },
+    "stereoDing": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

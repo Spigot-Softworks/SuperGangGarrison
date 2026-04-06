@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.client.damage-announcer",
+  "displayName": "Damage Announcer",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Clr",
+  "entryPoint": "DamageAnnouncer.dll",
+  "entryClass": "OpenGarrison.Client.Plugins.DamageAnnouncer.DamageAnnouncerPlugin",
+  "description": "Example packaged client plugin manifest.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "assetDirectories": [
+    "Assets"
+  ],
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "hud",
+    "audio"
+  ]
+}

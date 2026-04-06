@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Server.Plugins;
 
@@ -21,6 +22,8 @@ public interface IOpenGarrisonServerReadOnlyState
     int BlueCaps { get; }
 
     IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers();
+
+    IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot);
 
     bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value);
 

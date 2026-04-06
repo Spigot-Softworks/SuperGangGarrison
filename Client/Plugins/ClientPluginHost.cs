@@ -1,19 +1,26 @@
+using System.Globalization;
+using System.IO;
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.Core;
+using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
 internal sealed class ClientPluginHost
 {
+    private const string GameplayHudTraceFileName = "client-plugin-gameplay-hud-trace.log";
     private readonly IOpenGarrisonClientReadOnlyState _clientState;
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Action<string> _log;
     private readonly string _pluginsDirectory;
     private readonly string _pluginConfigRoot;
     private readonly ClientPluginStateStore _stateStore;
+    private readonly OpenGarrisonPluginHostApi _hostApi = OpenGarrisonPluginHostApi.CreateClientDefault();
     private readonly List<ClientPluginLoader.DiscoveredPlugin> _discoveredPlugins = new();
     private readonly List<LoadedPluginEntry> _loadedPlugins = new();
     private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
@@ -103,10 +110,16 @@ internal sealed class ClientPluginHost
             .OrderBy(entry => entry.LoadedPlugin.Plugin is IOpenGarrisonClientHudOrderHooks orderedHook ? orderedHook.GameplayHudOrder : 0)
             .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        WriteGameplayHudTrace($"begin count={orderedEntries.Length}");
         for (var index = 0; index < orderedEntries.Length; index += 1)
         {
-            DispatchHook<IOpenGarrisonClientHudHooks>(orderedEntries[index], hook => hook.OnGameplayHudDraw(canvas), "runtime");
+            var entry = orderedEntries[index];
+            WriteGameplayHudTrace(FormattableString.Invariant($"before index={index} plugin={entry.DiscoveredPlugin.PluginId}"));
+            DispatchHook<IOpenGarrisonClientHudHooks>(entry, hook => hook.OnGameplayHudDraw(canvas), "runtime");
+            WriteGameplayHudTrace(FormattableString.Invariant($"after index={index} plugin={entry.DiscoveredPlugin.PluginId}"));
         }
+
+        WriteGameplayHudTrace("end");
     }
 
     public void NotifyLocalDamage(LocalDamageEvent e) => Dispatch<IOpenGarrisonClientDamageHooks>(hook => hook.OnLocalDamage(e));
@@ -132,6 +145,10 @@ internal sealed class ClientPluginHost
     public void NotifyExtinguished(ClientExtinguishEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnExtinguished(e));
 
     public void NotifyObjectiveStateChanged(ClientObjectiveStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnObjectiveStateChanged(e));
+
+    public void NotifyIntelStateChanged(ClientIntelStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIntelStateChanged(e));
+
+    public void NotifyGeneratorStateChanged(ClientGeneratorStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnGeneratorStateChanged(e));
 
     public void NotifyRoundPhaseChanged(ClientRoundPhaseChangedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnRoundPhaseChanged(e));
 
@@ -165,11 +182,17 @@ internal sealed class ClientPluginHost
                     continue;
                 }
 
-                entries.Add(new ClientPluginMenuEntry(entry.PluginId, entry.MenuEntryId, entry.Label, entry.Activate));
+                entries.Add(new ClientPluginMenuEntry(entry.PluginId, entry.MenuEntryId, entry.Label, entry.Activate, entry.Order));
             }
         }
 
-        entries.Sort((left, right) => string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase));
+        entries.Sort((left, right) =>
+        {
+            var orderComparison = left.Order.CompareTo(right.Order);
+            return orderComparison != 0
+                ? orderComparison
+                : string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase);
+        });
         return entries;
     }
 
@@ -363,6 +386,10 @@ internal sealed class ClientPluginHost
 
             DisposePluginResources(_loadedPlugins[index]);
         }
+
+        _registeredHotkeys.Clear();
+        _registeredMenuEntries.Clear();
+        _loadedPlugins.Clear();
     }
 
     private void LoadDiscoveredPlugins(IReadOnlyList<ClientPluginLoader.DiscoveredPlugin> discoveredPlugins)
@@ -561,6 +588,7 @@ internal sealed class ClientPluginHost
             if (notifyLifecycle)
             {
                 DispatchHook<IOpenGarrisonClientLifecycleHooks>(entry, hook => hook.OnClientStopping(), "stopping");
+                DispatchHook<IOpenGarrisonClientLifecycleHooks>(entry, hook => hook.OnClientStopped(), "stopped");
             }
 
             try
@@ -570,11 +598,6 @@ internal sealed class ClientPluginHost
             catch (Exception ex)
             {
                 _log($"[plugin] shutdown failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
-            }
-
-            if (notifyLifecycle)
-            {
-                DispatchHook<IOpenGarrisonClientLifecycleHooks>(entry, hook => hook.OnClientStopped(), "stopped");
             }
 
             DisposePluginResources(entry);
@@ -602,7 +625,7 @@ internal sealed class ClientPluginHost
         }
     }
 
-    private IOpenGarrisonClientPluginContext CreateContext(IOpenGarrisonClientPlugin plugin, string pluginDirectory)
+    private IOpenGarrisonClientPluginContext CreateContext(IOpenGarrisonClientPlugin plugin, OpenGarrisonPluginManifest manifest, string pluginDirectory)
     {
         var configDirectory = Path.Combine(_pluginConfigRoot, plugin.Id);
         Directory.CreateDirectory(pluginDirectory);
@@ -612,14 +635,16 @@ internal sealed class ClientPluginHost
             plugin.Id,
             pluginDirectory,
             configDirectory,
+            manifest,
+            _hostApi,
             _graphicsDevice,
             _clientState,
             assetRegistry,
             (hotkeyId, displayName, defaultKey) => RegisterHotkey(plugin.Id, hotkeyId, displayName, defaultKey),
             hotkeyId => WasHotkeyPressed(plugin.Id, hotkeyId),
-            (menuEntryId, label, location, activate) => RegisterMenuEntry(plugin.Id, menuEntryId, label, location, activate),
+            (menuEntryId, label, location, activate, order) => RegisterMenuEntry(plugin.Id, menuEntryId, label, location, activate, order),
             (text, durationTicks, playSound) => ShowNotice(plugin.Id, text, durationTicks, playSound),
-            (targetPluginId, messageType, payload) => SendMessageToServer(plugin.Id, targetPluginId, messageType, payload),
+            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => SendMessageToServer(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             _log);
     }
 
@@ -663,7 +688,7 @@ internal sealed class ClientPluginHost
         return registeredHotkey is not null && _clientState.WasKeyPressedThisFrame(registeredHotkey.CurrentKey);
     }
 
-    private void RegisterMenuEntry(string pluginId, string menuEntryId, string label, ClientPluginMenuLocation location, Action activate)
+    private void RegisterMenuEntry(string pluginId, string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentException.ThrowIfNullOrWhiteSpace(menuEntryId);
@@ -687,11 +712,12 @@ internal sealed class ClientPluginHost
                 Label = label,
                 Location = location,
                 Activate = activate,
+                Order = order,
             };
             return;
         }
 
-        menuEntries.Add(new RegisteredMenuEntry(pluginId, menuEntryId, label, location, activate));
+        menuEntries.Add(new RegisteredMenuEntry(pluginId, menuEntryId, label, location, activate, order));
     }
 
     private void ShowNotice(string pluginId, string text, int durationTicks, bool playSound)
@@ -712,7 +738,13 @@ internal sealed class ClientPluginHost
         }
     }
 
-    private void SendMessageToServer(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    private void SendMessageToServer(
+        string sourcePluginId,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
     {
         if (_clientState is not ClientPluginMessageSink sink)
         {
@@ -722,7 +754,12 @@ internal sealed class ClientPluginHost
 
         try
         {
-            sink.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload);
+            if (!TryNormalizePluginMessage(targetPluginId, messageType, payload, out var normalizedTargetPluginId, out var normalizedMessageType, out var normalizedPayload))
+            {
+                return;
+            }
+
+            sink.SendPluginMessage(sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
         }
         catch (Exception ex)
         {
@@ -781,6 +818,32 @@ internal sealed class ClientPluginHost
         };
     }
 
+    private static bool TryNormalizePluginMessage(
+        string targetPluginId,
+        string messageType,
+        string? payload,
+        out string normalizedTargetPluginId,
+        out string normalizedMessageType,
+        out string normalizedPayload)
+    {
+        normalizedTargetPluginId = targetPluginId?.Trim() ?? string.Empty;
+        normalizedMessageType = messageType?.Trim() ?? string.Empty;
+        normalizedPayload = payload ?? string.Empty;
+        return normalizedTargetPluginId.Length > 0 && normalizedMessageType.Length > 0;
+    }
+
+    private static void WriteGameplayHudTrace(string message)
+    {
+        try
+        {
+            var timestamp = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
+            File.AppendAllText(RuntimePaths.GetLogPath(GameplayHudTraceFileName), $"[{timestamp}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
+    }
+
     private enum ClientPluginLifecyclePhase
     {
         Created,
@@ -805,12 +868,13 @@ internal sealed class ClientPluginHost
         string MenuEntryId,
         string Label,
         ClientPluginMenuLocation Location,
-        Action Activate);
+        Action Activate,
+        int Order);
 }
 
 internal interface ClientPluginMessageSink
 {
-    void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload);
+    void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion);
 }
 
 internal interface ClientPluginUiSink
@@ -822,7 +886,8 @@ internal sealed record ClientPluginMenuEntry(
     string PluginId,
     string MenuEntryId,
     string Label,
-    Action Activate);
+    Action Activate,
+    int Order);
 
 internal sealed record ClientPluginOptionsEntry(
     string PluginId,

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.client.lua-show-ping",
+  "displayName": "Lua Show Ping",
+  "version": "0.1.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Lua version of the Show Ping plugin built on client HUD and scoreboard seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "lua",
+    "hud",
+    "scoreboard"
+  ]
+}

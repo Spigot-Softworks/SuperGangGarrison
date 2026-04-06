@@ -120,43 +120,19 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.IsAcquiredWeaponEquipped
-            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
-        {
-            if (player.TryFireAcquiredMedicNeedle())
-            {
-                WeaponHandler.FireAcquiredMedicNeedle(player, input.AimWorldX, input.AimWorldY);
-            }
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
+        runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding);
+        runtimeRegistry.TryGetUtilityAbilityBinding(player.UtilityBehaviorId, out var utilityBinding);
+        var resolvedSecondaryBinding = player.IsAcquiredWeaponEquipped ? equippedBinding : secondaryBinding;
 
-            return;
-        }
-
-        if (player.IsAcquiredWeaponEquipped
-            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
-        {
-            if (player.TryFirePyroAirblast())
-            {
-                TriggerPyroAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
-            }
-
-            return;
-        }
-
-        if (player.IsAcquiredWeaponEquipped
-            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher))
-        {
-            DetonateOwnedMines(player.Id);
-            return;
-        }
-
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.SniperScope)
-            || player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Rifle))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SniperScope)
         {
             player.TryToggleSniperScope();
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.DemomanDetonate))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
         {
             if (player.IsExperimentalDemoknightEnabled)
             {
@@ -176,7 +152,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.EngineerPda))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.EngineerPda)
         {
             if (!TryDestroySentry(player))
             {
@@ -186,13 +162,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.HeavySandvich))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.HeavySandvich)
         {
             player.TryStartHeavySelfHeal();
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.PyroAirblast))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.PyroAirblast)
         {
             if (player.TryFirePyroAirblast())
             {
@@ -202,7 +178,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.SpyCloak))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SpyCloak)
         {
             if (!input.FirePrimary)
             {
@@ -212,25 +188,36 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedicNeedlegun)
-            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.MedicNeedlegun
+            || utilityBinding.ActionKind == GameplayUtilityAbilityActionKind.MedicUber)
         {
-            if (player.TryFireMedicNeedle())
+            if (player.IsAcquiredWeaponEquipped)
+            {
+                if (player.TryFireAcquiredMedicNeedle())
+                {
+                    WeaponHandler.FireAcquiredMedicNeedle(player, input.AimWorldX, input.AimWorldY);
+                    return;
+                }
+            }
+            else if (player.TryFireMedicNeedle())
             {
                 FireMedicNeedle(player, input.AimWorldX, input.AimWorldY);
                 return;
             }
 
-            if (player.IsMedicUberReady && input.FirePrimary)
+            if (player.IsMedicUberReady && input.FirePrimary && utilityBinding.ActionKind == GameplayUtilityAbilityActionKind.MedicUber)
             {
                 if (player.TryStartMedicUber())
                 {
                     AwardMedicUberActivationPoints(player);
                 }
             }
+
+            return;
         }
 
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow) && player.TryFireQuoteBlade())
+        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.QuoteBladeThrow
+            && player.TryFireQuoteBlade())
         {
             WeaponHandler.FireQuoteBlade(player, input.AimWorldX, input.AimWorldY);
         }
@@ -286,12 +273,18 @@ public sealed partial class SimulationWorld
 
     private static bool ShouldUseHeldSecondaryAbility(PlayerEntity player)
     {
-        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.DemomanDetonate))
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (!runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding))
+        {
+            return false;
+        }
+
+        if (secondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
         {
             return !player.IsExperimentalDemoknightEnabled;
         }
 
-        return player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.QuoteBladeThrow);
+        return secondaryBinding.UsesHeldInput;
     }
 
     private void TryActivatePendingSpyBackstab(PlayerEntity player)

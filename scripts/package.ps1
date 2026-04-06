@@ -2,7 +2,8 @@
 param(
     [string[]]$Platforms = @("win-x64", "linux-x64"),
     [switch]$RunTests,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$IncludeLegacyClrPlugins
 )
 
 Set-StrictMode -Version Latest
@@ -23,6 +24,10 @@ $projects =
     "Client/OpenGarrison.Client.csproj",
     "Server/OpenGarrison.Server.csproj",
     "ServerLauncher/OpenGarrison.ServerLauncher.csproj"
+)
+
+$excludedPackagedPluginDirectories = @(
+    "Lua.TeamOnlyMinimap"
 )
 
 function Invoke-DotNet {
@@ -203,13 +208,20 @@ function Publish-BundledPlugins {
         [Parameter(Mandatory = $true)]
         [string]$OutputDirectory,
         [Parameter(Mandatory = $true)]
-        [string]$RuntimeIdentifier
+        [string]$RuntimeIdentifier,
+        [Parameter(Mandatory = $true)]
+        [string]$RootDirectoryName
     )
+
+    $sharedRootFiles = @{}
+    foreach ($rootFile in Get-ChildItem $OutputDirectory -File) {
+        $sharedRootFiles[$rootFile.Name] = $true
+    }
 
     $bundledPlugins = Get-BundledPluginProjects -RepoRoot $RepoRoot
     foreach ($plugin in $bundledPlugins) {
         $projectPath = $plugin.Project
-        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "Plugins\\$($plugin.Scope)" $plugin.Folder)
+        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "$RootDirectoryName\\$($plugin.Scope)" $plugin.Folder)
         New-Item -ItemType Directory -Path $pluginOutputDirectory -Force | Out-Null
 
         Invoke-DotNet -Arguments @(
@@ -227,6 +239,49 @@ function Publish-BundledPlugins {
             "--no-restore",
             "-o", $pluginOutputDirectory
         )
+
+        foreach ($pluginFile in Get-ChildItem $pluginOutputDirectory -File) {
+            if ($sharedRootFiles.ContainsKey($pluginFile.Name)) {
+                Remove-Item $pluginFile.FullName -Force
+            }
+        }
+    }
+}
+
+function Publish-PackagedExamples {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory
+    )
+
+    $packagedRoot = Join-Path $RepoRoot "Plugins\Packaged"
+    if (-not (Test-Path $packagedRoot)) {
+        return
+    }
+
+    foreach ($scope in @("Client", "Server")) {
+        $sourceScopeDirectory = Join-Path $packagedRoot $scope
+        if (-not (Test-Path $sourceScopeDirectory)) {
+            continue
+        }
+
+        $destinationScopeDirectory = Join-Path $OutputDirectory "Plugins\$scope"
+        New-Item -ItemType Directory -Path $destinationScopeDirectory -Force | Out-Null
+
+        foreach ($exampleDirectory in Get-ChildItem -Path $sourceScopeDirectory -Directory) {
+            if ($excludedPackagedPluginDirectories -contains $exampleDirectory.Name) {
+                continue
+            }
+
+            $destinationDirectory = Join-Path $destinationScopeDirectory $exampleDirectory.Name
+            if (Test-Path $destinationDirectory) {
+                Remove-Item $destinationDirectory -Recurse -Force
+            }
+
+            Copy-DirectoryContents -SourceDirectory $exampleDirectory.FullName -DestinationDirectory $destinationDirectory
+        }
     }
 }
 
@@ -281,7 +336,15 @@ foreach ($runtimeIdentifier in $Platforms) {
         Add-UnixLaunchers -OutputDirectory $stagingDirectory
     }
 
-    Publish-BundledPlugins -RepoRoot $repoRoot -OutputDirectory $stagingDirectory -RuntimeIdentifier $runtimeIdentifier
+    Publish-PackagedExamples -RepoRoot $repoRoot -OutputDirectory $stagingDirectory
+
+    if ($IncludeLegacyClrPlugins) {
+        Publish-BundledPlugins `
+            -RepoRoot $repoRoot `
+            -OutputDirectory $stagingDirectory `
+            -RuntimeIdentifier $runtimeIdentifier `
+            -RootDirectoryName "LegacyPlugins"
+    }
 
     $finalDirectory = Get-AvailableOutputDirectory -PreferredPath (Join-Path $distRoot $runtimeIdentifier)
     Copy-DirectoryContents -SourceDirectory $stagingDirectory -DestinationDirectory $finalDirectory

@@ -1,6 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />

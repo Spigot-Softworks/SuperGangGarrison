@@ -1,0 +1,555 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Microsoft.Diagnostics.ExtensionCommands</name>
+    </assembly>
+    <members>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.ClrMDHelperCommandBase.Helper">
+            <summary>
+            Helper bound to the current ClrRuntime that provides high level services on top of ClrMD.
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.CommandName">
+            <summary>The name of the command.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TabWidth">
+            <summary>Indent width.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.DmlCommandInvoke">
+            <summary>The command invocation syntax when used in Debugger Markup Language (DML) commands.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.ObjectAddress">
+            <summary>Gets whether to only show stacks that include the object with the specified address.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.MethodTableAddress">
+            <summary>Gets whether to only show stacks that include objects with the specified method table.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.NameSubstring">
+            <summary>Gets whether to only show stacks that include objects whose type includes the specified name in its name.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.IncludeTasks">
+            <summary>Gets whether to include stacks that contain only non-state machine task objects.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.IncludeCompleted">
+            <summary>Gets whether to include completed tasks in stacks.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.DisplayFields">
+            <summary>Gets whether to show state machine fields for every async stack frame that has them.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.Summarize">
+            <summary>Gets whether to summarize all async frames found rather than showing detailed stacks.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.CoalesceStacks">
+            <summary>Gets whether to coalesce stacks and portions of stacks that are the same.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.Invoke">
+            <summary>Invokes the command.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.WriteHeaderLine(System.String)">
+            <summary>Writes out a header line.  If DML is supported, this will be bolded.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.WriteMethodTable(System.UInt64,System.Boolean)">
+            <summary>Writes out a method table address.  If DML is supported, this will be linked.</summary>
+            <param name="mt">The method table address.</param>
+            <param name="asyncObject">
+            true if this is an async-related object; otherwise, false.  If true and if DML is supported,
+            a link to dumpasync will be generated.  If false and if DML is supported, a link to dumpmt
+            will be generated.
+            </param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.WriteAddress(System.UInt64,System.Boolean)">
+            <summary>Writes out an object address.  If DML is supported, this will be linked.</summary>
+            <param name="addr">The object address.</param>
+            <param name="asyncObject">
+            true if this is an async-related object; otherwise, false.  If true and if DML is supported,
+            a link to dumpasync will be generated.  If false and if DML is supported, a link to dumpobj
+            will be generated.
+            </param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.WriteValueTypeAddress(System.UInt64,System.UInt64)">
+            <summary>Writes out a value type address.  If DML is supported, this will be linked.</summary>
+            <param name="addr">The value type's address.</param>
+            <param name="mt">The value type's method table address.</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.WriteCodeLink(System.UInt64)">
+            <summary>Writes out a link that should open the source code for an address, if available.</summary>
+            <remarks>If DML is not supported, this is a nop.</remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.IsStateMachineBox(Microsoft.Diagnostics.Runtime.ClrType)">
+            <summary>Gets whether the specified type is an AsyncStateMachineBox{T}.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TryGetStateMachine(Microsoft.Diagnostics.Runtime.ClrObject,Microsoft.Diagnostics.Runtime.Interfaces.IClrValue@)">
+            <summary>Tries to get the compiler-generated state machine instance from a state machine box.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.GetDisplay(Microsoft.Diagnostics.Runtime.Interfaces.IClrValue,Microsoft.Diagnostics.Runtime.ClrInstanceField)">
+            <summary>Extract from the specified field of the specified object something that can be ToString'd.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TryGetMethodFromDelegate(Microsoft.Diagnostics.Runtime.ClrRuntime,Microsoft.Diagnostics.Runtime.ClrObject,Microsoft.Diagnostics.Runtime.ClrMethod@)">
+            <summary>Tries to get a ClrMethod for the method wrapped by a delegate object.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.Tabs(System.Int32)">
+            <summary>Creates an indenting string.</summary>
+            <param name="count">The number of tabs.</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.Truncate(System.String,System.Int32)">
+            <summary>Shortens a string to a maximum length by eliding part of the string with ...</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TryGetTaskStateFlags(Microsoft.Diagnostics.Runtime.ClrObject,System.Int32@)">
+            <summary>Tries to get the state flags from a task.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TryRead``1(Microsoft.Diagnostics.Runtime.Interfaces.IClrValue,System.String,``0@)">
+            <summary>Tries to read the specified value from the field of an entity.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.TryGetValidObjectField(Microsoft.Diagnostics.Runtime.ClrObject,System.String,Microsoft.Diagnostics.Runtime.ClrObject@)">
+            <summary>Tries to read an object from a field of another object.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.IsCompleted(System.Int32)">
+            <summary>Gets whether a task has completed, based on its state flags.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AllZero(System.ReadOnlySpan{System.Byte})">
+            <summary>Determines whether a span contains all zeros.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.DescribeTaskFlags(System.Int32)">
+            <summary>Gets a string representing interesting aspects of the specified task state flags.</summary>
+            <remarks>
+            The goal of this method isn't to detail every flag value (there are a lot).
+            Rather, we only want to render flags that are likely to be valuable, e.g.
+            we don't render WaitingForActivation, as that's the expected state for any
+            task that's showing up in a stack.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.GetDetailedHelp">
+            <summary>Gets detailed help for the command.</summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject">
+            <summary>Represents an async object to be used as a frame in an async "stack".</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.Object">
+            <summary>The actual object on the heap.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.IsStateMachine">
+            <summary>true if <see cref="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.Object"/> is an AsyncStateMachineBox.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.StateMachine">
+            <summary>A compiler-generated state machine extracted from the object, if one exists.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.AwaitState">
+            <summary>The state of the state machine, if the object contains a state machine.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.TaskStateFlags">
+            <summary>The <see cref="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.Object"/>'s Task state flags, if it's a task.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.IncludeInOutput">
+            <summary>Whether this object meets the user-specified criteria for inclusion.</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.TopLevel">
+            <summary>true if this is a top-level instance that nothing else continues to.</summary>
+            <remarks>This starts off as true and then is flipped to false when we find a continuation to this object.</remarks>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.NativeCode">
+            <summary>The address of the native code for a method on the object (typically MoveNext for a state machine).</summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.ExtensionCommands.DumpAsyncCommand.AsyncObject.Continuations">
+            <summary>This object's continuations.</summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.DumpHeapService">
+            <summary>
+            A class to print output similar in the same way !dumpheap does to share the
+            printing implementation and format.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.Summarize">
+            <summary>Gets whether to summarize all httpRequests found rather than showing detailed info.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.Pending">
+            <summary>Gets whether to show only requests without response.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.Completed">
+            <summary>Gets whether to show only requests with response.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.Uri">
+            <summary>Gets whether to show only requests with with specified request uri.</summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.StatusCode">
+            <summary>Gets whether to show only requests with with specified response status codei.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.Invoke">
+            <summary>Invokes the command.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.FilterDuplicates(System.Collections.Generic.IEnumerable{Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.HttpRequestInfo})">
+            <summary>
+            Filter duplicates from requests collection
+            </summary>
+            <remarks>
+            Filter out requests found by HttpRequestMessage only.
+            Requests found by HttpResponseMessage+HttpRequestMessage have more filled props.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpHttpCommand.GetDetailedHelp">
+            <summary>Gets detailed help for the command.</summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpStackObjectsCommand.EnumerateValidObjectsWithinRange(Microsoft.Diagnostics.Runtime.MemoryRange)">
+            <summary>
+            Enumerates all valid objects (and the address they came from) within the given range.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DumpStackObjectsCommand.EnumerateObjectsOnSegment(System.Collections.Generic.List{System.ValueTuple{System.UInt64,System.UInt64}},Microsoft.Diagnostics.Runtime.ClrSegment)">
+            <summary>
+            Simultaneously walks the withinCurrSegment list and objects on segment returning valid objects found.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.HasFilters">
+            <summary>
+            Whether the heap will be filtered at all
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.MemoryRange">
+            <summary>
+            Only enumerate objects or segments within this range.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.Segment">
+            <summary>
+            Only enumerate the segment or objects on the segment which matches the given address.
+            This address may be anywhere within a Segment's committed memory.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.GCHeap">
+            <summary>
+            The GC Heap number to filter on.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.ThrowIfNoMatchingGCRegions">
+            <summary>
+            Whether or not to throw if there are now matching segments or subheaps.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.MinimumObjectSize">
+            <summary>
+            The minimum size of an object to enumerate.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.MaximumObjectSize">
+            <summary>
+            The maximum size of an object to enumerate
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.Generation">
+            <summary>
+            Only enumerate object from this generation
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.SortSegments">
+            <summary>
+            The order in which to enumerate segments.  This also applies to object enumeration.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.HeapWithFilters.SortSubHeaps">
+            <summary>
+            The order in which to enumerate subheaps.  This only applies to subheap enumeration.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.ClrDebugResource">
+            <summary>
+            Native CLR_DEBUG_RESOURCE struct
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.CommandFormatHelpers.DisplaySpecialInfo(Microsoft.Diagnostics.DebugServices.CommandBase,System.String)">
+            <summary>
+            Displays the special diagnostics info header memory block (.NET Core 8 or later on Linux/MacOS)
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.CommandFormatHelpers.DisplayResources(Microsoft.Diagnostics.DebugServices.CommandBase,Microsoft.Diagnostics.DebugServices.IModule,System.Boolean,System.String)">
+            <summary>
+            Display the module's resources. The ClrDebugResource is pretty formatted.
+            </summary>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException"></exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.CommandFormatHelpers.DisplayRuntimeExports(Microsoft.Diagnostics.DebugServices.CommandBase,Microsoft.Diagnostics.DebugServices.IModule,System.Boolean,System.String)">
+            <summary>
+            Displays the module's special runtime exports
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.EnumerateAddressSpace(System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+             <summary>
+             Enumerates the entire address space, optionally tagging special CLR heaps, and optionally "collapsing"
+             MEM_RESERVE regions with a heuristic to blame them on the MEM_COMMIT region that came before it.
+             See <see cref="M:Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.CollapseReserveRegions(Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.DescribedRegion[])"/> for more info.
+             </summary>
+             <param name="tagClrMemoryRanges">Whether to "tag" regions with CLR memory for more details.</param>
+             <param name="includeReserveMemory">Whether to include MEM_RESERVE memory or not in the enumeration.</param>
+             <param name="tagReserveMemoryHeuristically">Whether to heuristically "blame" MEM_RESERVE regions on what
+             lives before it in the address space. For example, if there is a MEM_COMMIT region followed by a MEM_RESERVE
+             region in the address space, this function will "blame" the MEM_RESERVE region on whatever type of memory
+             the MEM_COMMIT region happens to be.  Usually this will be correct (e.g. the native heap will reserve a
+             large chunk of memory and commit the beginning of it as it allocates more and more memory...the RESERVE
+             region was actually "caused" by the Heap space before it).  Sometimes this will simply be wrong when
+             a MEM_COMMIT region is next to an unrelated MEM_RESERVE region.
+            
+             This is a heuristic, so use it accordingly.</param>
+             <param name="includeHandleTableIfSlow">If we cannot efficiently enumerate the handle table, we may have to
+             resort to find the memory regions associated with the HandleTable.  When a lot of handles are present, this
+             can take a very long time.</param>
+             <exception cref="T:System.InvalidOperationException">If !address fails we will throw InvalidOperationException.  This is usually
+             because symbols for ntdll couldn't be found.</exception>
+             <returns>An enumerable of memory ranges.</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.EnumerateClrMemoryAddresses(Microsoft.Diagnostics.Runtime.ClrRuntime,Microsoft.Diagnostics.ExtensionCommands.RootCacheService,System.Boolean)">
+            <summary>
+            Enumerates pointers to various CLR heaps in memory.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.CollapseReserveRegions(Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.DescribedRegion[])">
+             <summary>
+             This method heuristically tries to "blame" MEM_RESERVE regions on what lives before it on the heap.
+             For example, if there is a MEM_COMMIT region followed by a MEM_RESERVE region in the address space,
+             this function will "blame" the MEM_RESERVE region on whatever type of memory the MEM_COMMIT region
+             happens to be.  Usually this will be correct (e.g. the native heap will reserve a large chunk of
+             memory and commit the beginning of it as it allocates more and more memory...the RESERVE region
+             was actually "caused" by the Heap space before it).  Sometimes this will simply be wrong when
+             a MEM_COMMIT region is next to an unrelated MEM_RESERVE region.
+            
+             This is a heuristic, so use it accordingly.
+             </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.NativeAddressHelper.DescribedRegion.PrevRegionName">
+            <summary>
+            Only used for heuristically marking reserve regions with what it might
+            be reserved for.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.NotReachableInRangeCommand">
+            <summary>
+            Prints objects and statistics for a range of object pointers.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Pointer">
+            <summary>
+            A pointer, displayed as hex.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Text">
+            <summary>
+            Raw text which will not be truncated by default.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.HexValue">
+            <summary>
+            A hex value, prefixed with 0x.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.HexOffset">
+            <summary>
+            An offset (potentially negative), prefixed with 0x.  For example: '0x20' or '-0x20'.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Integer">
+            <summary>
+            An integer, with commas.  i.e. i.ToString("n0")
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.IntegerWithoutCommas">
+            <summary>
+            An integer, without commas.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.ByteCount">
+            <summary>
+            A count of bytes (size).
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.HumanReadableSize">
+            <summary>
+            A human readable size count.  e.g. "1.23mb"
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.DumpObj">
+            <summary>
+            An object pointer, which we would like to link to !do if Dml is enabled.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.DumpHeap">
+            <summary>
+            A link to any number of ClrMD objects (ClrSubHeap, ClrSegment, a MethodTable or ClrType, etc) which will
+            print an appropriate !dumpheap filter for, if dml is enabled.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.DumpDomain">
+            <summary>
+            A link to !dumpdomain for the given domain, if dml is enabled.  This also puts the domain's name in the
+            hover text for the link.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Thread">
+            <summary>
+            The ClrThread address with a link to the OSThreadID to change threads (if dml is enabled).
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.ListNearObj">
+            <summary>
+            A link to !listnearobj for the given ClrObject or address, if dml is enabled.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.TypeName">
+            <summary>
+            The name of a given type.  Note that types are always truncated by removing the beginning of the type's
+            name instead of truncating based on alignment.  This ensures the most important part of the name (the
+            actual type name) is preserved instead of the namespace.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Image">
+            <summary>
+            A path to an image on disk.  Note that images are always truncted by removing the beginning of the image's
+            path instead of the end, preserving the filename.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.ColumnKind.Range">
+            <summary>
+            A MemoryRange printed as "[start-end]".
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.DumpObj">
+            <summary>
+            Runs !dumpobj on the given pointer or ClrObject.  If a ClrObject is invalid,
+            this will instead link to !verifyobj.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.Bold">
+            <summary>
+            Marks the output in bold.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.DumpHeap">
+            <summary>
+            Dumps the heap.  If given a ClrSegment, ClrSubHeap, or MemoryRange it will
+            just dump that particular section of the heap.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.ListNearObj">
+            <summary>
+            Runs ListNearObj on the given address or ClrObject.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.DumpDomain">
+            <summary>
+            Runs !dumpdomain on the given doman, additionally it will put the domain
+            name as the hover text.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Dml.Thread">
+            <summary>
+            Changes the debugger to the given thread.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.Output.Format.CanTruncate">
+            <summary>
+            Returns true if a format of this type should never be truncated.  If true,
+            DEBUG builds of SOS Assert.Fail if attempting to truncate the value of the
+            column.  In release builds, we will simply not truncate the value, resulting
+            in a jagged looking table, but usable output.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.Output.Formats.TypeOrImageFormat">
+            <summary>
+            Unlike plain text, this Format always truncates the beginning of the type name or image path,
+            as the most important part is at the end.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.ExtensionCommands.RootCacheService">
+            <summary>
+            It is very expensive to enumerate roots, and relatively cheap to store them in memory.
+            This service is a cache of roots to use instead of calling ClrHeap.EnumerateRoots.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.StaticVariableService.TryGetStaticByAddress(System.UInt64,Microsoft.Diagnostics.Runtime.ClrStaticField@)">
+            <summary>
+            Returns the static field at the given address.
+            </summary>
+            <param name="address">The address of the static field.  Note that this is not a pointer to
+            an object, but rather a pointer to where the CLR runtime tracks the static variable's
+            location.  In all versions of the runtime, address will live in the middle of a pinned
+            object[].</param>
+            <param name="field">The field corresponding to the given address.  Non-null if return
+            is true.</param>
+            <returns>True if the address corresponded to a static variable, false otherwise.</returns>
+        </member>
+        <member name="T:ParallelStacks.Runtime.IRenderer">
+            <summary>
+            The method of this interface are called to render each part of the parallel call stacks
+            </summary>
+            <remarks>
+            Each method is responsible for adding color, tags or decoration on each element of the parallel stacks
+            </remarks>
+        </member>
+        <member name="P:ParallelStacks.Runtime.IRenderer.DisplayThreadIDsCountLimit">
+            <summary>
+            Max number of thread IDs to display at the end of each stack frame group.
+            This is important in the case of 100+ threads applications.
+            </summary>
+            <remarks>
+            Use -1 if there should not be any limit.
+            </remarks>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.Write(System.String)">
+            <summary>
+            Render empty line
+            </summary>
+            <param name="text"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteCount(System.String)">
+            <summary>
+            Render count at the beginning of each line
+            </summary>
+            <param name="count"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteNamespace(System.String)">
+            <summary>
+            Render namespace of each method type
+            </summary>
+            <param name="ns"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteType(System.String)">
+            <summary>
+            Render each type in method signatures
+            </summary>
+            <param name="type"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteSeparator(System.String)">
+            <summary>
+            Render separators such as ( and .
+            </summary>
+            <param name="separator"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteDark(System.String)">
+            <summary>
+            Render dark signature element such as ByRef
+            </summary>
+            <param name="separator"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteMethod(System.String)">
+            <summary>
+            Render method name
+            </summary>
+            <param name="method"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteMethodType(System.String)">
+            <summary>
+            Render method type (not including namespace)
+            </summary>
+            <param name="type"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.WriteFrameSeparator(System.String)">
+            <summary>
+            Render separator between different stack frame blocks
+            </summary>
+            <param name="text"></param>
+        </member>
+        <member name="M:ParallelStacks.Runtime.IRenderer.FormatTheadId(System.UInt32)">
+            <summary>
+            Render a thread id that will appear for each stack frames group (at the end of WriteFrameSeparator)
+            For example, in HTML it could be used to add a link to show details such as ClrStack -p
+            </summary>
+            <param name="threadID"></param>
+        </member>
+    </members>
+</doc>

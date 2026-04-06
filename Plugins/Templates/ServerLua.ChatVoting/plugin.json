@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.server.lua-chat-voting",
+  "displayName": "Lua Chat Voting",
+  "version": "0.1.0",
+  "type": "Server",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Lua version of the stock chat voting plugin built on the host seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "server",
+    "lua",
+    "chat",
+    "voting"
+  ]
+}

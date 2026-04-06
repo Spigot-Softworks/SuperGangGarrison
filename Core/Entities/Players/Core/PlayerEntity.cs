@@ -74,6 +74,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         ClassDefinition = classDefinition;
         DisplayName = SanitizeDisplayName(displayName);
         FacingDirectionX = 1f;
+        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(classDefinition.Id).Id;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         GameplayLoadoutState = CreateGameplayLoadoutState();
     }
 
@@ -90,6 +92,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     public string DisplayName { get; private set; }
 
     public GameplayPlayerLoadoutState GameplayLoadoutState { get; private set; }
+
+    public string SelectedGameplayLoadoutId { get; private set; }
+
+    public GameplayEquipmentSlot SelectedGameplayEquippedSlot { get; private set; }
 
     public float Width => ClassDefinition.Width;
 
@@ -468,6 +474,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetClassDefinition(CharacterClassDefinition classDefinition)
     {
         ClassDefinition = classDefinition;
+        SelectedGameplayLoadoutId = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(classDefinition.Id).Id;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
         Health = int.Clamp(Health, 0, MaxHealth);
         CurrentShells = int.Clamp(CurrentShells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
@@ -779,10 +787,11 @@ public sealed partial class PlayerEntity : SimulationEntity
         var acquiredItemId = ResolveRegisteredWeaponItemId(AcquiredWeapon);
         var equippedSlot = (IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped)
             ? GameplayEquipmentSlot.Secondary
-            : GameplayEquipmentSlot.Primary;
+            : SelectedGameplayEquippedSlot;
 
         return runtimeRegistry.CreatePlayerLoadoutState(
             ClassId,
+            SelectedGameplayLoadoutId,
             equippedSlot,
             secondaryItemOverrideId: secondaryItemId,
             acquiredItemId: acquiredItemId);

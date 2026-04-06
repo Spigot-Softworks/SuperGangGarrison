@@ -10,7 +10,7 @@ public enum ClientPluginMenuLocation
 
 public interface IOpenGarrisonClientPluginUi
 {
-    void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate);
+    void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order = 0);
 
     void ShowNotice(string text, int durationTicks = 200, bool playSound = true);
 }

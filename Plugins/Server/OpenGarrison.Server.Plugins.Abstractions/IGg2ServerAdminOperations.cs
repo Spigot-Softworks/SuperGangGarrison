@@ -1,4 +1,5 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Server.Plugins;
 
@@ -15,6 +16,10 @@ public interface IOpenGarrisonServerAdminOperations
     bool TrySetTeam(byte slot, PlayerTeam team);
 
     bool TrySetClass(byte slot, PlayerClass playerClass);
+
+    bool TrySetGameplayLoadout(byte slot, string loadoutId);
+
+    bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot);
 
     bool TryForceKill(byte slot);
 

@@ -64,19 +64,30 @@ public partial class Game1
     private void BeginLogicalFrame(Color clearColor)
     {
         EnsureGameRenderTarget();
+        WriteGameplayRenderTrace("frame beginlogical setrendertarget");
         GraphicsDevice.SetRenderTarget(_gameRenderTarget);
+        WriteGameplayRenderTrace("frame beginlogical clear");
         GraphicsDevice.Clear(clearColor);
+        WriteGameplayRenderTrace("frame beginlogical spritebatchbegin");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        WriteGameplayRenderTrace("frame beginlogical done");
     }
 
     private void EndLogicalFrame()
     {
+        WriteGameplayRenderTrace("frame endlogical spritebatchend-1");
         _spriteBatch.End();
+        WriteGameplayRenderTrace("frame endlogical setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
+        WriteGameplayRenderTrace("frame endlogical clear-backbuffer");
         GraphicsDevice.Clear(Color.Black);
+        WriteGameplayRenderTrace("frame endlogical spritebatchbegin-2");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        WriteGameplayRenderTrace("frame endlogical draw-rendertarget");
         _spriteBatch.Draw(_gameRenderTarget, GetPresentationDestinationRectangle(), Color.White);
+        WriteGameplayRenderTrace("frame endlogical spritebatchend-2");
         _spriteBatch.End();
+        WriteGameplayRenderTrace("frame endlogical done");
     }
 
     private Rectangle GetPresentationDestinationRectangle()

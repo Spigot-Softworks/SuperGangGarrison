@@ -96,7 +96,9 @@ internal sealed class ServerIncomingMessageDispatcher(
                         pluginMessage.SourcePluginId,
                         pluginMessage.TargetPluginId,
                         pluginMessage.MessageTypeName,
-                        pluginMessage.Payload));
+                        pluginMessage.Payload,
+                        pluginMessage.PayloadFormat,
+                        pluginMessage.SchemaVersion));
                 }
                 break;
         }

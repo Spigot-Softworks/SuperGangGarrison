@@ -1,0 +1,1646 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Microsoft.Diagnostics.DebugServices.Implementation</name>
+    </assembly>
+    <members>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.AssemblyResolver">
+            <summary>
+            Used to enable app-local assembly unification.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.AssemblyResolver.Enable">
+            <summary>
+            Call to enable the assembly resolver for the current AppDomain.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.AssemblyResolver.Probe(System.String,System.Version,System.Reflection.Assembly@)">
+            <summary>
+            Considers a path to load for satisfying an assembly ref and loads it
+            if the file exists and version is sufficient.
+            </summary>
+            <param name="filePath">Path to consider for load</param>
+            <param name="minimumVersion">Minimum version to consider</param>
+            <param name="assembly">loaded assembly</param>
+            <returns>true if assembly was loaded</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.CommandService">
+            <summary>
+            Implements the ICommandService interface using System.CommandLine.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.#ctor(System.String)">
+            <summary>
+            Create an instance of the command processor;
+            </summary>
+            <param name="commandPrompt">command prompted used in help message</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.ExecuteAndCapture(System.String,System.IServiceProvider)">
+            <summary>
+            Execute the command line and return the captured console output.
+            </summary>
+            <param name="commandLine">command line text</param>
+            <param name="services">services for the command</param>
+            <returns>Array of console output lines</returns>
+            <exception cref="T:System.ArgumentException">empty command line</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandNotFoundException">command not found</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandParsingException">parsing error</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">other errors</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.Execute(System.String,System.IServiceProvider)">
+            <summary>
+            Parse and execute the command line.
+            </summary>
+            <param name="commandLine">command line text</param>
+            <param name="services">services for the command</param>
+            <exception cref="T:System.ArgumentException">empty command line</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandNotFoundException">command not found</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandParsingException">parsing error</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">other errors</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.Execute(System.String,System.String,System.IServiceProvider)">
+            <summary>
+            Parse and execute the command.
+            </summary>
+            <param name="commandName">command name</param>
+            <param name="commandArguments">command arguments/options</param>
+            <param name="services">services for the command</param>
+            <exception cref="T:System.ArgumentException">empty command name or arguments</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandNotFoundException">command not found</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandParsingException">parsing error</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">other errors</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.Execute(System.String,System.String[],System.IServiceProvider)">
+            <summary>
+            Find, parse and execute the command.
+            </summary>
+            <param name="commandName">command name</param>
+            <param name="commandLineArray">command line</param>
+            <param name="services">services for the command</param>
+            <exception cref="T:System.ArgumentException">empty command name</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandNotFoundException">command not found</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.CommandParsingException">parsing error</exception>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">other errors</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.GetAllCommandHelp(System.IServiceProvider)">
+            <summary>
+            Displays the help for a command
+            </summary>
+            <param name="services">service provider</param>
+            <returns>command invocation and help enumeration</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.GetDetailedHelp(System.String,System.IServiceProvider,System.Int32)">
+            <summary>
+            Displays the detailed help for a command
+            </summary>
+            <param name="commandName">name of the command or alias</param>
+            <param name="services">service provider</param>
+            <param name="consoleWidth">the width to format the help or int.MaxValue</param>
+            <returns>help text or null if not found</returns>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.Commands">
+            <summary>
+            Enumerates all the command's name, help and aliases
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.AddCommands(System.Type)">
+            <summary>
+            Add the commands and aliases attributes found in the type.
+            </summary>
+            <param name="type">Command type to search</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.AddCommands(System.Type,System.Func{System.IServiceProvider,System.Object})">
+            <summary>
+            Add the commands and aliases attributes found in the type.
+            </summary>
+            <param name="type">Command type to search</param>
+            <param name="factory">function to create command instance</param>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup">
+            <summary>
+            This groups like commands that may have the same name as another group or the default one.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.#ctor(System.String)">
+            <summary>
+            Create an instance of the command processor;
+            </summary>
+            <param name="commandPrompt">command prompted used in help message</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.Execute(System.Collections.Generic.IReadOnlyList{System.String},System.IServiceProvider)">
+            <summary>
+            Parse and execute the command line.
+            </summary>
+            <param name="commandLine">command line text</param>
+            <param name="services">services for the command</param>
+            <returns>true if command was found and executed without error</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">parsing error</exception>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.CommandHandlers">
+            <summary>
+            Returns all the command handler instances
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.Contains(System.String)">
+            <summary>
+            Returns true if command or command alias is found
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.TryGetCommandHandler(System.String,Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler@)">
+            <summary>
+            Returns the command handler for the command or command alias
+            </summary>
+            <param name="commandName">command or alias</param>
+            <param name="handler">handler instance</param>
+            <returns>true if found</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.TryGetCommand(System.String,System.CommandLine.Command@)">
+            <summary>
+            Returns the command instance for the command or command alias
+            </summary>
+            <param name="commandName">command or alias</param>
+            <param name="command">command instance</param>
+            <returns>true if found</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandGroup.CreateCommand(System.Type,Microsoft.Diagnostics.DebugServices.CommandAttribute,System.Func{System.IServiceProvider,System.Object})">
+            <summary>
+            Add the command and aliases attributes found in the type/command attribute.
+            </summary>
+            <param name="type">Command type to search</param>
+            <param name="commandAttribute">command attribute</param>
+            <param name="factory">function to create command instance</param>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler">
+            <summary>
+            The normal command handler.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.Name">
+            <summary>
+            Returns the command name
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.Help">
+            <summary>
+            Returns the command's help text
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.FilterInvokeMessage">
+            <summary>
+            Filter invoke message or null if no attribute or message
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.Aliases">
+            <summary>
+            Returns the list of the command's aliases.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.Arguments">
+            <summary>
+            Returns the list of arguments
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.IsCommandSupported(System.CommandLine.Command,System.IServiceProvider)">
+            <summary>
+            Returns true is the command is supported by the command filter. Calls the FilterInvokeAttribute marked method.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.Invoke(System.CommandLine.ParseResult,System.IServiceProvider)">
+            <summary>
+            Execute the command synchronously.
+            </summary>
+            <param name="context">invocation context</param>
+            <param name="services">service provider</param>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.HelpInvocation">
+            <summary>
+            Return the various ways the command can be invoked. For building the help text.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.CommandService.CommandHandler.GetDetailedHelp(System.CommandLine.Command,System.IServiceProvider)">
+            <summary>
+            Executes the command's help invoke function if exists
+            </summary>
+            <param name="parser">parser instance</param>
+            <param name="services">service provider</param>
+            <returns>true help called, false no help function</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ContextService">
+            <summary>
+            Manages the current target, thread and runtime contexts
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.Services">
+            <summary>
+            Current context service provider. Contains the current ITarget, IThread
+            and IRuntime instances along with all per target and global services.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.OnContextChange">
+            <summary>
+            Fires anytime the current context changes.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentTarget(System.Int32)">
+            <summary>
+            Sets the current target.
+            </summary>
+            <param name="targetId">target id</param>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid target id</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ClearCurrentTarget">
+            <summary>
+            Clears (nulls) the current target
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentThread(System.UInt32)">
+            <summary>
+            Set the current thread.
+            </summary>
+            <param name="threadId">thread id</param>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid thread id</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ClearCurrentThread">
+            <summary>
+            Clears (nulls) the current thread
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentRuntime(System.Int32)">
+            <summary>
+            Set the current runtime
+            </summary>
+            <param name="runtimeId">runtime id</param>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid runtime id</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ClearCurrentRuntime">
+            <summary>
+            Clears (nulls) the current runtime
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.GetCurrentTarget">
+            <summary>
+            Returns the current target.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentTarget(Microsoft.Diagnostics.DebugServices.ITarget)">
+            <summary>
+            Allows hosts to set the current target. Fires the context change event if the current target has changed.
+            </summary>
+            <param name="target"></param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.GetCurrentThread">
+            <summary>
+            Returns the current thread.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentThread(Microsoft.Diagnostics.DebugServices.IThread)">
+            <summary>
+            Allows hosts to set the current thread. Fires the context change event if the current thread has changed.
+            </summary>
+            <param name="thread"></param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.GetCurrentRuntime">
+            <summary>
+            Find the current runtime.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.SetCurrentRuntime(Microsoft.Diagnostics.DebugServices.IRuntime)">
+            <summary>
+            Allows hosts to set the current runtime. Fires the context change event if the current thread has changed.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ContextServiceProvider">
+            <summary>
+            Special context service parent forwarding wrapper
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ContextServiceProvider.#ctor(Microsoft.Diagnostics.DebugServices.Implementation.ContextService)">
+            <summary>
+            Create a special context service provider parent that forwards to the current runtime, target or host
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ContextService.ContextServiceProvider.GetService(System.Type)">
+            <summary>
+            Returns the instance of the service or returns null if service doesn't exist
+            </summary>
+            <param name="type">service type</param>
+            <returns>service instance or null</returns>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.CrashInfoService.STATUS_STACK_BUFFER_OVERRUN">
+            <summary>
+            This is a "transport" exception code required by Watson to trigger the proper analyzer/provider for bucketing
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.CrashInfoService.FAST_FAIL_EXCEPTION_DOTNET_AOT">
+            <summary>
+            This is the Native AOT fail fast subcode used by Watson
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.DataReader">
+            <summary>
+            ClrMD runtime service implementation. This MUST never be disposable.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ELFModule">
+            <summary>
+            ELFModule service that provides downloaded module ELFFile wrapper.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ELFModule.CreateELFModule(Microsoft.Diagnostics.DebugServices.IModule,Microsoft.Diagnostics.DebugServices.ISymbolService)">
+            <summary>
+            Creates a ELFModule service instance of the downloaded or local (if exists) module file.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService">
+            <summary>
+            Log to file console service wrapper
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService.FilePath">
+            <summary>
+            The log file path if enabled, otherwise null.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService.Enable(System.String)">
+            <summary>
+            Enable console file logging.
+            </summary>
+            <param name="filePath">log file path</param>
+            <remarks>see File.Open for more exceptions</remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService.Disable">
+            <summary>
+            Disable/close console file logging
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService.AddStream(System.IO.Stream)">
+            <summary>
+            Add to the list of file streams to write the console output.
+            </summary>
+            <param name="stream">Stream to add. Lifetime managed by caller.</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.FileLoggingConsoleService.RemoveStream(System.IO.Stream)">
+            <summary>
+            Remove the specified file stream from the writers.
+            </summary>
+            <param name="stream">Stream passed to add. Stream not closed or disposed.</param>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Host.ServiceManager">
+            <summary>
+            Service manager
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Host.ServiceContainer">
+            <summary>
+            Service container
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Host.CreateServiceContainer">
+            <summary>
+            Creates and returns the global service container after finalizing all the service factories.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Host.DestoryTargets">
+            <summary>
+            Cleans up all the targets created by this host.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService">
+            <summary>
+            Memory service wrapper that maps and fixes up PE module on read memory errors.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.#ctor(Microsoft.Diagnostics.DebugServices.ServiceContainer,Microsoft.Diagnostics.DebugServices.IMemoryService,System.Boolean)">
+            <summary>
+            The PE, ELF and MacOS image mapping memory service. For the dotnet-dump linux dump reader and
+            dbgeng the native module service providers managed and modules, but under lldb only native
+            modules are provided. The "managed" flag is for those later cases.
+            </summary>
+            <param name="container">service container</param>
+            <param name="memoryService">memory service to wrap</param>
+            <param name="managed">if true, map managed modules, else native</param>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.PointerSize">
+            <summary>
+            Returns the pointer size of the target
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.ReadMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Read memory out of the target process.
+            </summary>
+            <param name="address">The address of memory to read</param>
+            <param name="buffer">The buffer to read memory into</param>
+            <param name="bytesRead">The number of bytes actually read out of the target process</param>
+            <returns>true if any bytes were read at all, false if the read failed (and no bytes were read)</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.WriteMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Write memory into target process for supported targets.
+            </summary>
+            <param name="address">The address of memory to write</param>
+            <param name="buffer">The buffer to write</param>
+            <param name="bytesWritten">The number of bytes successfully written</param>
+            <returns>true if any bytes where written, false if write failed</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.ReadMemoryFromModule(System.UInt64,System.Int32)">
+            <summary>
+            Read memory from a PE module for the memory cache. Finds locally or downloads a module
+            and "maps" it into the address space. This function can return more than requested which
+            means the block should not be cached.
+            </summary>
+            <param name="address">memory address</param>
+            <param name="bytesRequested">number of bytes</param>
+            <returns>bytes read or null if error</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.ManagedModuleService">
+            <summary>
+            Module service implementation for managed image mapping. Enumerates all managed modules in all runtimes.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ImageMappingMemoryService.ManagedModuleService.GetModulesInner">
+            <summary>
+            Get/create the modules dictionary.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode">
+            <summary>
+            Simple linked list implementation. It assumes the nodes in the list inherit this
+            class. The standard C# LinkedList/LinkedListNode doesn't allow it to be inherited
+            in the (i.e. ServiceEvent) nodes making it inefficient (because LinkedListNode
+            contains the data node), difficult to remove/maintain the list because LinkedListNode
+            doesn't have a remove function and LinkedList doesn't allow the nodes to be removed
+            during enumeration.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.#ctor">
+            <summary>
+            Create a linked list node instance.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.Next">
+            <summary>
+            Next node in the list
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.Previous">
+            <summary>
+            Previous node in the list
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.Cast``1">
+            <summary>
+            Cast to the data type. T must inherit from this class.
+            </summary>
+            <typeparam name="T">data node type</typeparam>
+            <returns>T</returns>
+            <exception cref="T:System.InvalidCastException">thrown if T mismatches the actual type that inherits this class</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.InsertAfter(Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode)">
+            <summary>
+            Insert the new node after before this one.
+            </summary>
+            <param name="node">node to add</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.InsertBefore(Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode)">
+            <summary>
+            Insert the new node before this one.
+            </summary>
+            <param name="node">node to add</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.Remove">
+            <summary>
+            Remove the this node from the list.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.LinkedListNode.GetValues``1">
+            <summary>
+            Return forward enumerator for the linked list
+            </summary>
+            <typeparam name="T">node type</typeparam>
+            <returns>enumerator</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.MachOModule">
+            <summary>
+            MachOModule service that provides downloaded module MachOFile wrapper.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MachOModule.CreateMachOModule(Microsoft.Diagnostics.DebugServices.ISymbolService,Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Creates a MachOModule service instance of the downloaded or local (if exists) module file.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster">
+            <summary>
+            This class represents a chunk of cached memory, more or less a page.
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.Empty">
+            <summary>
+            Empty cluster
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster._data">
+            <summary>
+            The cached data.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.Length">
+            <summary>
+            Length of cluster data
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.#ctor(System.Byte[])">
+             <summary>
+             Creates a cluster for some data.
+             If the buffer is shorter than a page, it build a validity bitmap for it.
+             </summary>
+             <param name="data">the data to cache</param>
+            
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.GetBase(System.UInt64)">
+            <summary>
+            Computes the base address of the cluster holding an address.
+            </summary>
+            <param name="address">input address</param>
+            <returns>start address of the cluster</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.GetOffset(System.UInt64)">
+            <summary>
+            Computes the offset of an address inside of the cluster.
+            </summary>
+            <param name="address">input address</param>
+            <returns>offset of address</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.Cluster.ReadBlock(System.UInt64,System.Span{System.Byte},System.Int32)">
+            <summary>
+            Reads at up <paramref name="size"/> bytes from location <paramref name="address"/>.
+            </summary>
+            <param name="address">desired address</param>
+            <param name="buffer">buffer to read</param>
+            <param name="size">number of bytes to read</param>
+            <returns>bytes read</returns>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.CacheSizeLimit">
+            <summary>
+            After memory cache reaches the limit size, it gets flushed upon next access.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.ReadMemoryDelegate">
+            <summary>
+            The delegate to the actual read memory
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.CacheSize">
+            <summary>
+            Current size of this memory cache
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.FlushCache">
+            <summary>
+            Flush this memory cache
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.ReadMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Reads up to <paramref name="buffer.Length.Length"/> bytes of memory at <paramref name="address"/>.
+            It walks the set of clusters to collect as much data as possible.
+            </summary>
+            <param name="address">address to read</param>
+            <param name="buffer">span of buffer to read memory</param>
+            <param name="bytesRead">The number of bytes actually read out of the target process</param>
+            <returns>true if read memory succeeded or partially succeeded</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryCache.GetCluster(System.UInt64)">
+            <summary>
+            Ensures that an address is cached.
+            </summary>
+            <param name="address">target address</param>
+            <returns>It will resolve to an existing cluster or a newly-created one</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.MemoryServiceFromDataReader">
+            <summary>
+            Memory service implementation for the clrmd IDataReader
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryServiceFromDataReader.#ctor(Microsoft.Diagnostics.Runtime.IDataReader)">
+            <summary>
+            Memory service constructor
+            </summary>
+            <param name="dataReader">CLRMD data reader</param>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.MemoryServiceFromDataReader.PointerSize">
+            <summary>
+            Returns the pointer size of the target
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryServiceFromDataReader.ReadMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Read memory out of the target process.
+            </summary>
+            <param name="address">The address of memory to read</param>
+            <param name="buffer">The buffer to read memory into</param>
+            <param name="bytesRead">The number of bytes actually read out of the target process</param>
+            <returns>true if any bytes were read at all, false if the read failed (and no bytes were read)</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MemoryServiceFromDataReader.WriteMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Write memory into target process for supported targets.
+            </summary>
+            <param name="address">The address of memory to write</param>
+            <param name="buffer">The buffer to write</param>
+            <param name="bytesWritten">The number of bytes successfully written</param>
+            <returns>true if any bytes where written, false if write failed</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService">
+            <summary>
+            Memory service wrapper that always maps clrmodule's metadata into the address
+            space even is some or all of the memory exists in the coredump. lldb returns
+            zero's (instead of failing the memory read) for missing pages in core dumps
+            that older (less than 5.0) createdumps generate  so it needs this special
+            metadata  mapping memory service.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService.#ctor(Microsoft.Diagnostics.DebugServices.ServiceContainer,Microsoft.Diagnostics.DebugServices.IMemoryService)">
+            <summary>
+            Memory service constructor
+            </summary>
+            <param name="container">service container</param>
+            <param name="memoryService">memory service to wrap</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService.Flush">
+            <summary>
+            Flush the metadata memory service
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService.PointerSize">
+            <summary>
+            Returns the pointer size of the target
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService.ReadMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Read memory out of the target process.
+            </summary>
+            <param name="address">The address of memory to read</param>
+            <param name="buffer">The buffer to read memory into</param>
+            <param name="bytesRead">The number of bytes actually read out of the target process</param>
+            <returns>true if any bytes were read at all, false if the read failed (and no bytes were read)</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.MetadataMappingMemoryService.WriteMemory(System.UInt64,System.Span{System.Byte},System.Int32@)">
+            <summary>
+            Write memory into target process for supported targets.
+            </summary>
+            <param name="address">The address of memory to write</param>
+            <param name="buffer">The buffer to write</param>
+            <param name="bytesWritten">The number of bytes successfully written</param>
+            <returns>true if any bytes where written, false if write failed</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.Module">
+            <summary>
+            Module base implementation
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Module.GetMetadata">
+            <summary>
+            Downloads and returns the metadata for the assembly.
+            </summary>
+            <returns>metadata bytes</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ModuleFromAddress">
+            <summary>
+            Create a IModule instance from a base address.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService">
+            <summary>
+            Module service base implementation
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.Microsoft#Diagnostics#DebugServices#IModuleService#EnumerateModules">
+            <summary>
+            Enumerate all the modules in the target
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.Microsoft#Diagnostics#DebugServices#IModuleService#GetModuleFromIndex(System.Int32)">
+            <summary>
+            Get the module info from the module index
+            </summary>
+            <param name="moduleIndex">index</param>
+            <returns>module</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid module index</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.Microsoft#Diagnostics#DebugServices#IModuleService#GetModuleFromBaseAddress(System.UInt64)">
+            <summary>
+            Get the module info from the module base address
+            </summary>
+            <param name="baseAddress"></param>
+            <returns>module</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">base address not found</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.Microsoft#Diagnostics#DebugServices#IModuleService#GetModuleFromAddress(System.UInt64)">
+            <summary>
+            Finds the module that contains the address.
+            </summary>
+            <param name="address">search address</param>
+            <returns>module or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.Microsoft#Diagnostics#DebugServices#IModuleService#GetModuleFromModuleName(System.String)">
+            <summary>
+            Finds the module(s) with the specified module name. It is the platform dependent
+            name that includes the "lib" prefix on xplat and the extension (dll, so or dylib).
+            </summary>
+            <param name="moduleName">module name to find</param>
+            <returns>matching modules</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.CreateModule(System.Int32,System.UInt64,System.UInt64,System.String)">
+            <summary>
+            Create a module instance
+            </summary>
+            <param name="moduleIndex">artificial index or -1 for none</param>
+            <param name="imageBase">module base address</param>
+            <param name="imageSize">module size</param>
+            <param name="imageName">module name</param>
+            <returns>IModule</returns>
+            <exception cref="T:System.ArgumentNullException">thrown if imageBase or imageSize is 0</exception>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.EntryPointModule">
+            <summary>
+            Gets the entrypoint module for the target.  This is the first module in the sorted list of modules.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetModules">
+            <summary>
+            Get/create the modules dictionary.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetSortedModules">
+            <summary>
+            Create the sorted array of modules.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetModulesInner">
+            <summary>
+            Get/create the modules.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetPEInfo(System.UInt64,System.UInt64,System.Collections.Generic.IEnumerable{Microsoft.Diagnostics.DebugServices.PdbFileInfo}@,Microsoft.Diagnostics.DebugServices.Implementation.Module.Flags@)">
+            <summary>
+            Returns the PE file's PDB info from the debug directory
+            </summary>
+            <param name="address">module base address</param>
+            <param name="size">module size</param>
+            <param name="pdbFileInfos">the pdb records or null</param>
+            <param name="moduleFlags">module flags</param>
+            <returns>PEImage instance or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetPEInfo(System.Boolean,System.UInt64,System.UInt64,System.Collections.Generic.List{Microsoft.Diagnostics.DebugServices.PdbFileInfo}@,Microsoft.Diagnostics.DebugServices.Implementation.Module.Flags@)">
+            <summary>
+            Returns information about the PE file for a specific layout.
+            </summary>
+            <param name="isVirtual">the memory layout of the module</param>
+            <param name="address">module base address</param>
+            <param name="size">module size</param>
+            <param name="pdbs">pdb infos</param>
+            <param name="flags">module flags</param>
+            <returns>PEFile instance or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetBuildId(System.UInt64)">
+            <summary>
+            Returns the ELF module build id or the MachO module uuid
+            </summary>
+            <param name="address">module base address</param>
+            <returns>build id or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.GetVersionString(Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Get the version string from a Linux or MacOS image
+            </summary>
+            <param name="module">module to get version string</param>
+            <returns>version string or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.SearchVersionString(System.UInt64,System.Int64,System.String@)">
+            <summary>
+            Linux/MacOS version string search helper
+            </summary>
+            <param name="address">beginning of module memory</param>
+            <param name="size">size of module</param>
+            <param name="fileVersion">returned version string</param>
+            <returns>true if successful</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ModuleService.ReadVirtualCache">
+            <summary>
+            Search memory helper class
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ModuleServiceFromDataReader">
+            <summary>
+            Module service implementation for the clrmd IDataReader
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ModuleServiceFromDataReader.GetModulesInner">
+            <summary>
+            Get/create the modules dictionary.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.PEModule">
+            <summary>
+            PEModule service that provides downloaded module PEReader wrapper.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.PEModule.CreatePEModule(Microsoft.Diagnostics.DebugServices.IModule,Microsoft.Diagnostics.DebugServices.ISymbolService)">
+            <summary>
+            Creates a PEModule service instance of the downloaded or local (if exists) module file.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.Runtime">
+            <summary>
+            ClrMD runtime instance implementation
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Runtime.CreateRuntime">
+            <summary>
+            Create ClrRuntime instance
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.RuntimeProvider">
+            <summary>
+            ClrMD runtime provider implementation
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.RuntimeProvider.EnumerateRuntimes(System.Int32,Microsoft.Diagnostics.DebugServices.RuntimeEnumerationFlags)">
+            <summary>
+            Returns the list of .NET runtimes in the target
+            </summary>
+            <param name="startingRuntimeId">The starting runtime id for this provider</param>
+            <param name="flags">Enumeration control flags</param>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.RuntimeService">
+            <summary>
+            Runtime service implementation
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.RuntimeService.EnumerateRuntimes(Microsoft.Diagnostics.DebugServices.RuntimeEnumerationFlags)">
+            <summary>
+            Returns the list of runtimes in the target
+            </summary>
+            <param name="flags">Enumeration control flags</param>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ServiceEvent">
+            <summary>
+            The service event implementation
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ServiceEvent`1">
+            <summary>
+            The service event with one parameter implementation
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager">
+            <summary>
+            The service manager registers any ServiceExportAttribute on types and methods and sets properties,
+            fields and methods marked  with the ServiceImportAttribute that match the provided services. Tracks
+            any unresolved service requests and injects them when the service is registered.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.NotifyExtensionLoad">
+            <summary>
+            This event fires when an extension assembly is loaded
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.NotifyExtensionLoadFailure">
+            <summary>
+            This event fires when an extension assembly fails
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.#cctor">
+            <summary>
+            Enable the assembly resolver on desktop Framework
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.#ctor">
+            <summary>
+            Create a service manager instance
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.CreateServiceContainerFactory(Microsoft.Diagnostics.DebugServices.ServiceScope,System.IServiceProvider)">
+            <summary>
+            Creates a new service container factory with all the registered factories for the given scope.
+            </summary>
+            <param name="scope">global, per-target, per-runtime, etc. service type</param>
+            <param name="parent">parent service services to chain</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.EnumerateProviderFactories(System.Type)">
+            <summary>
+            Get the services factories for a type or interface.
+            </summary>
+            <param name="providerType">type or interface</param>
+            <returns>the services factories for the type</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.RegisterExportedServices(System.Reflection.Assembly)">
+            <summary>
+            Finds all the ServiceExport attributes in the assembly and registers.
+            </summary>
+            <param name="assembly">service implementation assembly</param>
+            <exception cref="T:System.IO.FileNotFoundException">assembly or reference not found</exception>
+            <exception cref="T:System.NotSupportedException">not supported</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.RegisterExportedServices(System.Type)">
+            <summary>
+            Finds all the ServiceExport attributes in the type and registers.
+            </summary>
+            <param name="serviceType">service implementation type</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.RegisterAssembly(System.Reflection.Assembly)">
+            <summary>
+            Register the exported services in the assembly and notify the assembly has loaded.
+            </summary>
+            <param name="assembly">extension assembly</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.AddServiceFactory``1(Microsoft.Diagnostics.DebugServices.ServiceScope,Microsoft.Diagnostics.DebugServices.ServiceFactory)">
+            <summary>
+            Add service factory for the specific scope.
+            </summary>
+            <typeparam name="T">service type</typeparam>
+            <param name="scope">global, per-target, per-runtime, etc. service type</param>
+            <param name="factory">function to create service instance</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.AddServiceFactory(Microsoft.Diagnostics.DebugServices.ServiceScope,System.Type,Microsoft.Diagnostics.DebugServices.ServiceFactory)">
+            <summary>
+            Add service factory for the specific scope.
+            </summary>
+            <param name="scope">global, per-target, per-runtime, etc. service type</param>
+            <param name="serviceType">service type or interface</param>
+            <param name="factory">function to create service instance</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.AddProviderFactory(System.Type,Microsoft.Diagnostics.DebugServices.ServiceFactory)">
+            <summary>
+            Add provider factory.
+            </summary>
+            <param name="providerType">service type or interface</param>
+            <param name="factory">function to create provider instance</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.FinalizeServices">
+            <summary>
+            Finalizes the service manager. Loading extensions or adding service factories are not allowed after this call.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.LoadExtensions">
+            <summary>
+            Load any extra extensions in the search path
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.LoadExtension(System.String)">
+            <summary>
+            Load extension from the path
+            </summary>
+            <param name="extensionPath">extension assembly path</param>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.ExtensionsLoaded">
+            <summary>
+            Returns the extensions loaded
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ServiceManager.UseAssemblyLoadContext(System.String)">
+            <summary>
+            Load the extension using an assembly load context. This needs to be in
+            a separate method so ExtensionLoadContext class doesn't get referenced
+            when running on desktop Framework.
+            </summary>
+            <param name="extensionPath">extension assembly path</param>
+            <returns>assembly</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.SpecialDiagInfo">
+            <summary>
+            This is a special memory region added to ELF and MachO dumps that contains extra diagnostics
+            information like the exception record for a crash for a NativeAOT app. The exception record
+            contains the pointer to the JSON formatted crash info.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolFile.ResolveSequencePoint(System.String,System.Int32,System.Int32@,System.Int32@)">
+            <summary>
+            Returns method token and IL offset for given source line number.
+            </summary>
+            <param name="filePath">source file name and path</param>
+            <param name="lineNumber">source line number</param>
+            <param name="methodToken">method token return</param>
+            <param name="ilOffset">IL offset return</param>
+            <returns>true if information is available</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolFile.GetSourceLineByILOffset(System.Int32,System.Int64,System.Int32@,System.String@)">
+            <summary>
+            Returns source line number and source file name for given IL offset and method token.
+            </summary>
+            <param name="methodToken">method token</param>
+            <param name="ilOffset">IL offset</param>
+            <param name="lineNumber">source line number return</param>
+            <param name="fileName">source file name return</param>
+            <returns>true if information is available</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolFile.GetLocalVariableByIndex(System.Int32,System.Int32,System.String@)">
+            <summary>
+            Returns local variable name for given local index and IL offset.
+            </summary>
+            <param name="methodToken">method token</param>
+            <param name="localIndex">local variable index</param>
+            <param name="localVarName">local variable name return</param>
+            <returns>true if name has been found</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService">
+            <summary>
+            Symbol services to configure symbol servers, caches and directory search
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.MsdlSymbolServer">
+            <summary>
+            Symbol server URLs
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.OnChangeEvent">
+            <summary>
+            Invoked when anything changes in the symbol service (adding servers, caches, or directories, clearing store, etc.)
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.IsSymbolStoreEnabled">
+            <summary>
+            Returns true if symbol download has been enabled.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultSymbolPath">
+            <summary>
+            The default symbol server URL (normally msdl) when not overridden in AddSymbolServer.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultSymbolCache">
+            <summary>
+            The default symbol cache path:
+            * dbgeng on Windows uses the dbgeng symbol cache path: %PROGRAMDATA%\dbg\sym
+            * VS or dotnet-dump on Windows use the VS symbol cache path: %TEMPDIR%\SymbolCache
+            * dotnet-dump/lldb on Linux/MacOS uses: $HOME/.dotnet/symbolcache
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultTimeout">
+            <summary>
+            The time out in minutes passed to the HTTP symbol store when not overridden in AddSymbolServer.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultRetryCount">
+            <summary>
+            The retry count passed to the HTTP symbol store when not overridden in AddSymbolServer.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.Reset">
+            <summary>
+            Reset any HTTP symbol stores marked with a client failure
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.ParseSymbolPath(System.String)">
+            <summary>
+            Parses the Windows debugger symbol path (srv*, cache*, etc.).
+            </summary>
+            <param name="symbolPath">Windows symbol path</param>
+            <returns>if false, error parsing symbol path</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddSymwebSymbolServer(System.Boolean,System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            Add the cloud symweb symbol server with authentication.
+            </summary>
+            <param name="includeInteractiveCredentials">specifies whether credentials requiring user interaction will be included in the default authentication flow</param>
+            <param name="timeoutInMinutes">symbol server timeout in minutes (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultTimeout"/> if null)</param>
+            <param name="retryCount">number of retries (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultRetryCount"/> if null)</param>
+            <returns>if false, failure</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddAuthenticatedSymbolServer(System.String,System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            Add symbol server to search path. The server URL can be the cloud symweb.
+            </summary>
+            <param name="accessToken">PAT or access token</param>
+            <param name="symbolServerPath">symbol server url (optional, uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultSymbolPath"/> if null)</param>
+            <param name="timeoutInMinutes">symbol server timeout in minutes (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultTimeout"/> if null)</param>
+            <param name="retryCount">number of retries (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultRetryCount"/> if null)</param>
+            <returns>if false, failure</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddSymbolServer(System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            Add symbol server to search path.
+            </summary>
+            <param name="symbolServerPath">symbol server url (optional, uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultSymbolPath"/> if null)</param>
+            <param name="timeoutInMinutes">symbol server timeout in minutes (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultTimeout"/> if null)</param>
+            <param name="retryCount">number of retries (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultRetryCount"/> if null)</param>
+            <returns>if false, failure</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddSymbolServer(System.String,System.Nullable{System.Int32},System.Nullable{System.Int32},System.Func{System.Threading.CancellationToken,System.Threading.Tasks.ValueTask{System.Net.Http.Headers.AuthenticationHeaderValue}})">
+            <summary>
+            Add symbol server to search path.
+            </summary>
+            <param name="symbolServerPath">symbol server url (optional, uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultSymbolPath"/> if null)</param>
+            <param name="timeoutInMinutes">symbol server timeout in minutes (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultTimeout"/> if null)</param>
+            <param name="retryCount">number of retries (optional uses <see cref="P:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DefaultRetryCount"/> if null)</param>
+            <param name="authenticationFunc">function that returns the authentication value for a request</param>
+            <returns>if false, failure</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddCachePath(System.String)">
+            <summary>
+            Add cache path to symbol search path
+            </summary>
+            <param name="symbolCachePath">symbol cache directory path (optional)</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.AddDirectoryPath(System.String)">
+            <summary>
+            Add directory path to symbol search path
+            </summary>
+            <param name="symbolDirectoryPath">symbol directory path to search (optional)</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DisableSymbolStore">
+            <summary>
+            This function disables any symbol downloading support.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadModuleFile(Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Downloads module file
+            </summary>
+            <param name="module">module interface</param>
+            <returns>module path or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadSymbolFile(Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Downloads the symbol file for module
+            </summary>
+            <param name="module">module interface</param>
+            <returns>module path or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadFile(System.String,System.String)">
+            <summary>
+            Download a file from the symbol stores/server.
+            </summary>
+            <param name="index">index to lookup on symbol server</param>
+            <param name="file">the full path name of the file</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.OpenSymbolFile(System.String,System.Boolean,System.IO.Stream)">
+            <summary>
+            Returns the portable PDB reader for the assembly path
+            </summary>
+            <param name="assemblyPath">file path of the assembly or null if the module is in-memory or dynamic</param>
+            <param name="isFileLayout">type of in-memory PE layout, if true, file based layout otherwise, loaded layout</param>
+            <param name="peStream">in-memory PE stream or null</param>
+            <returns>symbol file or null</returns>
+            <remarks>
+            Assumes that neither PE image nor PDB loaded into memory can be unloaded or moved around.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.OpenSymbolFile(System.IO.Stream)">
+            <summary>
+            Returns the portable PDB reader for the portable PDB stream
+            </summary>
+            <param name="pdbStream">portable PDB memory or file stream</param>
+            <returns>symbol file or null</returns>
+            <remarks>
+            Assumes that the PDB loaded into memory can be unloaded or moved around.
+            </remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadPE(Microsoft.Diagnostics.DebugServices.IModule,Microsoft.SymbolStore.KeyGenerators.KeyTypeFlags)">
+            <summary>
+            Finds or downloads the PE module
+            </summary>
+            <param name="module">module instance</param>
+            <param name="flags"></param>
+            <returns>module path or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadELF(Microsoft.Diagnostics.DebugServices.IModule,Microsoft.SymbolStore.KeyGenerators.KeyTypeFlags)">
+            <summary>
+            Finds or downloads the ELF module
+            </summary>
+            <param name="module">module instance</param>
+            <param name="flags"></param>
+            <returns>module path or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadMachO(Microsoft.Diagnostics.DebugServices.IModule,Microsoft.SymbolStore.KeyGenerators.KeyTypeFlags)">
+            <summary>
+            Finds or downloads the MachO module.
+            </summary>
+            <param name="module">module instance</param>
+            <param name="flags"></param>
+            <returns>module path or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.DownloadFile(Microsoft.SymbolStore.SymbolStoreKey)">
+            <summary>
+            Download a file from the symbol stores/server.
+            </summary>
+            <param name="key">index of the file to download</param>
+            <returns>path to the downloaded file either in the cache or in the temp directory or null if error</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.ToString">
+            <summary>
+            Displays the symbol server and cache configuration
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.IsSymweb(System.String)">
+            <summary>
+            Returns true if cloud symweb server
+            </summary>
+            <param name="server"></param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.GetSymbolStoreFile(Microsoft.SymbolStore.SymbolStoreKey)">
+            <summary>
+            Attempts to download/retrieve from cache the key.
+            </summary>
+            <param name="key">index of the file to retrieve</param>
+            <returns>stream or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.SetSymbolStore(Microsoft.SymbolStore.SymbolStores.SymbolStore)">
+            <summary>
+            Sets a new store store head.
+            </summary>
+            <param name="store">symbol store (server, cache, directory, etc.)</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.ForEachSymbolStore``1(System.Action{``0})">
+            <summary>
+            Enumerates the symbol stores.
+            </summary>
+            <typeparam name="T">type of symbol store or SymbolStore for all</typeparam>
+            <param name="callback">called for each store found</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.GetFileName(System.String)">
+            <summary>
+            Quick fix for Path.GetFileName which incorrectly handles Windows-style paths on Linux
+            </summary>
+            <param name="pathName"> File path to be processed </param>
+            <returns>Last component of path</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.SymbolService.IsPathEqual(System.String,System.String)">
+            <summary>
+            Compares two file paths using OS specific casing.
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.Target">
+            <summary>
+            ITarget base implementation
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.Host">
+            <summary>
+            Returns the host interface instance
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.Id">
+            <summary>
+            The target id
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.OperatingSystem">
+            <summary>
+            Returns the target OS (which may be different from the OS this is running on)
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.Architecture">
+            <summary>
+            The target architecture/processor
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.IsDump">
+            <summary>
+            Returns true if dump, false if live session or snapshot
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.ProcessId">
+            <summary>
+            The target's process id or null no process
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.Services">
+            <summary>
+            The per target services.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.OnFlushEvent">
+            <summary>
+            Invoked when this target is flushed (via the Flush() call).
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Target.Flush">
+            <summary>
+            Flushes any cached state in the target.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.Target.OnDestroyEvent">
+            <summary>
+            Invoked when the target is destroyed
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Target.Destroy">
+            <summary>
+            Cleans up the target and releases target's resources.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Target.CreateReader(System.IServiceProvider)">
+            <summary>
+            Create the file format reader used to read and layout TStruct derived structures from memory
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.TargetFromDataReader">
+            <summary>
+            ITarget implementation for the ClrMD IDataReader
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.TargetFromDataReader.#ctor(Microsoft.Diagnostics.Runtime.DataTarget,System.Runtime.InteropServices.OSPlatform,Microsoft.Diagnostics.DebugServices.IHost,System.String)">
+            <summary>
+            Create a target instance from IDataReader
+            </summary>
+            <param name="dataTarget">data target from clrmd</param>
+            <param name="targetOS">target operating system</param>
+            <param name="host">the host instance</param>
+            <param name="dumpPath">path of dump for this target</param>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">can not construct target instance</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Thread.GetThreadContextInner(System.UInt32,System.Byte[])">
+            <summary>
+            Get the thread context
+            </summary>
+            <param name="contextFlags">Windows context flags</param>
+            <param name="context">Context buffer</param>
+            <returns>true succeeded, false failed</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Thread.GetThreadTebInner">
+            <summary>
+            Returns the Windows TEB pointer for the thread
+            </summary>
+            <returns>TEB pointer or 0 if not implemented or thread id not found</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService">
+            <summary>
+            Provides thread and register info and values for the clrmd IDataReader
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.Registers">
+            <summary>
+            Details on all the supported registers
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.InstructionPointerIndex">
+            <summary>
+            The instruction pointer register index
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.FramePointerIndex">
+            <summary>
+            The frame pointer register index
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.StackPointerIndex">
+            <summary>
+            The stack pointer register index
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.TryGetRegisterIndexByName(System.String,System.Int32@)">
+            <summary>
+            Return the register index for the register name
+            </summary>
+            <param name="name">register name</param>
+            <param name="registerIndex">returns register index or -1</param>
+            <returns>true if name found</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.TryGetRegisterInfo(System.Int32,Microsoft.Diagnostics.DebugServices.RegisterInfo@)">
+            <summary>
+            Returns the register info (name, offset, size, etc).
+            </summary>
+            <param name="registerIndex">register index</param>
+            <param name="info">RegisterInfo</param>
+            <returns>true if index found</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.EnumerateThreads">
+            <summary>
+            Enumerate all the native threads
+            </summary>
+            <returns>ThreadInfos for all the threads</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreadFromIndex(System.Int32)">
+            <summary>
+            Get the thread info from the thread index
+            </summary>
+            <param name="threadIndex">index</param>
+            <returns>thread info</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid thread index</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreadFromId(System.UInt32)">
+            <summary>
+            Get the thread info from the OS thread id
+            </summary>
+            <param name="threadId">os id</param>
+            <returns>thread info</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid thread id</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreads">
+            <summary>
+            Get/create the thread dictionary.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreadsInner">
+            <summary>
+            Get/creates the threads.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreadContext(System.UInt32,System.UInt32,System.Byte[])">
+            <summary>
+            Get the thread context
+            </summary>
+            <param name="threadId">OS thread id</param>
+            <param name="contextFlags">Windows context flags</param>
+            <param name="context">Context buffer</param>
+            <returns>true succeeded, false failed</returns>
+            <exception cref="T:Microsoft.Diagnostics.DebugServices.DiagnosticsException">invalid thread id</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.ThreadService.GetThreadTeb(System.UInt32)">
+            <summary>
+            Returns the Windows TEB pointer for the thread
+            </summary>
+            <param name="threadId">OS thread id</param>
+            <returns>TEB pointer or 0 if not implemented or thread id not found</returns>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.ThreadServiceFromDataReader">
+            <summary>
+            Provides thread and register info and values for the clrmd IDataReader
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.DebugServices.Implementation.Tracer">
+            <summary>
+            Simple trace/logging support.
+            </summary>
+        </member>
+        <member name="F:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.EmptyVersion">
+            <summary>
+            An empty Version instance.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.ToHex(System.Collections.Immutable.ImmutableArray{System.Byte})">
+            <summary>
+            Format a immutable array of bytes into hex (i.e build id).
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.GetPointerSizeFromArchitecture(System.Runtime.InteropServices.Architecture)">
+            <summary>
+            Returns the pointer size for a given processor type
+            </summary>
+            <param name="architecture">processor type</param>
+            <returns>pointer size</returns>
+            <exception cref="T:System.NotSupportedException"></exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CreateModule(Microsoft.Diagnostics.DebugServices.IModuleService,System.Int32,Microsoft.Diagnostics.Runtime.ClrModule)">
+            <summary>
+            Create an IModule from a managed ClrModule
+            </summary>
+            <param name="moduleService">module service</param>
+            <param name="moduleIndex">module index or -1 if none</param>
+            <param name="module">ClrModule instance</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CombineHashCodes(System.Int32,System.Int32)">
+            <summary>
+            Combines two hash codes into a single hash code, in an order-dependent manner.
+            </summary>
+            <remarks>
+            This function is neither commutative nor associative; the hash codes must be combined in
+            a deterministic order.  Do not use this when hashing collections whose contents are
+            non-deterministically ordered!
+            </remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.ToVersion(Microsoft.FileFormats.PE.VsFixedFileInfo)">
+            <summary>
+            Convert from symstore VsFixedFileInfo to DebugServices VersionData
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.ParseVersionString(System.String)">
+            <summary>
+            Helper function to that parses the version out of the version string that looks something
+            like "8.0.23.10701 @Commit: e71a4fb10d7ea6b502dd5efe7a8fcefa2b9c1550"
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.ToPdbFileInfo(Microsoft.FileFormats.PE.PEPdbRecord)">
+            <summary>
+            Convert from symstore PEPdbRecord to DebugServices PdbFileInfo
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.OpenPEReader(System.String)">
+            <summary>
+            Opens and returns an PEReader instance from the local file path
+            </summary>
+            <param name="filePath">PE file to open</param>
+            <returns>PEReader instance or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.OpenELFFile(System.String)">
+            <summary>
+            Opens and returns an ELFFile instance from the local file path
+            </summary>
+            <param name="filePath">ELF file to open</param>
+            <returns>ELFFile instance or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.OpenMachOFile(System.String)">
+            <summary>
+            Opens and returns an MachOFile instance from the local file path
+            </summary>
+            <param name="filePath">MachO file to open</param>
+            <returns>MachOFile instance or null</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CreateELFFile(Microsoft.Diagnostics.DebugServices.IMemoryService,Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Creates a ELFFile service instance of the module in memory.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CreateMachOFile(Microsoft.Diagnostics.DebugServices.IMemoryService,Microsoft.Diagnostics.DebugServices.IModule)">
+            <summary>
+            Creates a MachOFile service instance of the module in memory.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.TryOpenFile(System.String)">
+            <summary>
+            Attempt to open a file stream.
+            </summary>
+            <param name="path">file path</param>
+            <returns>stream or null if doesn't exist or error</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.GetDotNetHomeDirectory">
+            <summary>
+            Returns the .NET user directory
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CreateInstance(System.Type,System.IServiceProvider)">
+            <summary>
+            Create the type instance and fill in any service imports
+            </summary>
+            <param name="type">type to create</param>
+            <param name="provider">service provider</param>
+            <returns>new instance</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.CreateInstance(System.Reflection.MethodBase,System.IServiceProvider)">
+            <summary>
+            Call the static method (constructor) to create the instance and fill in any service imports
+            </summary>
+            <param name="method">static method (constructor) to use to create instance</param>
+            <param name="provider">service provider</param>
+            <returns>new instance</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.ImportServices(System.Object,System.IServiceProvider)">
+            <summary>
+            Set any fields, property or method marked with the ServiceImportAttribute to the service requested.
+            </summary>
+            <param name="instance">object instance to process</param>
+            <param name="provider">service provider</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.InvokeConstructor(System.Type,System.IServiceProvider)">
+            <summary>
+            Call the constructor of the type and return the instance binding any
+            services in the constructor parameters.
+            </summary>
+            <param name="type">type to create</param>
+            <param name="provider">services</param>
+            <returns>type instance</returns>
+        </member>
+        <member name="M:Microsoft.Diagnostics.DebugServices.Implementation.Utilities.Invoke(System.Reflection.MethodBase,System.Object,System.IServiceProvider)">
+            <summary>
+            Call the method and bind any services in the constructor parameters.
+            </summary>
+            <param name="method">method to invoke</param>
+            <param name="instance">class instance or null if static</param>
+            <param name="provider">services</param>
+            <returns>method return value</returns>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.IsEnabled">
+            <summary>
+            Returns true if logging to console or file
+            </summary>
+        </member>
+        <member name="P:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.FilePath">
+            <summary>
+            The file path if logging to file.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.Enable(System.String)">
+            <summary>
+            Enable diagnostics logging.
+            </summary>
+            <param name="filePath">log file path or null if log to console</param>
+            <remarks>see File.Open for possible exceptions thrown</remarks>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.Disable">
+            <summary>
+            Disable diagnostics logging (close if logging to file).
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.Initialize(System.String)">
+            <summary>
+            Initializes the diagnostic logging service.  Reads the DOTNET_ENABLED_SOS_LOGGING
+            environment variable to log to console or file.
+            </summary>
+            <param name="logfile"></param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.ExtensionCommands.DiagnosticLoggingService.SetConsole(Microsoft.Diagnostics.DebugServices.IConsoleService,Microsoft.Diagnostics.DebugServices.IConsoleFileLoggingService)">
+            <summary>
+            Sets the console service and the console file logging control service.
+            </summary>
+            <param name="consoleService">This is used for to log to the console</param>
+            <param name="fileLoggingService">This is used to hook the command console output to write the diagnostic log file.</param>
+        </member>
+    </members>
+</doc>

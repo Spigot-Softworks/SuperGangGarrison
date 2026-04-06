@@ -27,6 +27,13 @@ public sealed partial class SimulationWorld
         var nearbyWeapon = FindNearbyDroppedWeapon(player, out var nearbyIndex);
         if (nearbyWeapon is not null)
         {
+            var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+            var pickedWeaponItemId = runtimeRegistry.GetPrimaryItem(nearbyWeapon.WeaponClassId).Id;
+            if (!runtimeRegistry.CanUseAcquiredItem(player.ClassId, pickedWeaponItemId))
+            {
+                return;
+            }
+
             var previousWeaponClassId = player.AcquiredWeaponClassId;
             var pickedWeaponClassId = nearbyWeapon.WeaponClassId;
 

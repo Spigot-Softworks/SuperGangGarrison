@@ -84,6 +84,8 @@ public sealed partial class PlayerEntity
         float ChatBubbleAlpha,
         bool IsChatBubbleFading,
         int ChatBubbleTicksRemaining,
+        string? SelectedGameplayLoadoutId = null,
+        GameplayEquipmentSlot SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary,
         int PyroFlareCooldownTicks = 0,
         int PyroPrimaryFuelScaled = 0,
         bool IsPyroPrimaryRefilling = false,
@@ -179,6 +181,8 @@ public sealed partial class PlayerEntity
             ChatBubbleAlpha,
             IsChatBubbleFading,
             ChatBubbleTicksRemaining,
+            SelectedGameplayLoadoutId,
+            SelectedGameplayEquippedSlot,
             PyroFlareCooldownTicks,
             PyroPrimaryFuelScaled,
             IsPyroPrimaryRefilling,
@@ -278,6 +282,10 @@ public sealed partial class PlayerEntity
         ChatBubbleAlpha = state.ChatBubbleAlpha;
         IsChatBubbleFading = state.IsChatBubbleFading;
         ChatBubbleTicksRemaining = state.ChatBubbleTicksRemaining;
+        SelectedGameplayLoadoutId = string.IsNullOrWhiteSpace(state.SelectedGameplayLoadoutId)
+            ? CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(ClassId).Id
+            : state.SelectedGameplayLoadoutId;
+        SelectedGameplayEquippedSlot = state.SelectedGameplayEquippedSlot;
         PyroPrimaryFuelScaledValue = state.PyroPrimaryFuelScaled;
         IsPyroPrimaryRefilling = state.IsPyroPrimaryRefilling;
         PyroFlameLoopTicksRemaining = state.PyroFlameLoopTicksRemaining;
@@ -529,15 +537,20 @@ public sealed partial class PlayerEntity
             ? (GameplayEquipmentSlot)gameplayEquippedSlot
             : GameplayEquipmentSlot.Primary;
 
-        GameplayLoadoutState = new GameplayPlayerLoadoutState(
-            ModPackId: gameplayModPackId,
-            ClassId: CharacterClassCatalog.RuntimeRegistry.GetRequiredClassBinding(ClassId).ClassId,
-            LoadoutId: gameplayLoadoutId,
-            PrimaryItemId: gameplayPrimaryItemId,
-            SecondaryItemId: string.IsNullOrWhiteSpace(gameplaySecondaryItemId) ? null : gameplaySecondaryItemId,
-            UtilityItemId: string.IsNullOrWhiteSpace(gameplayUtilityItemId) ? null : gameplayUtilityItemId,
-            EquippedSlot: equippedSlot,
-            EquippedItemId: gameplayEquippedItemId,
-            AcquiredItemId: string.IsNullOrWhiteSpace(gameplayAcquiredItemId) ? null : gameplayAcquiredItemId);
+        if (CharacterClassCatalog.RuntimeRegistry.TryCreateValidatedPlayerLoadoutState(
+                ClassId,
+                gameplayLoadoutId,
+                equippedSlot,
+                string.IsNullOrWhiteSpace(gameplaySecondaryItemId) ? null : gameplaySecondaryItemId,
+                string.IsNullOrWhiteSpace(gameplayAcquiredItemId) ? null : gameplayAcquiredItemId,
+                out var validatedLoadoutState))
+        {
+            SelectedGameplayLoadoutId = validatedLoadoutState.LoadoutId;
+            SelectedGameplayEquippedSlot = validatedLoadoutState.EquippedSlot;
+            GameplayLoadoutState = validatedLoadoutState;
+            return;
+        }
+
+        RefreshGameplayLoadoutState();
     }
 }

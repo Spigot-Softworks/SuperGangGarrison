@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.server.objective-announcer",
+  "displayName": "Objective Announcer",
+  "version": "1.0.0",
+  "type": "Server",
+  "runtime": "Clr",
+  "entryPoint": "ObjectiveAnnouncer.dll",
+  "entryClass": "OpenGarrison.Server.Plugins.ObjectiveAnnouncer.ObjectiveAnnouncerPlugin",
+  "description": "Example packaged server plugin manifest.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "tags": [
+    "server",
+    "announcer",
+    "objectives"
+  ]
+}

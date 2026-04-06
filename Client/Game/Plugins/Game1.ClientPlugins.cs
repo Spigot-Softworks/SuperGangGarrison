@@ -23,6 +23,9 @@ public partial class Game1
     private bool _clientPluginPreviousLocalBurning;
     private int _clientPluginPreviousKillFeedCount;
     private readonly Dictionary<int, (ClientPluginTeam Team, ClientPluginTeam CappingTeam, float Progress, bool IsLocked)> _clientPluginPreviousObjectiveStates = new();
+    private (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousRedIntelState;
+    private (bool IsAtBase, bool IsDropped, ClientPluginTeam CarrierTeam, float ReturnProgress, float X, float Y) _clientPluginPreviousBlueIntelState;
+    private readonly Dictionary<PlayerTeam, (int Health, int MaxHealth, bool IsDestroyed)> _clientPluginPreviousGeneratorStates = new();
     private ClientPluginHost? _clientPluginHost;
     private ClientPluginStateView? _clientPluginStateView;
 

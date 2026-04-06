@@ -1,11 +1,63 @@
 using System;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    public bool TrySelectGameplayLoadout(string? loadoutId)
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var resolvedLoadoutId = runtimeRegistry.CanUseLoadout(ClassId, loadoutId)
+            ? (string.IsNullOrWhiteSpace(loadoutId) ? runtimeRegistry.GetDefaultLoadout(ClassId).Id : loadoutId)
+            : null;
+        if (string.IsNullOrWhiteSpace(resolvedLoadoutId))
+        {
+            return false;
+        }
+
+        if (string.Equals(SelectedGameplayLoadoutId, resolvedLoadoutId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        SelectedGameplayLoadoutId = resolvedLoadoutId;
+        RefreshGameplayLoadoutState();
+        return true;
+    }
+
+    public bool TrySelectGameplayEquippedSlot(GameplayEquipmentSlot equippedSlot)
+    {
+        if (!CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(
+                ClassId,
+                SelectedGameplayLoadoutId,
+                equippedSlot,
+                ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon),
+                GameplayLoadoutState.AcquiredItemId))
+        {
+            return false;
+        }
+
+        SelectedGameplayEquippedSlot = equippedSlot;
+        if (equippedSlot != GameplayEquipmentSlot.Secondary)
+        {
+            IsExperimentalOffhandEquipped = false;
+            IsAcquiredWeaponEquipped = false;
+        }
+
+        RefreshGameplayLoadoutState();
+        return true;
+    }
+
     public void SetExperimentalOffhandWeapon(PrimaryWeaponDefinition? weaponDefinition)
     {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var registeredItemId = ResolveRegisteredWeaponItemId(weaponDefinition);
+        if (!runtimeRegistry.CanUseSecondaryOverrideItem(ClassId, SelectedGameplayLoadoutId, registeredItemId))
+        {
+            weaponDefinition = null;
+        }
+
         if (weaponDefinition == ExperimentalOffhandWeapon)
         {
             if (weaponDefinition is not null)
@@ -45,26 +97,37 @@ public sealed partial class PlayerEntity
 
     public void EquipExperimentalOffhandWeapon()
     {
-        if (ExperimentalOffhandWeapon is null || !IsAlive)
+        if (ExperimentalOffhandWeapon is null
+            || !IsAlive
+            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(ClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
         {
             return;
         }
 
         IsExperimentalOffhandEquipped = true;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
     }
 
     public void StowExperimentalOffhandWeapon()
     {
         IsExperimentalOffhandEquipped = false;
+        if (!IsAcquiredWeaponEquipped)
+        {
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        }
         RefreshGameplayLoadoutState();
     }
 
     public void SetAcquiredWeapon(PlayerClass? weaponClassId)
     {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var acquiredItemId = weaponClassId.HasValue
+            ? runtimeRegistry.GetPrimaryItem(weaponClassId.Value).Id
+            : null;
         if (!weaponClassId.HasValue
             || ClassId != PlayerClass.Soldier
-            || !CharacterClassCatalog.SupportsExperimentalAcquiredWeapon(weaponClassId.Value))
+            || !runtimeRegistry.CanUseAcquiredItem(ClassId, acquiredItemId))
         {
             weaponClassId = null;
         }
@@ -84,6 +147,10 @@ public sealed partial class PlayerEntity
                 AcquiredWeaponCooldownTicks = 0;
                 AcquiredWeaponReloadTicksUntilNextShell = 0;
                 IsAcquiredWeaponEquipped = false;
+                if (!IsExperimentalOffhandEquipped)
+                {
+                    SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+                }
             }
 
             ResetAcquiredPyroStateFromCurrentAmmo();
@@ -106,6 +173,10 @@ public sealed partial class PlayerEntity
             AcquiredWeaponCooldownTicks = 0;
             AcquiredWeaponReloadTicksUntilNextShell = 0;
             IsAcquiredWeaponEquipped = false;
+            if (!IsExperimentalOffhandEquipped)
+            {
+                SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+            }
             ResetAcquiredPyroStateFromCurrentAmmo();
             ResetAcquiredMedicNeedleStateIfUnavailable();
             RefreshGameplayLoadoutState();
@@ -124,19 +195,26 @@ public sealed partial class PlayerEntity
 
     public void EquipAcquiredWeapon()
     {
-        if (!HasAcquiredWeapon || !IsAlive)
+        if (!HasAcquiredWeapon
+            || !IsAlive
+            || !CharacterClassCatalog.RuntimeRegistry.CanEquipSlot(ClassId, SelectedGameplayLoadoutId, GameplayEquipmentSlot.Secondary, ResolveRegisteredWeaponItemId(ExperimentalOffhandWeapon), GameplayLoadoutState.AcquiredItemId))
         {
             return;
         }
 
         IsExperimentalOffhandEquipped = false;
         IsAcquiredWeaponEquipped = true;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
     }
 
     public void StowAcquiredWeapon()
     {
         IsAcquiredWeaponEquipped = false;
+        if (!IsExperimentalOffhandEquipped)
+        {
+            SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Primary;
+        }
         if (AcquiredWeaponClassId == PlayerClass.Sniper)
         {
             IsSniperScoped = false;

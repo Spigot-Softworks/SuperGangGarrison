@@ -40,8 +40,11 @@ public partial class Game1
 
             _game.DrawGameplayHudLayers(mouse, cameraPosition);
             _game.DrawGameplayModalOverlays(mouse);
+            _game.WriteGameplayRenderTrace("frame before endlogical");
             _game.EndLogicalFrame();
+            _game.WriteGameplayRenderTrace("frame after endlogical");
             _game.DrawNavEditorPresentationOverlay(rawMouse);
+            _game.WriteGameplayRenderTrace("frame after naveditorpresentation");
         }
     }
 }

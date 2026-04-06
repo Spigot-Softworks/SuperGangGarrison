@@ -27,6 +27,12 @@ public enum MessageType : byte
     ServerPluginMessage = 20,
 }
 
+public enum PluginMessagePayloadFormat : byte
+{
+    Text = 0,
+    Json = 1,
+}
+
 public enum ControlCommandKind : byte
 {
     SelectTeam = 1,
@@ -187,7 +193,9 @@ public sealed record ClientPluginMessage(
     string SourcePluginId,
     string TargetPluginId,
     string MessageTypeName,
-    string Payload) : IProtocolMessage
+    string Payload,
+    PluginMessagePayloadFormat PayloadFormat = PluginMessagePayloadFormat.Text,
+    ushort SchemaVersion = 1) : IProtocolMessage
 {
     public MessageType Type => MessageType.ClientPluginMessage;
 }
@@ -196,7 +204,9 @@ public sealed record ServerPluginMessage(
     string SourcePluginId,
     string TargetPluginId,
     string MessageTypeName,
-    string Payload) : IProtocolMessage
+    string Payload,
+    PluginMessagePayloadFormat PayloadFormat = PluginMessagePayloadFormat.Text,
+    ushort SchemaVersion = 1) : IProtocolMessage
 {
     public MessageType Type => MessageType.ServerPluginMessage;
 }

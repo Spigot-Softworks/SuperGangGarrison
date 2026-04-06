@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
@@ -245,6 +247,7 @@ public sealed partial class PlayerEntity
 
         IsExperimentalOffhandEquipped = false;
         IsAcquiredWeaponEquipped = true;
+        SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= 1;
         MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;

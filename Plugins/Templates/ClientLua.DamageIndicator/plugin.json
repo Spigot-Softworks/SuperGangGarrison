@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "sample.client.lua-damage-indicator",
+  "displayName": "Lua Damage Indicator",
+  "version": "1.0.0",
+  "type": "Client",
+  "runtime": "Lua",
+  "entryPoint": "main.lua",
+  "description": "Lua version of the Damage Indicator plugin built on local-damage, HUD, and audio seams.",
+  "compatibility": {
+    "hostApiVersion": "1.0"
+  },
+  "configSchemaPath": "config.schema.json",
+  "tags": [
+    "client",
+    "lua",
+    "hud",
+    "damage"
+  ]
+}

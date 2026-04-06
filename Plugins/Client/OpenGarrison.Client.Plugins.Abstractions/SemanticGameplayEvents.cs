@@ -84,6 +84,23 @@ public readonly record struct ClientObjectiveStateEvent(
     Vector2 WorldPosition,
     ulong WorldFrame);
 
+public readonly record struct ClientIntelStateEvent(
+    ClientPluginTeam IntelTeam,
+    ClientPluginTeam CarrierTeam,
+    bool IsAtBase,
+    bool IsDropped,
+    float ReturnProgress,
+    Vector2 WorldPosition,
+    ulong WorldFrame);
+
+public readonly record struct ClientGeneratorStateEvent(
+    ClientPluginTeam Team,
+    int Health,
+    int MaxHealth,
+    bool IsDestroyed,
+    Vector2 WorldPosition,
+    ulong WorldFrame);
+
 public readonly record struct ClientRoundPhaseChangedEvent(
     ClientRoundPhase PreviousPhase,
     ClientRoundPhase CurrentPhase,
@@ -102,25 +119,29 @@ public readonly record struct ClientKillFeedEvent(
 
 public interface IOpenGarrisonClientSemanticGameplayHooks
 {
-    void OnShotFired(ClientShotFiredEvent e);
+    void OnShotFired(ClientShotFiredEvent e) { }
 
-    void OnHitConfirmed(ClientHitConfirmedEvent e);
+    void OnHitConfirmed(ClientHitConfirmedEvent e) { }
 
-    void OnLocalKill(ClientLocalKillEvent e);
+    void OnLocalKill(ClientLocalKillEvent e) { }
 
-    void OnLocalDeath(ClientLocalDeathEvent e);
+    void OnLocalDeath(ClientLocalDeathEvent e) { }
 
-    void OnPickup(ClientPickupEvent e);
+    void OnPickup(ClientPickupEvent e) { }
 
-    void OnHeal(ClientHealEvent e);
+    void OnHeal(ClientHealEvent e) { }
 
-    void OnIgnited(ClientIgniteEvent e);
+    void OnIgnited(ClientIgniteEvent e) { }
 
-    void OnExtinguished(ClientExtinguishEvent e);
+    void OnExtinguished(ClientExtinguishEvent e) { }
 
-    void OnObjectiveStateChanged(ClientObjectiveStateEvent e);
+    void OnObjectiveStateChanged(ClientObjectiveStateEvent e) { }
 
-    void OnRoundPhaseChanged(ClientRoundPhaseChangedEvent e);
+    void OnIntelStateChanged(ClientIntelStateEvent e) { }
 
-    void OnKillFeed(ClientKillFeedEvent e);
+    void OnGeneratorStateChanged(ClientGeneratorStateEvent e) { }
+
+    void OnRoundPhaseChanged(ClientRoundPhaseChangedEvent e) { }
+
+    void OnKillFeed(ClientKillFeedEvent e) { }
 }

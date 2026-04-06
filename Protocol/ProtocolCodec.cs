@@ -116,12 +116,16 @@ public static partial class ProtocolCodec
                 WriteString(writer, clientPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(clientPluginMessage.TargetPluginId));
                 WriteString(writer, clientPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(clientPluginMessage.MessageTypeName));
                 WriteString(writer, clientPluginMessage.Payload, MaxPluginPayloadBytes, nameof(clientPluginMessage.Payload));
+                writer.Write((byte)clientPluginMessage.PayloadFormat);
+                writer.Write(clientPluginMessage.SchemaVersion);
                 break;
             case ServerPluginMessage serverPluginMessage:
                 WriteString(writer, serverPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(serverPluginMessage.SourcePluginId));
                 WriteString(writer, serverPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(serverPluginMessage.TargetPluginId));
                 WriteString(writer, serverPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(serverPluginMessage.MessageTypeName));
                 WriteString(writer, serverPluginMessage.Payload, MaxPluginPayloadBytes, nameof(serverPluginMessage.Payload));
+                writer.Write((byte)serverPluginMessage.PayloadFormat);
+                writer.Write(serverPluginMessage.SchemaVersion);
                 break;
             case SnapshotMessage snapshot:
                 WriteSnapshot(writer, snapshot);
@@ -207,12 +211,16 @@ public static partial class ProtocolCodec
                     ReadString(reader, MaxPluginIdBytes),
                     ReadString(reader, MaxPluginIdBytes),
                     ReadString(reader, MaxPluginMessageTypeBytes),
-                    ReadString(reader, MaxPluginPayloadBytes)),
+                    ReadString(reader, MaxPluginPayloadBytes),
+                    (PluginMessagePayloadFormat)reader.ReadByte(),
+                    reader.ReadUInt16()),
                 MessageType.ServerPluginMessage => new ServerPluginMessage(
                     ReadString(reader, MaxPluginIdBytes),
                     ReadString(reader, MaxPluginIdBytes),
                     ReadString(reader, MaxPluginMessageTypeBytes),
-                    ReadString(reader, MaxPluginPayloadBytes)),
+                    ReadString(reader, MaxPluginPayloadBytes),
+                    (PluginMessagePayloadFormat)reader.ReadByte(),
+                    reader.ReadUInt16()),
                 MessageType.Snapshot => ReadSnapshot(reader),
                 _ => null,
             };

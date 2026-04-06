@@ -141,19 +141,34 @@ public partial class Game1
             if (string.IsNullOrWhiteSpace(path))
             {
                 DisposeMenuBackgroundTexture();
+                _game._menuBackgroundFailedPath = null;
                 return;
             }
 
-            if (_game._menuBackgroundTexture is not null
-                && string.Equals(_game._menuBackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_game._menuBackgroundTexturePath, path, StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                if (_game._menuBackgroundTexture is not null
+                    || string.Equals(_game._menuBackgroundFailedPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
             }
 
             DisposeMenuBackgroundTexture();
-            using var stream = File.OpenRead(path);
-            _game._menuBackgroundTexture = Texture2D.FromStream(_game.GraphicsDevice, stream);
             _game._menuBackgroundTexturePath = path;
+            _game._menuBackgroundFailedPath = null;
+
+            try
+            {
+                using var stream = File.OpenRead(path);
+                _game._menuBackgroundTexture = Texture2D.FromStream(_game.GraphicsDevice, stream);
+            }
+            catch (Exception ex)
+            {
+                _game._menuBackgroundFailedPath = path;
+                _game._menuBackgroundAttributionText = string.Empty;
+                _game.AddConsoleLine($"plugin menu background failed to load from \"{path}\": {ex.Message}");
+            }
         }
 
         private (string? Path, string AttributionText) GetMenuBackgroundSelection(int viewportWidth, int viewportHeight)

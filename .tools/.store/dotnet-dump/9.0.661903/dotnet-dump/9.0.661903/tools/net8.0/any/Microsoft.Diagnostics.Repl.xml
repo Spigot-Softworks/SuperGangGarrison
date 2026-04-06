@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Microsoft.Diagnostics.Repl</name>
+    </assembly>
+    <members>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.#ctor(System.ConsoleColor,System.ConsoleColor)">
+            <summary>
+            Create an instance of the console provider
+            </summary>
+            <param name="errorColor">error color (default red)</param>
+            <param name="warningColor">warning color (default yellow)</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.Start(System.Action{System.String,System.String,System.Threading.CancellationToken})">
+            <summary>
+            Start input processing and command dispatching
+            </summary>
+            <param name="dispatchCommand">Called to dispatch a command on ENTER</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.Stop">
+            <summary>
+            Stop input processing/dispatching
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.GetCommandHistory">
+            <summary>
+            Returns the current command history for serialization.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.AddCommandHistory(System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Adds the command history.
+            </summary>
+            <param name="commandHistory">command history strings to add</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.SetPrompt(System.String)">
+            <summary>
+            Change the command prompt
+            </summary>
+            <param name="prompt">new prompt</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.WriteLine(Microsoft.Diagnostics.Repl.OutputType,System.String,System.Object[])">
+            <summary>
+            Writes a message with a new line to console.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.WriteOutput(Microsoft.Diagnostics.Repl.OutputType,System.String)">
+            <summary>
+            Write text on the console screen
+            </summary>
+            <param name="type">output type</param>
+            <param name="message">text</param>
+            <exception cref="T:System.OperationCanceledException">ctrl-c interrupted the command</exception>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.ClearScreen">
+            <summary>
+            Clear the console screen
+            </summary>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.NewOutput(System.String,System.Nullable{System.ConsoleColor})">
+            <summary>
+            Write a line to the console.
+            </summary>
+            <param name="text">line of text</param>
+            <param name="color">color of the text</param>
+        </member>
+        <member name="M:Microsoft.Diagnostics.Repl.ConsoleService.OnCtrlBreakKeyPress(System.Object,System.ConsoleCancelEventArgs)">
+            <summary>
+            This is the ctrl-c/ctrl-break handler
+            </summary>
+        </member>
+        <member name="T:Microsoft.Diagnostics.Repl.OutputType">
+            <summary>
+            The type of output.
+            </summary>
+        </member>
+    </members>
+</doc>

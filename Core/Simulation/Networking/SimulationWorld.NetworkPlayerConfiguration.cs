@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -280,6 +282,36 @@ public sealed partial class SimulationWorld
                 _additionalNetworkPlayerClassDefinitions[slot] = definition;
                 return true;
         }
+    }
+
+    public bool TrySetNetworkPlayerGameplayLoadout(byte slot, string loadoutId)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        return player.TrySelectGameplayLoadout(loadoutId);
+    }
+
+    public bool TrySetNetworkPlayerGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        return player.TrySelectGameplayEquippedSlot(equippedSlot);
     }
 
     private bool TryApplyNetworkPlayerClassChange(byte slot, CharacterClassDefinition definition)

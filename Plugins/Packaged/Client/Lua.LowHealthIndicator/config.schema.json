@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "warningVolumePercent": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 70
+    },
+    "warningTimerFrames": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 180,
+      "default": 60
+    },
+    "warningHealthThreshold": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 40
+    },
+    "usePercentageThreshold": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

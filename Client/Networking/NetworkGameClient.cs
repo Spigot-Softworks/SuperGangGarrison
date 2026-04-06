@@ -202,7 +202,13 @@ internal sealed class NetworkGameClient : IDisposable
         Send(new PlayerProfileUpdateMessage(playerName, badgeMask));
     }
 
-    public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload)
+    public void SendPluginMessage(
+        string sourcePluginId,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
     {
         if (!IsConnected || string.IsNullOrWhiteSpace(sourcePluginId) || string.IsNullOrWhiteSpace(targetPluginId) || string.IsNullOrWhiteSpace(messageType))
         {
@@ -213,7 +219,9 @@ internal sealed class NetworkGameClient : IDisposable
             sourcePluginId.Trim(),
             targetPluginId.Trim(),
             messageType.Trim(),
-            payload ?? string.Empty));
+            payload ?? string.Empty,
+            payloadFormat,
+            schemaVersion));
     }
 
     public uint SendInput(PlayerInputSnapshot input)
