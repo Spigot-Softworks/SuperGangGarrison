@@ -340,6 +340,7 @@ public sealed partial class SimulationWorld
                 spawnY,
                 _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, attacker.PrimaryWeapon.MinShotSpeed),
                 directionRadians,
+                attacker.PrimaryWeapon.RocketCombat,
                 explodeImmediately);
         }
 
@@ -369,6 +370,7 @@ public sealed partial class SimulationWorld
                 spawnY,
                 _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians,
+                weaponDefinition.RocketCombat,
                 explodeImmediately,
                 canGrantExperimentalInstantReloadOnHit: false,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);

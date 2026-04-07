@@ -147,6 +147,7 @@ public sealed partial class SimulationWorld
         float y,
         float speed,
         float directionRadians,
+        RocketCombatDefinition? rocketCombat = null,
         bool explodeImmediately = false,
         bool canGrantExperimentalInstantReloadOnHit = true,
         string? killFeedWeaponSpriteNameOverride = null)
@@ -159,6 +160,7 @@ public sealed partial class SimulationWorld
             y,
             speed,
             directionRadians,
+            rocketCombat: rocketCombat,
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y,

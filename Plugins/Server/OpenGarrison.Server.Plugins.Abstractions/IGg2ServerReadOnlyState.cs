@@ -23,6 +23,20 @@ public interface IOpenGarrisonServerReadOnlyState
 
     IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers();
 
+    IReadOnlyList<OpenGarrisonServerGameplayModPackInfo> GetGameplayModPacks();
+
+    IReadOnlyList<OpenGarrisonServerGameplayClassInfo> GetGameplayClasses(string? modPackId = null);
+
+    IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetGameplayItems(string? modPackId = null);
+
+    IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot);
+
+    IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetGameplayLoadoutsForClass(string classId);
+
+    IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplaySecondaryItems(byte slot);
+
+    IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplayAcquiredItems(byte slot);
+
     IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot);
 
     bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value);

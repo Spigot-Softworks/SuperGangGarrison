@@ -145,6 +145,15 @@ public partial class Game1
                     new("Leave Practice", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
+                if (_game.CanOpenGameplayLoadoutMenu())
+                {
+                    practiceActions.Insert(0, new MenuPageAction("Loadout", () =>
+                    {
+                        _game.OpenGameplayLoadoutMenu();
+                        CloseInGameMenu();
+                    }));
+                }
+
                 _game.AddPluginMenuActions(practiceActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
                 return practiceActions;
             }
@@ -160,6 +169,15 @@ public partial class Game1
                 new("Disconnect", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                 new("Quit Game", _game.OpenQuitPrompt),
             };
+            if (_game.CanOpenGameplayLoadoutMenu())
+            {
+                defaultActions.Insert(0, new MenuPageAction("Loadout", () =>
+                {
+                    _game.OpenGameplayLoadoutMenu();
+                    CloseInGameMenu();
+                }));
+            }
+
             _game.AddPluginMenuActions(defaultActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
             return defaultActions;
         }

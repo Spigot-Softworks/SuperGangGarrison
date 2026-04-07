@@ -6,12 +6,6 @@ public sealed partial class SimulationWorld
     {
         public void FirePrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var binding = ResolvePrimaryWeaponRuntimeBinding(attacker.PrimaryBehaviorId, attacker.PrimaryWeapon);
-            if (!string.IsNullOrWhiteSpace(binding.FireSoundName))
-            {
-                RegisterSoundEvent(attacker, binding.FireSoundName);
-            }
-
             DispatchPrimaryWeaponFire(attacker, attacker.PrimaryWeapon, attacker.PrimaryBehaviorId, attacker.ClassId, aimWorldX, aimWorldY);
         }
 
@@ -59,9 +53,10 @@ public sealed partial class SimulationWorld
         {
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
             var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride ?? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId);
-            if (!string.IsNullOrWhiteSpace(binding.FireSoundName))
+            var fireSoundName = weaponDefinition.FireSoundName ?? binding.FireSoundName;
+            if (!string.IsNullOrWhiteSpace(fireSoundName))
             {
-                RegisterSoundEvent(attacker, binding.FireSoundName);
+                RegisterSoundEvent(attacker, fireSoundName);
             }
 
             switch (binding.WeaponKind)

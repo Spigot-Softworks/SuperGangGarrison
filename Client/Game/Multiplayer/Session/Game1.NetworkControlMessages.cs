@@ -66,6 +66,7 @@ public partial class Game1
             ControlCommandKind.SelectTeam => "team selection rejected",
             ControlCommandKind.SelectClass => "class selection rejected",
             ControlCommandKind.Spectate => "spectate request rejected",
+            ControlCommandKind.SelectGameplayLoadout => "loadout selection rejected",
             _ => "control command rejected",
         };
         if (ack.Kind == ControlCommandKind.SelectTeam && _networkClient.IsSpectator)

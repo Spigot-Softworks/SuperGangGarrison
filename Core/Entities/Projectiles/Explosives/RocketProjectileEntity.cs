@@ -28,6 +28,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         float y,
         float speed,
         float directionRadians,
+        RocketCombatDefinition? rocketCombat = null,
         float reducedKnockbackSourceTicksRemaining = NormalReducedKnockbackDelaySourceTicks,
         float zeroKnockbackSourceTicksRemaining = NormalZeroKnockbackDelaySourceTicks,
         int? rangeAnchorOwnerId = null,
@@ -47,6 +48,11 @@ public sealed class RocketProjectileEntity : SimulationEntity
         DirectionRadians = directionRadians;
         Speed = speed;
         TicksRemaining = LifetimeTicks;
+        var resolvedCombat = rocketCombat ?? new RocketCombatDefinition();
+        DirectHitDamageValue = resolvedCombat.DirectHitDamage;
+        ExplosionDamageValue = resolvedCombat.ExplosionDamage;
+        BlastRadiusValue = resolvedCombat.BlastRadius;
+        SplashThresholdFactorValue = resolvedCombat.SplashThresholdFactor;
         ReducedKnockbackSourceTicksRemaining = MathF.Max(0f, reducedKnockbackSourceTicksRemaining);
         ZeroKnockbackSourceTicksRemaining = MathF.Max(0f, zeroKnockbackSourceTicksRemaining);
         RangeAnchorOwnerId = rangeAnchorOwnerId ?? ownerId;
@@ -105,6 +111,14 @@ public sealed class RocketProjectileEntity : SimulationEntity
         : ReducedKnockbackSourceTicksRemaining <= 0f
             ? ReducedKnockback
             : InitialKnockback;
+
+    public int DirectHitDamageValue { get; }
+
+    public float ExplosionDamageValue { get; }
+
+    public float BlastRadiusValue { get; }
+
+    public float SplashThresholdFactorValue { get; }
 
     public bool ExplodeImmediately { get; private set; }
 

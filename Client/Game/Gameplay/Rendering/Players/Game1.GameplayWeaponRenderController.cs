@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -48,7 +49,7 @@ public partial class Game1
                 return false;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite(spriteName);
+            var sprite = _game.GetResolvedSprite(spriteName);
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return false;
@@ -106,7 +107,7 @@ public partial class Game1
         {
             if (weaponDefinition.NormalSpriteName is not null)
             {
-                var normalSprite = _game._runtimeAssets.GetSprite(weaponDefinition.NormalSpriteName);
+                var normalSprite = _game.GetResolvedSprite(weaponDefinition.NormalSpriteName);
                 if (normalSprite is not null)
                 {
                     return normalSprite.Origin.ToVector2();
@@ -155,9 +156,7 @@ public partial class Game1
 
         private static WeaponRenderDefinition GetWeaponRenderDefinition(PlayerEntity player)
         {
-            var presentation = player.IsExperimentalDemoknightEnabled
-                ? StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation
-                : StockGameplayModCatalog.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
+            var presentation = ResolveRenderPresentation(player);
             return new WeaponRenderDefinition(
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
@@ -168,6 +167,22 @@ public partial class Game1
                 GetSourceTicksAsSeconds(presentation.ReloadDurationSourceTicks),
                 GetSourceTicksAsSeconds(presentation.ScopedRecoilDurationSourceTicks),
                 presentation.LoopRecoilWhileActive);
+        }
+
+        private static GameplayItemPresentationDefinition ResolveRenderPresentation(PlayerEntity player)
+        {
+            if (player.IsExperimentalDemoknightEnabled)
+            {
+                return StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation;
+            }
+
+            var equippedItemId = player.GameplayLoadoutState.EquippedItemId;
+            if (!string.IsNullOrWhiteSpace(equippedItemId))
+            {
+                return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(equippedItemId).Presentation;
+            }
+
+            return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(GetRenderWeaponPresentationClassId(player)).Presentation;
         }
 
         private static float GetSourceTicksAsSeconds(float ticks)

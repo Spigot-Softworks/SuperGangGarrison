@@ -76,7 +76,7 @@ public partial class Game1
                     var hudSpriteName = GetAmmoHudSpriteName();
                     if (hudSpriteName is not null && _game.TryDrawScreenSprite(hudSpriteName, GetAmmoHudFrameIndex(), GetSourceHudPoint(728f, SourceAmmoHudBaseY + 86f), Color.White, new Vector2(2.4f, 2.4f)))
                     {
-                        if (GetLocalDisplayedMainWeaponPresentationClassId() != PlayerClass.Soldier)
+                        if (!string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal))
                         {
                             _game.DrawHudTextLeftAligned(GetLocalDisplayedMainWeaponCurrentShells().ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f), AmmoHudTextColor, 1f);
                         }
@@ -138,13 +138,13 @@ public partial class Game1
         public void DrawAmmoReloadBar(Rectangle barRectangle) => DrawAmmoReloadBarCore(barRectangle);
         public float GetAmmoReloadBarProgress(PlayerEntity player) => GetAmmoReloadBarProgressCore(player);
         public bool IsLocalDisplayedMainWeaponAcquired() => IsLocalDisplayedMainWeaponAcquiredCore();
-        public PlayerClass GetLocalDisplayedMainWeaponPresentationClassId() => GetLocalDisplayedMainWeaponPresentationClassIdCore();
+        public string GetLocalDisplayedMainWeaponPresentationItemId() => GetLocalDisplayedMainWeaponPresentationItemIdCore();
         public PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStats() => GetLocalDisplayedMainWeaponStatsCore();
         public int GetLocalDisplayedMainWeaponCurrentShells() => GetLocalDisplayedMainWeaponCurrentShellsCore();
         public int GetLocalDisplayedMainWeaponMaxShells() => GetLocalDisplayedMainWeaponMaxShellsCore();
         public int GetLocalDisplayedMainWeaponCooldownTicks() => GetLocalDisplayedMainWeaponCooldownTicksCore();
         public int GetLocalDisplayedMainWeaponReloadTicks() => GetLocalDisplayedMainWeaponReloadTicksCore();
-        public PlayerClass GetLocalAlternatePrimaryWeaponPresentationClassId() => GetLocalAlternatePrimaryWeaponPresentationClassIdCore();
+        public string GetLocalAlternatePrimaryWeaponPresentationItemId() => GetLocalAlternatePrimaryWeaponPresentationItemIdCore();
         public PrimaryWeaponDefinition GetLocalAlternatePrimaryWeaponStats() => GetLocalAlternatePrimaryWeaponStatsCore();
         public int GetLocalAlternatePrimaryWeaponCurrentShells() => GetLocalAlternatePrimaryWeaponCurrentShellsCore();
         public int GetLocalAlternatePrimaryWeaponMaxShells() => GetLocalAlternatePrimaryWeaponMaxShellsCore();
@@ -259,7 +259,13 @@ public partial class Game1
                 return;
             }
 
-            var presentation = StockGameplayModCatalog.GetPrimaryItem(PlayerClass.Engineer).Presentation;
+            var secondaryItemId = _game._world.LocalPlayer.GameplayLoadoutState.SecondaryItemId;
+            if (string.IsNullOrWhiteSpace(secondaryItemId))
+            {
+                return;
+            }
+
+            var presentation = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(secondaryItemId).Presentation;
             var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
             var iconPosition = GetSourceHudPoint(688f, 507f);
             var iconDrawn = presentation.HudSpriteName is not null && _game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, iconPosition, Color.White, new Vector2(1.5f, 1.5f));
@@ -304,15 +310,15 @@ public partial class Game1
                 return;
             }
 
-            var weaponClassId = GetLocalAlternatePrimaryWeaponPresentationClassId();
-            var presentation = StockGameplayModCatalog.GetPrimaryItem(weaponClassId).Presentation;
+            var weaponItemId = GetLocalAlternatePrimaryWeaponPresentationItemId();
+            var presentation = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(weaponItemId).Presentation;
             var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
             var iconPosition = GetSourceHudPoint(614f, 507f);
             var iconTint = Color.White * 0.72f;
             var iconDrawn = presentation.HudSpriteName is not null && _game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, iconPosition, iconTint, new Vector2(1.5f, 1.5f));
             if (!iconDrawn)
             {
-                _game.DrawBitmapFontText(weaponClassId.ToString().ToUpperInvariant(), GetSourceHudPoint(586f, 510f), iconTint, 0.68f);
+                _game.DrawBitmapFontText(weaponItemId.ToUpperInvariant(), GetSourceHudPoint(586f, 510f), iconTint, 0.68f);
             }
 
             var currentShells = GetLocalAlternatePrimaryWeaponCurrentShells();
@@ -352,7 +358,7 @@ public partial class Game1
 
         private Rectangle GetReloadAmmoHudBarRectangleCore()
         {
-            return GetLocalDisplayedMainWeaponPresentationClassId() == PlayerClass.Soldier
+            return string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal)
                 ? GetSourceHudRectangle(689f, SourceAmmoHudBaseY + 90f, 34f, 8f)
                 : GetSourceHudRectangle(700f, SourceAmmoHudBaseY + 90f, 50f, 8f);
         }
@@ -384,12 +390,12 @@ public partial class Game1
 
         private string? GetAmmoHudSpriteNameCore()
         {
-            return StockGameplayModCatalog.GetPrimaryItem(GetLocalDisplayedMainWeaponPresentationClassId()).Presentation.HudSpriteName;
+            return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(GetLocalDisplayedMainWeaponPresentationItemId()).Presentation.HudSpriteName;
         }
 
         private int GetAmmoHudFrameIndexCore()
         {
-            var presentation = StockGameplayModCatalog.GetPrimaryItem(GetLocalDisplayedMainWeaponPresentationClassId()).Presentation;
+            var presentation = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(GetLocalDisplayedMainWeaponPresentationItemId()).Presentation;
             if (presentation.UseAmmoCountForHudFrame)
             {
                 return GetLocalDisplayedMainWeaponCurrentShells()
@@ -452,13 +458,17 @@ public partial class Game1
         }
 
         private bool IsLocalDisplayedMainWeaponAcquiredCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented;
-        private PlayerClass GetLocalDisplayedMainWeaponPresentationClassIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponClassId ?? _game._world.LocalPlayer.ClassId : _game._world.LocalPlayer.ClassId;
+        private string GetLocalDisplayedMainWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
+            : _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
         private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStatsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon : _game._world.LocalPlayer.PrimaryWeapon;
         private int GetLocalDisplayedMainWeaponCurrentShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponCurrentShells : _game.GetPlayerCurrentShells(_game._world.LocalPlayer);
         private int GetLocalDisplayedMainWeaponMaxShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponMaxShells : _game._world.LocalPlayer.MaxShells;
         private int GetLocalDisplayedMainWeaponCooldownTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponCooldownTicks : _game.GetPlayerPrimaryCooldownTicks(_game._world.LocalPlayer);
         private int GetLocalDisplayedMainWeaponReloadTicksCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.AcquiredWeaponReloadTicksUntilNextShell : _game.GetPlayerReloadTicksUntilNextShell(_game._world.LocalPlayer);
-        private PlayerClass GetLocalAlternatePrimaryWeaponPresentationClassIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.ClassId : _game._world.LocalPlayer.AcquiredWeaponClassId ?? _game._world.LocalPlayer.ClassId;
+        private string GetLocalAlternatePrimaryWeaponPresentationItemIdCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented
+            ? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId
+            : _game._world.LocalPlayer.GameplayLoadoutState.AcquiredItemId ?? _game._world.LocalPlayer.GameplayLoadoutState.PrimaryItemId;
         private PrimaryWeaponDefinition GetLocalAlternatePrimaryWeaponStatsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.PrimaryWeapon : _game._world.LocalPlayer.AcquiredWeapon ?? _game._world.LocalPlayer.PrimaryWeapon;
         private int GetLocalAlternatePrimaryWeaponCurrentShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game.GetPlayerCurrentShells(_game._world.LocalPlayer) : _game._world.LocalPlayer.AcquiredWeaponCurrentShells;
         private int GetLocalAlternatePrimaryWeaponMaxShellsCore() => _game._world.LocalPlayer.IsAcquiredWeaponPresented ? _game._world.LocalPlayer.MaxShells : _game._world.LocalPlayer.AcquiredWeaponMaxShells;

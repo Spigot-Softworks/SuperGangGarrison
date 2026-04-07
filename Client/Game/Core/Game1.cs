@@ -161,6 +161,7 @@ public partial class Game1 : Game
     private Texture2D? _menuTextBoxBottomTexture;
     private Texture2D? _menuTextBoxSoloTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
+    private GameplayModAssetCache _gameplayModAssets = null!;
     private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
     private KeyboardState _clientPluginPreviousKeyboard;
@@ -238,6 +239,8 @@ public partial class Game1 : Game
     private float _creditsScrollY;
     private bool _inGameMenuOpen;
     private bool _inGameMenuAwaitingEscapeRelease;
+    private bool _gameplayLoadoutMenuOpen;
+    private bool _gameplayLoadoutMenuAwaitingEscapeRelease;
     private bool _quitPromptOpen;
     private int _quitPromptHoverIndex = -1;
     private bool _controlsMenuOpen;
@@ -261,6 +264,7 @@ public partial class Game1 : Game
     private int _lobbyBrowserSelectedIndex = -1;
     private int _clientPowersScrollOffset;
     private int _inGameMenuHoverIndex = -1;
+    private int _gameplayLoadoutMenuHoverIndex = -1;
     private GameplaySessionKind _gameplaySessionKind;
     private readonly HostSetupFormState _hostSetupState = new();
     private readonly PracticeSetupState _practiceSetupState = new();
@@ -379,6 +383,8 @@ public partial class Game1 : Game
         _consoleFont = Content.Load<SpriteFont>("ConsoleFont");
         _menuFont = Content.Load<SpriteFont>("MenuFont");
         _runtimeAssets = new GameMakerRuntimeAssetCache(GraphicsDevice, _assetManifest);
+        _gameplayModAssets = new GameplayModAssetCache(GraphicsDevice);
+        _gameplayModAssets.LoadRegisteredPacks(CharacterClassCatalog.RuntimeRegistry.ModPacks);
         _spriteFontOpaqueBoundsCache.Clear();
         LoadMenuPlaqueTextures();
         LoadMenuBitmapFont();
@@ -407,6 +413,7 @@ public partial class Game1 : Game
         _lastToDieIngameMusic?.Dispose();
         StopHostedServer();
         _networkClient.Dispose();
+        _gameplayModAssets?.Dispose();
         _runtimeAssets?.Dispose();
         _spriteFontOpaqueBoundsCache.Clear();
         _menuBackgroundTexture?.Dispose();
@@ -551,6 +558,28 @@ public partial class Game1 : Game
     private void DrawInGameMenu()
     {
         _inGameMenuController.DrawInGameMenu();
+    }
+
+    private void OpenGameplayLoadoutMenu()
+    {
+        if (!CanOpenGameplayLoadoutMenu())
+        {
+            return;
+        }
+
+        _inGameMenuOpen = false;
+        _inGameMenuAwaitingEscapeRelease = false;
+        _inGameMenuHoverIndex = -1;
+        _gameplayLoadoutMenuOpen = true;
+        _gameplayLoadoutMenuAwaitingEscapeRelease = true;
+        _gameplayLoadoutMenuHoverIndex = -1;
+    }
+
+    private void CloseGameplayLoadoutMenu()
+    {
+        _gameplayLoadoutMenuOpen = false;
+        _gameplayLoadoutMenuAwaitingEscapeRelease = false;
+        _gameplayLoadoutMenuHoverIndex = -1;
     }
 
     private GameplayOverlayKind GetActiveGameplayOverlay()

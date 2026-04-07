@@ -113,6 +113,7 @@ sealed class ServerSessionManager
             ControlCommandKind.SelectTeam => client.LastTeamCommandSequence,
             ControlCommandKind.SelectClass => client.LastClassCommandSequence,
             ControlCommandKind.Spectate => client.LastSpectateCommandSequence,
+            ControlCommandKind.SelectGameplayLoadout => client.LastGameplayLoadoutCommandSequence,
             _ => 0u,
         };
         if (previousSequence == command.Sequence)
@@ -126,6 +127,7 @@ sealed class ServerSessionManager
             ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value),
             ControlCommandKind.SelectClass => ApplyRequestedClass(client.Slot, command.Value),
             ControlCommandKind.Spectate => ApplyRequestedSpectate(client),
+            ControlCommandKind.SelectGameplayLoadout => ApplyRequestedGameplayLoadout(client.Slot, command.Value),
             _ => false,
         };
 
@@ -142,6 +144,10 @@ sealed class ServerSessionManager
             else if (command.Kind == ControlCommandKind.Spectate)
             {
                 client.LastSpectateCommandSequence = command.Sequence;
+            }
+            else if (command.Kind == ControlCommandKind.SelectGameplayLoadout)
+            {
+                client.LastGameplayLoadoutCommandSequence = command.Sequence;
             }
         }
 
@@ -391,5 +397,24 @@ sealed class ServerSessionManager
 
         var spectatorSlot = FindAvailableSpectatorSlot(_clientsBySlot, _maxTotalClients, _maxSpectatorClients, client.Slot);
         return spectatorSlot != 0 && TryMoveClientToSlot(client, spectatorSlot);
+    }
+
+    private bool ApplyRequestedGameplayLoadout(byte slot, byte requestedLoadoutIndex)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            || requestedLoadoutIndex == 0
+            || !_world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        var orderedLoadouts = GameplayLoadoutSelectionResolver.GetOrderedLoadouts(player.ClassId);
+        var loadoutIndex = requestedLoadoutIndex - 1;
+        if (loadoutIndex < 0 || loadoutIndex >= orderedLoadouts.Count)
+        {
+            return false;
+        }
+
+        return _world.TrySetNetworkPlayerGameplayLoadout(slot, orderedLoadouts[loadoutIndex].Id);
     }
 }

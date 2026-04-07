@@ -27,6 +27,9 @@ public partial class Game1
             _game._controlsMenuOpen = false;
             _game._controlsMenuOpenedFromGameplay = false;
             _game._inGameMenuOpen = false;
+            _game._gameplayLoadoutMenuOpen = false;
+            _game._gameplayLoadoutMenuAwaitingEscapeRelease = false;
+            _game._gameplayLoadoutMenuHoverIndex = -1;
             _game._quitPromptOpen = false;
             _game._quitPromptHoverIndex = -1;
             _game._pendingControlsBinding = null;

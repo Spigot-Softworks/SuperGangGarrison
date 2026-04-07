@@ -83,6 +83,32 @@ internal sealed class ServerAdminOperations(
         return world.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
     }
 
+    public bool TrySetGameplaySecondaryItem(byte slot, string? itemId)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerGameplaySecondaryItem(slot, itemId);
+    }
+
+    public bool TrySetGameplayAcquiredItem(byte slot, string? itemId)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().TrySetNetworkPlayerGameplayAcquiredItem(slot, itemId);
+    }
+
+    public bool TryGrantGameplayItem(byte slot, string itemId)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && !string.IsNullOrWhiteSpace(itemId)
+            && worldGetter().TryGrantNetworkPlayerGameplayItem(slot, itemId);
+    }
+
+    public bool TryRevokeGameplayItem(byte slot, string itemId)
+    {
+        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+            && !string.IsNullOrWhiteSpace(itemId)
+            && worldGetter().TryRevokeNetworkPlayerGameplayItem(slot, itemId);
+    }
+
     public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
     {
         return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
@@ -148,50 +174,6 @@ internal sealed class ServerAdminOperations(
 
     private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)
     {
-        loadoutId = string.Empty;
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var gameplayClass = runtimeRegistry.GetClassDefinition(playerClass);
-        var candidates = gameplayClass.Loadouts.Values
-            .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(loadout => loadout.Id, StringComparer.Ordinal)
-            .ToArray();
-        var trimmedSelection = selection.Trim();
-        if (trimmedSelection.Length == 0)
-        {
-            return false;
-        }
-
-        if (gameplayClass.Loadouts.ContainsKey(trimmedSelection))
-        {
-            loadoutId = trimmedSelection;
-            return true;
-        }
-
-        if (int.TryParse(trimmedSelection, out var parsedIndex)
-            && parsedIndex >= 1
-            && parsedIndex <= candidates.Length)
-        {
-            loadoutId = candidates[parsedIndex - 1].Id;
-            return true;
-        }
-
-        var exactDisplayMatch = candidates.FirstOrDefault(loadout =>
-            string.Equals(loadout.DisplayName, trimmedSelection, StringComparison.OrdinalIgnoreCase));
-        if (exactDisplayMatch is not null)
-        {
-            loadoutId = exactDisplayMatch.Id;
-            return true;
-        }
-
-        var prefixMatches = candidates
-            .Where(loadout => loadout.DisplayName.StartsWith(trimmedSelection, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (prefixMatches.Length == 1)
-        {
-            loadoutId = prefixMatches[0].Id;
-            return true;
-        }
-
-        return false;
+        return GameplayLoadoutSelectionResolver.TryResolveLoadoutId(playerClass, selection, out loadoutId);
     }
 }

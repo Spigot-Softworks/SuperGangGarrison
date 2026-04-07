@@ -21,7 +21,19 @@ public static class GameplayModPackDirectoryLoader
             return Array.Empty<GameplayModPackDefinition>();
         }
 
-        return Directory.GetDirectories(gameplayRoot)
+        return LoadAllFromDirectory(gameplayRoot);
+    }
+
+    public static IReadOnlyList<GameplayModPackDefinition> LoadAllFromDirectory(string gameplayRootDirectory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameplayRootDirectory);
+        var fullGameplayRootDirectory = Path.GetFullPath(gameplayRootDirectory);
+        if (!Directory.Exists(fullGameplayRootDirectory))
+        {
+            return Array.Empty<GameplayModPackDefinition>();
+        }
+
+        return Directory.GetDirectories(fullGameplayRootDirectory)
             .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase)
             .Select(LoadFromDirectory)
             .ToArray();
@@ -56,6 +68,26 @@ public static class GameplayModPackDirectoryLoader
                 };
             });
         var itemsById = items.ToDictionary(static item => item.Id, StringComparer.Ordinal);
+        var sprites = LoadDefinitionsFromDirectory<GameplaySpriteAssetDefinition>(
+            fullPackDirectory,
+            "sprites",
+            (sprite, _, filePath) =>
+            {
+                ValidateRequiredText(sprite.Id, nameof(GameplaySpriteAssetDefinition.Id), filePath);
+                if (sprite.FramePaths is null || sprite.FramePaths.Count == 0)
+                {
+                    throw new InvalidOperationException($"Gameplay sprite asset \"{sprite.Id}\" must declare at least one frame path in \"{filePath}\".");
+                }
+
+                var normalizedFramePaths = sprite.FramePaths
+                    .Select(framePath => NormalizeAndValidatePackRelativeFilePath(fullPackDirectory, framePath, sprite.Id, filePath))
+                    .ToArray();
+                return sprite with
+                {
+                    FramePaths = normalizedFramePaths,
+                };
+            });
+        var spritesById = sprites.ToDictionary(static sprite => sprite.Id, StringComparer.Ordinal);
         var classes = LoadDefinitionsFromDirectory<GameplayClassDefinition>(
             fullPackDirectory,
             "classes",
@@ -96,7 +128,8 @@ public static class GameplayModPackDirectoryLoader
             DisplayName: metadata.DisplayName.Trim(),
             Version: version,
             Items: itemsById,
-            Classes: classesById);
+            Classes: classesById,
+            Assets: new GameplayModPackAssetCatalog(spritesById));
     }
 
     public static string? FindPackDirectory(string packDirectoryName)
@@ -185,6 +218,7 @@ public static class GameplayModPackDirectoryLoader
             {
                 GameplayItemDefinition item => item.Id,
                 GameplayClassDefinition gameplayClass => gameplayClass.Id,
+                GameplaySpriteAssetDefinition sprite => sprite.Id,
                 _ => throw new InvalidOperationException($"Unsupported gameplay mod definition type: {typeof(TDefinition).Name}"),
             };
 
@@ -238,6 +272,24 @@ public static class GameplayModPackDirectoryLoader
         {
             throw new InvalidOperationException($"Required gameplay field \"{fieldName}\" was empty in \"{filePath}\".");
         }
+    }
+
+    private static string NormalizeAndValidatePackRelativeFilePath(string packDirectory, string? relativePath, string assetId, string filePath)
+    {
+        ValidateRequiredText(relativePath, "framePaths", filePath);
+        var fullPackDirectory = Path.GetFullPath(packDirectory);
+        var combinedPath = Path.GetFullPath(Path.Combine(fullPackDirectory, relativePath!.Trim()));
+        if (!combinedPath.StartsWith(fullPackDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes pack directory in \"{filePath}\": {relativePath}");
+        }
+
+        if (!File.Exists(combinedPath))
+        {
+            throw new FileNotFoundException($"Gameplay asset \"{assetId}\" frame path was not found: {combinedPath}", combinedPath);
+        }
+
+        return relativePath.Trim();
     }
 
     private static JsonSerializerOptions CreateJsonOptions()

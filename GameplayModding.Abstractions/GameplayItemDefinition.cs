@@ -7,4 +7,5 @@ public sealed record GameplayItemDefinition(
     string BehaviorId,
     GameplayItemAmmoDefinition Ammo,
     GameplayItemPresentationDefinition Presentation,
+    GameplayItemCombatDefinition? Combat = null,
     GameplayItemOwnershipDefinition? Ownership = null);

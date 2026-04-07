@@ -293,6 +293,25 @@ internal sealed class LuaServerPlugin(
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
         host["get_server_state"] = DynValue.NewCallback((_, _) => ToDynValue(CreateServerStateSnapshot(context.ServerState)));
         host["get_players"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetPlayers()));
+        host["get_gameplay_mod_packs"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetGameplayModPacks()));
+        host["get_gameplay_classes"] = DynValue.NewCallback((_, args) =>
+        {
+            var modPackId = ReadOptionalStringArgument(args, 0);
+            return ToDynValue(context.ServerState.GetGameplayClasses(modPackId));
+        });
+        host["get_gameplay_items"] = DynValue.NewCallback((_, args) =>
+        {
+            var modPackId = ReadOptionalStringArgument(args, 0);
+            return ToDynValue(context.ServerState.GetGameplayItems(modPackId));
+        });
+        host["get_owned_gameplay_items"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(context.ServerState.GetOwnedGameplayItems(ReadByteArgument(args, 0))));
+        host["get_gameplay_loadouts_for_class"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(context.ServerState.GetGameplayLoadoutsForClass(ReadStringArgument(args, 0))));
+        host["get_available_gameplay_secondary_items"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(context.ServerState.GetAvailableGameplaySecondaryItems(ReadByteArgument(args, 0))));
+        host["get_available_gameplay_acquired_items"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(context.ServerState.GetAvailableGameplayAcquiredItems(ReadByteArgument(args, 0))));
         host["try_resolve_level"] = DynValue.NewCallback((_, args) =>
         {
             var levelSpec = TryResolveLevel(ReadStringArgument(args, 0));
@@ -327,6 +346,14 @@ internal sealed class LuaServerPlugin(
                 && context.AdminOperations.TrySetClass(ReadByteArgument(args, 0), playerClass)));
         host["try_set_gameplay_loadout"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(context.AdminOperations.TrySetGameplayLoadout(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        host["try_set_gameplay_secondary_item"] = DynValue.NewCallback((_, args) =>
+            DynValue.NewBoolean(context.AdminOperations.TrySetGameplaySecondaryItem(ReadByteArgument(args, 0), ReadOptionalStringArgument(args, 1))));
+        host["try_set_gameplay_acquired_item"] = DynValue.NewCallback((_, args) =>
+            DynValue.NewBoolean(context.AdminOperations.TrySetGameplayAcquiredItem(ReadByteArgument(args, 0), ReadOptionalStringArgument(args, 1))));
+        host["try_grant_gameplay_item"] = DynValue.NewCallback((_, args) =>
+            DynValue.NewBoolean(context.AdminOperations.TryGrantGameplayItem(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        host["try_revoke_gameplay_item"] = DynValue.NewCallback((_, args) =>
+            DynValue.NewBoolean(context.AdminOperations.TryRevokeGameplayItem(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
         host["try_set_gameplay_equipped_slot"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(TryParseEnumArgument<GameplayEquipmentSlot>(args, 1, out var equippedSlot)
                 && context.AdminOperations.TrySetGameplayEquippedSlot(ReadByteArgument(args, 0), equippedSlot)));
@@ -695,6 +722,18 @@ internal sealed class LuaServerPlugin(
     {
         var dynValue = ReadArgument(args, index);
         return dynValue.IsNil() ? string.Empty : dynValue.CastToString();
+    }
+
+    private static string? ReadOptionalStringArgument(CallbackArguments args, int index)
+    {
+        var dynValue = ReadArgument(args, index);
+        if (dynValue.IsNil())
+        {
+            return null;
+        }
+
+        var value = dynValue.CastToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     private static byte ReadByteArgument(CallbackArguments args, int index)

@@ -147,6 +147,10 @@ public partial class Game1
                 DrawInGameMenu();
                 WriteGameplayRenderTrace("modal after ingamemenu");
                 break;
+            case GameplayOverlayKind.LoadoutMenu:
+                DrawGameplayLoadoutMenu();
+                WriteGameplayRenderTrace("modal after loadoutmenu");
+                break;
             case GameplayOverlayKind.ClientPowers:
                 DrawClientPowersMenu();
                 WriteGameplayRenderTrace("modal after clientpowers");

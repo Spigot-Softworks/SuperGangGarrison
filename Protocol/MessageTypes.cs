@@ -38,6 +38,7 @@ public enum ControlCommandKind : byte
     SelectTeam = 1,
     SelectClass = 2,
     Spectate = 3,
+    SelectGameplayLoadout = 4,
 }
 
 [Flags]

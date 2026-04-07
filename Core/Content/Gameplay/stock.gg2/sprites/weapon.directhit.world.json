@@ -1,0 +1,8 @@
+{
+  "id": "stock.gg2.weapon.directhit.world",
+  "framePaths": [
+    "assets/directhit/DirectHitS.png"
+  ],
+  "originX": 10,
+  "originY": 6
+}

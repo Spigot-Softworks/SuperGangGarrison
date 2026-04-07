@@ -127,11 +127,12 @@ public sealed partial class SimulationWorld
             float y,
             float speed,
             float directionRadians,
+            RocketCombatDefinition? rocketCombat = null,
             bool explodeImmediately = false,
             bool canGrantExperimentalInstantReloadOnHit = true,
             string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRocket(owner, x, y, speed, directionRadians, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
+            _world.SpawnRocket(owner, x, y, speed, directionRadians, rocketCombat, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)

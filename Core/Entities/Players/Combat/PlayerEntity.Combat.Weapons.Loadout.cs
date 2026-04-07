@@ -53,7 +53,8 @@ public sealed partial class PlayerEntity
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var registeredItemId = ResolveRegisteredWeaponItemId(weaponDefinition);
-        if (!runtimeRegistry.CanUseSecondaryOverrideItem(ClassId, SelectedGameplayLoadoutId, registeredItemId))
+        if (!runtimeRegistry.CanUseSecondaryOverrideItem(ClassId, SelectedGameplayLoadoutId, registeredItemId)
+            || (!string.IsNullOrWhiteSpace(registeredItemId) && !OwnsGameplayItem(registeredItemId)))
         {
             weaponDefinition = null;
         }
@@ -127,6 +128,7 @@ public sealed partial class PlayerEntity
             : null;
         if (!weaponClassId.HasValue
             || ClassId != PlayerClass.Soldier
+            || !OwnsGameplayItem(acquiredItemId)
             || !runtimeRegistry.CanUseAcquiredItem(ClassId, acquiredItemId))
         {
             weaponClassId = null;

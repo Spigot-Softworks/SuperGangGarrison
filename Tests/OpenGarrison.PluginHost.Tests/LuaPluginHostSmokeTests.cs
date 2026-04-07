@@ -672,6 +672,218 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Equal(1, logs.Count(log => log.Contains("disabled tests.server.lua-timeout", StringComparison.Ordinal)));
     }
 
+    [Fact]
+    public void ServerLuaHostExposesGameplayCatalog()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaGameplayCatalog");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-gameplay-catalog",
+              "displayName": "Lua Server Gameplay Catalog",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_server_heartbeat(seconds)
+                local packs = plugin.host.get_gameplay_mod_packs()
+                local classes = plugin.host.get_gameplay_classes("stock.gg2")
+                local items = plugin.host.get_gameplay_items("stock.gg2")
+                local ownedItems = plugin.host.get_owned_gameplay_items(1)
+                local loadouts = plugin.host.get_gameplay_loadouts_for_class("soldier")
+                local secondaryItems = plugin.host.get_available_gameplay_secondary_items(1)
+                local acquiredItems = plugin.host.get_available_gameplay_acquired_items(1)
+
+                if packs[1] ~= nil and packs[1].modPackId == "stock.gg2" then
+                    plugin.host.log("gameplay-pack-ok")
+                end
+
+                if classes[1] ~= nil and classes[1].classId ~= nil then
+                    plugin.host.log("gameplay-class-ok")
+                end
+
+                if items[1] ~= nil and items[1].itemId ~= nil then
+                    plugin.host.log("gameplay-item-ok")
+                end
+
+                if ownedItems[1] ~= nil and ownedItems[1].itemId ~= nil then
+                    plugin.host.log("gameplay-owned-ok")
+                end
+
+                local foundStockLoadout = false
+                local foundDirectHitLoadout = false
+                for _, loadout in pairs(loadouts) do
+                    if loadout ~= nil and loadout.loadoutId == "soldier.stock" then
+                        foundStockLoadout = true
+                    end
+
+                    if loadout ~= nil and loadout.loadoutId == "soldier.direct-hit" then
+                        foundDirectHitLoadout = true
+                    end
+                end
+
+                if foundStockLoadout and foundDirectHitLoadout then
+                    plugin.host.log("gameplay-loadout-ok")
+                end
+
+                if secondaryItems[1] ~= nil and secondaryItems[1].itemId ~= nil and secondaryItems[1].isOwnedByPlayer ~= nil then
+                    plugin.host.log("gameplay-secondary-ok")
+                end
+
+                if acquiredItems[1] ~= nil and acquiredItems[1].itemId ~= nil and acquiredItems[1].isOwnedByPlayer ~= nil then
+                    plugin.host.log("gameplay-acquired-ok")
+                end
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+
+        Assert.Contains(logs, log => log.Contains("gameplay-pack-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-class-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-item-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-owned-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-loadout-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-secondary-ok", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("gameplay-acquired-ok", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ServerLuaHostSupportsGameplayItemSelectionWrites()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaGameplaySelectionWrites");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-gameplay-selection-writes",
+              "displayName": "Lua Server Gameplay Selection Writes",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_server_heartbeat(seconds)
+                assert(plugin.host.try_grant_gameplay_item(1, "weapon.scattergun"))
+                assert(plugin.host.try_set_gameplay_secondary_item(1, "weapon.scattergun"))
+                assert(plugin.host.try_set_gameplay_secondary_item(1, nil))
+                assert(plugin.host.try_grant_gameplay_item(1, "weapon.flamethrower"))
+                assert(plugin.host.try_set_gameplay_acquired_item(1, "weapon.flamethrower"))
+                assert(plugin.host.try_set_gameplay_acquired_item(1, nil))
+                assert(plugin.host.try_revoke_gameplay_item(1, "weapon.scattergun"))
+                assert(plugin.host.try_revoke_gameplay_item(1, "weapon.flamethrower"))
+                plugin.host.log("gameplay-selection-write-ok")
+            end
+
+            return plugin
+            """);
+
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+        var configDirectory = tempDirectory.CreateSubdirectory("Config");
+        var logs = new List<string>();
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+
+        Assert.Contains(logs, log => log.Contains("gameplay-selection-write-ok", StringComparison.Ordinal));
+        Assert.Equal(4, fakeContext.AdminImpl.GameplayOwnershipChanges.Count);
+        Assert.Equal(4, fakeContext.AdminImpl.GameplayItemSelections.Count);
+        Assert.Collection(
+            fakeContext.AdminImpl.GameplayItemSelections,
+            selection =>
+            {
+                Assert.Equal("secondary", selection.SelectionKind);
+                Assert.Equal((byte)1, selection.Slot);
+                Assert.Equal("weapon.scattergun", selection.ItemId);
+            },
+            selection =>
+            {
+                Assert.Equal("secondary", selection.SelectionKind);
+                Assert.Equal((byte)1, selection.Slot);
+                Assert.Null(selection.ItemId);
+            },
+            selection =>
+            {
+                Assert.Equal("acquired", selection.SelectionKind);
+                Assert.Equal((byte)1, selection.Slot);
+                Assert.Equal("weapon.flamethrower", selection.ItemId);
+            },
+            selection =>
+            {
+                Assert.Equal("acquired", selection.SelectionKind);
+                Assert.Equal((byte)1, selection.Slot);
+                Assert.Null(selection.ItemId);
+            });
+        Assert.Equal(4, fakeContext.AdminImpl.GameplayItemSelectionAttempts.Count);
+        Assert.Contains(fakeContext.AdminImpl.GameplayItemSelectionAttempts, attempt =>
+            attempt.SelectionKind == "secondary" && attempt.Slot == 1 && attempt.ItemId == "weapon.scattergun");
+        Assert.Contains(fakeContext.AdminImpl.GameplayItemSelectionAttempts, attempt =>
+            attempt.SelectionKind == "acquired" && attempt.Slot == 1 && attempt.ItemId == "weapon.flamethrower");
+        Assert.Contains(fakeContext.AdminImpl.GameplayOwnershipChanges, change =>
+            change.ChangeKind == "grant" && change.Slot == 1 && change.ItemId == "weapon.scattergun");
+        Assert.Contains(fakeContext.AdminImpl.GameplayOwnershipChanges, change =>
+            change.ChangeKind == "grant" && change.Slot == 1 && change.ItemId == "weapon.flamethrower");
+        Assert.Contains(fakeContext.AdminImpl.GameplayOwnershipChanges, change =>
+            change.ChangeKind == "revoke" && change.Slot == 1 && change.ItemId == "weapon.scattergun");
+        Assert.Contains(fakeContext.AdminImpl.GameplayOwnershipChanges, change =>
+            change.ChangeKind == "revoke" && change.Slot == 1 && change.ItemId == "weapon.flamethrower");
+    }
+
     private static LoadedClientLuaTemplate LoadClientLuaTemplate(string pluginId, TempDirectory tempDirectory, List<string> logs)
     {
         var repoRoot = FindRepositoryRoot();
@@ -1158,6 +1370,129 @@ public sealed class LuaPluginHostSmokeTests
 
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot) => [];
 
+        public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .SelectMany(pack => pack.Items.Values
+                    .Where(item => item.Ownership?.DefaultGranted ?? true)
+                    .Select(item => new OpenGarrisonServerGameplayItemInfo(
+                        pack.Id,
+                        item.Id,
+                        item.DisplayName,
+                        item.Slot,
+                        item.BehaviorId,
+                        item.Ownership?.TrackOwnership ?? false,
+                        item.Ownership?.DefaultGranted ?? true,
+                        item.Ownership?.GrantOnAcquire ?? false,
+                        item.Ownership?.GrantKey)))
+                .OrderBy(item => item.ItemId, StringComparer.Ordinal)
+                .Take(4)
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplaySecondaryItems(byte slot)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .SelectMany(pack => pack.Items.Values)
+                .Where(item => item.Slot is GameplayEquipmentSlot.Primary or GameplayEquipmentSlot.Secondary)
+                .OrderBy(item => item.Id, StringComparer.Ordinal)
+                .Take(4)
+                .Select(item => new OpenGarrisonServerGameplaySelectableItemInfo(
+                    item.Id,
+                    item.DisplayName,
+                    item.Slot,
+                    item.BehaviorId,
+                    IsCurrentlySelected: false,
+                    IsOwnedByPlayer: item.Ownership?.DefaultGranted ?? true,
+                    item.Ownership?.TrackOwnership ?? false,
+                    item.Ownership?.DefaultGranted ?? true,
+                    item.Ownership?.GrantOnAcquire ?? false,
+                    item.Ownership?.GrantKey))
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplayAcquiredItems(byte slot)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .SelectMany(pack => pack.Items.Values)
+                .Where(item => item.Slot == GameplayEquipmentSlot.Primary)
+                .OrderBy(item => item.Id, StringComparer.Ordinal)
+                .Take(4)
+                .Select(item => new OpenGarrisonServerGameplaySelectableItemInfo(
+                    item.Id,
+                    item.DisplayName,
+                    item.Slot,
+                    item.BehaviorId,
+                    IsCurrentlySelected: false,
+                    IsOwnedByPlayer: item.Ownership?.DefaultGranted ?? true,
+                    item.Ownership?.TrackOwnership ?? false,
+                    item.Ownership?.DefaultGranted ?? true,
+                    item.Ownership?.GrantOnAcquire ?? false,
+                    item.Ownership?.GrantKey))
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplayModPackInfo> GetGameplayModPacks()
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .OrderBy(pack => pack.Id, StringComparer.Ordinal)
+                .Select(pack => new OpenGarrisonServerGameplayModPackInfo(
+                    pack.Id,
+                    pack.DisplayName,
+                    pack.Version.ToString(),
+                    pack.Items.Count,
+                    pack.Classes.Count,
+                    string.Equals(pack.Id, StockGameplayModCatalog.Definition.Id, StringComparison.Ordinal)))
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplayClassInfo> GetGameplayClasses(string? modPackId = null)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .Where(pack => string.IsNullOrWhiteSpace(modPackId) || string.Equals(pack.Id, modPackId, StringComparison.Ordinal))
+                .SelectMany(pack => pack.Classes.Values.Select(gameplayClass => new OpenGarrisonServerGameplayClassInfo(
+                    pack.Id,
+                    gameplayClass.Id,
+                    gameplayClass.DisplayName,
+                    gameplayClass.DefaultLoadoutId,
+                    gameplayClass.Loadouts.Count)))
+                .OrderBy(gameplayClass => gameplayClass.ClassId, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetGameplayItems(string? modPackId = null)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.ModPacks
+                .Where(pack => string.IsNullOrWhiteSpace(modPackId) || string.Equals(pack.Id, modPackId, StringComparison.Ordinal))
+                .SelectMany(pack => pack.Items.Values.Select(item => new OpenGarrisonServerGameplayItemInfo(
+                    pack.Id,
+                    item.Id,
+                    item.DisplayName,
+                    item.Slot,
+                    item.BehaviorId,
+                    item.Ownership?.TrackOwnership ?? false,
+                    item.Ownership?.DefaultGranted ?? true,
+                    item.Ownership?.GrantOnAcquire ?? false,
+                    item.Ownership?.GrantKey)))
+                .OrderBy(item => item.ItemId, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetGameplayLoadoutsForClass(string classId)
+        {
+            var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetRequiredClass(classId);
+            return gameplayClass.Loadouts.Values
+                .OrderBy(loadout => loadout.Id, StringComparer.Ordinal)
+                .Select(loadout => new OpenGarrisonServerGameplayLoadoutInfo(
+                    loadout.Id,
+                    loadout.DisplayName,
+                    loadout.PrimaryItemId,
+                    loadout.SecondaryItemId,
+                    loadout.UtilityItemId,
+                    IsSelected: false))
+                .ToArray();
+        }
+
         public IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers() => [];
 
         public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
@@ -1181,6 +1516,12 @@ public sealed class LuaPluginHostSmokeTests
 
     private sealed class FakeServerAdminOperations : IOpenGarrisonServerAdminOperations
     {
+        public List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelections { get; } = [];
+
+        public List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelectionAttempts { get; } = [];
+
+        public List<(string ChangeKind, byte Slot, string ItemId)> GameplayOwnershipChanges { get; } = [];
+
         public void BroadcastSystemMessage(string text)
         {
         }
@@ -1201,9 +1542,45 @@ public sealed class LuaPluginHostSmokeTests
 
         public bool TrySetClass(byte slot, PlayerClass playerClass) => true;
 
+        public bool TryGrantGameplayItem(byte slot, string itemId)
+        {
+            GameplayOwnershipChanges.Add(("grant", slot, itemId));
+            return itemId is "weapon.scattergun" or "weapon.flamethrower";
+        }
+
+        public bool TrySetGameplayAcquiredItem(byte slot, string? itemId)
+        {
+            GameplayItemSelectionAttempts.Add(("acquired", slot, itemId));
+            if (!string.IsNullOrWhiteSpace(itemId) && !string.Equals(itemId, "weapon.flamethrower", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            GameplayItemSelections.Add(("acquired", slot, itemId));
+            return true;
+        }
+
         public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot) => true;
 
         public bool TrySetGameplayLoadout(byte slot, string loadoutId) => true;
+
+        public bool TryRevokeGameplayItem(byte slot, string itemId)
+        {
+            GameplayOwnershipChanges.Add(("revoke", slot, itemId));
+            return itemId is "weapon.scattergun" or "weapon.flamethrower";
+        }
+
+        public bool TrySetGameplaySecondaryItem(byte slot, string? itemId)
+        {
+            GameplayItemSelectionAttempts.Add(("secondary", slot, itemId));
+            if (!string.IsNullOrWhiteSpace(itemId) && !string.Equals(itemId, "weapon.scattergun", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            GameplayItemSelections.Add(("secondary", slot, itemId));
+            return true;
+        }
 
         public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
 

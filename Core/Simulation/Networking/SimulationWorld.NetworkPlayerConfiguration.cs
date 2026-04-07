@@ -299,6 +299,107 @@ public sealed partial class SimulationWorld
         return player.TrySelectGameplayLoadout(loadoutId);
     }
 
+    public bool TrySetNetworkPlayerGameplaySecondaryItem(byte slot, string? itemId)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var normalizedItemId = string.IsNullOrWhiteSpace(itemId) ? null : itemId.Trim();
+        if (!runtimeRegistry.CanUseSecondaryOverrideItem(player.ClassId, player.SelectedGameplayLoadoutId, normalizedItemId))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedItemId) && !player.OwnsGameplayItem(normalizedItemId))
+        {
+            return false;
+        }
+
+        PrimaryWeaponDefinition? weaponDefinition = null;
+        if (!string.IsNullOrWhiteSpace(normalizedItemId))
+        {
+            var selectedLoadout = runtimeRegistry.TryGetLoadout(player.ClassId, player.SelectedGameplayLoadoutId, out var resolvedLoadout)
+                ? resolvedLoadout
+                : runtimeRegistry.GetDefaultLoadout(player.ClassId);
+            if (!string.Equals(selectedLoadout.SecondaryItemId, normalizedItemId, StringComparison.Ordinal))
+            {
+                weaponDefinition = runtimeRegistry.CreatePrimaryWeaponDefinition(runtimeRegistry.GetRequiredItem(normalizedItemId));
+            }
+        }
+
+        player.SetExperimentalOffhandWeapon(weaponDefinition);
+        return true;
+    }
+
+    public bool TrySetNetworkPlayerGameplayAcquiredItem(byte slot, string? itemId)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        if (!TryGetNetworkPlayer(slot, out var player) || player.ClassId != PlayerClass.Soldier)
+        {
+            return false;
+        }
+
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var normalizedItemId = string.IsNullOrWhiteSpace(itemId) ? null : itemId.Trim();
+        if (!runtimeRegistry.CanUseAcquiredItem(player.ClassId, normalizedItemId))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedItemId) && !player.OwnsGameplayItem(normalizedItemId))
+        {
+            return false;
+        }
+
+        PlayerClass? acquiredWeaponClass = null;
+        if (!string.IsNullOrWhiteSpace(normalizedItemId))
+        {
+            if (!runtimeRegistry.TryResolveBoundPlayerClassForPrimaryItem(normalizedItemId, out var resolvedPlayerClass))
+            {
+                return false;
+            }
+
+            acquiredWeaponClass = resolvedPlayerClass;
+        }
+
+        player.SetAcquiredWeapon(acquiredWeaponClass);
+        return true;
+    }
+
+    public bool TryGrantNetworkPlayerGameplayItem(byte slot, string itemId)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        return TryGetNetworkPlayer(slot, out var player)
+            && player.TryGrantGameplayItem(itemId);
+    }
+
+    public bool TryRevokeNetworkPlayerGameplayItem(byte slot, string itemId)
+    {
+        if (slot != LocalPlayerSlot)
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        return TryGetNetworkPlayer(slot, out var player)
+            && player.TryRevokeGameplayItem(itemId);
+    }
+
     public bool TrySetNetworkPlayerGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
     {
         if (slot != LocalPlayerSlot)

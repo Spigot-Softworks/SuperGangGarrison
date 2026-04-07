@@ -25,6 +25,7 @@ sealed class ClientSession(byte slot, IPEndPoint endPoint, string name, TimeSpan
     public uint LastTeamCommandSequence { get; set; }
     public uint LastClassCommandSequence { get; set; }
     public uint LastSpectateCommandSequence { get; set; }
+    public uint LastGameplayLoadoutCommandSequence { get; set; }
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
     public bool IsAuthorized { get; set; } = true;
     public TimeSpan LastPasswordRequestSentAt { get; set; } = TimeSpan.MinValue;

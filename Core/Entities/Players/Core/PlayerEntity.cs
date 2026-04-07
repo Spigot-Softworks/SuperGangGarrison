@@ -852,6 +852,76 @@ public sealed partial class PlayerEntity : SimulationEntity
             || HasAcquiredBehavior(behaviorId);
     }
 
+    public bool OwnsGameplayItem(string? itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            return false;
+        }
+
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        return runtimeRegistry.OwnsItemByDefault(itemId)
+            || OwnedGameplayItemIds.Contains(itemId);
+    }
+
+    public IReadOnlyList<string> GetOwnedGameplayItemIds()
+    {
+        return CharacterClassCatalog.RuntimeRegistry.ModPacks
+            .SelectMany(pack => pack.Items.Keys)
+            .Where(OwnsGameplayItem)
+            .OrderBy(static itemId => itemId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public bool TryGrantGameplayItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            return false;
+        }
+
+        var normalizedItemId = itemId.Trim();
+        if (!CharacterClassCatalog.RuntimeRegistry.RequiresTrackedOwnership(normalizedItemId))
+        {
+            return CharacterClassCatalog.RuntimeRegistry.OwnsItemByDefault(normalizedItemId);
+        }
+
+        return OwnedGameplayItemIds.Add(normalizedItemId);
+    }
+
+    public bool TryRevokeGameplayItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            return false;
+        }
+
+        var normalizedItemId = itemId.Trim();
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (!runtimeRegistry.RequiresTrackedOwnership(normalizedItemId))
+        {
+            return false;
+        }
+
+        var removed = OwnedGameplayItemIds.Remove(normalizedItemId);
+        if (!removed)
+        {
+            return false;
+        }
+
+        if (string.Equals(GameplayLoadoutState.SecondaryItemId, normalizedItemId, StringComparison.Ordinal))
+        {
+            SetExperimentalOffhandWeapon(null);
+        }
+
+        if (string.Equals(GameplayLoadoutState.AcquiredItemId, normalizedItemId, StringComparison.Ordinal))
+        {
+            SetAcquiredWeapon(null);
+        }
+
+        return true;
+    }
+
     public IReadOnlyList<GameplayReplicatedStateEntry> GetReplicatedStateEntries()
     {
         return ReplicatedStateEntries.Values
@@ -937,6 +1007,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     }
 
     private Dictionary<string, GameplayReplicatedStateEntry> ReplicatedStateEntries { get; } = new(StringComparer.Ordinal);
+
+    private HashSet<string> OwnedGameplayItemIds { get; } = new(StringComparer.Ordinal);
 
     private bool SetReplicatedState(GameplayReplicatedStateEntry entry)
     {

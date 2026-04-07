@@ -19,6 +19,14 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TrySetGameplayLoadout(byte slot, string loadoutId);
 
+    bool TrySetGameplaySecondaryItem(byte slot, string? itemId);
+
+    bool TrySetGameplayAcquiredItem(byte slot, string? itemId);
+
+    bool TryGrantGameplayItem(byte slot, string itemId);
+
+    bool TryRevokeGameplayItem(byte slot, string itemId);
+
     bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot);
 
     bool TryForceKill(byte slot);

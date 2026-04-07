@@ -103,7 +103,7 @@ public partial class Game1
 
     private void DrawCenteredHudSprite(string spriteName, int frameIndex, Vector2 visualCenter, Color tint, Vector2 scale)
     {
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return;
@@ -133,7 +133,7 @@ public partial class Game1
 
     private bool TryDrawScreenSprite(string spriteName, int frameIndex, Vector2 position, Color tint, Vector2 scale, float rotation)
     {
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
@@ -155,7 +155,7 @@ public partial class Game1
 
     private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale)
     {
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;

@@ -196,9 +196,9 @@ public partial class Game1
         return _gameplayLocalStatusHudController.IsLocalDisplayedMainWeaponAcquired();
     }
 
-    private PlayerClass GetLocalDisplayedMainWeaponPresentationClassId()
+    private string GetLocalDisplayedMainWeaponPresentationItemId()
     {
-        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponPresentationClassId();
+        return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponPresentationItemId();
     }
 
     private PrimaryWeaponDefinition GetLocalDisplayedMainWeaponStats()
@@ -226,9 +226,9 @@ public partial class Game1
         return _gameplayLocalStatusHudController.GetLocalDisplayedMainWeaponReloadTicks();
     }
 
-    private PlayerClass GetLocalAlternatePrimaryWeaponPresentationClassId()
+    private string GetLocalAlternatePrimaryWeaponPresentationItemId()
     {
-        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponPresentationClassId();
+        return _gameplayLocalStatusHudController.GetLocalAlternatePrimaryWeaponPresentationItemId();
     }
 
     private PrimaryWeaponDefinition GetLocalAlternatePrimaryWeaponStats()

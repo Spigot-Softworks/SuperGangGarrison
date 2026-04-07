@@ -24,6 +24,8 @@ public sealed record PrimaryWeaponDefinition(
     float SpreadDegrees,
     float MinShotSpeed,
     float AdditionalRandomShotSpeed,
+    string? FireSoundName = null,
+    RocketCombatDefinition? RocketCombat = null,
     bool AutoReloads = true,
     int AmmoRegenPerTick = 0,
     bool RefillsAllAtOnce = false);

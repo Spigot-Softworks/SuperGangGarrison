@@ -165,9 +165,19 @@ internal sealed class NetworkGameClient : IDisposable
         QueueControlCommand(ControlCommandKind.Spectate, 0);
     }
 
+    public void QueueGameplayLoadoutSelection(byte loadoutIndex)
+    {
+        QueueControlCommand(ControlCommandKind.SelectGameplayLoadout, loadoutIndex);
+    }
+
     public void ClearPendingClassSelection()
     {
         _pendingControlCommands.Remove(ControlCommandKind.SelectClass);
+    }
+
+    public void ClearPendingGameplayLoadoutSelection()
+    {
+        _pendingControlCommands.Remove(ControlCommandKind.SelectGameplayLoadout);
     }
 
     public void SendPassword(string password)

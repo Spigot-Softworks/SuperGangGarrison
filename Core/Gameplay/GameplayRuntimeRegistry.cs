@@ -7,12 +7,19 @@ public sealed class GameplayRuntimeRegistry
     private readonly Dictionary<string, GameplayModPackDefinition> _modPacks = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayItemDefinition> _items = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayClassDefinition> _classes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _itemOwningModPackIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _classOwningModPackIds = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerClass, GameplayClassRuntimeBinding> _classBindings = new();
     private readonly Dictionary<string, GameplayPrimaryWeaponRuntimeBinding> _primaryWeaponBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplaySecondaryAbilityRuntimeBinding> _secondaryAbilityBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayUtilityAbilityRuntimeBinding> _utilityAbilityBindingsByBehaviorId = new(StringComparer.Ordinal);
 
     public static GameplayRuntimeRegistry CreateStock()
+    {
+        return CreateStock(GameplayModPackDirectoryLoader.LoadAllFromContentRoot());
+    }
+
+    public static GameplayRuntimeRegistry CreateStock(IEnumerable<GameplayModPackDefinition> discoveredModPacks)
     {
         var registry = new GameplayRuntimeRegistry();
         registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.PelletGun, PrimaryWeaponKind.PelletGun, FireSoundName: "ShotgunSnd"));
@@ -38,20 +45,20 @@ public sealed class GameplayRuntimeRegistry
         registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
         registry.RegisterUtilityAbilityBehavior(new GameplayUtilityAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicUber, GameplayUtilityAbilityActionKind.MedicUber));
 
-        registry.RegisterModPack(
-            StockGameplayModCatalog.Definition,
-            [
-                new GameplayClassRuntimeBinding(PlayerClass.Scout, StockGameplayModCatalog.Definition.Id, "scout", SupportsExperimentalAcquiredWeapon: true, "ScatterKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Engineer, StockGameplayModCatalog.Definition.Id, "engineer", SupportsExperimentalAcquiredWeapon: true, "ShotgunKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Pyro, StockGameplayModCatalog.Definition.Id, "pyro", SupportsExperimentalAcquiredWeapon: true, "FlameKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Soldier, StockGameplayModCatalog.Definition.Id, "soldier", SupportsExperimentalAcquiredWeapon: true, "RocketKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Demoman, StockGameplayModCatalog.Definition.Id, "demoman", SupportsExperimentalAcquiredWeapon: true, "MineKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Heavy, StockGameplayModCatalog.Definition.Id, "heavy", SupportsExperimentalAcquiredWeapon: true, "MinigunKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Sniper, StockGameplayModCatalog.Definition.Id, "sniper", SupportsExperimentalAcquiredWeapon: true, "RifleKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Medic, StockGameplayModCatalog.Definition.Id, "medic", SupportsExperimentalAcquiredWeapon: true, "NeedleKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Spy, StockGameplayModCatalog.Definition.Id, "spy", SupportsExperimentalAcquiredWeapon: true, "RevolverKL"),
-                new GameplayClassRuntimeBinding(PlayerClass.Quote, StockGameplayModCatalog.Definition.Id, "quote", SupportsExperimentalAcquiredWeapon: false, "BladeKL"),
-            ]);
+        var stockModPack = discoveredModPacks.FirstOrDefault(static pack =>
+            string.Equals(pack.Id, StockGameplayModCatalog.Definition.Id, StringComparison.Ordinal))
+            ?? StockGameplayModCatalog.Definition;
+        registry.RegisterModPack(stockModPack, CreateStockClassBindings(stockModPack.Id));
+
+        foreach (var modPack in discoveredModPacks)
+        {
+            if (string.Equals(modPack.Id, stockModPack.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            registry.RegisterModPack(modPack, []);
+        }
 
         return registry;
     }
@@ -85,22 +92,75 @@ public sealed class GameplayRuntimeRegistry
     {
         ArgumentNullException.ThrowIfNull(modPack);
         ArgumentNullException.ThrowIfNull(classBindings);
+        ValidateModPackRegistration(modPack, classBindings);
         _modPacks[modPack.Id] = modPack;
 
         foreach (var item in modPack.Items)
         {
             _items[item.Key] = item.Value;
+            _itemOwningModPackIds[item.Key] = modPack.Id;
         }
 
         foreach (var gameplayClass in modPack.Classes)
         {
             _classes[gameplayClass.Key] = gameplayClass.Value;
+            _classOwningModPackIds[gameplayClass.Key] = modPack.Id;
         }
 
         for (var index = 0; index < classBindings.Count; index += 1)
         {
             _classBindings[classBindings[index].PlayerClass] = classBindings[index];
         }
+    }
+
+    private void ValidateModPackRegistration(GameplayModPackDefinition modPack, IReadOnlyList<GameplayClassRuntimeBinding> classBindings)
+    {
+        if (_modPacks.TryGetValue(modPack.Id, out var existingModPack))
+        {
+            throw new InvalidOperationException($"Gameplay mod pack \"{modPack.Id}\" is already registered.");
+        }
+
+        foreach (var item in modPack.Items)
+        {
+            if (_itemOwningModPackIds.TryGetValue(item.Key, out var owningModPackId))
+            {
+                throw new InvalidOperationException($"Gameplay item id \"{item.Key}\" from mod pack \"{modPack.Id}\" conflicts with mod pack \"{owningModPackId}\".");
+            }
+        }
+
+        foreach (var gameplayClass in modPack.Classes)
+        {
+            if (_classOwningModPackIds.TryGetValue(gameplayClass.Key, out var owningModPackId))
+            {
+                throw new InvalidOperationException($"Gameplay class id \"{gameplayClass.Key}\" from mod pack \"{modPack.Id}\" conflicts with mod pack \"{owningModPackId}\".");
+            }
+        }
+
+        for (var index = 0; index < classBindings.Count; index += 1)
+        {
+            var classBinding = classBindings[index];
+            if (_classBindings.TryGetValue(classBinding.PlayerClass, out var existingBinding))
+            {
+                throw new InvalidOperationException($"Gameplay class binding for player class \"{classBinding.PlayerClass}\" from mod pack \"{modPack.Id}\" conflicts with existing binding from mod pack \"{existingBinding.ModPackId}\".");
+            }
+        }
+    }
+
+    private static GameplayClassRuntimeBinding[] CreateStockClassBindings(string modPackId)
+    {
+        return
+        [
+            new GameplayClassRuntimeBinding(PlayerClass.Scout, modPackId, "scout", SupportsExperimentalAcquiredWeapon: true, "ScatterKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Engineer, modPackId, "engineer", SupportsExperimentalAcquiredWeapon: true, "ShotgunKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Pyro, modPackId, "pyro", SupportsExperimentalAcquiredWeapon: true, "FlameKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Soldier, modPackId, "soldier", SupportsExperimentalAcquiredWeapon: true, "RocketKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Demoman, modPackId, "demoman", SupportsExperimentalAcquiredWeapon: true, "MineKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Heavy, modPackId, "heavy", SupportsExperimentalAcquiredWeapon: true, "MinigunKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Sniper, modPackId, "sniper", SupportsExperimentalAcquiredWeapon: true, "RifleKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Medic, modPackId, "medic", SupportsExperimentalAcquiredWeapon: true, "NeedleKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Spy, modPackId, "spy", SupportsExperimentalAcquiredWeapon: true, "RevolverKL"),
+            new GameplayClassRuntimeBinding(PlayerClass.Quote, modPackId, "quote", SupportsExperimentalAcquiredWeapon: false, "BladeKL"),
+        ];
     }
 
     public GameplayModPackDefinition GetRequiredModPack(string modPackId)
@@ -271,9 +331,10 @@ public sealed class GameplayRuntimeRegistry
     public PrimaryWeaponDefinition CreatePrimaryWeaponDefinition(GameplayItemDefinition item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        var binding = GetRequiredPrimaryWeaponBinding(item.BehaviorId);
         return new PrimaryWeaponDefinition(
             DisplayName: item.DisplayName,
-            Kind: ResolvePrimaryWeaponKind(item.BehaviorId),
+            Kind: binding.WeaponKind,
             MaxAmmo: item.Ammo.MaxAmmo,
             AmmoPerShot: item.Ammo.AmmoPerUse,
             ProjectilesPerShot: item.Ammo.ProjectilesPerUse,
@@ -282,6 +343,14 @@ public sealed class GameplayRuntimeRegistry
             SpreadDegrees: item.Ammo.SpreadDegrees,
             MinShotSpeed: item.Ammo.MinProjectileSpeed,
             AdditionalRandomShotSpeed: item.Ammo.AdditionalProjectileSpeed,
+            FireSoundName: item.Combat?.FireSoundName ?? binding.FireSoundName,
+            RocketCombat: binding.WeaponKind == PrimaryWeaponKind.RocketLauncher
+                ? new RocketCombatDefinition(
+                    DirectHitDamage: item.Combat?.Rocket?.DirectHitDamage ?? RocketProjectileEntity.DirectHitDamage,
+                    ExplosionDamage: item.Combat?.Rocket?.ExplosionDamage ?? RocketProjectileEntity.ExplosionDamage,
+                    BlastRadius: item.Combat?.Rocket?.BlastRadius ?? RocketProjectileEntity.BlastRadius,
+                    SplashThresholdFactor: item.Combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor)
+                : null,
             AutoReloads: item.Ammo.AutoReloads,
             AmmoRegenPerTick: item.Ammo.AmmoRegenPerTick,
             RefillsAllAtOnce: item.Ammo.RefillsAllAtOnce);
@@ -431,6 +500,40 @@ public sealed class GameplayRuntimeRegistry
             || (SupportsExperimentalAcquiredWeapon(playerClass)
                 && TryGetItem(acquiredItemId, out var acquiredItem)
                 && acquiredItem.Slot == GameplayEquipmentSlot.Primary);
+    }
+
+    public bool OwnsItemByDefault(string? itemId)
+    {
+        return TryGetItem(itemId, out var item)
+            && (item.Ownership?.DefaultGranted ?? true);
+    }
+
+    public bool RequiresTrackedOwnership(string? itemId)
+    {
+        return TryGetItem(itemId, out var item)
+            && (item.Ownership?.TrackOwnership ?? false)
+            && !(item.Ownership?.DefaultGranted ?? true);
+    }
+
+    public bool TryResolveBoundPlayerClassForPrimaryItem(string? itemId, out PlayerClass playerClass)
+    {
+        if (!TryGetItem(itemId, out var item) || item.Slot != GameplayEquipmentSlot.Primary)
+        {
+            playerClass = default;
+            return false;
+        }
+
+        foreach (var classBinding in _classBindings.Values)
+        {
+            if (string.Equals(GetDefaultLoadout(classBinding.PlayerClass).PrimaryItemId, item.Id, StringComparison.Ordinal))
+            {
+                playerClass = classBinding.PlayerClass;
+                return true;
+            }
+        }
+
+        playerClass = default;
+        return false;
     }
 
     public bool CanEquipSlot(

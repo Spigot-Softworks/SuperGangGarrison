@@ -17,6 +17,11 @@
       "id": "soldier.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.rocketlauncher"
+    },
+    "soldier.direct-hit": {
+      "id": "soldier.direct-hit",
+      "displayName": "Direct Hit",
+      "primaryItemId": "weapon.directhit"
     }
   },
   "defaultLoadoutId": "soldier.stock"

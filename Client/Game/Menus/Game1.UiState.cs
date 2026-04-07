@@ -36,6 +36,7 @@ public partial class Game1
         PluginOptionsMenu,
         OptionsMenu,
         InGameMenu,
+        LoadoutMenu,
     }
 
     private bool HasOpenGameplayOverlay()
@@ -58,7 +59,8 @@ public partial class Game1
         return _teamSelectOpen
             || _teamSelectAlpha > 0.02f
             || _classSelectOpen
-            || _classSelectAlpha > 0.02f;
+            || _classSelectAlpha > 0.02f
+            || _gameplayLoadoutMenuOpen;
     }
 
     private bool CanShowGameplayScoreboard()
@@ -67,7 +69,8 @@ public partial class Game1
             && !HasOpenGameplayOverlay()
             && !_consoleOpen
             && !_teamSelectOpen
-            && !_classSelectOpen;
+            && !_classSelectOpen
+            && !_gameplayLoadoutMenuOpen;
     }
 
     private bool ShouldCloseBubbleMenuForGameplayState()
@@ -78,6 +81,7 @@ public partial class Game1
             || _chatOpen
             || _teamSelectOpen
             || _classSelectOpen
+            || _gameplayLoadoutMenuOpen
             || _passwordPromptOpen
             || _world.LocalPlayerAwaitingJoin
             || !_world.LocalPlayer.IsAlive
@@ -100,6 +104,7 @@ public partial class Game1
             || _chatOpen
             || _teamSelectOpen
             || _classSelectOpen
+            || _gameplayLoadoutMenuOpen
             || _passwordPromptOpen
             || _networkClient.IsSpectator
             || _world.LocalPlayerAwaitingJoin
@@ -128,6 +133,7 @@ public partial class Game1
     {
         return !_teamSelectOpen
             && _teamSelectAlpha <= 0.02f
+            && !_gameplayLoadoutMenuOpen
             && !_networkClient.IsSpectator
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive()

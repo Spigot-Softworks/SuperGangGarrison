@@ -8,4 +8,5 @@ public sealed record GameplayModPackDefinition(
     string DisplayName,
     Version Version,
     IReadOnlyDictionary<string, GameplayItemDefinition> Items,
-    IReadOnlyDictionary<string, GameplayClassDefinition> Classes);
+    IReadOnlyDictionary<string, GameplayClassDefinition> Classes,
+    GameplayModPackAssetCatalog Assets);
