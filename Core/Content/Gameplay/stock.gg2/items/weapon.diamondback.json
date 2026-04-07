@@ -1,0 +1,42 @@
+{
+  "id": "weapon.diamondback",
+  "displayName": "Diamondback",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.revolver",
+  "ammo": {
+    "maxAmmo": 6,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 18,
+    "reloadSourceTicks": 45,
+    "spreadDegrees": 1.0,
+    "minProjectileSpeed": 21.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "combat": {
+    "directHitDamage": 24.0
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.diamondback.world",
+    "recoilSpriteName": "stock.gg2.weapon.diamondback.recoil",
+    "reloadSpriteName": "stock.gg2.weapon.diamondback.reload",
+    "hudSpriteName": "RevolverAmmoS",
+    "weaponOffsetX": -3.0,
+    "weaponOffsetY": -6.0,
+    "recoilDurationSourceTicks": 18,
+    "reloadDurationSourceTicks": 45,
+    "blueTeamHudFrameOffset": 1
+  },
+  "description": {
+    "summary": "A revolver with lower base damage and a sharper rhythm.",
+    "positiveAttributes": [
+      "Fast follow-up shots"
+    ],
+    "negativeAttributes": [
+      "Lower base damage than stock"
+    ]
+  }
+}

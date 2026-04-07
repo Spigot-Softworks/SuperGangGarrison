@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="FrontierJusticeFS" type="RESOURCE"/>
+  <resource name="SheriffFS" type="RESOURCE"/>
+  <resource name="PumpsonFS" type="RESOURCE"/>
+  <resource name="WidowmakerFS" type="RESOURCE"/>
+  <resource name="NailgunFS" type="RESOURCE"/>
+  <resource name="WrenchFS" type="RESOURCE"/>
+  <resource name="EeffectFS" type="RESOURCE"/>
+</resources>

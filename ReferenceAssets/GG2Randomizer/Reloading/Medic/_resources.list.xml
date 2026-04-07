@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="NeedlegunFRS" type="RESOURCE"/>
+  <resource name="BlutsaugerFRS" type="RESOURCE"/>
+  <resource name="TerminalBreathFRS" type="RESOURCE"/>
+  <resource name="CrossbowFRS" type="RESOURCE"/>
+</resources>

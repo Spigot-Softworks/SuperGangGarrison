@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="TomislavFSOld" type="RESOURCE"/>
+  <resource name="TomislavFS" type="RESOURCE"/>
+  <resource name="NatachaFS" type="RESOURCE"/>
+  <resource name="BrassBeastFS" type="RESOURCE"/>
+  <resource name="IronMaidenFS" type="RESOURCE"/>
+  <resource name="HeavyShotgunFS" type="RESOURCE"/>
+  <resource name="FamilyBusinessFS" type="RESOURCE"/>
+  <resource name="BoxingGlovesFS" type="RESOURCE"/>
+</resources>

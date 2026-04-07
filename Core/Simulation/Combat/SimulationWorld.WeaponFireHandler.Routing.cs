@@ -62,7 +62,7 @@ public sealed partial class SimulationWorld
             switch (binding.WeaponKind)
             {
                 case PrimaryWeaponKind.FlameThrower:
-                    FireFlamethrower(attacker, weaponClassId, aimWorldX, aimWorldY);
+                    FireFlamethrower(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY);
                     break;
                 case PrimaryWeaponKind.Blade:
                     FireBladeBubble(attacker, aimWorldX, aimWorldY);

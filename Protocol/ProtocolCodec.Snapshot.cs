@@ -298,6 +298,7 @@ public static partial class ProtocolCodec
             writer.Write(player.GameplayEquippedSlot);
             WriteString(writer, player.GameplayEquippedItemId, MaxGameplayIdBytes, nameof(player.GameplayEquippedItemId));
             WriteString(writer, player.GameplayAcquiredItemId, MaxGameplayIdBytes, nameof(player.GameplayAcquiredItemId));
+            WriteGameplayIdList(writer, player.OwnedGameplayItemIds);
             WriteReplicatedStateEntries(writer, player.ReplicatedStates);
         }
     }
@@ -380,6 +381,7 @@ public static partial class ProtocolCodec
                 reader.ReadByte(),
                 ReadString(reader, MaxGameplayIdBytes),
                 ReadString(reader, MaxGameplayIdBytes),
+                ReadGameplayIdList(reader),
                 ReadReplicatedStateEntries(reader)));
         }
 
@@ -400,6 +402,28 @@ public static partial class ProtocolCodec
             writer.Write(entry.FloatValue);
             writer.Write(entry.BoolValue);
         }
+    }
+
+    private static void WriteGameplayIdList(BinaryWriter writer, IReadOnlyList<string>? ids)
+    {
+        var count = ids?.Count ?? 0;
+        writer.Write((byte)count);
+        for (var index = 0; index < count; index += 1)
+        {
+            WriteString(writer, ids![index], MaxGameplayIdBytes, nameof(ids));
+        }
+    }
+
+    private static List<string> ReadGameplayIdList(BinaryReader reader)
+    {
+        var count = reader.ReadByte();
+        var ids = new List<string>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            ids.Add(ReadString(reader, MaxGameplayIdBytes));
+        }
+
+        return ids;
     }
 
     private static List<SnapshotReplicatedStateEntry> ReadReplicatedStateEntries(BinaryReader reader)

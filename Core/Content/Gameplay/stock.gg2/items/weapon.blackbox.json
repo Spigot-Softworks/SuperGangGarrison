@@ -1,0 +1,44 @@
+{
+  "id": "weapon.blackbox",
+  "displayName": "Black Box",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.rocket_launcher",
+  "ammo": {
+    "maxAmmo": 3,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 30,
+    "reloadSourceTicks": 22,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 13.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "directHitHealAmount": 15.0
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.blackbox.world",
+    "recoilSpriteName": "stock.gg2.weapon.blackbox.recoil",
+    "reloadSpriteName": "stock.gg2.weapon.blackbox.reload",
+    "hudSpriteName": "stock.gg2.weapon.blackbox.hud",
+    "weaponOffsetX": -15.0,
+    "weaponOffsetY": -10.0,
+    "recoilDurationSourceTicks": 30,
+    "reloadDurationSourceTicks": 22,
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": true,
+    "blueTeamAmmoHudFrameOffset": 4
+  },
+  "description": {
+    "summary": "A rocket launcher with a smaller clip and on-hit healing.",
+    "positiveAttributes": [
+      "+15 health on direct hit"
+    ],
+    "negativeAttributes": [
+      "-1 rocket loaded"
+    ]
+  }
+}

@@ -69,6 +69,12 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int MaxSpectatorClients { get; set; } = SimulationWorld.MaxPlayableNetworkPlayers;
 
+    public bool PersistentGameplayOwnershipEnabled { get; set; }
+
+    public PersistentGameplayOwnershipIdentityMode PersistentGameplayOwnershipIdentityMode { get; set; } = PersistentGameplayOwnershipIdentityMode.Disabled;
+
+    public string PersistentGameplayOwnershipFile { get; set; } = "gameplay-ownership.json";
+
     public static OpenGarrisonPreferencesDocument Load(string? path = null)
     {
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
@@ -101,6 +107,10 @@ public sealed class OpenGarrisonPreferencesDocument
             MaxPlayableClients = ini.GetInt(ServerAdvancedSection, "MaxPlayableClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxTotalClients = ini.GetInt(ServerAdvancedSection, "MaxTotalClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxSpectatorClients = ini.GetInt(ServerAdvancedSection, "MaxSpectatorClients", SimulationWorld.MaxPlayableNetworkPlayers),
+            PersistentGameplayOwnershipEnabled = ini.GetBool(ServerAdvancedSection, "PersistentGameplayOwnershipEnabled", false),
+            PersistentGameplayOwnershipIdentityMode = ParsePersistentGameplayOwnershipIdentityMode(
+                ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipIdentityMode", PersistentGameplayOwnershipIdentityMode.Disabled.ToString())),
+            PersistentGameplayOwnershipFile = ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipFile", "gameplay-ownership.json"),
         };
     }
 
@@ -149,6 +159,9 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
+        ini.SetBool(ServerAdvancedSection, "PersistentGameplayOwnershipEnabled", PersistentGameplayOwnershipEnabled);
+        ini.SetString(ServerAdvancedSection, "PersistentGameplayOwnershipIdentityMode", PersistentGameplayOwnershipIdentityMode.ToString());
+        ini.SetString(ServerAdvancedSection, "PersistentGameplayOwnershipFile", PersistentGameplayOwnershipFile);
 
         ini.Save(resolvedPath);
     }
@@ -188,6 +201,13 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameResolutionKind.Aspect2x1 => IngameResolutionKind.Aspect16x9,
             _ => IngameResolutionKind.Aspect4x3,
         };
+    }
+
+    private static PersistentGameplayOwnershipIdentityMode ParsePersistentGameplayOwnershipIdentityMode(string value)
+    {
+        return Enum.TryParse<PersistentGameplayOwnershipIdentityMode>(value, ignoreCase: true, out var mode)
+            ? mode
+            : PersistentGameplayOwnershipIdentityMode.Disabled;
     }
 }
 

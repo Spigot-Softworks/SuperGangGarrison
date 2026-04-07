@@ -96,6 +96,7 @@ public sealed partial class SimulationWorld
             snapshotPlayer.GameplayEquippedSlot,
             snapshotPlayer.GameplayEquippedItemId,
             snapshotPlayer.GameplayAcquiredItemId,
+            snapshotPlayer.OwnedGameplayItemIds,
             ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates));
     }
 

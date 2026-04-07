@@ -71,6 +71,12 @@ public sealed partial class SimulationWorld
                         killer: owner,
                         weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
                 }
+
+                if (hitEnemyPlayer && owner is not null && rocket.DirectHitHealAmountValue > 0f)
+                {
+                    var appliedHealing = world.ApplyHealingWithFeedback(owner, rocket.DirectHitHealAmountValue);
+                    owner.AddHealPoints(appliedHealing);
+                }
             }
 
             if (directHitSentry is not null)

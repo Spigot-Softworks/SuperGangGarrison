@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="FrontierJusticeS" type="RESOURCE"/>
+  <resource name="SheriffS" type="RESOURCE"/>
+  <resource name="PumpsonS" type="RESOURCE"/>
+  <resource name="WidowmakerS" type="RESOURCE"/>
+  <resource name="NailgunS" type="RESOURCE"/>
+  <resource name="StungunS" type="RESOURCE"/>
+  <resource name="StunCordS" type="RESOURCE"/>
+  <resource name="WrenchS" type="RESOURCE"/>
+  <resource name="WranglerS" type="RESOURCE"/>
+  <resource name="EeffectS" type="RESOURCE"/>
+  <resource name="SentryShieldS" type="RESOURCE"/>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="PyroShotgunS" type="RESOURCE"/>
+  <resource name="BackburnerS" type="RESOURCE"/>
+  <resource name="TransmutatorS" type="RESOURCE"/>
+  <resource name="FrostbiteS" type="RESOURCE"/>
+  <resource name="PhlogS" type="RESOURCE"/>
+  <resource name="FlaregunS" type="RESOURCE"/>
+  <resource name="DetonatorS" type="RESOURCE"/>
+  <resource name="NapalmHandS" type="RESOURCE"/>
+  <resource name="NapalmS" type="RESOURCE"/>
+  <resource name="AxeS" type="RESOURCE"/>
+</resources>

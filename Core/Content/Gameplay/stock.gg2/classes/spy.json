@@ -18,6 +18,12 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.revolver",
       "secondaryItemId": "ability.spy-cloak"
+    },
+    "spy.diamondback": {
+      "id": "spy.diamondback",
+      "displayName": "Diamondback",
+      "primaryItemId": "weapon.diamondback",
+      "secondaryItemId": "ability.spy-cloak"
     }
   },
   "defaultLoadoutId": "spy.stock"

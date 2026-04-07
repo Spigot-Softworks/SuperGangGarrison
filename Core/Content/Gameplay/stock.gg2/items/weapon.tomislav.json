@@ -1,0 +1,42 @@
+{
+  "id": "weapon.tomislav",
+  "displayName": "Tomislav",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.minigun",
+  "ammo": {
+    "maxAmmo": 200,
+    "ammoPerUse": 4,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 3.5,
+    "minProjectileSpeed": 12.0,
+    "additionalProjectileSpeed": 1.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 1,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "directHitDamage": 7.0
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.tomislav.world",
+    "recoilSpriteName": "stock.gg2.weapon.tomislav.recoil",
+    "hudSpriteName": "MinigunAmmoS",
+    "weaponOffsetX": -11.0,
+    "weaponOffsetY": 0.0,
+    "recoilDurationSourceTicks": 3,
+    "reloadDurationSourceTicks": 0,
+    "loopRecoilWhileActive": true,
+    "blueTeamHudFrameOffset": 1
+  },
+  "description": {
+    "summary": "A minigun with tighter spread and a steadier firing pattern.",
+    "positiveAttributes": [
+      "Tighter spread than stock"
+    ],
+    "negativeAttributes": [
+      "Slightly slower firing speed"
+    ]
+  }
+}

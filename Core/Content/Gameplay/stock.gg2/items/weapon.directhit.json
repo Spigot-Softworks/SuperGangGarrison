@@ -23,13 +23,18 @@
     "worldSpriteName": "stock.gg2.weapon.directhit.world",
     "recoilSpriteName": "stock.gg2.weapon.directhit.recoil",
     "reloadSpriteName": "RocketlauncherFRS",
-    "hudSpriteName": "stock.gg2.weapon.directhit.hud",
+    "reloadCarrierSpriteName": "RocketlauncherFRS",
+    "reloadOverlaySpriteName": "stock.gg2.weapon.directhit.world",
+    "reloadOverlayOffsetX": 0.0,
+    "reloadOverlayOffsetY": 0.0,
+    "reloadOverlayRotationDegrees": 0.0,
+    "hudSpriteName": "Rocketclip",
     "weaponOffsetX": -15.0,
     "weaponOffsetY": -10.0,
-    "recoilDurationSourceTicks": 39,
+    "recoilDurationSourceTicks": 10,
     "reloadDurationSourceTicks": 22,
-    "blueTeamHudFrameOffset": 0,
-    "useAmmoCountForHudFrame": false,
-    "blueTeamAmmoHudFrameOffset": 0
+    "blueTeamHudFrameOffset": 1,
+    "useAmmoCountForHudFrame": true,
+    "blueTeamAmmoHudFrameOffset": 5
   }
 }

@@ -1,4 +1,6 @@
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
+using OpenGarrison.Protocol;
 using Xunit;
 using System.IO;
 using System.Linq;
@@ -21,6 +23,11 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
         Assert.True(pack.Classes["soldier"].Loadouts.ContainsKey("soldier.direct-hit"));
         Assert.True(pack.Assets.Sprites.ContainsKey("stock.gg2.weapon.directhit.world"));
+        Assert.Equal(2, pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths.Count);
+        Assert.Equal("assets/directhit/DirectHit.red.png", pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths[0]);
+        Assert.Equal("assets/directhit/DirectHit.blue.png", pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths[1]);
+        Assert.Equal(2, pack.Assets.Sprites["stock.gg2.weapon.directhit.recoil"].FramePaths.Count);
+        Assert.Equal(50, pack.Assets.Sprites["stock.gg2.weapon.directhit.hud"].FrameWidth);
     }
 
     [Fact]
@@ -165,12 +172,177 @@ public sealed class GameplayModPackLoaderTests
     {
         var orderedLoadouts = GameplayLoadoutSelectionResolver.GetOrderedLoadouts(PlayerClass.Soldier);
 
-        Assert.True(orderedLoadouts.Count >= 2);
-        Assert.Equal("soldier.direct-hit", orderedLoadouts[0].Id);
-        Assert.Equal("soldier.stock", orderedLoadouts[1].Id);
+        Assert.True(orderedLoadouts.Count >= 3);
+        Assert.Equal("soldier.black-box", orderedLoadouts[0].Id);
+        Assert.Equal("soldier.direct-hit", orderedLoadouts[1].Id);
+        Assert.Equal("soldier.stock", orderedLoadouts[2].Id);
         Assert.True(GameplayLoadoutSelectionResolver.TryResolveLoadoutId(PlayerClass.Soldier, "1", out var firstLoadoutId));
-        Assert.Equal("soldier.direct-hit", firstLoadoutId);
+        Assert.Equal("soldier.black-box", firstLoadoutId);
         Assert.True(GameplayLoadoutSelectionResolver.TryResolveLoadoutId(PlayerClass.Soldier, "Stock", out var stockLoadoutId));
         Assert.Equal("soldier.stock", stockLoadoutId);
+    }
+
+    [Fact]
+    public void GameplayLoadoutOwnershipValidationRejectsUnownedTrackedItems()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+        var trackedLoadout = new GameplayClassLoadoutDefinition(
+            "test.experimental",
+            "Experimental",
+            ExperimentalDemoknightCatalog.EyelanderItemId,
+            ExperimentalDemoknightCatalog.PaintrainItemId,
+            null);
+
+        Assert.False(registry.LoadoutItemsAreOwned(trackedLoadout, static _ => false));
+        Assert.False(registry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
+            string.Equals(itemId, ExperimentalDemoknightCatalog.EyelanderItemId, StringComparison.Ordinal)));
+        Assert.True(registry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
+            string.Equals(itemId, ExperimentalDemoknightCatalog.EyelanderItemId, StringComparison.Ordinal)
+            || string.Equals(itemId, ExperimentalDemoknightCatalog.PaintrainItemId, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void RuntimeRegistryResolvesEffectiveWeaponStatsFromSharedAuthoritativeModel()
+    {
+        var registry = GameplayRuntimeRegistry.CreateStock();
+
+        var stockRocketLauncher = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.rocketlauncher"));
+        var blackBox = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.blackbox"));
+        var stockMinigun = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.minigun"));
+        var brassBeast = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.brassbeast"));
+        var stockRevolver = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.revolver"));
+        var diamondback = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.diamondback"));
+        var stockFlamethrower = registry.CreatePrimaryWeaponDefinition(registry.GetRequiredItem("weapon.flamethrower"));
+
+        Assert.NotNull(stockRocketLauncher.RocketCombat);
+        Assert.Equal(RocketProjectileEntity.DirectHitDamage, stockRocketLauncher.RocketCombat!.DirectHitDamage);
+        Assert.Equal(RocketProjectileEntity.ExplosionDamage, stockRocketLauncher.RocketCombat.ExplosionDamage);
+        Assert.Equal(15f, blackBox.DirectHitHealAmount);
+
+        Assert.Equal(ShotProjectileEntity.DamagePerHit, stockMinigun.DirectHitDamage);
+        Assert.Equal(10f, brassBeast.DirectHitDamage);
+
+        Assert.Equal(RevolverProjectileEntity.DamagePerHit, stockRevolver.DirectHitDamage);
+        Assert.Equal(24f, diamondback.DirectHitDamage);
+        Assert.Equal(21f, diamondback.MinShotSpeed);
+
+        Assert.Equal(FlameProjectileEntity.DirectHitDamage, stockFlamethrower.DirectHitDamage);
+        Assert.Equal(FlameProjectileEntity.BurnDamagePerTick, stockFlamethrower.DamagePerTick);
+    }
+
+    [Fact]
+    public void ControlCommandAndSnapshotRoundTripGameplayIds()
+    {
+        var command = new ControlCommandMessage(12u, ControlCommandKind.SelectGameplayLoadout, 0, "soldier.direct-hit");
+        Assert.True(ProtocolCodec.TryDeserialize(ProtocolCodec.Serialize(command), out var deserializedCommand));
+        var roundTrippedCommand = Assert.IsType<ControlCommandMessage>(deserializedCommand);
+        Assert.Equal("soldier.direct-hit", roundTrippedCommand.TextValue);
+
+        var snapshot = new SnapshotMessage(
+            5ul,
+            60,
+            "ctf_test",
+            1,
+            1,
+            (byte)GameModeKind.CaptureTheFlag,
+            (byte)MatchPhase.Running,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0u,
+            new SnapshotIntelState(0, 0f, 0f, true, false, 0),
+            new SnapshotIntelState(1, 0f, 0f, true, false, 0),
+            [
+                new SnapshotPlayerState(
+                    Slot: 1,
+                    PlayerId: 1,
+                    Name: "Player",
+                    Team: (byte)PlayerTeam.Red,
+                    ClassId: (byte)PlayerClass.Soldier,
+                    IsAlive: true,
+                    IsAwaitingJoin: false,
+                    IsSpectator: false,
+                    RespawnTicks: 0,
+                    X: 0f,
+                    Y: 0f,
+                    HorizontalSpeed: 0f,
+                    VerticalSpeed: 0f,
+                    Health: 200,
+                    MaxHealth: 200,
+                    Ammo: 4,
+                    MaxAmmo: 4,
+                    Kills: 0,
+                    Deaths: 0,
+                    Caps: 0,
+                    Points: 0f,
+                    HealPoints: 0,
+                    ActiveDominationCount: 0,
+                    IsDominatingLocalViewer: false,
+                    IsDominatedByLocalViewer: false,
+                    Metal: 0f,
+                    IsGrounded: true,
+                    RemainingAirJumps: 0,
+                    IsCarryingIntel: false,
+                    IntelRechargeTicks: 0f,
+                    IsSpyCloaked: false,
+                    SpyCloakAlpha: 1f,
+                    IsUbered: false,
+                    IsHeavyEating: false,
+                    HeavyEatTicksRemaining: 0,
+                    IsSniperScoped: false,
+                    SniperChargeTicks: 0,
+                    FacingDirectionX: 1f,
+                    AimDirectionDegrees: 0f,
+                    IsTaunting: false,
+                    TauntFrameIndex: 0f,
+                    IsChatBubbleVisible: false,
+                    ChatBubbleFrameIndex: 0,
+                    ChatBubbleAlpha: 0f,
+                    GameplayModPackId: "stock.gg2",
+                    GameplayLoadoutId: "soldier.direct-hit",
+                    GameplayPrimaryItemId: "weapon.directhit",
+                    GameplaySecondaryItemId: "",
+                    GameplayUtilityItemId: "",
+                    GameplayEquippedSlot: (byte)GameplayEquipmentSlot.Primary,
+                    GameplayEquippedItemId: "weapon.directhit",
+                    GameplayAcquiredItemId: "",
+                    OwnedGameplayItemIds:
+                    [
+                        ExperimentalDemoknightCatalog.EyelanderItemId,
+                        ExperimentalDemoknightCatalog.PaintrainItemId,
+                    ]),
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            0,
+            0,
+            0,
+            0,
+            [],
+            [],
+            null,
+            [],
+            [],
+            [],
+            []);
+
+        Assert.True(ProtocolCodec.TryDeserialize(ProtocolCodec.Serialize(snapshot), out var deserializedSnapshot));
+        var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(deserializedSnapshot);
+        Assert.Equal("soldier.direct-hit", Assert.Single(roundTrippedSnapshot.Players).GameplayLoadoutId);
+        Assert.Equal(2, Assert.Single(roundTrippedSnapshot.Players).OwnedGameplayItemIds!.Count);
     }
 }

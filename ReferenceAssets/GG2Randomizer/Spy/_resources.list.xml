@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="EtrangerS" type="RESOURCE"/>
+  <resource name="DiamondbackS" type="RESOURCE"/>
+  <resource name="DiplomatS" type="RESOURCE"/>
+  <resource name="GoldAssistant" type="RESOURCE"/>
+  <resource name="Knife2S" type="RESOURCE"/>
+  <resource name="ConniverKunziS" type="RESOURCE"/>
+  <resource name="BigEarnerS" type="RESOURCE"/>
+  <resource name="SpycicleS" type="RESOURCE"/>
+  <resource name="ZapperS" type="RESOURCE"/>
+  <resource name="HeadshotS" type="RESOURCE"/>
+  <resource name="MedkitS" type="RESOURCE"/>
+  <resource name="EnforcerS" type="RESOURCE"/>
+  <resource name="PredatorCursor" type="RESOURCE"/>
+  <resource name="SpySapBlueS" type="RESOURCE"/>
+  <resource name="SpySapRedS" type="RESOURCE"/>
+  <resource name="PredatorS" type="RESOURCE"/>
+</resources>

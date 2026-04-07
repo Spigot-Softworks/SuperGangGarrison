@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
@@ -56,6 +57,9 @@ sealed class GameServer
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
     private readonly ulong _transientEventReplayTicks;
+    private readonly bool _persistentGameplayOwnershipEnabled;
+    private readonly PersistentGameplayOwnershipIdentityMode _persistentGameplayOwnershipIdentityMode;
+    private readonly string _persistentGameplayOwnershipFile;
     private readonly bool _passwordRequired;
     private readonly byte[] _protocolUuidBytes;
     private readonly ConcurrentQueue<PendingConsoleCommand> _pendingConsoleCommands = new();
@@ -75,6 +79,7 @@ sealed class GameServer
     private OpenGarrison.Server.ServerIncomingPacketPump _incomingPacketPump = null!;
     private OpenGarrison.Server.ServerRuntimeEventReporter _eventReporter = null!;
     private OpenGarrison.Server.ServerOutboundMessaging _outboundMessaging = null!;
+    private GameplayOwnershipService? _gameplayOwnershipService;
     private AutoBalancer _autoBalancer = null!;
     private SnapshotBroadcaster _snapshotBroadcaster = null!;
     private MapRotationManager _mapRotationManager = null!;
@@ -107,7 +112,10 @@ sealed class GameServer
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
-        ulong transientEventReplayTicks)
+        ulong transientEventReplayTicks,
+        bool persistentGameplayOwnershipEnabled,
+        PersistentGameplayOwnershipIdentityMode persistentGameplayOwnershipIdentityMode,
+        string persistentGameplayOwnershipFile)
     {
         _config = config;
         _port = port;
@@ -136,6 +144,11 @@ sealed class GameServer
         _passwordTimeoutSeconds = passwordTimeoutSeconds;
         _passwordRetrySeconds = passwordRetrySeconds;
         _transientEventReplayTicks = transientEventReplayTicks;
+        _persistentGameplayOwnershipEnabled = persistentGameplayOwnershipEnabled;
+        _persistentGameplayOwnershipIdentityMode = persistentGameplayOwnershipEnabled
+            ? persistentGameplayOwnershipIdentityMode
+            : PersistentGameplayOwnershipIdentityMode.Disabled;
+        _persistentGameplayOwnershipFile = persistentGameplayOwnershipFile;
         _passwordRequired = !string.IsNullOrWhiteSpace(serverPassword);
         _protocolUuidBytes = ParseProtocolUuid(protocolUuidString);
     }
@@ -147,6 +160,7 @@ sealed class GameServer
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
+        InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeIncomingPacketPump();
         StartAndAnnounceServer(timerResolution.IsActive, eventLog);
@@ -438,6 +452,7 @@ sealed class GameServer
             _passwordRequired,
             _autoBalanceEnabled,
             _respawnSecondsOverride,
+            _gameplayOwnershipService,
             _mapRotationManager,
             _mapRotationFile,
             _sessionManager,
@@ -454,6 +469,23 @@ sealed class GameServer
         _pluginHost = pluginRuntime.PluginHost;
         _serverState = pluginRuntime.ServerState;
         _adminOperations = pluginRuntime.AdminOperations;
+    }
+
+    private void InitializeGameplayOwnershipService()
+    {
+        var ownershipStorePath = ResolvePersistentGameplayOwnershipPath(_persistentGameplayOwnershipFile);
+        _gameplayOwnershipService = new GameplayOwnershipService(
+            () => _world,
+            new GameplayOwnershipIdentityResolver(_persistentGameplayOwnershipIdentityMode),
+            new JsonGameplayOwnershipRepository(ownershipStorePath),
+            Console.WriteLine);
+        _sessionManager.SetGameplayOwnershipService(_gameplayOwnershipService);
+        Console.WriteLine(_gameplayOwnershipService.DescribeConfiguration(ownershipStorePath));
+        if (_persistentGameplayOwnershipEnabled
+            && _persistentGameplayOwnershipIdentityMode == PersistentGameplayOwnershipIdentityMode.PlayerNameAndBadge)
+        {
+            Console.WriteLine("[server] ownership identity mode PlayerNameAndBadge is server-local and weak-trust. Use only until a stronger account identity exists.");
+        }
     }
 
     private OpenGarrisonServerCommandContext CreateCommandContext()
@@ -490,5 +522,15 @@ sealed class GameServer
             messageDispatcher,
             WsaConnReset,
             Console.WriteLine);
+    }
+
+    private static string ResolvePersistentGameplayOwnershipPath(string configuredPath)
+    {
+        var fileName = string.IsNullOrWhiteSpace(configuredPath)
+            ? "gameplay-ownership.json"
+            : configuredPath.Trim();
+        return Path.IsPathRooted(fileName)
+            ? fileName
+            : RuntimePaths.GetConfigPath(fileName);
     }
 }

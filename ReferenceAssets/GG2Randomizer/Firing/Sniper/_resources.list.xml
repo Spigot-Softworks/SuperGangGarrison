@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="BazaarBargainFS" type="RESOURCE"/>
+  <resource name="HuntsmanFS" type="RESOURCE"/>
+  <resource name="MachinaFS" type="RESOURCE"/>
+  <resource name="SydneySleeperFS" type="RESOURCE"/>
+  <resource name="SmgFS" type="RESOURCE"/>
+  <resource name="KukriFS" type="RESOURCE"/>
+  <resource name="ShivFS" type="RESOURCE"/>
+</resources>

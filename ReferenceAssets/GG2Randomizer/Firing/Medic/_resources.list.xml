@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="NeedlegunFS" type="RESOURCE"/>
+  <resource name="BlutsaugerFS" type="RESOURCE"/>
+  <resource name="TerminalBreathFS" type="RESOURCE"/>
+  <resource name="CrossbowFS" type="RESOURCE"/>
+  <resource name="UbersawFS" type="RESOURCE"/>
+  <resource name="KritzkriegFS" type="RESOURCE"/>
+  <resource name="QuickFixFS" type="RESOURCE"/>
+  <resource name="OverhealerFS" type="RESOURCE"/>
+  <resource name="BrewinggunFS" type="RESOURCE"/>
+</resources>

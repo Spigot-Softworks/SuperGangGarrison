@@ -23,7 +23,8 @@ public readonly record struct OpenGarrisonServerGameplayLoadoutInfo(
     string PrimaryItemId,
     string? SecondaryItemId,
     string? UtilityItemId,
-    bool IsSelected);
+    bool IsSelected,
+    bool IsAvailableToPlayer);
 
 public readonly record struct OpenGarrisonServerGameplayModPackInfo(
     string ModPackId,

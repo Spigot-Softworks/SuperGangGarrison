@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="PyroShotgunFS" type="RESOURCE"/>
+  <resource name="BackburnerFS" type="RESOURCE"/>
+  <resource name="TransmutatorFS" type="RESOURCE"/>
+  <resource name="FrostbiteFS" type="RESOURCE"/>
+  <resource name="PhlogFS" type="RESOURCE"/>
+  <resource name="FlaregunFS" type="RESOURCE"/>
+  <resource name="DetonatorFS" type="RESOURCE"/>
+  <resource name="AxeFS" type="RESOURCE"/>
+</resources>

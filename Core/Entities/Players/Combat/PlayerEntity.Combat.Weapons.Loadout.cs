@@ -9,9 +9,14 @@ public sealed partial class PlayerEntity
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var resolvedLoadoutId = runtimeRegistry.CanUseLoadout(ClassId, loadoutId)
-            ? (string.IsNullOrWhiteSpace(loadoutId) ? runtimeRegistry.GetDefaultLoadout(ClassId).Id : loadoutId)
+            ? (string.IsNullOrWhiteSpace(loadoutId) ? runtimeRegistry.GetDefaultLoadout(ClassId).Id : loadoutId.Trim())
             : null;
         if (string.IsNullOrWhiteSpace(resolvedLoadoutId))
+        {
+            return false;
+        }
+
+        if (!runtimeRegistry.CanUseLoadout(ClassId, resolvedLoadoutId, OwnsGameplayItem))
         {
             return false;
         }

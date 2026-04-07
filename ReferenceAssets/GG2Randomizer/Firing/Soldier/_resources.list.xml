@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="DirectHitFS" type="RESOURCE"/>
+  <resource name="CowmanglerFS" type="RESOURCE"/>
+  <resource name="BlackboxFS" type="RESOURCE"/>
+  <resource name="AirstrikeFS" type="RESOURCE"/>
+  <resource name="SoldierShotgunFS" type="RESOURCE"/>
+  <resource name="RBisonFS" type="RESOURCE"/>
+  <resource name="ShovelFS" type="RESOURCE"/>
+  <resource name="reserveshooterFS" type="RESOURCE"/>
+</resources>

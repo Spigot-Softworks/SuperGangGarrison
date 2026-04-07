@@ -96,9 +96,16 @@ public sealed partial class SimulationWorld
             return _world.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
         }
 
-        private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+        private void SpawnShot(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float damagePerHit = ShotProjectileEntity.DamagePerHit,
+            string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnShot(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
+            _world.SpawnShot(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -111,9 +118,16 @@ public sealed partial class SimulationWorld
             _world.SpawnBlade(owner, x, y, velocityX, velocityY, hitDamage);
         }
 
-        private void SpawnFlame(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+        private void SpawnFlame(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float directHitDamage = FlameProjectileEntity.DirectHitDamage,
+            float burnDamagePerTick = FlameProjectileEntity.BurnDamagePerTick)
         {
-            _world.SpawnFlame(owner, x, y, velocityX, velocityY);
+            _world.SpawnFlame(owner, x, y, velocityX, velocityY, directHitDamage, burnDamagePerTick);
         }
 
         private void SpawnFlare(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -128,16 +142,24 @@ public sealed partial class SimulationWorld
             float speed,
             float directionRadians,
             RocketCombatDefinition? rocketCombat = null,
+            float directHitHealAmount = 0f,
             bool explodeImmediately = false,
             bool canGrantExperimentalInstantReloadOnHit = true,
             string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRocket(owner, x, y, speed, directionRadians, rocketCombat, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
+            _world.SpawnRocket(owner, x, y, speed, directionRadians, rocketCombat, directHitHealAmount, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
         }
 
-        private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+        private void SpawnRevolverShot(
+            PlayerEntity owner,
+            float x,
+            float y,
+            float velocityX,
+            float velocityY,
+            float damagePerHit = RevolverProjectileEntity.DamagePerHit,
+            string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRevolverShot(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
+            _world.SpawnRevolverShot(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)

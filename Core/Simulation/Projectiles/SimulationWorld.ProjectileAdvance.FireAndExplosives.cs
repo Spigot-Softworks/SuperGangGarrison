@@ -34,7 +34,7 @@ public sealed partial class SimulationWorld
                 {
                     var hitPlayer = hitResult.HitPlayer;
                     var owner = FindPlayerById(flame.OwnerId);
-                    var playerDied = ApplyPlayerContinuousDamage(hitPlayer, FlameProjectileEntity.DirectHitDamage, owner);
+                    var playerDied = ApplyPlayerContinuousDamage(hitPlayer, flame.DirectHitDamageValue, owner);
                     if (playerDied)
                     {
                         KillPlayer(hitPlayer, killer: owner, weaponSpriteName: "FlameKL");
@@ -59,14 +59,14 @@ public sealed partial class SimulationWorld
                         flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId)))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)flame.DirectHitDamageValue, FindPlayerById(flame.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry, FindPlayerById(flame.OwnerId));
                     flame.Destroy();
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)FlameProjectileEntity.DirectHitDamage, FindPlayerById(flame.OwnerId));
+                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)flame.DirectHitDamageValue, FindPlayerById(flame.OwnerId));
                     flame.Destroy();
                 }
                 else

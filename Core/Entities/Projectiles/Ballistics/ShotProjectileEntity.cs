@@ -14,6 +14,7 @@ public sealed class ShotProjectileEntity : SimulationEntity
         float y,
         float velocityX,
         float velocityY,
+        float damagePerHit = DamagePerHit,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
@@ -22,6 +23,7 @@ public sealed class ShotProjectileEntity : SimulationEntity
         Y = y;
         VelocityX = velocityX;
         VelocityY = velocityY;
+        DamageValue = damagePerHit;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         TicksRemaining = LifetimeTicks;
     }
@@ -41,6 +43,8 @@ public sealed class ShotProjectileEntity : SimulationEntity
     public float VelocityX { get; private set; }
 
     public float VelocityY { get; private set; }
+
+    public float DamageValue { get; private set; }
 
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
@@ -78,5 +82,6 @@ public sealed class ShotProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
+        DamageValue = DamagePerHit;
     }
 }

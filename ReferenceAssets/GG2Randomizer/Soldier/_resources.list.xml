@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="DirectHitS" type="RESOURCE"/>
+  <resource name="CowmanglerS" type="RESOURCE"/>
+  <resource name="Cowmangler2S" type="RESOURCE"/>
+  <resource name="BlackboxS" type="RESOURCE"/>
+  <resource name="AirstrikeS" type="RESOURCE"/>
+  <resource name="SoldierShotgunS" type="RESOURCE"/>
+  <resource name="BuffBannerS" type="RESOURCE"/>
+  <resource name="BlueSoldierBuffS" type="RESOURCE"/>
+  <resource name="RedSoldierBuffS" type="RESOURCE"/>
+  <resource name="BackpackS" type="RESOURCE"/>
+  <resource name="RBisonS" type="RESOURCE"/>
+  <resource name="ShovelS" type="RESOURCE"/>
+  <resource name="reserveshooterS" type="RESOURCE"/>
+</resources>

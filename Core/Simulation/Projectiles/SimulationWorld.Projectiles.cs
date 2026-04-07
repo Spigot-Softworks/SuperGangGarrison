@@ -2,7 +2,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+    private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float damagePerHit = ShotProjectileEntity.DamagePerHit, string? killFeedWeaponSpriteNameOverride = null)
     {
         var shot = new ShotProjectileEntity(
             AllocateEntityId(),
@@ -12,6 +12,7 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
+            damagePerHit,
             killFeedWeaponSpriteNameOverride);
         _shots.Add(shot);
         _entities.Add(shot.Id, shot);
@@ -63,7 +64,7 @@ public sealed partial class SimulationWorld
         _entities.Add(needle.Id, needle);
     }
 
-    private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
+    private void SpawnRevolverShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float damagePerHit = RevolverProjectileEntity.DamagePerHit, string? killFeedWeaponSpriteNameOverride = null)
     {
         var shot = new RevolverProjectileEntity(
             AllocateEntityId(),
@@ -73,6 +74,7 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
+            damagePerHit,
             killFeedWeaponSpriteNameOverride);
         _revolverShots.Add(shot);
         _entities.Add(shot.Id, shot);
@@ -111,7 +113,14 @@ public sealed partial class SimulationWorld
         RegisterWorldSoundEvent("KnifeSnd", stabMask.X, stabMask.Y);
     }
 
-    private void SpawnFlame(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
+    private void SpawnFlame(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float directHitDamage = FlameProjectileEntity.DirectHitDamage,
+        float burnDamagePerTick = FlameProjectileEntity.BurnDamagePerTick)
     {
         var flame = new FlameProjectileEntity(
             AllocateEntityId(),
@@ -122,7 +131,9 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
-            isPerseverant: _random.Next(8) == 0);
+            isPerseverant: _random.Next(8) == 0,
+            directHitDamage: directHitDamage,
+            burnDamagePerTick: burnDamagePerTick);
         _flames.Add(flame);
         _entities.Add(flame.Id, flame);
     }
@@ -148,6 +159,7 @@ public sealed partial class SimulationWorld
         float speed,
         float directionRadians,
         RocketCombatDefinition? rocketCombat = null,
+        float directHitHealAmount = 0f,
         bool explodeImmediately = false,
         bool canGrantExperimentalInstantReloadOnHit = true,
         string? killFeedWeaponSpriteNameOverride = null)
@@ -164,6 +176,7 @@ public sealed partial class SimulationWorld
             rangeAnchorOwnerId: owner.Id,
             lastKnownRangeOriginX: owner.X,
             lastKnownRangeOriginY: owner.Y,
+            directHitHealAmount: directHitHealAmount,
             canGrantExperimentalInstantReloadOnHit: canGrantExperimentalInstantReloadOnHit,
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)

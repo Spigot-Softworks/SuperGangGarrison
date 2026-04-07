@@ -40,7 +40,9 @@ public partial class Game1
             var spriteName = weaponAnimationMode switch
             {
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
                 _ => weaponDefinition.NormalSpriteName,
             };
@@ -69,6 +71,8 @@ public partial class Game1
             {
                 _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team) * 0.7f, rotation, sprite.Origin.ToVector2(), scale);
             }
+
+            DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);
 
             return true;
         }
@@ -161,6 +165,18 @@ public partial class Game1
                 presentation.WorldSpriteName,
                 presentation.RecoilSpriteName,
                 presentation.ReloadSpriteName,
+                new WeaponAnimationOverlayDefinition(
+                    presentation.RecoilCarrierSpriteName,
+                    presentation.RecoilOverlaySpriteName,
+                    presentation.RecoilOverlayOffsetX,
+                    presentation.RecoilOverlayOffsetY,
+                    presentation.RecoilOverlayRotationDegrees),
+                new WeaponAnimationOverlayDefinition(
+                    presentation.ReloadCarrierSpriteName,
+                    presentation.ReloadOverlaySpriteName,
+                    presentation.ReloadOverlayOffsetX,
+                    presentation.ReloadOverlayOffsetY,
+                    presentation.ReloadOverlayRotationDegrees),
                 presentation.WeaponOffsetX,
                 presentation.WeaponOffsetY,
                 GetSourceTicksAsSeconds(presentation.RecoilDurationSourceTicks),
@@ -188,6 +204,56 @@ public partial class Game1
         private static float GetSourceTicksAsSeconds(float ticks)
         {
             return ticks / (float)LegacyMovementModel.SourceTicksPerSecond;
+        }
+
+        private void DrawWeaponAnimationOverlay(
+            PlayerEntity player,
+            WeaponAnimationMode weaponAnimationMode,
+            WeaponRenderDefinition weaponDefinition,
+            Vector2 roundedOrigin,
+            Vector2 cameraPosition,
+            Color tint,
+            PlayerBodySpriteSelection bodySelection,
+            float facingScale)
+        {
+            var overlayDefinition = weaponAnimationMode switch
+            {
+                WeaponAnimationMode.Reload => weaponDefinition.ReloadOverlay,
+                WeaponAnimationMode.Recoil => weaponDefinition.RecoilOverlay,
+                _ => default,
+            };
+            if (overlayDefinition.OverlaySpriteName is null)
+            {
+                return;
+            }
+
+            var overlaySprite = _game.GetResolvedSprite(overlayDefinition.OverlaySpriteName);
+            if (overlaySprite is null || overlaySprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            var overlayFrameIndex = GetWeaponAnimationOverlayFrameIndex(player, overlaySprite.Frames.Count);
+            var overlayRotation = GetWeaponRotation(player) + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
+            var drawX = roundedOrigin.X + (weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X) * facingScale;
+            var drawY = roundedOrigin.Y + weaponDefinition.YOffset + overlayDefinition.OffsetY + bodySelection.EquipmentOffset + overlaySprite.Origin.Y;
+            var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+            var scale = new Vector2(facingScale, 1f);
+            _game.DrawSpriteFrameWithOptionalShadow(overlaySprite.Frames[overlayFrameIndex], position, tint, overlayRotation, overlaySprite.Origin.ToVector2(), scale);
+            if (player.IsUbered)
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(overlaySprite.Frames[overlayFrameIndex], position, GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team) * 0.7f, overlayRotation, overlaySprite.Origin.ToVector2(), scale);
+            }
+        }
+
+        private static int GetWeaponAnimationOverlayFrameIndex(PlayerEntity player, int frameCount)
+        {
+            if (frameCount <= 1)
+            {
+                return 0;
+            }
+
+            return Math.Clamp(player.Team == PlayerTeam.Blue ? 1 : 0, 0, frameCount - 1);
         }
     }
 }

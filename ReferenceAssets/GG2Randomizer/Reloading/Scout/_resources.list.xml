@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="PistolFRS" type="RESOURCE"/>
+  <resource name="ForceANatureFRS" type="RESOURCE"/>
+  <resource name="ShortStopFRS" type="RESOURCE"/>
+  <resource name="SodaPopperFRS" type="RESOURCE"/>
+</resources>

@@ -3,6 +3,8 @@
   "framePaths": [
     "assets/directhit/DirectHitClipS.png"
   ],
+  "frameWidth": 50,
+  "frameHeight": 18,
   "originX": 0,
   "originY": 0
 }

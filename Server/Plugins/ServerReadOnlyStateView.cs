@@ -151,7 +151,8 @@ internal sealed class ServerReadOnlyStateView(
                 loadout.PrimaryItemId,
                 loadout.SecondaryItemId,
                 loadout.UtilityItemId,
-                IsSelected: false))
+                IsSelected: false,
+                IsAvailableToPlayer: false))
             .ToArray();
     }
 
@@ -232,6 +233,7 @@ internal sealed class ServerReadOnlyStateView(
         }
 
         var gameplayClass = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(player.ClassId);
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         return gameplayClass.Loadouts
             .Values
             .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -242,7 +244,8 @@ internal sealed class ServerReadOnlyStateView(
                 loadout.PrimaryItemId,
                 loadout.SecondaryItemId,
                 loadout.UtilityItemId,
-                string.Equals(loadout.Id, player.GameplayLoadoutState.LoadoutId, StringComparison.Ordinal)))
+                string.Equals(loadout.Id, player.GameplayLoadoutState.LoadoutId, StringComparison.Ordinal),
+                runtimeRegistry.LoadoutItemsAreOwned(loadout, player.OwnsGameplayItem)))
             .ToArray();
     }
 

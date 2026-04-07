@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="BazaarBargainS" type="RESOURCE"/>
+  <resource name="HuntsmanS" type="RESOURCE"/>
+  <resource name="MachinaS" type="RESOURCE"/>
+  <resource name="SydneySleeperS" type="RESOURCE"/>
+  <resource name="SnipeANatureS" type="RESOURCE"/>
+  <resource name="SmgS" type="RESOURCE"/>
+  <resource name="DangerShieldS" type="RESOURCE"/>
+  <resource name="RazorBackS" type="RESOURCE"/>
+  <resource name="JarateHandS" type="RESOURCE"/>
+  <resource name="JarateS" type="RESOURCE"/>
+  <resource name="KukriS" type="RESOURCE"/>
+  <resource name="ShivS" type="RESOURCE"/>
+</resources>

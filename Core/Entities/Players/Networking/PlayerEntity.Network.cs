@@ -364,6 +364,7 @@ public sealed partial class PlayerEntity
         byte gameplayEquippedSlot = 0,
         string gameplayEquippedItemId = "",
         string gameplayAcquiredItemId = "",
+        IReadOnlyList<string>? ownedGameplayItemIds = null,
         IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null)
     {
         Team = team;
@@ -511,6 +512,7 @@ public sealed partial class PlayerEntity
             gameplayEquippedSlot,
             gameplayEquippedItemId,
             gameplayAcquiredItemId);
+        ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
     }
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="EtrangerFS" type="RESOURCE"/>
+  <resource name="DiamondbackFS" type="RESOURCE"/>
+  <resource name="DiplomatFS" type="RESOURCE"/>
+  <resource name="GoldAssistantFS" type="RESOURCE"/>
+  <resource name="Knife2FS" type="RESOURCE"/>
+  <resource name="ConniverKunziFS" type="RESOURCE"/>
+  <resource name="BigEarnerFS" type="RESOURCE"/>
+  <resource name="SpycicleFS" type="RESOURCE"/>
+  <resource name="ZapperFS" type="RESOURCE"/>
+</resources>

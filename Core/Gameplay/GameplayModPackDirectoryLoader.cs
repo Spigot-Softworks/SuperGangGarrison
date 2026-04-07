@@ -79,6 +79,16 @@ public static class GameplayModPackDirectoryLoader
                     throw new InvalidOperationException($"Gameplay sprite asset \"{sprite.Id}\" must declare at least one frame path in \"{filePath}\".");
                 }
 
+                if (sprite.FrameWidth.HasValue && sprite.FrameWidth.Value <= 0)
+                {
+                    throw new InvalidOperationException($"Gameplay sprite asset \"{sprite.Id}\" declared an invalid frame width in \"{filePath}\".");
+                }
+
+                if (sprite.FrameHeight.HasValue && sprite.FrameHeight.Value <= 0)
+                {
+                    throw new InvalidOperationException($"Gameplay sprite asset \"{sprite.Id}\" declared an invalid frame height in \"{filePath}\".");
+                }
+
                 var normalizedFramePaths = sprite.FramePaths
                     .Select(framePath => NormalizeAndValidatePackRelativeFilePath(fullPackDirectory, framePath, sprite.Id, filePath))
                     .ToArray();

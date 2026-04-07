@@ -1,0 +1,39 @@
+{
+  "id": "weapon.brassbeast",
+  "displayName": "Brass Beast",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.minigun",
+  "ammo": {
+    "maxAmmo": 200,
+    "ammoPerUse": 4,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 2,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 7.0,
+    "minProjectileSpeed": 12.0,
+    "additionalProjectileSpeed": 1.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 1,
+    "refillsAllAtOnce": false
+  },
+  "combat": {
+    "directHitDamage": 10.0
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.brassbeast.world",
+    "recoilSpriteName": "stock.gg2.weapon.brassbeast.recoil",
+    "hudSpriteName": "MinigunAmmoS",
+    "weaponOffsetX": -11.0,
+    "weaponOffsetY": 0.0,
+    "recoilDurationSourceTicks": 2,
+    "reloadDurationSourceTicks": 0,
+    "loopRecoilWhileActive": true,
+    "blueTeamHudFrameOffset": 1
+  },
+  "description": {
+    "summary": "A heavy minigun that hits harder with each shot.",
+    "positiveAttributes": [
+      "Higher per-shot damage than stock"
+    ]
+  }
+}

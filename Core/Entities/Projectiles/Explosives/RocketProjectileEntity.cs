@@ -38,6 +38,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         bool isFading = false,
         float fadeSourceTicksRemaining = 0f,
         IReadOnlyList<int>? passedFriendlyPlayerIds = null,
+        float directHitHealAmount = 0f,
         bool canGrantExperimentalInstantReloadOnHit = true,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
@@ -59,6 +60,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         LastKnownRangeOriginX = lastKnownRangeOriginX ?? x;
         LastKnownRangeOriginY = lastKnownRangeOriginY ?? y;
         DistanceToTravel = MathF.Max(0f, distanceToTravel);
+        DirectHitHealAmountValue = MathF.Max(0f, directHitHealAmount);
         CanGrantExperimentalInstantReloadOnHit = canGrantExperimentalInstantReloadOnHit;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
@@ -119,6 +121,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public float BlastRadiusValue { get; }
 
     public float SplashThresholdFactorValue { get; }
+
+    public float DirectHitHealAmountValue { get; }
 
     public bool ExplodeImmediately { get; private set; }
 

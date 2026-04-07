@@ -55,15 +55,51 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
 
     private LoadedGameMakerSprite LoadSprite(string packDirectory, GameplaySpriteAssetDefinition spriteDefinition)
     {
-        var frames = new Texture2D[spriteDefinition.FramePaths.Count];
+        var frames = new List<Texture2D>();
         for (var frameIndex = 0; frameIndex < spriteDefinition.FramePaths.Count; frameIndex += 1)
         {
             var framePath = Path.GetFullPath(Path.Combine(packDirectory, spriteDefinition.FramePaths[frameIndex]));
             using var stream = File.OpenRead(framePath);
-            frames[frameIndex] = Texture2D.FromStream(_graphicsDevice, stream);
+            using var sourceTexture = Texture2D.FromStream(_graphicsDevice, stream);
+            AppendFramesFromSourceTexture(frames, sourceTexture, spriteDefinition);
         }
 
-        return new LoadedGameMakerSprite(frames, new Point(spriteDefinition.OriginX, spriteDefinition.OriginY));
+        return new LoadedGameMakerSprite(frames.ToArray(), new Point(spriteDefinition.OriginX, spriteDefinition.OriginY));
+    }
+
+    private void AppendFramesFromSourceTexture(List<Texture2D> frames, Texture2D sourceTexture, GameplaySpriteAssetDefinition spriteDefinition)
+    {
+        var frameWidth = spriteDefinition.FrameWidth ?? sourceTexture.Width;
+        var frameHeight = spriteDefinition.FrameHeight ?? sourceTexture.Height;
+        if (frameWidth <= 0
+            || frameHeight <= 0
+            || sourceTexture.Width % frameWidth != 0
+            || sourceTexture.Height % frameHeight != 0)
+        {
+            throw new InvalidOperationException($"Gameplay sprite asset \"{spriteDefinition.Id}\" frame dimensions do not evenly divide the source texture.");
+        }
+
+        var columns = Math.Max(1, sourceTexture.Width / frameWidth);
+        var rows = Math.Max(1, sourceTexture.Height / frameHeight);
+        var sourcePixels = new Color[sourceTexture.Width * sourceTexture.Height];
+        sourceTexture.GetData(sourcePixels);
+
+        for (var row = 0; row < rows; row += 1)
+        {
+            for (var column = 0; column < columns; column += 1)
+            {
+                var framePixels = new Color[frameWidth * frameHeight];
+                for (var y = 0; y < frameHeight; y += 1)
+                {
+                    var sourceIndex = ((row * frameHeight) + y) * sourceTexture.Width + (column * frameWidth);
+                    Array.Copy(sourcePixels, sourceIndex, framePixels, y * frameWidth, frameWidth);
+                }
+
+                var frameTexture = new Texture2D(_graphicsDevice, frameWidth, frameHeight);
+                frameTexture.SetData(framePixels);
+                frames.Add(frameTexture);
+            }
+        }
     }
 
     private void DisposeLoadedSprites()

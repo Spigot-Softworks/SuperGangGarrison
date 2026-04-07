@@ -18,6 +18,18 @@
       "displayName": "Stock",
       "primaryItemId": "weapon.minigun",
       "secondaryItemId": "ability.heavy-sandvich"
+    },
+    "heavy.tomislav": {
+      "id": "heavy.tomislav",
+      "displayName": "Tomislav",
+      "primaryItemId": "weapon.tomislav",
+      "secondaryItemId": "ability.heavy-sandvich"
+    },
+    "heavy.brass-beast": {
+      "id": "heavy.brass-beast",
+      "displayName": "Brass Beast",
+      "primaryItemId": "weapon.brassbeast",
+      "secondaryItemId": "ability.heavy-sandvich"
     }
   },
   "defaultLoadoutId": "heavy.stock"

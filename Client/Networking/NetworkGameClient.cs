@@ -165,9 +165,14 @@ internal sealed class NetworkGameClient : IDisposable
         QueueControlCommand(ControlCommandKind.Spectate, 0);
     }
 
-    public void QueueGameplayLoadoutSelection(byte loadoutIndex)
+    public void QueueGameplayLoadoutSelection(string loadoutId)
     {
-        QueueControlCommand(ControlCommandKind.SelectGameplayLoadout, loadoutIndex);
+        if (string.IsNullOrWhiteSpace(loadoutId))
+        {
+            return;
+        }
+
+        QueueControlCommand(ControlCommandKind.SelectGameplayLoadout, 0, loadoutId.Trim());
     }
 
     public void ClearPendingClassSelection()
@@ -441,9 +446,9 @@ internal sealed class NetworkGameClient : IDisposable
         Disconnect();
     }
 
-    private void QueueControlCommand(ControlCommandKind kind, byte value)
+    private void QueueControlCommand(ControlCommandKind kind, byte value, string textValue = "")
     {
-        _pendingControlCommands[kind] = new PendingControlCommand(_nextControlSequence++, kind, value);
+        _pendingControlCommands[kind] = new PendingControlCommand(_nextControlSequence++, kind, value, textValue);
     }
 
     private void TrackInputRoundTrip(uint sequence)
@@ -467,7 +472,7 @@ internal sealed class NetworkGameClient : IDisposable
 
         foreach (var pending in _pendingControlCommands.Values)
         {
-            Send(new ControlCommandMessage(pending.Sequence, pending.Kind, pending.Value));
+            Send(new ControlCommandMessage(pending.Sequence, pending.Kind, pending.Value, pending.TextValue));
         }
     }
 
@@ -605,7 +610,7 @@ internal sealed class NetworkGameClient : IDisposable
         return IPAddress.IsLoopback(address);
     }
 
-    private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value);
+    private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value, string TextValue);
     private sealed record TrackedInputRoundTrip(uint Sequence, long SentAtMilliseconds);
     private sealed record PendingPacket(long ReleaseAtMilliseconds, byte[] Payload);
     private sealed record PendingMessage(long ReleaseAtMilliseconds, IProtocolMessage Message);

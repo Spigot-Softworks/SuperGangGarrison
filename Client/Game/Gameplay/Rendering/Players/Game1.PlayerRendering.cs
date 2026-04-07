@@ -36,12 +36,21 @@ public partial class Game1
         string? NormalSpriteName,
         string? RecoilSpriteName,
         string? ReloadSpriteName,
+        WeaponAnimationOverlayDefinition RecoilOverlay,
+        WeaponAnimationOverlayDefinition ReloadOverlay,
         float XOffset,
         float YOffset,
         float RecoilDurationSeconds,
         float ReloadDurationSeconds,
         float ScopedRecoilDurationSeconds = 0f,
         bool LoopRecoilWhileActive = false);
+
+    private readonly record struct WeaponAnimationOverlayDefinition(
+        string? CarrierSpriteName,
+        string? OverlaySpriteName,
+        float OffsetX = 0f,
+        float OffsetY = 0f,
+        float RotationDegrees = 0f);
 
     private enum LeanDirection
     {

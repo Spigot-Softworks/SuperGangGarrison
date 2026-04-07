@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="TigerUppercutS" type="RESOURCE"/>
+  <resource name="ScottishResistanceS" type="RESOURCE"/>
+  <resource name="ScottishResistanceCursor" type="RESOURCE"/>
+  <resource name="StickyJumperS" type="RESOURCE"/>
+  <resource name="StickyStickerS" type="RESOURCE"/>
+  <resource name="grenadeLauncherS" type="RESOURCE"/>
+  <resource name="DoubleTroubleS" type="RESOURCE"/>
+  <resource name="EyeLanderS" type="RESOURCE"/>
+  <resource name="ScreenS" type="RESOURCE"/>
+  <resource name="PaintrainS" type="RESOURCE"/>
+  <resource name="GrenadehandS" type="RESOURCE"/>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="BlackboxFRS" type="RESOURCE"/>
+  <resource name="AirstrikeFRS" type="RESOURCE"/>
+  <resource name="SoldierShotgunFRS" type="RESOURCE"/>
+</resources>

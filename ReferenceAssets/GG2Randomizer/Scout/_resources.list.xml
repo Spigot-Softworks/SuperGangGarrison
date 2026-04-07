@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="ForceANatureS" type="RESOURCE"/>
+  <resource name="LasergunS" type="RESOURCE"/>
+  <resource name="SodaPopperS" type="RESOURCE"/>
+  <resource name="PistolS" type="RESOURCE"/>
+  <resource name="ShortStopS" type="RESOURCE"/>
+  <resource name="SandmanS" type="RESOURCE"/>
+  <resource name="AtomizerS" type="RESOURCE"/>
+  <resource name="MissS" type="RESOURCE"/>
+  <resource name="BonkS" type="RESOURCE"/>
+  <resource name="BonkHandS" type="RESOURCE"/>
+  <resource name="MadMilkS" type="RESOURCE"/>
+  <resource name="MadMilkHandS" type="RESOURCE"/>
+</resources>

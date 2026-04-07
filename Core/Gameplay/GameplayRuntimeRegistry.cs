@@ -301,6 +301,13 @@ public sealed class GameplayRuntimeRegistry
             || TryGetLoadout(playerClass, loadoutId, out _);
     }
 
+    public bool CanUseLoadout(PlayerClass playerClass, string? loadoutId, Func<string, bool> ownsItem)
+    {
+        ArgumentNullException.ThrowIfNull(ownsItem);
+        var loadout = ResolveValidatedLoadout(playerClass, loadoutId);
+        return LoadoutItemsAreOwned(loadout, ownsItem);
+    }
+
     public GameplayItemDefinition GetPrimaryItem(PlayerClass playerClass)
     {
         return GetRequiredItem(GetDefaultLoadout(playerClass).PrimaryItemId);
@@ -332,6 +339,9 @@ public sealed class GameplayRuntimeRegistry
     {
         ArgumentNullException.ThrowIfNull(item);
         var binding = GetRequiredPrimaryWeaponBinding(item.BehaviorId);
+        var resolvedRocketCombat = ResolveRocketCombatDefinition(binding.WeaponKind, item.Combat);
+        var resolvedDirectHitDamage = ResolveDirectHitDamage(binding.WeaponKind, item.Combat, resolvedRocketCombat);
+        var resolvedDamagePerTick = ResolveDamagePerTick(binding.WeaponKind, item.Combat);
         return new PrimaryWeaponDefinition(
             DisplayName: item.DisplayName,
             Kind: binding.WeaponKind,
@@ -344,16 +354,62 @@ public sealed class GameplayRuntimeRegistry
             MinShotSpeed: item.Ammo.MinProjectileSpeed,
             AdditionalRandomShotSpeed: item.Ammo.AdditionalProjectileSpeed,
             FireSoundName: item.Combat?.FireSoundName ?? binding.FireSoundName,
-            RocketCombat: binding.WeaponKind == PrimaryWeaponKind.RocketLauncher
-                ? new RocketCombatDefinition(
-                    DirectHitDamage: item.Combat?.Rocket?.DirectHitDamage ?? RocketProjectileEntity.DirectHitDamage,
-                    ExplosionDamage: item.Combat?.Rocket?.ExplosionDamage ?? RocketProjectileEntity.ExplosionDamage,
-                    BlastRadius: item.Combat?.Rocket?.BlastRadius ?? RocketProjectileEntity.BlastRadius,
-                    SplashThresholdFactor: item.Combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor)
-                : null,
+            DirectHitDamage: resolvedDirectHitDamage,
+            DamagePerTick: resolvedDamagePerTick,
+            DirectHitHealAmount: item.Combat?.DirectHitHealAmount,
+            RocketCombat: resolvedRocketCombat,
             AutoReloads: item.Ammo.AutoReloads,
             AmmoRegenPerTick: item.Ammo.AmmoRegenPerTick,
             RefillsAllAtOnce: item.Ammo.RefillsAllAtOnce);
+    }
+
+    private static float? ResolveDirectHitDamage(
+        PrimaryWeaponKind weaponKind,
+        GameplayItemCombatDefinition? combat,
+        RocketCombatDefinition? rocketCombat)
+    {
+        if (combat?.DirectHitDamage is { } explicitDirectHitDamage)
+        {
+            return explicitDirectHitDamage;
+        }
+
+        return weaponKind switch
+        {
+            PrimaryWeaponKind.RocketLauncher => rocketCombat?.DirectHitDamage ?? RocketProjectileEntity.DirectHitDamage,
+            PrimaryWeaponKind.PelletGun => ShotProjectileEntity.DamagePerHit,
+            PrimaryWeaponKind.Minigun => ShotProjectileEntity.DamagePerHit,
+            PrimaryWeaponKind.Revolver => RevolverProjectileEntity.DamagePerHit,
+            PrimaryWeaponKind.FlameThrower => FlameProjectileEntity.DirectHitDamage,
+            _ => null,
+        };
+    }
+
+    private static float? ResolveDamagePerTick(PrimaryWeaponKind weaponKind, GameplayItemCombatDefinition? combat)
+    {
+        if (combat?.DamagePerTick is { } explicitDamagePerTick)
+        {
+            return explicitDamagePerTick;
+        }
+
+        return weaponKind == PrimaryWeaponKind.FlameThrower
+            ? FlameProjectileEntity.BurnDamagePerTick
+            : null;
+    }
+
+    private static RocketCombatDefinition? ResolveRocketCombatDefinition(
+        PrimaryWeaponKind weaponKind,
+        GameplayItemCombatDefinition? combat)
+    {
+        if (weaponKind != PrimaryWeaponKind.RocketLauncher)
+        {
+            return null;
+        }
+
+        return new RocketCombatDefinition(
+            DirectHitDamage: combat?.Rocket?.DirectHitDamage ?? RocketProjectileEntity.DirectHitDamage,
+            ExplosionDamage: combat?.Rocket?.ExplosionDamage ?? RocketProjectileEntity.ExplosionDamage,
+            BlastRadius: combat?.Rocket?.BlastRadius ?? RocketProjectileEntity.BlastRadius,
+            SplashThresholdFactor: combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor);
     }
 
     public bool TryGetPrimaryWeaponBinding(string? behaviorId, out GameplayPrimaryWeaponRuntimeBinding binding)
@@ -492,6 +548,20 @@ public sealed class GameplayRuntimeRegistry
         return SupportsExperimentalAcquiredWeapon(playerClass)
             && TryGetItem(secondaryItemId, out var secondaryItem)
             && secondaryItem.Slot == GameplayEquipmentSlot.Primary;
+    }
+
+    public bool LoadoutItemsAreOwned(GameplayClassLoadoutDefinition loadout, Func<string, bool> ownsItem)
+    {
+        ArgumentNullException.ThrowIfNull(loadout);
+        ArgumentNullException.ThrowIfNull(ownsItem);
+        return ItemIsOwnedOrUnspecified(loadout.PrimaryItemId, ownsItem)
+            && ItemIsOwnedOrUnspecified(loadout.SecondaryItemId, ownsItem)
+            && ItemIsOwnedOrUnspecified(loadout.UtilityItemId, ownsItem);
+    }
+
+    private static bool ItemIsOwnedOrUnspecified(string? itemId, Func<string, bool> ownsItem)
+    {
+        return string.IsNullOrWhiteSpace(itemId) || ownsItem(itemId);
     }
 
     public bool CanUseAcquiredItem(PlayerClass playerClass, string? acquiredItemId)

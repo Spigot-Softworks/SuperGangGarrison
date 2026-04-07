@@ -12,6 +12,7 @@ internal sealed class ServerAdminOperations(
     Func<IReadOnlyDictionary<byte, ClientSession>> clientsGetter,
     Func<ServerSessionManager> sessionManagerGetter,
     Func<SimulationWorld> worldGetter,
+    Func<GameplayOwnershipService?> gameplayOwnershipServiceGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
     Func<SnapshotBroadcaster> snapshotBroadcasterGetter,
     Action<MapChangeTransition>? applyMapTransition = null) : IOpenGarrisonServerAdminOperations
@@ -99,14 +100,14 @@ internal sealed class ServerAdminOperations(
     {
         return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && worldGetter().TryGrantNetworkPlayerGameplayItem(slot, itemId);
+            && (gameplayOwnershipServiceGetter()?.TryGrantItem(slot, itemId) ?? worldGetter().TryGrantNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TryRevokeGameplayItem(byte slot, string itemId)
     {
         return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && worldGetter().TryRevokeNetworkPlayerGameplayItem(slot, itemId);
+            && (gameplayOwnershipServiceGetter()?.TryRevokeItem(slot, itemId) ?? worldGetter().TryRevokeNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)

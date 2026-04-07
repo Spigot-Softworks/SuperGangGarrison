@@ -24,7 +24,9 @@ public sealed class FlameProjectileEntity : SimulationEntity
         float velocityX,
         float velocityY,
         int ticksRemaining = AirLifetimeTicks,
-        bool isPerseverant = false) : base(id)
+        bool isPerseverant = false,
+        float directHitDamage = DirectHitDamage,
+        float burnDamagePerTick = BurnDamagePerTick) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -34,6 +36,8 @@ public sealed class FlameProjectileEntity : SimulationEntity
         VelocityY = velocityY;
         TicksRemaining = ticksRemaining;
         IsPerseverant = isPerseverant;
+        DirectHitDamageValue = directHitDamage;
+        BurnDamagePerTickValue = burnDamagePerTick;
     }
 
     public PlayerTeam Team { get; }
@@ -53,6 +57,10 @@ public sealed class FlameProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public int TicksRemaining { get; private set; }
+
+    public float DirectHitDamageValue { get; private set; }
+
+    public float BurnDamagePerTickValue { get; private set; }
 
     public int? AttachedPlayerId { get; private set; }
 
@@ -113,7 +121,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
 
         X = player.X + AttachedOffsetX;
         Y = player.Y + AttachedOffsetY;
-        _burnDamageAccumulator += BurnDamagePerTick;
+        _burnDamageAccumulator += BurnDamagePerTickValue;
         var wholeDamage = (int)_burnDamageAccumulator;
         if (wholeDamage <= 0)
         {
@@ -165,6 +173,8 @@ public sealed class FlameProjectileEntity : SimulationEntity
         AttachedPlayerId = attachedPlayerId;
         AttachedOffsetX = attachedOffsetX;
         AttachedOffsetY = attachedOffsetY;
+        DirectHitDamageValue = DirectHitDamage;
+        BurnDamagePerTickValue = BurnDamagePerTick;
     }
 
     public void ApplyNetworkState(
@@ -189,5 +199,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
         AttachedPlayerId = attachedPlayerId;
         AttachedOffsetX = attachedOffsetX;
         AttachedOffsetY = attachedOffsetY;
+        DirectHitDamageValue = DirectHitDamage;
+        BurnDamagePerTickValue = BurnDamagePerTick;
     }
 }

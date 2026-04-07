@@ -873,6 +873,24 @@ public sealed partial class PlayerEntity : SimulationEntity
             .ToArray();
     }
 
+    public IReadOnlyList<string> GetTrackedOwnedGameplayItemIds()
+    {
+        return OwnedGameplayItemIds
+            .OrderBy(static itemId => itemId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public void ClearTrackedOwnedGameplayItems()
+    {
+        if (OwnedGameplayItemIds.Count == 0)
+        {
+            return;
+        }
+
+        OwnedGameplayItemIds.Clear();
+        RefreshGameplayLoadoutState();
+    }
+
     public bool TryGrantGameplayItem(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId))
@@ -1004,6 +1022,28 @@ public sealed partial class PlayerEntity : SimulationEntity
 
             ReplicatedStateEntries[CreateReplicatedStateDictionaryKey(normalizedEntry.OwnerId, normalizedEntry.Key)] = normalizedEntry;
         }
+    }
+
+    public void ReplaceOwnedGameplayItemIds(IEnumerable<string> itemIds)
+    {
+        OwnedGameplayItemIds.Clear();
+        foreach (var itemId in itemIds)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                continue;
+            }
+
+            var normalizedItemId = itemId.Trim();
+            if (!CharacterClassCatalog.RuntimeRegistry.RequiresTrackedOwnership(normalizedItemId))
+            {
+                continue;
+            }
+
+            OwnedGameplayItemIds.Add(normalizedItemId);
+        }
+
+        RefreshGameplayLoadoutState();
     }
 
     private Dictionary<string, GameplayReplicatedStateEntry> ReplicatedStateEntries { get; } = new(StringComparer.Ordinal);

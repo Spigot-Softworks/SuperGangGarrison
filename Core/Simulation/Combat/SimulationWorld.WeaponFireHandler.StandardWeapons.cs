@@ -64,6 +64,7 @@ public sealed partial class SimulationWorld
                 weaponOrigin.BaseY + 12f + directionY * 20f,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
+                weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
                 killFeedWeaponSpriteNameOverride);
         }
 
@@ -202,13 +203,14 @@ public sealed partial class SimulationWorld
                     attacker,
                     directionX * pelletSpeed,
                     directionY * pelletSpeed);
-                SpawnShot(
-                    attacker,
-                    weaponOrigin.BaseX + directionX * 15f,
-                    weaponOrigin.BaseY + directionY * 15f,
-                    launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                    launchedVelocityY,
-                    killFeedWeaponSpriteNameOverride);
+            SpawnShot(
+                attacker,
+                weaponOrigin.BaseX + directionX * 15f,
+                weaponOrigin.BaseY + directionY * 15f,
+                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                launchedVelocityY,
+                weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
+                killFeedWeaponSpriteNameOverride);
             }
         }
 
@@ -253,7 +255,12 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        private bool FireFlamethrower(PlayerEntity attacker, PlayerClass weaponClassId, float aimWorldX, float aimWorldY)
+        private bool FireFlamethrower(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var sourceX = weaponOrigin.BaseX;
@@ -341,7 +348,7 @@ public sealed partial class SimulationWorld
                 _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, attacker.PrimaryWeapon.MinShotSpeed),
                 directionRadians,
                 attacker.PrimaryWeapon.RocketCombat,
-                explodeImmediately);
+                explodeImmediately: explodeImmediately);
         }
 
         private void FireRocketLauncher(
@@ -371,6 +378,7 @@ public sealed partial class SimulationWorld
                 _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians,
                 weaponDefinition.RocketCombat,
+                weaponDefinition.DirectHitHealAmount ?? 0f,
                 explodeImmediately,
                 canGrantExperimentalInstantReloadOnHit: false,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
@@ -432,6 +440,7 @@ public sealed partial class SimulationWorld
                 shotOriginY,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
+                weaponDefinition.DirectHitDamage ?? RevolverProjectileEntity.DamagePerHit,
                 killFeedWeaponSpriteNameOverride);
         }
 
@@ -556,6 +565,12 @@ public sealed partial class SimulationWorld
 
         private void RegisterWeaponFireSound(PlayerEntity attacker, PrimaryWeaponDefinition weaponDefinition)
         {
+            if (!string.IsNullOrWhiteSpace(weaponDefinition.FireSoundName))
+            {
+                RegisterSoundEvent(attacker, weaponDefinition.FireSoundName);
+                return;
+            }
+
             switch (weaponDefinition.Kind)
             {
                 case PrimaryWeaponKind.PelletGun:

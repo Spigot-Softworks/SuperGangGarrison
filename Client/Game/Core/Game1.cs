@@ -160,6 +160,15 @@ public partial class Game1 : Game
     private Texture2D? _menuTextBoxMiddleTexture;
     private Texture2D? _menuTextBoxBottomTexture;
     private Texture2D? _menuTextBoxSoloTexture;
+    private Texture2D? _gameplayLoadoutClassStripTexture;
+    private Texture2D? _gameplayLoadoutClassSelectionTexture;
+    private Texture2D? _gameplayLoadoutBackgroundBarTexture;
+    private Texture2D? _gameplayLoadoutDescriptionBoardTexture;
+    private Texture2D? _gameplayLoadoutSelectionAtlasTexture;
+    private Texture2D? _gameplayLoadoutSelectionTexture;
+    private Texture2D? _gameplayLoadoutScrollerTexture;
+    private Texture2D? _gameplayLoadoutPageTexture;
+    private Texture2D? _gameplayLoadoutBackButtonTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private GameplayModAssetCache _gameplayModAssets = null!;
     private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
@@ -195,6 +204,9 @@ public partial class Game1 : Game
     private int _classSelectPortraitAnimationHoverIndex = -1;
     private PlayerTeam? _classSelectPortraitAnimationTeam;
     private float _classSelectPortraitAnimationFrame;
+    private int _gameplayLoadoutPortraitAnimationHoverIndex = -1;
+    private PlayerTeam? _gameplayLoadoutPortraitAnimationTeam;
+    private float _gameplayLoadoutPortraitAnimationFrame;
     private bool _scoreboardOpen;
     private float _scoreboardAlpha = 0.02f;
     private bool _chatOpen;
@@ -241,6 +253,8 @@ public partial class Game1 : Game
     private bool _inGameMenuAwaitingEscapeRelease;
     private bool _gameplayLoadoutMenuOpen;
     private bool _gameplayLoadoutMenuAwaitingEscapeRelease;
+    private PlayerClass _gameplayLoadoutMenuViewedClass = PlayerClass.Scout;
+    private readonly Dictionary<PlayerClass, string> _gameplayLoadoutMenuViewedLoadoutIds = [];
     private bool _quitPromptOpen;
     private int _quitPromptHoverIndex = -1;
     private bool _controlsMenuOpen;
@@ -387,6 +401,7 @@ public partial class Game1 : Game
         _gameplayModAssets.LoadRegisteredPacks(CharacterClassCatalog.RuntimeRegistry.ModPacks);
         _spriteFontOpaqueBoundsCache.Clear();
         LoadMenuPlaqueTextures();
+        LoadGameplayLoadoutMenuTextures();
         LoadMenuBitmapFont();
         LoadMenuMusic();
         LoadLastToDieMenuMusic();
@@ -424,6 +439,15 @@ public partial class Game1 : Game
         _menuTextBoxMiddleTexture?.Dispose();
         _menuTextBoxBottomTexture?.Dispose();
         _menuTextBoxSoloTexture?.Dispose();
+        _gameplayLoadoutClassStripTexture?.Dispose();
+        _gameplayLoadoutClassSelectionTexture?.Dispose();
+        _gameplayLoadoutBackgroundBarTexture?.Dispose();
+        _gameplayLoadoutDescriptionBoardTexture?.Dispose();
+        _gameplayLoadoutSelectionAtlasTexture?.Dispose();
+        _gameplayLoadoutSelectionTexture?.Dispose();
+        _gameplayLoadoutScrollerTexture?.Dispose();
+        _gameplayLoadoutPageTexture?.Dispose();
+        _gameplayLoadoutBackButtonTexture?.Dispose();
         _lastToDieLogoTexture?.Dispose();
         _gameRenderTarget?.Dispose();
         _gameRenderTarget = null;
@@ -440,6 +464,15 @@ public partial class Game1 : Game
         _menuTextBoxMiddleTexture = null;
         _menuTextBoxBottomTexture = null;
         _menuTextBoxSoloTexture = null;
+        _gameplayLoadoutClassStripTexture = null;
+        _gameplayLoadoutClassSelectionTexture = null;
+        _gameplayLoadoutBackgroundBarTexture = null;
+        _gameplayLoadoutDescriptionBoardTexture = null;
+        _gameplayLoadoutSelectionAtlasTexture = null;
+        _gameplayLoadoutSelectionTexture = null;
+        _gameplayLoadoutScrollerTexture = null;
+        _gameplayLoadoutPageTexture = null;
+        _gameplayLoadoutBackButtonTexture = null;
         PersistClientSettings();
         PersistInputBindings();
         base.UnloadContent();
@@ -573,6 +606,7 @@ public partial class Game1 : Game
         _gameplayLoadoutMenuOpen = true;
         _gameplayLoadoutMenuAwaitingEscapeRelease = true;
         _gameplayLoadoutMenuHoverIndex = -1;
+        _gameplayLoadoutMenuViewedClass = _world.LocalPlayer.ClassId;
     }
 
     private void CloseGameplayLoadoutMenu()
@@ -580,6 +614,7 @@ public partial class Game1 : Game
         _gameplayLoadoutMenuOpen = false;
         _gameplayLoadoutMenuAwaitingEscapeRelease = false;
         _gameplayLoadoutMenuHoverIndex = -1;
+        _gameplayLoadoutMenuViewedClass = _world.LocalPlayer.ClassId;
     }
 
     private GameplayOverlayKind GetActiveGameplayOverlay()

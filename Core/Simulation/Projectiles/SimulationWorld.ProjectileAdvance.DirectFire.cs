@@ -33,7 +33,7 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(shot.OwnerId);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, ShotProjectileEntity.DamagePerHit, out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(
@@ -42,13 +42,13 @@ public sealed partial class SimulationWorld
                             weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? GetKillFeedWeaponSprite(owner));
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), FindPlayerById(shot.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry, FindPlayerById(shot.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, ShotProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId));
+                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue, FindPlayerById(shot.OwnerId));
                 }
                 else
                 {
@@ -225,7 +225,7 @@ public sealed partial class SimulationWorld
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var owner = FindPlayerById(shot.OwnerId);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, RevolverProjectileEntity.DamagePerHit, out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(
@@ -234,13 +234,13 @@ public sealed partial class SimulationWorld
                             weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? "RevolverKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId)))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), FindPlayerById(shot.OwnerId)))
                 {
                     DestroySentry(hitResult.HitSentry, FindPlayerById(shot.OwnerId));
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, RevolverProjectileEntity.DamagePerHit, FindPlayerById(shot.OwnerId));
+                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue, FindPlayerById(shot.OwnerId));
                 }
                 else
                 {

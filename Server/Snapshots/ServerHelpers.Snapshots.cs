@@ -90,6 +90,7 @@ internal static partial class ServerHelpers
             (byte)player.GameplayLoadoutState.EquippedSlot,
             player.GameplayLoadoutState.EquippedItemId,
             player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+            ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
             player.GetReplicatedStateEntries()
                 .Select(static entry => new SnapshotReplicatedStateEntry(
                     entry.OwnerId,

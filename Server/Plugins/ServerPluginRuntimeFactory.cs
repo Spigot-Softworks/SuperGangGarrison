@@ -20,6 +20,7 @@ internal static class ServerPluginRuntimeFactory
         bool passwordRequired,
         bool autoBalanceEnabled,
         int? respawnSecondsOverride,
+        GameplayOwnershipService? gameplayOwnershipService,
         MapRotationManager mapRotationManager,
         string? mapRotationFile,
         ServerSessionManager sessionManager,
@@ -42,6 +43,7 @@ internal static class ServerPluginRuntimeFactory
             () => clientsBySlot,
             () => sessionManager,
             () => world,
+            () => gameplayOwnershipService,
             () => mapRotationManager,
             () => snapshotBroadcaster,
             applyMapTransition);

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="TomislavS" type="RESOURCE"/>
+  <resource name="NatachaS" type="RESOURCE"/>
+  <resource name="BrassBeastS" type="RESOURCE"/>
+  <resource name="IronMaidenS" type="RESOURCE"/>
+  <resource name="HeavyShotgunS" type="RESOURCE"/>
+  <resource name="SandvichHandS" type="RESOURCE"/>
+  <resource name="FamilyBusinessS" type="RESOURCE"/>
+  <resource name="ChocolateHandS" type="RESOURCE"/>
+  <resource name="ChocolateS" type="RESOURCE"/>
+  <resource name="FistsS" type="RESOURCE"/>
+  <resource name="BoxingGlovesS" type="RESOURCE"/>
+</resources>

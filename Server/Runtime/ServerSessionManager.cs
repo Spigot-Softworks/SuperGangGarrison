@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using static ServerHelpers;
 
 sealed class ServerSessionManager
@@ -27,6 +28,7 @@ sealed class ServerSessionManager
     private readonly Action<ClientSession> _passwordAccepted;
     private readonly Action<ClientSession, PlayerTeam> _playerTeamChanged;
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
+    private GameplayOwnershipService? _gameplayOwnershipService;
 
     public ServerSessionManager(
         SimulationWorld world,
@@ -72,14 +74,16 @@ sealed class ServerSessionManager
         _playerClassChanged = playerClassChanged ?? ((_, _) => { });
     }
 
-    public void ApplyClientName(byte slot, string name)
+    public void SetGameplayOwnershipService(GameplayOwnershipService gameplayOwnershipService)
     {
-        _world.TrySetNetworkPlayerName(slot, name);
+        _gameplayOwnershipService = gameplayOwnershipService;
     }
 
-    public void ApplyClientBadgeMask(byte slot, ulong badgeMask)
+    public void ApplyClientProfile(byte slot, string name, ulong badgeMask)
     {
+        _world.TrySetNetworkPlayerName(slot, name);
         _world.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
+        _gameplayOwnershipService?.ApplyClientProfile(slot, name, badgeMask);
     }
 
     public void PreparePlayableClientInputsForNextTick()
@@ -127,7 +131,7 @@ sealed class ServerSessionManager
             ControlCommandKind.SelectTeam => ApplyRequestedTeam(client, command.Value),
             ControlCommandKind.SelectClass => ApplyRequestedClass(client.Slot, command.Value),
             ControlCommandKind.Spectate => ApplyRequestedSpectate(client),
-            ControlCommandKind.SelectGameplayLoadout => ApplyRequestedGameplayLoadout(client.Slot, command.Value),
+            ControlCommandKind.SelectGameplayLoadout => ApplyRequestedGameplayLoadout(client.Slot, command.TextValue, command.Value),
             _ => false,
         };
 
@@ -199,6 +203,7 @@ sealed class ServerSessionManager
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
+            _gameplayOwnershipService?.ReleaseSlot(slot);
         }
     }
 
@@ -350,6 +355,7 @@ sealed class ServerSessionManager
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot))
         {
             _world.TryReleaseNetworkPlayerSlot(client.Slot);
+            _gameplayOwnershipService?.ReleaseSlot(client.Slot);
         }
 
         _clientsBySlot.Remove(client.Slot);
@@ -359,8 +365,7 @@ sealed class ServerSessionManager
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot))
         {
             _world.TryPrepareNetworkPlayerJoin(newSlot);
-            _world.TrySetNetworkPlayerName(newSlot, client.Name);
-            _world.TrySetNetworkPlayerBadgeMask(newSlot, client.BadgeMask);
+            ApplyClientProfile(newSlot, client.Name, client.BadgeMask);
         }
 
         _sendMessage(client.EndPoint, new SessionSlotChangedMessage(newSlot));
@@ -399,11 +404,20 @@ sealed class ServerSessionManager
         return spectatorSlot != 0 && TryMoveClientToSlot(client, spectatorSlot);
     }
 
-    private bool ApplyRequestedGameplayLoadout(byte slot, byte requestedLoadoutIndex)
+    private bool ApplyRequestedGameplayLoadout(byte slot, string? requestedLoadoutId, byte requestedLoadoutIndex)
     {
         if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || requestedLoadoutIndex == 0
             || !_world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedLoadoutId))
+        {
+            return _world.TrySetNetworkPlayerGameplayLoadout(slot, requestedLoadoutId.Trim());
+        }
+
+        if (requestedLoadoutIndex == 0)
         {
             return false;
         }

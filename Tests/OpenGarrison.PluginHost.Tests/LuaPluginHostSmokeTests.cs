@@ -1489,7 +1489,8 @@ public sealed class LuaPluginHostSmokeTests
                     loadout.PrimaryItemId,
                     loadout.SecondaryItemId,
                     loadout.UtilityItemId,
-                    IsSelected: false))
+                    IsSelected: false,
+                    IsAvailableToPlayer: true))
                 .ToArray();
         }
 

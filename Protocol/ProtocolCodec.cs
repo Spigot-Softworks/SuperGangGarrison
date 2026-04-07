@@ -98,6 +98,7 @@ public static partial class ProtocolCodec
                 writer.Write(command.Sequence);
                 writer.Write((byte)command.Kind);
                 writer.Write(command.Value);
+                WriteString(writer, command.TextValue ?? string.Empty, MaxGameplayIdBytes, nameof(command.TextValue));
                 break;
             case ControlAckMessage ack:
                 writer.Write(ack.Sequence);
@@ -198,7 +199,8 @@ public static partial class ProtocolCodec
                 MessageType.ControlCommand => new ControlCommandMessage(
                     reader.ReadUInt32(),
                     (ControlCommandKind)reader.ReadByte(),
-                    reader.ReadByte()),
+                    reader.ReadByte(),
+                    ReadString(reader, MaxGameplayIdBytes)),
                 MessageType.ControlAck => new ControlAckMessage(
                     reader.ReadUInt32(),
                     (ControlCommandKind)reader.ReadByte(),

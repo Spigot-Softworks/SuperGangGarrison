@@ -39,6 +39,12 @@ sealed class ServerSettings
 
     public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
 
+    public bool PersistentGameplayOwnershipEnabled { get; set; }
+
+    public PersistentGameplayOwnershipIdentityMode PersistentGameplayOwnershipIdentityMode { get; set; } = PersistentGameplayOwnershipIdentityMode.Disabled;
+
+    public string PersistentGameplayOwnershipFile { get; set; } = "gameplay-ownership.json";
+
     public OpenGarrisonHostSettings HostDefaults { get; set; } = new();
 
     public static ServerSettings Load(string? path = null)
@@ -110,6 +116,9 @@ sealed class ServerSettings
             RespawnSeconds = hostDefaults.RespawnSeconds,
             TickRate = SimulationConfig.NormalizeTicksPerSecond(hostDefaults.TickRate),
             HostDefaults = hostDefaults,
+            PersistentGameplayOwnershipEnabled = preferences.PersistentGameplayOwnershipEnabled,
+            PersistentGameplayOwnershipIdentityMode = preferences.PersistentGameplayOwnershipIdentityMode,
+            PersistentGameplayOwnershipFile = preferences.PersistentGameplayOwnershipFile,
         };
     }
 
@@ -137,5 +146,8 @@ sealed class ServerSettings
         preferences.MaxPlayableClients = MaxPlayableClients;
         preferences.MaxTotalClients = MaxTotalClients;
         preferences.MaxSpectatorClients = MaxSpectatorClients;
+        preferences.PersistentGameplayOwnershipEnabled = PersistentGameplayOwnershipEnabled;
+        preferences.PersistentGameplayOwnershipIdentityMode = PersistentGameplayOwnershipIdentityMode;
+        preferences.PersistentGameplayOwnershipFile = PersistentGameplayOwnershipFile;
     }
 }

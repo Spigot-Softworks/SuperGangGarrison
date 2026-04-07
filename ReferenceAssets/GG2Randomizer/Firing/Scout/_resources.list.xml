@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resources>
+  <resource name="ForceANatureFS" type="RESOURCE"/>
+  <resource name="PistolFS" type="RESOURCE"/>
+  <resource name="ShortStopFS" type="RESOURCE"/>
+  <resource name="LasergunFS" type="RESOURCE"/>
+  <resource name="SodaPopperFS" type="RESOURCE"/>
+  <resource name="SandmanFS" type="RESOURCE"/>
+  <resource name="AtomizerFS" type="RESOURCE"/>
+</resources>

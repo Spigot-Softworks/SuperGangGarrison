@@ -22,6 +22,11 @@
       "id": "soldier.direct-hit",
       "displayName": "Direct Hit",
       "primaryItemId": "weapon.directhit"
+    },
+    "soldier.black-box": {
+      "id": "soldier.black-box",
+      "displayName": "Black Box",
+      "primaryItemId": "weapon.blackbox"
     }
   },
   "defaultLoadoutId": "soldier.stock"

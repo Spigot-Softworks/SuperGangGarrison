@@ -167,7 +167,8 @@ public sealed record InputStateMessage(
 public sealed record ControlCommandMessage(
     uint Sequence,
     ControlCommandKind Kind,
-    byte Value) : IProtocolMessage
+    byte Value = 0,
+    string TextValue = "") : IProtocolMessage
 {
     public MessageType Type => MessageType.ControlCommand;
 }
@@ -284,6 +285,7 @@ public sealed record SnapshotPlayerState(
     byte GameplayEquippedSlot = 0,
     string GameplayEquippedItemId = "",
     string GameplayAcquiredItemId = "",
+    IReadOnlyList<string>? OwnedGameplayItemIds = null,
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null);
 
 public sealed record SnapshotIntelState(

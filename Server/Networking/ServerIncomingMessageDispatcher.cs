@@ -64,8 +64,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                     profileClient.LastSeen = elapsedGetter();
                     profileClient.Name = profileUpdate.Name;
                     profileClient.BadgeMask = profileUpdate.BadgeMask;
-                    sessionManager.ApplyClientName(profileClient.Slot, profileUpdate.Name);
-                    sessionManager.ApplyClientBadgeMask(profileClient.Slot, profileUpdate.BadgeMask);
+                    sessionManager.ApplyClientProfile(profileClient.Slot, profileUpdate.Name, profileUpdate.BadgeMask);
                 }
                 break;
             case InputStateMessage input:
@@ -120,8 +119,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             existingClient.Name = hello.Name;
             existingClient.BadgeMask = hello.BadgeMask;
             existingClient.LastSeen = elapsedGetter();
-            sessionManager.ApplyClientName(existingClient.Slot, hello.Name);
-            sessionManager.ApplyClientBadgeMask(existingClient.Slot, hello.BadgeMask);
+            sessionManager.ApplyClientProfile(existingClient.Slot, hello.Name, hello.BadgeMask);
             var existingMapMetadata = getCurrentMapMetadata();
             sendMessage(remoteEndPoint, new WelcomeMessage(
                 serverName,
@@ -164,12 +162,11 @@ internal sealed class ServerIncomingMessageDispatcher(
             BadgeMask = hello.BadgeMask,
         };
         clientsBySlot[assignedSlot] = client;
-        sessionManager.ApplyClientName(assignedSlot, hello.Name);
-        sessionManager.ApplyClientBadgeMask(assignedSlot, hello.BadgeMask);
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))
         {
             world.TryPrepareNetworkPlayerJoin(assignedSlot);
         }
+        sessionManager.ApplyClientProfile(assignedSlot, hello.Name, hello.BadgeMask);
 
         var mapMetadata = getCurrentMapMetadata();
         sendMessage(remoteEndPoint, new WelcomeMessage(

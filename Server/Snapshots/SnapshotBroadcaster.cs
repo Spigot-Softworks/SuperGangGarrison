@@ -228,10 +228,11 @@ sealed class SnapshotBroadcaster
             GameplayLoadoutId: string.Empty,
             GameplayPrimaryItemId: string.Empty,
             GameplaySecondaryItemId: string.Empty,
-            GameplayUtilityItemId: string.Empty,
-            GameplayEquippedSlot: 0,
-            GameplayEquippedItemId: string.Empty,
-            GameplayAcquiredItemId: string.Empty);
+              GameplayUtilityItemId: string.Empty,
+              GameplayEquippedSlot: 0,
+              GameplayEquippedItemId: string.Empty,
+              GameplayAcquiredItemId: string.Empty,
+              OwnedGameplayItemIds: Array.Empty<string>());
     }
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()
