@@ -1,0 +1,8 @@
+{
+  "id": "ability.engineer-pda",
+  "displayName": "Engineer PDA",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.engineer_pda",
+  "ammo": {},
+  "presentation": {}
+}

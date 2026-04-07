@@ -1,0 +1,24 @@
+{
+  "id": "spy",
+  "displayName": "Spy",
+  "movement": {
+    "maxHealth": 100,
+    "collisionLeft": -6.0,
+    "collisionTop": -10.0,
+    "collisionRight": 7.0,
+    "collisionBottom": 24.0,
+    "runPower": 1.08,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 10
+  },
+  "loadouts": {
+    "spy.stock": {
+      "id": "spy.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.revolver",
+      "secondaryItemId": "ability.spy-cloak"
+    }
+  },
+  "defaultLoadoutId": "spy.stock"
+}

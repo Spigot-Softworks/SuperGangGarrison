@@ -1,0 +1,8 @@
+{
+  "id": "ability.quote-blade-throw",
+  "displayName": "Blade Throw",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.quote_blade_throw",
+  "ammo": {},
+  "presentation": {}
+}

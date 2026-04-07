@@ -24,6 +24,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </None>
+    <None Include="..\Core\Content\Gameplay\**\*">
+      <TargetPath>Content\Gameplay\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
   </ItemGroup>
 
   <Target Name="MirrorPackagedServerPluginsToOutput"

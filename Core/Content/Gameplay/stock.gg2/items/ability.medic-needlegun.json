@@ -1,0 +1,8 @@
+{
+  "id": "ability.medic-needlegun",
+  "displayName": "Needlegun",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.medic_needlegun",
+  "ammo": {},
+  "presentation": {}
+}

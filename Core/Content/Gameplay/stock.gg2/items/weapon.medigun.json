@@ -1,0 +1,27 @@
+{
+  "id": "weapon.medigun",
+  "displayName": "Medigun",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.medigun",
+  "ammo": {
+    "maxAmmo": 40,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "MedigunS",
+    "recoilSpriteName": "MedigunFS",
+    "reloadSpriteName": "MedigunFRS",
+    "hudSpriteName": "NeedleAmmoS",
+    "weaponOffsetX": -7.0,
+    "weaponOffsetY": 0.0,
+    "recoilDurationSourceTicks": 4,
+    "reloadDurationSourceTicks": 55,
+    "blueTeamHudFrameOffset": 1
+  }
+}

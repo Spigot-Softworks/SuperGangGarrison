@@ -1,0 +1,30 @@
+{
+  "id": "weapon.revolver",
+  "displayName": "Revolver",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.revolver",
+  "ammo": {
+    "maxAmmo": 6,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 18,
+    "reloadSourceTicks": 45,
+    "spreadDegrees": 1.0,
+    "minProjectileSpeed": 20.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": true
+  },
+  "presentation": {
+    "worldSpriteName": "RevolverS",
+    "recoilSpriteName": "RevolverFS",
+    "reloadSpriteName": "RevolverFRS",
+    "hudSpriteName": "RevolverAmmoS",
+    "weaponOffsetX": -3.0,
+    "weaponOffsetY": -6.0,
+    "recoilDurationSourceTicks": 18,
+    "reloadDurationSourceTicks": 45,
+    "blueTeamHudFrameOffset": 1
+  }
+}

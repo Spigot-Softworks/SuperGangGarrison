@@ -1,0 +1,24 @@
+{
+  "id": "demoman",
+  "displayName": "Demoman",
+  "movement": {
+    "maxHealth": 120,
+    "collisionLeft": -7.0,
+    "collisionTop": -10.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 24.0,
+    "runPower": 1.0,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 10
+  },
+  "loadouts": {
+    "demoman.stock": {
+      "id": "demoman.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.minelauncher",
+      "secondaryItemId": "ability.demoman-detonate"
+    }
+  },
+  "defaultLoadoutId": "demoman.stock"
+}

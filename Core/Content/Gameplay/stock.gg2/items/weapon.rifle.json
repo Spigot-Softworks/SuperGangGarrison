@@ -1,0 +1,27 @@
+{
+  "id": "weapon.rifle",
+  "displayName": "Rifle",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.rifle",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 40,
+    "reloadSourceTicks": 0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "RifleS",
+    "recoilSpriteName": "RifleFS",
+    "reloadSpriteName": "RifleFRS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -8.0,
+    "recoilDurationSourceTicks": 15,
+    "reloadDurationSourceTicks": 0,
+    "scopedRecoilDurationSourceTicks": 60,
+    "blueTeamHudFrameOffset": 1
+  }
+}

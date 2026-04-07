@@ -1,0 +1,8 @@
+{
+  "id": "ability.pyro-airblast",
+  "displayName": "Compression Blast",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.pyro_airblast",
+  "ammo": {},
+  "presentation": {}
+}

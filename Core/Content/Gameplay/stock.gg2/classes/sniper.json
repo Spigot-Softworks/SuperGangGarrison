@@ -1,0 +1,24 @@
+{
+  "id": "sniper",
+  "displayName": "Sniper",
+  "movement": {
+    "maxHealth": 120,
+    "collisionLeft": -6.0,
+    "collisionTop": -8.0,
+    "collisionRight": 7.0,
+    "collisionBottom": 24.0,
+    "runPower": 0.9,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 12
+  },
+  "loadouts": {
+    "sniper.stock": {
+      "id": "sniper.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.rifle",
+      "secondaryItemId": "ability.sniper-scope"
+    }
+  },
+  "defaultLoadoutId": "sniper.stock"
+}

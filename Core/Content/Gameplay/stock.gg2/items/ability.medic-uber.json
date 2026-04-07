@@ -1,0 +1,8 @@
+{
+  "id": "ability.medic-uber",
+  "displayName": "UberCharge",
+  "slot": "Utility",
+  "behaviorId": "builtin.ability.medic_uber",
+  "ammo": {},
+  "presentation": {}
+}

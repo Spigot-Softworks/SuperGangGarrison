@@ -1,0 +1,23 @@
+{
+  "id": "scout",
+  "displayName": "Scout",
+  "movement": {
+    "maxHealth": 100,
+    "collisionLeft": -6.0,
+    "collisionTop": -10.0,
+    "collisionRight": 7.0,
+    "collisionBottom": 24.0,
+    "runPower": 1.4,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 1,
+    "tauntLengthFrames": 8
+  },
+  "loadouts": {
+    "scout.stock": {
+      "id": "scout.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.scattergun"
+    }
+  },
+  "defaultLoadoutId": "scout.stock"
+}

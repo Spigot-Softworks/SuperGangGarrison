@@ -1,0 +1,30 @@
+{
+  "id": "weapon.minelauncher",
+  "displayName": "Mine Launcher",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.mine_launcher",
+  "ammo": {
+    "maxAmmo": 8,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 26,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 0.0,
+    "minProjectileSpeed": 12.0,
+    "additionalProjectileSpeed": 0.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "MinegunS",
+    "recoilSpriteName": "MinegunFS",
+    "reloadSpriteName": "MinegunFRS",
+    "hudSpriteName": "MinegunAmmoS",
+    "weaponOffsetX": -3.0,
+    "weaponOffsetY": -2.0,
+    "recoilDurationSourceTicks": 26,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1
+  }
+}

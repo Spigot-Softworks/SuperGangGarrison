@@ -1,0 +1,23 @@
+{
+  "id": "soldier",
+  "displayName": "Soldier",
+  "movement": {
+    "maxHealth": 175,
+    "collisionLeft": -6.0,
+    "collisionTop": -8.0,
+    "collisionRight": 7.0,
+    "collisionBottom": 24.0,
+    "runPower": 0.9,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 15
+  },
+  "loadouts": {
+    "soldier.stock": {
+      "id": "soldier.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.rocketlauncher"
+    }
+  },
+  "defaultLoadoutId": "soldier.stock"
+}

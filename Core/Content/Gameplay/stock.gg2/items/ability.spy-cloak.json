@@ -1,0 +1,8 @@
+{
+  "id": "ability.spy-cloak",
+  "displayName": "Invisibility Watch",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.spy_cloak",
+  "ammo": {},
+  "presentation": {}
+}

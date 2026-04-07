@@ -1,0 +1,24 @@
+{
+  "id": "quote",
+  "displayName": "Quote",
+  "movement": {
+    "maxHealth": 140,
+    "collisionLeft": -7.0,
+    "collisionTop": -12.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 12.0,
+    "runPower": 1.07,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 16
+  },
+  "loadouts": {
+    "quote.stock": {
+      "id": "quote.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.blade",
+      "secondaryItemId": "ability.quote-blade-throw"
+    }
+  },
+  "defaultLoadoutId": "quote.stock"
+}

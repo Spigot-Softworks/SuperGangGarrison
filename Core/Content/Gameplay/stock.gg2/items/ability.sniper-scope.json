@@ -1,0 +1,8 @@
+{
+  "id": "ability.sniper-scope",
+  "displayName": "Scope",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.sniper_scope",
+  "ammo": {},
+  "presentation": {}
+}

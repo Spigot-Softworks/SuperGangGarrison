@@ -6,4 +6,5 @@ public sealed record GameplayItemDefinition(
     GameplayEquipmentSlot Slot,
     string BehaviorId,
     GameplayItemAmmoDefinition Ammo,
-    GameplayItemPresentationDefinition Presentation);
+    GameplayItemPresentationDefinition Presentation,
+    GameplayItemOwnershipDefinition? Ownership = null);

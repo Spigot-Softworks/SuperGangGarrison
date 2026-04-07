@@ -1,0 +1,11 @@
+{
+  "id": "ability.heavy-sandvich",
+  "displayName": "Sandvich",
+  "slot": "Secondary",
+  "behaviorId": "builtin.ability.heavy_sandvich",
+  "ammo": {},
+  "presentation": {
+    "hudSpriteName": "SandwichHudS",
+    "blueTeamHudFrameOffset": 1
+  }
+}

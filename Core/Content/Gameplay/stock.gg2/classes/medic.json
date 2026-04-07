@@ -1,0 +1,25 @@
+{
+  "id": "medic",
+  "displayName": "Medic",
+  "movement": {
+    "maxHealth": 120,
+    "collisionLeft": -7.0,
+    "collisionTop": -8.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 24.0,
+    "runPower": 1.09,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 10
+  },
+  "loadouts": {
+    "medic.stock": {
+      "id": "medic.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.medigun",
+      "secondaryItemId": "ability.medic-needlegun",
+      "utilityItemId": "ability.medic-uber"
+    }
+  },
+  "defaultLoadoutId": "medic.stock"
+}

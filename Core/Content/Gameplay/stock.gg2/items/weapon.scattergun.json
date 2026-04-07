@@ -1,0 +1,30 @@
+{
+  "id": "weapon.scattergun",
+  "displayName": "Scattergun",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.pellet_gun",
+  "ammo": {
+    "maxAmmo": 6,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 6,
+    "useDelaySourceTicks": 20,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 7.0,
+    "minProjectileSpeed": 11.0,
+    "additionalProjectileSpeed": 4.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "ScattergunS",
+    "recoilSpriteName": "ScattergunFS",
+    "reloadSpriteName": "ScattergunFRS",
+    "hudSpriteName": "ScattergunAmmoS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -4.0,
+    "recoilDurationSourceTicks": 20,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1
+  }
+}

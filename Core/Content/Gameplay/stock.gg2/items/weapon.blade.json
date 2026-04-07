@@ -1,0 +1,28 @@
+{
+  "id": "weapon.blade",
+  "displayName": "Blade",
+  "slot": "Primary",
+  "behaviorId": "builtin.weapon.blade",
+  "ammo": {
+    "maxAmmo": 100,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 5,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 4.0,
+    "minProjectileSpeed": 10.0,
+    "additionalProjectileSpeed": 2.0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 1,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "BladeS",
+    "hudSpriteName": "BladeAmmoS",
+    "weaponOffsetX": 0.0,
+    "weaponOffsetY": -3.0,
+    "recoilDurationSourceTicks": 5,
+    "reloadDurationSourceTicks": 0,
+    "blueTeamHudFrameOffset": 1
+  }
+}

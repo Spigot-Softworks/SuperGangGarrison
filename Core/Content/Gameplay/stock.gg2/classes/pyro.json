@@ -1,0 +1,24 @@
+{
+  "id": "pyro",
+  "displayName": "Pyro",
+  "movement": {
+    "maxHealth": 120,
+    "collisionLeft": -7.0,
+    "collisionTop": -6.0,
+    "collisionRight": 8.0,
+    "collisionBottom": 24.0,
+    "runPower": 1.1,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 9
+  },
+  "loadouts": {
+    "pyro.stock": {
+      "id": "pyro.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.flamethrower",
+      "secondaryItemId": "ability.pyro-airblast"
+    }
+  },
+  "defaultLoadoutId": "pyro.stock"
+}

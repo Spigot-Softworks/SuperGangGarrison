@@ -1,0 +1,24 @@
+{
+  "id": "heavy",
+  "displayName": "Heavy",
+  "movement": {
+    "maxHealth": 200,
+    "collisionLeft": -9.0,
+    "collisionTop": -12.0,
+    "collisionRight": 10.0,
+    "collisionBottom": 24.0,
+    "runPower": 0.8,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 11
+  },
+  "loadouts": {
+    "heavy.stock": {
+      "id": "heavy.stock",
+      "displayName": "Stock",
+      "primaryItemId": "weapon.minigun",
+      "secondaryItemId": "ability.heavy-sandvich"
+    }
+  },
+  "defaultLoadoutId": "heavy.stock"
+}
