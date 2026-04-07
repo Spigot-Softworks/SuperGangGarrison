@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Xna.Framework;
@@ -50,6 +51,9 @@ internal sealed class LuaClientPlugin(
     private readonly Dictionary<string, OwnedTextureSequence> _ownedTextureSequences = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<DynValue> _pendingLocalDamageEvents = [];
     private LuaCallbackPhase _currentCallbackPhase = LuaCallbackPhase.None;
+    private bool _callbacksDisabled;
+    private const long CallbackAutoYieldCounter = 1000;
+    private const int MaxCallbackResumeCount = 4096;
 
     public string Id => manifest.Id;
 
@@ -103,6 +107,7 @@ internal sealed class LuaClientPlugin(
         _pluginTable = null;
         _script = null;
         _context = null;
+        _callbacksDisabled = false;
     }
 
     public void OnClientStarting() => ExecuteInPhase(LuaCallbackPhase.Lifecycle, () => CallIfPresent("on_client_starting"));
@@ -209,7 +214,7 @@ internal sealed class LuaClientPlugin(
 
     public bool TryDrawDeadBody(IOpenGarrisonClientHudCanvas canvas, ClientDeadBodyRenderState deadBody)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || _callbacksDisabled)
         {
             return false;
         }
@@ -319,7 +324,7 @@ internal sealed class LuaClientPlugin(
     private bool TryInvokeCallback(string callbackName, out DynValue result, bool rethrowOnFailure, params DynValue[] args)
     {
         result = DynValue.Nil;
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || _callbacksDisabled)
         {
             return false;
         }
@@ -332,11 +337,12 @@ internal sealed class LuaClientPlugin(
 
         try
         {
-            result = _script.Call(function, args);
+            result = InvokeCallbackWithLimits(function, args);
             return true;
         }
         catch (Exception ex)
         {
+            DisableCallbacks($"{callbackName} failed during {DescribePhase(_currentCallbackPhase)}: {ex.Message}");
             LogCallbackFailure(callbackName, ex);
             if (rethrowOnFailure)
             {
@@ -344,6 +350,43 @@ internal sealed class LuaClientPlugin(
             }
 
             return false;
+        }
+    }
+
+    private DynValue InvokeCallbackWithLimits(DynValue function, DynValue[] args)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        var coroutine = _script.CreateCoroutine(function).Coroutine;
+        coroutine.AutoYieldCounter = CallbackAutoYieldCounter;
+
+        var stopwatch = Stopwatch.StartNew();
+        var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+        var resumeCount = 0;
+        var firstResume = true;
+        while (true)
+        {
+            var result = firstResume ? coroutine.Resume(args) : coroutine.Resume();
+            firstResume = false;
+            resumeCount += 1;
+
+            if (coroutine.State == CoroutineState.Dead)
+            {
+                return result;
+            }
+
+            if (resumeCount >= MaxCallbackResumeCount)
+            {
+                throw new TimeoutException($"Lua callback exceeded the resume budget of {MaxCallbackResumeCount} slices.");
+            }
+
+            if (stopwatch.Elapsed > maxDuration)
+            {
+                throw new TimeoutException($"Lua callback exceeded the {maxDuration.TotalMilliseconds:0.##}ms budget.");
+            }
         }
     }
 
@@ -491,7 +534,7 @@ internal sealed class LuaClientPlugin(
                 return DynValue.False;
             }
 
-            var absolutePath = Path.GetFullPath(Path.Combine(context.PluginDirectory, relativePath));
+            var absolutePath = ResolvePluginPath(context.PluginDirectory, relativePath);
             if (!TryLoadTextureSequence(context.GraphicsDevice, absolutePath, frameCount, applyChromaKey, out var textureSequence))
             {
                 return DynValue.False;
@@ -564,7 +607,7 @@ internal sealed class LuaClientPlugin(
         {
             var relativeDirectory = ReadStringArgument(args, 0);
             var searchPattern = ReadOptionalStringArgument(args, 1, "*");
-            var directoryPath = Path.GetFullPath(Path.Combine(context.PluginDirectory, relativeDirectory));
+            var directoryPath = ResolvePluginPath(context.PluginDirectory, relativeDirectory, defaultRelativePath: ".");
             if (!Directory.Exists(directoryPath))
             {
                 return DynValue.NewTable(new Table(script));
@@ -1126,6 +1169,28 @@ internal sealed class LuaClientPlugin(
         }
     }
 
+    private static TimeSpan GetMaxCallbackDuration(LuaCallbackPhase phase)
+    {
+        return phase switch
+        {
+            LuaCallbackPhase.Initialize => TimeSpan.FromMilliseconds(250),
+            LuaCallbackPhase.Shutdown => TimeSpan.FromMilliseconds(50),
+            LuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
+            LuaCallbackPhase.Update => TimeSpan.FromMilliseconds(8),
+            LuaCallbackPhase.Query => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.GameplayHudDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.ScoreboardQuery => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.ScoreboardDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.DeadBodyDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.BubbleMenuInput => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.BubbleMenuDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.OptionsQuery => TimeSpan.FromMilliseconds(20),
+            LuaCallbackPhase.OptionsInteraction => TimeSpan.FromMilliseconds(20),
+            LuaCallbackPhase.MenuInteraction => TimeSpan.FromMilliseconds(20),
+            _ => TimeSpan.FromMilliseconds(8),
+        };
+    }
+
     private static Table ResolvePluginTable(Script script, DynValue result)
     {
         if (result.Type == DataType.Table)
@@ -1430,7 +1495,25 @@ internal sealed class LuaClientPlugin(
     private static string ResolveConfigPath(string configDirectory, string relativePath)
     {
         var normalizedRelativePath = string.IsNullOrWhiteSpace(relativePath) ? "config.json" : relativePath;
-        return Path.GetFullPath(Path.Combine(configDirectory, normalizedRelativePath));
+        return ResolveContainedPath(configDirectory, normalizedRelativePath, "Plugin config path escapes config directory.");
+    }
+
+    private static string ResolvePluginPath(string pluginDirectory, string relativePath, string defaultRelativePath = "")
+    {
+        var normalizedRelativePath = string.IsNullOrWhiteSpace(relativePath) ? defaultRelativePath : relativePath;
+        return ResolveContainedPath(pluginDirectory, normalizedRelativePath, "Plugin path escapes plugin directory.");
+    }
+
+    private static string ResolveContainedPath(string rootDirectory, string relativePath, string errorMessage)
+    {
+        var fullRootDirectory = Path.GetFullPath(rootDirectory);
+        var combinedPath = Path.GetFullPath(Path.Combine(fullRootDirectory, relativePath));
+        if (!combinedPath.StartsWith(fullRootDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        return combinedPath;
     }
 
     private static string ReadStringArgument(CallbackArguments args, int index)
@@ -1919,6 +2002,18 @@ internal sealed class LuaClientPlugin(
     private void LogCallbackFailure(string callbackName, Exception ex)
     {
         _context?.Log($"[lua-plugin] callback failed for {manifest.Id} callback \"{callbackName}\" manifest \"{GetManifestPath()}\": {ex.Message}");
+    }
+
+    private void DisableCallbacks(string reason)
+    {
+        if (_callbacksDisabled)
+        {
+            return;
+        }
+
+        _callbacksDisabled = true;
+        _pendingLocalDamageEvents.Clear();
+        _context?.Log($"[lua-plugin] disabled {manifest.Id}: {reason}");
     }
 
     private string GetManifestPath()

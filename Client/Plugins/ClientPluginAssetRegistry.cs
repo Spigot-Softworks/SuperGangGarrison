@@ -22,6 +22,7 @@ internal sealed class ClientPluginAssetRegistry(
 
     public void RegisterTextureAsset(string assetId, string relativePath)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var path = ResolveRegisteredPath(relativePath);
         if (!File.Exists(path))
         {
@@ -118,6 +119,7 @@ internal sealed class ClientPluginAssetRegistry(
 
     public void RegisterSoundAsset(string assetId, string relativePath)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var path = ResolveRegisteredPath(relativePath);
         if (!File.Exists(path))
         {
@@ -126,6 +128,11 @@ internal sealed class ClientPluginAssetRegistry(
 
         using var stream = File.OpenRead(path);
         var sound = SoundEffect.FromStream(stream);
+        if (_sounds.TryGetValue(assetId, out var existing))
+        {
+            existing.Dispose();
+        }
+
         _sounds[assetId] = sound;
     }
 
@@ -164,6 +171,17 @@ internal sealed class ClientPluginAssetRegistry(
         _textures.Clear();
         _textureAtlases.Clear();
         _textureRegions.Clear();
+        foreach (var sound in _sounds.Values)
+        {
+            try
+            {
+                sound.Dispose();
+            }
+            catch
+            {
+            }
+        }
+
         _sounds.Clear();
     }
 

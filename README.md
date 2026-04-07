@@ -42,7 +42,7 @@ OpenGarrison targets .NET 10.
 - Client Lua currently covers menu/main-menu integration, HUD and scoreboard
   drawing, lightweight audio playback, config-backed options, camera offsets,
   dead-body rendering, and bubble-menu overrides for presentation plugins.
-- See [Plugins/README.md] and [Plugins/Templates/README.md] for plugin conventions, authoring templates, and packaged examples.
+- See [Plugins/README.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/README.md), [Plugins/PLUGIN_HOST_CONTRACT.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/PLUGIN_HOST_CONTRACT.md), and [Plugins/Templates/README.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/Templates/README.md) for plugin conventions, engine seam rules, authoring templates, and packaged examples.
 
 ## Run
 

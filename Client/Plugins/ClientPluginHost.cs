@@ -14,6 +14,8 @@ namespace OpenGarrison.Client;
 internal sealed class ClientPluginHost
 {
     private const string GameplayHudTraceFileName = "client-plugin-gameplay-hud-trace.log";
+    private const string GameplayHudTraceEnvironmentVariable = "OG2_CLIENT_PLUGIN_HUD_TRACE";
+    private static readonly bool GameplayHudTraceEnabled = IsGameplayHudTraceEnabled();
     private readonly IOpenGarrisonClientReadOnlyState _clientState;
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Action<string> _log;
@@ -834,6 +836,11 @@ internal sealed class ClientPluginHost
 
     private static void WriteGameplayHudTrace(string message)
     {
+        if (!GameplayHudTraceEnabled)
+        {
+            return;
+        }
+
         try
         {
             var timestamp = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
@@ -842,6 +849,13 @@ internal sealed class ClientPluginHost
         catch
         {
         }
+    }
+
+    private static bool IsGameplayHudTraceEnabled()
+    {
+        var value = Environment.GetEnvironmentVariable(GameplayHudTraceEnvironmentVariable);
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private enum ClientPluginLifecyclePhase

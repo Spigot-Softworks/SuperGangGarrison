@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Globalization;
+using System.Diagnostics;
 using System.Text.Json;
 using MoonSharp.Interpreter;
 using OpenGarrison.PluginHost;
@@ -34,6 +35,10 @@ internal sealed class LuaServerPlugin(
     private Script? _script;
     private Table? _pluginTable;
     private IOpenGarrisonServerPluginContext? _context;
+    private ServerLuaCallbackPhase _currentCallbackPhase = ServerLuaCallbackPhase.None;
+    private bool _callbacksDisabled;
+    private const long CallbackAutoYieldCounter = 1000;
+    private const int MaxCallbackResumeCount = 4096;
 
     public string Id => manifest.Id;
 
@@ -60,7 +65,9 @@ internal sealed class LuaServerPlugin(
             var hostTable = CreateHostTable(_script, context);
             var result = _script.DoFile(entryPointPath);
             _pluginTable = ResolvePluginTable(_script, result);
-            CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(hostTable));
+            ExecuteInPhase(
+                ServerLuaCallbackPhase.Initialize,
+                () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(hostTable)));
         }
         catch (Exception ex)
         {
@@ -70,35 +77,36 @@ internal sealed class LuaServerPlugin(
 
     public void Shutdown()
     {
-        CallIfPresent("shutdown");
+        ExecuteInPhase(ServerLuaCallbackPhase.Shutdown, () => CallIfPresent("shutdown"));
         _pluginTable = null;
         _script = null;
         _context = null;
+        _callbacksDisabled = false;
     }
 
-    public void OnServerStarting() => CallIfPresent("on_server_starting");
+    public void OnServerStarting() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_starting"));
 
-    public void OnServerStarted() => CallIfPresent("on_server_started");
+    public void OnServerStarted() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_started"));
 
-    public void OnServerStopping() => CallIfPresent("on_server_stopping");
+    public void OnServerStopping() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_stopping"));
 
-    public void OnServerStopped() => CallIfPresent("on_server_stopped");
+    public void OnServerStopped() => ExecuteInPhase(ServerLuaCallbackPhase.Lifecycle, () => CallIfPresent("on_server_stopped"));
 
-    public void OnServerHeartbeat(TimeSpan uptime) => CallIfPresent("on_server_heartbeat", DynValue.NewNumber(uptime.TotalSeconds));
+    public void OnServerHeartbeat(TimeSpan uptime) => ExecuteInPhase(ServerLuaCallbackPhase.Update, () => CallIfPresent("on_server_heartbeat", DynValue.NewNumber(uptime.TotalSeconds)));
 
-    public void OnHelloReceived(HelloReceivedEvent e) => CallIfPresent("on_hello_received", ToDynValue(e));
+    public void OnHelloReceived(HelloReceivedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_hello_received", ToDynValue(e)));
 
-    public void OnClientConnected(ClientConnectedEvent e) => CallIfPresent("on_client_connected", ToDynValue(e));
+    public void OnClientConnected(ClientConnectedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_client_connected", ToDynValue(e)));
 
-    public void OnClientDisconnected(ClientDisconnectedEvent e) => CallIfPresent("on_client_disconnected", ToDynValue(e));
+    public void OnClientDisconnected(ClientDisconnectedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_client_disconnected", ToDynValue(e)));
 
-    public void OnPasswordAccepted(PasswordAcceptedEvent e) => CallIfPresent("on_password_accepted", ToDynValue(e));
+    public void OnPasswordAccepted(PasswordAcceptedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_password_accepted", ToDynValue(e)));
 
-    public void OnPlayerTeamChanged(PlayerTeamChangedEvent e) => CallIfPresent("on_player_team_changed", ToDynValue(e));
+    public void OnPlayerTeamChanged(PlayerTeamChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_team_changed", ToDynValue(e)));
 
-    public void OnPlayerClassChanged(PlayerClassChangedEvent e) => CallIfPresent("on_player_class_changed", ToDynValue(e));
+    public void OnPlayerClassChanged(PlayerClassChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_class_changed", ToDynValue(e)));
 
-    public void OnChatReceived(ChatReceivedEvent e) => CallIfPresent("on_chat_received", ToDynValue(e));
+    public void OnChatReceived(ChatReceivedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_chat_received", ToDynValue(e)));
 
     public bool TryHandleChatMessage(OpenGarrisonServerChatMessageContext context, ChatReceivedEvent e)
     {
@@ -107,44 +115,48 @@ internal sealed class LuaServerPlugin(
             return false;
         }
 
-        if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
+        return ExecuteInPhase(ServerLuaCallbackPhase.Query, () =>
         {
-            return false;
-        }
-        return result.CastToBool();
+            if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
+            {
+                return false;
+            }
+
+            return result.CastToBool();
+        });
     }
 
-    public void OnMapChanging(MapChangingEvent e) => CallIfPresent("on_map_changing", ToDynValue(e));
+    public void OnMapChanging(MapChangingEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_map_changing", ToDynValue(e)));
 
-    public void OnMapChanged(MapChangedEvent e) => CallIfPresent("on_map_changed", ToDynValue(e));
+    public void OnMapChanged(MapChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_map_changed", ToDynValue(e)));
 
-    public void OnScoreChanged(ScoreChangedEvent e) => CallIfPresent("on_score_changed", ToDynValue(e));
+    public void OnScoreChanged(ScoreChangedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_score_changed", ToDynValue(e)));
 
-    public void OnRoundEnded(RoundEndedEvent e) => CallIfPresent("on_round_ended", ToDynValue(e));
+    public void OnRoundEnded(RoundEndedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_round_ended", ToDynValue(e)));
 
-    public void OnKillFeedEntry(KillFeedEvent e) => CallIfPresent("on_kill_feed_entry", ToDynValue(e));
+    public void OnKillFeedEntry(KillFeedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_kill_feed_entry", ToDynValue(e)));
 
-    public void OnDamage(OpenGarrisonServerDamageEvent e) => CallIfPresent("on_damage", ToDynValue(e));
+    public void OnDamage(OpenGarrisonServerDamageEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_damage", ToDynValue(e)));
 
-    public void OnDeath(OpenGarrisonServerDeathEvent e) => CallIfPresent("on_death", ToDynValue(e));
+    public void OnDeath(OpenGarrisonServerDeathEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_death", ToDynValue(e)));
 
-    public void OnAssist(OpenGarrisonServerAssistEvent e) => CallIfPresent("on_assist", ToDynValue(e));
+    public void OnAssist(OpenGarrisonServerAssistEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_assist", ToDynValue(e)));
 
-    public void OnBuild(OpenGarrisonServerBuildableEvent e) => CallIfPresent("on_build", ToDynValue(e));
+    public void OnBuild(OpenGarrisonServerBuildableEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_build", ToDynValue(e)));
 
-    public void OnDestroy(OpenGarrisonServerBuildableEvent e) => CallIfPresent("on_destroy", ToDynValue(e));
+    public void OnDestroy(OpenGarrisonServerBuildableEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_destroy", ToDynValue(e)));
 
-    public void OnIntelEvent(OpenGarrisonServerIntelEvent e) => CallIfPresent("on_intel_event", ToDynValue(e));
+    public void OnIntelEvent(OpenGarrisonServerIntelEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_intel_event", ToDynValue(e)));
 
-    public void OnControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e) => CallIfPresent("on_control_point_state_changed", ToDynValue(e));
+    public void OnControlPointStateChanged(OpenGarrisonServerControlPointStateEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_control_point_state_changed", ToDynValue(e)));
 
-    public void OnPlayerJoined(OpenGarrisonServerPlayerJoinedEvent e) => CallIfPresent("on_player_joined", ToDynValue(e));
+    public void OnPlayerJoined(OpenGarrisonServerPlayerJoinedEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_joined", ToDynValue(e)));
 
-    public void OnPlayerLeft(OpenGarrisonServerPlayerLeftEvent e) => CallIfPresent("on_player_left", ToDynValue(e));
+    public void OnPlayerLeft(OpenGarrisonServerPlayerLeftEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_left", ToDynValue(e)));
 
-    public void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) => CallIfPresent("on_player_spawned", ToDynValue(e));
+    public void OnPlayerSpawned(OpenGarrisonServerPlayerSpawnEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_spawned", ToDynValue(e)));
 
-    public void OnPlayerRespawned(OpenGarrisonServerPlayerRespawnEvent e) => CallIfPresent("on_player_respawned", ToDynValue(e));
+    public void OnPlayerRespawned(OpenGarrisonServerPlayerRespawnEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_player_respawned", ToDynValue(e)));
 
     private void CallIfPresent(string functionName, params DynValue[] args)
     {
@@ -167,7 +179,7 @@ internal sealed class LuaServerPlugin(
     private bool TryInvokeCallback(string callbackName, out DynValue result, bool rethrowOnFailure, params DynValue[] args)
     {
         result = DynValue.Nil;
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || _callbacksDisabled)
         {
             return false;
         }
@@ -180,11 +192,12 @@ internal sealed class LuaServerPlugin(
 
         try
         {
-            result = _script.Call(function, args);
+            result = InvokeCallbackWithLimits(function, args);
             return true;
         }
         catch (Exception ex)
         {
+            DisableCallbacks($"{callbackName} failed during {DescribePhase(_currentCallbackPhase)}: {ex.Message}");
             LogCallbackFailure(callbackName, ex);
             if (rethrowOnFailure)
             {
@@ -192,6 +205,43 @@ internal sealed class LuaServerPlugin(
             }
 
             return false;
+        }
+    }
+
+    private DynValue InvokeCallbackWithLimits(DynValue function, DynValue[] args)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        var coroutine = _script.CreateCoroutine(function).Coroutine;
+        coroutine.AutoYieldCounter = CallbackAutoYieldCounter;
+
+        var stopwatch = Stopwatch.StartNew();
+        var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+        var resumeCount = 0;
+        var firstResume = true;
+        while (true)
+        {
+            var result = firstResume ? coroutine.Resume(args) : coroutine.Resume();
+            firstResume = false;
+            resumeCount += 1;
+
+            if (coroutine.State == CoroutineState.Dead)
+            {
+                return result;
+            }
+
+            if (resumeCount >= MaxCallbackResumeCount)
+            {
+                throw new TimeoutException($"Lua callback exceeded the resume budget of {MaxCallbackResumeCount} slices.");
+            }
+
+            if (stopwatch.Elapsed > maxDuration)
+            {
+                throw new TimeoutException($"Lua callback exceeded the {maxDuration.TotalMilliseconds:0.##}ms budget.");
+            }
         }
     }
 
@@ -486,7 +536,71 @@ internal sealed class LuaServerPlugin(
     private static string ResolveConfigPath(string configDirectory, string relativePath)
     {
         var normalizedRelativePath = string.IsNullOrWhiteSpace(relativePath) ? "config.json" : relativePath;
-        return Path.GetFullPath(Path.Combine(configDirectory, normalizedRelativePath));
+        var fullConfigDirectory = Path.GetFullPath(configDirectory);
+        var combinedPath = Path.GetFullPath(Path.Combine(fullConfigDirectory, normalizedRelativePath));
+        if (!combinedPath.StartsWith(fullConfigDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Plugin config path escapes config directory.");
+        }
+
+        return combinedPath;
+    }
+
+    private void ExecuteInPhase(ServerLuaCallbackPhase phase, Action action)
+    {
+        var previousPhase = _currentCallbackPhase;
+        _currentCallbackPhase = phase;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _currentCallbackPhase = previousPhase;
+        }
+    }
+
+    private T ExecuteInPhase<T>(ServerLuaCallbackPhase phase, Func<T> action)
+    {
+        var previousPhase = _currentCallbackPhase;
+        _currentCallbackPhase = phase;
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            _currentCallbackPhase = previousPhase;
+        }
+    }
+
+    private static TimeSpan GetMaxCallbackDuration(ServerLuaCallbackPhase phase)
+    {
+        return phase switch
+        {
+            ServerLuaCallbackPhase.Initialize => TimeSpan.FromMilliseconds(250),
+            ServerLuaCallbackPhase.Shutdown => TimeSpan.FromMilliseconds(50),
+            ServerLuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
+            ServerLuaCallbackPhase.Update => TimeSpan.FromMilliseconds(10),
+            ServerLuaCallbackPhase.Query => TimeSpan.FromMilliseconds(10),
+            ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
+            _ => TimeSpan.FromMilliseconds(10),
+        };
+    }
+
+    private static string DescribePhase(ServerLuaCallbackPhase phase)
+    {
+        return phase switch
+        {
+            ServerLuaCallbackPhase.None => "an unmanaged host call",
+            ServerLuaCallbackPhase.Initialize => "initialize",
+            ServerLuaCallbackPhase.Shutdown => "shutdown",
+            ServerLuaCallbackPhase.Lifecycle => "a lifecycle callback",
+            ServerLuaCallbackPhase.Update => "an update callback",
+            ServerLuaCallbackPhase.Query => "a query callback",
+            ServerLuaCallbackPhase.Event => "a server event callback",
+            _ => "an unknown callback",
+        };
     }
 
     private static DynValue ToArrayTable(Script script, IEnumerable<object?> values, int depth)
@@ -697,8 +811,30 @@ internal sealed class LuaServerPlugin(
         _context?.Log($"[lua-plugin] callback failed for {manifest.Id} callback \"{callbackName}\" manifest \"{GetManifestPath()}\": {ex.Message}");
     }
 
+    private void DisableCallbacks(string reason)
+    {
+        if (_callbacksDisabled)
+        {
+            return;
+        }
+
+        _callbacksDisabled = true;
+        _context?.Log($"[lua-plugin] disabled {manifest.Id}: {reason}");
+    }
+
     private string GetManifestPath()
     {
         return OpenGarrisonPluginManifestLoader.GetManifestPath(pluginDirectory);
+    }
+
+    private enum ServerLuaCallbackPhase
+    {
+        None,
+        Initialize,
+        Shutdown,
+        Lifecycle,
+        Update,
+        Query,
+        Event,
     }
 }

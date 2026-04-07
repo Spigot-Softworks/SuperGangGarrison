@@ -191,6 +191,103 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void ClientLuaHostRejectsEscapingConfigPaths()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-config-escape",
+            "Lua Config Escape",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_client_frame(e)
+                plugin.host.save_json_config("../escape.json", { count = 1 })
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
+
+        Assert.Contains(logs, log => log.Contains("Plugin config path escapes config directory.", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(tempDirectory.RootPath, "escape.json")));
+    }
+
+    [Fact]
+    public void ClientLuaHostRejectsEscapingPluginFileEnumeration()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-list-files-escape",
+            "Lua List Files Escape",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_client_frame(e)
+                plugin.host.list_files("../", "*")
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
+
+        Assert.Contains(logs, log => log.Contains("Plugin path escapes plugin directory.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ClientLuaHostDisablesPluginAfterCallbackBudgetExceeded()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-timeout",
+            "Lua Timeout",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_client_frame(e)
+                local sum = 0
+                for i = 1, 100000000 do
+                    sum = sum + i
+                end
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 2, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
+
+        Assert.Contains(logs, log => log.Contains("disabled tests.client.lua-timeout", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("budget", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, logs.Count(log => log.Contains("disabled tests.client.lua-timeout", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void ClientLuaPluginLoaderBootstrapsLuaPluginAndPersistsConfig()
     {
         using var tempDirectory = new TempDirectory();
@@ -331,6 +428,125 @@ public sealed class LuaPluginHostSmokeTests
         var json = JsonDocument.Parse(File.ReadAllText(configPath));
         Assert.Equal(15, json.RootElement.GetProperty("count").GetInt32());
         Assert.Contains(logs, log => log.Contains("server initialized", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ServerLuaHostRejectsEscapingConfigPaths()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaEscape");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-config-escape",
+              "displayName": "Lua Server Config Escape",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_server_heartbeat(seconds)
+                plugin.host.save_json_config("../escape.json", { count = 1 })
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, manifest, directory) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+
+        Assert.Contains(logs, log => log.Contains("Plugin config path escapes config directory.", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(tempDirectory.RootPath, "escape.json")));
+    }
+
+    [Fact]
+    public void ServerLuaHostDisablesPluginAfterCallbackBudgetExceeded()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaTimeout");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-timeout",
+              "displayName": "Lua Server Timeout",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_server_heartbeat(seconds)
+                local sum = 0
+                for i = 1, 100000000 do
+                    sum = sum + i
+                end
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, manifest, directory) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(2));
+
+        Assert.Contains(logs, log => log.Contains("disabled tests.server.lua-timeout", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("budget", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, logs.Count(log => log.Contains("disabled tests.server.lua-timeout", StringComparison.Ordinal)));
     }
 
     private static LoadedClientLuaTemplate LoadClientLuaTemplate(string pluginId, TempDirectory tempDirectory, List<string> logs)

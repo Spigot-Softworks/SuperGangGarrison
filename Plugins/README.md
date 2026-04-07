@@ -35,6 +35,7 @@
   engine object access.
 - Client plugin config should live under `config/plugins/client/<pluginId>/`.
 - Server plugin config should live under `config/plugins/server/<pluginId>/`.
+- Engine-side seam and runtime safety rules are defined in [PLUGIN_HOST_CONTRACT.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/PLUGIN_HOST_CONTRACT.md).
 
 ## Lua-First Policy
 
@@ -57,7 +58,7 @@
 
 - A CLR plugin is acceptable only when exposing the required capability to Lua would be architecturally unsound.
 - Typical reasons include deep engine-internal rendering ownership, deterministic simulation-core behavior that should remain native, platform/native interop, or a clearly demonstrated performance constraint that cannot be solved with a bounded Lua seam.
-- “Lua cannot do this today” is not, by itself, enough reason to approve a CLR plugin.
+- "Lua cannot do this today" is not, by itself, enough reason to approve a CLR plugin.
 
 ## Lua Plugin Scope
 

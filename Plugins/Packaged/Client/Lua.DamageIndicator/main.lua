@@ -7,7 +7,6 @@ local WORLD_INDICATOR_RISE_SPEED = 150.0
 local HUD_INDICATOR_RISE_SPEED = 150.0
 
 local OFF_WHITE = { r = 217, g = 217, b = 183, a = 255 }
-local WAREYA_GREEN = { r = 0, g = 255, b = 0, a = 255 }
 local LORGAN_RED = { r = 255, g = 0, b = 0, a = 255 }
 local AIRSHOT_YELLOW = { r = 255, g = 230, b = 64, a = 255 }
 
@@ -142,7 +141,7 @@ local function draw_damage_text(canvas, text, position, scale, alpha, airshot, c
         return
     end
 
-    local fill_color = airshot and AIRSHOT_YELLOW or WAREYA_GREEN
+    local fill_color = airshot and AIRSHOT_YELLOW or LORGAN_RED
     draw_text(canvas, text, plugin.host.vec2(draw_position.x + scale, draw_position.y + scale), alpha_color(OFF_WHITE, alpha), scale, centered)
     draw_text(canvas, text, draw_position, alpha_color(fill_color, alpha), scale, centered)
 end

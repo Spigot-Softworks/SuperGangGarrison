@@ -27,7 +27,6 @@ $projects =
 )
 
 $excludedPackagedPluginDirectories = @(
-    "Lua.TeamOnlyMinimap"
 )
 
 function Invoke-DotNet {
