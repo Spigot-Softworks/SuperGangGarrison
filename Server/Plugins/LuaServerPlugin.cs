@@ -39,6 +39,7 @@ internal sealed class LuaServerPlugin(
     private bool _callbacksDisabled;
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
+    private const int MaxInitializeResumeCount = 65536;
 
     public string Id => manifest.Id;
 
@@ -220,6 +221,7 @@ internal sealed class LuaServerPlugin(
 
         var stopwatch = Stopwatch.StartNew();
         var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+        var maxResumeCount = GetMaxCallbackResumeCount(_currentCallbackPhase);
         var resumeCount = 0;
         var firstResume = true;
         while (true)
@@ -233,9 +235,9 @@ internal sealed class LuaServerPlugin(
                 return result;
             }
 
-            if (resumeCount >= MaxCallbackResumeCount)
+            if (resumeCount >= maxResumeCount)
             {
-                throw new TimeoutException($"Lua callback exceeded the resume budget of {MaxCallbackResumeCount} slices.");
+                throw new TimeoutException($"Lua callback exceeded the resume budget of {maxResumeCount} slices.");
             }
 
             if (stopwatch.Elapsed > maxDuration)
@@ -578,13 +580,22 @@ internal sealed class LuaServerPlugin(
     {
         return phase switch
         {
-            ServerLuaCallbackPhase.Initialize => TimeSpan.FromMilliseconds(250),
+            ServerLuaCallbackPhase.Initialize => TimeSpan.FromSeconds(2),
             ServerLuaCallbackPhase.Shutdown => TimeSpan.FromMilliseconds(50),
             ServerLuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
             ServerLuaCallbackPhase.Update => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Query => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
             _ => TimeSpan.FromMilliseconds(10),
+        };
+    }
+
+    private static int GetMaxCallbackResumeCount(ServerLuaCallbackPhase phase)
+    {
+        return phase switch
+        {
+            ServerLuaCallbackPhase.Initialize => MaxInitializeResumeCount,
+            _ => MaxCallbackResumeCount,
         };
     }
 

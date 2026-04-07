@@ -29,22 +29,30 @@ internal static class ClientPluginLoader
         }
 
         var discoveredPlugins = DiscoverFromLoadedAssemblies(loadedAssemblies, log).ToList();
-        var discoveredPluginIds = new HashSet<string>(discoveredPlugins.Select(plugin => plugin.PluginId), StringComparer.OrdinalIgnoreCase);
+        var discoveredPluginsById = discoveredPlugins.ToDictionary(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase);
         foreach (var luaCandidate in EnumerateLuaPluginCandidates(pluginsDirectory, log))
         {
-            if (!discoveredPluginIds.Add(luaCandidate.Manifest.Id))
+            if (discoveredPluginsById.TryGetValue(luaCandidate.Manifest.Id, out var existingPlugin))
             {
-                log($"[plugin] duplicate client plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\" ignored.");
-                continue;
+                if (existingPlugin.Manifest.Runtime == OpenGarrisonPluginRuntimeKind.Lua)
+                {
+                    log($"[plugin] duplicate client plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\" ignored.");
+                    continue;
+                }
+
+                discoveredPlugins.Remove(existingPlugin);
+                log($"[plugin] Lua manifest \"{luaCandidate.ManifestPath}\" overrides legacy CLR client plugin id \"{luaCandidate.Manifest.Id}\".");
             }
 
-            discoveredPlugins.Add(new DiscoveredPlugin(
+            var luaPlugin = new DiscoveredPlugin(
                 luaCandidate.Manifest.Id,
                 luaCandidate.Manifest.DisplayName,
                 Version.TryParse(luaCandidate.Manifest.Version, out var version) ? version : new Version(1, 0, 0, 0),
                 typeof(LuaClientPlugin),
                 luaCandidate.PluginDirectory,
-                luaCandidate.Manifest));
+                luaCandidate.Manifest);
+            discoveredPlugins.Add(luaPlugin);
+            discoveredPluginsById[luaCandidate.Manifest.Id] = luaPlugin;
         }
 
         return discoveredPlugins

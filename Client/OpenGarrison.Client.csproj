@@ -45,4 +45,23 @@
     <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>
+
+  <Target Name="MirrorPackagedClientPluginsToOutput"
+          AfterTargets="Build"
+          Condition="Exists('..\Plugins\Packaged\Client')">
+    <PropertyGroup>
+      <PackagedClientPluginsSource>$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client\</PackagedClientPluginsSource>
+      <PackagedClientPluginsDestination>$(TargetDir)Plugins\Client\</PackagedClientPluginsDestination>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackagedClientPluginFiles Include="$(PackagedClientPluginsSource)**\*" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(PackagedClientPluginsDestination)" />
+    <MakeDir Directories="$(PackagedClientPluginsDestination)" />
+    <Copy SourceFiles="@(PackagedClientPluginFiles)"
+          DestinationFiles="@(PackagedClientPluginFiles->'$(PackagedClientPluginsDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

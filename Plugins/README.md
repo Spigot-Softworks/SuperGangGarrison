@@ -21,6 +21,8 @@
 - `scripts/package.ps1` copies manifest-driven packaged Lua plugins from `Plugins/Packaged/Client/...` and `Plugins/Packaged/Server/...` into the shipped runtime `Plugins/Client/...` and `Plugins/Server/...` folders.
 - `scripts/package.ps1` does not ship legacy CLR plugins by default.
 - Legacy CLR plugin projects can still be published explicitly with `-IncludeLegacyClrPlugins`, and they are staged under `LegacyPlugins/Client/...` and `LegacyPlugins/Server/...` so they do not collide with the canonical Lua plugin ids in the live runtime plugin directories.
+- App debug builds now mirror the packaged plugin layout by copying `Plugins/Packaged/Client/...` into `Client/bin/.../Plugins/Client/...` and `Plugins/Packaged/Server/...` into `Server/bin/.../Plugins/Server/...`.
+- Legacy CLR plugin projects are no longer staged into the live runtime plugin folders by default during normal app builds. Set `StageLegacyPluginRuntimeOutput=true` only when you intentionally need the old CLR runtime layout for migration/debugging.
 - Do not add app-project references to bundled/sample plugins just to get them copied into builds or packages.
 - App projects may reference plugin abstraction projects when they need shared plugin interfaces.
 
@@ -76,6 +78,12 @@
 - When a bundled CLR plugin reaches feature parity with a packaged Lua version, prefer the Lua version for documentation, examples, and future seam growth.
 - Packaged runtime outputs should ship the canonical Lua plugin versions by default, while the old CLR projects remain source-side migration references.
 - Native bundled plugins should shrink over time toward engine-adjacent reference implementations rather than remain the primary modding path.
+
+## Profiling
+
+- Set `OG2_CLIENT_PLUGIN_PROFILE=1` before launching the client to emit periodic aggregate plugin hook timings to the console/log.
+- The current client host logs the hottest hooks every 5 seconds in the form `[plugin-profile] plugin=<id> hook=<stage> type=<hookType> calls=<count> totalMs=<total> avgMs=<avg> maxMs=<max>`.
+- Use packaged/dist-style runtime layouts when profiling so Lua and CLR are not mixed accidentally.
 
 ## Repo Rules
 

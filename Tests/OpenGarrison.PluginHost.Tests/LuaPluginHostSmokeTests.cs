@@ -25,6 +25,7 @@ public sealed class LuaPluginHostSmokeTests
 
         var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
         var damageHooks = Assert.IsAssignableFrom<IOpenGarrisonClientDamageHooks>(loadedPlugin.Plugin);
+        var semanticHooks = Assert.IsAssignableFrom<IOpenGarrisonClientSemanticGameplayHooks>(loadedPlugin.Plugin);
         var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
         var optionsHooks = Assert.IsAssignableFrom<IOpenGarrisonClientOptionsHooks>(loadedPlugin.Plugin);
 
@@ -41,6 +42,8 @@ public sealed class LuaPluginHostSmokeTests
             AttackerPlayerId: 1,
             AssistedByPlayerId: 0,
             Flags: LocalDamageFlags.Airshot));
+        semanticHooks.OnHeal(new ClientHealEvent(18, 110, 125, 2));
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 2, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
 
         var canvas = new FakeHudCanvas();
         hudHooks.OnGameplayHudDraw(canvas);
@@ -48,6 +51,7 @@ public sealed class LuaPluginHostSmokeTests
         Assert.NotEmpty(optionsHooks.GetOptionsSections());
         Assert.Contains(loadedPlugin.Context.AssetsImpl.RegisteredSounds, asset => asset.AssetId == "ding");
         Assert.True(File.Exists(Path.Combine(loadedPlugin.ConfigDirectory, "damageindicator.json")));
+        Assert.True(canvas.BitmapTextDrawCount + canvas.BitmapTextCenteredDrawCount > 0);
         Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -113,6 +117,125 @@ public sealed class LuaPluginHostSmokeTests
                 FacingLeft: false,
                 TicksRemaining: 240,
                 AnimationKind: ClientDeadBodyAnimationKind.Rifle)));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientLuaTeamOnlyMinimapTemplateBootstrapsAndDrawsHudImmediately()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadClientLuaTemplate("sample.client.lua-team-only-minimap", tempDirectory, logs);
+
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+
+        var state = loadedPlugin.Context.StateImpl;
+        state.PlayerMarkers.Add(new ClientPlayerMarker(1, "Scout", ClientPluginTeam.Red, ClientPluginClass.Scout, new Vector2(64f, 64f), 100, 125, true, false, true));
+
+        var canvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(canvas);
+
+        Assert.True(File.Exists(Path.Combine(loadedPlugin.ConfigDirectory, "teamonlyminimap.json")));
+        Assert.Contains(loadedPlugin.Context.UiImpl.MenuEntries, entry => entry.MenuEntryId == "toggle-minimap");
+        Assert.True(canvas.FilledRectangleCount > 0);
+        Assert.True(canvas.OutlinedRectangleCount > 0);
+        Assert.DoesNotContain(logs, log => log.Contains("failed to initialize", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientLuaHostSupportsInitializeTimeConfigAndMenuRegistration()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-initialize-bootstrap",
+            "Lua Initialize Bootstrap",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                plugin.host.load_json_config("initialize-bootstrap.json", { enabled = true, zoomKey = "R" })
+                plugin.host.register_menu_entry("toggle-bootstrap", "Toggle Bootstrap", "InGameMenu", "toggle_bootstrap")
+            end
+
+            function plugin.toggle_bootstrap()
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        Assert.True(File.Exists(Path.Combine(loadedPlugin.ConfigDirectory, "initialize-bootstrap.json")));
+        Assert.Contains(loadedPlugin.Context.UiImpl.MenuEntries, entry => entry.MenuEntryId == "toggle-bootstrap");
+        Assert.DoesNotContain(logs, log => log.Contains("failed to initialize", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientLuaHostSupportsInitializeTimeHotkeyRegistration()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-initialize-hotkey",
+            "Lua Initialize Hotkey",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                plugin.host.register_hotkey("initialize-hotkey", "Initialize Hotkey", "R")
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "initialize-hotkey");
+        Assert.DoesNotContain(logs, log => log.Contains("failed to initialize", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientLuaHostExposesPlayerMarkersInClientState()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-client-state-markers",
+            "Lua Client State Markers",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_gameplay_hud_draw(canvas)
+                local state = plugin.host.get_client_state()
+                local marker = state.playerMarkers and state.playerMarkers[1]
+                if marker ~= nil and marker.team == state.localPlayerTeam and marker.isLocalPlayer then
+                    canvas.fill_screen_rectangle(0, 0, 1, 1, { r = 255, g = 255, b = 255, a = 255 })
+                end
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+        var state = loadedPlugin.Context.StateImpl;
+        state.PlayerMarkers.Add(new ClientPlayerMarker(1, "Scout", ClientPluginTeam.Red, ClientPluginClass.Scout, new Vector2(64f, 64f), 100, 125, true, false, true));
+
+        var canvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(canvas);
+
+        Assert.True(canvas.FilledRectangleCount > 0);
         Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -563,7 +686,7 @@ public sealed class LuaPluginHostSmokeTests
             (_, manifest, directory) => context,
             logs.Add);
 
-        Assert.NotNull(loadedPlugin);
+        Assert.True(loadedPlugin is not null, string.Join(Environment.NewLine, logs));
         return new LoadedClientLuaTemplate(loadedPlugin!.Plugin, context, configDirectory);
     }
 
@@ -598,7 +721,7 @@ public sealed class LuaPluginHostSmokeTests
             (_, manifest, directory) => context,
             logs.Add);
 
-        Assert.NotNull(loadedPlugin);
+        Assert.True(loadedPlugin is not null, string.Join(Environment.NewLine, logs));
         return new LoadedClientLuaTemplate(loadedPlugin!.Plugin, context, configDirectory);
     }
 

@@ -61,15 +61,6 @@ local function cycle_option(options, current)
     return options[1]
 end
 
-local function contains_option(options, value, fallback)
-    for _, option in ipairs(options) do
-        if option == value then
-            return option
-        end
-    end
-    return fallback
-end
-
 local function with_alpha(color, alpha)
     return {
         r = color.r,
@@ -89,49 +80,45 @@ local function lerp_color(left, right, amount)
     }
 end
 
-local function normalize_config(loaded)
-    return {
-        enabled = loaded.enabled ~= false,
-        showHealth = loaded.showHealth ~= false,
-        showObjective = loaded.showObjective ~= false,
-        showSentry = loaded.showSentry ~= false,
-        positionX = clamp(tonumber(loaded.positionX) or default_config.positionX, 0, 4000),
-        positionY = clamp(tonumber(loaded.positionY) or default_config.positionY, 0, 4000),
-        width = clamp(tonumber(loaded.width) or default_config.width, 20, 1000),
-        height = clamp(tonumber(loaded.height) or default_config.height, 20, 1000),
-        healingPositionX = clamp(tonumber(loaded.healingPositionX) or default_config.healingPositionX, 0, 4000),
-        healingPositionY = clamp(tonumber(loaded.healingPositionY) or default_config.healingPositionY, 0, 4000),
-        healingWidth = clamp(tonumber(loaded.healingWidth) or default_config.healingWidth, 20, 1000),
-        healingHeight = clamp(tonumber(loaded.healingHeight) or default_config.healingHeight, 20, 1000),
-        showMethod = contains_option(SHOW_METHODS, loaded.showMethod, default_config.showMethod),
-        fitMode = contains_option(FIT_MODES, loaded.fitMode, default_config.fitMode),
-        playersShown = contains_option(PLAYER_SCOPES, loaded.playersShown, default_config.playersShown),
-        bubbleSizePercent = clamp(tonumber(loaded.bubbleSizePercent) or default_config.bubbleSizePercent, 10, 200),
-        selfColor = contains_option(SELF_COLORS, loaded.selfColor, default_config.selfColor),
-        selfBubbleSizePercent = clamp(tonumber(loaded.selfBubbleSizePercent) or default_config.selfBubbleSizePercent, 10, 200),
-        alphaPercent = clamp(tonumber(loaded.alphaPercent) or default_config.alphaPercent, 0, 100),
-        objectiveBubbleSizePercent = clamp(tonumber(loaded.objectiveBubbleSizePercent) or default_config.objectiveBubbleSizePercent, 10, 200),
-        zoomKey = loaded.zoomKey or default_config.zoomKey,
-        zoomRangeTenths = clamp(tonumber(loaded.zoomRangeTenths) or default_config.zoomRangeTenths, 2, 50),
-        moveNearHealingHud = loaded.moveNearHealingHud == true
-    }
-end
-
 local function save_config()
     plugin.host.save_json_config("teamonlyminimap.json", config)
 end
 
 local function refresh_zoom_hotkey()
     local registered = plugin.host.register_hotkey(zoom_hotkey_id, "Zoom toggle key", config.zoomKey)
-    if registered ~= nil and registered ~= "" then
+    if registered ~= nil and registered ~= "" and registered ~= config.zoomKey then
         config.zoomKey = registered
         save_config()
     end
 end
 
 local function load_config()
-    config = normalize_config(plugin.host.load_json_config("teamonlyminimap.json", default_config))
-    save_config()
+    local loaded = plugin.host.load_json_config("teamonlyminimap.json", default_config)
+    config = {
+        enabled = loaded.enabled ~= false,
+        showHealth = loaded.showHealth ~= false,
+        showObjective = loaded.showObjective ~= false,
+        showSentry = loaded.showSentry ~= false,
+        positionX = tonumber(loaded.positionX) or default_config.positionX,
+        positionY = tonumber(loaded.positionY) or default_config.positionY,
+        width = tonumber(loaded.width) or default_config.width,
+        height = tonumber(loaded.height) or default_config.height,
+        healingPositionX = tonumber(loaded.healingPositionX) or default_config.healingPositionX,
+        healingPositionY = tonumber(loaded.healingPositionY) or default_config.healingPositionY,
+        healingWidth = tonumber(loaded.healingWidth) or default_config.healingWidth,
+        healingHeight = tonumber(loaded.healingHeight) or default_config.healingHeight,
+        showMethod = loaded.showMethod or default_config.showMethod,
+        fitMode = loaded.fitMode or default_config.fitMode,
+        playersShown = loaded.playersShown or default_config.playersShown,
+        bubbleSizePercent = tonumber(loaded.bubbleSizePercent) or default_config.bubbleSizePercent,
+        selfColor = loaded.selfColor or default_config.selfColor,
+        selfBubbleSizePercent = tonumber(loaded.selfBubbleSizePercent) or default_config.selfBubbleSizePercent,
+        alphaPercent = tonumber(loaded.alphaPercent) or default_config.alphaPercent,
+        objectiveBubbleSizePercent = tonumber(loaded.objectiveBubbleSizePercent) or default_config.objectiveBubbleSizePercent,
+        zoomKey = loaded.zoomKey or default_config.zoomKey,
+        zoomRangeTenths = tonumber(loaded.zoomRangeTenths) or default_config.zoomRangeTenths,
+        moveNearHealingHud = loaded.moveNearHealingHud == true
+    }
     refresh_zoom_hotkey()
 end
 

@@ -2,16 +2,19 @@ local plugin = {}
 
 local WORLD_INDICATOR_LIFETIME_SECONDS = 0.67
 local HUD_INDICATOR_LIFETIME_SECONDS = 0.67
+local HEAL_INDICATOR_LIFETIME_SECONDS = 0.67
 local ROLLUP_IDLE_SECONDS = 2.0
 local WORLD_INDICATOR_RISE_SPEED = 150.0
 local HUD_INDICATOR_RISE_SPEED = 150.0
+local HEAL_INDICATOR_RISE_SPEED = 120.0
 
 local OFF_WHITE = { r = 217, g = 217, b = 183, a = 255 }
+local WAREYA_GREEN = { r = 0, g = 255, b = 0, a = 255 }
 local LORGAN_RED = { r = 255, g = 0, b = 0, a = 255 }
 local AIRSHOT_YELLOW = { r = 255, g = 230, b = 64, a = 255 }
 
 local default_config = {
-    style = 0,
+    style = 1,
     playDing = true,
     moveCounterForHud = false,
     stereoDing = false
@@ -34,6 +37,11 @@ local hud_amount = {}
 local hud_airshot = {}
 local hud_age_seconds = {}
 local hud_y_offset = {}
+
+local heal_count = 0
+local heal_amount = {}
+local heal_age_seconds = {}
+local heal_y_offset = {}
 
 local rolling_damage = 0
 local rolling_damage_timer_seconds = 0.0
@@ -85,9 +93,17 @@ local function clear_hud_indicators()
     hud_y_offset = {}
 end
 
+local function clear_heal_indicators()
+    heal_count = 0
+    heal_amount = {}
+    heal_age_seconds = {}
+    heal_y_offset = {}
+end
+
 local function reset_state()
     clear_world_indicators()
     clear_hud_indicators()
+    clear_heal_indicators()
     rolling_damage = 0
     rolling_damage_timer_seconds = 0.0
     rolling_damage_airshot = false
@@ -99,6 +115,13 @@ local function add_hud_indicator(amount, airshot)
     hud_airshot[hud_count] = airshot
     hud_age_seconds[hud_count] = 0.0
     hud_y_offset[hud_count] = 0.0
+end
+
+local function add_heal_indicator(amount)
+    heal_count = heal_count + 1
+    heal_amount[heal_count] = amount
+    heal_age_seconds[heal_count] = 0.0
+    heal_y_offset[heal_count] = 0.0
 end
 
 local function alpha_color(color, alpha)
@@ -141,9 +164,22 @@ local function draw_damage_text(canvas, text, position, scale, alpha, airshot, c
         return
     end
 
-    local fill_color = airshot and AIRSHOT_YELLOW or LORGAN_RED
+    local fill_color = airshot and AIRSHOT_YELLOW or WAREYA_GREEN
     draw_text(canvas, text, plugin.host.vec2(draw_position.x + scale, draw_position.y + scale), alpha_color(OFF_WHITE, alpha), scale, centered)
     draw_text(canvas, text, draw_position, alpha_color(fill_color, alpha), scale, centered)
+end
+
+local function draw_heal_text(canvas, text, position, scale, alpha, centered, bottom_aligned)
+    local draw_position = plugin.host.vec2(position.x, position.y)
+    local height = canvas.measure_bitmap_text_height(scale)
+    if centered then
+        draw_position.y = draw_position.y - (height / 2.0)
+    elseif bottom_aligned then
+        draw_position.y = draw_position.y - height
+    end
+
+    draw_text(canvas, text, plugin.host.vec2(draw_position.x + scale, draw_position.y + scale), alpha_color(OFF_WHITE, alpha), scale, centered)
+    draw_text(canvas, text, draw_position, alpha_color(WAREYA_GREEN, alpha), scale, centered)
 end
 
 local function resolve_world_indicator_position(index)
@@ -264,6 +300,31 @@ local function prune_hud_indicators(delta_seconds)
     hud_count = write_index - 1
 end
 
+local function prune_heal_indicators(delta_seconds)
+    local write_index = 1
+    for read_index = 1, heal_count do
+        local age_seconds = heal_age_seconds[read_index] + delta_seconds
+        local y_offset = heal_y_offset[read_index] - (HEAL_INDICATOR_RISE_SPEED * delta_seconds)
+        if age_seconds < HEAL_INDICATOR_LIFETIME_SECONDS then
+            if write_index ~= read_index then
+                heal_amount[write_index] = heal_amount[read_index]
+            end
+
+            heal_age_seconds[write_index] = age_seconds
+            heal_y_offset[write_index] = y_offset
+            write_index = write_index + 1
+        end
+    end
+
+    for index = write_index, heal_count do
+        heal_amount[index] = nil
+        heal_age_seconds[index] = nil
+        heal_y_offset[index] = nil
+    end
+
+    heal_count = write_index - 1
+end
+
 function plugin.initialize(host)
     plugin.host = host
     config = load_config()
@@ -283,6 +344,7 @@ function plugin.on_client_frame(e)
 
     prune_world_indicators(e.deltaSeconds)
     prune_hud_indicators(e.deltaSeconds)
+    prune_heal_indicators(e.deltaSeconds)
 
     if rolling_damage <= 0 then
         return
@@ -297,6 +359,14 @@ function plugin.on_client_frame(e)
     rolling_damage = 0
     rolling_damage_timer_seconds = 0.0
     rolling_damage_airshot = false
+end
+
+function plugin.on_heal(e)
+    if e.amount == nil or e.amount <= 0 then
+        return
+    end
+
+    add_heal_indicator(e.amount)
 end
 
 function plugin.on_local_damage(e)
@@ -368,6 +438,19 @@ function plugin.on_gameplay_hud_draw(canvas)
             scale,
             clamp(1.0 - (hud_age_seconds[index] / HUD_INDICATOR_LIFETIME_SECONDS), 0.0, 1.0),
             hud_airshot[index],
+            false,
+            bottom_aligned
+        )
+    end
+
+    for index = 1, heal_count do
+        local position, scale, bottom_aligned = get_hud_anchor(heal_y_offset[index] - 36.0)
+        draw_heal_text(
+            canvas,
+            "+" .. tostring(heal_amount[index]),
+            position,
+            scale,
+            clamp(1.0 - (heal_age_seconds[index] / HEAL_INDICATOR_LIFETIME_SECONDS), 0.0, 1.0),
             false,
             bottom_aligned
         )

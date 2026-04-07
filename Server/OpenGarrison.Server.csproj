@@ -25,4 +25,23 @@
       <Visible>false</Visible>
     </None>
   </ItemGroup>
+
+  <Target Name="MirrorPackagedServerPluginsToOutput"
+          AfterTargets="Build"
+          Condition="Exists('..\Plugins\Packaged\Server')">
+    <PropertyGroup>
+      <PackagedServerPluginsSource>$(MSBuildProjectDirectory)\..\Plugins\Packaged\Server\</PackagedServerPluginsSource>
+      <PackagedServerPluginsDestination>$(TargetDir)Plugins\Server\</PackagedServerPluginsDestination>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackagedServerPluginFiles Include="$(PackagedServerPluginsSource)**\*" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(PackagedServerPluginsDestination)" />
+    <MakeDir Directories="$(PackagedServerPluginsDestination)" />
+    <Copy SourceFiles="@(PackagedServerPluginFiles)"
+          DestinationFiles="@(PackagedServerPluginFiles->'$(PackagedServerPluginsDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

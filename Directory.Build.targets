@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup>
+    <StageLegacyPluginRuntimeOutput Condition="'$(StageLegacyPluginRuntimeOutput)' == ''">false</StageLegacyPluginRuntimeOutput>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' != 'OpenGarrison.Client.Plugins.Abstractions' and $([System.String]::Copy('$(MSBuildProjectName)').StartsWith('OpenGarrison.Client.Plugins.'))">
     <PluginRuntimeScope>Client</PluginRuntimeScope>
     <PluginRuntimeFolderName>$([System.String]::Copy('$(MSBuildProjectName)').Replace('OpenGarrison.Client.Plugins.', ''))</PluginRuntimeFolderName>
@@ -15,7 +19,7 @@
 
   <Target Name="StagePluginRuntimeOutput"
           AfterTargets="Build"
-          Condition="'$(PluginRuntimeStageDir)' != ''">
+          Condition="'$(PluginRuntimeStageDir)' != '' and '$(StageLegacyPluginRuntimeOutput)' == 'true'">
     <ItemGroup>
       <PluginRuntimeFiles Include="$(TargetDir)**\*" />
     </ItemGroup>

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -15,7 +17,10 @@ internal sealed class ClientPluginHost
 {
     private const string GameplayHudTraceFileName = "client-plugin-gameplay-hud-trace.log";
     private const string GameplayHudTraceEnvironmentVariable = "OG2_CLIENT_PLUGIN_HUD_TRACE";
+    private const string ProfileEnvironmentVariable = "OG2_CLIENT_PLUGIN_PROFILE";
     private static readonly bool GameplayHudTraceEnabled = IsGameplayHudTraceEnabled();
+    private static readonly bool ProfileEnabled = IsProfileEnabled();
+    private static readonly TimeSpan ProfileLogInterval = TimeSpan.FromSeconds(5);
     private readonly IOpenGarrisonClientReadOnlyState _clientState;
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Action<string> _log;
@@ -27,6 +32,8 @@ internal sealed class ClientPluginHost
     private readonly List<LoadedPluginEntry> _loadedPlugins = new();
     private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<RegisteredMenuEntry>> _registeredMenuEntries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginProfileAggregate> _profileAggregates = new(StringComparer.OrdinalIgnoreCase);
+    private DateTimeOffset _nextProfileLogAt = DateTimeOffset.UtcNow + ProfileLogInterval;
     private ClientPluginLifecyclePhase _lifecyclePhase;
 
     public ClientPluginHost(
@@ -83,28 +90,32 @@ internal sealed class ClientPluginHost
     public void NotifyClientStarting()
     {
         _lifecyclePhase = ClientPluginLifecyclePhase.Starting;
-        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStarting());
+        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStarting(), "lifecycle-starting");
     }
 
     public void NotifyClientStarted()
     {
         _lifecyclePhase = ClientPluginLifecyclePhase.Started;
-        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStarted());
+        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStarted(), "lifecycle-started");
     }
 
     public void NotifyClientStopping()
     {
         _lifecyclePhase = ClientPluginLifecyclePhase.Stopping;
-        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStopping());
+        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStopping(), "lifecycle-stopping");
     }
 
     public void NotifyClientStopped()
     {
-        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStopped());
+        Dispatch<IOpenGarrisonClientLifecycleHooks>(hook => hook.OnClientStopped(), "lifecycle-stopped");
         _lifecyclePhase = ClientPluginLifecyclePhase.Stopped;
     }
 
-    public void NotifyClientFrame(ClientFrameEvent e) => Dispatch<IOpenGarrisonClientUpdateHooks>(hook => hook.OnClientFrame(e));
+    public void NotifyClientFrame(ClientFrameEvent e)
+    {
+        Dispatch<IOpenGarrisonClientUpdateHooks>(hook => hook.OnClientFrame(e), "update");
+        FlushProfileSummaryIfDue();
+    }
 
     public void NotifyGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
     {
@@ -117,44 +128,44 @@ internal sealed class ClientPluginHost
         {
             var entry = orderedEntries[index];
             WriteGameplayHudTrace(FormattableString.Invariant($"before index={index} plugin={entry.DiscoveredPlugin.PluginId}"));
-            DispatchHook<IOpenGarrisonClientHudHooks>(entry, hook => hook.OnGameplayHudDraw(canvas), "runtime");
+            DispatchHook<IOpenGarrisonClientHudHooks>(entry, hook => hook.OnGameplayHudDraw(canvas), "gameplay-hud");
             WriteGameplayHudTrace(FormattableString.Invariant($"after index={index} plugin={entry.DiscoveredPlugin.PluginId}"));
         }
 
         WriteGameplayHudTrace("end");
     }
 
-    public void NotifyLocalDamage(LocalDamageEvent e) => Dispatch<IOpenGarrisonClientDamageHooks>(hook => hook.OnLocalDamage(e));
+    public void NotifyLocalDamage(LocalDamageEvent e) => Dispatch<IOpenGarrisonClientDamageHooks>(hook => hook.OnLocalDamage(e), "local-damage");
 
-    public void NotifyWorldSound(ClientWorldSoundEvent e) => Dispatch<IOpenGarrisonClientSoundHooks>(hook => hook.OnWorldSound(e));
+    public void NotifyWorldSound(ClientWorldSoundEvent e) => Dispatch<IOpenGarrisonClientSoundHooks>(hook => hook.OnWorldSound(e), "world-sound");
 
-    public void NotifyServerPluginMessage(ClientPluginMessageEnvelope e) => Dispatch<IOpenGarrisonClientPluginMessageHooks>(hook => hook.OnServerPluginMessage(e));
+    public void NotifyServerPluginMessage(ClientPluginMessageEnvelope e) => Dispatch<IOpenGarrisonClientPluginMessageHooks>(hook => hook.OnServerPluginMessage(e), "plugin-message");
 
-    public void NotifyShotFired(ClientShotFiredEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnShotFired(e));
+    public void NotifyShotFired(ClientShotFiredEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnShotFired(e), "shot-fired");
 
-    public void NotifyHitConfirmed(ClientHitConfirmedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHitConfirmed(e));
+    public void NotifyHitConfirmed(ClientHitConfirmedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHitConfirmed(e), "hit-confirmed");
 
-    public void NotifyLocalKill(ClientLocalKillEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalKill(e));
+    public void NotifyLocalKill(ClientLocalKillEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalKill(e), "local-kill");
 
-    public void NotifyLocalDeath(ClientLocalDeathEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalDeath(e));
+    public void NotifyLocalDeath(ClientLocalDeathEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnLocalDeath(e), "local-death");
 
-    public void NotifyPickup(ClientPickupEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnPickup(e));
+    public void NotifyPickup(ClientPickupEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnPickup(e), "pickup");
 
-    public void NotifyHeal(ClientHealEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHeal(e));
+    public void NotifyHeal(ClientHealEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnHeal(e), "heal");
 
-    public void NotifyIgnited(ClientIgniteEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIgnited(e));
+    public void NotifyIgnited(ClientIgniteEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIgnited(e), "ignited");
 
-    public void NotifyExtinguished(ClientExtinguishEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnExtinguished(e));
+    public void NotifyExtinguished(ClientExtinguishEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnExtinguished(e), "extinguished");
 
-    public void NotifyObjectiveStateChanged(ClientObjectiveStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnObjectiveStateChanged(e));
+    public void NotifyObjectiveStateChanged(ClientObjectiveStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnObjectiveStateChanged(e), "objective-state");
 
-    public void NotifyIntelStateChanged(ClientIntelStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIntelStateChanged(e));
+    public void NotifyIntelStateChanged(ClientIntelStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnIntelStateChanged(e), "intel-state");
 
-    public void NotifyGeneratorStateChanged(ClientGeneratorStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnGeneratorStateChanged(e));
+    public void NotifyGeneratorStateChanged(ClientGeneratorStateEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnGeneratorStateChanged(e), "generator-state");
 
-    public void NotifyRoundPhaseChanged(ClientRoundPhaseChangedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnRoundPhaseChanged(e));
+    public void NotifyRoundPhaseChanged(ClientRoundPhaseChangedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnRoundPhaseChanged(e), "round-phase");
 
-    public void NotifyKillFeed(ClientKillFeedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnKillFeed(e));
+    public void NotifyKillFeed(ClientKillFeedEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnKillFeed(e), "kill-feed");
 
     public void NotifyScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
     {
@@ -166,8 +177,8 @@ internal sealed class ClientPluginHost
         for (var index = 0; index < orderedEntries.Length; index += 1)
         {
             var entry = orderedEntries[index];
-            DispatchHook<IOpenGarrisonClientScoreboardHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "runtime");
-            DispatchHook<IOpenGarrisonClientScoreboardLegacyHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "runtime");
+            DispatchHook<IOpenGarrisonClientScoreboardHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "scoreboard");
+            DispatchHook<IOpenGarrisonClientScoreboardLegacyHooks>(entry, hook => hook.OnScoreboardDraw(canvas, state), "scoreboard-legacy");
         }
     }
 
@@ -769,11 +780,11 @@ internal sealed class ClientPluginHost
         }
     }
 
-    private void Dispatch<THook>(Action<THook> callback) where THook : class
+    private void Dispatch<THook>(Action<THook> callback, string hookName) where THook : class
     {
         for (var index = 0; index < _loadedPlugins.Count; index += 1)
         {
-            DispatchHook(_loadedPlugins[index], callback, "runtime");
+            DispatchHook(_loadedPlugins[index], callback, hookName);
         }
     }
 
@@ -784,6 +795,7 @@ internal sealed class ClientPluginHost
             return;
         }
 
+        var stopwatch = ProfileEnabled ? Stopwatch.StartNew() : null;
         try
         {
             callback(hook);
@@ -792,6 +804,40 @@ internal sealed class ClientPluginHost
         {
             _log($"[plugin] {hookStage} hook failed for {entry.DiscoveredPlugin.PluginId}: {ex.Message}");
         }
+        finally
+        {
+            if (stopwatch is not null)
+            {
+                RecordProfile(entry.DiscoveredPlugin.PluginId, hookStage, typeof(THook).Name, stopwatch.Elapsed);
+            }
+        }
+    }
+
+    private void RecordProfile(string pluginId, string hookStage, string hookType, TimeSpan elapsed)
+    {
+        var key = FormattableString.Invariant($"{pluginId}|{hookStage}|{hookType}");
+        ref var aggregate = ref CollectionsMarshal.GetValueRefOrAddDefault(_profileAggregates, key, out _);
+        aggregate ??= new PluginProfileAggregate(pluginId, hookStage, hookType);
+        aggregate.Add(elapsed);
+    }
+
+    private void FlushProfileSummaryIfDue()
+    {
+        if (!ProfileEnabled || DateTimeOffset.UtcNow < _nextProfileLogAt || _profileAggregates.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var aggregate in _profileAggregates.Values
+                     .OrderByDescending(candidate => candidate.TotalMilliseconds)
+                     .Take(12))
+        {
+            _log(FormattableString.Invariant(
+                $"[plugin-profile] plugin={aggregate.PluginId} hook={aggregate.HookStage} type={aggregate.HookType} calls={aggregate.CallCount} totalMs={aggregate.TotalMilliseconds:0.###} avgMs={aggregate.AverageMilliseconds:0.###} maxMs={aggregate.MaxMilliseconds:0.###}"));
+        }
+
+        _profileAggregates.Clear();
+        _nextProfileLogAt = DateTimeOffset.UtcNow + ProfileLogInterval;
     }
 
     private static void DisposePluginResources(LoadedPluginEntry entry)
@@ -858,6 +904,13 @@ internal sealed class ClientPluginHost
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsProfileEnabled()
+    {
+        var value = Environment.GetEnvironmentVariable(ProfileEnvironmentVariable);
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
     private enum ClientPluginLifecyclePhase
     {
         Created,
@@ -884,6 +937,31 @@ internal sealed class ClientPluginHost
         ClientPluginMenuLocation Location,
         Action Activate,
         int Order);
+
+    private sealed class PluginProfileAggregate(string pluginId, string hookStage, string hookType)
+    {
+        public string PluginId { get; } = pluginId;
+
+        public string HookStage { get; } = hookStage;
+
+        public string HookType { get; } = hookType;
+
+        public int CallCount { get; private set; }
+
+        public double TotalMilliseconds { get; private set; }
+
+        public double MaxMilliseconds { get; private set; }
+
+        public double AverageMilliseconds => CallCount <= 0 ? 0d : TotalMilliseconds / CallCount;
+
+        public void Add(TimeSpan elapsed)
+        {
+            var elapsedMilliseconds = elapsed.TotalMilliseconds;
+            CallCount += 1;
+            TotalMilliseconds += elapsedMilliseconds;
+            MaxMilliseconds = Math.Max(MaxMilliseconds, elapsedMilliseconds);
+        }
+    }
 }
 
 internal interface ClientPluginMessageSink

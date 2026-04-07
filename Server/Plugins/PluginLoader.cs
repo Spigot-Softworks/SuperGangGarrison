@@ -38,7 +38,11 @@ internal static class PluginLoader
             }
         }
 
-        var loadedPlugins = LoadFromLoadedAssemblies(loadedAssemblies, contextFactory, log);
+        var preferredLuaPluginIds = EnumerateLuaPluginCandidates(searchDirectories, log)
+            .Select(candidate => candidate.Manifest.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var loadedPlugins = LoadFromLoadedAssemblies(loadedAssemblies, preferredLuaPluginIds, contextFactory, log);
         var loadedPluginIds = new HashSet<string>(loadedPlugins.Select(entry => entry.Plugin.Id), StringComparer.OrdinalIgnoreCase);
         foreach (var luaCandidate in EnumerateLuaPluginCandidates(searchDirectories, log))
         {
@@ -74,11 +78,12 @@ internal static class PluginLoader
                 assembly,
                 Path.GetDirectoryName(assembly.Location) ?? string.Empty,
                 Manifest: null));
-        return LoadFromLoadedAssemblies(loadedAssemblies, contextFactory, log);
+        return LoadFromLoadedAssemblies(loadedAssemblies, new HashSet<string>(StringComparer.OrdinalIgnoreCase), contextFactory, log);
     }
 
     private static List<LoadedPlugin> LoadFromLoadedAssemblies(
         IEnumerable<LoadedAssembly> loadedAssemblies,
+        HashSet<string> preferredLuaPluginIds,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log)
     {
@@ -105,6 +110,12 @@ internal static class PluginLoader
 
                     if (!ValidateManifestAgainstPlugin(manifest, plugin.Id, plugin.DisplayName, plugin.Version, type.FullName, log))
                     {
+                        continue;
+                    }
+
+                    if (preferredLuaPluginIds.Contains(plugin.Id))
+                    {
+                        log($"[plugin] Lua plugin id \"{plugin.Id}\" overrides legacy CLR server plugin \"{loadedAssembly.Assembly.FullName}\".");
                         continue;
                     }
 

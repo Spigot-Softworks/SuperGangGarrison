@@ -24,6 +24,7 @@ internal sealed class LuaClientPlugin(
     IOpenGarrisonClientScoreboardHooks,
     IOpenGarrisonClientSoundHooks,
     IOpenGarrisonClientDamageHooks,
+    IOpenGarrisonClientSemanticGameplayHooks,
     IOpenGarrisonClientCameraHooks,
     IOpenGarrisonClientDeadBodyHooks,
     IOpenGarrisonClientBubbleMenuHooks,
@@ -50,10 +51,14 @@ internal sealed class LuaClientPlugin(
     private readonly Dictionary<string, ClientPluginTextureRegion> _registeredTextureRegions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, OwnedTextureSequence> _ownedTextureSequences = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<DynValue> _pendingLocalDamageEvents = [];
+    private readonly List<DynValue> _pendingHealEvents = [];
+    private object? _cachedClientStateSnapshot;
+    private ulong? _cachedClientStateSnapshotWorldFrame;
     private LuaCallbackPhase _currentCallbackPhase = LuaCallbackPhase.None;
     private bool _callbacksDisabled;
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
+    private const int MaxInitializeResumeCount = 65536;
 
     public string Id => manifest.Id;
 
@@ -104,6 +109,9 @@ internal sealed class LuaClientPlugin(
         _registeredTextureAtlases.Clear();
         _registeredTextureRegions.Clear();
         _pendingLocalDamageEvents.Clear();
+        _pendingHealEvents.Clear();
+        _cachedClientStateSnapshot = null;
+        _cachedClientStateSnapshotWorldFrame = null;
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -123,6 +131,7 @@ internal sealed class LuaClientPlugin(
         ExecuteInPhase(LuaCallbackPhase.Update, () =>
         {
             FlushPendingLocalDamageEvents();
+            FlushPendingHealEvents();
             CallIfPresent("on_client_frame", ToDynValue(e));
         });
     }
@@ -137,6 +146,16 @@ internal sealed class LuaClientPlugin(
         }
 
         _pendingLocalDamageEvents.Add(ToDynValue(e));
+    }
+
+    public void OnHeal(ClientHealEvent e)
+    {
+        if (_script is null || _pluginTable is null)
+        {
+            return;
+        }
+
+        _pendingHealEvents.Add(ToDynValue(e));
     }
 
     public Vector2 GetCameraOffset()
@@ -308,6 +327,21 @@ internal sealed class LuaClientPlugin(
         _pendingLocalDamageEvents.Clear();
     }
 
+    private void FlushPendingHealEvents()
+    {
+        if (_pendingHealEvents.Count == 0)
+        {
+            return;
+        }
+
+        for (var index = 0; index < _pendingHealEvents.Count; index += 1)
+        {
+            CallIfPresent("on_heal", _pendingHealEvents[index]);
+        }
+
+        _pendingHealEvents.Clear();
+    }
+
     private void CallIfPresent(string functionName, bool rethrowOnFailure, params DynValue[] args)
     {
         if (!TryInvokeCallback(functionName, out _, rethrowOnFailure, args))
@@ -365,6 +399,7 @@ internal sealed class LuaClientPlugin(
 
         var stopwatch = Stopwatch.StartNew();
         var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+        var maxResumeCount = GetMaxCallbackResumeCount(_currentCallbackPhase);
         var resumeCount = 0;
         var firstResume = true;
         while (true)
@@ -378,9 +413,9 @@ internal sealed class LuaClientPlugin(
                 return result;
             }
 
-            if (resumeCount >= MaxCallbackResumeCount)
+            if (resumeCount >= maxResumeCount)
             {
-                throw new TimeoutException($"Lua callback exceeded the resume budget of {MaxCallbackResumeCount} slices.");
+                throw new TimeoutException($"Lua callback exceeded the resume budget of {maxResumeCount} slices.");
             }
 
             if (stopwatch.Elapsed > maxDuration)
@@ -431,7 +466,7 @@ internal sealed class LuaClientPlugin(
         });
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
-        host["get_client_state"] = DynValue.NewCallback((_, _) => ToDynValue(CreateClientStateSnapshot(context.ClientState)));
+        host["get_client_state"] = DynValue.NewCallback((_, _) => ToDynValue(GetCachedClientStateSnapshot(context.ClientState)));
         host["try_get_player_world_position"] = DynValue.NewCallback((_, args) =>
         {
             var playerId = ReadIntArgument(args, 0);
@@ -1173,12 +1208,12 @@ internal sealed class LuaClientPlugin(
     {
         return phase switch
         {
-            LuaCallbackPhase.Initialize => TimeSpan.FromMilliseconds(250),
+            LuaCallbackPhase.Initialize => TimeSpan.FromSeconds(5),
             LuaCallbackPhase.Shutdown => TimeSpan.FromMilliseconds(50),
             LuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
             LuaCallbackPhase.Update => TimeSpan.FromMilliseconds(8),
             LuaCallbackPhase.Query => TimeSpan.FromMilliseconds(4),
-            LuaCallbackPhase.GameplayHudDraw => TimeSpan.FromMilliseconds(4),
+            LuaCallbackPhase.GameplayHudDraw => TimeSpan.FromMilliseconds(8),
             LuaCallbackPhase.ScoreboardQuery => TimeSpan.FromMilliseconds(4),
             LuaCallbackPhase.ScoreboardDraw => TimeSpan.FromMilliseconds(4),
             LuaCallbackPhase.DeadBodyDraw => TimeSpan.FromMilliseconds(4),
@@ -1188,6 +1223,15 @@ internal sealed class LuaClientPlugin(
             LuaCallbackPhase.OptionsInteraction => TimeSpan.FromMilliseconds(20),
             LuaCallbackPhase.MenuInteraction => TimeSpan.FromMilliseconds(20),
             _ => TimeSpan.FromMilliseconds(8),
+        };
+    }
+
+    private static int GetMaxCallbackResumeCount(LuaCallbackPhase phase)
+    {
+        return phase switch
+        {
+            LuaCallbackPhase.Initialize => MaxInitializeResumeCount,
+            _ => MaxCallbackResumeCount,
         };
     }
 
@@ -1231,6 +1275,20 @@ internal sealed class LuaClientPlugin(
 
         switch (value)
         {
+            case ClientFrameEvent clientFrameEvent:
+                return DynValue.NewTable(ToClientFrameEventTable(script, clientFrameEvent));
+            case ClientHealEvent clientHealEvent:
+                return DynValue.NewTable(ToClientHealEventTable(script, clientHealEvent));
+            case ClientWorldSoundEvent clientWorldSoundEvent:
+                return DynValue.NewTable(ToClientWorldSoundEventTable(script, clientWorldSoundEvent));
+            case LuaClientStateSnapshot clientStateSnapshot:
+                return DynValue.NewTable(ToClientStateSnapshotTable(script, clientStateSnapshot));
+            case ClientPlayerMarker clientPlayerMarker:
+                return DynValue.NewTable(ToClientPlayerMarkerTable(script, clientPlayerMarker));
+            case ClientSentryMarker clientSentryMarker:
+                return DynValue.NewTable(ToClientSentryMarkerTable(script, clientSentryMarker));
+            case ClientObjectiveMarker clientObjectiveMarker:
+                return DynValue.NewTable(ToClientObjectiveMarkerTable(script, clientObjectiveMarker));
             case LocalDamageEvent localDamageEvent:
                 return DynValue.NewTable(ToLocalDamageEventTable(script, localDamageEvent));
             case Vector2 vector:
@@ -1327,12 +1385,11 @@ internal sealed class LuaClientPlugin(
         return DynValue.NewTable(table);
     }
 
-    private static object CreateClientStateSnapshot(IOpenGarrisonClientReadOnlyState state)
+    private static LuaClientStateSnapshot CreateClientStateSnapshot(IOpenGarrisonClientReadOnlyState state)
     {
         var hasHealth = state.TryGetLocalPlayerHealth(out var health, out var maxHealth);
         var hasLocalPosition = state.TryGetLocalPlayerWorldPosition(out var localPosition);
-        return new
-        {
+        return new LuaClientStateSnapshot(
             state.IsConnected,
             state.IsMainMenuOpen,
             state.IsGameplayActive,
@@ -1349,21 +1406,32 @@ internal sealed class LuaClientPlugin(
             state.LevelHeight,
             state.ViewportWidth,
             state.ViewportHeight,
-            HasLocalPlayerId = state.LocalPlayerId.HasValue,
-            LocalPlayerId = state.LocalPlayerId ?? -1,
-            LocalPlayerTeam = state.LocalPlayerTeam.ToString(),
-            LocalPlayerClass = state.LocalPlayerClass.ToString(),
-            LocalPlayerHealth = hasHealth ? health : -1,
-            LocalPlayerMaxHealth = hasHealth ? maxHealth : -1,
-            HasLocalPlayerPosition = hasLocalPosition,
-            LocalPlayerWorldX = hasLocalPosition ? localPosition.X : 0f,
-            LocalPlayerWorldY = hasLocalPosition ? localPosition.Y : 0f,
-            CameraTopLeftX = state.CameraTopLeft.X,
-            CameraTopLeftY = state.CameraTopLeft.Y,
-            PlayerMarkers = state.GetPlayerMarkers(),
-            SentryMarkers = state.GetSentryMarkers(),
-            ObjectiveMarkers = state.GetObjectiveMarkers(),
-        };
+            state.LocalPlayerId.HasValue,
+            state.LocalPlayerId ?? -1,
+            state.LocalPlayerTeam.ToString(),
+            state.LocalPlayerClass.ToString(),
+            hasHealth ? health : -1,
+            hasHealth ? maxHealth : -1,
+            hasLocalPosition,
+            hasLocalPosition ? localPosition.X : 0f,
+            hasLocalPosition ? localPosition.Y : 0f,
+            state.CameraTopLeft.X,
+            state.CameraTopLeft.Y,
+            state.GetPlayerMarkers().ToArray(),
+            state.GetSentryMarkers().ToArray(),
+            state.GetObjectiveMarkers().ToArray());
+    }
+
+    private object GetCachedClientStateSnapshot(IOpenGarrisonClientReadOnlyState state)
+    {
+        if (_cachedClientStateSnapshot is not null && _cachedClientStateSnapshotWorldFrame == state.WorldFrame)
+        {
+            return _cachedClientStateSnapshot;
+        }
+
+        _cachedClientStateSnapshot = CreateClientStateSnapshot(state);
+        _cachedClientStateSnapshotWorldFrame = state.WorldFrame;
+        return _cachedClientStateSnapshot;
     }
 
     private bool TryResolveTexture(string assetId, out Texture2D texture)
@@ -1685,6 +1753,132 @@ internal sealed class LuaClientPlugin(
             ["b"] = b,
             ["a"] = a,
         };
+    }
+
+    private static void SetNamedValue(Table table, string propertyName, DynValue value)
+    {
+        table[propertyName] = value;
+        var camelCaseName = ToCamelCase(propertyName);
+        if (!string.Equals(camelCaseName, propertyName, StringComparison.Ordinal))
+        {
+            table[camelCaseName] = value;
+        }
+    }
+
+    private static Table ToClientFrameEventTable(Script script, ClientFrameEvent value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientFrameEvent.DeltaSeconds), DynValue.NewNumber(value.DeltaSeconds));
+        SetNamedValue(table, nameof(ClientFrameEvent.ClientTicks), DynValue.NewNumber(value.ClientTicks));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsMainMenuOpen), DynValue.NewBoolean(value.IsMainMenuOpen));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsGameplayActive), DynValue.NewBoolean(value.IsGameplayActive));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsConnected), DynValue.NewBoolean(value.IsConnected));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsSpectator), DynValue.NewBoolean(value.IsSpectator));
+        return table;
+    }
+
+    private static Table ToClientHealEventTable(Script script, ClientHealEvent value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientHealEvent.Amount), DynValue.NewNumber(value.Amount));
+        SetNamedValue(table, nameof(ClientHealEvent.HealthAfter), DynValue.NewNumber(value.HealthAfter));
+        SetNamedValue(table, nameof(ClientHealEvent.MaxHealth), DynValue.NewNumber(value.MaxHealth));
+        SetNamedValue(table, nameof(ClientHealEvent.WorldFrame), DynValue.NewNumber(value.WorldFrame));
+        return table;
+    }
+
+    private static Table ToClientWorldSoundEventTable(Script script, ClientWorldSoundEvent value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientWorldSoundEvent.SoundName), DynValue.NewString(value.SoundName));
+        SetNamedValue(table, nameof(ClientWorldSoundEvent.WorldPosition), DynValue.NewTable(CreateVectorTable(script, value.WorldPosition.X, value.WorldPosition.Y)));
+        return table;
+    }
+
+    private static Table ToClientPlayerMarkerTable(Script script, ClientPlayerMarker value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientPlayerMarker.PlayerId), DynValue.NewNumber(value.PlayerId));
+        SetNamedValue(table, nameof(ClientPlayerMarker.Name), DynValue.NewString(value.Name));
+        SetNamedValue(table, nameof(ClientPlayerMarker.Team), DynValue.NewString(value.Team.ToString()));
+        SetNamedValue(table, nameof(ClientPlayerMarker.ClassId), DynValue.NewString(value.ClassId.ToString()));
+        SetNamedValue(table, nameof(ClientPlayerMarker.WorldPosition), DynValue.NewTable(CreateVectorTable(script, value.WorldPosition.X, value.WorldPosition.Y)));
+        SetNamedValue(table, nameof(ClientPlayerMarker.Health), DynValue.NewNumber(value.Health));
+        SetNamedValue(table, nameof(ClientPlayerMarker.MaxHealth), DynValue.NewNumber(value.MaxHealth));
+        SetNamedValue(table, nameof(ClientPlayerMarker.IsAlive), DynValue.NewBoolean(value.IsAlive));
+        SetNamedValue(table, nameof(ClientPlayerMarker.IsCarryingIntel), DynValue.NewBoolean(value.IsCarryingIntel));
+        SetNamedValue(table, nameof(ClientPlayerMarker.IsLocalPlayer), DynValue.NewBoolean(value.IsLocalPlayer));
+        return table;
+    }
+
+    private static Table ToClientSentryMarkerTable(Script script, ClientSentryMarker value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientSentryMarker.EntityId), DynValue.NewNumber(value.EntityId));
+        SetNamedValue(table, nameof(ClientSentryMarker.OwnerPlayerId), DynValue.NewNumber(value.OwnerPlayerId));
+        SetNamedValue(table, nameof(ClientSentryMarker.Team), DynValue.NewString(value.Team.ToString()));
+        SetNamedValue(table, nameof(ClientSentryMarker.WorldPosition), DynValue.NewTable(CreateVectorTable(script, value.WorldPosition.X, value.WorldPosition.Y)));
+        SetNamedValue(table, nameof(ClientSentryMarker.Health), DynValue.NewNumber(value.Health));
+        SetNamedValue(table, nameof(ClientSentryMarker.MaxHealth), DynValue.NewNumber(value.MaxHealth));
+        return table;
+    }
+
+    private static Table ToClientObjectiveMarkerTable(Script script, ClientObjectiveMarker value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(ClientObjectiveMarker.Kind), DynValue.NewString(value.Kind.ToString()));
+        SetNamedValue(table, nameof(ClientObjectiveMarker.Team), DynValue.NewString(value.Team.ToString()));
+        SetNamedValue(table, nameof(ClientObjectiveMarker.WorldPosition), DynValue.NewTable(CreateVectorTable(script, value.WorldPosition.X, value.WorldPosition.Y)));
+        SetNamedValue(table, nameof(ClientObjectiveMarker.Progress), DynValue.NewNumber(value.Progress));
+        SetNamedValue(table, nameof(ClientObjectiveMarker.IsLocked), DynValue.NewBoolean(value.IsLocked));
+        return table;
+    }
+
+    private static Table ToClientStateSnapshotTable(Script script, LuaClientStateSnapshot value)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsConnected), DynValue.NewBoolean(value.IsConnected));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsMainMenuOpen), DynValue.NewBoolean(value.IsMainMenuOpen));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsGameplayActive), DynValue.NewBoolean(value.IsGameplayActive));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsGameplayInputBlocked), DynValue.NewBoolean(value.IsGameplayInputBlocked));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsSpectator), DynValue.NewBoolean(value.IsSpectator));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsLocalPlayerAlive), DynValue.NewBoolean(value.IsLocalPlayerAlive));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsLocalPlayerScoped), DynValue.NewBoolean(value.IsLocalPlayerScoped));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.IsLocalPlayerHealing), DynValue.NewBoolean(value.IsLocalPlayerHealing));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.WorldFrame), DynValue.NewNumber(value.WorldFrame));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.TickRate), DynValue.NewNumber(value.TickRate));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPingMilliseconds), DynValue.NewNumber(value.LocalPingMilliseconds));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LevelName), DynValue.NewString(value.LevelName));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LevelWidth), DynValue.NewNumber(value.LevelWidth));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LevelHeight), DynValue.NewNumber(value.LevelHeight));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.ViewportWidth), DynValue.NewNumber(value.ViewportWidth));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.ViewportHeight), DynValue.NewNumber(value.ViewportHeight));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.HasLocalPlayerId), DynValue.NewBoolean(value.HasLocalPlayerId));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerId), DynValue.NewNumber(value.LocalPlayerId));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerTeam), DynValue.NewString(value.LocalPlayerTeam));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerClass), DynValue.NewString(value.LocalPlayerClass));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerHealth), DynValue.NewNumber(value.LocalPlayerHealth));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerMaxHealth), DynValue.NewNumber(value.LocalPlayerMaxHealth));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.HasLocalPlayerPosition), DynValue.NewBoolean(value.HasLocalPlayerPosition));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerWorldX), DynValue.NewNumber(value.LocalPlayerWorldX));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.LocalPlayerWorldY), DynValue.NewNumber(value.LocalPlayerWorldY));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.CameraTopLeftX), DynValue.NewNumber(value.CameraTopLeftX));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.CameraTopLeftY), DynValue.NewNumber(value.CameraTopLeftY));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.PlayerMarkers), ToObjectArrayTable(script, value.PlayerMarkers, ToClientPlayerMarkerTable));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.SentryMarkers), ToObjectArrayTable(script, value.SentryMarkers, ToClientSentryMarkerTable));
+        SetNamedValue(table, nameof(LuaClientStateSnapshot.ObjectiveMarkers), ToObjectArrayTable(script, value.ObjectiveMarkers, ToClientObjectiveMarkerTable));
+        return table;
+    }
+
+    private static DynValue ToObjectArrayTable<T>(Script script, IReadOnlyList<T> values, Func<Script, T, Table> factory)
+    {
+        var table = new Table(script);
+        for (var index = 0; index < values.Count; index += 1)
+        {
+            table[index + 1] = DynValue.NewTable(factory(script, values[index]));
+        }
+
+        return DynValue.NewTable(table);
     }
 
     private static Table ToLocalDamageEventTable(Script script, LocalDamageEvent value)
@@ -2013,6 +2207,7 @@ internal sealed class LuaClientPlugin(
 
         _callbacksDisabled = true;
         _pendingLocalDamageEvents.Clear();
+        _pendingHealEvents.Clear();
         _context?.Log($"[lua-plugin] disabled {manifest.Id}: {reason}");
     }
 
@@ -2072,6 +2267,38 @@ internal sealed class LuaClientPlugin(
 
         public override void Activate() => activate(itemTable);
     }
+
+    private sealed record LuaClientStateSnapshot(
+        bool IsConnected,
+        bool IsMainMenuOpen,
+        bool IsGameplayActive,
+        bool IsGameplayInputBlocked,
+        bool IsSpectator,
+        bool IsLocalPlayerAlive,
+        bool IsLocalPlayerScoped,
+        bool IsLocalPlayerHealing,
+        ulong WorldFrame,
+        int TickRate,
+        int LocalPingMilliseconds,
+        string LevelName,
+        float LevelWidth,
+        float LevelHeight,
+        int ViewportWidth,
+        int ViewportHeight,
+        bool HasLocalPlayerId,
+        int LocalPlayerId,
+        string LocalPlayerTeam,
+        string LocalPlayerClass,
+        int LocalPlayerHealth,
+        int LocalPlayerMaxHealth,
+        bool HasLocalPlayerPosition,
+        float LocalPlayerWorldX,
+        float LocalPlayerWorldY,
+        float CameraTopLeftX,
+        float CameraTopLeftY,
+        ClientPlayerMarker[] PlayerMarkers,
+        ClientSentryMarker[] SentryMarkers,
+        ClientObjectiveMarker[] ObjectiveMarkers);
 
     private sealed class OwnedTextureSequence(List<Texture2D> frames) : IDisposable
     {
