@@ -12,6 +12,16 @@ public sealed partial class PlayerEntity
 
     private float ExperimentalPrimaryCooldownMultiplierValue { get; set; } = 1f;
 
+    private float ServerMovementSpeedScaleValue { get; set; } = 1f;
+
+    private float ServerDamageScaleValue { get; set; } = 1f;
+
+    private float ServerGravityScaleValue { get; set; } = 1f;
+
+    private float ServerHorizontalSpeedClampPerTickValue { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
+
+    private float ServerVerticalSpeedClampPerTickValue { get; set; } = LegacyMovementModel.MaxStepSpeedPerTick;
+
     private float ExperimentalPassiveMovementSpeedMultiplierValue { get; set; } = 1f;
 
     private float ExperimentalDemoknightSwordRangeMultiplierValue { get; set; } = 1f;
@@ -111,6 +121,27 @@ public sealed partial class PlayerEntity
     public void SetExperimentalPassiveMovementSpeedMultiplier(float multiplier)
     {
         ExperimentalPassiveMovementSpeedMultiplierValue = MathF.Max(1f, multiplier);
+    }
+
+    public void SetServerMovementSpeedScale(float multiplier)
+    {
+        ServerMovementSpeedScaleValue = MathF.Max(0.1f, multiplier);
+    }
+
+    public void SetServerDamageScale(float multiplier)
+    {
+        ServerDamageScaleValue = MathF.Max(0f, multiplier);
+    }
+
+    public void SetServerGravityScale(float multiplier)
+    {
+        ServerGravityScaleValue = MathF.Max(0f, multiplier);
+    }
+
+    public void SetServerMovementSpeedClamps(float horizontalClampPerTick, float verticalClampPerTick)
+    {
+        ServerHorizontalSpeedClampPerTickValue = MathF.Max(1f, horizontalClampPerTick);
+        ServerVerticalSpeedClampPerTickValue = MathF.Max(1f, verticalClampPerTick);
     }
 
     public void SetExperimentalDemoknightSwordRangeMultiplier(float multiplier)
@@ -305,7 +336,7 @@ public sealed partial class PlayerEntity
 
     private float GetExperimentalMovementSpeedMultiplier()
     {
-        var multiplier = ExperimentalPassiveMovementSpeedMultiplierValue;
+        var multiplier = ServerMovementSpeedScaleValue * ExperimentalPassiveMovementSpeedMultiplierValue;
 
         if (ExperimentalMovementBoostTicksRemaining > 0)
         {
@@ -313,6 +344,26 @@ public sealed partial class PlayerEntity
         }
 
         return multiplier;
+    }
+
+    private float GetServerHorizontalSpeedClampPerTick()
+    {
+        return ServerHorizontalSpeedClampPerTickValue;
+    }
+
+    private float GetServerDamageScale()
+    {
+        return ServerDamageScaleValue;
+    }
+
+    private float GetServerScaledAirborneGravityPerTick(LegacyMovementState movementState)
+    {
+        return LegacyMovementModel.GetAirborneGravityPerTick(movementState) * ServerGravityScaleValue;
+    }
+
+    private float GetServerVerticalSpeedClampPerTick()
+    {
+        return ServerVerticalSpeedClampPerTickValue;
     }
 
     private void StartExperimentalDemoknightChargeMovementState()

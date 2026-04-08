@@ -71,18 +71,19 @@ internal sealed class ServerAdminChatRouter(
         var team = teamOnly
             ? TryResolveTeam(client)
             : null;
+        var pluginHost = pluginHostGetter();
         var chatEvent = new OpenGarrison.Server.Plugins.ChatReceivedEvent(
             client.Slot,
             client.Name,
             commandText,
             team,
             teamOnly);
-        if (pluginHostGetter()?.TryHandleChatMessage(chatEvent) == true)
+        if (pluginHost?.TryHandleChatMessage(chatEvent) == true)
         {
             return true;
         }
 
-        sendPrivateMessage(client.Slot, "No server plugin handled that admin command.");
+        sendPrivateMessage(client.Slot, BuildUnhandledCommandMessage(commandText, pluginHost));
         return true;
     }
 
@@ -91,5 +92,25 @@ internal sealed class ServerAdminChatRouter(
         return ServerHelpers.IsSpectatorSlot(client.Slot)
             ? null
             : null;
+    }
+
+    private static string BuildUnhandledCommandMessage(string commandText, PluginHost? pluginHost)
+    {
+        if (pluginHost is null)
+        {
+            return "[GT] admin command unavailable: plugin host offline.";
+        }
+
+        var loadedPluginIds = pluginHost.LoadedPluginIds;
+        var garrisonToolsLoaded = loadedPluginIds.Any(id =>
+            string.Equals(id, "open-garrison.server.lua-garrison-tools", StringComparison.OrdinalIgnoreCase));
+        if (!garrisonToolsLoaded)
+        {
+            return loadedPluginIds.Count == 0
+                ? "[GT] admin command unavailable: no server plugins loaded."
+                : "[GT] admin command unavailable: GarrisonTools is not loaded.";
+        }
+
+        return $"[GT] command not handled: {commandText}. Check server console for lua-plugin errors.";
     }
 }

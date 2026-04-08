@@ -16,12 +16,35 @@ public sealed partial class SimulationWorld
 
         if (respawnSeconds.HasValue)
         {
-            var clampedSeconds = Math.Clamp(respawnSeconds.Value, 0, 255);
-            _configuredRespawnTicks = Math.Max(1, clampedSeconds * Config.TicksPerSecond);
+            SetRespawnSeconds(respawnSeconds.Value);
         }
 
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
+    }
+
+    public void SetTimeLimitMinutes(int timeLimitMinutes)
+    {
+        _configuredTimeLimitMinutes = Math.Clamp(timeLimitMinutes, 1, 255);
+        var previousTimeLimitTicks = MatchRules.TimeLimitTicks;
+        var nextTimeLimitTicks = _configuredTimeLimitMinutes * Config.TicksPerSecond * 60;
+        var elapsedTicks = Math.Max(0, previousTimeLimitTicks - MatchState.TimeRemainingTicks);
+        var nextRemainingTicks = Math.Max(0, nextTimeLimitTicks - elapsedTicks);
+        var nextPhase = !MatchState.IsEnded && nextRemainingTicks > 0
+            ? MatchPhase.Running
+            : MatchState.Phase;
+
+        MatchRules = MatchRules with
+        {
+            TimeLimitMinutes = _configuredTimeLimitMinutes,
+            TimeLimitTicks = nextTimeLimitTicks,
+        };
+        MatchState = MatchState with
+        {
+            Phase = nextPhase,
+            TimeRemainingTicks = nextRemainingTicks,
+            WinnerTeam = nextPhase == MatchPhase.Running ? null : MatchState.WinnerTeam,
+        };
     }
 
     public void SetCapLimit(int capLimit)
@@ -31,6 +54,12 @@ public sealed partial class SimulationWorld
         {
             CapLimit = _configuredCapLimit,
         };
+    }
+
+    public void SetRespawnSeconds(int respawnSeconds)
+    {
+        _configuredRespawnSeconds = Math.Clamp(respawnSeconds, 0, 255);
+        _configuredRespawnTicks = Math.Max(1, _configuredRespawnSeconds * Config.TicksPerSecond);
     }
 
     public bool TryLoadLevel(string levelName)

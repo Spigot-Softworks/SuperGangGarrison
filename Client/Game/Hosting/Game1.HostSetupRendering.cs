@@ -138,6 +138,10 @@ public partial class Game1
         var maskedPassword = string.IsNullOrEmpty(_hostPasswordBuffer) ? string.Empty : new string('*', _hostPasswordBuffer.Length);
         DrawMenuInputBoxScaled(layout.PasswordBounds, maskedPassword, _hostSetupEditField == HostSetupEditField.Password, inputScale);
 
+        DrawBitmapFontText("RCON Password", new Vector2(layout.RconPasswordBounds.X, layout.RconPasswordBounds.Y - 16f), labelColor, fieldLabelScale);
+        var maskedRconPassword = string.IsNullOrEmpty(_hostRconPasswordBuffer) ? string.Empty : new string('*', _hostRconPasswordBuffer.Length);
+        DrawMenuInputBoxScaled(layout.RconPasswordBounds, maskedRconPassword, _hostSetupEditField == HostSetupEditField.RconPassword, inputScale);
+
         DrawBitmapFontText(compactLayout ? "Rotation File" : "Custom Rotation File", new Vector2(layout.RotationFileBounds.X, layout.RotationFileBounds.Y - 16f), labelColor, fieldLabelScale);
         DrawMenuInputBoxScaled(layout.RotationFileBounds, _hostMapRotationFileBuffer, _hostSetupEditField == HostSetupEditField.MapRotationFile, inputScale);
 

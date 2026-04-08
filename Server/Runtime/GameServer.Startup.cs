@@ -260,7 +260,7 @@ partial class GameServer
             _lobbyPort,
             _passwordRequired,
             () => _autoBalanceEnabled,
-            _respawnSecondsOverride,
+            () => _world.ConfiguredRespawnSeconds,
             _cvarRegistry,
             _scheduler,
             slot => _clientsBySlot.TryGetValue(slot, out var client)
@@ -305,6 +305,14 @@ partial class GameServer
             },
             isProtected: true);
         registry.RegisterInteger(
+            "sv_timelimit",
+            "Current match time limit in minutes.",
+            _timeLimitMinutesOverride ?? _world.MatchRules.TimeLimitMinutes,
+            () => _world.MatchRules.TimeLimitMinutes,
+            value => _world.SetTimeLimitMinutes(value),
+            minValue: 1,
+            maxValue: 255);
+        registry.RegisterInteger(
             "sv_caplimit",
             "Current capture limit.",
             _capLimitOverride ?? _world.MatchRules.CapLimit,
@@ -312,6 +320,68 @@ partial class GameServer
             value => _world.SetCapLimit(value),
             minValue: 1,
             maxValue: 255);
+        registry.RegisterInteger(
+            "sv_respawnseconds",
+            "Current respawn time in seconds.",
+            _respawnSecondsOverride ?? _world.ConfiguredRespawnSeconds,
+            () => _world.ConfiguredRespawnSeconds,
+            value => _world.SetRespawnSeconds(value),
+            minValue: 0,
+            maxValue: 255);
+        registry.RegisterFloat(
+            "sv_movement_speed_scale",
+            "Global player movement speed multiplier.",
+            _world.ConfiguredMovementSpeedScale,
+            () => _world.ConfiguredMovementSpeedScale,
+            value => _world.SetMovementSpeedScale(value),
+            minValue: 0.1f,
+            maxValue: 4f);
+        registry.RegisterFloat(
+            "sv_projectile_speed_scale",
+            "Global projectile launch speed multiplier.",
+            _world.ConfiguredProjectileSpeedScale,
+            () => _world.ConfiguredProjectileSpeedScale,
+            value => _world.SetProjectileSpeedScale(value),
+            minValue: 0.1f,
+            maxValue: 4f);
+        registry.RegisterFloat(
+            "sv_damage_scale",
+            "Global damage multiplier for player and structure damage.",
+            _world.ConfiguredDamageScale,
+            () => _world.ConfiguredDamageScale,
+            value => _world.SetDamageScale(value),
+            minValue: 0f,
+            maxValue: 10f);
+        registry.RegisterFloat(
+            "sv_gravity_scale",
+            "Global gravity multiplier for player and ballistic projectile gravity.",
+            _world.ConfiguredGravityScale,
+            () => _world.ConfiguredGravityScale,
+            value => _world.SetGravityScale(value),
+            minValue: 0f,
+            maxValue: 4f);
+        registry.RegisterFloat(
+            "sv_horizontal_speed_clamp",
+            "Base horizontal movement speed clamp in source units per tick.",
+            _world.ConfiguredHorizontalSpeedClampPerTick,
+            () => _world.ConfiguredHorizontalSpeedClampPerTick,
+            value => _world.SetHorizontalSpeedClampPerTick(value),
+            minValue: 1f,
+            maxValue: 60f);
+        registry.RegisterFloat(
+            "sv_vertical_speed_clamp",
+            "Base vertical movement speed clamp in source units per tick.",
+            _world.ConfiguredVerticalSpeedClampPerTick,
+            () => _world.ConfiguredVerticalSpeedClampPerTick,
+            value => _world.SetVerticalSpeedClampPerTick(value),
+            minValue: 1f,
+            maxValue: 60f);
+        registry.RegisterBoolean(
+            "sv_roundendff",
+            "Enable same-team player damage during ended-round humiliation.",
+            _world.RoundEndFriendlyFireEnabled,
+            () => _world.RoundEndFriendlyFireEnabled,
+            value => _world.SetRoundEndFriendlyFire(value));
         registry.RegisterBoolean(
             "sv_autobalance",
             "Enable or disable server auto-balance.",

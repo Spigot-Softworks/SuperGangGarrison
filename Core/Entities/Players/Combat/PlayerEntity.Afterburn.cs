@@ -130,8 +130,9 @@ public sealed partial class PlayerEntity
             return default;
         }
 
+        var damagePerTick = (BurnIntensity / LegacyMovementModel.SourceTicksPerSecond) * sourceDelta * GetServerDamageScale();
         if (BurnDurationSourceTicks > 0f
-            && ApplyContinuousDamage((BurnIntensity / LegacyMovementModel.SourceTicksPerSecond) * sourceDelta))
+            && ApplyContinuousDamage(damagePerTick))
         {
             return new AfterburnTickResult(true, BurnedByPlayerId);
         }

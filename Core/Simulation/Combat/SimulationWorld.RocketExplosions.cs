@@ -132,14 +132,14 @@ public sealed partial class SimulationWorld
 
                 ApplySpeedAdjustments(player, rocket, receivedBlastLiftBonus);
 
-                if (player.Team == rocket.Team && player.Id != rocket.OwnerId)
+                if (!world.CanTeamDamagePlayer(rocket.Team, rocket.OwnerId, player))
                 {
                     continue;
                 }
 
                 var appliedDamage = rocket.ExplosionDamageValue * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
-                hitEnemyPlayer = true;
+                hitEnemyPlayer |= player.Team != rocket.Team;
                 if (world.ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
                 {
                     world.KillPlayer(

@@ -481,7 +481,11 @@ public sealed class PluginContractValidationTests
 
         public bool TryForceKill(byte slot) => true;
 
+        public bool TrySetTimeLimit(int timeLimitMinutes) => true;
+
         public bool TrySetCapLimit(int capLimit) => true;
+
+        public bool TrySetRespawnSeconds(int respawnSeconds) => true;
 
         public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
 

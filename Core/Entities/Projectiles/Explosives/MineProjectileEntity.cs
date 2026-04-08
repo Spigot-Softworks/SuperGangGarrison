@@ -58,7 +58,7 @@ public sealed class MineProjectileEntity : SimulationEntity
 
     public float ExplosionDamage { get; private set; } = BaseExplosionDamage;
 
-    public void AdvanceOneTick()
+    public void AdvanceOneTick(float gravityScale = 1f)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -67,7 +67,7 @@ public sealed class MineProjectileEntity : SimulationEntity
             return;
         }
 
-        VelocityY = float.Min(MaxFallSpeed, VelocityY + GravityPerTick);
+        VelocityY = float.Min(MaxFallSpeed, VelocityY + GravityPerTick * gravityScale);
         X += VelocityX;
         Y += VelocityY;
     }

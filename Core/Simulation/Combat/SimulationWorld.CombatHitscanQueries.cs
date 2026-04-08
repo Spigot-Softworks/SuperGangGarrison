@@ -109,7 +109,7 @@ public sealed partial class SimulationWorld
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
             foreach (var player in EnumerateSimulatedPlayers())
             {
-                if (!player.IsAlive || player.Team == projectileTeam || player.Id == ownerId) { continue; }
+                if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
                 player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,

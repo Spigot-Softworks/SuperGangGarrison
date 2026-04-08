@@ -58,6 +58,23 @@ internal sealed class ServerBuiltInCommandRegistrar(
             (_, _, _) => Task.FromResult<IReadOnlyList<string>>(BuildSummaryLines(addRulesSummary)),
             OpenGarrisonServerAdminPermissions.ViewServerState);
         commandRegistry.RegisterBuiltIn(
+            "timelimit",
+            "Set the match time limit in minutes.",
+            "timelimit <1-255>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseBoundedInt(arguments, min: 1, max: 255, out var timeLimitMinutes))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: timelimit <1-255>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetTimeLimit(timeLimitMinutes)
+                    ? [$"[server] time limit set to {timeLimitMinutes} minutes."]
+                    : ["[server] unable to set time limit."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManageMatch,
+            "time");
+        commandRegistry.RegisterBuiltIn(
             "caplimit",
             "Set the capture limit.",
             "caplimit <1-255>",
@@ -74,6 +91,23 @@ internal sealed class ServerBuiltInCommandRegistrar(
             },
             OpenGarrisonServerAdminPermissions.ManageMatch,
             "cap");
+        commandRegistry.RegisterBuiltIn(
+            "respawnseconds",
+            "Set the respawn time in seconds.",
+            "respawnseconds <0-255>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseBoundedInt(arguments, min: 0, max: 255, out var respawnSeconds))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: respawnseconds <0-255>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TrySetRespawnSeconds(respawnSeconds)
+                    ? [$"[server] respawn set to {respawnSeconds} seconds."]
+                    : ["[server] unable to set respawn time."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManageMatch,
+            "respawn");
         commandRegistry.RegisterBuiltIn(
             "lobby",
             "Show lobby registration state.",

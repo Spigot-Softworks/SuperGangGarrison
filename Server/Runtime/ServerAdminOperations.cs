@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
@@ -24,10 +25,13 @@ internal sealed class ServerAdminOperations(
             return;
         }
 
-        var relay = new ChatRelayMessage(0, "[server]", text.Trim());
+        var messageSegments = SplitSystemMessageSegments(text);
         foreach (var client in clientsGetter().Values)
         {
-            sendMessage(client.EndPoint, relay);
+            for (var index = 0; index < messageSegments.Count; index += 1)
+            {
+                TrySend(client.EndPoint, new ChatRelayMessage(0, "[server]", messageSegments[index]));
+            }
         }
 
         log($"[server] system message: {text.Trim()}");
@@ -40,7 +44,12 @@ internal sealed class ServerAdminOperations(
             return;
         }
 
-        sendMessage(client.EndPoint, new ChatRelayMessage(0, "[server]", text.Trim()));
+        var messageSegments = SplitSystemMessageSegments(text);
+        for (var index = 0; index < messageSegments.Count; index += 1)
+        {
+            TrySend(client.EndPoint, new ChatRelayMessage(0, "[server]", messageSegments[index]));
+        }
+
         log($"[server] system message to slot {slot}: {text.Trim()}");
     }
 
@@ -51,8 +60,9 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
-        sendMessage(client.EndPoint, new ConnectionDeniedMessage(reason));
-        sessionManagerGetter().RemoveClient(slot, reason);
+        var finalReason = ProtocolCodec.TruncateUtf8(string.IsNullOrWhiteSpace(reason) ? "Disconnected." : reason.Trim(), ProtocolCodec.MaxReasonBytes);
+        TrySend(client.EndPoint, new ConnectionDeniedMessage(finalReason));
+        sessionManagerGetter().RemoveClient(slot, finalReason);
         return true;
     }
 
@@ -126,6 +136,19 @@ internal sealed class ServerAdminOperations(
         return worldGetter().ForceKillNetworkPlayer(slot);
     }
 
+    public bool TrySetTimeLimit(int timeLimitMinutes)
+    {
+        if (timeLimitMinutes is < 1 or > 255)
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        world.SetTimeLimitMinutes(timeLimitMinutes);
+        log($"[server] time limit set to {world.MatchRules.TimeLimitMinutes} minutes");
+        return true;
+    }
+
     public bool TrySetCapLimit(int capLimit)
     {
         if (capLimit is < 1 or > 255)
@@ -136,6 +159,19 @@ internal sealed class ServerAdminOperations(
         var world = worldGetter();
         world.SetCapLimit(capLimit);
         log($"[server] cap limit set to {world.MatchRules.CapLimit}");
+        return true;
+    }
+
+    public bool TrySetRespawnSeconds(int respawnSeconds)
+    {
+        if (respawnSeconds is < 0 or > 255)
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        world.SetRespawnSeconds(respawnSeconds);
+        log($"[server] respawn set to {world.ConfiguredRespawnSeconds} seconds");
         return true;
     }
 
@@ -176,5 +212,55 @@ internal sealed class ServerAdminOperations(
     private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)
     {
         return GameplayLoadoutSelectionResolver.TryResolveLoadoutId(playerClass, selection, out loadoutId);
+    }
+
+    private void TrySend(IPEndPoint endPoint, IProtocolMessage message)
+    {
+        try
+        {
+            sendMessage(endPoint, message);
+        }
+        catch (Exception ex)
+        {
+            log($"[server] failed to send admin message: {ex.Message}");
+        }
+    }
+
+    private static IReadOnlyList<string> SplitSystemMessageSegments(string text)
+    {
+        var normalized = text.Trim();
+        if (normalized.Length == 0)
+        {
+            return [];
+        }
+
+        var segments = new List<string>();
+        var remaining = normalized;
+        while (remaining.Length > 0)
+        {
+            var next = ProtocolCodec.TruncateUtf8(remaining, ProtocolCodec.MaxChatBytes);
+            if (next.Length == 0)
+            {
+                break;
+            }
+
+            if (next.Length < remaining.Length)
+            {
+                var preferredSplit = next.LastIndexOf(' ');
+                if (preferredSplit > 0)
+                {
+                    var candidate = next[..preferredSplit].TrimEnd();
+                    if (candidate.Length > 0)
+                    {
+                        next = candidate;
+                    }
+                }
+            }
+
+            segments.Add(next);
+            remaining = remaining[next.Length..].TrimStart();
+        }
+
+        return segments.Count == 0 ? [ProtocolCodec.TruncateUtf8(normalized, ProtocolCodec.MaxChatBytes)] : segments;
     }
 }

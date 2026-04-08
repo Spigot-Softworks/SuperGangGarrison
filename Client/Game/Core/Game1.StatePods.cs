@@ -221,6 +221,12 @@ public partial class Game1
         set => _uiShellState.ChatInput = value;
     }
 
+    private int _chatScrollOffset
+    {
+        get => _uiShellState.ChatScrollOffset;
+        set => _uiShellState.ChatScrollOffset = value;
+    }
+
     private BubbleMenuKind _bubbleMenuKind
     {
         get => _uiShellState.BubbleMenuKind;
@@ -642,6 +648,7 @@ public partial class Game1
         public bool ChatTeamOnly;
         public bool ChatSubmitAwaitingOpenKeyRelease;
         public string ChatInput = string.Empty;
+        public int ChatScrollOffset;
         public BubbleMenuKind BubbleMenuKind;
         public float BubbleMenuAlpha = 0.01f;
         public float BubbleMenuX = -30f;

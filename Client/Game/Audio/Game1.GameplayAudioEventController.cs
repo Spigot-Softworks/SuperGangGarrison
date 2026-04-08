@@ -87,14 +87,8 @@ public partial class Game1
                 _ => "FailureSnd",
             };
 
-            if (_game._ingameMusicInstance?.State == SoundState.Playing)
-            {
-                _game._ingameMusicInstance.Stop();
-            }
-            if (_game._lastToDieIngameMusicInstance?.State == SoundState.Playing)
-            {
-                _game._lastToDieIngameMusicInstance.Stop();
-            }
+            _game.StopIngameMusic();
+            _game.StopLastToDieIngameMusic();
 
             var sound = _game._runtimeAssets.GetSound(soundName);
             _game.TryPlaySound(sound, 0.8f, 0f, 0f);

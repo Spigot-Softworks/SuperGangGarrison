@@ -15,6 +15,7 @@ public partial class Game1
         int Port,
         int MaxPlayers,
         string Password,
+        string RconPassword,
         int TimeLimitMinutes,
         int CapLimit,
         int RespawnSeconds,
@@ -34,6 +35,7 @@ public partial class Game1
         public string PortBuffer { get; set; } = "8190";
         public string SlotsBuffer { get; set; } = "10";
         public string PasswordBuffer { get; set; } = string.Empty;
+        public string RconPasswordBuffer { get; set; } = string.Empty;
         public string MapRotationFileBuffer { get; set; } = string.Empty;
         public string TimeLimitBuffer { get; set; } = "15";
         public string CapLimitBuffer { get; set; } = "5";
@@ -52,6 +54,7 @@ public partial class Game1
             SlotsBuffer = Math.Clamp(hostDefaults.Slots, 1, SimulationWorld.MaxPlayableNetworkPlayers)
                 .ToString(CultureInfo.InvariantCulture);
             PasswordBuffer = hostDefaults.Password ?? string.Empty;
+            RconPasswordBuffer = hostDefaults.RconPassword ?? string.Empty;
             MapRotationFileBuffer = hostDefaults.MapRotationFile ?? string.Empty;
             TimeLimitBuffer = Math.Clamp(hostDefaults.TimeLimitMinutes, 1, 255).ToString(CultureInfo.InvariantCulture);
             CapLimitBuffer = Math.Clamp(hostDefaults.CapLimit, 1, 255).ToString(CultureInfo.InvariantCulture);
@@ -133,6 +136,7 @@ public partial class Game1
             settings.HostDefaults.Port = ParsePortOrDefault(PortBuffer, 8190);
             settings.HostDefaults.Slots = ParseClampedInt(SlotsBuffer, 10, 1, SimulationWorld.MaxPlayableNetworkPlayers);
             settings.HostDefaults.Password = PasswordBuffer.Trim();
+            settings.HostDefaults.RconPassword = RconPasswordBuffer.Trim();
             settings.HostDefaults.MapRotationFile = MapRotationFileBuffer.Trim();
             settings.HostDefaults.TimeLimitMinutes = ParseClampedInt(TimeLimitBuffer, 15, 1, 255);
             settings.HostDefaults.CapLimit = ParseClampedInt(CapLimitBuffer, 5, 1, 255);
@@ -229,6 +233,7 @@ public partial class Game1
                 port,
                 maxPlayers,
                 PasswordBuffer.Trim(),
+                RconPasswordBuffer.Trim(),
                 timeLimitMinutes,
                 capLimit,
                 respawnSeconds,
@@ -265,6 +270,12 @@ public partial class Game1
                     if (PasswordBuffer.Length > 0)
                     {
                         PasswordBuffer = PasswordBuffer[..^1];
+                    }
+                    break;
+                case HostSetupEditField.RconPassword:
+                    if (RconPasswordBuffer.Length > 0)
+                    {
+                        RconPasswordBuffer = RconPasswordBuffer[..^1];
                     }
                     break;
                 case HostSetupEditField.MapRotationFile:
@@ -326,6 +337,16 @@ public partial class Game1
                 return;
             }
 
+            if (EditField == HostSetupEditField.RconPassword)
+            {
+                if (RconPasswordBuffer.Length < 64)
+                {
+                    RconPasswordBuffer += character;
+                }
+
+                return;
+            }
+
             if (EditField == HostSetupEditField.MapRotationFile)
             {
                 if (MapRotationFileBuffer.Length < 180)
@@ -368,7 +389,8 @@ public partial class Game1
                 HostSetupEditField.ServerName => HostSetupEditField.Port,
                 HostSetupEditField.Port => HostSetupEditField.Slots,
                 HostSetupEditField.Slots => HostSetupEditField.Password,
-                HostSetupEditField.Password => HostSetupEditField.MapRotationFile,
+                HostSetupEditField.Password => HostSetupEditField.RconPassword,
+                HostSetupEditField.RconPassword => HostSetupEditField.MapRotationFile,
                 HostSetupEditField.MapRotationFile => HostSetupEditField.TimeLimit,
                 HostSetupEditField.TimeLimit => HostSetupEditField.CapLimit,
                 HostSetupEditField.CapLimit => HostSetupEditField.RespawnSeconds,

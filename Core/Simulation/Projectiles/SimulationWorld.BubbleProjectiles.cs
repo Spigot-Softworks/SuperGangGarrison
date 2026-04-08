@@ -238,7 +238,7 @@ public sealed partial class SimulationWorld
         {
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
-                if (!player.IsAlive || player.Team == bubble.Team || player.Id == bubble.OwnerId || !CircleIntersectsPlayer(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, player))
+                if (!world.CanTeamDamagePlayer(bubble.Team, bubble.OwnerId, player) || player.Id == bubble.OwnerId || !CircleIntersectsPlayer(bubble.X, bubble.Y, BubbleProjectileEntity.Radius, player))
                 {
                     continue;
                 }

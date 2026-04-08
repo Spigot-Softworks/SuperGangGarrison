@@ -67,6 +67,12 @@ public partial class Game1
         set => _hostSetupState.PasswordBuffer = value;
     }
 
+    private string _hostRconPasswordBuffer
+    {
+        get => _hostSetupState.RconPasswordBuffer;
+        set => _hostSetupState.RconPasswordBuffer = value;
+    }
+
     private string _hostMapRotationFileBuffer
     {
         get => _hostSetupState.MapRotationFileBuffer;

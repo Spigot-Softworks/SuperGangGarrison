@@ -122,6 +122,7 @@ public partial class Game1
             int port,
             int maxPlayers,
             string password,
+            string rconPassword,
             int timeLimitMinutes,
             int capLimit,
             int respawnSeconds,
@@ -148,6 +149,7 @@ public partial class Game1
                     port,
                     maxPlayers,
                     password,
+                    rconPassword,
                     timeLimitMinutes,
                     capLimit,
                     respawnSeconds,
@@ -174,6 +176,7 @@ public partial class Game1
             int port,
             int maxPlayers,
             string password,
+            string rconPassword,
             int timeLimitMinutes,
             int capLimit,
             int respawnSeconds,
@@ -199,6 +202,7 @@ public partial class Game1
                     port,
                     maxPlayers,
                     password,
+                    rconPassword,
                     timeLimitMinutes,
                     capLimit,
                     respawnSeconds,
@@ -447,6 +451,12 @@ public partial class Game1
             if (layout.PasswordBounds.Contains(mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.Password);
+                return;
+            }
+
+            if (layout.RconPasswordBounds.Contains(mouse.Position))
+            {
+                FocusHostSetupField(HostSetupEditField.RconPassword);
                 return;
             }
 

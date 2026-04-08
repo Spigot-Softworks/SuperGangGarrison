@@ -1,12 +1,16 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using System;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int MaxChatHistoryLines = 128;
+    private const int ClosedChatVisibleLineLimit = 6;
+    private const int ChatScrollStep = 3;
     private const float ChatHudPanelMargin = 12f;
     private const float ChatHudPanelHorizontalPadding = 6f;
     private const float ChatHudPanelVerticalPadding = 4f;
@@ -17,6 +21,7 @@ public partial class Game1
         _chatOpen = true;
         _chatTeamOnly = teamOnly;
         _chatInput = string.Empty;
+        _chatScrollOffset = 0;
     }
 
     private void ResetChatInputState(bool requireOpenKeyRelease = false)
@@ -25,6 +30,7 @@ public partial class Game1
         _chatTeamOnly = false;
         _chatSubmitAwaitingOpenKeyRelease = requireOpenKeyRelease;
         _chatInput = string.Empty;
+        _chatScrollOffset = 0;
     }
 
     private void SubmitChatMessage()
@@ -52,25 +58,80 @@ public partial class Game1
         var line = string.IsNullOrWhiteSpace(playerName)
             ? $"{channelPrefix}{text}"
             : $"{channelPrefix}{playerName}: {text}";
-        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly));
-        while (_chatLines.Count > 6)
+        if (_chatOpen && _chatScrollOffset > 0)
         {
-            _chatLines.RemoveAt(0);
+            _chatScrollOffset += 1;
         }
 
+        _chatLines.Add(new ChatLine(playerName, text, team, teamOnly));
+        while (_chatLines.Count > MaxChatHistoryLines)
+        {
+            _chatLines.RemoveAt(0);
+            if (_chatScrollOffset > 0)
+            {
+                _chatScrollOffset -= 1;
+            }
+        }
+
+        ClampChatScrollOffset();
         AddConsoleLine(teamOnly ? $"[team chat] {line}" : $"[chat] {line}");
     }
 
     private void AdvanceChatHud()
     {
-        for (var index = _chatLines.Count - 1; index >= 0; index -= 1)
+        for (var index = 0; index < _chatLines.Count; index += 1)
         {
             _chatLines[index].TicksRemaining -= 1;
-            if (_chatLines[index].TicksRemaining <= 0)
+            if (_chatLines[index].TicksRemaining < 0)
             {
-                _chatLines.RemoveAt(index);
+                _chatLines[index].TicksRemaining = 0;
             }
         }
+    }
+
+    private void UpdateChatScrollState(KeyboardState keyboard, MouseState mouse)
+    {
+        var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+        if (wheelDelta != 0)
+        {
+            var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
+            ScrollChatHistory(wheelDelta > 0 ? stepCount : -stepCount);
+        }
+
+        if (IsKeyPressed(keyboard, Keys.PageUp))
+        {
+            ScrollChatHistory(ChatScrollStep);
+        }
+        else if (IsKeyPressed(keyboard, Keys.PageDown))
+        {
+            ScrollChatHistory(-ChatScrollStep);
+        }
+        else if (IsKeyPressed(keyboard, Keys.Home))
+        {
+            _chatScrollOffset = Math.Max(0, _chatLines.Count - 1);
+        }
+        else if (IsKeyPressed(keyboard, Keys.End))
+        {
+            _chatScrollOffset = 0;
+        }
+
+        ClampChatScrollOffset();
+    }
+
+    private void ScrollChatHistory(int delta)
+    {
+        if (delta == 0)
+        {
+            return;
+        }
+
+        _chatScrollOffset = Math.Max(0, _chatScrollOffset + delta);
+        ClampChatScrollOffset();
+    }
+
+    private void ClampChatScrollOffset()
+    {
+        _chatScrollOffset = Math.Clamp(_chatScrollOffset, 0, Math.Max(0, _chatLines.Count - 1));
     }
 
     private void DrawChatHud()
@@ -83,20 +144,22 @@ public partial class Game1
             ViewportHeight - 118,
             Math.Max(280, ViewportWidth / 3),
             24);
+        var maxChatHeight = Math.Max(72f, promptRectangle.Y - 24f);
+        var visibleLines = GetVisibleChatLines(maxPanelWidth, maxChatHeight, _chatOpen);
         var totalChatHeight = 0f;
-        for (var index = 0; index < _chatLines.Count; index += 1)
+        for (var index = 0; index < visibleLines.Count; index += 1)
         {
-            totalChatHeight += MeasureChatLineHeight(_chatLines[index], maxPanelWidth);
-            if (index < _chatLines.Count - 1)
+            totalChatHeight += MeasureChatLineHeight(visibleLines[index], maxPanelWidth);
+            if (index < visibleLines.Count - 1)
             {
                 totalChatHeight += ChatHudPanelSpacing;
             }
         }
 
         var baseY = promptRectangle.Y - 14f - totalChatHeight;
-        for (var index = 0; index < _chatLines.Count; index += 1)
+        for (var index = 0; index < visibleLines.Count; index += 1)
         {
-            var line = _chatLines[index];
+            var line = visibleLines[index];
             var alpha = _chatOpen ? 1f : MathF.Min(1f, line.TicksRemaining / 120f);
             var linePosition = new Vector2(baseX, baseY);
             DrawChatLine(line, linePosition, alpha, maxPanelWidth);
@@ -110,6 +173,7 @@ public partial class Game1
 
         DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
         DrawChatPrompt(promptRectangle, promptPrefix);
+        DrawChatScrollStatus(promptRectangle);
     }
 
     private void DrawChatLine(ChatLine line, Vector2 position, float alpha, float maxPanelWidth)
@@ -166,6 +230,23 @@ public partial class Game1
             1f);
     }
 
+    private void DrawChatScrollStatus(Rectangle promptRectangle)
+    {
+        if (_chatLines.Count <= ClosedChatVisibleLineLimit)
+        {
+            return;
+        }
+
+        var statusText = _chatScrollOffset > 0
+            ? $"Scroll: {_chatScrollOffset} older | PgUp/PgDn, Home/End, Wheel"
+            : $"History: {_chatLines.Count} lines | PgUp/PgDn, Home/End, Wheel";
+        var textWidth = MeasureBitmapFontWidth(statusText, 1f);
+        var textPosition = new Vector2(
+            Math.Max(18f, promptRectangle.Right - textWidth - 10f),
+            promptRectangle.Y - GetChatHudLineHeight() - 8f);
+        DrawBitmapFontText(statusText, textPosition, new Color(235, 235, 235), 1f);
+    }
+
     private float MeasureChatLineHeight(ChatLine line, float maxPanelWidth)
     {
         var channelPrefix = line.TeamOnly ? "(TEAM) " : string.Empty;
@@ -210,6 +291,65 @@ public partial class Game1
     private float GetChatHudLineHeight()
     {
         return Math.Max(16f, MeasureBitmapFontHeight(1f) + 2f);
+    }
+
+    private IReadOnlyList<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)
+    {
+        if (_chatLines.Count == 0)
+        {
+            return [];
+        }
+
+        var sourceLines = new List<ChatLine>(_chatLines.Count);
+        if (includeHistory)
+        {
+            sourceLines.AddRange(_chatLines);
+        }
+        else
+        {
+            for (var index = 0; index < _chatLines.Count; index += 1)
+            {
+                if (_chatLines[index].TicksRemaining > 0)
+                {
+                    sourceLines.Add(_chatLines[index]);
+                }
+            }
+
+            if (sourceLines.Count > ClosedChatVisibleLineLimit)
+            {
+                sourceLines.RemoveRange(0, sourceLines.Count - ClosedChatVisibleLineLimit);
+            }
+        }
+
+        if (sourceLines.Count == 0)
+        {
+            return [];
+        }
+
+        var newestVisibleIndex = Math.Max(0, sourceLines.Count - 1 - (includeHistory ? _chatScrollOffset : 0));
+        var startIndex = newestVisibleIndex;
+        var totalHeight = 0f;
+        while (startIndex >= 0)
+        {
+            var lineHeight = MeasureChatLineHeight(sourceLines[startIndex], maxPanelWidth);
+            var additionalHeight = totalHeight > 0f ? ChatHudPanelSpacing : 0f;
+            if (startIndex < newestVisibleIndex && totalHeight + additionalHeight + lineHeight > maxChatHeight)
+            {
+                break;
+            }
+
+            totalHeight += additionalHeight + lineHeight;
+            startIndex -= 1;
+        }
+
+        startIndex += 1;
+        var resultCount = newestVisibleIndex - startIndex + 1;
+        if (resultCount <= 0)
+        {
+            return [];
+        }
+
+        return sourceLines.GetRange(startIndex, resultCount);
     }
 
     private List<string> WrapBitmapFontText(string text, float firstLineWidth, float continuationLineWidth)

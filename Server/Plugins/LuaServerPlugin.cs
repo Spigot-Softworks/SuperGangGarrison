@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Globalization;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Linq;
 using MoonSharp.Interpreter;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Protocol;
@@ -304,6 +305,7 @@ internal sealed class LuaServerPlugin(
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
         host["get_server_state"] = DynValue.NewCallback((_, _) => ToDynValue(CreateServerStateSnapshot(context.ServerState)));
+        host["get_admin_summary"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateAdminSummaryTable(script, context)));
         host["get_players"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetPlayers()));
         host["get_gameplay_mod_packs"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetGameplayModPacks()));
         host["get_gameplay_classes"] = DynValue.NewCallback((_, args) =>
@@ -321,6 +323,11 @@ internal sealed class LuaServerPlugin(
         host["get_gameplay_loadouts_for_class"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetGameplayLoadoutsForClass(ReadStringArgument(args, 0))));
         host["get_cvars"] = DynValue.NewCallback((_, _) => ToDynValue(context.Cvars.GetAll()));
+        host["find_cvars"] = DynValue.NewCallback((_, args) =>
+            ToDynValue(CreateFilteredCvarResult(
+                context.Cvars.GetAll(),
+                ReadOptionalStringArgument(args, 0),
+                ReadOptionalIntArgument(args, 1, 16))));
         host["get_cvar"] = DynValue.NewCallback((_, args) =>
         {
             return context.Cvars.TryGet(ReadStringArgument(args, 0), out var cvar)
@@ -517,6 +524,24 @@ internal sealed class LuaServerPlugin(
             }
 
             return DynValue.NewBoolean(context.AdminOperations.TrySetCapLimit(ReadIntArgument(args, 0)));
+        });
+        host["try_set_time_limit"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_set_time_limit", "server time limit"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.AdminOperations.TrySetTimeLimit(ReadIntArgument(args, 0)));
+        });
+        host["try_set_respawn_seconds"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_set_respawn_seconds", "server respawn time"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.AdminOperations.TrySetRespawnSeconds(ReadIntArgument(args, 0)));
         });
         host["try_change_map"] = DynValue.NewCallback((_, args) =>
         {
@@ -1050,7 +1075,7 @@ internal sealed class LuaServerPlugin(
             ServerLuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
             ServerLuaCallbackPhase.Update => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Query => TimeSpan.FromMilliseconds(10),
-            ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromMilliseconds(10),
+            ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromMilliseconds(250),
             ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
             _ => TimeSpan.FromMilliseconds(10),
         };
@@ -1143,6 +1168,70 @@ internal sealed class LuaServerPlugin(
             MatchPhase = state.MatchPhase.ToString(),
             state.RedCaps,
             state.BlueCaps,
+        };
+    }
+
+    private static Table CreateAdminSummaryTable(Script script, IOpenGarrisonServerPluginContext context)
+    {
+        var players = context.ServerState.GetPlayers();
+        var totalPlayers = players.Count;
+        var spectatorPlayers = players.Count(player => player.IsSpectator);
+        var authorizedPlayers = players.Count(player => player.IsAuthorized);
+
+        var table = new Table(script);
+        table["serverName"] = DynValue.NewString(context.ServerState.ServerName);
+        table["levelName"] = DynValue.NewString(context.ServerState.LevelName);
+        table["mapAreaIndex"] = DynValue.NewNumber(context.ServerState.MapAreaIndex);
+        table["mapAreaCount"] = DynValue.NewNumber(context.ServerState.MapAreaCount);
+        table["gameMode"] = DynValue.NewString(context.ServerState.GameMode.ToString());
+        table["matchPhase"] = DynValue.NewString(context.ServerState.MatchPhase.ToString());
+        table["redCaps"] = DynValue.NewNumber(context.ServerState.RedCaps);
+        table["blueCaps"] = DynValue.NewNumber(context.ServerState.BlueCaps);
+        table["playerCount"] = DynValue.NewNumber(totalPlayers);
+        table["activePlayerCount"] = DynValue.NewNumber(totalPlayers - spectatorPlayers);
+        table["spectatorCount"] = DynValue.NewNumber(spectatorPlayers);
+        table["authorizedPlayerCount"] = DynValue.NewNumber(authorizedPlayers);
+        table["scheduledTaskCount"] = DynValue.NewNumber(context.Scheduler.GetScheduledTasks().Count);
+        table["uptimeSeconds"] = DynValue.NewNumber(context.Scheduler.Uptime.TotalSeconds);
+        return table;
+    }
+
+    private static object CreateFilteredCvarResult(
+        IReadOnlyList<OpenGarrisonServerCvarInfo> cvars,
+        string? filter,
+        int limit)
+    {
+        var normalizedFilter = filter?.Trim() ?? string.Empty;
+        if (limit <= 0)
+        {
+            limit = 16;
+        }
+
+        var entries = cvars
+            .Where(cvar => normalizedFilter.Length == 0
+                || cvar.Name.Contains(normalizedFilter, StringComparison.OrdinalIgnoreCase)
+                || cvar.Description.Contains(normalizedFilter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(cvar => cvar.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Min(limit, 64))
+            .Select(cvar => new
+            {
+                cvar.Name,
+                cvar.Description,
+                ValueType = cvar.ValueType.ToString(),
+                cvar.DefaultValue,
+                cvar.CurrentValue,
+                cvar.IsProtected,
+                cvar.IsReadOnly,
+                cvar.MinimumNumericValue,
+                cvar.MaximumNumericValue,
+            })
+            .ToArray();
+
+        return new
+        {
+            Filter = normalizedFilter,
+            Count = entries.Length,
+            Items = entries,
         };
     }
 

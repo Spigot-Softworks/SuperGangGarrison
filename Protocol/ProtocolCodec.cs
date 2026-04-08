@@ -11,9 +11,9 @@ public static partial class ProtocolCodec
     private const int MaxLevelNameBytes = 64;
     private const int MaxMapUrlBytes = 512;
     private const int MaxMapHashBytes = 96;
-    private const int MaxReasonBytes = 128;
+    public const int MaxReasonBytes = 128;
     private const int MaxPasswordBytes = 64;
-    private const int MaxChatBytes = 180;
+    public const int MaxChatBytes = 180;
     public const int MaxPluginIdBytes = 80;
     public const int MaxPluginMessageTypeBytes = 80;
     public const int MaxPluginPayloadBytes = 1024;
@@ -280,5 +280,32 @@ public static partial class ProtocolCodec
         }
 
         return Utf8.GetString(bytes);
+    }
+
+    public static string TruncateUtf8(string value, int maxBytes)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        if (maxBytes <= 0 || value.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (Utf8.GetByteCount(value) <= maxBytes)
+        {
+            return value;
+        }
+
+        var length = value.Length;
+        while (length > 0)
+        {
+            length -= 1;
+            var candidate = value[..length];
+            if (Utf8.GetByteCount(candidate) <= maxBytes)
+            {
+                return candidate;
+            }
+        }
+
+        return string.Empty;
     }
 }

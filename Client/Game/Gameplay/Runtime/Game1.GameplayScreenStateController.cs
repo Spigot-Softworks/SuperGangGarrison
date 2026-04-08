@@ -16,7 +16,7 @@ public partial class Game1
             _game = game;
         }
 
-        public void UpdateGameplayScreenState(KeyboardState keyboard)
+        public void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
         {
             var escapePressed = keyboard.IsKeyDown(Keys.Escape) && !_game._previousKeyboard.IsKeyDown(Keys.Escape);
             var changeTeamPressed = _game.IsKeyPressed(keyboard, _game._inputBindings.ChangeTeam);
@@ -42,6 +42,11 @@ public partial class Game1
             {
                 _game.ResetChatInputState();
                 return;
+            }
+
+            if (_game._chatOpen)
+            {
+                _game.UpdateChatScrollState(keyboard, mouse);
             }
 
             _game.UpdateSpectatorTrackingHotkeys(keyboard);

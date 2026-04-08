@@ -48,6 +48,7 @@ public partial class Game1 : Game
         Port,
         Slots,
         Password,
+        RconPassword,
         MapRotationFile,
         TimeLimit,
         CapLimit,

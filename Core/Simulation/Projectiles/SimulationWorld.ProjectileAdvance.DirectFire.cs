@@ -7,7 +7,7 @@ public sealed partial class SimulationWorld
         for (var shotIndex = _shots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
             var shot = _shots[shotIndex];
-            shot.AdvanceOneTick();
+            shot.AdvanceOneTick(_configuredGravityScale);
             var movementX = shot.X - shot.PreviousX;
             var movementY = shot.Y - shot.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -135,7 +135,7 @@ public sealed partial class SimulationWorld
         for (var needleIndex = _needles.Count - 1; needleIndex >= 0; needleIndex -= 1)
         {
             var needle = _needles[needleIndex];
-            needle.AdvanceOneTick();
+            needle.AdvanceOneTick(_configuredGravityScale);
             var movementX = needle.X - needle.PreviousX;
             var movementY = needle.Y - needle.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -199,7 +199,7 @@ public sealed partial class SimulationWorld
         for (var shotIndex = _revolverShots.Count - 1; shotIndex >= 0; shotIndex -= 1)
         {
             var shot = _revolverShots[shotIndex];
-            shot.AdvanceOneTick();
+            shot.AdvanceOneTick(_configuredGravityScale);
             var movementX = shot.X - shot.PreviousX;
             var movementY = shot.Y - shot.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));

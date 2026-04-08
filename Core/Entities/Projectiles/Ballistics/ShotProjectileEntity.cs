@@ -52,13 +52,13 @@ public sealed class ShotProjectileEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
-    public void AdvanceOneTick()
+    public void AdvanceOneTick(float gravityScale = 1f)
     {
         PreviousX = X;
         PreviousY = Y;
         X += VelocityX;
         Y += VelocityY;
-        VelocityY += GravityPerTick;
+        VelocityY += GravityPerTick * gravityScale;
         TicksRemaining -= 1;
     }
 

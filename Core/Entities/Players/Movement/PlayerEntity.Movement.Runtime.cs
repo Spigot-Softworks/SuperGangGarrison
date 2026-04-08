@@ -199,7 +199,7 @@ public sealed partial class PlayerEntity
         var gravityPerTick = 0f;
         if (!startedGrounded || jumped)
         {
-            gravityPerTick = LegacyMovementModel.GetAirborneGravityPerTick(MovementState);
+            gravityPerTick = GetServerScaledAirborneGravityPerTick(MovementState);
             if (ShouldCancelGravityForSourceSpinjump(level, team, gravityPerTick))
             {
                 gravityPerTick = 0f;

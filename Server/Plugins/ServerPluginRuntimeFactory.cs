@@ -20,7 +20,7 @@ internal static class ServerPluginRuntimeFactory
         int lobbyPort,
         bool passwordRequired,
         Func<bool> autoBalanceEnabledGetter,
-        int? respawnSecondsOverride,
+        Func<int> respawnSecondsGetter,
         IOpenGarrisonServerCvarRegistry cvarRegistry,
         IOpenGarrisonServerScheduler scheduler,
         Func<byte, OpenGarrisonServerAdminIdentity> adminIdentityResolver,
@@ -64,7 +64,7 @@ internal static class ServerPluginRuntimeFactory
             lobbyPort,
             passwordRequired,
             autoBalanceEnabledGetter,
-            respawnSecondsOverride,
+            respawnSecondsGetter,
             () => mapRotationManager,
             mapRotationFile);
         new ServerBuiltInCommandRegistrar(

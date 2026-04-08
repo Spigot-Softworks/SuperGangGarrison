@@ -53,7 +53,6 @@ public partial class Game1
             _game.ResetGameplayTransitionEffects();
             _game.ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
             _game.ResetGameplayRuntimeState();
-            _game.StopHostedServer();
             _game.ResetSpectatorTracking(enableTracking: false);
             _game.ResetLastToDieState();
         }

@@ -124,6 +124,30 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             MaximumNumericValue: null));
     }
 
+    public void RegisterFloat(
+        string name,
+        string description,
+        float defaultValue,
+        Func<float> getter,
+        Action<float>? setter = null,
+        float? minValue = null,
+        float? maxValue = null)
+    {
+        Register(new CvarRegistration(
+            name,
+            description,
+            OpenGarrisonServerCvarValueType.Float,
+            defaultValue.ToString("G9", CultureInfo.InvariantCulture),
+            () => getter().ToString("G9", CultureInfo.InvariantCulture),
+            setter is null
+                ? static _ => "Cvar is read-only."
+                : value => TryParseFloat(value, minValue, maxValue, setter),
+            IsProtected: false,
+            IsReadOnly: setter is null,
+            minValue,
+            maxValue));
+    }
+
     private static string? TryParseInteger(string text, int? minValue, int? maxValue, Action<int> setter)
     {
         if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedValue))
@@ -150,6 +174,27 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
         if (!TryNormalizeBoolean(text, out var parsedValue))
         {
             return "Value must be one of: true, false, on, off, yes, no, 1, 0.";
+        }
+
+        setter(parsedValue);
+        return null;
+    }
+
+    private static string? TryParseFloat(string text, float? minValue, float? maxValue, Action<float> setter)
+    {
+        if (!float.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsedValue))
+        {
+            return "Value must be a number.";
+        }
+
+        if (minValue.HasValue && parsedValue < minValue.Value)
+        {
+            return $"Value must be at least {minValue.Value.ToString("G9", CultureInfo.InvariantCulture)}.";
+        }
+
+        if (maxValue.HasValue && parsedValue > maxValue.Value)
+        {
+            return $"Value must be at most {maxValue.Value.ToString("G9", CultureInfo.InvariantCulture)}.";
         }
 
         setter(parsedValue);

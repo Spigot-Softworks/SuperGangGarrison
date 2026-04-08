@@ -31,7 +31,11 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TryForceKill(byte slot);
 
+    bool TrySetTimeLimit(int timeLimitMinutes);
+
     bool TrySetCapLimit(int capLimit);
+
+    bool TrySetRespawnSeconds(int respawnSeconds);
 
     bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false);
 

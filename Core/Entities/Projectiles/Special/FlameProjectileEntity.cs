@@ -76,7 +76,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
 
     public int HitPlayerCount => _hitPlayerIds.Count;
 
-    public void AdvanceOneTick(float deltaSeconds)
+    public void AdvanceOneTick(float deltaSeconds, float gravityScale = 1f)
     {
         PreviousX = X;
         PreviousY = Y;
@@ -85,7 +85,7 @@ public sealed class FlameProjectileEntity : SimulationEntity
             var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
             X += VelocityX * sourceDelta;
             Y += VelocityY * sourceDelta;
-            VelocityY += GravityPerTick * sourceDelta;
+            VelocityY += GravityPerTick * gravityScale * sourceDelta;
         }
 
         TicksRemaining -= 1;

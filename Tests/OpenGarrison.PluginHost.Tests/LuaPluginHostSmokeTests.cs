@@ -1254,6 +1254,293 @@ public sealed class LuaPluginHostSmokeTests
             change.ChangeKind == "revoke" && change.Slot == 1 && change.ItemId == "weapon.flamethrower");
     }
 
+    [Fact]
+    public void PackagedServerLuaGarrisonToolsHandlesHelpStatusAndCvars()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.GarrisonTools", "open-garrison.server.lua-garrison-tools", tempDirectory, logs);
+
+        loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            1,
+            "Admin",
+            IsSpectator: false,
+            IsAuthorized: true,
+            Team: PlayerTeam.Red,
+            PlayerClass: PlayerClass.Soldier,
+            EndPoint: "127.0.0.1:8190",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.rocketlauncher"));
+        loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            2,
+            "Spectator",
+            IsSpectator: true,
+            IsAuthorized: true,
+            Team: null,
+            PlayerClass: null,
+            EndPoint: "127.0.0.1:8191",
+            GameplayLoadoutId: string.Empty,
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: string.Empty));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_timelimit",
+            "Time limit",
+            OpenGarrisonServerCvarValueType.Integer,
+            "15",
+            "15",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 1,
+            MaximumNumericValue: 255));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_caplimit",
+            "Capture limit",
+            OpenGarrisonServerCvarValueType.Integer,
+            "3",
+            "3",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 1,
+            MaximumNumericValue: 255));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_respawnseconds",
+            "Respawn time",
+            OpenGarrisonServerCvarValueType.Integer,
+            "5",
+            "5",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0,
+            MaximumNumericValue: 255));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_movement_speed_scale",
+            "Movement speed scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0.1,
+            MaximumNumericValue: 4));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_projectile_speed_scale",
+            "Projectile speed scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0.1,
+            MaximumNumericValue: 4));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_damage_scale",
+            "Damage scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0,
+            MaximumNumericValue: 10));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_gravity_scale",
+            "Gravity scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0,
+            MaximumNumericValue: 4));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_horizontal_speed_clamp",
+            "Horizontal speed clamp",
+            OpenGarrisonServerCvarValueType.Float,
+            "15",
+            "15",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 1,
+            MaximumNumericValue: 60));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_vertical_speed_clamp",
+            "Vertical speed clamp",
+            OpenGarrisonServerCvarValueType.Float,
+            "15",
+            "15",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 1,
+            MaximumNumericValue: 60));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_roundendff",
+            "Round-end friendly fire",
+            OpenGarrisonServerCvarValueType.Boolean,
+            "false",
+            "false",
+            IsProtected: false,
+            IsReadOnly: false));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_rcon_password",
+            "RCON password",
+            OpenGarrisonServerCvarValueType.String,
+            string.Empty,
+            "secret",
+            IsProtected: true,
+            IsReadOnly: false));
+
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var context = CreateAdminChatContext(loadedPlugin.Context, slot: 1);
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_help", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("!gt_cvar", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_status", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("status | server=Test Server", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("players | total=2 | active=1 | spectators=1 | authorized=2", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin | identity=Admin | authority=RconSession", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvars sv_", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvars | count=11", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_timelimit | value=15", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_caplimit | value=3", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_respawnseconds | value=5", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_movement_speed_scale | value=1", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_projectile_speed_scale | value=1", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_damage_scale | value=1", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_gravity_scale | value=1", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_horizontal_speed_clamp | value=15", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_vertical_speed_clamp | value=15", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_roundendff | value=false", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_rcon_password | value=<protected>", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_caplimit", Team: null, TeamOnly: false)));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_caplimit | value=3", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_caplimit 5", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_caplimit", out var updatedCvar));
+        Assert.Equal("5", updatedCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_caplimit set to 5.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_timelimit 20", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_timelimit", out var updatedTimeLimitCvar));
+        Assert.Equal("20", updatedTimeLimitCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_timelimit set to 20.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_respawnseconds 9", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_respawnseconds", out var updatedRespawnCvar));
+        Assert.Equal("9", updatedRespawnCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_respawnseconds set to 9.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_movement_speed_scale 1.5", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_movement_speed_scale", out var updatedMovementScaleCvar));
+        Assert.Equal("1.5", updatedMovementScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_movement_speed_scale set to 1.5.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_projectile_speed_scale 1.25", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_projectile_speed_scale", out var updatedProjectileScaleCvar));
+        Assert.Equal("1.25", updatedProjectileScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_projectile_speed_scale set to 1.25.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_damage_scale 2", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_damage_scale", out var updatedDamageScaleCvar));
+        Assert.Equal("2", updatedDamageScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_damage_scale set to 2.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_gravity_scale 0.5", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_gravity_scale", out var updatedGravityScaleCvar));
+        Assert.Equal("0.5", updatedGravityScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_gravity_scale set to 0.5.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_roundendff on", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_roundendff", out var updatedRoundEndFriendlyFireCvar));
+        Assert.Equal("on", updatedRoundEndFriendlyFireCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_roundendff set to on.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PackagedServerLuaGarrisonToolsHandlesAdminActions()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.GarrisonTools", "open-garrison.server.lua-garrison-tools", tempDirectory, logs);
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var context = CreateAdminChatContext(loadedPlugin.Context, slot: 1);
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_say Server restart soon", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains("Server restart soon", loadedPlugin.Context.AdminImpl.BroadcastSystemMessages);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("system message sent", StringComparison.OrdinalIgnoreCase));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_kick 3 griefing", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.DisconnectRequests, request => request.Slot == 3 && request.Reason == "griefing");
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("kicked slot 3", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_map ctf_avanti 2", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.MapChangeRequests, request => request.LevelName == "ctf_avanti" && request.AreaIndex == 2);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("changed map to ctf_avanti area 2.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_nextmap ctf_truefort", Team: null, TeamOnly: false)));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.NextRoundMapRequests, request => request.LevelName == "ctf_truefort" && request.AreaIndex == 1);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("next map set to ctf_truefort area 1.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_adminmenu", Team: null, TeamOnly: false)));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin menu is not available yet", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static LoadedClientLuaTemplate LoadClientLuaTemplate(string pluginId, TempDirectory tempDirectory, List<string> logs)
     {
         var repoRoot = FindRepositoryRoot();
@@ -1270,6 +1557,49 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(loadedPlugin is not null, string.Join(Environment.NewLine, logs));
         return new LoadedClientLuaTemplate(loadedPlugin!.Plugin, context, configDirectory);
+    }
+
+    private static LoadedServerLuaTemplate LoadPackagedServerLuaPlugin(
+        string folderName,
+        string pluginId,
+        TempDirectory tempDirectory,
+        List<string> logs)
+    {
+        var repoRoot = FindRepositoryRoot();
+        var pluginDirectory = Path.Combine(repoRoot, "Plugins", "Packaged", "Server", folderName);
+        var manifestPath = Path.Combine(pluginDirectory, "plugin.json");
+        Assert.True(OpenGarrisonPluginManifestLoader.TryLoadFromPath(manifestPath, out var manifest, out var manifestError), manifestError);
+
+        var configDirectory = tempDirectory.CreateSubdirectory(pluginId.Replace('.', '_') + "_config");
+        var context = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory(pluginId.Replace('.', '_') + "_maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(pluginDirectory, SearchOption.TopDirectoryOnly)],
+            (_, _, _) => context,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        Assert.Equal(pluginId, loadedPlugin.Plugin.Id);
+        return new LoadedServerLuaTemplate(loadedPlugin.Plugin, context, configDirectory);
+    }
+
+    private static OpenGarrisonServerChatMessageContext CreateAdminChatContext(FakeServerPluginContext context, byte slot)
+    {
+        return new OpenGarrisonServerChatMessageContext(
+            context.ServerState,
+            context.AdminOperations,
+            context.Cvars,
+            context.Scheduler,
+            new OpenGarrisonServerAdminIdentity(
+                "Admin",
+                OpenGarrisonServerAdminAuthority.RconSession,
+                OpenGarrisonServerAdminPermissions.FullAccess,
+                slot));
     }
 
     private static LoadedClientLuaTemplate LoadAdHocClientLuaPlugin(
@@ -1355,6 +1685,11 @@ public sealed class LuaPluginHostSmokeTests
     private sealed record LoadedClientLuaTemplate(
         IOpenGarrisonClientPlugin Plugin,
         FakeClientPluginContext Context,
+        string ConfigDirectory);
+
+    private sealed record LoadedServerLuaTemplate(
+        IOpenGarrisonServerPlugin Plugin,
+        FakeServerPluginContext Context,
         string ConfigDirectory);
 
     private sealed class FakeClientPluginContext : IOpenGarrisonClientPluginContext
@@ -1771,6 +2106,7 @@ public sealed class LuaPluginHostSmokeTests
         public MatchPhase MatchPhase => MatchPhase.Running;
         public int RedCaps => 0;
         public int BlueCaps => 0;
+        public List<OpenGarrisonServerPlayerInfo> Players { get; } = [];
 
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot) => [];
 
@@ -1898,7 +2234,7 @@ public sealed class LuaPluginHostSmokeTests
                 .ToArray();
         }
 
-        public IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers() => [];
+        public IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers() => Players;
 
         public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
         {
@@ -1931,6 +2267,12 @@ public sealed class LuaPluginHostSmokeTests
 
         public List<(byte Slot, string Text)> SystemMessages { get; } = [];
 
+        public List<(byte Slot, string Reason)> DisconnectRequests { get; } = [];
+
+        public List<(string LevelName, int AreaIndex, bool PreservePlayerStats)> MapChangeRequests { get; } = [];
+
+        public List<(string LevelName, int AreaIndex)> NextRoundMapRequests { get; } = [];
+
         public void BroadcastSystemMessage(string text)
         {
             BroadcastSystemMessages.Add(text);
@@ -1941,15 +2283,27 @@ public sealed class LuaPluginHostSmokeTests
             SystemMessages.Add((slot, text));
         }
 
-        public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
+        public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false)
+        {
+            MapChangeRequests.Add((levelName, mapAreaIndex, preservePlayerStats));
+            return true;
+        }
 
-        public bool TryDisconnect(byte slot, string reason) => true;
+        public bool TryDisconnect(byte slot, string reason)
+        {
+            DisconnectRequests.Add((slot, reason));
+            return true;
+        }
 
         public bool TryForceKill(byte slot) => true;
+
+        public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 
         public bool TryMoveToSpectator(byte slot) => true;
 
         public bool TrySetCapLimit(int capLimit) => true;
+
+        public bool TrySetRespawnSeconds(int respawnSeconds) => true;
 
         public bool TrySetClass(byte slot, PlayerClass playerClass) => true;
 
@@ -1993,7 +2347,11 @@ public sealed class LuaPluginHostSmokeTests
             return true;
         }
 
-        public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
+        public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
+        {
+            NextRoundMapRequests.Add((levelName, mapAreaIndex));
+            return true;
+        }
 
         public bool TrySetTeam(byte slot, PlayerTeam team) => true;
     }
@@ -2007,11 +2365,17 @@ public sealed class LuaPluginHostSmokeTests
             _entries[cvar.Name] = cvar;
         }
 
-        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll() => _entries.Values.ToArray();
+        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll() => _entries.Values.Select(MaskProtectedValue).ToArray();
 
         public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
         {
-            return _entries.TryGetValue(name, out cvar);
+            if (!_entries.TryGetValue(name, out cvar))
+            {
+                return false;
+            }
+
+            cvar = MaskProtectedValue(cvar);
+            return true;
         }
 
         public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
@@ -2031,7 +2395,15 @@ public sealed class LuaPluginHostSmokeTests
 
             cvar = cvar with { CurrentValue = value };
             _entries[name] = cvar;
+            cvar = MaskProtectedValue(cvar);
             return true;
+        }
+
+        private static OpenGarrisonServerCvarInfo MaskProtectedValue(OpenGarrisonServerCvarInfo cvar)
+        {
+            return cvar.IsProtected
+                ? cvar with { CurrentValue = "<protected>" }
+                : cvar;
         }
     }
 

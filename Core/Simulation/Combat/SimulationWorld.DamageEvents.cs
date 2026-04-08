@@ -63,6 +63,7 @@ public sealed partial class SimulationWorld
         }
 
         damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        damage = ScaleConfiguredDamage(damage);
         if (damage <= 0)
         {
             return false;
@@ -101,6 +102,7 @@ public sealed partial class SimulationWorld
         }
 
         damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        damage = ScaleConfiguredDamage(damage);
         if (damage <= 0f)
         {
             return false;
@@ -133,6 +135,12 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        damage = ScaleConfiguredDamage(damage);
+        if (damage <= 0)
+        {
+            return false;
+        }
+
         var healthBefore = target.Health;
         var destroyed = target.ApplyDamage(damage);
         RegisterDamageEvent(
@@ -149,6 +157,12 @@ public sealed partial class SimulationWorld
     private bool ApplyGeneratorDamage(GeneratorState target, float damage, PlayerEntity? attacker)
     {
         if (damage <= 0f || target.IsDestroyed)
+        {
+            return false;
+        }
+
+        damage = ScaleConfiguredDamage(damage);
+        if (damage <= 0f)
         {
             return false;
         }

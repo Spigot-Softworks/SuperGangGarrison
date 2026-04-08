@@ -242,7 +242,7 @@ public sealed partial class SimulationWorld
 
         foreach (var candidate in EnumerateSimulatedPlayers())
         {
-            if (!candidate.IsAlive || candidate.Team == player.Team || candidate.Id == player.Id)
+            if (!CanPlayerDamagePlayer(player, candidate) || candidate.Id == player.Id)
             {
                 continue;
             }

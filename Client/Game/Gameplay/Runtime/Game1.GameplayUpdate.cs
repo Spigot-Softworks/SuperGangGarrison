@@ -38,9 +38,9 @@ public partial class Game1
         return IsKeyPressed(keyboard, key);
     }
 
-    private void UpdateGameplayScreenState(KeyboardState keyboard)
+    private void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
     {
-        _gameplayScreenStateController.UpdateGameplayScreenState(keyboard);
+        _gameplayScreenStateController.UpdateGameplayScreenState(keyboard, mouse);
     }
 
     private void FinalizeGameplayFrame(KeyboardState keyboard, MouseState mouse)

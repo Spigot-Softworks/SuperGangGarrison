@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -22,6 +24,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
     private Process? _trackedProcess;
     private HostedServerSessionInfo? _session;
     private int _statePollTicks;
+    private HostedServerProcessLogPaths? _processLogPaths;
 
     public HostedServerRuntimeController(HostedServerConsoleState console)
     {
@@ -100,14 +103,24 @@ internal sealed class HostedServerRuntimeController : IDisposable
             return false;
         }
 
+        if (!HostedServerBootstrapper.TryPrepareRuntimePlugins(serverLaunchTarget, out var pluginPreparationError))
+        {
+            error = pluginPreparationError;
+            _console.AppendLog("launcher", error);
+            return false;
+        }
+
         try
         {
             var arguments = HostedServerBootstrapper.BuildLaunchArguments(serverLaunchTarget, launchOptions);
+            _processLogPaths = HostedServerBootstrapper.PrepareProcessLogFiles();
             var startInfo = new ProcessStartInfo(serverLaunchTarget.FileName, arguments)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = serverLaunchTarget.WorkingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             };
             startInfo.Environment["OPENGARRISON_LAUNCH_MODE"] = "launcher";
             _console.AppendLog("launcher", $"Starting {serverLaunchTarget.FileName} {arguments}");
@@ -118,6 +131,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
                 return false;
             }
 
+            BeginCapturingProcessOutput(process, _processLogPaths);
             TrackProcess(process);
             return true;
         }
@@ -147,6 +161,12 @@ internal sealed class HostedServerRuntimeController : IDisposable
         if (serverLaunchTarget is null)
         {
             error = "Could not find OG2.Server. Build the server first.";
+            return false;
+        }
+
+        if (!HostedServerBootstrapper.TryPrepareRuntimePlugins(serverLaunchTarget, out var pluginPreparationError))
+        {
+            error = pluginPreparationError;
             return false;
         }
 
@@ -346,6 +366,7 @@ internal sealed class HostedServerRuntimeController : IDisposable
         DisposeTrackedProcess();
         _session = null;
         _statePollTicks = 0;
+        _processLogPaths = null;
     }
 
     private void DisposeTrackedProcess()
@@ -377,6 +398,67 @@ internal sealed class HostedServerRuntimeController : IDisposable
         try
         {
             _console.AppendLog("launcher", $"Server process exited with code {process.ExitCode}.");
+            AppendHostedServerProcessLogTail(_processLogPaths?.StdErrPath, "server-error");
+        }
+        catch
+        {
+        }
+    }
+
+    private void BeginCapturingProcessOutput(Process process, HostedServerProcessLogPaths logPaths)
+    {
+        process.OutputDataReceived += (_, eventArgs) =>
+        {
+            if (eventArgs.Data is null)
+            {
+                return;
+            }
+
+            AppendProcessLogLine(logPaths.StdOutPath, eventArgs.Data);
+            _console.AppendLog("server", eventArgs.Data);
+        };
+        process.ErrorDataReceived += (_, eventArgs) =>
+        {
+            if (eventArgs.Data is null)
+            {
+                return;
+            }
+
+            AppendProcessLogLine(logPaths.StdErrPath, eventArgs.Data);
+            _console.AppendLog("server-error", eventArgs.Data);
+        };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+    }
+
+    private static void AppendProcessLogLine(string path, string line)
+    {
+        try
+        {
+            File.AppendAllText(path, line + Environment.NewLine);
+        }
+        catch
+        {
+        }
+    }
+
+    private void AppendHostedServerProcessLogTail(string? path, string source)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            var lines = File.ReadLines(path).Reverse().Take(8).Reverse().ToArray();
+            for (var index = 0; index < lines.Length; index += 1)
+            {
+                if (!string.IsNullOrWhiteSpace(lines[index]))
+                {
+                    _console.AppendLog(source, lines[index]);
+                }
+            }
         }
         catch
         {

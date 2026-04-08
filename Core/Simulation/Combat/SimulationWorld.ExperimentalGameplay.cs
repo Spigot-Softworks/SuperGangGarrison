@@ -232,14 +232,19 @@ public sealed partial class SimulationWorld
 
     private float ApplyExperimentalProjectileSpeedMultiplier(PlayerEntity attacker, float launchSpeed)
     {
-        if (!ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
-            || !IsExperimentalPracticePowerOwner(attacker)
-            || launchSpeed <= 0f)
+        if (launchSpeed <= 0f)
         {
             return launchSpeed;
         }
 
-        return launchSpeed * ExperimentalGameplaySettings.ProjectileSpeedMultiplier;
+        var speedScale = _configuredProjectileSpeedScale;
+        if (ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
+            && IsExperimentalPracticePowerOwner(attacker))
+        {
+            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplier;
+        }
+
+        return launchSpeed * speedScale;
     }
 
     private (float VelocityX, float VelocityY) ApplyExperimentalProjectileSpeedMultiplier(
@@ -247,15 +252,16 @@ public sealed partial class SimulationWorld
         float launchVelocityX,
         float launchVelocityY)
     {
-        if (!ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
-            || !IsExperimentalPracticePowerOwner(attacker))
+        var speedScale = _configuredProjectileSpeedScale;
+        if (ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
+            && IsExperimentalPracticePowerOwner(attacker))
         {
-            return (launchVelocityX, launchVelocityY);
+            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplier;
         }
 
         return (
-            launchVelocityX * ExperimentalGameplaySettings.ProjectileSpeedMultiplier,
-            launchVelocityY * ExperimentalGameplaySettings.ProjectileSpeedMultiplier);
+            launchVelocityX * speedScale,
+            launchVelocityY * speedScale);
     }
 
     private int ApplyExperimentalAirshotDamageMultiplier(

@@ -7,6 +7,7 @@ using System.Net.Sockets;
 namespace OpenGarrison.Client;
 
 internal sealed record HostedServerLaunchTarget(string FileName, string ArgumentsPrefix, string WorkingDirectory);
+internal sealed record HostedServerProcessLogPaths(string StdOutPath, string StdErrPath);
 
 internal sealed record HostedServerLaunchOptions(
     string ConfigPath,
@@ -14,6 +15,7 @@ internal sealed record HostedServerLaunchOptions(
     int Port,
     int MaxPlayers,
     string Password,
+    string RconPassword,
     int TimeLimitMinutes,
     int CapLimit,
     int RespawnSeconds,
@@ -27,6 +29,9 @@ internal static class HostedServerBootstrapper
     private const string PreferredServerAssemblyName = "OG2.Server.dll";
     private const string LegacyServerAssemblyName = "OpenGarrison.Server.dll";
     private const string ServerTargetFramework = "net10.0";
+    private static readonly string PackagedServerPluginsRelativePath = Path.Combine("Plugins", "Packaged", "Server");
+    private const string HostedServerStdOutLogFileName = "hosted-server-stdout.log";
+    private const string HostedServerStdErrLogFileName = "hosted-server-stderr.log";
 
     public static bool IsUdpPortAvailable(int port)
     {
@@ -113,6 +118,47 @@ internal static class HostedServerBootstrapper
         }
     }
 
+    public static bool TryPrepareRuntimePlugins(HostedServerLaunchTarget launchTarget, out string error)
+    {
+        ArgumentNullException.ThrowIfNull(launchTarget);
+
+        error = string.Empty;
+        var packagedPluginsSource = FindPackagedServerPluginsSource();
+        if (string.IsNullOrWhiteSpace(packagedPluginsSource) || !Directory.Exists(packagedPluginsSource))
+        {
+            return true;
+        }
+
+        var runtimePluginsDestination = Path.Combine(launchTarget.WorkingDirectory, "Plugins", "Server");
+        try
+        {
+            Directory.CreateDirectory(runtimePluginsDestination);
+            foreach (var pluginDirectory in Directory.GetDirectories(packagedPluginsSource))
+            {
+                var pluginFolderName = Path.GetFileName(pluginDirectory);
+                if (string.IsNullOrWhiteSpace(pluginFolderName))
+                {
+                    continue;
+                }
+
+                var pluginDestination = Path.Combine(runtimePluginsDestination, pluginFolderName);
+                if (Directory.Exists(pluginDestination))
+                {
+                    Directory.Delete(pluginDestination, recursive: true);
+                }
+
+                CopyDirectory(pluginDirectory, pluginDestination);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to mirror packaged server plugins: {ex.Message}";
+            return false;
+        }
+    }
+
     public static string BuildLaunchArguments(HostedServerLaunchTarget launchTarget, HostedServerLaunchOptions options)
     {
         var arguments = new List<string>();
@@ -143,6 +189,11 @@ internal static class HostedServerBootstrapper
             arguments.Add($"--password {QuoteArgument(options.Password)}");
         }
 
+        if (!string.IsNullOrWhiteSpace(options.RconPassword))
+        {
+            arguments.Add($"--rcon-password {QuoteArgument(options.RconPassword)}");
+        }
+
         if (!string.IsNullOrWhiteSpace(options.RequestedMap))
         {
             arguments.Add($"--map {QuoteArgument(options.RequestedMap)}");
@@ -171,6 +222,17 @@ internal static class HostedServerBootstrapper
         arguments.Add(options.LobbyAnnounce ? "--lobby" : "--no-lobby");
         arguments.Add(options.AutoBalance ? "--auto-balance" : "--no-auto-balance");
         return string.Join(' ', arguments);
+    }
+
+    public static HostedServerProcessLogPaths PrepareProcessLogFiles()
+    {
+        var logsDirectory = Path.Combine(OpenGarrison.Core.RuntimePaths.ConfigDirectory, "logs");
+        Directory.CreateDirectory(logsDirectory);
+        var stdoutPath = Path.Combine(logsDirectory, HostedServerStdOutLogFileName);
+        var stderrPath = Path.Combine(logsDirectory, HostedServerStdErrLogFileName);
+        File.WriteAllText(stdoutPath, string.Empty);
+        File.WriteAllText(stderrPath, string.Empty);
+        return new HostedServerProcessLogPaths(stdoutPath, stderrPath);
     }
 
     private static IEnumerable<string> EnumerateDirectAppHostCandidates()
@@ -273,6 +335,37 @@ internal static class HostedServerBootstrapper
     private static IReadOnlyList<string> GetAssemblyFileNames()
     {
         return [PreferredServerAssemblyName, LegacyServerAssemblyName];
+    }
+
+    private static string? FindPackagedServerPluginsSource()
+    {
+        foreach (var root in EnumerateProbeRoots())
+        {
+            var candidate = Path.Combine(root, PackagedServerPluginsRelativePath);
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+
+        foreach (var filePath in Directory.GetFiles(sourceDirectory))
+        {
+            var destinationPath = Path.Combine(destinationDirectory, Path.GetFileName(filePath));
+            File.Copy(filePath, destinationPath, overwrite: true);
+        }
+
+        foreach (var directoryPath in Directory.GetDirectories(sourceDirectory))
+        {
+            var destinationPath = Path.Combine(destinationDirectory, Path.GetFileName(directoryPath));
+            CopyDirectory(directoryPath, destinationPath);
+        }
     }
 
     private static string QuoteArgument(string value)

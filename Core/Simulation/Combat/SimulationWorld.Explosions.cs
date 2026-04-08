@@ -118,7 +118,7 @@ public sealed partial class SimulationWorld
                 player.SetMovementState(LegacyMovementState.FriendlyJuggle);
             }
 
-            if (player.Team != mine.Team || player.Id == mine.OwnerId)
+            if (CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))
             {
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
                 var damage = mine.ExplosionDamage * factor;
@@ -276,6 +276,7 @@ public sealed partial class SimulationWorld
     {
         return player.Team == explosiveTeam
             && player.Id != explosiveOwnerId
+            && !CanTeamDamagePlayer(explosiveTeam, explosiveOwnerId, player)
             && !player.CanOccupy(Level, player.Team, player.X, player.Y + 1f);
     }
 

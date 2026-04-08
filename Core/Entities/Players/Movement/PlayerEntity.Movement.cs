@@ -42,7 +42,7 @@ public sealed partial class PlayerEntity
             return false;
         }
 
-        return ShouldCancelGravityForSourceSpinjump(level, Team, LegacyMovementModel.GetAirborneGravityPerTick(MovementState));
+        return ShouldCancelGravityForSourceSpinjump(level, Team, GetServerScaledAirborneGravityPerTick(MovementState));
     }
 
     public bool IntersectsMarker(float markerX, float markerY, float markerWidth, float markerHeight)

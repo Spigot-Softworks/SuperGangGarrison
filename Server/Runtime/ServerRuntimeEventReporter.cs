@@ -95,6 +95,7 @@ internal sealed class ServerRuntimeEventReporter(
 
     public void PublishGameplayEvents(SnapshotTransientEvents transientEvents)
     {
+        transientEvents = NormalizeTransientEvents(transientEvents);
         PublishDamageEvents(transientEvents);
         PublishSpawnEvents();
         PublishBuildableEvents();
@@ -295,6 +296,7 @@ internal sealed class ServerRuntimeEventReporter(
 
     private void PublishDamageEvents(SnapshotTransientEvents transientEvents)
     {
+        transientEvents = NormalizeTransientEvents(transientEvents);
         var pluginHost = pluginHostGetter();
         for (var index = 0; index < transientEvents.DamageEvents.Length; index += 1)
         {
@@ -635,5 +637,13 @@ internal sealed class ServerRuntimeEventReporter(
         }
 
         return closest;
+    }
+
+    private static SnapshotTransientEvents NormalizeTransientEvents(SnapshotTransientEvents transientEvents)
+    {
+        return new SnapshotTransientEvents(
+            transientEvents.VisualEvents ?? [],
+            transientEvents.DamageEvents ?? [],
+            transientEvents.SoundEvents ?? []);
     }
 }

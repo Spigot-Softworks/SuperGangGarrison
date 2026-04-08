@@ -9,7 +9,7 @@ public sealed partial class SimulationWorld
         for (var flameIndex = _flames.Count - 1; flameIndex >= 0; flameIndex -= 1)
         {
             var flame = _flames[flameIndex];
-            flame.AdvanceOneTick(deltaSeconds);
+            flame.AdvanceOneTick(deltaSeconds, _configuredGravityScale);
             var movementX = flame.X - flame.PreviousX;
             var movementY = flame.Y - flame.PreviousY;
             var movementDistance = MathF.Sqrt((movementX * movementX) + (movementY * movementY));
@@ -173,7 +173,7 @@ public sealed partial class SimulationWorld
         for (var mineIndex = _mines.Count - 1; mineIndex >= 0; mineIndex -= 1)
         {
             var mine = _mines[mineIndex];
-            mine.AdvanceOneTick();
+            mine.AdvanceOneTick(_configuredGravityScale);
             if (mine.IsStickied)
             {
                 continue;

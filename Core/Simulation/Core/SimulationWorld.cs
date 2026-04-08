@@ -13,7 +13,7 @@ public sealed partial class SimulationWorld
     private const string DefaultLocalPlayerName = "Player 1";
     private const string DefaultEnemyPlayerName = "Player 2";
     private const string DefaultFriendlyDummyName = "Player 3";
-    private const int DefaultRespawnTicks = 150;
+    private const int DefaultRespawnSeconds = 5;
     private const int DefaultTimeLimitMinutes = 15;
     private const int DefaultCapLimit = 5;
     private const int DefaultTeamDeathmatchKillLimit = 30;
@@ -70,7 +70,15 @@ public sealed partial class SimulationWorld
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
     private int _configuredCapLimit = DefaultCapLimit;
-    private int _configuredRespawnTicks = DefaultRespawnTicks;
+    private int _configuredRespawnSeconds = DefaultRespawnSeconds;
+    private int _configuredRespawnTicks = DefaultRespawnSeconds * SimulationConfig.DefaultTicksPerSecond;
+    private float _configuredMovementSpeedScale = 1f;
+    private float _configuredProjectileSpeedScale = 1f;
+    private float _configuredDamageScale = 1f;
+    private float _configuredGravityScale = 1f;
+    private float _configuredHorizontalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
+    private float _configuredVerticalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
+    private bool _roundEndFriendlyFireEnabled;
     private CharacterClassDefinition _localPlayerClassDefinition = CharacterClassCatalog.Scout;
     private CharacterClassDefinition _enemyDummyClassDefinition = CharacterClassCatalog.Scout;
     private readonly CharacterClassDefinition _friendlyDummyClassDefinition = CharacterClassCatalog.Heavy;
@@ -150,6 +158,23 @@ public sealed partial class SimulationWorld
         get => _autoRestartOnMapChange;
         set => _autoRestartOnMapChange = value;
     }
+
+    public int ConfiguredRespawnSeconds => _configuredRespawnSeconds;
+
+    public float ConfiguredMovementSpeedScale => _configuredMovementSpeedScale;
+
+    public float ConfiguredProjectileSpeedScale => _configuredProjectileSpeedScale;
+
+    public float ConfiguredDamageScale => _configuredDamageScale;
+
+    public float ConfiguredGravityScale => _configuredGravityScale;
+
+    public float ConfiguredHorizontalSpeedClampPerTick => _configuredHorizontalSpeedClampPerTick;
+
+    public float ConfiguredVerticalSpeedClampPerTick => _configuredVerticalSpeedClampPerTick;
+
+    public bool RoundEndFriendlyFireEnabled => _roundEndFriendlyFireEnabled;
+
     public int LocalPlayerRespawnTicks { get; private set; }
 
     public bool LocalPlayerAwaitingJoin => _localPlayerAwaitingJoin;
@@ -279,10 +304,12 @@ public sealed partial class SimulationWorld
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), _localPlayerClassDefinition, DefaultLocalPlayerName);
+        ApplyServerGameplayTuning(LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         _entities.Add(LocalPlayer.Id, LocalPlayer);
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
+        ApplyServerGameplayTuning(EnemyPlayer);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
             var enemySpawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
@@ -296,6 +323,7 @@ public sealed partial class SimulationWorld
         }
         _entities.Add(EnemyPlayer.Id, EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
+        ApplyServerGameplayTuning(FriendlyDummy);
         FriendlyDummy.Kill();
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);
     }

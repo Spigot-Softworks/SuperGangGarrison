@@ -165,12 +165,15 @@ public sealed partial class PlayerEntity
 
     private void ClampMovementSpeedsToMovementMaximum()
     {
+        const float demoknightHorizontalClampMultiplier = 2f;
+        const float demoknightVerticalClampMultiplier = 4f / 3f;
+
         var maxHorizontalSpeedPerTick = IsExperimentalDemoknightCharging
-            ? 30f
-            : LegacyMovementModel.MaxStepSpeedPerTick;
+            ? GetServerHorizontalSpeedClampPerTick() * demoknightHorizontalClampMultiplier
+            : GetServerHorizontalSpeedClampPerTick();
         var maxVerticalSpeedPerTick = IsExperimentalDemoknightCharging
-            ? 20f
-            : LegacyMovementModel.MaxStepSpeedPerTick;
+            ? GetServerVerticalSpeedClampPerTick() * demoknightVerticalClampMultiplier
+            : GetServerVerticalSpeedClampPerTick();
         HorizontalSpeed = float.Clamp(HorizontalSpeed, -maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
         VerticalSpeed = float.Clamp(VerticalSpeed, -maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
     }

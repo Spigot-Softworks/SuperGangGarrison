@@ -93,7 +93,7 @@ public partial class Game1
                 }
                 catch (Exception ex)
                 {
-                    _game.DisableAudio("starting Last To Die menu music", ex);
+                    HandleMusicPlaybackFailure("starting Last To Die menu music", ex, ref _game._lastToDieMenuMusic, ref _game._lastToDieMenuMusicInstance);
                 }
 
                 return;
@@ -114,7 +114,7 @@ public partial class Game1
             }
             catch (Exception ex)
             {
-                _game.DisableAudio("starting menu music", ex);
+                HandleMusicPlaybackFailure("starting menu music", ex, ref _game._menuMusic, ref _game._menuMusicInstance);
             }
         }
 
@@ -135,7 +135,7 @@ public partial class Game1
             }
             catch (Exception ex)
             {
-                _game.DisableAudio("starting faucet music", ex);
+                HandleMusicPlaybackFailure("starting faucet music", ex, ref _game._faucetMusic, ref _game._faucetMusicInstance);
             }
         }
 
@@ -167,7 +167,7 @@ public partial class Game1
                 }
                 catch (Exception ex)
                 {
-                    _game.DisableAudio("starting Last To Die in-game music", ex);
+                    HandleMusicPlaybackFailure("starting Last To Die in-game music", ex, ref _game._lastToDieIngameMusic, ref _game._lastToDieIngameMusicInstance);
                 }
 
                 return;
@@ -188,7 +188,7 @@ public partial class Game1
             }
             catch (Exception ex)
             {
-                _game.DisableAudio("starting in-game music", ex);
+                HandleMusicPlaybackFailure("starting in-game music", ex, ref _game._ingameMusic, ref _game._ingameMusicInstance);
             }
         }
 
@@ -304,6 +304,12 @@ public partial class Game1
                 musicInstance = null;
                 music = null;
 
+                if (LooksLikeUnsupportedLoopedMusicFormat(musicPath))
+                {
+                    _game.AddConsoleLine($"skipping looped music {Path.GetFileName(musicPath)}: MonoGame SoundEffect streaming expects RIFF/WAV data");
+                    return;
+                }
+
                 if (disableAudioOnFailure)
                 {
                     _game.DisableAudio($"initializing {Path.GetFileName(relativePath)}", ex);
@@ -351,10 +357,10 @@ public partial class Game1
                     : Path.Combine(directoryPath, fileName);
             }
 
-            yield return ComposePath(directory, $"{baseName}.ogg");
-            if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase))
+            yield return ComposePath(directory, $"{baseName}.wav");
+            if (!string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase))
             {
-                yield return ComposePath(directory, $"{baseName}.wav");
+                yield return ComposePath(directory, $"{baseName}.ogg");
             }
 
             if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase)
@@ -362,6 +368,24 @@ public partial class Game1
             {
                 yield return relativePath;
             }
+        }
+
+        private void HandleMusicPlaybackFailure(
+            string operation,
+            Exception ex,
+            ref SoundEffect? music,
+            ref SoundEffectInstance? musicInstance)
+        {
+            try { musicInstance?.Dispose(); } catch { }
+            try { music?.Dispose(); } catch { }
+            musicInstance = null;
+            music = null;
+            _game.AddConsoleLine($"music unavailable while {operation} ({ex.GetType().Name}: {ex.Message})");
+        }
+
+        private static bool LooksLikeUnsupportedLoopedMusicFormat(string path)
+        {
+            return string.Equals(Path.GetExtension(path), ".ogg", StringComparison.OrdinalIgnoreCase);
         }
     }
 }
