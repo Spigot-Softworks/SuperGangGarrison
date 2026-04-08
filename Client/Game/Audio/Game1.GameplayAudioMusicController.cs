@@ -27,8 +27,9 @@ public partial class Game1
             }
 
             var candidates = Enumerable.Range(1, 6)
-                .Select(static index => $"menumusic{index}.wav")
-                .Where(fileName => FindLoopedMusicPath(Path.Combine("Music", fileName)) is not null)
+                .SelectMany(static index => EnumeratePreferredMusicRelativePaths(Path.Combine("Music", $"menumusic{index}.wav")))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(fileName => FindLoopedMusicPath(fileName) is not null)
                 .ToArray();
             if (candidates.Length == 0)
             {
@@ -254,20 +255,23 @@ public partial class Game1
 
         public static string? FindLoopedMusicPath(string relativePath)
         {
-            var candidatePaths = new[]
+            foreach (var preferredRelativePath in EnumeratePreferredMusicRelativePaths(relativePath))
             {
-                Path.Combine("Content", "Sounds", relativePath),
-                Path.Combine("OpenGarrison.Core", "Content", "Sounds", relativePath),
-                Path.Combine("Sounds", relativePath),
-                relativePath,
-            };
-
-            for (var index = 0; index < candidatePaths.Length; index += 1)
-            {
-                var resolved = ProjectSourceLocator.FindFile(candidatePaths[index]);
-                if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
+                var candidatePaths = new[]
                 {
-                    return resolved;
+                    Path.Combine("Content", "Sounds", preferredRelativePath),
+                    Path.Combine("OpenGarrison.Core", "Content", "Sounds", preferredRelativePath),
+                    Path.Combine("Sounds", preferredRelativePath),
+                    preferredRelativePath,
+                };
+
+                for (var index = 0; index < candidatePaths.Length; index += 1)
+                {
+                    var resolved = ProjectSourceLocator.FindFile(candidatePaths[index]);
+                    if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
+                    {
+                        return resolved;
+                    }
                 }
             }
 
@@ -321,6 +325,42 @@ public partial class Game1
             }
             catch
             {
+            }
+        }
+
+        private static IEnumerable<string> EnumeratePreferredMusicRelativePaths(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                yield break;
+            }
+
+            var directory = Path.GetDirectoryName(relativePath);
+            var baseName = Path.GetFileNameWithoutExtension(relativePath);
+            var extension = Path.GetExtension(relativePath);
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                yield return relativePath;
+                yield break;
+            }
+
+            static string ComposePath(string? directoryPath, string fileName)
+            {
+                return string.IsNullOrWhiteSpace(directoryPath)
+                    ? fileName
+                    : Path.Combine(directoryPath, fileName);
+            }
+
+            yield return ComposePath(directory, $"{baseName}.ogg");
+            if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return ComposePath(directory, $"{baseName}.wav");
+            }
+
+            if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return relativePath;
             }
         }
     }

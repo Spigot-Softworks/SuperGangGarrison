@@ -8,8 +8,6 @@
     <Deterministic>true</Deterministic>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
-    <RepositoryUrl>https://github.com/Gang-Garrison-2/Gang-Garrison-2</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core' or '$(MSBuildProjectName)' == 'OpenGarrison.Protocol'">
