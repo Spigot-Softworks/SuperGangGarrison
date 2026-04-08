@@ -29,6 +29,52 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public bool TryApplyLiveScale(float scale, SimpleLevel level, PlayerTeam team)
+    {
+        var previousScale = PlayerScale;
+        var previousX = X;
+        var previousY = Y;
+        var previousHorizontalSpeed = HorizontalSpeed;
+        var previousVerticalSpeed = VerticalSpeed;
+        var previousGrounded = IsGrounded;
+        var previousRemainingAirJumps = RemainingAirJumps;
+        var previousMovementState = MovementState;
+        var previousLegacyStateTickAccumulator = LegacyStateTickAccumulator;
+
+        SetPlayerScale(scale);
+        if (!IsAlive)
+        {
+            return true;
+        }
+
+        if (TryCanOccupyWithinBounds(level, team, previousX, previousY))
+        {
+            X = previousX;
+            Y = previousY;
+            RefreshGroundSupport(level, team, allowDropdownFallThrough: false);
+            return true;
+        }
+
+        if (TryFindNearestOccupiablePosition(level, team, previousX, previousY, out var resolvedX, out var resolvedY))
+        {
+            X = resolvedX;
+            Y = resolvedY;
+            RefreshGroundSupport(level, team, allowDropdownFallThrough: false);
+            return true;
+        }
+
+        SetPlayerScale(previousScale);
+        X = previousX;
+        Y = previousY;
+        HorizontalSpeed = previousHorizontalSpeed;
+        VerticalSpeed = previousVerticalSpeed;
+        IsGrounded = previousGrounded;
+        RemainingAirJumps = previousRemainingAirJumps;
+        MovementState = previousMovementState;
+        LegacyStateTickAccumulator = previousLegacyStateTickAccumulator;
+        return false;
+    }
+
     public bool Advance(PlayerInputSnapshot input, bool jumpPressed, SimpleLevel level, PlayerTeam team, double deltaSeconds)
     {
         var afterburn = AdvanceTickState(input, deltaSeconds);
@@ -301,5 +347,69 @@ public sealed partial class PlayerEntity
 
         RefreshGroundSupport(level, team, allowDropdownFallThrough);
         RefreshExperimentalDemoknightChargeFlightState(level, allowDropdownFallThrough);
+    }
+
+    private bool TryFindNearestOccupiablePosition(SimpleLevel level, PlayerTeam team, float originX, float originY, out float resolvedX, out float resolvedY)
+    {
+        resolvedX = originX;
+        resolvedY = originY;
+        var searchStep = MathF.Max(2f, MathF.Min(8f, MathF.Min(Width, Height) / 4f));
+        var maxSearchRadius = MathF.Max(96f, MathF.Max(Width, Height) * 8f);
+
+        for (var radius = searchStep; radius <= maxSearchRadius + 0.001f; radius += searchStep)
+        {
+            for (var offsetX = -radius; offsetX <= radius + 0.001f; offsetX += searchStep)
+            {
+                if (TryCanOccupyWithinBounds(level, team, originX + offsetX, originY - radius))
+                {
+                    resolvedX = originX + offsetX;
+                    resolvedY = originY - radius;
+                    return true;
+                }
+            }
+
+            for (var offsetY = -radius + searchStep; offsetY <= radius - searchStep + 0.001f; offsetY += searchStep)
+            {
+                if (TryCanOccupyWithinBounds(level, team, originX - radius, originY + offsetY))
+                {
+                    resolvedX = originX - radius;
+                    resolvedY = originY + offsetY;
+                    return true;
+                }
+
+                if (TryCanOccupyWithinBounds(level, team, originX + radius, originY + offsetY))
+                {
+                    resolvedX = originX + radius;
+                    resolvedY = originY + offsetY;
+                    return true;
+                }
+            }
+
+            for (var offsetX = -radius; offsetX <= radius + 0.001f; offsetX += searchStep)
+            {
+                if (TryCanOccupyWithinBounds(level, team, originX + offsetX, originY + radius))
+                {
+                    resolvedX = originX + offsetX;
+                    resolvedY = originY + radius;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryCanOccupyWithinBounds(SimpleLevel level, PlayerTeam team, float x, float y)
+    {
+        GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+        if (left < 0f
+            || top < 0f
+            || right > level.Bounds.Width
+            || bottom > level.Bounds.Height)
+        {
+            return false;
+        }
+
+        return CanOccupy(level, team, x, y);
     }
 }

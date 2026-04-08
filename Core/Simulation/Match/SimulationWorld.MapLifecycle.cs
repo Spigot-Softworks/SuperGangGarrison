@@ -64,18 +64,19 @@ public sealed partial class SimulationWorld
 
     public bool TryLoadLevel(string levelName)
     {
-        return TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false);
+        return TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: _configuredMapScale);
     }
 
-    public bool TryLoadLevel(string levelName, int mapAreaIndex, bool preservePlayerStats)
+    public bool TryLoadLevel(string levelName, int mapAreaIndex, bool preservePlayerStats, float? mapScale = null)
     {
-        var nextLevel = SimpleLevelFactory.CreateImportedLevel(levelName, mapAreaIndex);
+        var nextLevel = SimpleLevelFactory.CreateImportedLevel(levelName, mapAreaIndex, mapScale ?? _configuredMapScale);
         if (nextLevel is null)
         {
             return false;
         }
 
         Level = nextLevel;
+        _configuredMapScale = Level.MapScale;
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         ResetModeStateForNewMap();
         RestartCurrentRound(preservePlayerStats);

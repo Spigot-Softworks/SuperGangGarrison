@@ -58,14 +58,15 @@ public partial class Game1
             }
 
             var facingScale = GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
+            var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
             var rotation = GetWeaponRotation(player);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-            var drawX = roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale;
-            var drawY = roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y;
+            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
-            var scale = new Vector2(facingScale, 1f);
+            var scale = new Vector2(facingScale * playerScale, playerScale);
             _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
             if (player.IsUbered)
             {
@@ -235,10 +236,11 @@ public partial class Game1
 
             var overlayFrameIndex = GetWeaponAnimationOverlayFrameIndex(player, overlaySprite.Frames.Count);
             var overlayRotation = GetWeaponRotation(player) + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
-            var drawX = roundedOrigin.X + (weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X) * facingScale;
-            var drawY = roundedOrigin.Y + weaponDefinition.YOffset + overlayDefinition.OffsetY + bodySelection.EquipmentOffset + overlaySprite.Origin.Y;
+            var playerScale = player.PlayerScale;
+            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X) * facingScale * playerScale);
+            var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + overlayDefinition.OffsetY + bodySelection.EquipmentOffset + overlaySprite.Origin.Y) * playerScale);
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
-            var scale = new Vector2(facingScale, 1f);
+            var scale = new Vector2(facingScale * playerScale, playerScale);
             _game.DrawSpriteFrameWithOptionalShadow(overlaySprite.Frames[overlayFrameIndex], position, tint, overlayRotation, overlaySprite.Origin.ToVector2(), scale);
             if (player.IsUbered)
             {

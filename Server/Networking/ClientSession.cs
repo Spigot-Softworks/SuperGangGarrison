@@ -6,13 +6,14 @@ using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
-sealed class ClientSession(byte slot, IPEndPoint endPoint, string name, TimeSpan lastSeen)
+sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
 {
     private const int SnapshotHistoryLimit = 96;
     private readonly Dictionary<ulong, SnapshotMessage> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
 
     public byte Slot { get; set; } = slot;
+    public int UserId { get; } = userId;
     public IPEndPoint EndPoint { get; } = endPoint;
     public string Name { get; set; } = name;
     public ulong BadgeMask { get; set; }

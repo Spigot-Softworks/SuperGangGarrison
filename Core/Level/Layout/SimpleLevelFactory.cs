@@ -16,12 +16,12 @@ public static class SimpleLevelFactory
         string RoomSourcePath,
         string? CollisionMaskSourcePath);
 
-    public static SimpleLevel CreateScoutPrototypeLevel()
+    public static SimpleLevel CreateScoutPrototypeLevel(float mapScale = 1f)
     {
-        return CreateImportedLevel("Truefort") ?? CreateFallbackPrototypeLevel("Prototype");
+        return CreateImportedLevel("Truefort", mapScale: mapScale) ?? CreateFallbackPrototypeLevel("Prototype", mapScale);
     }
 
-    public static SimpleLevel? CreateImportedLevel(string levelName, int mapAreaIndex = 1)
+    public static SimpleLevel? CreateImportedLevel(string levelName, int mapAreaIndex = 1, float mapScale = 1f)
     {
         var catalog = GetAvailableSourceLevels();
         if (!TryFindCatalogEntry(catalog, levelName, out var levelSpec))
@@ -101,10 +101,11 @@ public static class SimpleLevelFactory
 
         var solids = importedSolids.Count > 0 ? importedSolids : CreateFallbackSolids(bounds, spawn, floorY);
 
-        return new SimpleLevel(
+        var level = new SimpleLevel(
             name: levelSpec.Name,
             mode: levelSpec.Mode,
             bounds: bounds,
+            mapScale: 1f,
             backgroundAssetName: importedRoom.PrimaryBackgroundAssetName,
             mapAreaIndex: clampedAreaIndex,
             mapAreaCount: mapAreaCount,
@@ -118,6 +119,7 @@ public static class SimpleLevelFactory
             importedFromSource: true,
             areaTransitionMarkers: importedRoom.AreaTransitionMarkers,
             unsupportedSourceEntities: importedRoom.UnsupportedEntities);
+        return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
     public static IReadOnlyList<LevelCatalogEntry> GetAvailableSourceLevels()
@@ -152,15 +154,16 @@ public static class SimpleLevelFactory
         _cachedCatalog = null;
     }
 
-    private static SimpleLevel CreateFallbackPrototypeLevel(string levelName)
+    private static SimpleLevel CreateFallbackPrototypeLevel(string levelName, float mapScale)
     {
         var bounds = new WorldBounds(2400f, 1400f);
         var spawn = new SpawnPoint(220f, 320f);
         var floorY = MathF.Min(bounds.Height - 40f, spawn.Y + 360f);
-        return new SimpleLevel(
+        var level = new SimpleLevel(
             name: levelName,
             mode: GameModeKind.CaptureTheFlag,
             bounds: bounds,
+            mapScale: 1f,
             backgroundAssetName: null,
             mapAreaIndex: 1,
             mapAreaCount: 1,
@@ -172,6 +175,7 @@ public static class SimpleLevelFactory
             floorY: floorY,
             solids: CreateFallbackSolids(bounds, spawn, floorY),
             importedFromSource: false);
+        return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
     private static LevelSolid[] CreateFallbackSolids(WorldBounds bounds, SpawnPoint spawn, float floorY)

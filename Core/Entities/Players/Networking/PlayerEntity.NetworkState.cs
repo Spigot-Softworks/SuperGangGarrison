@@ -69,10 +69,12 @@ public sealed partial class PlayerEntity
         string gameplayEquippedItemId = "",
         string gameplayAcquiredItemId = "",
         IReadOnlyList<string>? ownedGameplayItemIds = null,
-        IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null)
+        IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null,
+        float playerScale = 1f)
     {
         Team = team;
         ClassDefinition = classDefinition;
+        SetPlayerScale(playerScale);
         X = x;
         Y = y;
         HorizontalSpeed = horizontalSpeed;

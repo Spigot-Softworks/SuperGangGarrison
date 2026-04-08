@@ -8,6 +8,7 @@ public sealed class SimpleLevel
         string name,
         GameModeKind mode,
         WorldBounds bounds,
+        float mapScale,
         string? backgroundAssetName,
         int mapAreaIndex,
         int mapAreaCount,
@@ -25,6 +26,7 @@ public sealed class SimpleLevel
         Name = name;
         Mode = mode;
         Bounds = bounds;
+        MapScale = mapScale;
         BackgroundAssetName = backgroundAssetName;
         MapAreaIndex = mapAreaIndex;
         MapAreaCount = mapAreaCount;
@@ -45,6 +47,8 @@ public sealed class SimpleLevel
     public GameModeKind Mode { get; }
 
     public WorldBounds Bounds { get; }
+
+    public float MapScale { get; }
 
     public string? BackgroundAssetName { get; }
 

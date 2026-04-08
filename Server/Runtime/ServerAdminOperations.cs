@@ -136,6 +136,23 @@ internal sealed class ServerAdminOperations(
         return worldGetter().ForceKillNetworkPlayer(slot);
     }
 
+    public bool TrySetPlayerScale(byte slot, float scale)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TrySetNetworkPlayerScale(slot, scale))
+        {
+            return false;
+        }
+
+        log($"[server] player scale for slot {slot} set to {scale:G9}");
+        return true;
+    }
+
     public bool TrySetTimeLimit(int timeLimitMinutes)
     {
         if (timeLimitMinutes is < 1 or > 255)

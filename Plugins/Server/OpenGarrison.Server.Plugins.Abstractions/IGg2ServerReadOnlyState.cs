@@ -13,6 +13,8 @@ public interface IOpenGarrisonServerReadOnlyState
 
     int MapAreaCount { get; }
 
+    float MapScale { get; }
+
     GameModeKind GameMode { get; }
 
     MatchPhase MatchPhase { get; }

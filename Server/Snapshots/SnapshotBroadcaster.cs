@@ -171,7 +171,8 @@ sealed class SnapshotBroadcaster
             soundEvents,
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
-            mapMetadata.MapContentHash)
+            mapMetadata.MapContentHash,
+            _world.Level.MapScale)
         {
             SentryGibs = _world.SentryGibs.Select(ToSnapshotSentryGibState).ToArray(),
         };
@@ -230,11 +231,12 @@ sealed class SnapshotBroadcaster
             GameplayLoadoutId: string.Empty,
             GameplayPrimaryItemId: string.Empty,
             GameplaySecondaryItemId: string.Empty,
-              GameplayUtilityItemId: string.Empty,
-              GameplayEquippedSlot: 0,
-              GameplayEquippedItemId: string.Empty,
-              GameplayAcquiredItemId: string.Empty,
-              OwnedGameplayItemIds: Array.Empty<string>());
+            GameplayUtilityItemId: string.Empty,
+            GameplayEquippedSlot: 0,
+            GameplayEquippedItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            OwnedGameplayItemIds: Array.Empty<string>(),
+            PlayerScale: 1f);
     }
 
     private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()
@@ -253,6 +255,7 @@ sealed class SnapshotBroadcaster
         return string.Equals(baseline.LevelName, fullSnapshot.LevelName, StringComparison.OrdinalIgnoreCase)
             && baseline.MapAreaIndex == fullSnapshot.MapAreaIndex
             && baseline.MapAreaCount == fullSnapshot.MapAreaCount
+            && MathF.Abs(baseline.MapScale - fullSnapshot.MapScale) <= 0.0001f
             ? baseline
             : null;
     }

@@ -17,6 +17,7 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.IsCustomMap);
         WriteString(writer, snapshot.MapDownloadUrl, MaxMapUrlBytes, nameof(snapshot.MapDownloadUrl));
         WriteString(writer, snapshot.MapContentHash, MaxMapHashBytes, nameof(snapshot.MapContentHash));
+        writer.Write(snapshot.MapScale);
         writer.Write(snapshot.GameMode);
         writer.Write(snapshot.MatchPhase);
         writer.Write(snapshot.WinnerTeam);
@@ -82,6 +83,7 @@ public static partial class ProtocolCodec
         var isCustomMap = reader.ReadBoolean();
         var mapDownloadUrl = ReadString(reader, MaxMapUrlBytes);
         var mapContentHash = ReadString(reader, MaxMapHashBytes);
+        var mapScale = reader.ReadSingle();
         var gameMode = reader.ReadByte();
         var matchPhase = reader.ReadByte();
         var winnerTeam = reader.ReadByte();
@@ -178,7 +180,8 @@ public static partial class ProtocolCodec
             soundEvents,
             isCustomMap,
             mapDownloadUrl,
-            mapContentHash)
+            mapContentHash,
+            mapScale)
         {
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
@@ -300,6 +303,7 @@ public static partial class ProtocolCodec
             WriteString(writer, player.GameplayAcquiredItemId, MaxGameplayIdBytes, nameof(player.GameplayAcquiredItemId));
             WriteGameplayIdList(writer, player.OwnedGameplayItemIds);
             WriteReplicatedStateEntries(writer, player.ReplicatedStates);
+            writer.Write(player.PlayerScale);
         }
     }
 
@@ -382,7 +386,8 @@ public static partial class ProtocolCodec
                 ReadString(reader, MaxGameplayIdBytes),
                 ReadString(reader, MaxGameplayIdBytes),
                 ReadGameplayIdList(reader),
-                ReadReplicatedStateEntries(reader)));
+                ReadReplicatedStateEntries(reader),
+                reader.ReadSingle()));
         }
 
         return players;

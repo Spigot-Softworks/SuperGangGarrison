@@ -329,6 +329,22 @@ partial class GameServer
             minValue: 0,
             maxValue: 255);
         registry.RegisterFloat(
+            "sv_player_scale",
+            "Global live player collision and render scale.",
+            _world.ConfiguredPlayerScale,
+            () => _world.ConfiguredPlayerScale,
+            value => _world.SetPlayerScale(value),
+            minValue: PlayerEntity.MinPlayerScale,
+            maxValue: PlayerEntity.MaxPlayerScale);
+        registry.RegisterFloat(
+            "sv_map_scale",
+            "Current map scale. Reloads the active map safely when changed.",
+            _world.ConfiguredMapScale,
+            () => _world.ConfiguredMapScale,
+            value => _world.SetMapScale(value),
+            minValue: 0.25f,
+            maxValue: 4f);
+        registry.RegisterFloat(
             "sv_movement_speed_scale",
             "Global player movement speed multiplier.",
             _world.ConfiguredMovementSpeedScale,
@@ -437,6 +453,7 @@ partial class GameServer
             _world,
             () => _clock.Elapsed,
             () => _pluginHost,
+            AllocateClientUserId,
             _connectionRateLimiter.GetHelloRateLimitReason,
             _connectionRateLimiter.ResetConnectionAttemptLimits,
             _eventReporter.GetCurrentMapMetadata,

@@ -1263,11 +1263,15 @@ public sealed class LuaPluginHostSmokeTests
 
         loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
             1,
+            101,
             "Admin",
             IsSpectator: false,
             IsAuthorized: true,
+            IsAlive: true,
+            PlayerId: 11,
             Team: PlayerTeam.Red,
             PlayerClass: PlayerClass.Soldier,
+            PlayerScale: 1f,
             EndPoint: "127.0.0.1:8190",
             GameplayLoadoutId: "stock",
             GameplaySecondaryItemId: string.Empty,
@@ -1276,11 +1280,15 @@ public sealed class LuaPluginHostSmokeTests
             GameplayEquippedItemId: "weapon.rocketlauncher"));
         loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
             2,
+            202,
             "Spectator",
             IsSpectator: true,
             IsAuthorized: true,
+            IsAlive: false,
+            PlayerId: null,
             Team: null,
             PlayerClass: null,
+            PlayerScale: 1f,
             EndPoint: "127.0.0.1:8191",
             GameplayLoadoutId: string.Empty,
             GameplaySecondaryItemId: string.Empty,
@@ -1317,6 +1325,26 @@ public sealed class LuaPluginHostSmokeTests
             IsReadOnly: false,
             MinimumNumericValue: 0,
             MaximumNumericValue: 255));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_player_scale",
+            "Player scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0.25,
+            MaximumNumericValue: 4));
+        loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_map_scale",
+            "Map scale",
+            OpenGarrisonServerCvarValueType.Float,
+            "1",
+            "1",
+            IsProtected: false,
+            IsReadOnly: false,
+            MinimumNumericValue: 0.25,
+            MaximumNumericValue: 4));
         loadedPlugin.Context.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
             "sv_movement_speed_scale",
             "Movement speed scale",
@@ -1401,6 +1429,7 @@ public sealed class LuaPluginHostSmokeTests
             context,
             new ChatReceivedEvent(1, "Admin", "!gt_help", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("!gt_cvar", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("@me", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
@@ -1409,21 +1438,23 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("status | server=Test Server", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("players | total=2 | active=1 | spectators=1 | authorized=2", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin | identity=Admin | authority=RconSession", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("userid=101 | slot=1 | name=Admin", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("userid=202 | slot=2 | name=Spectator", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
             new ChatReceivedEvent(1, "Admin", "!gt_cvars sv_", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvars | count=11", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_timelimit | value=15", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvars | count=12", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_caplimit | value=3", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_respawnseconds | value=5", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_player_scale | value=1", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_map_scale | value=1", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_movement_speed_scale | value=1", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_projectile_speed_scale | value=1", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_damage_scale | value=1", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_gravity_scale | value=1", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_horizontal_speed_clamp | value=15", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_vertical_speed_clamp | value=15", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_roundendff | value=false", StringComparison.Ordinal));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("name=sv_rcon_password | value=<protected>", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
@@ -1456,6 +1487,22 @@ public sealed class LuaPluginHostSmokeTests
         Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_respawnseconds", out var updatedRespawnCvar));
         Assert.Equal("9", updatedRespawnCvar.CurrentValue);
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_respawnseconds set to 9.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_player_scale 1.5", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_player_scale", out var updatedPlayerScaleCvar));
+        Assert.Equal("1.5", updatedPlayerScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_player_scale set to 1.5.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_cvar sv_map_scale 1.25", Team: null, TeamOnly: false)));
+        Assert.True(loadedPlugin.Context.CvarImpl.TryGet("sv_map_scale", out var updatedMapScaleCvar));
+        Assert.Equal("1.25", updatedMapScaleCvar.CurrentValue);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("cvar sv_map_scale set to 1.25.", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
@@ -1504,6 +1551,40 @@ public sealed class LuaPluginHostSmokeTests
         using var tempDirectory = new TempDirectory();
         var logs = new List<string>();
         var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.GarrisonTools", "open-garrison.server.lua-garrison-tools", tempDirectory, logs);
+        loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            1,
+            101,
+            "Admin",
+            IsSpectator: false,
+            IsAuthorized: true,
+            IsAlive: true,
+            PlayerId: 11,
+            Team: PlayerTeam.Red,
+            PlayerClass: PlayerClass.Soldier,
+            PlayerScale: 1f,
+            EndPoint: "127.0.0.1:8190",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.rocketlauncher"));
+        loadedPlugin.Context.StateImpl.Players.Add(new OpenGarrisonServerPlayerInfo(
+            3,
+            303,
+            "Target",
+            IsSpectator: false,
+            IsAuthorized: true,
+            IsAlive: true,
+            PlayerId: 33,
+            Team: PlayerTeam.Blue,
+            PlayerClass: PlayerClass.Medic,
+            PlayerScale: 1f,
+            EndPoint: "127.0.0.1:8192",
+            GameplayLoadoutId: "stock",
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: "weapon.medigun"));
         var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
         var context = CreateAdminChatContext(loadedPlugin.Context, slot: 1);
 
@@ -1516,9 +1597,15 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
-            new ChatReceivedEvent(1, "Admin", "!gt_kick 3 griefing", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+            new ChatReceivedEvent(1, "Admin", "!gt_kick #303 griefing", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
         Assert.Contains(loadedPlugin.Context.AdminImpl.DisconnectRequests, request => request.Slot == 3 && request.Reason == "griefing");
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("kicked slot 3", StringComparison.Ordinal));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("kicked Target (#303, slot 3)", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_kick @me regroup", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.DisconnectRequests, request => request.Slot == 1 && request.Reason == "regroup");
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
@@ -2102,6 +2189,7 @@ public sealed class LuaPluginHostSmokeTests
         public string LevelName => "ctf_test";
         public int MapAreaIndex => 1;
         public int MapAreaCount => 1;
+        public float MapScale => 1f;
         public GameModeKind GameMode => GameModeKind.CaptureTheFlag;
         public MatchPhase MatchPhase => MatchPhase.Running;
         public int RedCaps => 0;
@@ -2296,6 +2384,8 @@ public sealed class LuaPluginHostSmokeTests
         }
 
         public bool TryForceKill(byte slot) => true;
+
+        public bool TrySetPlayerScale(byte slot, float scale) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 

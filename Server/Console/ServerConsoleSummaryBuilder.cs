@@ -40,7 +40,7 @@ internal sealed class ServerConsoleSummaryBuilder(
         var autoBalanceValue = autoBalanceEnabledGetter() ? "enabled" : "disabled";
         var respawnSeconds = respawnSecondsGetter();
         lines.Add(
-            $"[server] rules | timeLimit={world.MatchRules.TimeLimitMinutes} | capLimit={world.MatchRules.CapLimit} | respawn={respawnSeconds} | autoBalance={autoBalanceValue}");
+            $"[server] rules | timeLimit={world.MatchRules.TimeLimitMinutes} | capLimit={world.MatchRules.CapLimit} | respawn={respawnSeconds} | playerScale={world.ConfiguredPlayerScale:G9} | autoBalance={autoBalanceValue}");
     }
 
     public void AddLobbySummary(List<string> lines)
@@ -54,7 +54,7 @@ internal sealed class ServerConsoleSummaryBuilder(
         var world = worldGetter();
         var winner = world.MatchState.WinnerTeam?.ToString() ?? "none";
         lines.Add(
-            $"[server] map | name={world.Level.Name} | area={world.Level.MapAreaIndex}/{world.Level.MapAreaCount} | mode={world.MatchRules.Mode} | phase={world.MatchState.Phase} | winner={winner} | imported={world.Level.ImportedFromSource}");
+            $"[server] map | name={world.Level.Name} | area={world.Level.MapAreaIndex}/{world.Level.MapAreaCount} | scale={world.Level.MapScale:G9} | mode={world.MatchRules.Mode} | phase={world.MatchState.Phase} | winner={winner} | imported={world.Level.ImportedFromSource}");
         lines.Add($"[server] world | bounds={world.Bounds.Width}x{world.Bounds.Height}");
     }
 
@@ -93,7 +93,7 @@ internal sealed class ServerConsoleSummaryBuilder(
             var connectedFor = FormatDuration(uptimeGetter() - client.ConnectedAt);
             var authorized = client.IsAuthorized ? "yes" : "pending";
             lines.Add(
-                $"[server] player | slot={client.Slot} | name={client.Name} | role={role} | authorized={authorized} | endpoint={client.EndPoint} | connected={connectedFor}");
+                $"[server] player | userid={client.UserId} | slot={client.Slot} | name={client.Name} | role={role} | authorized={authorized} | endpoint={client.EndPoint} | connected={connectedFor}");
         }
     }
 

@@ -407,6 +407,7 @@ public sealed class PluginContractValidationTests
         public string LevelName => "test";
         public int MapAreaIndex => 1;
         public int MapAreaCount => 1;
+        public float MapScale => 1f;
         public GameModeKind GameMode => default;
         public MatchPhase MatchPhase => default;
         public int RedCaps => 0;
@@ -480,6 +481,8 @@ public sealed class PluginContractValidationTests
         public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot) => true;
 
         public bool TryForceKill(byte slot) => true;
+
+        public bool TrySetPlayerScale(byte slot, float scale) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 

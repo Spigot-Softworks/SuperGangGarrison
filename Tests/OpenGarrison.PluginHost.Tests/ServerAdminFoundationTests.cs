@@ -113,6 +113,22 @@ public sealed class ServerAdminFoundationTests
         var world = new SimulationWorld();
         var registry = new ServerCvarRegistry();
         registry.RegisterFloat(
+            "sv_player_scale",
+            "Player scale",
+            world.ConfiguredPlayerScale,
+            () => world.ConfiguredPlayerScale,
+            world.SetPlayerScale,
+            minValue: PlayerEntity.MinPlayerScale,
+            maxValue: PlayerEntity.MaxPlayerScale);
+        registry.RegisterFloat(
+            "sv_map_scale",
+            "Map scale",
+            world.ConfiguredMapScale,
+            () => world.ConfiguredMapScale,
+            world.SetMapScale,
+            minValue: 0.25f,
+            maxValue: 4f);
+        registry.RegisterFloat(
             "sv_movement_speed_scale",
             "Movement speed scale",
             world.ConfiguredMovementSpeedScale,
@@ -166,6 +182,23 @@ public sealed class ServerAdminFoundationTests
             world.RoundEndFriendlyFireEnabled,
             () => world.RoundEndFriendlyFireEnabled,
             world.SetRoundEndFriendlyFire);
+
+        var originalWorldWidth = world.Bounds.Width;
+        var originalWorldHeight = world.Bounds.Height;
+
+        Assert.True(registry.TrySet("sv_player_scale", "1.5", out var updatedPlayerScale, out var playerScaleError));
+        Assert.Equal(string.Empty, playerScaleError);
+        Assert.Equal(1.5f, world.ConfiguredPlayerScale);
+        Assert.Equal(1.5f, world.LocalPlayer.PlayerScale);
+        Assert.Equal("1.5", updatedPlayerScale.CurrentValue);
+
+        Assert.True(registry.TrySet("sv_map_scale", "1.25", out var updatedMapScale, out var mapScaleError));
+        Assert.Equal(string.Empty, mapScaleError);
+        Assert.Equal(1.25f, world.ConfiguredMapScale);
+        Assert.Equal(1.25f, world.Level.MapScale);
+        Assert.Equal("1.25", updatedMapScale.CurrentValue);
+        Assert.True(world.Bounds.Width > originalWorldWidth);
+        Assert.True(world.Bounds.Height > originalWorldHeight);
 
         Assert.True(registry.TrySet("sv_movement_speed_scale", "1.5", out var updatedMovementScale, out var movementScaleError));
         Assert.Equal(string.Empty, movementScaleError);
@@ -226,16 +259,19 @@ public sealed class ServerAdminFoundationTests
         boostedDamageWorld.LocalPlayer.IgniteAfterburn(2, 30f, PlayerEntity.BurnMaxIntensity, afterburnFalloff: false, burnFalloffAmount: 0f);
 
         var neutralInput = new PlayerInputSnapshot(false, false, false, false, false, false, false, false, false, 0f, 0f, false);
-        defaultDamageWorld.LocalPlayer.AdvanceTickState(neutralInput, defaultDamageWorld.Config.FixedDeltaSeconds);
-        boostedDamageWorld.LocalPlayer.AdvanceTickState(neutralInput, boostedDamageWorld.Config.FixedDeltaSeconds);
+        for (var index = 0; index < 5; index += 1)
+        {
+            defaultDamageWorld.LocalPlayer.AdvanceTickState(neutralInput, defaultDamageWorld.Config.FixedDeltaSeconds);
+            boostedDamageWorld.LocalPlayer.AdvanceTickState(neutralInput, boostedDamageWorld.Config.FixedDeltaSeconds);
+        }
         Assert.True(boostedDamageWorld.LocalPlayer.Health < defaultDamageWorld.LocalPlayer.Health);
 
         var defaultGravityWorld = new SimulationWorld();
         var zeroGravityWorld = new SimulationWorld();
         zeroGravityWorld.SetGravityScale(0f);
 
-        defaultGravityWorld.LocalPlayer.TeleportTo(defaultGravityWorld.LocalPlayer.X, defaultGravityWorld.LocalPlayer.Y - 96f);
-        zeroGravityWorld.LocalPlayer.TeleportTo(zeroGravityWorld.LocalPlayer.X, zeroGravityWorld.LocalPlayer.Y - 96f);
+        defaultGravityWorld.LocalPlayer.TeleportTo(defaultGravityWorld.LocalPlayer.X, defaultGravityWorld.LocalPlayer.Y - 192f);
+        zeroGravityWorld.LocalPlayer.TeleportTo(zeroGravityWorld.LocalPlayer.X, zeroGravityWorld.LocalPlayer.Y - 192f);
 
         var defaultStartedGrounded = defaultGravityWorld.LocalPlayer.PrepareMovement(
             neutralInput,
@@ -272,13 +308,69 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void ServerAdminTargetResolverResolvesUserIdsSelectorsAndUniquePartialNames()
+    {
+        var players = new[]
+        {
+            CreatePlayerInfo(1, 101, "Alpha", team: PlayerTeam.Red, playerClass: PlayerClass.Soldier, isAlive: true, playerId: 11),
+            CreatePlayerInfo(2, 202, "Bravo", team: PlayerTeam.Blue, playerClass: PlayerClass.Medic, isAlive: false, playerId: 22),
+            CreatePlayerInfo(3, 303, "Watcher", isSpectator: true),
+        };
+        var resolver = new ServerAdminTargetResolver(() => players);
+
+        var self = resolver.Resolve("@me", new ServerAdminTargetQueryOptions(SourceSlot: 1, AllowMultiple: false));
+        Assert.True(self.Success);
+        Assert.Equal(101, Assert.Single(self.Targets).UserId);
+
+        var byUserId = resolver.Resolve("#202", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.True(byUserId.Success);
+        Assert.Equal((byte)2, Assert.Single(byUserId.Targets).Slot);
+
+        var partial = resolver.Resolve("lph", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.True(partial.Success);
+        Assert.Equal("Alpha", Assert.Single(partial.Targets).Name);
+
+        var alive = resolver.Resolve("@alive", new ServerAdminTargetQueryOptions());
+        Assert.True(alive.Success);
+        Assert.Equal(101, Assert.Single(alive.Targets).UserId);
+    }
+
+    [Fact]
+    public void ServerAdminTargetResolverRejectsAmbiguousAndUnavailableTargets()
+    {
+        var players = new[]
+        {
+            CreatePlayerInfo(1, 101, "Alice", team: PlayerTeam.Red, playerClass: PlayerClass.Scout, isAlive: true, playerId: 1),
+            CreatePlayerInfo(2, 202, "Alicia", team: PlayerTeam.Red, playerClass: PlayerClass.Soldier, isAlive: true, playerId: 2),
+            CreatePlayerInfo(3, 303, "Alice", team: PlayerTeam.Blue, playerClass: PlayerClass.Medic, isAlive: false, playerId: 3),
+        };
+        var resolver = new ServerAdminTargetResolver(() => players);
+
+        var ambiguousPartial = resolver.Resolve("ali", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.False(ambiguousPartial.Success);
+        Assert.Equal("ambiguous_name", ambiguousPartial.ErrorCode);
+
+        var duplicateExact = resolver.Resolve("Alice", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.False(duplicateExact.Success);
+        Assert.Equal("ambiguous_name", duplicateExact.ErrorCode);
+
+        var missingSelf = resolver.Resolve("@me", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.False(missingSelf.Success);
+        Assert.Equal("source_slot_required", missingSelf.ErrorCode);
+
+        var multiSelector = resolver.Resolve("@red", new ServerAdminTargetQueryOptions(AllowMultiple: false));
+        Assert.False(multiSelector.Success);
+        Assert.Equal("multiple_targets", multiSelector.ErrorCode);
+    }
+
+    [Fact]
     public void AdminChatRouterAuthenticatesAndReplaysReservedCommandPrivately()
     {
         AdminCommandCapturePlugin.Reset();
 
         var now = TimeSpan.Zero;
         var sessionManager = new ServerAdminSessionManager("secret", () => now);
-        var client = new ClientSession(1, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", now);
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", now);
         var messages = new List<(byte Slot, string Text)>();
         var rootPath = CreateTempRoot();
         var host = new OpenGarrison.Server.PluginHost(
@@ -323,7 +415,7 @@ public sealed class ServerAdminFoundationTests
     {
         var now = TimeSpan.Zero;
         var sessionManager = new ServerAdminSessionManager("secret", () => now);
-        var client = new ClientSession(1, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", now);
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", now);
         var routerMessages = new List<(byte Slot, string Text)>();
         var logs = new List<string>();
         var repoRoot = FindRepositoryRoot();
@@ -376,7 +468,7 @@ public sealed class ServerAdminFoundationTests
     [Fact]
     public void ServerAdminOperationsSplitOversizedPrivateSystemMessagesSafely()
     {
-        var client = new ClientSession(1, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
         var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
         var sentMessages = new List<IProtocolMessage>();
         var operations = new ServerAdminOperations(
@@ -438,12 +530,43 @@ public sealed class ServerAdminFoundationTests
         throw new DirectoryNotFoundException("Failed to locate repository root from test output directory.");
     }
 
+    private static OpenGarrisonServerPlayerInfo CreatePlayerInfo(
+        byte slot,
+        int userId,
+        string name,
+        bool isSpectator = false,
+        bool isAuthorized = true,
+        bool isAlive = false,
+        int? playerId = null,
+        PlayerTeam? team = null,
+        PlayerClass? playerClass = null)
+    {
+        return new OpenGarrisonServerPlayerInfo(
+            slot,
+            userId,
+            name,
+            IsSpectator: isSpectator,
+            IsAuthorized: isAuthorized,
+            IsAlive: isAlive,
+            PlayerId: playerId,
+            Team: team,
+            PlayerClass: playerClass,
+            PlayerScale: 1f,
+            EndPoint: $"127.0.0.1:{8190 + slot}",
+            GameplayLoadoutId: string.Empty,
+            GameplaySecondaryItemId: string.Empty,
+            GameplayAcquiredItemId: string.Empty,
+            GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId: string.Empty);
+    }
+
     private sealed class FakeServerReadOnlyState : IOpenGarrisonServerReadOnlyState
     {
         public string ServerName => "test";
         public string LevelName => "ctf_test";
         public int MapAreaIndex => 1;
         public int MapAreaCount => 1;
+        public float MapScale => 1f;
         public GameModeKind GameMode => GameModeKind.CaptureTheFlag;
         public MatchPhase MatchPhase => MatchPhase.Running;
         public int RedCaps => 0;
@@ -520,6 +643,8 @@ public sealed class ServerAdminFoundationTests
         public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot) => true;
 
         public bool TryForceKill(byte slot) => true;
+
+        public bool TrySetPlayerScale(byte slot, float scale) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 

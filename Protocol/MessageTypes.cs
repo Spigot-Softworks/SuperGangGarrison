@@ -78,7 +78,8 @@ public sealed record WelcomeMessage(
     byte PlayerSlot,
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
-    string MapContentHash = "") : IProtocolMessage
+    string MapContentHash = "",
+    float MapScale = 1f) : IProtocolMessage
 {
     public MessageType Type => MessageType.Welcome;
 }
@@ -286,7 +287,8 @@ public sealed record SnapshotPlayerState(
     string GameplayEquippedItemId = "",
     string GameplayAcquiredItemId = "",
     IReadOnlyList<string>? OwnedGameplayItemIds = null,
-    IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null);
+    IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
+    float PlayerScale = 1f);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -554,7 +556,8 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotSoundEvent> SoundEvents,
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
-    string MapContentHash = "") : IProtocolMessage
+    string MapContentHash = "",
+    float MapScale = 1f) : IProtocolMessage
 {
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }

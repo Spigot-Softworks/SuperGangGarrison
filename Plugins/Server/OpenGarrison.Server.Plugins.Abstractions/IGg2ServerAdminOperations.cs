@@ -31,6 +31,8 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TryForceKill(byte slot);
 
+    bool TrySetPlayerScale(byte slot, float scale);
+
     bool TrySetTimeLimit(int timeLimitMinutes);
 
     bool TrySetCapLimit(int capLimit);

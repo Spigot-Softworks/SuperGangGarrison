@@ -11,6 +11,8 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const int MaxReplicatedStateEntries = 16;
     private const int MaxDisplayNameLength = 20;
     private const string DefaultDisplayName = "Player";
+    public const float MinPlayerScale = 0.25f;
+    public const float MaxPlayerScale = 4f;
     public const float HeavyPrimaryMoveScale = 0.375f;
     public const int HeavyEatDurationTicks = 124;
     public const int HeavySandvichCooldownTicks = 1350;
@@ -67,6 +69,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     private const float TauntFrameStepPerTick = 0.3f;
     private const int ChatBubbleHoldTicks = 60;
     private const float ChatBubbleFadePerTick = 0.05f;
+    private float _playerScale = 1f;
 
     public PlayerEntity(int id, CharacterClassDefinition classDefinition, string? displayName = null) : base(id)
     {
@@ -96,17 +99,19 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public GameplayEquipmentSlot SelectedGameplayEquippedSlot { get; private set; }
 
-    public float Width => ClassDefinition.Width;
+    public float PlayerScale => _playerScale;
 
-    public float Height => ClassDefinition.Height;
+    public float Width => ClassDefinition.Width * _playerScale;
 
-    public float CollisionLeftOffset => ClassDefinition.CollisionLeft;
+    public float Height => ClassDefinition.Height * _playerScale;
 
-    public float CollisionTopOffset => ClassDefinition.CollisionTop;
+    public float CollisionLeftOffset => ClassDefinition.CollisionLeft * _playerScale;
 
-    public float CollisionRightOffset => ClassDefinition.CollisionRight;
+    public float CollisionTopOffset => ClassDefinition.CollisionTop * _playerScale;
 
-    public float CollisionBottomOffset => ClassDefinition.CollisionBottom;
+    public float CollisionRightOffset => ClassDefinition.CollisionRight * _playerScale;
+
+    public float CollisionBottomOffset => ClassDefinition.CollisionBottom * _playerScale;
 
     public float Left => X + CollisionLeftOffset;
 
@@ -394,6 +399,13 @@ public sealed partial class PlayerEntity : SimulationEntity
     public float JumpSpeed => ClassDefinition.JumpSpeed;
 
     public int MaxAirJumps => ClassDefinition.MaxAirJumps;
+
+    public void SetPlayerScale(float scale)
+    {
+        _playerScale = ClampPlayerScale(scale);
+    }
+
+    public static float ClampPlayerScale(float scale) => float.Clamp(scale, MinPlayerScale, MaxPlayerScale);
 
     public void Spawn(PlayerTeam team, float x, float y)
     {

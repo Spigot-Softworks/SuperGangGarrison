@@ -110,7 +110,7 @@ public partial class Game1
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();
             _game.ResetGameplayRuntimeState();
-            if (!_game._world.TryLoadLevel(welcome.LevelName))
+            if (!_game._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
                 var loadError = $"Failed to load map: {welcome.LevelName}";
                 _game.ReturnToMainMenuWithNetworkStatus(loadError);

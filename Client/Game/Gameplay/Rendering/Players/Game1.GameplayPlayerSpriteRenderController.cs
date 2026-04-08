@@ -38,7 +38,8 @@ public partial class Game1
             }
 
             var facingScale = GetPlayerFacingScale(player);
-            var scale = new Vector2(facingScale, 1f);
+            var playerScale = player.PlayerScale;
+            var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(_game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team)
                 : player.IsTaunting
@@ -47,7 +48,7 @@ public partial class Game1
                         ? GetHumiliationSpriteFrameIndex(player, bodySelection.AnimationImage, sprite.Frames.Count)
                         : GetPlayerBodySpriteFrameIndex(bodySelection.AnimationImage, sprite.Frames.Count);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-            var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset;
+            var bodyYOffset = isHeavyEating || player.IsTaunting ? 0f : bodySelection.BodyYOffset * playerScale;
             var position = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodyYOffset - cameraPosition.Y);
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
@@ -194,7 +195,13 @@ public partial class Game1
                 return;
             }
 
-            _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[0], new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + bodySelection.EquipmentOffset - cameraPosition.Y), tint, 0f, sprite.Origin.ToVector2(), scale);
+            _game.DrawSpriteFrameWithOptionalShadow(
+                sprite.Frames[0],
+                new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y + (bodySelection.EquipmentOffset * player.PlayerScale) - cameraPosition.Y),
+                tint,
+                0f,
+                sprite.Origin.ToVector2(),
+                scale);
         }
 
         private void DrawCarriedIntelTimerSpriteCore(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
@@ -218,7 +225,14 @@ public partial class Game1
                 timerFrame += 12;
             }
 
-            _game.DrawSpriteFrameWithOptionalShadow(timerSprite.Frames[System.Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)], new Vector2(roundedOrigin.X + 2f - cameraPosition.X, roundedOrigin.Y - 33f - cameraPosition.Y), Color.White, 0f, timerSprite.Origin.ToVector2(), new Vector2(2f, 2f));
+            var playerScale = player.PlayerScale;
+            _game.DrawSpriteFrameWithOptionalShadow(
+                timerSprite.Frames[System.Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1)],
+                new Vector2(roundedOrigin.X + (2f * playerScale) - cameraPosition.X, roundedOrigin.Y - (33f * playerScale) - cameraPosition.Y),
+                Color.White,
+                0f,
+                timerSprite.Origin.ToVector2(),
+                new Vector2(2f * playerScale, 2f * playerScale));
         }
 
         private static PlayerTeam GetCarriedIntelTeam(PlayerEntity player) => player.Team == PlayerTeam.Blue ? PlayerTeam.Red : PlayerTeam.Blue;
@@ -282,9 +296,10 @@ public partial class Game1
 
         private LeanDirection GetPlayerLeanDirectionCore(PlayerEntity player)
         {
-            var bottom = player.Bottom + 2f;
-            var openRight = !IsPointBlockedForPlayer(player, player.X + 6f, bottom) && !IsPointBlockedForPlayer(player, player.X + 2f, bottom);
-            var openLeft = !IsPointBlockedForPlayer(player, player.X - 7f, bottom) && !IsPointBlockedForPlayer(player, player.X - 3f, bottom);
+            var playerScale = player.PlayerScale;
+            var bottom = player.Bottom + (2f * playerScale);
+            var openRight = !IsPointBlockedForPlayer(player, player.X + (6f * playerScale), bottom) && !IsPointBlockedForPlayer(player, player.X + (2f * playerScale), bottom);
+            var openLeft = !IsPointBlockedForPlayer(player, player.X - (7f * playerScale), bottom) && !IsPointBlockedForPlayer(player, player.X - (3f * playerScale), bottom);
             var leanDirection = LeanDirection.None;
             if (openRight)
             {
@@ -298,7 +313,7 @@ public partial class Game1
 
             if (openRight && openLeft)
             {
-                openRight = !IsPointBlockedForPlayer(player, player.Right - 1f, bottom);
+                openRight = !IsPointBlockedForPlayer(player, player.Right - playerScale, bottom);
                 openLeft = !IsPointBlockedForPlayer(player, player.Left, bottom);
                 leanDirection = LeanDirection.None;
                 if (openRight)

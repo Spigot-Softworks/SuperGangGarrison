@@ -1,6 +1,7 @@
 local plugin = {}
 
-local help_line = "[GT] commands | !gt_help | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_say <text> | !gt_kick <slot> [reason] | !gt_map <map> [area] | !gt_nextmap <map> [area] | !gt_auth <password> | !gt_logout | !gt_adminmenu"
+local help_line = "[GT] commands | !gt_help | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_say <text> | !gt_kick <target> [reason] | !gt_map <map> [area] | !gt_nextmap <map> [area] | !gt_auth <password> | !gt_logout | !gt_adminmenu"
+local target_help_line = "[GT] targets | name | #userid | @me | @all | @alive | @dead | @red | @blue"
 
 local function trim(text)
     local normalized = (text or ""):gsub("^%s+", "")
@@ -54,23 +55,61 @@ local function parse_command(text)
     return string.lower(command_name), arguments
 end
 
-local function parse_slot(text)
-    local slot = tonumber(trim(text))
-    if slot == nil or slot < 1 or slot > 255 or slot ~= math.floor(slot) then
-        return nil
-    end
-
-    return slot
-end
-
-local function parse_slot_and_optional_argument(arguments)
-    local slot_text, remainder = split_first_word(arguments)
-    local slot = parse_slot(slot_text)
-    if slot == nil then
+local function parse_target_and_optional_argument(arguments)
+    local target_text, remainder = split_first_word(arguments)
+    target_text = trim(target_text)
+    if target_text == "" then
         return nil, nil
     end
 
-    return slot, remainder
+    return target_text, remainder
+end
+
+local function resolve_targets(source_slot, target_text, options)
+    local allow_multiple = true
+    if options ~= nil and options.allowMultiple ~= nil then
+        allow_multiple = options.allowMultiple
+    end
+
+    local resolved = plugin.host.resolve_targets(target_text, {
+        sourceSlot = source_slot,
+        allowMultiple = allow_multiple,
+        requireAlive = options ~= nil and options.requireAlive or false,
+        includeSpectators = options == nil or options.includeSpectators ~= false,
+    })
+
+    if resolved == nil or not resolved.success then
+        return nil, (resolved ~= nil and resolved.errorMessage) or ("Unable to resolve target \"" .. tostring(target_text) .. "\".")
+    end
+
+    return resolved.targets, nil
+end
+
+local function resolve_single_target(source_slot, target_text, options)
+    local resolved_options = {
+        allowMultiple = false,
+        requireAlive = options ~= nil and options.requireAlive or false,
+        includeSpectators = options == nil or options.includeSpectators ~= false,
+    }
+    local targets, error_text = resolve_targets(source_slot, target_text, resolved_options)
+    if targets == nil then
+        return nil, error_text
+    end
+
+    return targets[1], nil
+end
+
+local function describe_player(player)
+    local team_name = player.team or (player.isSpectator and "Spectator" or "Unassigned")
+    local class_name = player.playerClass or "-"
+    local state_name = player.isSpectator and "spectator" or (player.isAlive and "alive" or "dead")
+    return "[GT] player | userid=" .. tostring(player.userId)
+        .. " | slot=" .. tostring(player.slot)
+        .. " | name=" .. player.name
+        .. " | team=" .. tostring(team_name)
+        .. " | class=" .. tostring(class_name)
+        .. " | state=" .. state_name
+        .. " | auth=" .. (player.isAuthorized and "yes" or "pending")
 end
 
 local function parse_map_arguments(arguments)
@@ -96,11 +135,13 @@ end
 
 local function handle_help(event)
     send_private(event.slot, help_line)
+    send_private(event.slot, target_help_line)
     return true
 end
 
 local function handle_status(context, event)
     local summary = plugin.host.get_admin_summary()
+    local players, _ = resolve_targets(event.slot, "@all", { allowMultiple = true, includeSpectators = true })
     send_private(
         event.slot,
         "[GT] status | server=" .. summary.serverName
@@ -123,6 +164,13 @@ local function handle_status(context, event)
             .. " | authority=" .. context.identity.authority
             .. " | timers=" .. tostring(summary.scheduledTaskCount)
             .. " | uptime=" .. string.format("%.0fs", tonumber(summary.uptimeSeconds) or 0))
+    if players ~= nil then
+        local index = 1
+        while players[index] ~= nil do
+            send_private(event.slot, describe_player(players[index]))
+            index = index + 1
+        end
+    end
     return true
 end
 
@@ -221,17 +269,23 @@ local function handle_say(event, arguments)
 end
 
 local function handle_kick(event, arguments)
-    local slot, reason = parse_slot_and_optional_argument(arguments)
-    if slot == nil then
-        send_private(event.slot, "[GT] usage: !gt_kick <slot> [reason]")
+    local target_text, reason = parse_target_and_optional_argument(arguments)
+    if target_text == nil then
+        send_private(event.slot, "[GT] usage: !gt_kick <target> [reason]")
+        return true
+    end
+
+    local target, error_text = resolve_single_target(event.slot, target_text, { includeSpectators = true })
+    if target == nil then
+        send_private(event.slot, "[GT] " .. error_text)
         return true
     end
 
     local final_reason = trim(reason) ~= "" and trim(reason) or "Kicked by admin."
-    if plugin.host.try_disconnect(slot, final_reason) then
-        send_private(event.slot, "[GT] kicked slot " .. tostring(slot) .. ".")
+    if plugin.host.try_disconnect(target.slot, final_reason) then
+        send_private(event.slot, "[GT] kicked " .. target.name .. " (#" .. tostring(target.userId) .. ", slot " .. tostring(target.slot) .. ").")
     else
-        send_private(event.slot, "[GT] no client at slot " .. tostring(slot) .. ".")
+        send_private(event.slot, "[GT] no connected client for " .. target_text .. ".")
     end
 
     return true

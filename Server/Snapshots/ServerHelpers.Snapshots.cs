@@ -104,7 +104,8 @@ internal static partial class ServerHelpers
                     entry.IntValue,
                     entry.FloatValue,
                     entry.BoolValue))
-                .ToArray());
+                .ToArray(),
+            player.PlayerScale);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

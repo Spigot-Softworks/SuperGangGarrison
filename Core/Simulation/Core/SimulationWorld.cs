@@ -72,6 +72,8 @@ public sealed partial class SimulationWorld
     private int _configuredCapLimit = DefaultCapLimit;
     private int _configuredRespawnSeconds = DefaultRespawnSeconds;
     private int _configuredRespawnTicks = DefaultRespawnSeconds * SimulationConfig.DefaultTicksPerSecond;
+    private float _configuredPlayerScale = 1f;
+    private float _configuredMapScale = 1f;
     private float _configuredMovementSpeedScale = 1f;
     private float _configuredProjectileSpeedScale = 1f;
     private float _configuredDamageScale = 1f;
@@ -160,6 +162,10 @@ public sealed partial class SimulationWorld
     }
 
     public int ConfiguredRespawnSeconds => _configuredRespawnSeconds;
+
+    public float ConfiguredPlayerScale => _configuredPlayerScale;
+
+    public float ConfiguredMapScale => _configuredMapScale;
 
     public float ConfiguredMovementSpeedScale => _configuredMovementSpeedScale;
 
@@ -298,17 +304,19 @@ public sealed partial class SimulationWorld
         _runtimeController = new RuntimeController(this);
         _runtimeQueryController = new RuntimeQueryController(this);
         Config = config ?? new SimulationConfig();
-        Level = SimpleLevelFactory.CreateScoutPrototypeLevel();
+        Level = SimpleLevelFactory.CreateScoutPrototypeLevel(_configuredMapScale);
         RedIntel = CreateIntelState(PlayerTeam.Red);
         BlueIntel = CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), _localPlayerClassDefinition, DefaultLocalPlayerName);
+        LocalPlayer.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         _entities.Add(LocalPlayer.Id, LocalPlayer);
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
+        EnemyPlayer.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(EnemyPlayer);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
@@ -323,6 +331,7 @@ public sealed partial class SimulationWorld
         }
         _entities.Add(EnemyPlayer.Id, EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
+        FriendlyDummy.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(FriendlyDummy);
         FriendlyDummy.Kill();
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);

@@ -252,6 +252,7 @@ internal sealed class LuaServerPlugin(
 
     private Table CreateHostTable(Script script, IOpenGarrisonServerPluginContext context)
     {
+        var targetResolver = new ServerAdminTargetResolver(context.ServerState.GetPlayers);
         var host = new Table(script)
         {
             ["plugin_id"] = context.PluginId,
@@ -307,6 +308,17 @@ internal sealed class LuaServerPlugin(
         host["get_server_state"] = DynValue.NewCallback((_, _) => ToDynValue(CreateServerStateSnapshot(context.ServerState)));
         host["get_admin_summary"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateAdminSummaryTable(script, context)));
         host["get_players"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetPlayers()));
+        host["resolve_targets"] = DynValue.NewCallback((_, args) =>
+        {
+            var options = ReadOptionalTableArgument(args, 1);
+            return ToDynValue(targetResolver.Resolve(
+                ReadStringArgument(args, 0),
+                new ServerAdminTargetQueryOptions(
+                    SourceSlot: ReadOptionalByteField(options, "sourceSlot"),
+                    AllowMultiple: ReadOptionalBoolField(options, "allowMultiple", true),
+                    RequireAlive: ReadOptionalBoolField(options, "requireAlive", false),
+                    IncludeSpectators: ReadOptionalBoolField(options, "includeSpectators", true))));
+        });
         host["get_gameplay_mod_packs"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetGameplayModPacks()));
         host["get_gameplay_classes"] = DynValue.NewCallback((_, args) =>
         {
@@ -515,6 +527,13 @@ internal sealed class LuaServerPlugin(
             return DynValue.NewBoolean(
                 CanIssueServerMutation("try_force_kill", $"player {slot}")
                 && context.AdminOperations.TryForceKill(slot));
+        });
+        host["try_set_player_scale"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_scale", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerScale(slot, (float)ReadDoubleArgument(args, 1)));
         });
         host["try_set_cap_limit"] = DynValue.NewCallback((_, args) =>
         {
@@ -1164,6 +1183,7 @@ internal sealed class LuaServerPlugin(
             state.LevelName,
             state.MapAreaIndex,
             state.MapAreaCount,
+            state.MapScale,
             GameMode = state.GameMode.ToString(),
             MatchPhase = state.MatchPhase.ToString(),
             state.RedCaps,
@@ -1183,6 +1203,7 @@ internal sealed class LuaServerPlugin(
         table["levelName"] = DynValue.NewString(context.ServerState.LevelName);
         table["mapAreaIndex"] = DynValue.NewNumber(context.ServerState.MapAreaIndex);
         table["mapAreaCount"] = DynValue.NewNumber(context.ServerState.MapAreaCount);
+        table["mapScale"] = DynValue.NewNumber(context.ServerState.MapScale);
         table["gameMode"] = DynValue.NewString(context.ServerState.GameMode.ToString());
         table["matchPhase"] = DynValue.NewString(context.ServerState.MatchPhase.ToString());
         table["redCaps"] = DynValue.NewNumber(context.ServerState.RedCaps);
@@ -1291,9 +1312,33 @@ internal sealed class LuaServerPlugin(
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
+    private static Table? ReadOptionalTableArgument(CallbackArguments args, int index)
+    {
+        var dynValue = ReadArgument(args, index);
+        return dynValue.Type == DataType.Table ? dynValue.Table : null;
+    }
+
     private static byte ReadByteArgument(CallbackArguments args, int index)
     {
         var dynValue = ReadArgument(args, index);
+        return dynValue.Type == DataType.Number
+            ? (byte)dynValue.Number
+            : byte.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
+    }
+
+    private static byte? ReadOptionalByteField(Table? table, string fieldName)
+    {
+        if (table is null)
+        {
+            return null;
+        }
+
+        var dynValue = table.Get(fieldName);
+        if (dynValue.IsNil())
+        {
+            return null;
+        }
+
         return dynValue.Type == DataType.Number
             ? (byte)dynValue.Number
             : byte.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
@@ -1358,6 +1403,27 @@ internal sealed class LuaServerPlugin(
         return dynValue.IsNil()
             ? defaultValue
             : ReadBoolArgument(args, index);
+    }
+
+    private static bool ReadOptionalBoolField(Table? table, string fieldName, bool defaultValue)
+    {
+        if (table is null)
+        {
+            return defaultValue;
+        }
+
+        var dynValue = table.Get(fieldName);
+        if (dynValue.IsNil())
+        {
+            return defaultValue;
+        }
+
+        return dynValue.Type switch
+        {
+            DataType.Boolean => dynValue.Boolean,
+            DataType.Number => Math.Abs(dynValue.Number) > double.Epsilon,
+            _ => bool.Parse(dynValue.CastToString()),
+        };
     }
 
     private static PluginMessagePayloadFormat ReadOptionalEnumArgument(CallbackArguments args, int index, PluginMessagePayloadFormat defaultValue)

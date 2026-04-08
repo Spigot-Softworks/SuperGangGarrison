@@ -97,7 +97,8 @@ public sealed partial class SimulationWorld
             snapshotPlayer.GameplayEquippedItemId,
             snapshotPlayer.GameplayAcquiredItemId,
             snapshotPlayer.OwnedGameplayItemIds,
-            ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates));
+            ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates),
+            snapshotPlayer.PlayerScale);
     }
 
     private static GameplayReplicatedStateEntry[] ConvertReplicatedStateEntries(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)

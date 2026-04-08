@@ -5,11 +5,15 @@ namespace OpenGarrison.Server.Plugins;
 
 public readonly record struct OpenGarrisonServerPlayerInfo(
     byte Slot,
+    int UserId,
     string Name,
     bool IsSpectator,
     bool IsAuthorized,
+    bool IsAlive,
+    int? PlayerId,
     PlayerTeam? Team,
     PlayerClass? PlayerClass,
+    float PlayerScale,
     string EndPoint,
     string GameplayLoadoutId,
     string GameplaySecondaryItemId,

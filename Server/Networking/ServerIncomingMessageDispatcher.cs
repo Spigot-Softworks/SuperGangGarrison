@@ -18,6 +18,7 @@ internal sealed class ServerIncomingMessageDispatcher(
     SimulationWorld world,
     Func<TimeSpan> elapsedGetter,
     Func<PluginHost?> pluginHostGetter,
+    Func<int> allocateUserId,
     Func<IPEndPoint, string?> getHelloRateLimitReason,
     Action<IPEndPoint> resetConnectionAttemptLimits,
     Func<(bool IsCustomMap, string MapDownloadUrl, string MapContentHash)> getCurrentMapMetadata,
@@ -129,7 +130,8 @@ internal sealed class ServerIncomingMessageDispatcher(
                 existingClient.Slot,
                 existingMapMetadata.IsCustomMap,
                 existingMapMetadata.MapDownloadUrl,
-                existingMapMetadata.MapContentHash));
+                existingMapMetadata.MapContentHash,
+                world.Level.MapScale));
             if (passwordRequired && !existingClient.IsAuthorized)
             {
                 sendMessage(remoteEndPoint, new PasswordRequestMessage());
@@ -156,7 +158,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
 
         var now = elapsedGetter();
-        var client = new ClientSession(assignedSlot, remoteEndPoint, hello.Name, now)
+        var client = new ClientSession(assignedSlot, allocateUserId(), remoteEndPoint, hello.Name, now)
         {
             IsAuthorized = !passwordRequired,
             BadgeMask = hello.BadgeMask,
@@ -177,7 +179,8 @@ internal sealed class ServerIncomingMessageDispatcher(
             assignedSlot,
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
-            mapMetadata.MapContentHash));
+            mapMetadata.MapContentHash,
+            world.Level.MapScale));
         if (passwordRequired && !client.IsAuthorized)
         {
             sendMessage(remoteEndPoint, new PasswordRequestMessage());

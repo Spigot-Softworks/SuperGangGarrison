@@ -18,6 +18,8 @@ internal sealed class ServerReadOnlyStateView(
 
     public int MapAreaCount => worldGetter().Level.MapAreaCount;
 
+    public float MapScale => worldGetter().Level.MapScale;
+
     public GameModeKind GameMode => worldGetter().MatchRules.Mode;
 
     public MatchPhase MatchPhase => worldGetter().MatchState.Phase;
@@ -47,11 +49,15 @@ internal sealed class ServerReadOnlyStateView(
 
                 return new OpenGarrisonServerPlayerInfo(
                     client.Slot,
+                    client.UserId,
                     client.Name,
                     isSpectator,
                     client.IsAuthorized,
+                    player?.IsAlive ?? false,
+                    player?.Id,
                     team,
                     playerClass,
+                    player?.PlayerScale ?? 1f,
                     client.EndPoint.ToString(),
                     player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
                     player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,

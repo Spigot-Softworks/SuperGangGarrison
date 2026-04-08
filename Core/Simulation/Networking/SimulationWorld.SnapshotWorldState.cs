@@ -6,9 +6,10 @@ public sealed partial class SimulationWorld
 {
     private bool EnsureSnapshotLevelLoaded(SnapshotMessage snapshot)
     {
-        return (string.Equals(Level.Name, snapshot.LevelName, StringComparison.OrdinalIgnoreCase)
+        return ((string.Equals(Level.Name, snapshot.LevelName, StringComparison.OrdinalIgnoreCase)
                 && Level.MapAreaIndex == snapshot.MapAreaIndex)
-            || TryLoadLevel(snapshot.LevelName, snapshot.MapAreaIndex, preservePlayerStats: false);
+            && MathF.Abs(Level.MapScale - snapshot.MapScale) <= 0.0001f)
+            || TryLoadLevel(snapshot.LevelName, snapshot.MapAreaIndex, preservePlayerStats: false, mapScale: snapshot.MapScale);
     }
 
     private void ApplySnapshotWorldState(SnapshotMessage snapshot)

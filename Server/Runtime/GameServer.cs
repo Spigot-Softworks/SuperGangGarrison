@@ -66,6 +66,7 @@ sealed partial class GameServer
     private readonly bool _passwordRequired;
     private readonly byte[] _protocolUuidBytes;
     private readonly ConcurrentQueue<PendingConsoleCommand> _pendingConsoleCommands = new();
+    private int _nextClientUserId = 1;
 
     private UdpClient _udp = null!;
     private LobbyServerRegistrar? _lobbyRegistrar;
@@ -260,5 +261,12 @@ sealed partial class GameServer
         return _adminSessionManager is null
             ? new OpenGarrisonServerAdminIdentity("AdminPipe", OpenGarrisonServerAdminAuthority.AdminPipe, OpenGarrisonServerAdminPermissions.FullAccess)
             : _adminSessionManager.AdminPipeIdentity;
+    }
+
+    private int AllocateClientUserId()
+    {
+        var userId = _nextClientUserId;
+        _nextClientUserId += 1;
+        return userId;
     }
 }
