@@ -9,7 +9,15 @@ public readonly record struct ClientPluginMessageEnvelope(
     string MessageType,
     string Payload,
     PluginMessagePayloadFormat PayloadFormat,
-    ushort SchemaVersion);
+    ushort SchemaVersion)
+{
+    public PluginMessageCompatibilityHeader CompatibilityHeader => PluginMessageContract.CreateCompatibilityHeader(
+        SourcePluginId,
+        TargetPluginId,
+        MessageType,
+        PayloadFormat,
+        SchemaVersion);
+}
 
 public static class ClientPluginMessageSerializer
 {
@@ -21,6 +29,31 @@ public static class ClientPluginMessageSerializer
     public static T? DeserializeJsonPayload<T>(string payload, JsonSerializerOptions? options = null)
     {
         return JsonSerializer.Deserialize<T>(payload, options);
+    }
+
+    public static bool TryDeserializeCompatibleJsonPayload<T>(
+        ClientPluginMessageEnvelope envelope,
+        PluginMessageCompatibilityContract contract,
+        out T? value,
+        out string error,
+        JsonSerializerOptions? options = null)
+    {
+        value = default;
+        if (!PluginMessageContract.TryValidateAgainstCompatibilityContract(envelope.CompatibilityHeader, contract, out error))
+        {
+            return false;
+        }
+
+        try
+        {
+            value = JsonSerializer.Deserialize<T>(envelope.Payload, options);
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            error = $"JSON payload deserialization failed: {ex.Message}";
+            return false;
+        }
     }
 }
 

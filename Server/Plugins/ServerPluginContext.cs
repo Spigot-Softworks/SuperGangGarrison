@@ -13,6 +13,8 @@ internal sealed class ServerPluginContext(
     string mapsDirectory,
     IOpenGarrisonServerReadOnlyState serverState,
     IOpenGarrisonServerAdminOperations adminOperations,
+    IOpenGarrisonServerCvarRegistry cvars,
+    IOpenGarrisonServerScheduler scheduler,
     Action<byte, string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToClient,
     Action<string, string, string, PluginMessagePayloadFormat, ushort> broadcastMessageToClients,
     Func<string, byte, string, int, bool> setPlayerReplicatedStateInt,
@@ -37,6 +39,10 @@ internal sealed class ServerPluginContext(
     public IOpenGarrisonServerReadOnlyState ServerState { get; } = serverState;
 
     public IOpenGarrisonServerAdminOperations AdminOperations { get; } = adminOperations;
+
+    public IOpenGarrisonServerCvarRegistry Cvars { get; } = cvars;
+
+    public IOpenGarrisonServerScheduler Scheduler { get; } = scheduler;
 
     public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
     {
@@ -68,9 +74,9 @@ internal sealed class ServerPluginContext(
         return clearPlayerReplicatedState(PluginId, slot, stateKey);
     }
 
-    public void RegisterCommand(IOpenGarrisonServerCommand command)
+    public void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions)
     {
-        commandRegistry.RegisterPluginCommand(command, PluginId);
+        commandRegistry.RegisterPluginCommand(command, PluginId, requiredPermissions);
     }
 
     public void Log(string message)

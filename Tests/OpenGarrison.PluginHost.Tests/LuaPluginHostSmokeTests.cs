@@ -314,6 +314,87 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void ClientLuaHostRejectsSoundRegistrationAndUiMutationDuringHudDraw()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-draw-ui-mutation",
+            "Lua Draw UI Mutation",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_gameplay_hud_draw(canvas)
+                plugin.host.register_sound_asset("ding", "ding.wav")
+                plugin.host.register_menu_entry("toggle-draw", "Toggle Draw", "InGameMenu", "toggle_draw")
+                plugin.host.register_hotkey("draw-hotkey", "Draw Hotkey", "R")
+                plugin.host.show_notice("draw notice", 60, false)
+                plugin.host.list_files(".", "*.lua")
+            end
+
+            function plugin.toggle_draw()
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+        hudHooks.OnGameplayHudDraw(new FakeHudCanvas());
+
+        Assert.Empty(loadedPlugin.Context.AssetsImpl.RegisteredSounds);
+        Assert.Empty(loadedPlugin.Context.UiImpl.MenuEntries);
+        Assert.Empty(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys);
+        Assert.Empty(loadedPlugin.Context.UiImpl.Notices);
+        Assert.Contains(logs, log => log.Contains("register_sound_asset rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("register_menu_entry rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("register_hotkey rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("show_notice rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("list_files rejected", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientLuaHostRejectsConfigAccessDuringCameraQuery()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadAdHocClientLuaPlugin(
+            "tests.client.lua-query-config",
+            "Lua Query Config",
+            """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.get_camera_offset()
+                plugin.host.load_json_config("query-config.json", { enabled = true })
+                plugin.host.save_json_config("query-config.json", { enabled = false })
+                return plugin.host.vec2(4.0, -3.0)
+            end
+
+            return plugin
+            """,
+            tempDirectory,
+            logs);
+
+        var cameraHooks = Assert.IsAssignableFrom<IOpenGarrisonClientCameraHooks>(loadedPlugin.Plugin);
+        Assert.Equal(new Vector2(4f, -3f), cameraHooks.GetCameraOffset());
+
+        Assert.False(File.Exists(Path.Combine(loadedPlugin.ConfigDirectory, "query-config.json")));
+        Assert.Contains(logs, log => log.Contains("load_json_config rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("save_json_config rejected", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void ClientLuaHostRejectsEscapingConfigPaths()
     {
         using var tempDirectory = new TempDirectory();
@@ -542,7 +623,12 @@ public sealed class LuaPluginHostSmokeTests
 
         var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
         var handled = chatHooks.TryHandleChatMessage(
-            new OpenGarrisonServerChatMessageContext(fakeContext.ServerState, fakeContext.AdminOperations),
+            new OpenGarrisonServerChatMessageContext(
+                fakeContext.ServerState,
+                fakeContext.AdminOperations,
+                fakeContext.Cvars,
+                fakeContext.Scheduler,
+                OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1)),
             new ChatReceivedEvent(1, "Tester", "!lua", Team: null, TeamOnly: false));
         Assert.True(handled);
 
@@ -670,6 +756,290 @@ public sealed class LuaPluginHostSmokeTests
         Assert.Contains(logs, log => log.Contains("disabled tests.server.lua-timeout", StringComparison.Ordinal));
         Assert.Contains(logs, log => log.Contains("budget", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(1, logs.Count(log => log.Contains("disabled tests.server.lua-timeout", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void ServerLuaHostAllowsChatCommandMutationsAndMessaging()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaChatCommandMutations");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-chat-command-mutations",
+              "displayName": "Lua Server Chat Command Mutations",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.try_handle_chat_message(context, e)
+                plugin.host.broadcast_system_message("server-broadcast")
+                plugin.host.send_system_message(e.slot, "private-message")
+                plugin.host.send_message_to_client(e.slot, "tests.client.receiver", "sync", "{\"ok\":true}", "Json", 2)
+                plugin.host.broadcast_message_to_clients("tests.client.receiver", "announce", "payload", "Text", 3)
+                assert(plugin.host.set_player_replicated_state_int(e.slot, "score_bonus", 7))
+                assert(plugin.host.set_player_replicated_state_float(e.slot, "aim_scale", 1.5))
+                assert(plugin.host.set_player_replicated_state_bool(e.slot, "is_marked", true))
+                assert(plugin.host.clear_player_replicated_state(e.slot, "is_marked"))
+                return e.text == "!mutate"
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var handled = chatHooks.TryHandleChatMessage(
+            new OpenGarrisonServerChatMessageContext(
+                fakeContext.ServerState,
+                fakeContext.AdminOperations,
+                fakeContext.Cvars,
+                fakeContext.Scheduler,
+                OpenGarrisonServerAdminIdentity.CreateUnauthenticated(1)),
+            new ChatReceivedEvent(1, "Tester", "!mutate", Team: null, TeamOnly: false));
+
+        Assert.True(handled);
+        Assert.Contains("server-broadcast", fakeContext.AdminImpl.BroadcastSystemMessages);
+        Assert.Contains(fakeContext.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text == "private-message");
+        Assert.Collection(
+            fakeContext.SentPluginMessages,
+            message =>
+            {
+                Assert.Equal((byte)1, message.Slot);
+                Assert.Equal("tests.client.receiver", message.TargetPluginId);
+                Assert.Equal("sync", message.MessageType);
+                Assert.Equal("{\"ok\":true}", message.Payload);
+                Assert.Equal(PluginMessagePayloadFormat.Json, message.PayloadFormat);
+                Assert.Equal((ushort)2, message.SchemaVersion);
+            });
+        Assert.Collection(
+            fakeContext.BroadcastPluginMessages,
+            message =>
+            {
+                Assert.Equal("tests.client.receiver", message.TargetPluginId);
+                Assert.Equal("announce", message.MessageType);
+                Assert.Equal("payload", message.Payload);
+                Assert.Equal(PluginMessagePayloadFormat.Text, message.PayloadFormat);
+                Assert.Equal((ushort)3, message.SchemaVersion);
+            });
+        Assert.Collection(
+            fakeContext.ReplicatedStateWrites,
+            state =>
+            {
+                Assert.Equal("int", state.ValueKind);
+                Assert.Equal((byte)1, state.Slot);
+                Assert.Equal("score_bonus", state.StateKey);
+                Assert.Equal(7, Assert.IsType<int>(state.Value));
+            },
+            state =>
+            {
+                Assert.Equal("float", state.ValueKind);
+                Assert.Equal((byte)1, state.Slot);
+                Assert.Equal("aim_scale", state.StateKey);
+                Assert.Equal(1.5f, Assert.IsType<float>(state.Value));
+            },
+            state =>
+            {
+                Assert.Equal("bool", state.ValueKind);
+                Assert.Equal((byte)1, state.Slot);
+                Assert.Equal("is_marked", state.StateKey);
+                Assert.True(Assert.IsType<bool>(state.Value));
+            });
+        Assert.Collection(
+            fakeContext.ClearedReplicatedStateKeys,
+            state =>
+            {
+                Assert.Equal((byte)1, state.Slot);
+                Assert.Equal("is_marked", state.StateKey);
+            });
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ServerLuaHostExposesAdminIdentityCvarsAndScheduler()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaAdminFoundation");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-admin-foundation",
+              "displayName": "Lua Server Admin Foundation",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+                plugin.timer_id = host.schedule_once(0.1, function()
+                    plugin.host.broadcast_system_message("scheduled-tick")
+                end, "lua-once")
+            end
+
+            function plugin.try_handle_chat_message(context, e)
+                local cvar = plugin.host.get_cvar("sv_test")
+                local timers = plugin.host.get_scheduled_tasks()
+                if context.identity ~= nil and context.identity.isAuthenticated and cvar ~= nil and cvar.currentValue == "false" and timers[1] ~= nil then
+                    return plugin.host.set_cvar("sv_test", "true")
+                end
+
+                return false
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+        fakeContext.CvarImpl.Add(new OpenGarrisonServerCvarInfo(
+            "sv_test",
+            "Test cvar",
+            OpenGarrisonServerCvarValueType.Boolean,
+            "false",
+            "false",
+            IsProtected: false,
+            IsReadOnly: false));
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var handled = chatHooks.TryHandleChatMessage(
+            new OpenGarrisonServerChatMessageContext(
+                fakeContext.ServerState,
+                fakeContext.AdminOperations,
+                fakeContext.Cvars,
+                fakeContext.Scheduler,
+                new OpenGarrisonServerAdminIdentity(
+                    "Admin",
+                    OpenGarrisonServerAdminAuthority.RconSession,
+                    OpenGarrisonServerAdminPermissions.FullAccess,
+                    SourceSlot: 1)),
+            new ChatReceivedEvent(1, "Tester", "!admin", Team: null, TeamOnly: false));
+
+        Assert.True(handled);
+        Assert.True(fakeContext.CvarImpl.TryGet("sv_test", out var cvar));
+        Assert.Equal("true", cvar.CurrentValue);
+
+        fakeContext.SchedulerImpl.RunAll();
+
+        Assert.Contains("scheduled-tick", fakeContext.AdminImpl.BroadcastSystemMessages);
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ServerLuaHostRejectsInvalidPluginMessageAndReplicatedStateMetadata()
+    {
+        using var tempDirectory = new TempDirectory();
+        var pluginDirectory = tempDirectory.CreateSubdirectory("ServerLuaInvalidMessageMetadata");
+        File.WriteAllText(Path.Combine(pluginDirectory, "plugin.json"), """
+            {
+              "schemaVersion": 1,
+              "id": "tests.server.lua-invalid-message-metadata",
+              "displayName": "Lua Server Invalid Message Metadata",
+              "version": "1.0.0",
+              "type": "Server",
+              "runtime": "Lua",
+              "entryPoint": "main.lua",
+              "compatibility": { "hostApiVersion": "1.0" }
+            }
+            """);
+        File.WriteAllText(Path.Combine(pluginDirectory, "main.lua"), """
+            local plugin = {}
+
+            function plugin.initialize(host)
+                plugin.host = host
+            end
+
+            function plugin.on_server_heartbeat(seconds)
+                plugin.host.send_message_to_client(1, "   ", "sync", "payload")
+                plugin.host.broadcast_message_to_clients("tests.client.receiver", "   ", "payload")
+                plugin.host.send_message_to_client(1, "tests.client.receiver", "sync", string.rep("x", 1025))
+                plugin.host.set_player_replicated_state_int(1, "   ", 4)
+                plugin.host.clear_player_replicated_state(1, "")
+            end
+
+            return plugin
+            """);
+
+        var logs = new List<string>();
+        var configDirectory = tempDirectory.CreateSubdirectory("ServerConfig");
+        Assert.True(
+            OpenGarrisonPluginManifestLoader.TryLoadFromPath(Path.Combine(pluginDirectory, "plugin.json"), out var manifest, out var manifestError),
+            manifestError);
+
+        var fakeContext = new FakeServerPluginContext(
+            manifest,
+            pluginDirectory,
+            configDirectory,
+            tempDirectory.CreateSubdirectory("Maps"),
+            logs);
+
+        var loadedPlugins = PluginLoader.LoadFromSearchDirectories(
+            [new PluginLoader.PluginSearchDirectory(tempDirectory.RootPath, SearchOption.AllDirectories)],
+            (_, _, _) => fakeContext,
+            logs.Add);
+
+        var loadedPlugin = Assert.Single(loadedPlugins);
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonServerUpdateHooks>(loadedPlugin.Plugin);
+        updateHooks.OnServerHeartbeat(TimeSpan.FromSeconds(1));
+
+        Assert.Empty(fakeContext.SentPluginMessages);
+        Assert.Empty(fakeContext.BroadcastPluginMessages);
+        Assert.Empty(fakeContext.ReplicatedStateWrites);
+        Assert.Empty(fakeContext.ClearedReplicatedStateKeys);
+        Assert.Contains(logs, log => log.Contains("send_message_to_client rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("broadcast_message_to_clients rejected", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("Payload exceeds protocol byte limit", StringComparison.Ordinal));
+        Assert.Contains(logs, log => log.Contains("Replicated state keys must be non-empty ASCII identifiers", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -1330,31 +1700,65 @@ public sealed class LuaPluginHostSmokeTests
 
         public FakeServerAdminOperations AdminImpl { get; } = new();
 
+        public FakeServerCvarRegistry CvarImpl { get; } = new();
+
+        public FakeServerScheduler SchedulerImpl { get; } = new();
+
+        public List<(byte Slot, string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)> SentPluginMessages { get; } = [];
+
+        public List<(string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)> BroadcastPluginMessages { get; } = [];
+
+        public List<(string ValueKind, byte Slot, string StateKey, object Value)> ReplicatedStateWrites { get; } = [];
+
+        public List<(byte Slot, string StateKey)> ClearedReplicatedStateKeys { get; } = [];
+
         public IOpenGarrisonServerReadOnlyState ServerState => StateImpl;
 
         public IOpenGarrisonServerAdminOperations AdminOperations => AdminImpl;
 
+        public IOpenGarrisonServerCvarRegistry Cvars => CvarImpl;
+
+        public IOpenGarrisonServerScheduler Scheduler => SchedulerImpl;
+
         public void BroadcastMessageToClients(string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
         {
+            BroadcastPluginMessages.Add((targetPluginId, messageType, payload, payloadFormat, schemaVersion));
         }
 
-        public bool ClearPlayerReplicatedState(byte slot, string stateKey) => true;
+        public bool ClearPlayerReplicatedState(byte slot, string stateKey)
+        {
+            ClearedReplicatedStateKeys.Add((slot, stateKey));
+            return true;
+        }
 
         public void Log(string message) => _logs.Add(message);
 
-        public void RegisterCommand(IOpenGarrisonServerCommand command)
+        public void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions)
         {
         }
 
         public void SendMessageToClient(byte slot, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
         {
+            SentPluginMessages.Add((slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
         }
 
-        public bool SetPlayerReplicatedStateBool(byte slot, string stateKey, bool value) => true;
+        public bool SetPlayerReplicatedStateBool(byte slot, string stateKey, bool value)
+        {
+            ReplicatedStateWrites.Add(("bool", slot, stateKey, value));
+            return true;
+        }
 
-        public bool SetPlayerReplicatedStateFloat(byte slot, string stateKey, float value) => true;
+        public bool SetPlayerReplicatedStateFloat(byte slot, string stateKey, float value)
+        {
+            ReplicatedStateWrites.Add(("float", slot, stateKey, value));
+            return true;
+        }
 
-        public bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value) => true;
+        public bool SetPlayerReplicatedStateInt(byte slot, string stateKey, int value)
+        {
+            ReplicatedStateWrites.Add(("int", slot, stateKey, value));
+            return true;
+        }
     }
 
     private sealed class FakeServerReadOnlyState : IOpenGarrisonServerReadOnlyState
@@ -1523,12 +1927,18 @@ public sealed class LuaPluginHostSmokeTests
 
         public List<(string ChangeKind, byte Slot, string ItemId)> GameplayOwnershipChanges { get; } = [];
 
+        public List<string> BroadcastSystemMessages { get; } = [];
+
+        public List<(byte Slot, string Text)> SystemMessages { get; } = [];
+
         public void BroadcastSystemMessage(string text)
         {
+            BroadcastSystemMessages.Add(text);
         }
 
         public void SendSystemMessage(byte slot, string text)
         {
+            SystemMessages.Add((slot, text));
         }
 
         public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
@@ -1586,5 +1996,94 @@ public sealed class LuaPluginHostSmokeTests
         public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
 
         public bool TrySetTeam(byte slot, PlayerTeam team) => true;
+    }
+
+    private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry
+    {
+        private readonly Dictionary<string, OpenGarrisonServerCvarInfo> _entries = new(StringComparer.OrdinalIgnoreCase);
+
+        public void Add(OpenGarrisonServerCvarInfo cvar)
+        {
+            _entries[cvar.Name] = cvar;
+        }
+
+        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll() => _entries.Values.ToArray();
+
+        public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
+        {
+            return _entries.TryGetValue(name, out cvar);
+        }
+
+        public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+            if (!_entries.TryGetValue(name, out cvar))
+            {
+                errorMessage = "unknown cvar";
+                return false;
+            }
+
+            if (cvar.IsReadOnly)
+            {
+                errorMessage = "readonly";
+                return false;
+            }
+
+            cvar = cvar with { CurrentValue = value };
+            _entries[name] = cvar;
+            return true;
+        }
+    }
+
+    private sealed class FakeServerScheduler : IOpenGarrisonServerScheduler
+    {
+        private readonly Dictionary<Guid, Action> _callbacks = [];
+        public List<OpenGarrisonServerScheduledTaskInfo> Tasks { get; } = [];
+
+        public TimeSpan Uptime => TimeSpan.Zero;
+
+        public Guid ScheduleOnce(TimeSpan delay, Action callback, string? description = null)
+        {
+            var timerId = Guid.NewGuid();
+            Tasks.Add(new OpenGarrisonServerScheduledTaskInfo(timerId, description ?? string.Empty, false, delay, delay));
+            _callbacks[timerId] = callback;
+            return timerId;
+        }
+
+        public Guid ScheduleRepeating(TimeSpan interval, Action callback, string? description = null, bool runImmediately = false)
+        {
+            var timerId = Guid.NewGuid();
+            Tasks.Add(new OpenGarrisonServerScheduledTaskInfo(timerId, description ?? string.Empty, true, interval, runImmediately ? TimeSpan.Zero : interval));
+            _callbacks[timerId] = callback;
+            return timerId;
+        }
+
+        public bool Cancel(Guid timerId)
+        {
+            _callbacks.Remove(timerId);
+            return Tasks.RemoveAll(task => task.TimerId == timerId) > 0;
+        }
+
+        public bool IsScheduled(Guid timerId)
+        {
+            return Tasks.Any(task => task.TimerId == timerId);
+        }
+
+        public IReadOnlyList<OpenGarrisonServerScheduledTaskInfo> GetScheduledTasks() => Tasks;
+
+        public void RunAll()
+        {
+            foreach (var task in Tasks.ToArray())
+            {
+                if (_callbacks.TryGetValue(task.TimerId, out var callback))
+                {
+                    callback();
+                    if (!task.IsRepeating)
+                    {
+                        Cancel(task.TimerId);
+                    }
+                }
+            }
+        }
     }
 }

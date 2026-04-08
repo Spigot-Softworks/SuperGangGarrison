@@ -37,6 +37,7 @@ internal sealed class LuaServerPlugin(
     private IOpenGarrisonServerPluginContext? _context;
     private ServerLuaCallbackPhase _currentCallbackPhase = ServerLuaCallbackPhase.None;
     private bool _callbacksDisabled;
+    private readonly Dictionary<Guid, DynValue> _scheduledCallbacks = [];
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
     private const int MaxInitializeResumeCount = 65536;
@@ -78,6 +79,7 @@ internal sealed class LuaServerPlugin(
 
     public void Shutdown()
     {
+        CancelAllScheduledCallbacks();
         ExecuteInPhase(ServerLuaCallbackPhase.Shutdown, () => CallIfPresent("shutdown"));
         _pluginTable = null;
         _script = null;
@@ -116,7 +118,7 @@ internal sealed class LuaServerPlugin(
             return false;
         }
 
-        return ExecuteInPhase(ServerLuaCallbackPhase.Query, () =>
+        return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
         {
             if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
             {
@@ -269,6 +271,11 @@ internal sealed class LuaServerPlugin(
         {
             var relativePath = ReadStringArgument(args, 0);
             var defaultValue = ReadArgument(args, 1);
+            if (!CanAccessPluginStorage("load_json_config", $"config path \"{relativePath}\""))
+            {
+                return defaultValue;
+            }
+
             var path = ResolveConfigPath(context.ConfigDirectory, relativePath);
             if (!File.Exists(path))
             {
@@ -284,6 +291,11 @@ internal sealed class LuaServerPlugin(
         {
             var relativePath = ReadStringArgument(args, 0);
             var value = ReadArgument(args, 1);
+            if (!CanAccessPluginStorage("save_json_config", $"config path \"{relativePath}\""))
+            {
+                return DynValue.False;
+            }
+
             var path = ResolveConfigPath(context.ConfigDirectory, relativePath);
             SaveLuaTableJson(path, value);
             return DynValue.True;
@@ -308,6 +320,77 @@ internal sealed class LuaServerPlugin(
             ToDynValue(context.ServerState.GetOwnedGameplayItems(ReadByteArgument(args, 0))));
         host["get_gameplay_loadouts_for_class"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetGameplayLoadoutsForClass(ReadStringArgument(args, 0))));
+        host["get_cvars"] = DynValue.NewCallback((_, _) => ToDynValue(context.Cvars.GetAll()));
+        host["get_cvar"] = DynValue.NewCallback((_, args) =>
+        {
+            return context.Cvars.TryGet(ReadStringArgument(args, 0), out var cvar)
+                ? ToDynValue(cvar)
+                : DynValue.Nil;
+        });
+        host["set_cvar"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("set_cvar", "host cvar mutation"))
+            {
+                return DynValue.False;
+            }
+
+            var name = ReadStringArgument(args, 0);
+            var value = ReadStringArgument(args, 1);
+            if (context.Cvars.TrySet(name, value, out var _, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] set_cvar rejected for {manifest.Id} {name}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["get_scheduled_tasks"] = DynValue.NewCallback((_, _) => ToDynValue(context.Scheduler.GetScheduledTasks()));
+        host["schedule_once"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanManageScheduler("schedule_once", "scheduled callback"))
+            {
+                return DynValue.Nil;
+            }
+
+            return ScheduleLuaCallback(
+                context,
+                ReadArgument(args, 1),
+                TimeSpan.FromSeconds(Math.Max(0d, ReadDoubleArgument(args, 0))),
+                isRepeating: false,
+                ReadOptionalStringArgument(args, 2) ?? string.Empty,
+                runImmediately: false);
+        });
+        host["schedule_repeating"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanManageScheduler("schedule_repeating", "scheduled callback"))
+            {
+                return DynValue.Nil;
+            }
+
+            var intervalSeconds = Math.Max(0d, ReadDoubleArgument(args, 0));
+            if (intervalSeconds <= 0d)
+            {
+                context.Log($"[lua-plugin] schedule_repeating rejected for {manifest.Id}: interval must be greater than zero.");
+                return DynValue.Nil;
+            }
+
+            return ScheduleLuaCallback(
+                context,
+                ReadArgument(args, 1),
+                TimeSpan.FromSeconds(intervalSeconds),
+                isRepeating: true,
+                ReadOptionalStringArgument(args, 2) ?? string.Empty,
+                ReadOptionalBoolArgument(args, 3, false));
+        });
+        host["cancel_scheduled_task"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanManageScheduler("cancel_scheduled_task", "scheduled callback"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(CancelScheduledTask(context, ReadStringArgument(args, 0)));
+        });
         host["get_available_gameplay_secondary_items"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetAvailableGameplaySecondaryItems(ReadByteArgument(args, 0))));
         host["get_available_gameplay_acquired_items"] = DynValue.NewCallback((_, args) =>
@@ -326,81 +409,332 @@ internal sealed class LuaServerPlugin(
         });
         host["broadcast_system_message"] = DynValue.NewCallback((_, args) =>
         {
-            context.AdminOperations.BroadcastSystemMessage(ReadStringArgument(args, 0));
+            var text = ReadStringArgument(args, 0);
+            if (!CanIssueServerMutation("broadcast_system_message", "system message broadcast"))
+            {
+                return DynValue.False;
+            }
+
+            context.AdminOperations.BroadcastSystemMessage(text);
             return DynValue.True;
         });
         host["send_system_message"] = DynValue.NewCallback((_, args) =>
         {
-            context.AdminOperations.SendSystemMessage(ReadByteArgument(args, 0), ReadStringArgument(args, 1));
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("send_system_message", $"system message to player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            context.AdminOperations.SendSystemMessage(slot, ReadStringArgument(args, 1));
             return DynValue.True;
         });
         host["try_disconnect"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryDisconnect(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_disconnect", $"player {slot}")
+                && context.AdminOperations.TryDisconnect(slot, ReadStringArgument(args, 1)));
+        });
         host["try_move_to_spectator"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryMoveToSpectator(ReadByteArgument(args, 0))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_move_to_spectator", $"player {slot}")
+                && context.AdminOperations.TryMoveToSpectator(slot));
+        });
         host["try_set_team"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(TryParseEnumArgument<PlayerTeam>(args, 1, out var team)
-                && context.AdminOperations.TrySetTeam(ReadByteArgument(args, 0), team)));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_team", $"player {slot}")
+                && TryParseEnumArgument<PlayerTeam>(args, 1, out var team)
+                && context.AdminOperations.TrySetTeam(slot, team));
+        });
         host["try_set_class"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(TryParseEnumArgument<PlayerClass>(args, 1, out var playerClass)
-                && context.AdminOperations.TrySetClass(ReadByteArgument(args, 0), playerClass)));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_class", $"player {slot}")
+                && TryParseEnumArgument<PlayerClass>(args, 1, out var playerClass)
+                && context.AdminOperations.TrySetClass(slot, playerClass));
+        });
         host["try_set_gameplay_loadout"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TrySetGameplayLoadout(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_gameplay_loadout", $"player {slot}")
+                && context.AdminOperations.TrySetGameplayLoadout(slot, ReadStringArgument(args, 1)));
+        });
         host["try_set_gameplay_secondary_item"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TrySetGameplaySecondaryItem(ReadByteArgument(args, 0), ReadOptionalStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_gameplay_secondary_item", $"player {slot}")
+                && context.AdminOperations.TrySetGameplaySecondaryItem(slot, ReadOptionalStringArgument(args, 1)));
+        });
         host["try_set_gameplay_acquired_item"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TrySetGameplayAcquiredItem(ReadByteArgument(args, 0), ReadOptionalStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_gameplay_acquired_item", $"player {slot}")
+                && context.AdminOperations.TrySetGameplayAcquiredItem(slot, ReadOptionalStringArgument(args, 1)));
+        });
         host["try_grant_gameplay_item"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryGrantGameplayItem(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_grant_gameplay_item", $"player {slot}")
+                && context.AdminOperations.TryGrantGameplayItem(slot, ReadStringArgument(args, 1)));
+        });
         host["try_revoke_gameplay_item"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryRevokeGameplayItem(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_revoke_gameplay_item", $"player {slot}")
+                && context.AdminOperations.TryRevokeGameplayItem(slot, ReadStringArgument(args, 1)));
+        });
         host["try_set_gameplay_equipped_slot"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(TryParseEnumArgument<GameplayEquipmentSlot>(args, 1, out var equippedSlot)
-                && context.AdminOperations.TrySetGameplayEquippedSlot(ReadByteArgument(args, 0), equippedSlot)));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_gameplay_equipped_slot", $"player {slot}")
+                && TryParseEnumArgument<GameplayEquipmentSlot>(args, 1, out var equippedSlot)
+                && context.AdminOperations.TrySetGameplayEquippedSlot(slot, equippedSlot));
+        });
         host["try_force_kill"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryForceKill(ReadByteArgument(args, 0))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_force_kill", $"player {slot}")
+                && context.AdminOperations.TryForceKill(slot));
+        });
         host["try_set_cap_limit"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TrySetCapLimit(ReadIntArgument(args, 0))));
+        {
+            if (!CanIssueServerMutation("try_set_cap_limit", "server cap limit"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.AdminOperations.TrySetCapLimit(ReadIntArgument(args, 0)));
+        });
         host["try_change_map"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TryChangeMap(
+        {
+            if (!CanIssueServerMutation("try_change_map", "server map rotation"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.AdminOperations.TryChangeMap(
                 ReadStringArgument(args, 0),
                 ReadOptionalIntArgument(args, 1, 1),
-                ReadOptionalBoolArgument(args, 2, false))));
+                ReadOptionalBoolArgument(args, 2, false)));
+        });
         host["try_set_next_round_map"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.AdminOperations.TrySetNextRoundMap(
+        {
+            if (!CanIssueServerMutation("try_set_next_round_map", "server next-round map"))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.AdminOperations.TrySetNextRoundMap(
                 ReadStringArgument(args, 0),
-                ReadOptionalIntArgument(args, 1, 1))));
+                ReadOptionalIntArgument(args, 1, 1)));
+        });
         host["send_message_to_client"] = DynValue.NewCallback((_, args) =>
         {
+            var slot = ReadByteArgument(args, 0);
+            var payloadFormat = ReadOptionalEnumArgument(args, 4, PluginMessagePayloadFormat.Text);
+            var schemaVersion = ReadOptionalUShortArgument(args, 5, 1);
+            if (!CanIssueServerMutation("send_message_to_client", $"plugin message to player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizePluginMessage(
+                    "send_message_to_client",
+                    ReadStringArgument(args, 1),
+                    ReadStringArgument(args, 2),
+                    payloadFormat,
+                    schemaVersion,
+                    ReadStringArgument(args, 3),
+                    out var normalizedTargetPluginId,
+                    out var normalizedMessageType,
+                    out var normalizedPayload))
+            {
+                return DynValue.False;
+            }
+
             context.SendMessageToClient(
-                ReadByteArgument(args, 0),
-                ReadStringArgument(args, 1),
-                ReadStringArgument(args, 2),
-                ReadStringArgument(args, 3),
-                ReadOptionalEnumArgument(args, 4, PluginMessagePayloadFormat.Text),
-                ReadOptionalUShortArgument(args, 5, 1));
+                slot,
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                normalizedPayload,
+                payloadFormat,
+                schemaVersion);
             return DynValue.True;
         });
         host["broadcast_message_to_clients"] = DynValue.NewCallback((_, args) =>
         {
+            var payloadFormat = ReadOptionalEnumArgument(args, 3, PluginMessagePayloadFormat.Text);
+            var schemaVersion = ReadOptionalUShortArgument(args, 4, 1);
+            if (!CanIssueServerMutation("broadcast_message_to_clients", "plugin message broadcast"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizePluginMessage(
+                    "broadcast_message_to_clients",
+                    ReadStringArgument(args, 0),
+                    ReadStringArgument(args, 1),
+                    payloadFormat,
+                    schemaVersion,
+                    ReadStringArgument(args, 2),
+                    out var normalizedTargetPluginId,
+                    out var normalizedMessageType,
+                    out var normalizedPayload))
+            {
+                return DynValue.False;
+            }
+
             context.BroadcastMessageToClients(
-                ReadStringArgument(args, 0),
-                ReadStringArgument(args, 1),
-                ReadStringArgument(args, 2),
-                ReadOptionalEnumArgument(args, 3, PluginMessagePayloadFormat.Text),
-                ReadOptionalUShortArgument(args, 4, 1));
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                normalizedPayload,
+                payloadFormat,
+                schemaVersion);
             return DynValue.True;
         });
         host["set_player_replicated_state_int"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.SetPlayerReplicatedStateInt(ReadByteArgument(args, 0), ReadStringArgument(args, 1), ReadIntArgument(args, 2))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("set_player_replicated_state_int", $"replicated state for player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizeReplicatedStateKey("set_player_replicated_state_int", ReadStringArgument(args, 1), out var normalizedStateKey))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.SetPlayerReplicatedStateInt(slot, normalizedStateKey, ReadIntArgument(args, 2)));
+        });
         host["set_player_replicated_state_float"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.SetPlayerReplicatedStateFloat(ReadByteArgument(args, 0), ReadStringArgument(args, 1), (float)ReadDoubleArgument(args, 2))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("set_player_replicated_state_float", $"replicated state for player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizeReplicatedStateKey("set_player_replicated_state_float", ReadStringArgument(args, 1), out var normalizedStateKey))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.SetPlayerReplicatedStateFloat(slot, normalizedStateKey, (float)ReadDoubleArgument(args, 2)));
+        });
         host["set_player_replicated_state_bool"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.SetPlayerReplicatedStateBool(ReadByteArgument(args, 0), ReadStringArgument(args, 1), ReadBoolArgument(args, 2))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("set_player_replicated_state_bool", $"replicated state for player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizeReplicatedStateKey("set_player_replicated_state_bool", ReadStringArgument(args, 1), out var normalizedStateKey))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.SetPlayerReplicatedStateBool(slot, normalizedStateKey, ReadBoolArgument(args, 2)));
+        });
         host["clear_player_replicated_state"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewBoolean(context.ClearPlayerReplicatedState(ReadByteArgument(args, 0), ReadStringArgument(args, 1))));
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("clear_player_replicated_state", $"replicated state for player {slot}"))
+            {
+                return DynValue.False;
+            }
+
+            if (!TryNormalizeReplicatedStateKey("clear_player_replicated_state", ReadStringArgument(args, 1), out var normalizedStateKey))
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(context.ClearPlayerReplicatedState(slot, normalizedStateKey));
+        });
 
         return host;
+    }
+
+    private DynValue ScheduleLuaCallback(
+        IOpenGarrisonServerPluginContext context,
+        DynValue callback,
+        TimeSpan interval,
+        bool isRepeating,
+        string description,
+        bool runImmediately)
+    {
+        if (callback.Type is not (DataType.Function or DataType.ClrFunction))
+        {
+            context.Log($"[lua-plugin] scheduler rejected for {manifest.Id}: callback must be a Lua function.");
+            return DynValue.Nil;
+        }
+
+        Guid timerId = Guid.Empty;
+        Action invokeCallback = () =>
+        {
+            if (_callbacksDisabled || _script is null)
+            {
+                if (timerId != Guid.Empty)
+                {
+                    context.Scheduler.Cancel(timerId);
+                    _scheduledCallbacks.Remove(timerId);
+                }
+
+                return;
+            }
+
+            ExecuteInPhase(ServerLuaCallbackPhase.Update, () =>
+            {
+                try
+                {
+                    InvokeCallbackWithLimits(callback, []);
+                }
+                catch (Exception ex)
+                {
+                    DisableCallbacks($"scheduled callback {timerId} failed during {DescribePhase(_currentCallbackPhase)}: {ex.Message}");
+                    LogCallbackFailure("scheduled_callback", ex);
+                }
+                finally
+                {
+                    if (!isRepeating && timerId != Guid.Empty)
+                    {
+                        _scheduledCallbacks.Remove(timerId);
+                    }
+                }
+            });
+        };
+
+        timerId = isRepeating
+            ? context.Scheduler.ScheduleRepeating(interval, invokeCallback, description, runImmediately)
+            : context.Scheduler.ScheduleOnce(interval, invokeCallback, description);
+        _scheduledCallbacks[timerId] = callback;
+        return DynValue.NewString(timerId.ToString("D"));
+    }
+
+    private bool CancelScheduledTask(IOpenGarrisonServerPluginContext context, string timerIdText)
+    {
+        if (!Guid.TryParse(timerIdText, out var timerId))
+        {
+            context.Log($"[lua-plugin] cancel_scheduled_task rejected for {manifest.Id}: invalid timer id \"{timerIdText}\".");
+            return false;
+        }
+
+        _scheduledCallbacks.Remove(timerId);
+        return context.Scheduler.Cancel(timerId);
     }
 
     private static Table ResolvePluginTable(Script script, DynValue result)
@@ -575,6 +909,110 @@ internal sealed class LuaServerPlugin(
         return combinedPath;
     }
 
+    private bool CanAccessPluginStorage(string functionName, string target)
+    {
+        if (IsPluginStoragePhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Use plugin config access during initialize, lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool CanIssueServerMutation(string functionName, string target)
+    {
+        if (IsServerMutationPhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Use bounded server mutations during lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool CanManageScheduler(string functionName, string target)
+    {
+        if (IsSchedulerPhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Use scheduler control during initialize, lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool RejectHostOperation(string functionName, string target, string guidance)
+    {
+        _context?.Log(
+            $"[lua-plugin] {functionName} rejected for {manifest.Id} {target} during {DescribePhase(_currentCallbackPhase)}. {guidance}");
+        return false;
+    }
+
+    private void CancelAllScheduledCallbacks()
+    {
+        if (_context is null || _scheduledCallbacks.Count == 0)
+        {
+            _scheduledCallbacks.Clear();
+            return;
+        }
+
+        foreach (var timerId in _scheduledCallbacks.Keys.ToArray())
+        {
+            _context.Scheduler.Cancel(timerId);
+        }
+
+        _scheduledCallbacks.Clear();
+    }
+
+    private bool TryNormalizePluginMessage(
+        string functionName,
+        string targetPluginId,
+        string messageType,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion,
+        string? payload,
+        out string normalizedTargetPluginId,
+        out string normalizedMessageType,
+        out string normalizedPayload)
+    {
+        if (!PluginMessageContract.TryNormalizeOutgoing(
+                targetPluginId,
+                messageType,
+                payload,
+                payloadFormat,
+                schemaVersion,
+                out normalizedTargetPluginId,
+                out normalizedMessageType,
+                out normalizedPayload,
+                out var error))
+        {
+            _context?.Log(
+                $"[lua-plugin] {functionName} rejected for {manifest.Id} during {DescribePhase(_currentCallbackPhase)}. {error}");
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryNormalizeReplicatedStateKey(string functionName, string stateKey, out string normalizedStateKey)
+    {
+        if (GameplayReplicatedStateContract.TryNormalizeIdentifier(stateKey, out normalizedStateKey))
+        {
+            return true;
+        }
+
+        _context?.Log(
+            $"[lua-plugin] {functionName} rejected for {manifest.Id} during {DescribePhase(_currentCallbackPhase)}. Replicated state keys must be non-empty ASCII identifiers up to {GameplayReplicatedStateContract.MaxIdentifierLength} characters.");
+        return false;
+    }
+
     private void ExecuteInPhase(ServerLuaCallbackPhase phase, Action action)
     {
         var previousPhase = _currentCallbackPhase;
@@ -612,6 +1050,7 @@ internal sealed class LuaServerPlugin(
             ServerLuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
             ServerLuaCallbackPhase.Update => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Query => TimeSpan.FromMilliseconds(10),
+            ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
             _ => TimeSpan.FromMilliseconds(10),
         };
@@ -636,9 +1075,36 @@ internal sealed class LuaServerPlugin(
             ServerLuaCallbackPhase.Lifecycle => "a lifecycle callback",
             ServerLuaCallbackPhase.Update => "an update callback",
             ServerLuaCallbackPhase.Query => "a query callback",
+            ServerLuaCallbackPhase.CommandInteraction => "a command callback",
             ServerLuaCallbackPhase.Event => "a server event callback",
             _ => "an unknown callback",
         };
+    }
+
+    private static bool IsPluginStoragePhaseAllowed(ServerLuaCallbackPhase phase)
+    {
+        return phase is ServerLuaCallbackPhase.Initialize
+            or ServerLuaCallbackPhase.Lifecycle
+            or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.Event
+            or ServerLuaCallbackPhase.CommandInteraction;
+    }
+
+    private static bool IsServerMutationPhaseAllowed(ServerLuaCallbackPhase phase)
+    {
+        return phase is ServerLuaCallbackPhase.Lifecycle
+            or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.Event
+            or ServerLuaCallbackPhase.CommandInteraction;
+    }
+
+    private static bool IsSchedulerPhaseAllowed(ServerLuaCallbackPhase phase)
+    {
+        return phase is ServerLuaCallbackPhase.Initialize
+            or ServerLuaCallbackPhase.Lifecycle
+            or ServerLuaCallbackPhase.Update
+            or ServerLuaCallbackPhase.Event
+            or ServerLuaCallbackPhase.CommandInteraction;
     }
 
     private static DynValue ToArrayTable(Script script, IEnumerable<object?> values, int depth)
@@ -885,6 +1351,7 @@ internal sealed class LuaServerPlugin(
         Lifecycle,
         Update,
         Query,
+        CommandInteraction,
         Event,
     }
 }

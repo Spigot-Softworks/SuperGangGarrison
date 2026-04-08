@@ -16,7 +16,7 @@ internal sealed class ServerConsoleSummaryBuilder(
     string lobbyHost,
     int lobbyPort,
     bool passwordRequired,
-    bool autoBalanceEnabled,
+    Func<bool> autoBalanceEnabledGetter,
     int? respawnSecondsOverride,
     Func<MapRotationManager> mapRotationManagerGetter,
     string? mapRotationFile)
@@ -37,7 +37,7 @@ internal sealed class ServerConsoleSummaryBuilder(
     public void AddRulesSummary(List<string> lines)
     {
         var world = worldGetter();
-        var autoBalanceValue = autoBalanceEnabled ? "enabled" : "disabled";
+        var autoBalanceValue = autoBalanceEnabledGetter() ? "enabled" : "disabled";
         var respawnSeconds = respawnSecondsOverride ?? 5;
         lines.Add(
             $"[server] rules | timeLimit={world.MatchRules.TimeLimitMinutes} | capLimit={world.MatchRules.CapLimit} | respawn={respawnSeconds} | autoBalance={autoBalanceValue}");

@@ -6,6 +6,7 @@ using System.Threading;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
+using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
 partial class GameServer
@@ -81,6 +82,7 @@ partial class GameServer
             _passwordTimeoutSeconds,
             _passwordRetrySeconds,
             _transientEventReplayTicks,
+            () => _adminChatRouter,
             () => _pluginHost,
             _serverName,
             eventLog.Write,
@@ -145,12 +147,12 @@ partial class GameServer
         }
 
         Console.WriteLine("[server] type \"help\" for commands. Type \"shutdown\" to stop.");
-        foreach (var line in BuildConsoleCommandResponse("status"))
+        foreach (var line in BuildConsoleCommandResponse("status", CreateConsoleIdentity(), OpenGarrisonServerCommandSource.Console))
         {
             Console.WriteLine(line);
         }
 
-        foreach (var line in BuildConsoleCommandResponse("rotation"))
+        foreach (var line in BuildConsoleCommandResponse("rotation", CreateConsoleIdentity(), OpenGarrisonServerCommandSource.Console))
         {
             Console.WriteLine(line);
         }
@@ -188,6 +190,7 @@ partial class GameServer
                 var now = _clock.Elapsed;
                 var elapsedSeconds = (now - _previous).TotalSeconds;
                 _previous = now;
+                _scheduler.RunDueTasks();
                 _pluginHost?.NotifyServerHeartbeat(now);
 
                 var ticks = ServerSimulationBatch.Advance(
@@ -241,6 +244,9 @@ partial class GameServer
 
     private void InitializePluginRuntime()
     {
+        _scheduler = new ServerScheduler(() => _clock.Elapsed, Console.WriteLine);
+        _adminSessionManager = new ServerAdminSessionManager(_rconPassword, () => _clock.Elapsed);
+        _cvarRegistry = CreateServerCvarRegistry();
         var pluginRuntime = OpenGarrison.Server.ServerPluginRuntimeFactory.Create(
             _config,
             _port,
@@ -253,8 +259,13 @@ partial class GameServer
             _lobbyHost,
             _lobbyPort,
             _passwordRequired,
-            _autoBalanceEnabled,
+            () => _autoBalanceEnabled,
             _respawnSecondsOverride,
+            _cvarRegistry,
+            _scheduler,
+            slot => _clientsBySlot.TryGetValue(slot, out var client)
+                ? ServerAdminSessionManager.GetClientIdentity(client)
+                : OpenGarrisonServerAdminIdentity.CreateUnauthenticated(slot),
             _gameplayOwnershipService,
             _mapRotationManager,
             _mapRotationFile,
@@ -272,6 +283,57 @@ partial class GameServer
         _pluginHost = pluginRuntime.PluginHost;
         _serverState = pluginRuntime.ServerState;
         _adminOperations = pluginRuntime.AdminOperations;
+        _adminChatRouter = new ServerAdminChatRouter(
+            _adminSessionManager,
+            () => _pluginHost,
+            (slot, text) => _adminOperations.SendSystemMessage(slot, text));
+    }
+
+    private ServerCvarRegistry CreateServerCvarRegistry()
+    {
+        var registry = new ServerCvarRegistry();
+        registry.RegisterString(
+            "sv_rcon_password",
+            "Remote admin password for private !gt_* sessions.",
+            _rconPassword ?? string.Empty,
+            () => _adminSessionManager.RconPassword,
+            value =>
+            {
+                _adminSessionManager.RconPassword = value;
+                _rconPassword = _adminSessionManager.RconPassword;
+                return null;
+            },
+            isProtected: true);
+        registry.RegisterInteger(
+            "sv_caplimit",
+            "Current capture limit.",
+            _capLimitOverride ?? _world.MatchRules.CapLimit,
+            () => _world.MatchRules.CapLimit,
+            value => _world.SetCapLimit(value),
+            minValue: 1,
+            maxValue: 255);
+        registry.RegisterBoolean(
+            "sv_autobalance",
+            "Enable or disable server auto-balance.",
+            _autoBalanceEnabled,
+            () => _autoBalanceEnabled,
+            value => _autoBalanceEnabled = value);
+        registry.RegisterString(
+            "sv_map",
+            "Current loaded map level name.",
+            _world.Level.Name,
+            () => _world.Level.Name);
+        registry.RegisterInteger(
+            "sv_maxplayers",
+            "Configured playable slot count.",
+            _maxPlayableClients,
+            () => _maxPlayableClients);
+        registry.RegisterInteger(
+            "sv_tickrate",
+            "Server simulation tick rate.",
+            _config.TicksPerSecond,
+            () => _config.TicksPerSecond);
+        return registry;
     }
 
     private void InitializeGameplayOwnershipService()

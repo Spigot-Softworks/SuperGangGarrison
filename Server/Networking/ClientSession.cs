@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
 sealed class ClientSession(byte slot, IPEndPoint endPoint, string name, TimeSpan lastSeen)
@@ -29,6 +30,10 @@ sealed class ClientSession(byte slot, IPEndPoint endPoint, string name, TimeSpan
     public ulong LastAcknowledgedSnapshotFrame { get; private set; }
     public bool IsAuthorized { get; set; } = true;
     public TimeSpan LastPasswordRequestSentAt { get; set; } = TimeSpan.MinValue;
+    public OpenGarrisonServerAdminPermissions AdminPermissions { get; set; } = OpenGarrisonServerAdminPermissions.None;
+    public TimeSpan AdminAuthenticatedAt { get; set; } = TimeSpan.MinValue;
+    public string PendingAdminChatCommand { get; set; } = string.Empty;
+    public TimeSpan PendingAdminChatCommandQueuedAt { get; set; } = TimeSpan.MinValue;
 
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)
     {

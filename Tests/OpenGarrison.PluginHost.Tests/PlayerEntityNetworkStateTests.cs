@@ -201,4 +201,60 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(0, player.HealPoints);
         Assert.Equal(0, player.ActiveDominationCount);
     }
+
+    [Fact]
+    public void ApplyNetworkStateRejectsInvalidReplicatedStateIdentifiersFromSnapshot()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Scout,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 125,
+            currentShells: 6,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 0f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isUbered: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            replicatedStateEntries:
+            [
+                new GameplayReplicatedStateEntry(" plugin.score ", " round_wins ", GameplayReplicatedStateValueKind.Whole, IntValue: 4),
+                new GameplayReplicatedStateEntry("plugin:bad", "value", GameplayReplicatedStateValueKind.Toggle, BoolValue: true),
+                new GameplayReplicatedStateEntry("plugin.score", "bad key", GameplayReplicatedStateValueKind.Toggle, BoolValue: true),
+            ]);
+
+        var replicatedEntries = player.GetReplicatedStateEntries();
+        var entry = Assert.Single(replicatedEntries);
+        Assert.Equal("plugin.score", entry.OwnerId);
+        Assert.Equal("round_wins", entry.Key);
+        Assert.Equal(4, entry.IntValue);
+    }
 }

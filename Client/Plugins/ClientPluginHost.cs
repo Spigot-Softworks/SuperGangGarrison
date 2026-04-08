@@ -139,7 +139,42 @@ internal sealed class ClientPluginHost
 
     public void NotifyWorldSound(ClientWorldSoundEvent e) => Dispatch<IOpenGarrisonClientSoundHooks>(hook => hook.OnWorldSound(e), "world-sound");
 
-    public void NotifyServerPluginMessage(ClientPluginMessageEnvelope e) => Dispatch<IOpenGarrisonClientPluginMessageHooks>(hook => hook.OnServerPluginMessage(e), "plugin-message");
+    public void NotifyServerPluginMessage(ClientPluginMessageEnvelope e)
+    {
+        if (!PluginMessageContract.TryNormalizeIncoming(
+                e.SourcePluginId,
+                e.TargetPluginId,
+                e.MessageType,
+                e.Payload,
+                e.PayloadFormat,
+                e.SchemaVersion,
+                out var normalizedSourcePluginId,
+                out var normalizedTargetPluginId,
+                out var normalizedMessageType,
+                out var normalizedPayload,
+                out var error))
+        {
+            _log($"[plugin] rejected inbound plugin message from server: {error}");
+            return;
+        }
+
+        var targetPlugin = FindLoadedPlugin(normalizedTargetPluginId);
+        if (targetPlugin is null)
+        {
+            return;
+        }
+
+        DispatchHook<IOpenGarrisonClientPluginMessageHooks>(
+            targetPlugin,
+            hook => hook.OnServerPluginMessage(new ClientPluginMessageEnvelope(
+                normalizedSourcePluginId,
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                normalizedPayload,
+                e.PayloadFormat,
+                e.SchemaVersion)),
+            "plugin-message");
+    }
 
     public void NotifyShotFired(ClientShotFiredEvent e) => Dispatch<IOpenGarrisonClientSemanticGameplayHooks>(hook => hook.OnShotFired(e), "shot-fired");
 
@@ -767,8 +802,18 @@ internal sealed class ClientPluginHost
 
         try
         {
-            if (!TryNormalizePluginMessage(targetPluginId, messageType, payload, out var normalizedTargetPluginId, out var normalizedMessageType, out var normalizedPayload))
+            if (!PluginMessageContract.TryNormalizeOutgoing(
+                    targetPluginId,
+                    messageType,
+                    payload,
+                    payloadFormat,
+                    schemaVersion,
+                    out var normalizedTargetPluginId,
+                    out var normalizedMessageType,
+                    out var normalizedPayload,
+                    out var error))
             {
+                _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
                 return;
             }
 
@@ -864,20 +909,6 @@ internal sealed class ClientPluginHost
             IOpenGarrisonClientScoreboardHooks scoreboardHooks => scoreboardHooks.ScoreboardPanelOrder,
             _ => 0,
         };
-    }
-
-    private static bool TryNormalizePluginMessage(
-        string targetPluginId,
-        string messageType,
-        string? payload,
-        out string normalizedTargetPluginId,
-        out string normalizedMessageType,
-        out string normalizedPayload)
-    {
-        normalizedTargetPluginId = targetPluginId?.Trim() ?? string.Empty;
-        normalizedMessageType = messageType?.Trim() ?? string.Empty;
-        normalizedPayload = payload ?? string.Empty;
-        return normalizedTargetPluginId.Length > 0 && normalizedMessageType.Length > 0;
     }
 
     private static void WriteGameplayHudTrace(string message)

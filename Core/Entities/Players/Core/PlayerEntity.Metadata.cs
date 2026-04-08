@@ -74,7 +74,8 @@ public sealed partial class PlayerEntity
 
     public bool ClearReplicatedState(string ownerId, string key)
     {
-        return ReplicatedStateEntries.Remove(CreateReplicatedStateDictionaryKey(ownerId, key));
+        return TryCreateReplicatedStateDictionaryKey(ownerId, key, out var dictionaryKey)
+            && ReplicatedStateEntries.Remove(dictionaryKey);
     }
 
     internal void ReplaceReplicatedStateEntries(IEnumerable<GameplayReplicatedStateEntry> entries)
@@ -118,7 +119,8 @@ public sealed partial class PlayerEntity
 
     private bool TryGetReplicatedState(string ownerId, string key, GameplayReplicatedStateValueKind expectedKind, out GameplayReplicatedStateEntry entry)
     {
-        if (ReplicatedStateEntries.TryGetValue(CreateReplicatedStateDictionaryKey(ownerId, key), out entry!)
+        if (TryCreateReplicatedStateDictionaryKey(ownerId, key, out var dictionaryKey)
+            && ReplicatedStateEntries.TryGetValue(dictionaryKey, out entry!)
             && entry.Kind == expectedKind)
         {
             return true;
@@ -130,22 +132,30 @@ public sealed partial class PlayerEntity
 
     private static GameplayReplicatedStateEntry? NormalizeReplicatedStateEntry(GameplayReplicatedStateEntry entry)
     {
-        if (string.IsNullOrWhiteSpace(entry.OwnerId) || string.IsNullOrWhiteSpace(entry.Key))
-        {
-            return null;
-        }
-
-        if (entry.OwnerId.Length > MaxReplicatedStateIdentifierLength
-            || entry.Key.Length > MaxReplicatedStateIdentifierLength)
+        if (!GameplayReplicatedStateContract.TryNormalizeIdentifier(entry.OwnerId, out var normalizedOwnerId)
+            || !GameplayReplicatedStateContract.TryNormalizeIdentifier(entry.Key, out var normalizedKey))
         {
             return null;
         }
 
         return entry with
         {
-            OwnerId = entry.OwnerId.Trim(),
-            Key = entry.Key.Trim(),
+            OwnerId = normalizedOwnerId,
+            Key = normalizedKey,
         };
+    }
+
+    private static bool TryCreateReplicatedStateDictionaryKey(string ownerId, string key, out string dictionaryKey)
+    {
+        dictionaryKey = string.Empty;
+        if (!GameplayReplicatedStateContract.TryNormalizeIdentifier(ownerId, out var normalizedOwnerId)
+            || !GameplayReplicatedStateContract.TryNormalizeIdentifier(key, out var normalizedKey))
+        {
+            return false;
+        }
+
+        dictionaryKey = CreateReplicatedStateDictionaryKey(normalizedOwnerId, normalizedKey);
+        return true;
     }
 
     private static string CreateReplicatedStateDictionaryKey(string ownerId, string key)

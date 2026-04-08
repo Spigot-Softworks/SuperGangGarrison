@@ -19,6 +19,8 @@ sealed partial class GameServer
     private sealed record PendingConsoleCommand(
         string Command,
         bool EchoToConsole,
+        OpenGarrisonServerAdminIdentity Identity,
+        OpenGarrisonServerCommandSource Source,
         TaskCompletionSource<IReadOnlyList<string>>? Completion);
 
     private const int WsaConnReset = 10054;
@@ -34,6 +36,7 @@ sealed partial class GameServer
     private readonly int _port;
     private readonly string _serverName;
     private readonly string? _serverPassword;
+    private string? _rconPassword;
     private readonly bool _useLobbyServer;
     private readonly string _lobbyHost;
     private readonly int _lobbyPort;
@@ -49,7 +52,7 @@ sealed partial class GameServer
     private readonly int _maxSpectatorClients;
     private readonly int _autoBalanceDelaySeconds;
     private readonly int _autoBalanceNewPlayerGraceSeconds;
-    private readonly bool _autoBalanceEnabled;
+    private bool _autoBalanceEnabled;
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
@@ -84,12 +87,17 @@ sealed partial class GameServer
     private SnapshotBroadcaster _snapshotBroadcaster = null!;
     private MapRotationManager _mapRotationManager = null!;
     private OpenGarrison.Server.ServerConnectionRateLimiter _connectionRateLimiter = null!;
+    private ServerAdminSessionManager _adminSessionManager = null!;
+    private ServerScheduler _scheduler = null!;
+    private IOpenGarrisonServerCvarRegistry _cvarRegistry = null!;
+    private ServerAdminChatRouter _adminChatRouter = null!;
 
     public GameServer(
         SimulationConfig config,
         int port,
         string serverName,
         string? serverPassword,
+        string? rconPassword,
         bool useLobbyServer,
         string lobbyHost,
         int lobbyPort,
@@ -121,6 +129,7 @@ sealed partial class GameServer
         _port = port;
         _serverName = serverName;
         _serverPassword = serverPassword;
+        _rconPassword = rconPassword;
         _useLobbyServer = useLobbyServer;
         _lobbyHost = lobbyHost;
         _lobbyPort = lobbyPort;
@@ -157,7 +166,12 @@ sealed partial class GameServer
     {
         if (!string.IsNullOrWhiteSpace(command))
         {
-            _pendingConsoleCommands.Enqueue(new PendingConsoleCommand(command.Trim(), EchoToConsole: true, Completion: null));
+            _pendingConsoleCommands.Enqueue(new PendingConsoleCommand(
+                command.Trim(),
+                EchoToConsole: true,
+                CreateConsoleIdentity(),
+                OpenGarrisonServerCommandSource.Console,
+                Completion: null));
         }
     }
 
@@ -171,7 +185,12 @@ sealed partial class GameServer
         }
 
         cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
-        _pendingConsoleCommands.Enqueue(new PendingConsoleCommand(command.Trim(), echoToConsole, tcs));
+        _pendingConsoleCommands.Enqueue(new PendingConsoleCommand(
+            command.Trim(),
+            echoToConsole,
+            CreateAdminPipeIdentity(),
+            OpenGarrisonServerCommandSource.AdminPipe,
+            tcs));
         return tcs.Task;
     }
 
@@ -184,7 +203,7 @@ sealed partial class GameServer
     {
         while (_pendingConsoleCommands.TryDequeue(out var request))
         {
-            var lines = BuildConsoleCommandResponse(request.Command);
+            var lines = BuildConsoleCommandResponse(request.Command, request.Identity, request.Source);
             if (request.EchoToConsole)
             {
                 foreach (var line in lines)
@@ -197,7 +216,10 @@ sealed partial class GameServer
         }
     }
 
-    private List<string> BuildConsoleCommandResponse(string command)
+    private List<string> BuildConsoleCommandResponse(
+        string command,
+        OpenGarrisonServerAdminIdentity identity,
+        OpenGarrisonServerCommandSource source)
     {
         var normalized = command.Trim();
         if (normalized.Length == 0)
@@ -205,7 +227,7 @@ sealed partial class GameServer
             return [];
         }
 
-        if (_pluginCommandRegistry.TryExecute(normalized, CreateCommandContext(), CancellationToken.None, out var responseLines))
+        if (_pluginCommandRegistry.TryExecute(normalized, CreateCommandContext(identity, source), CancellationToken.None, out var responseLines))
         {
             return responseLines.ToList();
         }
@@ -213,10 +235,30 @@ sealed partial class GameServer
         return [$"[server] unknown command \"{normalized}\". Type help for commands."];
     }
 
-    private OpenGarrisonServerCommandContext CreateCommandContext()
+    private OpenGarrisonServerCommandContext CreateCommandContext(
+        OpenGarrisonServerAdminIdentity identity,
+        OpenGarrisonServerCommandSource source)
     {
         return new OpenGarrisonServerCommandContext(
             _serverState,
-            _adminOperations);
+            _adminOperations,
+            _cvarRegistry,
+            _scheduler,
+            identity,
+            source);
+    }
+
+    private OpenGarrisonServerAdminIdentity CreateConsoleIdentity()
+    {
+        return _adminSessionManager is null
+            ? new OpenGarrisonServerAdminIdentity("Console", OpenGarrisonServerAdminAuthority.HostConsole, OpenGarrisonServerAdminPermissions.FullAccess)
+            : _adminSessionManager.ConsoleIdentity;
+    }
+
+    private OpenGarrisonServerAdminIdentity CreateAdminPipeIdentity()
+    {
+        return _adminSessionManager is null
+            ? new OpenGarrisonServerAdminIdentity("AdminPipe", OpenGarrisonServerAdminAuthority.AdminPipe, OpenGarrisonServerAdminPermissions.FullAccess)
+            : _adminSessionManager.AdminPipeIdentity;
     }
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server.Plugins;
 
 namespace OpenGarrison.Server;
 
@@ -18,8 +19,11 @@ internal static class ServerPluginRuntimeFactory
         string lobbyHost,
         int lobbyPort,
         bool passwordRequired,
-        bool autoBalanceEnabled,
+        Func<bool> autoBalanceEnabledGetter,
         int? respawnSecondsOverride,
+        IOpenGarrisonServerCvarRegistry cvarRegistry,
+        IOpenGarrisonServerScheduler scheduler,
+        Func<byte, OpenGarrisonServerAdminIdentity> adminIdentityResolver,
         GameplayOwnershipService? gameplayOwnershipService,
         MapRotationManager mapRotationManager,
         string? mapRotationFile,
@@ -59,7 +63,7 @@ internal static class ServerPluginRuntimeFactory
             lobbyHost,
             lobbyPort,
             passwordRequired,
-            autoBalanceEnabled,
+            autoBalanceEnabledGetter,
             respawnSecondsOverride,
             () => mapRotationManager,
             mapRotationFile);
@@ -71,7 +75,9 @@ internal static class ServerPluginRuntimeFactory
             consoleSummaryBuilder.AddMapSummary,
             consoleSummaryBuilder.AddRotationSummary,
             consoleSummaryBuilder.AddPlayersSummary,
-            () => pluginHost?.LoadedPluginIds ?? Array.Empty<string>())
+            () => pluginHost?.LoadedPluginIds ?? Array.Empty<string>(),
+            cvarRegistry,
+            scheduler)
             .RegisterAll();
 
         pluginHost = new PluginHost(
@@ -79,6 +85,9 @@ internal static class ServerPluginRuntimeFactory
             commandRegistry,
             serverState,
             adminOperations,
+            cvarRegistry,
+            scheduler,
+            adminIdentityResolver,
             sendPluginMessageToClient,
             broadcastPluginMessage,
             pluginsDirectory,

@@ -11,6 +11,9 @@ internal sealed class PluginHost
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly IOpenGarrisonServerReadOnlyState _serverState;
     private readonly IOpenGarrisonServerAdminOperations _adminOperations;
+    private readonly IOpenGarrisonServerCvarRegistry _cvarRegistry;
+    private readonly IOpenGarrisonServerScheduler _scheduler;
+    private readonly Func<byte, OpenGarrisonServerAdminIdentity> _adminIdentityResolver;
     private readonly Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> _sendMessageToClient;
     private readonly Action<string, string, string, string, PluginMessagePayloadFormat, ushort> _broadcastMessageToClients;
     private readonly Action<string> _log;
@@ -25,6 +28,9 @@ internal sealed class PluginHost
         PluginCommandRegistry commandRegistry,
         IOpenGarrisonServerReadOnlyState serverState,
         IOpenGarrisonServerAdminOperations adminOperations,
+        IOpenGarrisonServerCvarRegistry cvarRegistry,
+        IOpenGarrisonServerScheduler scheduler,
+        Func<byte, OpenGarrisonServerAdminIdentity> adminIdentityResolver,
         Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToClient,
         Action<string, string, string, string, PluginMessagePayloadFormat, ushort> broadcastMessageToClients,
         string pluginsDirectory,
@@ -36,6 +42,9 @@ internal sealed class PluginHost
         _commandRegistry = commandRegistry;
         _serverState = serverState;
         _adminOperations = adminOperations;
+        _cvarRegistry = cvarRegistry;
+        _scheduler = scheduler;
+        _adminIdentityResolver = adminIdentityResolver;
         _sendMessageToClient = sendMessageToClient;
         _broadcastMessageToClients = broadcastMessageToClients;
         _pluginsRootDirectory = pluginsDirectory;
@@ -115,7 +124,12 @@ internal sealed class PluginHost
 
     public bool TryHandleChatMessage(ChatReceivedEvent e)
     {
-        var context = new OpenGarrisonServerChatMessageContext(_serverState, _adminOperations);
+        var context = new OpenGarrisonServerChatMessageContext(
+            _serverState,
+            _adminOperations,
+            _cvarRegistry,
+            _scheduler,
+            _adminIdentityResolver(e.Slot));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             if (loadedPlugin.Plugin is not IOpenGarrisonServerChatCommandHooks hook)
@@ -180,7 +194,48 @@ internal sealed class PluginHost
         }
     }
 
-    public void NotifyClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e) => Dispatch<IOpenGarrisonServerPluginMessageHooks>(hook => hook.OnClientPluginMessage(e));
+    public void NotifyClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e)
+    {
+        if (!PluginMessageContract.TryNormalizeIncoming(
+                e.SourcePluginId,
+                e.TargetPluginId,
+                e.MessageType,
+                e.Payload,
+                e.PayloadFormat,
+                e.SchemaVersion,
+                out var normalizedSourcePluginId,
+                out var normalizedTargetPluginId,
+                out var normalizedMessageType,
+                out var normalizedPayload,
+                out var error))
+        {
+            _log($"[plugin] rejected inbound client plugin message from slot {e.SourceSlot}: {error}");
+            return;
+        }
+
+        var targetPlugin = FindLoadedPlugin(normalizedTargetPluginId);
+        if (targetPlugin?.Plugin is not IOpenGarrisonServerPluginMessageHooks hook)
+        {
+            return;
+        }
+
+        try
+        {
+            hook.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+                e.SourceSlot,
+                e.SourcePlayerName,
+                normalizedSourcePluginId,
+                normalizedTargetPluginId,
+                normalizedMessageType,
+                normalizedPayload,
+                e.PayloadFormat,
+                e.SchemaVersion));
+        }
+        catch (Exception ex)
+        {
+            _log($"[plugin] hook failed for {targetPlugin.Plugin.Id}: {ex.Message}");
+        }
+    }
 
     public void ShutdownPlugins()
     {
@@ -235,18 +290,69 @@ internal sealed class PluginHost
             _mapsDirectory,
             _serverState,
             _adminOperations,
-            (slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion) => _sendMessageToClient(slot, plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
-            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => _broadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            _cvarRegistry,
+            _scheduler,
+            (slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TrySendMessageToClient(plugin.Id, slot, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => TryBroadcastMessageToClients(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateInt(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateFloat(pluginId, key, stateValue), ownerId, stateKey, value),
             (ownerId, slot, stateKey, value) => TrySetPlayerReplicatedState(slot, static (player, pluginId, key, stateValue) => player.SetReplicatedStateBool(pluginId, key, stateValue), ownerId, stateKey, value),
-            (ownerId, slot, stateKey) =>
-            {
-                return _worldGetter().TryGetNetworkPlayer(slot, out var player)
-                    && player.ClearReplicatedState(ownerId, stateKey);
-            },
+            (ownerId, slot, stateKey) => TryClearPlayerReplicatedState(slot, ownerId, stateKey),
             _commandRegistry,
             _log);
+    }
+
+    private void TrySendMessageToClient(
+        string sourcePluginId,
+        byte slot,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
+    {
+        if (!PluginMessageContract.TryNormalizeOutgoing(
+                targetPluginId,
+                messageType,
+                payload,
+                payloadFormat,
+                schemaVersion,
+                out var normalizedTargetPluginId,
+                out var normalizedMessageType,
+                out var normalizedPayload,
+                out var error))
+        {
+            _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
+            return;
+        }
+
+        _sendMessageToClient(slot, sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
+    }
+
+    private void TryBroadcastMessageToClients(
+        string sourcePluginId,
+        string targetPluginId,
+        string messageType,
+        string payload,
+        PluginMessagePayloadFormat payloadFormat,
+        ushort schemaVersion)
+    {
+        if (!PluginMessageContract.TryNormalizeOutgoing(
+                targetPluginId,
+                messageType,
+                payload,
+                payloadFormat,
+                schemaVersion,
+                out var normalizedTargetPluginId,
+                out var normalizedMessageType,
+                out var normalizedPayload,
+                out var error))
+        {
+            _log($"[plugin] rejected outbound plugin message for {sourcePluginId}: {error}");
+            return;
+        }
+
+        _broadcastMessageToClients(sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
     }
 
     private bool TrySetPlayerReplicatedState<TValue>(
@@ -256,8 +362,26 @@ internal sealed class PluginHost
         string stateKey,
         TValue value)
     {
+        if (!GameplayReplicatedStateContract.TryNormalizeIdentifier(stateKey, out var normalizedStateKey))
+        {
+            _log($"[plugin] rejected replicated state write for {ownerId}: state key must be a non-empty ASCII identifier up to {GameplayReplicatedStateContract.MaxIdentifierLength} characters.");
+            return false;
+        }
+
         return _worldGetter().TryGetNetworkPlayer(slot, out var player)
-            && setter(player, ownerId, stateKey, value);
+            && setter(player, ownerId, normalizedStateKey, value);
+    }
+
+    private bool TryClearPlayerReplicatedState(byte slot, string ownerId, string stateKey)
+    {
+        if (!GameplayReplicatedStateContract.TryNormalizeIdentifier(stateKey, out var normalizedStateKey))
+        {
+            _log($"[plugin] rejected replicated state clear for {ownerId}: state key must be a non-empty ASCII identifier up to {GameplayReplicatedStateContract.MaxIdentifierLength} characters.");
+            return false;
+        }
+
+        return _worldGetter().TryGetNetworkPlayer(slot, out var player)
+            && player.ClearReplicatedState(ownerId, normalizedStateKey);
     }
 
     private string ResolvePluginDirectory(IOpenGarrisonServerPlugin plugin, string pluginDirectory)
@@ -277,6 +401,20 @@ internal sealed class PluginHost
         return Directory.Exists(legacyConfigDirectory) && !Directory.Exists(scopedConfigDirectory)
             ? legacyConfigDirectory
             : scopedConfigDirectory;
+    }
+
+    private PluginLoader.LoadedPlugin? FindLoadedPlugin(string pluginId)
+    {
+        for (var index = 0; index < _loadedPlugins.Count; index += 1)
+        {
+            var loadedPlugin = _loadedPlugins[index];
+            if (string.Equals(loadedPlugin.Plugin.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+            {
+                return loadedPlugin;
+            }
+        }
+
+        return null;
     }
 
     private void Dispatch<THook>(Action<THook> callback) where THook : class

@@ -88,6 +88,17 @@ Recommended bias:
 - If a plugin crosses an execution budget or fails in a way that leaves the session unsafe, disable it and continue running the host.
 - Host logs should explain why an operation was rejected so plugin authors can fix it without digging through engine code.
 
+## Messaging And Compatibility Rules
+
+- Plugin messaging uses a host-owned compatibility header, not ad hoc plugin-defined negotiation.
+- The host-owned header is the engine-controlled tuple of source plugin id, target plugin id, message type, payload format, and schema version.
+- Plugins should treat that header as the canonical compatibility surface for routing and version checks.
+- A plugin message contract should be described in terms of target plugin id, message type, payload format, and supported schema range.
+- Hosts should reject malformed or unsupported compatibility headers before a plugin callback is invoked.
+- Hosts should route addressed plugin messages only to the intended loaded plugin, not broadcast them across the plugin stack.
+- Client-originated source plugin ids are useful for compatibility and diagnostics, but they are not security claims by themselves.
+- If richer cross-plugin traffic is needed later, extend the host-owned compatibility header first instead of inventing plugin-specific negotiation patterns.
+
 ## Lua-Specific Rules
 
 - Lua is the default plugin language.

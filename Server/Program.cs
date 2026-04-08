@@ -31,6 +31,7 @@ var server = new GameServer(
     launchOptions.Port,
     launchOptions.ServerName,
     launchOptions.ServerPassword,
+    launchOptions.RconPassword,
     launchOptions.UseLobbyServer,
     launchOptions.LobbyHost,
     launchOptions.LobbyPort,

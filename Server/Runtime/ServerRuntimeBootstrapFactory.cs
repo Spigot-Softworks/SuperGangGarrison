@@ -41,6 +41,7 @@ internal static class ServerRuntimeBootstrapFactory
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
         ulong transientEventReplayTicks,
+        Func<ServerAdminChatRouter?> adminChatRouterGetter,
         Func<PluginHost?> pluginHostGetter,
         string serverName,
         Action<string, (string Key, object? Value)[]> writeEvent,
@@ -94,6 +95,7 @@ internal static class ServerRuntimeBootstrapFactory
             world,
             clientsBySlot,
             maxPlayableClients,
+            adminChatRouterGetter,
             pluginHostGetter,
             eventReporter.WriteEvent,
             log);

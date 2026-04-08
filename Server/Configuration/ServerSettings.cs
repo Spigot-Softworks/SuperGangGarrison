@@ -39,6 +39,8 @@ sealed class ServerSettings
 
     public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
 
+    public string RconPassword { get; set; } = string.Empty;
+
     public bool PersistentGameplayOwnershipEnabled { get; set; }
 
     public PersistentGameplayOwnershipIdentityMode PersistentGameplayOwnershipIdentityMode { get; set; } = PersistentGameplayOwnershipIdentityMode.Disabled;
@@ -115,6 +117,7 @@ sealed class ServerSettings
             CapLimit = hostDefaults.CapLimit,
             RespawnSeconds = hostDefaults.RespawnSeconds,
             TickRate = SimulationConfig.NormalizeTicksPerSecond(hostDefaults.TickRate),
+            RconPassword = hostDefaults.RconPassword,
             HostDefaults = hostDefaults,
             PersistentGameplayOwnershipEnabled = preferences.PersistentGameplayOwnershipEnabled,
             PersistentGameplayOwnershipIdentityMode = preferences.PersistentGameplayOwnershipIdentityMode,
@@ -135,6 +138,7 @@ sealed class ServerSettings
         hostDefaults.CapLimit = CapLimit;
         hostDefaults.RespawnSeconds = RespawnSeconds;
         hostDefaults.TickRate = SimulationConfig.NormalizeTicksPerSecond(TickRate);
+        hostDefaults.RconPassword = RconPassword;
         if (hostDefaults.Slots <= 0)
         {
             hostDefaults.Slots = MaxPlayableClients;

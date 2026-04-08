@@ -14,9 +14,9 @@ public static partial class ProtocolCodec
     private const int MaxReasonBytes = 128;
     private const int MaxPasswordBytes = 64;
     private const int MaxChatBytes = 180;
-    private const int MaxPluginIdBytes = 80;
-    private const int MaxPluginMessageTypeBytes = 80;
-    private const int MaxPluginPayloadBytes = 1024;
+    public const int MaxPluginIdBytes = 80;
+    public const int MaxPluginMessageTypeBytes = 80;
+    public const int MaxPluginPayloadBytes = 1024;
     private const int MaxAssetNameBytes = 64;
     private const int MaxKillMessageBytes = 160;
     private const int MaxGameplayIdBytes = 96;

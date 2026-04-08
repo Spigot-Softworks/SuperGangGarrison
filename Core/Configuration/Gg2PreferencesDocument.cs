@@ -156,6 +156,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetString(ServerAdvancedSection, "LobbyHost", LobbyHost);
         ini.SetInt(ServerAdvancedSection, "LobbyPort", LobbyPort > 0 ? LobbyPort : DefaultLobbyPort);
         ini.SetInt(ServerAdvancedSection, "TickRate", SimulationConfig.NormalizeTicksPerSecond(HostSettings.TickRate));
+        ini.SetString(ServerAdvancedSection, "RconPassword", HostSettings.RconPassword);
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
@@ -229,6 +230,8 @@ public sealed class OpenGarrisonHostSettings
 
     public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
 
+    public string RconPassword { get; set; } = string.Empty;
+
     public bool LobbyAnnounceEnabled { get; set; } = true;
 
     public bool AutoBalanceEnabled { get; set; } = true;
@@ -299,6 +302,7 @@ public sealed class OpenGarrisonHostSettings
             CapLimit = CapLimit,
             RespawnSeconds = RespawnSeconds,
             TickRate = TickRate,
+            RconPassword = RconPassword,
             LobbyAnnounceEnabled = LobbyAnnounceEnabled,
             AutoBalanceEnabled = AutoBalanceEnabled,
             DedicatedModeEnabled = DedicatedModeEnabled,
@@ -320,6 +324,7 @@ public sealed class OpenGarrisonHostSettings
             RespawnSeconds = ini.GetInt("Server", "Respawn Time", 5),
             TickRate = SimulationConfig.NormalizeTicksPerSecond(
                 ini.GetInt("Server.Advanced", "TickRate", SimulationConfig.DefaultTicksPerSecond)),
+            RconPassword = ini.GetString("Server.Advanced", "RconPassword", string.Empty),
             LobbyAnnounceEnabled = ini.GetBool("Settings", "UseLobby", true),
             AutoBalanceEnabled = ini.GetBool("Server", "AutoBalance", true),
             DedicatedModeEnabled = ini.GetBool("Server", "Dedicated", false),

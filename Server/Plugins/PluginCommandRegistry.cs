@@ -14,16 +14,30 @@ internal sealed class PluginCommandRegistry
         Func<OpenGarrisonServerCommandContext, string, CancellationToken, Task<IReadOnlyList<string>>> executeAsync,
         params string[] aliases)
     {
-        var command = new BuiltInServerCommand(name, description, usage, executeAsync);
-        Register(command, ownerId: "builtin", aliases);
+        RegisterBuiltIn(name, description, usage, executeAsync, OpenGarrisonServerAdminPermissions.None, aliases);
     }
 
-    public void RegisterPluginCommand(IOpenGarrisonServerCommand command, string pluginId)
+    public void RegisterBuiltIn(
+        string name,
+        string description,
+        string usage,
+        Func<OpenGarrisonServerCommandContext, string, CancellationToken, Task<IReadOnlyList<string>>> executeAsync,
+        OpenGarrisonServerAdminPermissions requiredPermissions,
+        params string[] aliases)
     {
-        Register(command, pluginId, []);
+        var command = new BuiltInServerCommand(name, description, usage, executeAsync);
+        Register(command, ownerId: "builtin", requiredPermissions, aliases);
     }
 
-    public IReadOnlyList<(string Name, string Description, string Usage, string OwnerId, bool IsBuiltIn)> GetPrimaryCommands()
+    public void RegisterPluginCommand(
+        IOpenGarrisonServerCommand command,
+        string pluginId,
+        OpenGarrisonServerAdminPermissions requiredPermissions = OpenGarrisonServerAdminPermissions.None)
+    {
+        Register(command, pluginId, requiredPermissions, []);
+    }
+
+    public IReadOnlyList<(string Name, string Description, string Usage, string OwnerId, bool IsBuiltIn, OpenGarrisonServerAdminPermissions RequiredPermissions)> GetPrimaryCommands()
     {
         return _primaryCommands
             .OrderBy(entry => entry.Command.Name, StringComparer.OrdinalIgnoreCase)
@@ -32,7 +46,8 @@ internal sealed class PluginCommandRegistry
                 entry.Command.Description,
                 entry.Command.Usage,
                 entry.OwnerId,
-                string.Equals(entry.OwnerId, "builtin", StringComparison.OrdinalIgnoreCase)))
+                string.Equals(entry.OwnerId, "builtin", StringComparison.OrdinalIgnoreCase),
+                entry.RequiredPermissions))
             .ToArray();
     }
 
@@ -57,6 +72,15 @@ internal sealed class PluginCommandRegistry
             return false;
         }
 
+        if (!context.HasPermission(registration.RequiredPermissions))
+        {
+            responseLines =
+            [
+                $"[server] command \"{registration.Command.Name}\" requires {registration.RequiredPermissions}."
+            ];
+            return true;
+        }
+
         try
         {
             responseLines = registration.Command.ExecuteAsync(context, arguments, cancellationToken).GetAwaiter().GetResult();
@@ -79,10 +103,14 @@ internal sealed class PluginCommandRegistry
         return true;
     }
 
-    private void Register(IOpenGarrisonServerCommand command, string ownerId, IReadOnlyList<string> aliases)
+    private void Register(
+        IOpenGarrisonServerCommand command,
+        string ownerId,
+        OpenGarrisonServerAdminPermissions requiredPermissions,
+        IReadOnlyList<string> aliases)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(command.Name);
-        var registration = new CommandRegistration(command, ownerId);
+        var registration = new CommandRegistration(command, ownerId, requiredPermissions);
         RegisterName(command.Name, registration, isPrimary: true);
         foreach (var alias in aliases)
         {
@@ -110,5 +138,8 @@ internal sealed class PluginCommandRegistry
         }
     }
 
-    private sealed record CommandRegistration(IOpenGarrisonServerCommand Command, string OwnerId);
+    private sealed record CommandRegistration(
+        IOpenGarrisonServerCommand Command,
+        string OwnerId,
+        OpenGarrisonServerAdminPermissions RequiredPermissions);
 }

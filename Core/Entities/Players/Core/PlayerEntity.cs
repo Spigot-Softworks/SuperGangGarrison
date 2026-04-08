@@ -8,7 +8,6 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity : SimulationEntity
 {
-    private const int MaxReplicatedStateIdentifierLength = 64;
     private const int MaxReplicatedStateEntries = 16;
     private const int MaxDisplayNameLength = 20;
     private const string DefaultDisplayName = "Player";

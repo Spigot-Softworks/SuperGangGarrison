@@ -115,6 +115,11 @@ internal sealed partial class LuaClientPlugin(
         {
             var relativePath = ReadStringArgument(args, 0);
             var defaultValue = ReadArgument(args, 1);
+            if (!CanAccessPluginStorage("load_json_config", $"config path \"{relativePath}\""))
+            {
+                return defaultValue;
+            }
+
             var path = ResolveConfigPath(context.ConfigDirectory, relativePath);
             if (!File.Exists(path))
             {
@@ -130,6 +135,11 @@ internal sealed partial class LuaClientPlugin(
         {
             var relativePath = ReadStringArgument(args, 0);
             var value = ReadArgument(args, 1);
+            if (!CanAccessPluginStorage("save_json_config", $"config path \"{relativePath}\""))
+            {
+                return DynValue.False;
+            }
+
             var path = ResolveConfigPath(context.ConfigDirectory, relativePath);
             SaveLuaTableJson(path, value);
             return DynValue.True;
@@ -162,6 +172,11 @@ internal sealed partial class LuaClientPlugin(
         {
             var assetId = ReadStringArgument(args, 0);
             var relativePath = ReadStringArgument(args, 1);
+            if (!CanRegisterAsset("register_sound_asset", assetId))
+            {
+                return DynValue.False;
+            }
+
             context.Assets.RegisterSoundAsset(assetId, relativePath);
             if (!context.Assets.TryGetSoundAsset(assetId, out var sound))
             {
@@ -175,7 +190,7 @@ internal sealed partial class LuaClientPlugin(
         {
             var assetId = ReadStringArgument(args, 0);
             var relativePath = ReadStringArgument(args, 1);
-            if (!CanRegisterTextureAsset("register_texture_asset", assetId))
+            if (!CanRegisterAsset("register_texture_asset", assetId))
             {
                 return DynValue.False;
             }
@@ -195,7 +210,7 @@ internal sealed partial class LuaClientPlugin(
             var relativePath = ReadStringArgument(args, 1);
             var frameWidth = ReadIntArgument(args, 2);
             var frameHeight = ReadIntArgument(args, 3);
-            if (!CanRegisterTextureAsset("register_texture_atlas_asset", assetId))
+            if (!CanRegisterAsset("register_texture_atlas_asset", assetId))
             {
                 return DynValue.False;
             }
@@ -214,7 +229,7 @@ internal sealed partial class LuaClientPlugin(
             var assetId = ReadStringArgument(args, 0);
             var textureAssetId = ReadStringArgument(args, 1);
             var rectangle = new Rectangle(ReadIntArgument(args, 2), ReadIntArgument(args, 3), ReadIntArgument(args, 4), ReadIntArgument(args, 5));
-            if (!CanRegisterTextureAsset("register_texture_region_asset", assetId))
+            if (!CanRegisterAsset("register_texture_region_asset", assetId))
             {
                 return DynValue.False;
             }
@@ -234,7 +249,7 @@ internal sealed partial class LuaClientPlugin(
             var relativePath = ReadStringArgument(args, 1);
             var frameCount = ReadOptionalIntArgument(args, 2, 1);
             var applyChromaKey = ReadOptionalBoolArgument(args, 3, true);
-            if (!CanRegisterTextureAsset("register_legacy_animation_asset", assetId))
+            if (!CanRegisterAsset("register_legacy_animation_asset", assetId))
             {
                 return DynValue.False;
             }
@@ -275,6 +290,11 @@ internal sealed partial class LuaClientPlugin(
             var locationText = ReadStringArgument(args, 2);
             var callbackName = ReadStringArgument(args, 3);
             var order = ReadOptionalIntArgument(args, 4, 0);
+            if (!CanUseClientUiMutation("register_menu_entry", $"menu entry \"{menuEntryId}\""))
+            {
+                return DynValue.False;
+            }
+
             if (!Enum.TryParse<ClientPluginMenuLocation>(locationText, ignoreCase: true, out var location))
             {
                 throw new InvalidOperationException($"Unknown client menu location \"{locationText}\".");
@@ -285,6 +305,11 @@ internal sealed partial class LuaClientPlugin(
         });
         host["show_notice"] = DynValue.NewCallback((_, args) =>
         {
+            if (!CanUseClientUiMutation("show_notice", "notice surface"))
+            {
+                return DynValue.False;
+            }
+
             context.Ui.ShowNotice(
                 ReadStringArgument(args, 0),
                 ReadOptionalIntArgument(args, 1, 200),
@@ -296,6 +321,11 @@ internal sealed partial class LuaClientPlugin(
             var hotkeyId = ReadStringArgument(args, 0);
             var displayName = ReadStringArgument(args, 1);
             var defaultKeyText = ReadStringArgument(args, 2);
+            if (!CanUseClientUiMutation("register_hotkey", $"hotkey \"{hotkeyId}\""))
+            {
+                return DynValue.NewString(Keys.None.ToString());
+            }
+
             if (!TryParseKey(defaultKeyText, out var defaultKey))
             {
                 defaultKey = Keys.None;
@@ -312,6 +342,11 @@ internal sealed partial class LuaClientPlugin(
         {
             var relativeDirectory = ReadStringArgument(args, 0);
             var searchPattern = ReadOptionalStringArgument(args, 1, "*");
+            if (!CanAccessPluginStorage("list_files", $"plugin path \"{relativeDirectory}\""))
+            {
+                return DynValue.NewTable(new Table(script));
+            }
+
             var directoryPath = ResolvePluginPath(context.PluginDirectory, relativeDirectory, defaultRelativePath: ".");
             if (!Directory.Exists(directoryPath))
             {
@@ -806,21 +841,75 @@ internal sealed partial class LuaClientPlugin(
         ExecuteInPhase(LuaCallbackPhase.MenuInteraction, () => CallIfPresent(callbackName));
     }
 
-    private bool CanRegisterTextureAsset(string functionName, string assetId)
+    private bool CanRegisterAsset(string functionName, string assetId)
     {
-        if (IsTextureRegistrationPhaseAllowed(_currentCallbackPhase))
+        if (IsAssetRegistrationPhaseAllowed(_currentCallbackPhase))
         {
             return true;
         }
 
+        return RejectHostOperation(
+            functionName,
+            $"asset \"{assetId}\"",
+            "Register assets during initialize, lifecycle startup, or on_client_frame.");
+    }
+
+    private bool CanAccessPluginStorage(string functionName, string target)
+    {
+        if (IsPluginStoragePhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Use plugin file and config access during initialize, lifecycle, update, or interaction callbacks.");
+    }
+
+    private bool CanUseClientUiMutation(string functionName, string target)
+    {
+        if (IsClientUiMutationPhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Use client UI registration and notices during initialize, lifecycle, update, or interaction callbacks.");
+    }
+
+    private bool RejectHostOperation(string functionName, string target, string guidance)
+    {
         _context?.Log(
-            $"[lua-plugin] {functionName} rejected for {manifest.Id} asset \"{assetId}\" during {DescribePhase(_currentCallbackPhase)}. Register texture assets during initialize, lifecycle startup, or on_client_frame.");
+            $"[lua-plugin] {functionName} rejected for {manifest.Id} {target} during {DescribePhase(_currentCallbackPhase)}. {guidance}");
         return false;
     }
 
-    private static bool IsTextureRegistrationPhaseAllowed(LuaCallbackPhase phase)
+    private static bool IsAssetRegistrationPhaseAllowed(LuaCallbackPhase phase)
     {
         return phase is LuaCallbackPhase.Initialize or LuaCallbackPhase.Lifecycle or LuaCallbackPhase.Update;
+    }
+
+    private static bool IsPluginStoragePhaseAllowed(LuaCallbackPhase phase)
+    {
+        return phase is LuaCallbackPhase.Initialize
+            or LuaCallbackPhase.Lifecycle
+            or LuaCallbackPhase.Update
+            or LuaCallbackPhase.BubbleMenuInput
+            or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.MenuInteraction;
+    }
+
+    private static bool IsClientUiMutationPhaseAllowed(LuaCallbackPhase phase)
+    {
+        return phase is LuaCallbackPhase.Initialize
+            or LuaCallbackPhase.Lifecycle
+            or LuaCallbackPhase.Update
+            or LuaCallbackPhase.BubbleMenuInput
+            or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.MenuInteraction;
     }
 
     private static string DescribePhase(LuaCallbackPhase phase)

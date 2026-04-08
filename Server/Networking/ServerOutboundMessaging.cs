@@ -13,6 +13,7 @@ internal sealed class ServerOutboundMessaging(
     SimulationWorld world,
     Dictionary<byte, ClientSession> clientsBySlot,
     int maxPlayableClients,
+    Func<ServerAdminChatRouter?> adminChatRouterGetter,
     Func<PluginHost?> pluginHostGetter,
     Action<string, (string Key, object? Value)[]> writeEvent,
     Action<string> log)
@@ -54,6 +55,11 @@ internal sealed class ServerOutboundMessaging(
         if (sanitized.Length > 120)
         {
             sanitized = sanitized[..120];
+        }
+
+        if (adminChatRouterGetter()?.TryHandlePrivateChatCommand(client, sanitized, teamOnly) == true)
+        {
+            return;
         }
 
         var team = TryGetClientChatTeam(client) is { } resolvedTeam

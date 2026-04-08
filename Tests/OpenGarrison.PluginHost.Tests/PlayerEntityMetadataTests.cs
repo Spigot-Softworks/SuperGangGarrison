@@ -45,6 +45,27 @@ public sealed class PlayerEntityMetadataTests
 
         Assert.False(player.SetReplicatedStateBool("", "value", true));
         Assert.False(player.SetReplicatedStateBool("plugin", "   ", true));
+        Assert.False(player.SetReplicatedStateBool("plugin:score", "value", true));
+        Assert.False(player.SetReplicatedStateBool("plugin", "round wins", true));
+        Assert.Empty(player.GetReplicatedStateEntries());
+    }
+
+    [Fact]
+    public void ReplicatedStateNormalizesTrimmedIdentifiersForSetGetAndClear()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+
+        Assert.True(player.SetReplicatedStateBool(" plugin.score ", " round_wins ", true));
+        Assert.True(player.TryGetReplicatedStateBool("plugin.score", "round_wins", out var value));
+        Assert.True(value);
+        Assert.True(player.TryGetReplicatedStateBool(" plugin.score ", " round_wins ", out value));
+        Assert.True(value);
+
+        var entry = Assert.Single(player.GetReplicatedStateEntries());
+        Assert.Equal("plugin.score", entry.OwnerId);
+        Assert.Equal("round_wins", entry.Key);
+
+        Assert.True(player.ClearReplicatedState(" plugin.score ", " round_wins "));
         Assert.Empty(player.GetReplicatedStateEntries());
     }
 

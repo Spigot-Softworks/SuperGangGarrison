@@ -16,6 +16,7 @@ sealed class ServerLaunchOptions
     public int Port { get; private init; }
     public string ServerName { get; private init; } = "My Server";
     public string? ServerPassword { get; private init; }
+    public string? RconPassword { get; private init; }
     public bool UseLobbyServer { get; private init; }
     public string LobbyHost { get; private init; } = DefaultLobbyHost;
     public int LobbyPort { get; private init; } = DefaultLobbyPort;
@@ -67,6 +68,7 @@ sealed class ServerLaunchOptions
         var port = settings.Port;
         var serverName = settings.ServerName;
         string? serverPassword = string.IsNullOrWhiteSpace(settings.Password) ? null : settings.Password;
+        string? rconPassword = string.IsNullOrWhiteSpace(settings.RconPassword) ? null : settings.RconPassword;
         var useLobbyServer = settings.UseLobbyServer;
         var lobbyHost = string.IsNullOrWhiteSpace(settings.LobbyHost) ? DefaultLobbyHost : settings.LobbyHost;
         var lobbyPort = settings.LobbyPort > 0 ? settings.LobbyPort : DefaultLobbyPort;
@@ -117,6 +119,13 @@ sealed class ServerLaunchOptions
             if (string.Equals(arg, "--password", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
             {
                 serverPassword = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--rcon-password", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+            {
+                rconPassword = args[index + 1];
                 index += 1;
                 continue;
             }
@@ -259,6 +268,7 @@ sealed class ServerLaunchOptions
             Port = port,
             ServerName = serverName,
             ServerPassword = serverPassword,
+            RconPassword = rconPassword,
             UseLobbyServer = useLobbyServer,
             LobbyHost = lobbyHost,
             LobbyPort = lobbyPort,

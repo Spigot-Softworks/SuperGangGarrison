@@ -141,7 +141,13 @@ public sealed class ChatVotingPlugin :
     {
         return new OpenGarrisonServerChatMessageContext(
             _context!.ServerState,
-            _context.AdminOperations);
+            _context.AdminOperations,
+            _context.Cvars,
+            _context.Scheduler,
+            new OpenGarrisonServerAdminIdentity(
+                "ChatVoting",
+                OpenGarrisonServerAdminAuthority.PluginHost,
+                OpenGarrisonServerAdminPermissions.FullAccess));
     }
 
     private bool TryStartVote(OpenGarrisonServerChatMessageContext context, ChatReceivedEvent e, string arguments, VoteKind kind)

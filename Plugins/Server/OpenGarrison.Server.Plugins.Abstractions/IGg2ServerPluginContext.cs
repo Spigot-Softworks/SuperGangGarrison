@@ -11,6 +11,10 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
 
     IOpenGarrisonServerAdminOperations AdminOperations { get; }
 
+    IOpenGarrisonServerCvarRegistry Cvars { get; }
+
+    IOpenGarrisonServerScheduler Scheduler { get; }
+
     void SendMessageToClient(
         byte slot,
         string targetPluginId,
@@ -44,5 +48,10 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
 
     bool ClearPlayerReplicatedState(byte slot, string stateKey);
 
-    void RegisterCommand(IOpenGarrisonServerCommand command);
+    void RegisterCommand(IOpenGarrisonServerCommand command, OpenGarrisonServerAdminPermissions requiredPermissions);
+
+    void RegisterCommand(IOpenGarrisonServerCommand command)
+    {
+        RegisterCommand(command, OpenGarrisonServerAdminPermissions.None);
+    }
 }
