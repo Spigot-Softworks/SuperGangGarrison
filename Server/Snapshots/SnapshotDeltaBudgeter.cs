@@ -9,14 +9,14 @@ internal static class SnapshotDeltaBudgeter
 {
     public const int TargetSnapshotPayloadBytes = 1200;
 
-    internal sealed record Contribution(int Priority, float DistanceSquared, Action<Builder> Apply);
+    internal sealed record Contribution(int Priority, float DistanceSquared, int EstimatedBytes, Action<Builder> Apply);
 
     public static (SnapshotMessage Message, byte[] Payload) BuildBudgetedSnapshot(
         SnapshotMessage fullSnapshot,
         SnapshotMessage? baseline,
         IReadOnlyList<Contribution> contributions)
     {
-        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0);
+        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: baseline is null);
         var snapshot = builder.Build();
         var payload = ProtocolCodec.Serialize(snapshot);
         var payloadSize = payload.Length;
@@ -27,26 +27,38 @@ internal static class SnapshotDeltaBudgeter
             snapshot = builder.Build();
             payload = ProtocolCodec.Serialize(snapshot);
             payloadSize = payload.Length;
-            if (payloadSize > TargetSnapshotPayloadBytes)
-            {
-                return (snapshot, payload);
-            }
         }
 
+        var remainingBudget = TargetSnapshotPayloadBytes - payloadSize;
         foreach (var contribution in contributions.OrderByDescending(static entry => entry.Priority).ThenBy(static entry => entry.DistanceSquared))
         {
-            var trialBuilder = builder.Clone();
-            contribution.Apply(trialBuilder);
-            var trialSnapshot = trialBuilder.Build();
-            var trialPayload = ProtocolCodec.Serialize(trialSnapshot);
-            if (trialPayload.Length > TargetSnapshotPayloadBytes)
+            if (contribution.EstimatedBytes > remainingBudget)
             {
                 continue;
             }
 
-            builder = trialBuilder;
-            snapshot = trialSnapshot;
-            payload = trialPayload;
+            contribution.Apply(builder);
+            remainingBudget -= contribution.EstimatedBytes;
+        }
+
+        snapshot = builder.Build();
+        payload = ProtocolCodec.Serialize(snapshot);
+
+        if (payload.Length > TargetSnapshotPayloadBytes)
+        {
+            ReduceToBudget(builder);
+            snapshot = builder.Build();
+            payload = ProtocolCodec.Serialize(snapshot);
+            if (payload.Length > TargetSnapshotPayloadBytes)
+            {
+                snapshot = ReduceSnapshotForBudget(snapshot);
+                payload = ProtocolCodec.Serialize(snapshot);
+            }
+            if (payload.Length > TargetSnapshotPayloadBytes)
+            {
+                snapshot = ReduceSnapshotToAbsoluteMinimum(snapshot);
+                payload = ProtocolCodec.Serialize(snapshot);
+            }
         }
 
         return (snapshot, payload);
@@ -61,19 +73,280 @@ internal static class SnapshotDeltaBudgeter
         builder.SoundEvents.Clear();
     }
 
+    private static void ReduceToBudget(Builder builder)
+    {
+        foreach (var dropStep in BudgetDropSteps)
+        {
+            dropStep(builder);
+
+            var payload = ProtocolCodec.Serialize(builder.Build());
+            if (payload.Length <= TargetSnapshotPayloadBytes)
+            {
+                return;
+            }
+        }
+    }
+
+    private static SnapshotMessage ReduceSnapshotForBudget(SnapshotMessage snapshot)
+    {
+        snapshot = snapshot with
+        {
+            Players = snapshot.Players
+                .Select(ReducePlayerStateForBudget)
+                .ToArray(),
+            LocalDeathCam = null,
+        };
+
+        var payload = ProtocolCodec.Serialize(snapshot);
+        if (payload.Length <= TargetSnapshotPayloadBytes)
+        {
+            return snapshot;
+        }
+
+        snapshot = snapshot with
+        {
+            Players = snapshot.Players
+                .Select(ReducePlayerStateAggressivelyForBudget)
+                .ToArray(),
+        };
+
+        payload = ProtocolCodec.Serialize(snapshot);
+        if (payload.Length <= TargetSnapshotPayloadBytes)
+        {
+            return snapshot;
+        }
+
+        return snapshot with
+        {
+            Players = Array.Empty<SnapshotPlayerState>(),
+        };
+    }
+
+    private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
+    {
+        return player with
+        {
+            BadgeMask = 0,
+            GameplayModPackId = string.Empty,
+            GameplayLoadoutId = string.Empty,
+            GameplayPrimaryItemId = string.Empty,
+            GameplaySecondaryItemId = string.Empty,
+            GameplayUtilityItemId = string.Empty,
+            GameplayEquippedItemId = string.Empty,
+            GameplayAcquiredItemId = string.Empty,
+            OwnedGameplayItemIds = Array.Empty<string>(),
+            ReplicatedStates = Array.Empty<SnapshotReplicatedStateEntry>(),
+            IsChatBubbleVisible = false,
+            ChatBubbleFrameIndex = 0,
+            ChatBubbleAlpha = 0f,
+            IsTaunting = false,
+            TauntFrameIndex = 0f,
+        };
+    }
+
+    private static SnapshotPlayerState ReducePlayerStateAggressivelyForBudget(SnapshotPlayerState player)
+    {
+        return player with
+        {
+            Name = player.Name.Length > 12 ? player.Name[..12] : player.Name,
+            BadgeMask = 0,
+            GameplayModPackId = string.Empty,
+            GameplayLoadoutId = string.Empty,
+            GameplayPrimaryItemId = string.Empty,
+            GameplaySecondaryItemId = string.Empty,
+            GameplayUtilityItemId = string.Empty,
+            GameplayEquippedItemId = string.Empty,
+            GameplayAcquiredItemId = string.Empty,
+            OwnedGameplayItemIds = Array.Empty<string>(),
+            ReplicatedStates = Array.Empty<SnapshotReplicatedStateEntry>(),
+            IsChatBubbleVisible = false,
+            ChatBubbleFrameIndex = 0,
+            ChatBubbleAlpha = 0f,
+            IsTaunting = false,
+            TauntFrameIndex = 0f,
+            Points = 0f,
+            HealPoints = 0,
+            ActiveDominationCount = 0,
+            IsDominatingLocalViewer = false,
+            IsDominatedByLocalViewer = false,
+            Metal = 0f,
+            IsGrounded = false,
+            RemainingAirJumps = 0,
+            IsCarryingIntel = false,
+            IntelRechargeTicks = 0f,
+            IsSpyCloaked = false,
+            SpyCloakAlpha = 1f,
+            IsUbered = false,
+            IsHeavyEating = false,
+            HeavyEatTicksRemaining = 0,
+            IsSniperScoped = false,
+            SniperChargeTicks = 0,
+            BurnIntensity = 0f,
+            BurnDurationSourceTicks = 0f,
+            BurnDecayDelaySourceTicksRemaining = 0f,
+            BurnIntensityDecayPerSourceTick = 0f,
+            BurnedByPlayerId = -1,
+            MovementState = 0,
+            PrimaryCooldownTicks = 0,
+            ReloadTicksUntilNextShell = 0,
+            MedicNeedleCooldownTicks = 0,
+            MedicNeedleRefillTicks = 0,
+            PyroAirblastCooldownTicks = 0,
+            PyroFlareCooldownTicks = 0,
+            PyroPrimaryFuelScaled = 0,
+            IsPyroPrimaryRefilling = false,
+            PyroFlameLoopTicksRemaining = 0,
+            PyroPrimaryRequiresReleaseAfterEmpty = false,
+            HeavyEatCooldownTicksRemaining = 0,
+        };
+    }
+
+    private static SnapshotMessage ReduceSnapshotToAbsoluteMinimum(SnapshotMessage snapshot)
+    {
+        return snapshot with
+        {
+            LevelName = string.Empty,
+            MapDownloadUrl = string.Empty,
+            MapContentHash = string.Empty,
+            Players = Array.Empty<SnapshotPlayerState>(),
+            CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
+            Sentries = Array.Empty<SnapshotSentryState>(),
+            Shots = Array.Empty<SnapshotShotState>(),
+            Bubbles = Array.Empty<SnapshotShotState>(),
+            Blades = Array.Empty<SnapshotShotState>(),
+            Needles = Array.Empty<SnapshotShotState>(),
+            RevolverShots = Array.Empty<SnapshotShotState>(),
+            Rockets = Array.Empty<SnapshotRocketState>(),
+            Flames = Array.Empty<SnapshotFlameState>(),
+            Flares = Array.Empty<SnapshotShotState>(),
+            Mines = Array.Empty<SnapshotMineState>(),
+            PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
+            BloodDrops = Array.Empty<SnapshotBloodDropState>(),
+            DeadBodies = Array.Empty<SnapshotDeadBodyState>(),
+            ControlPoints = Array.Empty<SnapshotControlPointState>(),
+            Generators = Array.Empty<SnapshotGeneratorState>(),
+            LocalDeathCam = null,
+            KillFeed = Array.Empty<SnapshotKillFeedEntry>(),
+            VisualEvents = Array.Empty<SnapshotVisualEvent>(),
+            DamageEvents = Array.Empty<SnapshotDamageEvent>(),
+            SoundEvents = Array.Empty<SnapshotSoundEvent>(),
+            SentryGibs = Array.Empty<SnapshotSentryGibState>(),
+            RemovedSentryIds = Array.Empty<int>(),
+            RemovedShotIds = Array.Empty<int>(),
+            RemovedBubbleIds = Array.Empty<int>(),
+            RemovedBladeIds = Array.Empty<int>(),
+            RemovedNeedleIds = Array.Empty<int>(),
+            RemovedRevolverShotIds = Array.Empty<int>(),
+            RemovedRocketIds = Array.Empty<int>(),
+            RemovedFlameIds = Array.Empty<int>(),
+            RemovedFlareIds = Array.Empty<int>(),
+            RemovedMineIds = Array.Empty<int>(),
+            RemovedPlayerGibIds = Array.Empty<int>(),
+            RemovedBloodDropIds = Array.Empty<int>(),
+            RemovedDeadBodyIds = Array.Empty<int>(),
+            RemovedSentryGibIds = Array.Empty<int>(),
+        };
+    }
+
+    private static readonly Action<Builder>[] BudgetDropSteps =
+    [
+        static builder =>
+        {
+            builder.SoundEvents.Clear();
+            builder.DamageEvents.Clear();
+            builder.VisualEvents.Clear();
+            builder.KillFeed.Clear();
+        },
+        static builder => builder.CombatTraces.Clear(),
+        static builder =>
+        {
+            builder.BloodDrops.Clear();
+            builder.PlayerGibs.Clear();
+            builder.SentryGibs.Clear();
+            builder.DeadBodies.Clear();
+        },
+        static builder =>
+        {
+            builder.Flares.Clear();
+            builder.Blades.Clear();
+            builder.Bubbles.Clear();
+            builder.Needles.Clear();
+            builder.RevolverShots.Clear();
+            builder.Shots.Clear();
+        },
+        static builder =>
+        {
+            builder.Mines.Clear();
+            builder.Flames.Clear();
+            builder.Rockets.Clear();
+            builder.Sentries.Clear();
+        },
+        static builder =>
+        {
+            builder.RemovedBloodDropIds.Clear();
+            builder.RemovedPlayerGibIds.Clear();
+            builder.RemovedSentryGibIds.Clear();
+            builder.RemovedDeadBodyIds.Clear();
+        },
+        static builder =>
+        {
+            builder.RemovedFlareIds.Clear();
+            builder.RemovedBladeIds.Clear();
+            builder.RemovedBubbleIds.Clear();
+            builder.RemovedNeedleIds.Clear();
+            builder.RemovedRevolverShotIds.Clear();
+            builder.RemovedShotIds.Clear();
+        },
+        static builder =>
+        {
+            builder.RemovedMineIds.Clear();
+            builder.RemovedFlameIds.Clear();
+            builder.RemovedRocketIds.Clear();
+            builder.RemovedSentryIds.Clear();
+        },
+    ];
+
     internal sealed class Builder
     {
         private readonly SnapshotMessage _template;
 
-        public Builder(SnapshotMessage template, ulong baselineFrame)
+        public Builder(SnapshotMessage template, ulong baselineFrame, bool seedFromTemplateCollections)
         {
             _template = template;
             BaselineFrame = baselineFrame;
-            CombatTraces = new List<SnapshotCombatTraceState>(template.CombatTraces);
-            KillFeed = new List<SnapshotKillFeedEntry>(template.KillFeed);
-            VisualEvents = new List<SnapshotVisualEvent>(template.VisualEvents);
-            DamageEvents = new List<SnapshotDamageEvent>(template.DamageEvents);
-            SoundEvents = new List<SnapshotSoundEvent>(template.SoundEvents);
+            CombatTraces = seedFromTemplateCollections ? new List<SnapshotCombatTraceState>(template.CombatTraces) : [];
+            KillFeed = seedFromTemplateCollections ? new List<SnapshotKillFeedEntry>(template.KillFeed) : [];
+            VisualEvents = seedFromTemplateCollections ? new List<SnapshotVisualEvent>(template.VisualEvents) : [];
+            DamageEvents = seedFromTemplateCollections ? new List<SnapshotDamageEvent>(template.DamageEvents) : [];
+            SoundEvents = seedFromTemplateCollections ? new List<SnapshotSoundEvent>(template.SoundEvents) : [];
+            Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
+            Shots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Shots) : [];
+            Bubbles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Bubbles) : [];
+            Blades = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Blades) : [];
+            Needles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Needles) : [];
+            RevolverShots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.RevolverShots) : [];
+            Rockets = seedFromTemplateCollections ? new List<SnapshotRocketState>(template.Rockets) : [];
+            Flames = seedFromTemplateCollections ? new List<SnapshotFlameState>(template.Flames) : [];
+            Flares = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Flares) : [];
+            Mines = seedFromTemplateCollections ? new List<SnapshotMineState>(template.Mines) : [];
+            SentryGibs = seedFromTemplateCollections ? new List<SnapshotSentryGibState>(template.SentryGibs) : [];
+            PlayerGibs = seedFromTemplateCollections ? new List<SnapshotPlayerGibState>(template.PlayerGibs) : [];
+            BloodDrops = seedFromTemplateCollections ? new List<SnapshotBloodDropState>(template.BloodDrops) : [];
+            DeadBodies = seedFromTemplateCollections ? new List<SnapshotDeadBodyState>(template.DeadBodies) : [];
+            RemovedSentryIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryIds) : [];
+            RemovedShotIds = seedFromTemplateCollections ? new List<int>(template.RemovedShotIds) : [];
+            RemovedBubbleIds = seedFromTemplateCollections ? new List<int>(template.RemovedBubbleIds) : [];
+            RemovedBladeIds = seedFromTemplateCollections ? new List<int>(template.RemovedBladeIds) : [];
+            RemovedNeedleIds = seedFromTemplateCollections ? new List<int>(template.RemovedNeedleIds) : [];
+            RemovedRevolverShotIds = seedFromTemplateCollections ? new List<int>(template.RemovedRevolverShotIds) : [];
+            RemovedRocketIds = seedFromTemplateCollections ? new List<int>(template.RemovedRocketIds) : [];
+            RemovedFlameIds = seedFromTemplateCollections ? new List<int>(template.RemovedFlameIds) : [];
+            RemovedFlareIds = seedFromTemplateCollections ? new List<int>(template.RemovedFlareIds) : [];
+            RemovedMineIds = seedFromTemplateCollections ? new List<int>(template.RemovedMineIds) : [];
+            RemovedSentryGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryGibIds) : [];
+            RemovedPlayerGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedPlayerGibIds) : [];
+            RemovedBloodDropIds = seedFromTemplateCollections ? new List<int>(template.RemovedBloodDropIds) : [];
+            RemovedDeadBodyIds = seedFromTemplateCollections ? new List<int>(template.RemovedDeadBodyIds) : [];
         }
 
         private Builder(Builder other)

@@ -21,6 +21,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Sentries,
             baseline?.Sentries,
             priority: 1200,
+            estimateUpdatedBytes: static state => 60,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -32,6 +34,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Rockets,
             baseline?.Rockets,
             priority: 1120,
+            estimateUpdatedBytes: EstimateRocketBytes,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -43,6 +47,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Flames,
             baseline?.Flames,
             priority: 1110,
+            estimateUpdatedBytes: static state => 57,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -54,6 +60,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Flares,
             baseline?.Flares,
             priority: 1105,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -65,6 +73,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Mines,
             baseline?.Mines,
             priority: 1100,
+            estimateUpdatedBytes: static state => 31,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -76,6 +86,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Shots,
             baseline?.Shots,
             priority: 1080,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -87,6 +99,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Needles,
             baseline?.Needles,
             priority: 1070,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -98,6 +112,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.RevolverShots,
             baseline?.RevolverShots,
             priority: 1060,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -109,6 +125,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Bubbles,
             baseline?.Bubbles,
             priority: 1050,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -120,6 +138,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.Blades,
             baseline?.Blades,
             priority: 1040,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -131,6 +151,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.DeadBodies,
             baseline?.DeadBodies,
             priority: 440,
+            estimateUpdatedBytes: static state => 40,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -142,6 +164,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.SentryGibs,
             baseline?.SentryGibs,
             priority: 360,
+            estimateUpdatedBytes: static state => 17,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -153,6 +177,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.PlayerGibs,
             baseline?.PlayerGibs,
             priority: 320,
+            estimateUpdatedBytes: EstimatePlayerGibBytes,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -164,6 +190,8 @@ internal static class SnapshotContributionPlanner
             fullSnapshot.BloodDrops,
             baseline?.BloodDrops,
             priority: 240,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
             focus,
             static state => state.Id,
             static state => state.X,
@@ -174,6 +202,7 @@ internal static class SnapshotContributionPlanner
             contributions,
             fullSnapshot.SoundEvents,
             priority: 1300,
+            estimateBytes: EstimateSoundEventBytes,
             focus,
             static state => state.X,
             static state => state.Y,
@@ -182,6 +211,7 @@ internal static class SnapshotContributionPlanner
             contributions,
             fullSnapshot.VisualEvents,
             priority: 1290,
+            estimateBytes: EstimateVisualEventBytes,
             focus,
             static state => state.X,
             static state => state.Y,
@@ -190,6 +220,7 @@ internal static class SnapshotContributionPlanner
             contributions,
             fullSnapshot.DamageEvents,
             priority: 1285,
+            estimateBytes: static state => 42,
             focus,
             static state => state.X,
             static state => state.Y,
@@ -198,6 +229,7 @@ internal static class SnapshotContributionPlanner
             contributions,
             fullSnapshot.KillFeed,
             priority: 1180,
+            estimateBytes: EstimateKillFeedBytes,
             static (builder, entry) => builder.KillFeed.Add(entry));
 
         return contributions;
@@ -226,6 +258,8 @@ internal static class SnapshotContributionPlanner
         IReadOnlyList<T> currentStates,
         IReadOnlyList<T>? baselineStates,
         int priority,
+        Func<T, int> estimateUpdatedBytes,
+        int estimatedRemovedBytes,
         (float X, float Y) focus,
         Func<T, int> idSelector,
         Func<T, float> xSelector,
@@ -240,6 +274,7 @@ internal static class SnapshotContributionPlanner
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority + 100,
                 DistanceSquared(focus.X, focus.Y, focus.X, focus.Y),
+                estimatedRemovedBytes,
                 builder => addRemovedId(builder, removedId)));
         }
 
@@ -249,6 +284,7 @@ internal static class SnapshotContributionPlanner
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority,
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                estimateUpdatedBytes(state),
                 builder => addState(builder, state)));
         }
     }
@@ -257,6 +293,7 @@ internal static class SnapshotContributionPlanner
         List<SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> states,
         int priority,
+        Func<T, int> estimateBytes,
         (float X, float Y) focus,
         Func<T, float> xSelector,
         Func<T, float> ySelector,
@@ -268,6 +305,7 @@ internal static class SnapshotContributionPlanner
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority - ((states.Count - 1) - index),
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
+                estimateBytes(state),
                 builder => addState(builder, state)));
         }
     }
@@ -276,6 +314,7 @@ internal static class SnapshotContributionPlanner
         List<SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> states,
         int priority,
+        Func<T, int> estimateBytes,
         Action<SnapshotDeltaBudgeter.Builder, T> addState)
     {
         for (var index = states.Count - 1; index >= 0; index -= 1)
@@ -284,8 +323,39 @@ internal static class SnapshotContributionPlanner
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority - ((states.Count - 1) - index),
                 0f,
+                estimateBytes(state),
                 builder => addState(builder, state)));
         }
+    }
+
+    private static int EstimateSoundEventBytes(SnapshotSoundEvent state)
+    {
+        return 26 + state.SoundName.Length;
+    }
+
+    private static int EstimateVisualEventBytes(SnapshotVisualEvent state)
+    {
+        return 26 + state.EffectName.Length;
+    }
+
+    private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)
+    {
+        return 35
+            + entry.KillerName.Length
+            + entry.WeaponSpriteName.Length
+            + entry.VictimName.Length
+            + entry.MessageText.Length;
+    }
+
+    private static int EstimatePlayerGibBytes(SnapshotPlayerGibState state)
+    {
+        return 42 + state.SpriteName.Length;
+    }
+
+    private static int EstimateRocketBytes(SnapshotRocketState state)
+    {
+        var passedFriendlyPlayerCount = state.PassedFriendlyPlayerIds?.Count ?? 0;
+        return 68 + (passedFriendlyPlayerCount * 4);
     }
 
     private static EntityDelta<T> DiffEntities<T>(

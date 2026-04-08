@@ -188,7 +188,7 @@ public partial class Game1
         return buttons;
     }
 
-    private int GetHoveredGameplayLoadoutMenuButtonIndex(MouseState mouse, IReadOnlyList<GameplayLoadoutMenuButton> buttons)
+    private static int GetHoveredGameplayLoadoutMenuButtonIndex(MouseState mouse, IReadOnlyList<GameplayLoadoutMenuButton> buttons)
     {
         var mousePoint = new Point(mouse.X, mouse.Y);
         for (var index = 0; index < buttons.Count; index += 1)
@@ -330,7 +330,7 @@ public partial class Game1
         _gameplayLoadoutMenuViewedLoadoutIds[classId] = loadoutId;
     }
 
-    private List<GameplayLoadoutMenuSlotOption>[] BuildGameplayLoadoutMenuSlotOptions(
+    private static List<GameplayLoadoutMenuSlotOption>[] BuildGameplayLoadoutMenuSlotOptions(
         PlayerClass classId,
         GameplayLoadoutMenuEntry selectedLoadout,
         IReadOnlyList<GameplayLoadoutMenuEntry> loadouts)
@@ -900,7 +900,7 @@ public partial class Game1
         }
     }
 
-    private GameplayItemDefinition? GetGameplayLoadoutMenuStockComparisonItem(PlayerClass viewedClass, GameplayEquipmentSlot slot)
+    private static GameplayItemDefinition? GetGameplayLoadoutMenuStockComparisonItem(PlayerClass viewedClass, GameplayEquipmentSlot slot)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var stockLoadout = GameplayLoadoutSelectionResolver
@@ -922,7 +922,7 @@ public partial class Game1
         return runtimeRegistry.GetRequiredItem(stockItemId);
     }
 
-    private IEnumerable<string> BuildGameplayLoadoutMenuAbilityLines(GameplayItemDefinition item)
+    private static IEnumerable<string> BuildGameplayLoadoutMenuAbilityLines(GameplayItemDefinition item)
     {
         if (item.Description?.Notes is { Count: > 0 } notes)
         {
@@ -998,7 +998,7 @@ public partial class Game1
         }
     }
 
-    private IEnumerable<string> BuildGameplayLoadoutMenuStockDamageLines(PrimaryWeaponDefinition item)
+    private static IEnumerable<string> BuildGameplayLoadoutMenuStockDamageLines(PrimaryWeaponDefinition item)
     {
         if (item.RocketCombat is { } rocket)
         {
@@ -1019,7 +1019,7 @@ public partial class Game1
         }
     }
 
-    private IEnumerable<string> BuildGameplayLoadoutMenuDeltaLines(PrimaryWeaponDefinition item, PrimaryWeaponDefinition stockItem, bool positive)
+    private static IEnumerable<string> BuildGameplayLoadoutMenuDeltaLines(PrimaryWeaponDefinition item, PrimaryWeaponDefinition stockItem, bool positive)
     {
         foreach (var line in BuildGameplayLoadoutMenuDamageDeltaLines(item, stockItem, positive))
         {
@@ -1069,7 +1069,7 @@ public partial class Game1
         }
     }
 
-    private IEnumerable<string> BuildGameplayLoadoutMenuDamageDeltaLines(PrimaryWeaponDefinition item, PrimaryWeaponDefinition stockItem, bool positive)
+    private static IEnumerable<string> BuildGameplayLoadoutMenuDamageDeltaLines(PrimaryWeaponDefinition item, PrimaryWeaponDefinition stockItem, bool positive)
     {
         if (item.RocketCombat is { } rocket && stockItem.RocketCombat is { } stockRocket)
         {
@@ -1107,7 +1107,7 @@ public partial class Game1
         }
     }
 
-    private IEnumerable<string> BuildGameplayLoadoutMenuNeutralLines(GameplayItemDefinition item, PrimaryWeaponDefinition itemStats, PrimaryWeaponDefinition stockItemStats)
+    private static IEnumerable<string> BuildGameplayLoadoutMenuNeutralLines(GameplayItemDefinition item, PrimaryWeaponDefinition itemStats, PrimaryWeaponDefinition stockItemStats)
     {
         if (itemStats.RefillsAllAtOnce != stockItemStats.RefillsAllAtOnce)
         {

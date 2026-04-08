@@ -8,6 +8,8 @@ Gang-Garrison-2/
 /.tmp*/
 %TEMP%/
 Tests/**/TestResults/
+*.log
+tmp_*.cs
 .DS_Store
 Thumbs.db
 *.user

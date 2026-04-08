@@ -41,13 +41,53 @@ public static class RuntimePaths
 
     public static string GetConfigPath(string fileName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-        return Path.Combine(ConfigDirectory, fileName);
+        return ResolvePathUnderRoot(ConfigDirectory, fileName);
     }
 
     public static string GetLogPath(string fileName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-        return Path.Combine(LogsDirectory, fileName);
+        return ResolvePathUnderRoot(LogsDirectory, fileName);
+    }
+
+    private static string ResolvePathUnderRoot(string rootDirectory, string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        if (Path.IsPathRooted(relativePath))
+        {
+            throw new ArgumentException("Path must be relative to the runtime root.", nameof(relativePath));
+        }
+
+        var normalizedRoot = Path.GetFullPath(rootDirectory);
+        var resolvedPath = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath));
+        if (!IsPathUnderRoot(normalizedRoot, resolvedPath))
+        {
+            throw new InvalidOperationException("Path escapes the runtime root directory.");
+        }
+
+        return resolvedPath;
+    }
+
+    private static bool IsPathUnderRoot(string rootDirectory, string candidatePath)
+    {
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (string.Equals(rootDirectory, candidatePath, comparison))
+        {
+            return true;
+        }
+
+        return candidatePath.StartsWith(EnsureTrailingSeparator(rootDirectory), comparison);
+    }
+
+    private static string EnsureTrailingSeparator(string path)
+    {
+        if (path.EndsWith(Path.DirectorySeparatorChar)
+            || path.EndsWith(Path.AltDirectorySeparatorChar))
+        {
+            return path;
+        }
+
+        return path + Path.DirectorySeparatorChar;
     }
 }
