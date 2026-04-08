@@ -15,6 +15,18 @@ public partial class Game1
 
         public void CloseGameplayOverlayState()
         {
+            CloseGameplayMenuStack();
+            CloseJoinAndCommunicationOverlays();
+            CloseModalGameplayPrompts();
+        }
+
+        public void CloseMainMenuOverlayState()
+        {
+            _game._mainMenuOverlayStateController.CloseMainMenuTransientOverlays();
+        }
+
+        private void CloseGameplayMenuStack()
+        {
             _game._practiceSetupOpen = false;
             _game._lastToDieMenuOpen = false;
             _game._lastToDiePerkMenuOpen = false;
@@ -33,6 +45,10 @@ public partial class Game1
             _game._quitPromptOpen = false;
             _game._quitPromptHoverIndex = -1;
             _game._pendingControlsBinding = null;
+        }
+
+        private void CloseJoinAndCommunicationOverlays()
+        {
             _game._teamSelectOpen = false;
             _game._classSelectOpen = false;
             _game._pendingClassSelectTeam = null;
@@ -41,20 +57,11 @@ public partial class Game1
             _game.ResetChatInputState();
             _game._bubbleMenuKind = BubbleMenuKind.None;
             _game._bubbleMenuClosing = false;
-            _game._passwordPromptOpen = false;
-            _game._passwordEditBuffer = string.Empty;
-            _game._passwordPromptMessage = string.Empty;
         }
 
-        public void CloseMainMenuOverlayState()
+        private void CloseModalGameplayPrompts()
         {
-            _game.CloseLobbyBrowser(clearStatus: false);
-            _game._manualConnectOpen = false;
-            _game._hostSetupOpen = false;
-            _game._hostSetupEditField = HostSetupEditField.None;
-            _game._creditsOpen = false;
-            _game._editingConnectHost = false;
-            _game._editingConnectPort = false;
+            _game._connectionFlowController.CloseNetworkPasswordPrompt();
         }
     }
 }

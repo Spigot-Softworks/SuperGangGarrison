@@ -25,9 +25,7 @@ public partial class Game1
 
         if (keyboard.IsKeyDown(Keys.Tab) && !_previousKeyboard.IsKeyDown(Keys.Tab))
         {
-            var editHost = !_editingConnectHost;
-            _editingConnectHost = editHost;
-            _editingConnectPort = !editHost;
+            _connectionFlowController.ToggleManualConnectEditingField();
         }
 
         if (keyboard.IsKeyDown(Keys.Enter) && !_previousKeyboard.IsKeyDown(Keys.Enter))
@@ -45,13 +43,11 @@ public partial class Game1
         var point = new Point(mouse.X, mouse.Y);
         if (hostBounds.Contains(point))
         {
-            _editingConnectHost = true;
-            _editingConnectPort = false;
+            _connectionFlowController.SetManualConnectEditingField(editHost: true);
         }
         else if (portBounds.Contains(point))
         {
-            _editingConnectHost = false;
-            _editingConnectPort = true;
+            _connectionFlowController.SetManualConnectEditingField(editHost: false);
         }
         else if (connectBounds.Contains(point))
         {

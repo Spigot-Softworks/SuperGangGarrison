@@ -12,13 +12,12 @@ public partial class Game1
         CloseLobbyBrowser(clearStatus: true);
         _optionsMenuOpen = false;
         _pluginOptionsMenuOpen = false;
-        _creditsOpen = false;
+        CloseCreditsMenu();
         _controlsMenuOpen = false;
 
         if (closeHostSetup)
         {
-            _hostSetupOpen = false;
-            _hostSetupEditField = HostSetupEditField.None;
+            CloseHostSetupMenu();
             _editingPlayerName = false;
         }
 

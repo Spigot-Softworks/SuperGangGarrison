@@ -2,7 +2,7 @@ using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Core;
 
-public sealed class GameplayRuntimeRegistry
+public sealed partial class GameplayRuntimeRegistry
 {
     private readonly Dictionary<string, GameplayModPackDefinition> _modPacks = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayItemDefinition> _items = new(StringComparer.Ordinal);
@@ -13,55 +13,6 @@ public sealed class GameplayRuntimeRegistry
     private readonly Dictionary<string, GameplayPrimaryWeaponRuntimeBinding> _primaryWeaponBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplaySecondaryAbilityRuntimeBinding> _secondaryAbilityBindingsByBehaviorId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, GameplayUtilityAbilityRuntimeBinding> _utilityAbilityBindingsByBehaviorId = new(StringComparer.Ordinal);
-
-    public static GameplayRuntimeRegistry CreateStock()
-    {
-        return CreateStock(GameplayModPackDirectoryLoader.LoadAllFromContentRoot());
-    }
-
-    public static GameplayRuntimeRegistry CreateStock(IEnumerable<GameplayModPackDefinition> discoveredModPacks)
-    {
-        var registry = new GameplayRuntimeRegistry();
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.PelletGun, PrimaryWeaponKind.PelletGun, FireSoundName: "ShotgunSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Flamethrower, PrimaryWeaponKind.FlameThrower));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.RocketLauncher, PrimaryWeaponKind.RocketLauncher, FireSoundName: "RocketSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, PrimaryWeaponKind.MineLauncher, FireSoundName: "MinegunSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Minigun, PrimaryWeaponKind.Minigun, FireSoundName: "ChaingunSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, PrimaryWeaponKind.Rifle, FireSoundName: "SniperSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, PrimaryWeaponKind.Medigun));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Revolver, PrimaryWeaponKind.Revolver, FireSoundName: "RevolverSnd"));
-        registry.RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Blade, PrimaryWeaponKind.Blade));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.EngineerPda, GameplaySecondaryAbilityActionKind.EngineerPda));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.PyroAirblast, GameplaySecondaryAbilityActionKind.PyroAirblast));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.DemomanDetonate, GameplaySecondaryAbilityActionKind.DemomanDetonate, UsesHeldInput: true));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.HeavySandvich, GameplaySecondaryAbilityActionKind.HeavySandvich));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.SniperScope, GameplaySecondaryAbilityActionKind.SniperScope));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicNeedlegun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.SpyCloak, GameplaySecondaryAbilityActionKind.SpyCloak));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.QuoteBladeThrow, GameplaySecondaryAbilityActionKind.QuoteBladeThrow, UsesHeldInput: true));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Flamethrower, GameplaySecondaryAbilityActionKind.PyroAirblast));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, GameplaySecondaryAbilityActionKind.DemomanDetonate, UsesHeldInput: true));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, GameplaySecondaryAbilityActionKind.SniperScope));
-        registry.RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
-        registry.RegisterUtilityAbilityBehavior(new GameplayUtilityAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicUber, GameplayUtilityAbilityActionKind.MedicUber));
-
-        var stockModPack = discoveredModPacks.FirstOrDefault(static pack =>
-            string.Equals(pack.Id, StockGameplayModCatalog.Definition.Id, StringComparison.Ordinal))
-            ?? StockGameplayModCatalog.Definition;
-        registry.RegisterModPack(stockModPack, CreateStockClassBindings(stockModPack.Id));
-
-        foreach (var modPack in discoveredModPacks)
-        {
-            if (string.Equals(modPack.Id, stockModPack.Id, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            registry.RegisterModPack(modPack, []);
-        }
-
-        return registry;
-    }
 
     public IReadOnlyCollection<GameplayModPackDefinition> ModPacks => _modPacks.Values;
 
@@ -146,23 +97,6 @@ public sealed class GameplayRuntimeRegistry
         }
     }
 
-    private static GameplayClassRuntimeBinding[] CreateStockClassBindings(string modPackId)
-    {
-        return
-        [
-            new GameplayClassRuntimeBinding(PlayerClass.Scout, modPackId, "scout", SupportsExperimentalAcquiredWeapon: true, "ScatterKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Engineer, modPackId, "engineer", SupportsExperimentalAcquiredWeapon: true, "ShotgunKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Pyro, modPackId, "pyro", SupportsExperimentalAcquiredWeapon: true, "FlameKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Soldier, modPackId, "soldier", SupportsExperimentalAcquiredWeapon: true, "RocketKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Demoman, modPackId, "demoman", SupportsExperimentalAcquiredWeapon: true, "MineKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Heavy, modPackId, "heavy", SupportsExperimentalAcquiredWeapon: true, "MinigunKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Sniper, modPackId, "sniper", SupportsExperimentalAcquiredWeapon: true, "RifleKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Medic, modPackId, "medic", SupportsExperimentalAcquiredWeapon: true, "NeedleKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Spy, modPackId, "spy", SupportsExperimentalAcquiredWeapon: true, "RevolverKL"),
-            new GameplayClassRuntimeBinding(PlayerClass.Quote, modPackId, "quote", SupportsExperimentalAcquiredWeapon: false, "BladeKL"),
-        ];
-    }
-
     public GameplayModPackDefinition GetRequiredModPack(string modPackId)
     {
         if (_modPacks.TryGetValue(modPackId, out var modPack))
@@ -207,62 +141,6 @@ public sealed class GameplayRuntimeRegistry
     {
         var binding = GetRequiredClassBinding(playerClass);
         return GetRequiredClass(binding.ClassId);
-    }
-
-    public GameplayPlayerLoadoutState CreatePlayerLoadoutState(
-        PlayerClass playerClass,
-        string? loadoutId = null,
-        GameplayEquipmentSlot equippedSlot = GameplayEquipmentSlot.Primary,
-        string? secondaryItemOverrideId = null,
-        string? acquiredItemId = null)
-    {
-        if (TryCreateValidatedPlayerLoadoutState(playerClass, loadoutId, equippedSlot, secondaryItemOverrideId, acquiredItemId, out var loadoutState))
-        {
-            return loadoutState;
-        }
-
-        return CreateFallbackPlayerLoadoutState(playerClass);
-    }
-
-    public bool TryCreateValidatedPlayerLoadoutState(
-        PlayerClass playerClass,
-        string? loadoutId,
-        GameplayEquipmentSlot equippedSlot,
-        string? secondaryItemOverrideId,
-        string? acquiredItemId,
-        out GameplayPlayerLoadoutState loadoutState)
-    {
-        var binding = GetRequiredClassBinding(playerClass);
-        var loadout = ResolveValidatedLoadout(playerClass, loadoutId);
-        var primaryItemId = loadout.PrimaryItemId;
-        var secondaryItemId = ResolveValidatedSecondaryItemId(playerClass, loadout, secondaryItemOverrideId);
-        var utilityItemId = loadout.UtilityItemId;
-        var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(playerClass, acquiredItemId);
-        var validatedEquippedSlot = ResolveValidatedEquippedSlot(
-            equippedSlot,
-            primaryItemId,
-            secondaryItemId,
-            utilityItemId,
-            validatedAcquiredItemId);
-
-        var equippedItemId = validatedEquippedSlot switch
-        {
-            GameplayEquipmentSlot.Secondary => validatedAcquiredItemId ?? secondaryItemId ?? primaryItemId,
-            GameplayEquipmentSlot.Utility => utilityItemId ?? primaryItemId,
-            _ => primaryItemId,
-        };
-
-        loadoutState = new GameplayPlayerLoadoutState(
-            ModPackId: binding.ModPackId,
-            ClassId: binding.ClassId,
-            LoadoutId: loadout.Id,
-            PrimaryItemId: primaryItemId,
-            SecondaryItemId: secondaryItemId,
-            UtilityItemId: utilityItemId,
-            EquippedSlot: validatedEquippedSlot,
-            EquippedItemId: equippedItemId,
-            AcquiredItemId: validatedAcquiredItemId);
-        return true;
     }
 
     public GameplayClassLoadoutDefinition GetDefaultLoadout(PlayerClass playerClass)
@@ -522,34 +400,6 @@ public sealed class GameplayRuntimeRegistry
         return false;
     }
 
-    public bool CanUseSecondaryOverrideItem(PlayerClass playerClass, string? secondaryItemId)
-    {
-        return CanUseSecondaryOverrideItem(playerClass, GetDefaultLoadout(playerClass), secondaryItemId);
-    }
-
-    public bool CanUseSecondaryOverrideItem(PlayerClass playerClass, string? loadoutId, string? secondaryItemId)
-    {
-        return CanUseSecondaryOverrideItem(playerClass, ResolveValidatedLoadout(playerClass, loadoutId), secondaryItemId);
-    }
-
-    private bool CanUseSecondaryOverrideItem(PlayerClass playerClass, GameplayClassLoadoutDefinition loadout, string? secondaryItemId)
-    {
-        if (string.IsNullOrWhiteSpace(secondaryItemId))
-        {
-            return true;
-        }
-
-        var defaultSecondaryItemId = loadout.SecondaryItemId;
-        if (string.Equals(defaultSecondaryItemId, secondaryItemId, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        return SupportsExperimentalAcquiredWeapon(playerClass)
-            && TryGetItem(secondaryItemId, out var secondaryItem)
-            && secondaryItem.Slot == GameplayEquipmentSlot.Primary;
-    }
-
     public static bool LoadoutItemsAreOwned(GameplayClassLoadoutDefinition loadout, Func<string, bool> ownsItem)
     {
         ArgumentNullException.ThrowIfNull(loadout);
@@ -562,14 +412,6 @@ public sealed class GameplayRuntimeRegistry
     private static bool ItemIsOwnedOrUnspecified(string? itemId, Func<string, bool> ownsItem)
     {
         return string.IsNullOrWhiteSpace(itemId) || ownsItem(itemId);
-    }
-
-    public bool CanUseAcquiredItem(PlayerClass playerClass, string? acquiredItemId)
-    {
-        return string.IsNullOrWhiteSpace(acquiredItemId)
-            || (SupportsExperimentalAcquiredWeapon(playerClass)
-                && TryGetItem(acquiredItemId, out var acquiredItem)
-                && acquiredItem.Slot == GameplayEquipmentSlot.Primary);
     }
 
     public bool OwnsItemByDefault(string? itemId)
@@ -606,25 +448,6 @@ public sealed class GameplayRuntimeRegistry
         return false;
     }
 
-    public bool CanEquipSlot(
-        PlayerClass playerClass,
-        string? loadoutId,
-        GameplayEquipmentSlot equippedSlot,
-        string? secondaryItemOverrideId = null,
-        string? acquiredItemId = null)
-    {
-        var loadout = ResolveValidatedLoadout(playerClass, loadoutId);
-        var secondaryItemId = ResolveValidatedSecondaryItemId(playerClass, loadout, secondaryItemOverrideId);
-        var utilityItemId = loadout.UtilityItemId;
-        var validatedAcquiredItemId = ResolveValidatedAcquiredItemId(playerClass, acquiredItemId);
-        return ResolveValidatedEquippedSlot(
-            equippedSlot,
-            loadout.PrimaryItemId,
-            secondaryItemId,
-            utilityItemId,
-            validatedAcquiredItemId) == equippedSlot;
-    }
-
     private bool TryGetItem(string? itemId, out GameplayItemDefinition item)
     {
         if (!string.IsNullOrWhiteSpace(itemId)
@@ -638,59 +461,6 @@ public sealed class GameplayRuntimeRegistry
         return false;
     }
 
-    private GameplayPlayerLoadoutState CreateFallbackPlayerLoadoutState(PlayerClass playerClass)
-    {
-        var binding = GetRequiredClassBinding(playerClass);
-        var loadout = GetDefaultLoadout(playerClass);
-        return new GameplayPlayerLoadoutState(
-            ModPackId: binding.ModPackId,
-            ClassId: binding.ClassId,
-            LoadoutId: loadout.Id,
-            PrimaryItemId: loadout.PrimaryItemId,
-            SecondaryItemId: loadout.SecondaryItemId,
-            UtilityItemId: loadout.UtilityItemId,
-            EquippedSlot: GameplayEquipmentSlot.Primary,
-            EquippedItemId: loadout.PrimaryItemId,
-            AcquiredItemId: null);
-    }
-
-    private GameplayClassLoadoutDefinition ResolveValidatedLoadout(PlayerClass playerClass, string? loadoutId)
-    {
-        return TryGetLoadout(playerClass, loadoutId, out var loadout)
-            ? loadout
-            : GetDefaultLoadout(playerClass);
-    }
-
-    private string? ResolveValidatedSecondaryItemId(PlayerClass playerClass, GameplayClassLoadoutDefinition loadout, string? secondaryItemOverrideId)
-    {
-        return CanUseSecondaryOverrideItem(playerClass, loadout, secondaryItemOverrideId)
-            ? (string.IsNullOrWhiteSpace(secondaryItemOverrideId) ? loadout.SecondaryItemId : secondaryItemOverrideId)
-            : loadout.SecondaryItemId;
-    }
-
-    private string? ResolveValidatedAcquiredItemId(PlayerClass playerClass, string? acquiredItemId)
-    {
-        return CanUseAcquiredItem(playerClass, acquiredItemId) && !string.IsNullOrWhiteSpace(acquiredItemId)
-            ? acquiredItemId
-            : null;
-    }
-
-    private static GameplayEquipmentSlot ResolveValidatedEquippedSlot(
-        GameplayEquipmentSlot requestedSlot,
-        string primaryItemId,
-        string? secondaryItemId,
-        string? utilityItemId,
-        string? acquiredItemId)
-    {
-        return requestedSlot switch
-        {
-            GameplayEquipmentSlot.Secondary when !string.IsNullOrWhiteSpace(acquiredItemId) || !string.IsNullOrWhiteSpace(secondaryItemId)
-                => GameplayEquipmentSlot.Secondary,
-            GameplayEquipmentSlot.Utility when !string.IsNullOrWhiteSpace(utilityItemId)
-                => GameplayEquipmentSlot.Utility,
-            _ => GameplayEquipmentSlot.Primary,
-        };
-    }
 }
 
 public sealed record GameplayClassRuntimeBinding(

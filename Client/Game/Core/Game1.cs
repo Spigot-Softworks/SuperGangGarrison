@@ -129,6 +129,16 @@ public partial class Game1 : Game
     private readonly ClientPluginUiBridgeController _clientPluginUiBridgeController;
     private readonly ClientPluginMarkerController _clientPluginMarkerController;
     private readonly MenuController _menuController;
+    private readonly ConnectionFlowController _connectionFlowController;
+    private readonly MainMenuOverlayController _mainMenuOverlayController;
+    private readonly MainMenuOverlayStateController _mainMenuOverlayStateController;
+    private readonly HostSetupFlowController _hostSetupFlowController;
+    private readonly WindowTextInputController _windowTextInputController;
+    private readonly MenuTextInputController _menuTextInputController;
+    private readonly NetworkPromptTextInputController _networkPromptTextInputController;
+    private readonly ChatTextInputController _chatTextInputController;
+    private readonly ConsoleTextInputController _consoleTextInputController;
+    private readonly BootstrapController _bootstrapController;
     private readonly OptionsMenuController _optionsMenuController;
     private readonly MainMenuPageController _mainMenuPageController;
     private readonly PluginOptionsMenuController _pluginOptionsMenuController;
@@ -178,125 +188,28 @@ public partial class Game1 : Game
     private readonly Dictionary<int, PlayerRenderState> _playerRenderStates = new();
     private readonly Dictionary<int, Vector2> _playerPreviousRenderPositions = new();
     private readonly Dictionary<int, double> _playerPreviousRenderSampleTimes = new();
-    private int? _localPlayerSnapshotEntityId;
-    private int? _spectatorTrackedPlayerId;
-    private bool _spectatorTrackingEnabled;
     private readonly Random _visualRandom = new(1337);
     private bool _wasLocalPlayerAlive = true;
     private bool _wasDeathCamActive;
     private bool _wasMatchEnded;
     private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
-    private string _observedGameplayLevelName = string.Empty;
-    private int _observedGameplayMapAreaIndex = -1;
     private MouseState _previousMouse;
     private bool _suppressPrimaryFireUntilMouseRelease;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;
-    private bool _teamSelectOpen;
-    private float _teamSelectAlpha = 0.01f;
-    private float _teamSelectPanelY = -120f;
-    private int _teamSelectHoverIndex = -1;
-    private PlayerTeam? _pendingClassSelectTeam;
-    private bool _classSelectOpen;
-    private float _classSelectAlpha = 0.01f;
-    private float _classSelectPanelY = -120f;
-    private int _classSelectHoverIndex = -1;
-    private int _classSelectPortraitAnimationHoverIndex = -1;
-    private PlayerTeam? _classSelectPortraitAnimationTeam;
-    private float _classSelectPortraitAnimationFrame;
-    private int _gameplayLoadoutPortraitAnimationHoverIndex = -1;
-    private PlayerTeam? _gameplayLoadoutPortraitAnimationTeam;
-    private float _gameplayLoadoutPortraitAnimationFrame;
-    private bool _scoreboardOpen;
-    private float _scoreboardAlpha = 0.02f;
-    private bool _chatOpen;
-    private bool _chatTeamOnly;
-    private bool _chatSubmitAwaitingOpenKeyRelease;
-    private string _chatInput = string.Empty;
-    private BubbleMenuKind _bubbleMenuKind;
-    private float _bubbleMenuAlpha = 0.01f;
-    private float _bubbleMenuX = -30f;
-    private bool _bubbleMenuClosing;
-    private int _bubbleMenuXPageIndex;
-    private bool _bubbleMenuSessionHadInteraction;
-    private int? _bubbleMenuPendingFrame;
-    private int _recentBubbleFrameZ = 20;
-    private int _recentBubbleFrameX = 29;
-    private int _recentBubbleFrameC = 36;
-    private bool _buildMenuOpen;
-    private bool _buildMenuClosing;
-    private float _buildMenuAlpha = 0.01f;
-    private float _buildMenuX = -37f;
     private NoticeState? _notice;
     private bool _hadLocalSentry;
     private bool _wasCarryingIntel;
     private readonly Queue<QueuedPluginNotice> _queuedPluginNotices = new();
-    private bool _startupSplashOpen = true;
-    private int _startupSplashTicks;
-    private float _startupSplashFrame;
-    private bool _mainMenuOpen = true;
-    private bool _optionsMenuOpen;
-    private bool _optionsMenuOpenedFromGameplay;
-    private bool _pluginOptionsMenuOpen;
-    private bool _pluginOptionsMenuOpenedFromGameplay;
-    private string? _selectedPluginOptionsPluginId;
-    private bool _lobbyBrowserOpen;
-    private bool _manualConnectOpen;
-    private bool _hostSetupOpen;
-    private bool _practiceSetupOpen;
-    private bool _clientPowersOpen;
-    private bool _clientPowersOpenedFromGameplay;
-    private bool _creditsOpen;
-    private bool _creditsScrollInitialized;
-    private float _creditsScrollY;
-    private bool _inGameMenuOpen;
-    private bool _inGameMenuAwaitingEscapeRelease;
-    private bool _gameplayLoadoutMenuOpen;
-    private bool _gameplayLoadoutMenuAwaitingEscapeRelease;
-    private PlayerClass _gameplayLoadoutMenuViewedClass = PlayerClass.Scout;
-    private readonly Dictionary<PlayerClass, string> _gameplayLoadoutMenuViewedLoadoutIds = [];
-    private bool _quitPromptOpen;
-    private int _quitPromptHoverIndex = -1;
-    private bool _controlsMenuOpen;
-    private bool _controlsMenuOpenedFromGameplay;
-    private bool _editingPlayerName;
-    private bool _editingConnectHost;
-    private bool _editingConnectPort;
-    private bool _passwordPromptOpen;
-    private string _passwordEditBuffer = string.Empty;
-    private string _passwordPromptMessage = string.Empty;
-    private MainMenuPage _mainMenuPage = MainMenuPage.Root;
-    private int _mainMenuHoverIndex = -1;
-    private bool _mainMenuBottomBarHover;
-    private int _optionsHoverIndex = -1;
-    private int _optionsPageIndex;
-    private int _pluginOptionsHoverIndex = -1;
-    private int _pluginOptionsScrollOffset;
-    private ClientPluginKeyOptionItem? _pendingPluginOptionsKeyItem;
-    private int _controlsHoverIndex = -1;
-    private int _lobbyBrowserHoverIndex = -1;
-    private int _lobbyBrowserSelectedIndex = -1;
-    private int _clientPowersScrollOffset;
-    private int _inGameMenuHoverIndex = -1;
-    private int _gameplayLoadoutMenuHoverIndex = -1;
-    private GameplaySessionKind _gameplaySessionKind;
     private readonly HostSetupFormState _hostSetupState = new();
     private readonly PracticeSetupState _practiceSetupState = new();
     private readonly HostedServerConsoleState _hostedServerConsole = new();
     private readonly HostedServerRuntimeController _hostedServerRuntime;
-    private string _playerNameEditBuffer = string.Empty;
-    private string _connectHostBuffer = "127.0.0.1";
-    private string _connectPortBuffer = "8190";
-    private string _menuStatusMessage = string.Empty;
-    private ExperimentalGameplaySettings _practiceExperimentalGameplaySettings = new();
-    private bool _practiceStickyGibBloodEnabled;
     private bool _devMessageCheckStarted;
     private bool _devMessageCheckFinished;
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
     private readonly Queue<DevMessagePopupState> _pendingDevMessagePopups = new();
     private DevMessagePopupState? _activeDevMessagePopup;
-    private string _autoBalanceNoticeText = string.Empty;
-    private int _autoBalanceNoticeTicks;
     private bool _killCamEnabled = true;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
@@ -310,52 +223,61 @@ public partial class Game1 : Game
     private bool _spriteDropShadowEnabled;
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
-    private ControlsMenuBinding? _pendingControlsBinding;
     private readonly List<ChatLine> _chatLines = new();
 
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
         _startupMode = startupMode;
-        _frameController = new FrameController(this);
-        _gameplayController = new GameplayController(this);
-        _gameplayScreenStateController = new GameplayScreenStateController(this);
-        _gameplayPresentationStateController = new GameplayPresentationStateController(this);
-        _gameplayImpactEffectsController = new GameplayImpactEffectsController(this);
-        _gameplayGoreEffectsController = new GameplayGoreEffectsController(this);
-        _gameplaySmokeEffectsController = new GameplaySmokeEffectsController(this);
-        _gameplayMaterialEffectsController = new GameplayMaterialEffectsController(this);
-        _gameplayVisualEventController = new GameplayVisualEventController(this);
-        _gameplayAudioMusicController = new GameplayAudioMusicController(this);
-        _gameplayAudioEventController = new GameplayAudioEventController(this);
-        _gameplayRapidFireAudioController = new GameplayRapidFireAudioController(this);
-        _gameplayLocalStatusHudController = new GameplayLocalStatusHudController(this);
-        _gameplayMedicHudController = new GameplayMedicHudController(this);
-        _gameplayEngineerHudController = new GameplayEngineerHudController(this);
-        _gameplayAimHudController = new GameplayAimHudController(this);
-        _gameplayPlayerNameHudController = new GameplayPlayerNameHudController(this);
-        _gameplayPlayerRenderController = new GameplayPlayerRenderController(this);
-        _gameplayDeadBodyRenderController = new GameplayDeadBodyRenderController(this);
-        _gameplayPlayerSpriteRenderController = new GameplayPlayerSpriteRenderController(this);
-        _gameplayWeaponRenderController = new GameplayWeaponRenderController(this);
-        _gameplayPlayerStatusEffectRenderController = new GameplayPlayerStatusEffectRenderController(this);
-        _gameplaySessionController = new GameplaySessionController(this);
-        _gameplayOverlayStateController = new GameplayOverlayStateController(this);
-        _gameplayResetController = new GameplayResetController(this);
-        _clientPluginRuntimeController = new ClientPluginRuntimeController(this);
-        _clientPluginEventController = new ClientPluginEventController(this);
-        _clientPluginUiBridgeController = new ClientPluginUiBridgeController(this);
-        _clientPluginMarkerController = new ClientPluginMarkerController(this);
-        _menuController = new MenuController(this);
-        _optionsMenuController = new OptionsMenuController(this);
-        _mainMenuPageController = new MainMenuPageController(this);
-        _pluginOptionsMenuController = new PluginOptionsMenuController(this);
-        _controlsMenuController = new ControlsMenuController(this);
-        _inGameMenuController = new InGameMenuController(this);
-        _gameplayOverlayController = new GameplayOverlayController(this);
-        _clientSettings = ClientSettings.Load();
-        _inputBindings = InputBindingsSettings.Load();
-        _hostedServerRuntime = new HostedServerRuntimeController(_hostedServerConsole);
-        _graphics = new GraphicsDeviceManager(this);
+        (_frameController,
+            _gameplayController,
+            _gameplayScreenStateController,
+            _gameplayPresentationStateController,
+            _gameplayImpactEffectsController,
+            _gameplayGoreEffectsController,
+            _gameplaySmokeEffectsController,
+            _gameplayMaterialEffectsController,
+            _gameplayVisualEventController,
+            _gameplayAudioMusicController,
+            _gameplayAudioEventController,
+            _gameplayRapidFireAudioController,
+            _gameplayLocalStatusHudController,
+            _gameplayMedicHudController,
+            _gameplayEngineerHudController,
+            _gameplayAimHudController,
+            _gameplayPlayerNameHudController,
+            _gameplayPlayerRenderController,
+            _gameplayDeadBodyRenderController,
+            _gameplayPlayerSpriteRenderController,
+            _gameplayWeaponRenderController,
+            _gameplayPlayerStatusEffectRenderController,
+            _gameplaySessionController,
+            _gameplayOverlayStateController,
+            _gameplayResetController) = CreateGameplayControllerBundle(this);
+        (_clientPluginRuntimeController,
+            _clientPluginEventController,
+            _clientPluginUiBridgeController,
+            _clientPluginMarkerController,
+            _menuController,
+            _connectionFlowController,
+            _mainMenuOverlayController,
+            _mainMenuOverlayStateController,
+            _hostSetupFlowController,
+            _windowTextInputController,
+            _menuTextInputController,
+            _networkPromptTextInputController,
+            _chatTextInputController,
+            _consoleTextInputController,
+            _bootstrapController,
+            _optionsMenuController,
+            _mainMenuPageController,
+            _pluginOptionsMenuController,
+            _controlsMenuController,
+            _inGameMenuController,
+            _gameplayOverlayController) = CreateShellControllerBundle(this);
+        (_clientSettings,
+            _inputBindings,
+            _hostedServerRuntime,
+            _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
         _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
         ContentRoot.Initialize(Content.RootDirectory);
@@ -373,108 +295,18 @@ public partial class Game1 : Game
 
     protected override void Initialize()
     {
-        Window.TextInput += OnWindowTextInput;
-        Window.Title = _startupMode == GameStartupMode.ServerLauncher
-            ? $"OG2.ServerLauncher - Proto (Protocol v{ProtocolVersion.Current})"
-            : $"OG2 - Proto (Protocol v{ProtocolVersion.Current})";
-        _menuImageFrame = _visualRandom.Next(2);
-        _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
-        AddConsoleLine("debug console ready (`)");
-        InitializeClientPlugins();
-        if (_startupMode == GameStartupMode.ServerLauncher)
-        {
-            InitializeServerLauncherMode();
-        }
-
+        _bootstrapController.Initialize();
         base.Initialize();
     }
 
     protected override void LoadContent()
     {
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
-        _pixel = new Texture2D(GraphicsDevice, 1, 1);
-        _pixel.SetData(new[] { Color.White });
-        _consoleFont = Content.Load<SpriteFont>("ConsoleFont");
-        _menuFont = Content.Load<SpriteFont>("MenuFont");
-        _runtimeAssets = new GameMakerRuntimeAssetCache(GraphicsDevice, _assetManifest);
-        _gameplayModAssets = new GameplayModAssetCache(GraphicsDevice);
-        _gameplayModAssets.LoadRegisteredPacks(CharacterClassCatalog.RuntimeRegistry.ModPacks);
-        _spriteFontOpaqueBoundsCache.Clear();
-        LoadMenuPlaqueTextures();
-        LoadGameplayLoadoutMenuTextures();
-        LoadMenuBitmapFont();
-        LoadMenuMusic();
-        LoadLastToDieMenuMusic();
-        LoadFaucetMusic();
-        LoadIngameMusic();
-        LoadLastToDieIngameMusic();
-        ApplyAudioMuteState();
-        AddConsoleLine($"gm assets sprites={_assetManifest.Sprites.Count} backgrounds={_assetManifest.Backgrounds.Count} sounds={_assetManifest.Sounds.Count}");
-        NotifyClientPluginsStarted();
+        _bootstrapController.LoadContent();
     }
 
     protected override void UnloadContent()
     {
-        ShutdownClientPlugins();
-        _menuMusicInstance?.Dispose();
-        _menuMusic?.Dispose();
-        _lastToDieMenuMusicInstance?.Dispose();
-        _lastToDieMenuMusic?.Dispose();
-        _faucetMusicInstance?.Dispose();
-        _faucetMusic?.Dispose();
-        _ingameMusicInstance?.Dispose();
-        _ingameMusic?.Dispose();
-        _lastToDieIngameMusicInstance?.Dispose();
-        _lastToDieIngameMusic?.Dispose();
-        StopHostedServer();
-        _networkClient.Dispose();
-        _gameplayModAssets?.Dispose();
-        _runtimeAssets?.Dispose();
-        _spriteFontOpaqueBoundsCache.Clear();
-        _menuBackgroundTexture?.Dispose();
-        _menuBitmapFontTexture?.Dispose();
-        _menuPlaqueTexture?.Dispose();
-        _menuPlaqueTallTexture?.Dispose();
-        _menuTextBoxTopTexture?.Dispose();
-        _menuTextBoxMiddleTexture?.Dispose();
-        _menuTextBoxBottomTexture?.Dispose();
-        _menuTextBoxSoloTexture?.Dispose();
-        _gameplayLoadoutClassStripTexture?.Dispose();
-        _gameplayLoadoutClassSelectionTexture?.Dispose();
-        _gameplayLoadoutBackgroundBarTexture?.Dispose();
-        _gameplayLoadoutDescriptionBoardTexture?.Dispose();
-        _gameplayLoadoutSelectionAtlasTexture?.Dispose();
-        _gameplayLoadoutSelectionTexture?.Dispose();
-        _gameplayLoadoutScrollerTexture?.Dispose();
-        _gameplayLoadoutPageTexture?.Dispose();
-        _gameplayLoadoutBackButtonTexture?.Dispose();
-        _lastToDieLogoTexture?.Dispose();
-        _gameRenderTarget?.Dispose();
-        _gameRenderTarget = null;
-        _deathCamCaptureTarget?.Dispose();
-        _deathCamCaptureTarget = null;
-        _menuBackgroundTexture = null;
-        _menuBackgroundTexturePath = null;
-        _menuBitmapFontTexture = null;
-        _menuBitmapFontGlyphs.Clear();
-        _menuBitmapFontLineHeight = 0;
-        _menuPlaqueTexture = null;
-        _menuPlaqueTallTexture = null;
-        _menuTextBoxTopTexture = null;
-        _menuTextBoxMiddleTexture = null;
-        _menuTextBoxBottomTexture = null;
-        _menuTextBoxSoloTexture = null;
-        _gameplayLoadoutClassStripTexture = null;
-        _gameplayLoadoutClassSelectionTexture = null;
-        _gameplayLoadoutBackgroundBarTexture = null;
-        _gameplayLoadoutDescriptionBoardTexture = null;
-        _gameplayLoadoutSelectionAtlasTexture = null;
-        _gameplayLoadoutSelectionTexture = null;
-        _gameplayLoadoutScrollerTexture = null;
-        _gameplayLoadoutPageTexture = null;
-        _gameplayLoadoutBackButtonTexture = null;
-        PersistClientSettings();
-        PersistInputBindings();
+        _bootstrapController.UnloadContent();
         base.UnloadContent();
     }
 

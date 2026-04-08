@@ -8,16 +8,12 @@ public partial class Game1
 {
     private void OpenHostSetupMenu()
     {
-        _hostSetupOpen = true;
-        _menuStatusMessage = string.Empty;
-        _manualConnectOpen = false;
-        CloseLobbyBrowser(clearStatus: false);
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _creditsOpen = false;
-        _editingPlayerName = false;
-        _hostSetupState.PrepareForOpen(_clientSettings.HostDefaults);
-        EnsureSelectedHostMapVisible();
+        _mainMenuOverlayStateController.OpenHostSetupMenu();
+    }
+
+    private void CloseHostSetupMenu(bool clearStatus = false)
+    {
+        _mainMenuOverlayStateController.CloseHostSetupMenu(clearStatus);
     }
 
     private void TryHostFromSetup(bool runInTerminal = false)

@@ -113,16 +113,7 @@ public partial class Game1
 
     private void OpenManualConnectMenu()
     {
-        _manualConnectOpen = true;
-        _editingConnectHost = true;
-        _editingConnectPort = false;
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _controlsMenuOpen = false;
-        CloseLobbyBrowser(clearStatus: false);
-        _creditsOpen = false;
-        _editingPlayerName = false;
-        _menuStatusMessage = string.Empty;
+        _mainMenuOverlayStateController.OpenManualConnectMenu();
     }
 
     private Rectangle GetCreditsPanelBounds()
@@ -132,14 +123,12 @@ public partial class Game1
 
     private void OpenCreditsMenu()
     {
-        _creditsOpen = true;
-        _creditsScrollInitialized = false;
+        _mainMenuOverlayStateController.OpenCreditsMenu();
     }
 
     private void CloseCreditsMenu()
     {
-        _creditsOpen = false;
-        _creditsScrollInitialized = false;
+        _mainMenuOverlayStateController.CloseCreditsMenu();
     }
 
     private void EnsureCreditsViewState()

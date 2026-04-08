@@ -43,13 +43,12 @@ public partial class Game1
         CloseInGameMenu();
         _practiceSetupOpen = true;
         _manualConnectOpen = false;
-        _hostSetupOpen = false;
-        _hostSetupEditField = HostSetupEditField.None;
+        CloseHostSetupMenu();
         CloseLobbyBrowser(clearStatus: false);
         _optionsMenuOpen = false;
         _pluginOptionsMenuOpen = false;
         _controlsMenuOpen = false;
-        _creditsOpen = false;
+        CloseCreditsMenu();
         _clientPowersOpen = false;
         _clientPowersOpenedFromGameplay = false;
         _editingPlayerName = false;

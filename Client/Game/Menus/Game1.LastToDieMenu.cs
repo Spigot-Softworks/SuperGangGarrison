@@ -23,31 +23,12 @@ public partial class Game1
 
     private void OpenLastToDieMenu(string? statusMessage = null)
     {
-        _lastToDieMenuOpen = true;
-        _lastToDieMenuHoverIndex = -1;
-        _hostSetupOpen = false;
-        _hostSetupEditField = HostSetupEditField.None;
-        _practiceSetupOpen = false;
-        _clientPowersOpen = false;
-        _clientPowersOpenedFromGameplay = false;
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _controlsMenuOpen = false;
-        _creditsOpen = false;
-        _manualConnectOpen = false;
-        CloseLobbyBrowser(clearStatus: false);
-        _editingPlayerName = false;
-        _menuStatusMessage = statusMessage ?? string.Empty;
+        _mainMenuOverlayStateController.OpenLastToDieMenu(statusMessage);
     }
 
     private void CloseLastToDieMenu(bool clearStatus = false)
     {
-        _lastToDieMenuOpen = false;
-        _lastToDieMenuHoverIndex = -1;
-        if (clearStatus)
-        {
-            _menuStatusMessage = string.Empty;
-        }
+        _mainMenuOverlayStateController.CloseLastToDieMenu(clearStatus);
     }
 
     private void ReturnToLastToDieMenu(string? statusMessage = null)

@@ -11,47 +11,17 @@ public partial class Game1
 {
     private void OpenLobbyBrowser()
     {
-        _lobbyBrowserOpen = true;
-        _manualConnectOpen = false;
-        _optionsMenuOpen = false;
-        _pluginOptionsMenuOpen = false;
-        _creditsOpen = false;
-        _editingPlayerName = false;
-        _editingConnectHost = false;
-        _editingConnectPort = false;
-        _lobbyBrowserSelectedIndex = -1;
-        _lobbyBrowserHoverIndex = -1;
-        RefreshLobbyBrowser();
+        _connectionFlowController.OpenLobbyBrowser();
     }
 
     private void CloseLobbyBrowser(bool clearStatus)
     {
-        _lobbyBrowserOpen = false;
-        _lobbyBrowserHoverIndex = -1;
-        CloseLobbyBrowserLobbyClient();
-        if (clearStatus)
-        {
-            _menuStatusMessage = string.Empty;
-        }
+        _connectionFlowController.CloseLobbyBrowser(clearStatus);
     }
 
     private void RefreshLobbyBrowser()
     {
-        EnsureLobbyBrowserClient();
-        _lobbyBrowserEntries.Clear();
-        StartLobbyBrowserLobbyRequest();
-
-        foreach (var target in BuildLobbyBrowserTargets())
-        {
-            AddLobbyBrowserEntry(target.DisplayName, target.Host, target.Port, isPrivate: false, isLobbyEntry: false);
-        }
-
-        _lobbyBrowserSelectedIndex = _lobbyBrowserEntries.Count > 0 ? 0 : -1;
-        _menuStatusMessage = _lobbyBrowserEntries.Count > 0
-            ? "Refreshing server list..."
-            : _lobbyBrowserLobbyClient is not null
-                ? "Contacting lobby server..."
-                : "No browser targets yet. Use Join (manual) once to seed one.";
+        _connectionFlowController.RefreshLobbyBrowser();
     }
 
     private void UpdateLobbyBrowserState(KeyboardState keyboard, MouseState mouse)
@@ -116,11 +86,7 @@ public partial class Game1
         }
         else if (manualBounds.Contains(point))
         {
-            CloseLobbyBrowser(clearStatus: false);
-            _manualConnectOpen = true;
-            _editingConnectHost = true;
-            _editingConnectPort = false;
-            _menuStatusMessage = string.Empty;
+            _connectionFlowController.OpenManualConnectMenuFromLobbyBrowser();
         }
         else if (backBounds.Contains(point))
         {
@@ -285,48 +251,16 @@ public partial class Game1
 
     private void JoinSelectedLobbyEntry()
     {
-        if (!CanJoinSelectedLobbyEntry())
-        {
-            _menuStatusMessage = "Select an online server first.";
-            return;
-        }
-
-        var entry = _lobbyBrowserEntries[_lobbyBrowserSelectedIndex];
-        TryConnectToServer(entry.Host, entry.Port, addConsoleFeedback: false);
+        _connectionFlowController.JoinSelectedLobbyEntry();
     }
 
     private bool CanJoinSelectedLobbyEntry()
     {
-        return _lobbyBrowserSelectedIndex >= 0
-            && _lobbyBrowserSelectedIndex < _lobbyBrowserEntries.Count
-            && _lobbyBrowserEntries[_lobbyBrowserSelectedIndex].HasResponse;
+        return _connectionFlowController.CanJoinSelectedLobbyEntry();
     }
 
     private IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var target in new[]
-                 {
-                     new LobbyBrowserTarget("Localhost", "127.0.0.1", 8190),
-                     new LobbyBrowserTarget("Manual target", _connectHostBuffer.Trim(), TryParseBrowserPort(_connectPortBuffer)),
-                     new LobbyBrowserTarget("Recent", _recentConnectHost ?? string.Empty, _recentConnectPort),
-                 })
-        {
-            if (string.IsNullOrWhiteSpace(target.Host) || target.Port <= 0)
-            {
-                continue;
-            }
-
-            var key = $"{target.Host}:{target.Port}";
-            if (seen.Add(key))
-            {
-                yield return target;
-            }
-        }
-    }
-
-    private static int TryParseBrowserPort(string text)
-    {
-        return int.TryParse(text.Trim(), out var port) && port is > 0 and <= 65535 ? port : 0;
+        return _connectionFlowController.BuildLobbyBrowserTargets();
     }
 }
