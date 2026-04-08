@@ -197,7 +197,7 @@ public partial class Game1
         }
     }
 
-    private void WriteGameplayRenderTrace(string message)
+    private static void WriteGameplayRenderTrace(string message)
     {
         try
         {

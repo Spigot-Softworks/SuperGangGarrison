@@ -45,12 +45,7 @@ public sealed partial class SimulationWorld
                 SetLocalPlayerName(displayName);
                 return true;
             default:
-                if (IsPlayableNetworkPlayerSlot(slot))
-                {
-                    EnsureAdditionalNetworkPlayer(slot);
-                }
-
-                if (!TryGetNetworkPlayer(slot, out var player))
+                if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
                 {
                     return false;
                 }
@@ -68,12 +63,7 @@ public sealed partial class SimulationWorld
                 SetLocalPlayerBadgeMask(badgeMask);
                 return true;
             default:
-                if (IsPlayableNetworkPlayerSlot(slot))
-                {
-                    EnsureAdditionalNetworkPlayer(slot);
-                }
-
-                if (!TryGetNetworkPlayer(slot, out var player))
+                if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
                 {
                     return false;
                 }
@@ -286,12 +276,7 @@ public sealed partial class SimulationWorld
 
     public bool TrySetNetworkPlayerGameplayLoadout(byte slot, string loadoutId)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        if (!TryGetNetworkPlayer(slot, out var player))
+        if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -301,12 +286,7 @@ public sealed partial class SimulationWorld
 
     public bool TrySetNetworkPlayerGameplaySecondaryItem(byte slot, string? itemId)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        if (!TryGetNetworkPlayer(slot, out var player))
+        if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -341,12 +321,7 @@ public sealed partial class SimulationWorld
 
     public bool TrySetNetworkPlayerGameplayAcquiredItem(byte slot, string? itemId)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        if (!TryGetNetworkPlayer(slot, out var player) || player.ClassId != PlayerClass.Soldier)
+        if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player) || player.ClassId != PlayerClass.Soldier)
         {
             return false;
         }
@@ -380,39 +355,34 @@ public sealed partial class SimulationWorld
 
     public bool TryGrantNetworkPlayerGameplayItem(byte slot, string itemId)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        return TryGetNetworkPlayer(slot, out var player)
+        return TryGetOrEnsurePlayableNetworkPlayer(slot, out var player)
             && player.TryGrantGameplayItem(itemId);
     }
 
     public bool TryRevokeNetworkPlayerGameplayItem(byte slot, string itemId)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        return TryGetNetworkPlayer(slot, out var player)
+        return TryGetOrEnsurePlayableNetworkPlayer(slot, out var player)
             && player.TryRevokeGameplayItem(itemId);
     }
 
     public bool TrySetNetworkPlayerGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
     {
-        if (slot != LocalPlayerSlot)
-        {
-            EnsureAdditionalNetworkPlayer(slot);
-        }
-
-        if (!TryGetNetworkPlayer(slot, out var player))
+        if (!TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
         return player.TrySelectGameplayEquippedSlot(equippedSlot);
+    }
+
+    private bool TryGetOrEnsurePlayableNetworkPlayer(byte slot, out PlayerEntity player)
+    {
+        if (slot != LocalPlayerSlot && IsPlayableNetworkPlayerSlot(slot))
+        {
+            EnsureAdditionalNetworkPlayer(slot);
+        }
+
+        return TryGetNetworkPlayer(slot, out player);
     }
 
     private bool TryApplyNetworkPlayerClassChange(byte slot, CharacterClassDefinition definition)

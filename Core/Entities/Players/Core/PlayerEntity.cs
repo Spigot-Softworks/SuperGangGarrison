@@ -396,11 +396,6 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int MaxAirJumps => ClassDefinition.MaxAirJumps;
 
-    public void SetDisplayName(string? displayName)
-    {
-        DisplayName = SanitizeDisplayName(displayName);
-    }
-
     public void Spawn(PlayerTeam team, float x, float y)
     {
         Team = team;
@@ -425,49 +420,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         ResetExperimentalPowerRuntimeState();
         FacingDirectionX = team == PlayerTeam.Blue ? -1f : 1f;
         AimDirectionDegrees = team == PlayerTeam.Blue ? 180f : 0f;
-        ContinuousDamageAccumulator = 0f;
-        ExtinguishAfterburn();
-        IsHeavyEating = false;
-        HeavyEatTicksRemaining = 0;
-        HeavyEatCooldownTicksRemaining = 0;
-        HeavyHealingAccumulator = 0f;
-        IsTaunting = false;
-        TauntFrameIndex = 0f;
-        IsSniperScoped = false;
-        SniperChargeTicks = 0;
-        UberTicksRemaining = 0;
-        MedicHealTargetId = null;
-        IsMedicHealing = false;
-        MedicUberCharge = 0f;
-        IsMedicUberReady = false;
-        IsMedicUbering = false;
-        MedicNeedleCooldownTicks = 0;
-        MedicNeedleRefillTicks = 0;
-        ContinuousHealingAccumulator = 0f;
-        QuoteBubbleCount = 0;
-        QuoteBladesOut = 0;
-        PyroAirblastCooldownTicks = 0;
-        PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
-        IsPyroPrimaryRefilling = false;
-        PyroFlameLoopTicksRemaining = 0;
-        PyroPrimaryRequiresReleaseAfterEmpty = false;
-        IsInSpawnRoom = false;
-        IsUsingHealingCabinet = false;
-        HealingCabinetSoundCooldownSecondsRemaining = 0f;
-        ClearRecentDamageDealers();
-        ResetCombatPerformanceTracking();
-        IsSpyCloaked = false;
-        SpyCloakAlpha = 1f;
-        SpyBackstabWindupTicksRemaining = 0;
-        SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = 0;
-        SpyBackstabDirectionDegrees = 0f;
-        IsSpyVisibleToEnemies = false;
-        SpyBackstabHitboxPending = false;
-        LegacyStateTickAccumulator = 0f;
-        MovementState = LegacyMovementState.None;
-        ResetSourceFacingDirectionState();
-        ClearChatBubble();
+        ResetTransientState(
+            pyroFlareCooldownTicks: GetInitialPyroFlareCooldownTicks(),
+            resetMedicUberCharge: true,
+            clearSpawnRoomState: true);
         RefreshGameplayLoadoutState();
     }
 
@@ -491,48 +447,10 @@ public sealed partial class PlayerEntity : SimulationEntity
         }
         ResetExperimentalPowerRuntimeState();
         IntelRechargeTicks = 0f;
-        ContinuousDamageAccumulator = 0f;
-        ExtinguishAfterburn();
-        IsHeavyEating = false;
-        HeavyEatTicksRemaining = 0;
-        HeavyEatCooldownTicksRemaining = 0;
-        HeavyHealingAccumulator = 0f;
-        IsTaunting = false;
-        TauntFrameIndex = 0f;
-        IsSniperScoped = false;
-        SniperChargeTicks = 0;
-        UberTicksRemaining = 0;
-        MedicHealTargetId = null;
-        IsMedicHealing = false;
-        MedicUberCharge = 0f;
-        IsMedicUberReady = false;
-        IsMedicUbering = false;
-        MedicNeedleCooldownTicks = 0;
-        MedicNeedleRefillTicks = 0;
-        ContinuousHealingAccumulator = 0f;
-        QuoteBubbleCount = 0;
-        QuoteBladesOut = 0;
-        PyroAirblastCooldownTicks = 0;
-        PyroFlareCooldownTicks = GetInitialPyroFlareCooldownTicks();
-        IsPyroPrimaryRefilling = false;
-        PyroFlameLoopTicksRemaining = 0;
-        PyroPrimaryRequiresReleaseAfterEmpty = false;
-        IsUsingHealingCabinet = false;
-        HealingCabinetSoundCooldownSecondsRemaining = 0f;
-        ClearRecentDamageDealers();
-        ResetCombatPerformanceTracking();
-        IsSpyCloaked = false;
-        SpyCloakAlpha = 1f;
-        SpyBackstabWindupTicksRemaining = 0;
-        SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = 0;
-        SpyBackstabDirectionDegrees = 0f;
-        IsSpyVisibleToEnemies = false;
-        SpyBackstabHitboxPending = false;
-        LegacyStateTickAccumulator = 0f;
-        MovementState = LegacyMovementState.None;
-        ResetSourceFacingDirectionState();
-        ClearChatBubble();
+        ResetTransientState(
+            pyroFlareCooldownTicks: GetInitialPyroFlareCooldownTicks(),
+            resetMedicUberCharge: true,
+            clearSpawnRoomState: false);
         RefreshGameplayLoadoutState();
     }
 
@@ -545,50 +463,13 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsGrounded = false;
         IsCarryingIntel = false;
         IntelRechargeTicks = 0f;
-        ContinuousDamageAccumulator = 0f;
         ResetExperimentalOffhandRuntimeState(refillAmmo: false);
         SetAcquiredWeapon(null);
         ResetExperimentalPowerRuntimeState();
-        ExtinguishAfterburn();
-        IsHeavyEating = false;
-        HeavyEatTicksRemaining = 0;
-        HeavyEatCooldownTicksRemaining = 0;
-        HeavyHealingAccumulator = 0f;
-        IsTaunting = false;
-        TauntFrameIndex = 0f;
-        IsSniperScoped = false;
-        SniperChargeTicks = 0;
-        UberTicksRemaining = 0;
-        MedicHealTargetId = null;
-        IsMedicHealing = false;
-        IsMedicUbering = false;
-        MedicNeedleCooldownTicks = 0;
-        MedicNeedleRefillTicks = 0;
-        ContinuousHealingAccumulator = 0f;
-        QuoteBubbleCount = 0;
-        QuoteBladesOut = 0;
-        PyroAirblastCooldownTicks = 0;
-        PyroFlareCooldownTicks = 0;
-        IsPyroPrimaryRefilling = false;
-        PyroFlameLoopTicksRemaining = 0;
-        PyroPrimaryRequiresReleaseAfterEmpty = false;
-        IsInSpawnRoom = false;
-        IsUsingHealingCabinet = false;
-        HealingCabinetSoundCooldownSecondsRemaining = 0f;
-        ClearRecentDamageDealers();
-        ResetCombatPerformanceTracking();
-        IsSpyCloaked = false;
-        SpyCloakAlpha = 1f;
-        SpyBackstabWindupTicksRemaining = 0;
-        SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = 0;
-        SpyBackstabDirectionDegrees = 0f;
-        IsSpyVisibleToEnemies = false;
-        SpyBackstabHitboxPending = false;
-        LegacyStateTickAccumulator = 0f;
-        MovementState = LegacyMovementState.None;
-        ResetSourceFacingDirectionState();
-        ClearChatBubble();
+        ResetTransientState(
+            pyroFlareCooldownTicks: 0,
+            resetMedicUberCharge: false,
+            clearSpawnRoomState: true);
         RefreshGameplayLoadoutState();
     }
 
@@ -602,6 +483,74 @@ public sealed partial class PlayerEntity : SimulationEntity
         return ClassId == PlayerClass.Pyro
             ? PyroFlareReloadTicks
             : 0;
+    }
+
+    private void ResetTransientState(
+        int pyroFlareCooldownTicks,
+        bool resetMedicUberCharge,
+        bool clearSpawnRoomState)
+    {
+        ContinuousDamageAccumulator = 0f;
+        ExtinguishAfterburn();
+        IsHeavyEating = false;
+        HeavyEatTicksRemaining = 0;
+        HeavyEatCooldownTicksRemaining = 0;
+        HeavyHealingAccumulator = 0f;
+        IsTaunting = false;
+        TauntFrameIndex = 0f;
+        IsSniperScoped = false;
+        SniperChargeTicks = 0;
+        UberTicksRemaining = 0;
+        MedicHealTargetId = null;
+        IsMedicHealing = false;
+        if (resetMedicUberCharge)
+        {
+            MedicUberCharge = 0f;
+            IsMedicUberReady = false;
+        }
+
+        IsMedicUbering = false;
+        MedicNeedleCooldownTicks = 0;
+        MedicNeedleRefillTicks = 0;
+        ContinuousHealingAccumulator = 0f;
+        QuoteBubbleCount = 0;
+        QuoteBladesOut = 0;
+        PyroAirblastCooldownTicks = 0;
+        PyroFlareCooldownTicks = pyroFlareCooldownTicks;
+        IsPyroPrimaryRefilling = false;
+        PyroFlameLoopTicksRemaining = 0;
+        PyroPrimaryRequiresReleaseAfterEmpty = false;
+        if (clearSpawnRoomState)
+        {
+            IsInSpawnRoom = false;
+        }
+
+        IsUsingHealingCabinet = false;
+        HealingCabinetSoundCooldownSecondsRemaining = 0f;
+        ClearRecentDamageDealers();
+        ResetCombatPerformanceTracking();
+        ResetSpyTransientState();
+        ResetMovementPresentationState();
+        ClearChatBubble();
+    }
+
+    private void ResetSpyTransientState()
+    {
+        IsSpyCloaked = false;
+        SpyCloakAlpha = 1f;
+        SpyBackstabWindupTicksRemaining = 0;
+        SpyBackstabRecoveryTicksRemaining = 0;
+        SpyBackstabVisualTicksRemaining = 0;
+        SpyBackstabDirectionDegrees = 0f;
+        IsSpyVisibleToEnemies = false;
+        SpyBackstabHitboxPending = false;
+    }
+
+    private void ResetMovementPresentationState()
+    {
+        LegacyStateTickAccumulator = 0f;
+        MovementState = LegacyMovementState.None;
+        ResetSourceFacingDirectionState();
     }
 
     public void SetHealingCabinetState(bool isUsingHealingCabinet)
@@ -702,24 +651,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         top = y + CollisionTopOffset;
         right = x + CollisionRightOffset;
         bottom = y + CollisionBottomOffset;
-    }
-
-    private static string SanitizeDisplayName(string? displayName)
-    {
-        if (string.IsNullOrEmpty(displayName))
-        {
-            return DefaultDisplayName;
-        }
-
-        var sanitized = displayName.Replace("#", string.Empty);
-        if (sanitized.Length == 0)
-        {
-            return DefaultDisplayName;
-        }
-
-        return sanitized.Length > MaxDisplayNameLength
-            ? sanitized[..MaxDisplayNameLength]
-            : sanitized;
     }
 
     private void ResetExperimentalOffhandRuntimeState(bool refillAmmo)
@@ -940,90 +871,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         return true;
     }
 
-    public IReadOnlyList<GameplayReplicatedStateEntry> GetReplicatedStateEntries()
-    {
-        return ReplicatedStateEntries.Values
-            .OrderBy(static entry => entry.OwnerId, StringComparer.Ordinal)
-            .ThenBy(static entry => entry.Key, StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    public bool TryGetReplicatedStateInt(string ownerId, string key, out int value)
-    {
-        if (TryGetReplicatedState(ownerId, key, GameplayReplicatedStateValueKind.Whole, out var entry))
-        {
-            value = entry.IntValue;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    public bool TryGetReplicatedStateFloat(string ownerId, string key, out float value)
-    {
-        if (TryGetReplicatedState(ownerId, key, GameplayReplicatedStateValueKind.Scalar, out var entry))
-        {
-            value = entry.FloatValue;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    public bool TryGetReplicatedStateBool(string ownerId, string key, out bool value)
-    {
-        if (TryGetReplicatedState(ownerId, key, GameplayReplicatedStateValueKind.Toggle, out var entry))
-        {
-            value = entry.BoolValue;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    public bool SetReplicatedStateInt(string ownerId, string key, int value)
-    {
-        return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Whole, IntValue: value));
-    }
-
-    public bool SetReplicatedStateFloat(string ownerId, string key, float value)
-    {
-        return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Scalar, FloatValue: value));
-    }
-
-    public bool SetReplicatedStateBool(string ownerId, string key, bool value)
-    {
-        return SetReplicatedState(new GameplayReplicatedStateEntry(ownerId, key, GameplayReplicatedStateValueKind.Toggle, BoolValue: value));
-    }
-
-    public bool ClearReplicatedState(string ownerId, string key)
-    {
-        return ReplicatedStateEntries.Remove(CreateReplicatedStateDictionaryKey(ownerId, key));
-    }
-
-    internal void ReplaceReplicatedStateEntries(IEnumerable<GameplayReplicatedStateEntry> entries)
-    {
-        ReplicatedStateEntries.Clear();
-        foreach (var entry in entries)
-        {
-            if (ReplicatedStateEntries.Count >= MaxReplicatedStateEntries)
-            {
-                break;
-            }
-
-            var normalizedEntry = NormalizeReplicatedStateEntry(entry);
-            if (normalizedEntry is null)
-            {
-                continue;
-            }
-
-            ReplicatedStateEntries[CreateReplicatedStateDictionaryKey(normalizedEntry.OwnerId, normalizedEntry.Key)] = normalizedEntry;
-        }
-    }
-
     public void ReplaceOwnedGameplayItemIds(IEnumerable<string> itemIds)
     {
         OwnedGameplayItemIds.Clear();
@@ -1046,64 +893,6 @@ public sealed partial class PlayerEntity : SimulationEntity
         RefreshGameplayLoadoutState();
     }
 
-    private Dictionary<string, GameplayReplicatedStateEntry> ReplicatedStateEntries { get; } = new(StringComparer.Ordinal);
-
     private HashSet<string> OwnedGameplayItemIds { get; } = new(StringComparer.Ordinal);
-
-    private bool SetReplicatedState(GameplayReplicatedStateEntry entry)
-    {
-        var normalizedEntry = NormalizeReplicatedStateEntry(entry);
-        if (normalizedEntry is null)
-        {
-            return false;
-        }
-
-        var dictionaryKey = CreateReplicatedStateDictionaryKey(normalizedEntry.OwnerId, normalizedEntry.Key);
-        if (!ReplicatedStateEntries.ContainsKey(dictionaryKey)
-            && ReplicatedStateEntries.Count >= MaxReplicatedStateEntries)
-        {
-            return false;
-        }
-
-        ReplicatedStateEntries[dictionaryKey] = normalizedEntry;
-        return true;
-    }
-
-    private bool TryGetReplicatedState(string ownerId, string key, GameplayReplicatedStateValueKind expectedKind, out GameplayReplicatedStateEntry entry)
-    {
-        if (ReplicatedStateEntries.TryGetValue(CreateReplicatedStateDictionaryKey(ownerId, key), out entry!)
-            && entry.Kind == expectedKind)
-        {
-            return true;
-        }
-
-        entry = null!;
-        return false;
-    }
-
-    private static GameplayReplicatedStateEntry? NormalizeReplicatedStateEntry(GameplayReplicatedStateEntry entry)
-    {
-        if (string.IsNullOrWhiteSpace(entry.OwnerId) || string.IsNullOrWhiteSpace(entry.Key))
-        {
-            return null;
-        }
-
-        if (entry.OwnerId.Length > MaxReplicatedStateIdentifierLength
-            || entry.Key.Length > MaxReplicatedStateIdentifierLength)
-        {
-            return null;
-        }
-
-        return entry with
-        {
-            OwnerId = entry.OwnerId.Trim(),
-            Key = entry.Key.Trim(),
-        };
-    }
-
-    private static string CreateReplicatedStateDictionaryKey(string ownerId, string key)
-    {
-        return string.Concat(ownerId, "::", key);
-    }
 }
 

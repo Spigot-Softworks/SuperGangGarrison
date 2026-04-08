@@ -11,37 +11,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.IsAcquiredWeaponEquipped)
+        if (TryHandleAcquiredPrimaryFire(player, input, suppressPyroPrimaryThisTick))
         {
-            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
-            {
-                if (input.FirePrimary)
-                {
-                    TryTriggerAcquiredMedigunHealsplosion(player);
-                }
-
-                return;
-            }
-
-            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher)
-                && input.FirePrimary
-                && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
-            {
-                return;
-            }
-
-            if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Flamethrower)
-                && suppressPyroPrimaryThisTick)
-            {
-                return;
-            }
-
-            if (!input.FirePrimary || !player.TryFireAcquiredWeapon())
-            {
-                return;
-            }
-
-            WeaponHandler.FireAcquiredWeapon(player, input.AimWorldX, input.AimWorldY);
             return;
         }
 
@@ -50,53 +21,8 @@ public sealed partial class SimulationWorld
             player.StowExperimentalOffhandWeapon();
         }
 
-        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
+        if (TryHandleEquippedPrimaryFire(player, input, suppressPyroPrimaryThisTick))
         {
-            if (input.FirePrimary)
-            {
-                UpdateMedicHealing(player, input.AimWorldX, input.AimWorldY);
-            }
-            else
-            {
-                player.ClearMedicHealingTarget();
-            }
-
-            return;
-        }
-
-        if (player.IsExperimentalDemoknightEnabled)
-        {
-            if (!input.FirePrimary || !player.TryFireExperimentalDemoknightSword())
-            {
-                return;
-            }
-
-            WeaponHandler.FireExperimentalDemoknightSword(player, input.AimWorldX, input.AimWorldY);
-            return;
-        }
-
-        if (input.FirePrimary && TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY))
-        {
-            return;
-        }
-
-        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
-        {
-            if (input.FirePrimary && player.TryFireQuoteBubble())
-            {
-                FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
-            }
-
-            return;
-        }
-
-        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
-        {
-            if (input.FirePrimary && !suppressPyroPrimaryThisTick)
-            {
-                WeaponHandler.TryFirePyroPrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
-            }
-
             return;
         }
 
@@ -111,6 +37,100 @@ public sealed partial class SimulationWorld
         }
 
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+    }
+
+    private bool TryHandleAcquiredPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
+    {
+        if (!player.IsAcquiredWeaponEquipped)
+        {
+            return false;
+        }
+
+        if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Medigun))
+        {
+            if (input.FirePrimary)
+            {
+                TryTriggerAcquiredMedigunHealsplosion(player);
+            }
+
+            return true;
+        }
+
+        if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MineLauncher)
+            && input.FirePrimary
+            && CountOwnedMines(player.Id) >= player.AcquiredWeaponMaxShells)
+        {
+            return true;
+        }
+
+        if (player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.Flamethrower)
+            && suppressPyroPrimaryThisTick)
+        {
+            return true;
+        }
+
+        if (!input.FirePrimary || !player.TryFireAcquiredWeapon())
+        {
+            return true;
+        }
+
+        WeaponHandler.FireAcquiredWeapon(player, input.AimWorldX, input.AimWorldY);
+        return true;
+    }
+
+    private bool TryHandleEquippedPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
+    {
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
+        {
+            if (input.FirePrimary)
+            {
+                UpdateMedicHealing(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                player.ClearMedicHealingTarget();
+            }
+
+            return true;
+        }
+
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            if (!input.FirePrimary || !player.TryFireExperimentalDemoknightSword())
+            {
+                return true;
+            }
+
+            WeaponHandler.FireExperimentalDemoknightSword(player, input.AimWorldX, input.AimWorldY);
+            return true;
+        }
+
+        if (input.FirePrimary && TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY))
+        {
+            return true;
+        }
+
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Blade))
+        {
+            if (input.FirePrimary && player.TryFireQuoteBubble())
+            {
+                FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+            }
+
+            return true;
+        }
+
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Flamethrower))
+        {
+            if (input.FirePrimary && !suppressPyroPrimaryThisTick)
+            {
+                WeaponHandler.TryFirePyroPrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)

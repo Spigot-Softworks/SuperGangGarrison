@@ -193,10 +193,10 @@ public sealed class GameplayModPackLoaderTests
             ExperimentalDemoknightCatalog.PaintrainItemId,
             null);
 
-        Assert.False(registry.LoadoutItemsAreOwned(trackedLoadout, static _ => false));
-        Assert.False(registry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
+        Assert.False(GameplayRuntimeRegistry.LoadoutItemsAreOwned(trackedLoadout, static _ => false));
+        Assert.False(GameplayRuntimeRegistry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
             string.Equals(itemId, ExperimentalDemoknightCatalog.EyelanderItemId, StringComparison.Ordinal)));
-        Assert.True(registry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
+        Assert.True(GameplayRuntimeRegistry.LoadoutItemsAreOwned(trackedLoadout, itemId =>
             string.Equals(itemId, ExperimentalDemoknightCatalog.EyelanderItemId, StringComparison.Ordinal)
             || string.Equals(itemId, ExperimentalDemoknightCatalog.PaintrainItemId, StringComparison.Ordinal)));
     }

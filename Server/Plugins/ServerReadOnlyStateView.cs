@@ -245,7 +245,7 @@ internal sealed class ServerReadOnlyStateView(
                 loadout.SecondaryItemId,
                 loadout.UtilityItemId,
                 string.Equals(loadout.Id, player.GameplayLoadoutState.LoadoutId, StringComparison.Ordinal),
-                runtimeRegistry.LoadoutItemsAreOwned(loadout, player.OwnsGameplayItem)))
+                GameplayRuntimeRegistry.LoadoutItemsAreOwned(loadout, player.OwnsGameplayItem)))
             .ToArray();
     }
 
@@ -282,7 +282,7 @@ internal sealed class ServerReadOnlyStateView(
         return false;
     }
 
-    private static IReadOnlyList<GameplayModPackDefinition> GetFilteredGameplayModPacks(string? modPackId)
+    private static GameplayModPackDefinition[] GetFilteredGameplayModPacks(string? modPackId)
     {
         var modPacks = CharacterClassCatalog.RuntimeRegistry.ModPacks;
         if (string.IsNullOrWhiteSpace(modPackId))
@@ -307,8 +307,8 @@ internal sealed class ServerReadOnlyStateView(
 
     private static void AddSelectableItem(
         PlayerEntity player,
-        ICollection<OpenGarrisonServerGameplaySelectableItemInfo> items,
-        ISet<string> seenItemIds,
+        List<OpenGarrisonServerGameplaySelectableItemInfo> items,
+        HashSet<string> seenItemIds,
         string? itemId,
         string? selectedItemId)
     {

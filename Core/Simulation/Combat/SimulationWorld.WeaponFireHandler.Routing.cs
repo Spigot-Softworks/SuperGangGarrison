@@ -53,39 +53,16 @@ public sealed partial class SimulationWorld
         {
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
             var resolvedKillFeedWeaponSpriteName = killFeedWeaponSpriteNameOverride ?? CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(weaponClassId);
-            var fireSoundName = weaponDefinition.FireSoundName ?? binding.FireSoundName;
-            if (!string.IsNullOrWhiteSpace(fireSoundName))
-            {
-                RegisterSoundEvent(attacker, fireSoundName);
-            }
-
-            switch (binding.WeaponKind)
-            {
-                case PrimaryWeaponKind.FlameThrower:
-                    FireFlamethrower(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY);
-                    break;
-                case PrimaryWeaponKind.Blade:
-                    FireBladeBubble(attacker, aimWorldX, aimWorldY);
-                    break;
-                case PrimaryWeaponKind.Minigun:
-                    FireMinigun(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
-                    break;
-                case PrimaryWeaponKind.MineLauncher:
-                    FireMineLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
-                    break;
-                case PrimaryWeaponKind.Revolver:
-                    FireRevolver(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
-                    break;
-                case PrimaryWeaponKind.Rifle:
-                    FireRifle(attacker, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
-                    break;
-                case PrimaryWeaponKind.RocketLauncher:
-                    FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
-                    break;
-                default:
-                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride);
-                    break;
-            }
+            TryRegisterPrimaryWeaponFireSound(attacker, weaponDefinition, binding);
+            DispatchPrimaryWeaponByKind(
+                attacker,
+                weaponDefinition,
+                binding.WeaponKind,
+                weaponClassId,
+                aimWorldX,
+                aimWorldY,
+                killFeedWeaponSpriteNameOverride,
+                resolvedKillFeedWeaponSpriteName);
         }
 
         private static GameplayPrimaryWeaponRuntimeBinding ResolvePrimaryWeaponRuntimeBinding(string? behaviorId, PrimaryWeaponDefinition weaponDefinition)
@@ -93,6 +70,57 @@ public sealed partial class SimulationWorld
             return CharacterClassCatalog.RuntimeRegistry.TryGetPrimaryWeaponBinding(behaviorId, out var binding)
                 ? binding
                 : new GameplayPrimaryWeaponRuntimeBinding(behaviorId ?? string.Empty, weaponDefinition.Kind);
+        }
+
+        private void TryRegisterPrimaryWeaponFireSound(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            GameplayPrimaryWeaponRuntimeBinding binding)
+        {
+            var fireSoundName = weaponDefinition.FireSoundName ?? binding.FireSoundName;
+            if (!string.IsNullOrWhiteSpace(fireSoundName))
+            {
+                RegisterSoundEvent(attacker, fireSoundName);
+            }
+        }
+
+        private void DispatchPrimaryWeaponByKind(
+            PlayerEntity attacker,
+            PrimaryWeaponDefinition weaponDefinition,
+            PrimaryWeaponKind weaponKind,
+            PlayerClass weaponClassId,
+            float aimWorldX,
+            float aimWorldY,
+            string? killFeedWeaponSpriteNameOverride,
+            string resolvedKillFeedWeaponSpriteName)
+        {
+            switch (weaponKind)
+            {
+                case PrimaryWeaponKind.FlameThrower:
+                    FireFlamethrower(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY);
+                    return;
+                case PrimaryWeaponKind.Blade:
+                    FireBladeBubble(attacker, aimWorldX, aimWorldY);
+                    return;
+                case PrimaryWeaponKind.Minigun:
+                    FireMinigun(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride);
+                    return;
+                case PrimaryWeaponKind.MineLauncher:
+                    FireMineLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
+                case PrimaryWeaponKind.Revolver:
+                    FireRevolver(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
+                case PrimaryWeaponKind.Rifle:
+                    FireRifle(attacker, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
+                case PrimaryWeaponKind.RocketLauncher:
+                    FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
+                    return;
+                default:
+                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride);
+                    return;
+            }
         }
 
         public bool TryFirePyroPrimaryWeapon(PlayerEntity attacker, float aimWorldX, float aimWorldY)

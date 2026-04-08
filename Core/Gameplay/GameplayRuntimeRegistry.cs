@@ -550,7 +550,7 @@ public sealed class GameplayRuntimeRegistry
             && secondaryItem.Slot == GameplayEquipmentSlot.Primary;
     }
 
-    public bool LoadoutItemsAreOwned(GameplayClassLoadoutDefinition loadout, Func<string, bool> ownsItem)
+    public static bool LoadoutItemsAreOwned(GameplayClassLoadoutDefinition loadout, Func<string, bool> ownsItem)
     {
         ArgumentNullException.ThrowIfNull(loadout);
         ArgumentNullException.ThrowIfNull(ownsItem);
