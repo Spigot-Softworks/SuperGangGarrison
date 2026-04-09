@@ -48,23 +48,27 @@ internal sealed class ServerReadOnlyStateView(
                 }
 
                 return new OpenGarrisonServerPlayerInfo(
-                    client.Slot,
-                    client.UserId,
-                    client.Name,
-                    isSpectator,
-                    client.IsAuthorized,
-                    client.IsGagged,
-                    player?.IsAlive ?? false,
-                    player?.Id,
-                    team,
-                    playerClass,
-                    player?.PlayerScale ?? 1f,
-                    client.EndPoint.ToString(),
-                    player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
-                    player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
-                    player?.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
-                    player?.GameplayLoadoutState.EquippedSlot ?? GameplayEquipmentSlot.Primary,
-                    player?.GameplayLoadoutState.EquippedItemId ?? string.Empty);
+                    Slot: client.Slot,
+                    UserId: client.UserId,
+                    Name: client.Name,
+                    IsSpectator: isSpectator,
+                    IsAuthorized: client.IsAuthorized,
+                    IsGagged: client.IsGagged,
+                    IsAlive: player?.IsAlive ?? false,
+                    PlayerId: player?.Id,
+                    Team: team,
+                    PlayerClass: playerClass,
+                    PlayerScale: player?.PlayerScale ?? 1f,
+                    MovementSpeedScale: player?.ServerMovementSpeedScale ?? (!isSpectator ? world.GetNetworkPlayerMovementSpeedScale(client.Slot) : 1f),
+                    HasMovementSpeedScaleOverride: !isSpectator && world.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
+                    GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.GetNetworkPlayerGravityScale(client.Slot) : 1f),
+                    HasGravityScaleOverride: !isSpectator && world.HasNetworkPlayerGravityScaleOverride(client.Slot),
+                    EndPoint: client.EndPoint.ToString(),
+                    GameplayLoadoutId: player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
+                    GameplaySecondaryItemId: player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
+                    GameplayAcquiredItemId: player?.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+                    GameplayEquippedSlot: player?.GameplayLoadoutState.EquippedSlot ?? GameplayEquipmentSlot.Primary,
+                    GameplayEquippedItemId: player?.GameplayLoadoutState.EquippedItemId ?? string.Empty);
             })
             .ToArray();
     }

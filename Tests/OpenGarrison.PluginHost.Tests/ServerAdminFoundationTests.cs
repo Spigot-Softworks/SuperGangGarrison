@@ -367,6 +367,53 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void ServerGameplayTuningSupportsPerPlayerMovementAndGravityOverrides()
+    {
+        var world = new SimulationWorld();
+
+        Assert.True(world.TrySetNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot, 2.5f));
+        Assert.True(world.TrySetNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot, 0.5f));
+        Assert.Equal(2.5f, world.LocalPlayer.ServerMovementSpeedScale);
+        Assert.Equal(0.5f, world.LocalPlayer.ServerGravityScale);
+        Assert.True(world.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.LocalPlayer.TryGetReplicatedStateFloat(PlayerEntity.ServerTuningReplicatedStateOwnerId, PlayerEntity.MovementSpeedScaleReplicatedStateKey, out var replicatedMovementSpeedScale));
+        Assert.True(world.LocalPlayer.TryGetReplicatedStateFloat(PlayerEntity.ServerTuningReplicatedStateOwnerId, PlayerEntity.GravityScaleReplicatedStateKey, out var replicatedGravityScale));
+        Assert.Equal(2.5f, replicatedMovementSpeedScale);
+        Assert.Equal(0.5f, replicatedGravityScale);
+
+        world.SetMovementSpeedScale(1.5f);
+        world.SetGravityScale(1.25f);
+        Assert.Equal(2.5f, world.LocalPlayer.ServerMovementSpeedScale);
+        Assert.Equal(0.5f, world.LocalPlayer.ServerGravityScale);
+        Assert.Equal(1.5f, world.EnemyPlayer.ServerMovementSpeedScale);
+        Assert.Equal(1.25f, world.EnemyPlayer.ServerGravityScale);
+
+        Assert.True(world.TryClearNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.TryClearNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.Equal(1.5f, world.LocalPlayer.ServerMovementSpeedScale);
+        Assert.Equal(1.25f, world.LocalPlayer.ServerGravityScale);
+    }
+
+    [Fact]
+    public void LivePlayerScalePreservesCollisionFootprintAnchorWhenSpaceAllows()
+    {
+        var world = new SimulationWorld();
+        world.LocalPlayer.GetCollisionBounds(out var previousLeft, out _, out var previousRight, out var previousBottom);
+        var previousCenterX = (previousLeft + previousRight) * 0.5f;
+
+        Assert.True(world.LocalPlayer.TryApplyLiveScale(0.5f, world.Level, world.LocalPlayer.Team));
+
+        world.LocalPlayer.GetCollisionBounds(out var scaledLeft, out _, out var scaledRight, out var scaledBottom);
+        var scaledCenterX = (scaledLeft + scaledRight) * 0.5f;
+
+        Assert.Equal(previousBottom, scaledBottom, precision: 3);
+        Assert.Equal(previousCenterX, scaledCenterX, precision: 3);
+    }
+
+    [Fact]
     public void ServerAdminTargetResolverResolvesUserIdsSelectorsAndUniquePartialNames()
     {
         var players = new[]
@@ -930,6 +977,14 @@ public sealed class ServerAdminFoundationTests
         public bool TryIgnitePlayer(byte slot, float durationSeconds) => true;
 
         public bool TrySetPlayerScale(byte slot, float scale) => true;
+
+        public bool TrySetPlayerMovementSpeedScale(byte slot, float scale) => true;
+
+        public bool TryClearPlayerMovementSpeedScale(byte slot) => true;
+
+        public bool TrySetPlayerGravityScale(byte slot, float scale) => true;
+
+        public bool TryClearPlayerGravityScale(byte slot) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 

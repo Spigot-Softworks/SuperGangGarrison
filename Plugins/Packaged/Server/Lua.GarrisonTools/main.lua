@@ -1,10 +1,19 @@
 local plugin = {}
 
 local target_help_line = "[GT] targets | name | #userid | @me | @all | @alive | @dead | @red | @blue"
-local seffect_help_line = "[GT] seffects | blind | earthquake | scale | clear"
+local seffect_help_line = "[GT] seffects | blind | earthquake | scale | speed | lowgrav | highgrav | clear"
 local default_ban_minutes = 60
 local default_burn_seconds = 10.0
 local help_page_size = 6
+local command_catalog_count = 20
+local command_category_count = 6
+local help_page_count = 4
+local admin_menu_client_plugin_id = "open-garrison.client.lua-garrison-tools-menu"
+local admin_menu_client_source_plugin_id = "open-garrison.client.lua-garrison-tools-menu"
+local admin_menu_open_message_type = "adminmenu.open"
+local admin_menu_close_message_type = "adminmenu.close"
+local admin_menu_select_message_type = "adminmenu.select"
+local admin_menu_root_screen = "root"
 
 local default_config = {
     clientEffectsPluginId = "open-garrison.client.lua-garrison-tools-effects",
@@ -23,11 +32,30 @@ local default_config = {
         defaultValue = 0.5,
         minValue = 0.25,
         maxValue = 4.0
+    },
+    speed = {
+        defaultSeconds = 10.0,
+        defaultValue = 3.0,
+        minValue = 0.1,
+        maxValue = 4.0
+    },
+    lowgrav = {
+        defaultSeconds = 10.0,
+        defaultValue = 0.5,
+        minValue = 0.0,
+        maxValue = 4.0
+    },
+    highgrav = {
+        defaultSeconds = 10.0,
+        defaultValue = 4.0,
+        minValue = 0.0,
+        maxValue = 4.0
     }
 }
 
 local config = default_config
 local active_effects = {}
+local admin_menu_sessions = {}
 local command_categories = {
     "Reference",
     "Communication",
@@ -36,28 +64,114 @@ local command_categories = {
     "Effects",
     "Session"
 }
-local command_specs = {
-    { name = "help", category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", keywords = "commands search page docs", detail = "Use a page number for paged output or a search term like cvar or ban." },
-    { name = "status", category = "Reference", usage = "!gt_status", summary = "Show server, admin, and player status details.", keywords = "players userid roster info" },
-    { name = "cvars", category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text.", keywords = "config variables settings server" },
-    { name = "cvar", category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar.", keywords = "config variable set get protect server" },
-    { name = "adminmenu", category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog.", keywords = "menu categories catalog ui" },
-    { name = "say", category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a server chat message.", keywords = "broadcast chat message announce" },
-    { name = "psay", category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", keywords = "private whisper tell target", usesTargets = true },
-    { name = "kick", category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", keywords = "disconnect remove player", usesTargets = true },
-    { name = "ban", category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", keywords = "ban player timeout permanent", usesTargets = true },
-    { name = "banip", category = "Player Control", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", keywords = "ban address endpoint ip timeout permanent", usesTargets = true },
-    { name = "unban", category = "Player Control", usage = "!gt_unban <ip>", summary = "Remove an IP ban.", keywords = "unban pardon address ip" },
-    { name = "slay", category = "Player Control", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", keywords = "kill suicide eliminate", usesTargets = true },
-    { name = "burn", category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true },
-    { name = "gag", category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true },
-    { name = "rename", category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true },
-    { name = "map", category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map.", keywords = "level rotation change round" },
-    { name = "nextmap", category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map.", keywords = "level rotation next round future" },
-    { name = "seffect", category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", keywords = "blind earthquake scale clear visual fx", usesTargets = true, showSeffectHelp = true },
-    { name = "auth", category = "Session", usage = "!gt_auth <password>", summary = "Authenticate this admin session.", keywords = "login password rcon session" },
-    { name = "logout", category = "Session", usage = "!gt_logout", summary = "End this admin session.", keywords = "log out unauthenticate session" },
+local command_specs = {}
+
+local function append_command_spec(spec)
+    table.insert(command_specs, spec)
+end
+
+append_command_spec({ name = "help", category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", keywords = "commands search page docs", detail = "Use a page number for paged output or a search term like cvar or ban." })
+append_command_spec({ name = "status", category = "Reference", usage = "!gt_status", summary = "Show server, admin, and player status details.", keywords = "players userid roster info" })
+append_command_spec({ name = "cvars", category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text.", keywords = "config variables settings server" })
+append_command_spec({ name = "cvar", category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar.", keywords = "config variable set get protect server", detail = "Use !gt_cvar protect <name> to add a cvar to the runtime protected list." })
+append_command_spec({ name = "adminmenu", category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog.", keywords = "menu categories catalog ui", detail = "Admin menu reads the shared command catalog so text help and UI can stay in sync." })
+append_command_spec({ name = "say", category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a server chat message.", keywords = "broadcast chat message announce" })
+append_command_spec({ name = "psay", category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", keywords = "private whisper tell target", usesTargets = true })
+append_command_spec({ name = "kick", category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", keywords = "disconnect remove player", usesTargets = true })
+append_command_spec({ name = "ban", category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", keywords = "ban player timeout permanent", usesTargets = true })
+append_command_spec({ name = "banip", category = "Player Control", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", keywords = "ban address endpoint ip timeout permanent", usesTargets = true })
+append_command_spec({ name = "unban", category = "Player Control", usage = "!gt_unban <ip>", summary = "Remove an IP ban.", keywords = "unban pardon address ip" })
+append_command_spec({ name = "slay", category = "Player Control", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", keywords = "kill suicide eliminate", usesTargets = true })
+append_command_spec({ name = "burn", category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true })
+append_command_spec({ name = "gag", category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true })
+append_command_spec({ name = "rename", category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true })
+append_command_spec({ name = "map", category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map.", keywords = "level rotation change round" })
+append_command_spec({ name = "nextmap", category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map.", keywords = "level rotation next round future" })
+append_command_spec({ name = "seffect", category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", keywords = "blind earthquake scale speed lowgrav highgrav clear visual fx", usesTargets = true, showSeffectHelp = true })
+append_command_spec({ name = "auth", category = "Session", usage = "!gt_auth <password>", summary = "Authenticate this admin session.", keywords = "login password rcon session" })
+append_command_spec({ name = "logout", category = "Session", usage = "!gt_logout", summary = "End this admin session.", keywords = "log out unauthenticate session" })
+local command_catalog = {
+    help = { category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", detail = "Use a page number for paged output or a search term like cvar or ban." },
+    status = { category = "Reference", usage = "!gt_status", summary = "Show server, admin, and player status details." },
+    cvars = { category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text." },
+    cvar = { category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar." },
+    adminmenu = { category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog." },
+    say = { category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a server chat message." },
+    psay = { category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", usesTargets = true },
+    kick = { category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", usesTargets = true },
+    ban = { category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", usesTargets = true },
+    banip = { category = "Player Control", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", usesTargets = true },
+    unban = { category = "Player Control", usage = "!gt_unban <ip>", summary = "Remove an IP ban." },
+    slay = { category = "Player Control", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", usesTargets = true },
+    burn = { category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", usesTargets = true },
+    gag = { category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", usesTargets = true },
+    rename = { category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", usesTargets = true },
+    map = { category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map." },
+    nextmap = { category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map." },
+    seffect = { category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", usesTargets = true, showSeffectHelp = true },
+    auth = { category = "Session", usage = "!gt_auth <password>", summary = "Authenticate this admin session." },
+    logout = { category = "Session", usage = "!gt_logout", summary = "End this admin session." },
 }
+local help_page_command_keys = {
+    { "help", "status", "cvars", "cvar", "adminmenu", "say" },
+    { "psay", "kick", "ban", "banip", "unban", "slay" },
+    { "burn", "gag", "rename", "map", "nextmap", "seffect" },
+    { "auth", "logout" },
+}
+local admin_category_command_keys = {
+    { category = "Reference", keys = { "help", "status", "cvars", "cvar", "adminmenu" } },
+    { category = "Communication", keys = { "say", "psay" } },
+    { category = "Player Control", keys = { "kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename" } },
+    { category = "Match Control", keys = { "map", "nextmap" } },
+    { category = "Effects", keys = { "seffect" } },
+    { category = "Session", keys = { "auth", "logout" } },
+}
+local help_search_aliases = {
+    ["help"] = "help",
+    ["commands"] = "help",
+    ["page"] = "help",
+    ["search"] = "help",
+    ["status"] = "status",
+    ["players"] = "status",
+    ["userid"] = "status",
+    ["cvars"] = "cvars",
+    ["cvar"] = "cvar",
+    ["protect"] = "cvar",
+    ["adminmenu"] = "adminmenu",
+    ["menu"] = "adminmenu",
+    ["say"] = "say",
+    ["psay"] = "psay",
+    ["kick"] = "kick",
+    ["ban"] = "ban",
+    ["banip"] = "banip",
+    ["unban"] = "unban",
+    ["slay"] = "slay",
+    ["burn"] = "burn",
+    ["gag"] = "gag",
+    ["rename"] = "rename",
+    ["map"] = "map",
+    ["nextmap"] = "nextmap",
+    ["seffect"] = "seffect",
+    ["effect"] = "seffect",
+    ["auth"] = "auth",
+    ["logout"] = "logout",
+}
+local help_page_lines = {
+    [1] = "[GT] commands | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu | !gt_say <text>",
+    [2] = "[GT] commands | !gt_psay <target> <message> | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target>",
+    [3] = "[GT] commands | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_map <map> [area] | !gt_nextmap <map> [area] | !gt_seffect <effect> <target> [time]",
+    [4] = "[GT] commands | !gt_auth <password> | !gt_logout",
+}
+local admin_menu_lines = {
+    "[GT] category | Reference | count=5 | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu",
+    "[GT] category | Communication | count=2 | !gt_say <text> | !gt_psay <target> <message>",
+    "[GT] category | Player Control | count=8 | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target> | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name>",
+    "[GT] category | Match Control | count=2 | !gt_map <map> [area] | !gt_nextmap <map> [area]",
+    "[GT] category | Effects | count=1 | !gt_seffect <effect> <target> [time]",
+    "[GT] category | Session | count=2 | !gt_auth <password> | !gt_logout",
+}
+local send_private
+local send_private_lines
 
 local function trim(text)
     local normalized = (text or ""):gsub("^%s+", "")
@@ -92,39 +206,15 @@ local function split_first_word(text)
     return normalized:sub(1, space_index - 1), trim(normalized:sub(space_index + 1))
 end
 
-local function get_category_order(category_name)
-    for index, category in ipairs(command_categories) do
-        if category == category_name then
-            return index
-        end
-    end
-
-    return #command_categories + 1
-end
-
 local function get_sorted_command_specs()
-    local sorted = {}
-    for _, spec in ipairs(command_specs) do
-        table.insert(sorted, spec)
-    end
-
-    table.sort(sorted, function(left, right)
-        local left_order = get_category_order(left.category)
-        local right_order = get_category_order(right.category)
-        if left_order ~= right_order then
-            return left_order < right_order
-        end
-
-        return left.name < right.name
-    end)
-
-    return sorted
+    return command_specs
 end
 
 local function find_command_spec_by_name(name)
     local normalized = normalize_command_lookup(name)
-    for _, spec in ipairs(command_specs) do
-        if spec.name == normalized then
+    for index = 1, command_catalog_count do
+        local spec = command_specs[index]
+        if spec ~= nil and spec.name == normalized then
             return spec
         end
     end
@@ -138,27 +228,29 @@ local function command_matches_search(spec, search_text)
         return true
     end
 
-    local haystacks = {
-        spec.name,
-        spec.category,
-        spec.usage,
-        spec.summary,
-        spec.keywords or "",
-        spec.detail or "",
-    }
-    for _, value in ipairs(haystacks) do
-        if string.find(string.lower(value), normalized, 1, true) ~= nil then
-            return true
-        end
-    end
-
-    return false
+    return string.find(spec.name, normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.category), normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.usage), normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.summary), normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.keywords or ""), normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.detail or ""), normalized, 1, true) ~= nil
 end
 
 local function find_matching_command_specs(search_text)
     local matches = {}
-    for _, spec in ipairs(get_sorted_command_specs()) do
-        if command_matches_search(spec, search_text) then
+    local normalized = normalize_search_text(search_text)
+    local alias_name = help_search_aliases[normalize_command_lookup(search_text)] or help_search_aliases[normalized]
+    if alias_name ~= nil then
+        local alias_spec = find_command_spec_by_name(alias_name)
+        if alias_spec ~= nil then
+            table.insert(matches, alias_spec)
+            return matches
+        end
+    end
+
+    for index = 1, command_catalog_count do
+        local spec = command_specs[index]
+        if spec ~= nil and command_matches_search(spec, search_text) then
             table.insert(matches, spec)
         end
     end
@@ -166,12 +258,18 @@ local function find_matching_command_specs(search_text)
     return matches
 end
 
+local function format_command_summary_text(spec)
+    return spec.usage
+end
+
 local function send_command_summary_line(slot, spec)
-    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. spec.usage .. " | " .. spec.summary)
+    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. spec.usage)
+    send_private(slot, "[GT] summary | " .. spec.summary)
 end
 
 local function send_command_detail(slot, spec)
-    send_command_summary_line(slot, spec)
+    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. spec.usage)
+    send_private(slot, "[GT] summary | " .. spec.summary)
     if spec.detail ~= nil and spec.detail ~= "" then
         send_private(slot, "[GT] details | " .. spec.detail)
     end
@@ -183,18 +281,92 @@ local function send_command_detail(slot, spec)
     end
 end
 
-local function build_commands_by_category()
-    local grouped = {}
-    for _, category in ipairs(command_categories) do
-        grouped[category] = {}
+local function send_batched_command_summaries(slot, commands, prefix)
+    local batch = {}
+    for index = 1, #commands do
+        local spec = commands[index]
+        if spec ~= nil then
+            table.insert(batch, format_command_summary_text(spec))
+            if #batch >= 3 then
+                send_private(slot, prefix .. " | " .. table.concat(batch, " || "))
+                batch = {}
+            end
+        end
     end
 
-    for _, spec in ipairs(get_sorted_command_specs()) do
-        grouped[spec.category] = grouped[spec.category] or {}
-        table.insert(grouped[spec.category], spec)
+    if #batch > 0 then
+        send_private(slot, prefix .. " | " .. table.concat(batch, " || "))
+    end
+end
+
+local function join_command_usages(commands)
+    local text = ""
+    for index = 1, #commands do
+        local spec = commands[index]
+        if spec ~= nil then
+            if text ~= "" then
+                text = text .. " | "
+            end
+            text = text .. spec.usage
+        end
+    end
+
+    return text
+end
+
+local function build_commands_by_category()
+    local grouped = {}
+    for index = 1, command_category_count do
+        table.insert(grouped, {
+            category = command_categories[index],
+            commands = {}
+        })
+    end
+
+    for index = 1, command_catalog_count do
+        local spec = command_specs[index]
+        if spec ~= nil then
+            for category_index = 1, command_category_count do
+                local entry = grouped[category_index]
+                if entry.category == spec.category then
+                    table.insert(entry.commands, spec)
+                    break
+                end
+            end
+        end
     end
 
     return grouped
+end
+
+local function get_command_specs_for_keys(keys)
+    local specs = {}
+    if keys == nil then
+        return specs
+    end
+
+    for index = 1, #keys do
+        local spec = find_command_spec_by_name(keys[index])
+        if spec ~= nil then
+            specs[#specs + 1] = spec
+        end
+    end
+
+    return specs
+end
+
+local function get_command_specs_for_page(page_index)
+    local specs = {}
+    local start_index = ((page_index - 1) * help_page_size) + 1
+    local end_index = math.min(start_index + help_page_size - 1, command_catalog_count)
+    for index = start_index, end_index do
+        local spec = command_specs[index]
+        if spec ~= nil then
+            table.insert(specs, spec)
+        end
+    end
+
+    return specs
 end
 
 local function clamp(value, minimum, maximum)
@@ -260,11 +432,11 @@ local function format_ban_duration(minutes)
     return "for " .. tostring(minutes) .. " minute(s)"
 end
 
-local function send_private(slot, text)
+send_private = function(slot, text)
     plugin.host.send_system_message(slot, text)
 end
 
-local function send_private_lines(slot, lines)
+send_private_lines = function(slot, lines)
     for _, line in ipairs(lines) do
         send_private(slot, line)
     end
@@ -382,6 +554,15 @@ local function normalize_effect_id(effect_text)
     if normalized == "scale" or normalized == "size" then
         return "scale"
     end
+    if normalized == "speed" or normalized == "fast" or normalized == "faster" then
+        return "speed"
+    end
+    if normalized == "lowgrav" or normalized == "lowgravity" or normalized == "reducedgravity" then
+        return "lowgrav"
+    end
+    if normalized == "highgrav" or normalized == "highgravity" or normalized == "stronggravity" then
+        return "highgrav"
+    end
     if normalized == "clear" or normalized == "off" or normalized == "remove" then
         return "clear"
     end
@@ -408,6 +589,24 @@ local function load_config()
             minValue = clamp(tonumber(loaded.scale and loaded.scale.minValue) or default_config.scale.minValue, default_config.scale.minValue, default_config.scale.maxValue),
             maxValue = clamp(tonumber(loaded.scale and loaded.scale.maxValue) or default_config.scale.maxValue, default_config.scale.minValue, default_config.scale.maxValue),
             defaultValue = tonumber(loaded.scale and loaded.scale.defaultValue) or default_config.scale.defaultValue,
+        },
+        speed = {
+            defaultSeconds = clamp(tonumber(loaded.speed and loaded.speed.defaultSeconds) or default_config.speed.defaultSeconds, 0.1, 600.0),
+            minValue = clamp(tonumber(loaded.speed and loaded.speed.minValue) or default_config.speed.minValue, default_config.speed.minValue, default_config.speed.maxValue),
+            maxValue = clamp(tonumber(loaded.speed and loaded.speed.maxValue) or default_config.speed.maxValue, default_config.speed.minValue, default_config.speed.maxValue),
+            defaultValue = tonumber(loaded.speed and loaded.speed.defaultValue) or default_config.speed.defaultValue,
+        },
+        lowgrav = {
+            defaultSeconds = clamp(tonumber(loaded.lowgrav and loaded.lowgrav.defaultSeconds) or default_config.lowgrav.defaultSeconds, 0.1, 600.0),
+            minValue = clamp(tonumber(loaded.lowgrav and loaded.lowgrav.minValue) or default_config.lowgrav.minValue, default_config.lowgrav.minValue, default_config.lowgrav.maxValue),
+            maxValue = clamp(tonumber(loaded.lowgrav and loaded.lowgrav.maxValue) or default_config.lowgrav.maxValue, default_config.lowgrav.minValue, default_config.lowgrav.maxValue),
+            defaultValue = tonumber(loaded.lowgrav and loaded.lowgrav.defaultValue) or default_config.lowgrav.defaultValue,
+        },
+        highgrav = {
+            defaultSeconds = clamp(tonumber(loaded.highgrav and loaded.highgrav.defaultSeconds) or default_config.highgrav.defaultSeconds, 0.1, 600.0),
+            minValue = clamp(tonumber(loaded.highgrav and loaded.highgrav.minValue) or default_config.highgrav.minValue, default_config.highgrav.minValue, default_config.highgrav.maxValue),
+            maxValue = clamp(tonumber(loaded.highgrav and loaded.highgrav.maxValue) or default_config.highgrav.maxValue, default_config.highgrav.minValue, default_config.highgrav.maxValue),
+            defaultValue = tonumber(loaded.highgrav and loaded.highgrav.defaultValue) or default_config.highgrav.defaultValue,
         }
     }
 
@@ -415,8 +614,23 @@ local function load_config()
         normalized.scale.minValue = default_config.scale.minValue
         normalized.scale.maxValue = default_config.scale.maxValue
     end
+    if normalized.speed.minValue > normalized.speed.maxValue then
+        normalized.speed.minValue = default_config.speed.minValue
+        normalized.speed.maxValue = default_config.speed.maxValue
+    end
+    if normalized.lowgrav.minValue > normalized.lowgrav.maxValue then
+        normalized.lowgrav.minValue = default_config.lowgrav.minValue
+        normalized.lowgrav.maxValue = default_config.lowgrav.maxValue
+    end
+    if normalized.highgrav.minValue > normalized.highgrav.maxValue then
+        normalized.highgrav.minValue = default_config.highgrav.minValue
+        normalized.highgrav.maxValue = default_config.highgrav.maxValue
+    end
 
     normalized.scale.defaultValue = clamp(normalized.scale.defaultValue, normalized.scale.minValue, normalized.scale.maxValue)
+    normalized.speed.defaultValue = clamp(normalized.speed.defaultValue, normalized.speed.minValue, normalized.speed.maxValue)
+    normalized.lowgrav.defaultValue = clamp(normalized.lowgrav.defaultValue, normalized.lowgrav.minValue, normalized.lowgrav.maxValue)
+    normalized.highgrav.defaultValue = clamp(normalized.highgrav.defaultValue, normalized.highgrav.minValue, normalized.highgrav.maxValue)
 
     if normalized.clientEffectsPluginId == "" then
         normalized.clientEffectsPluginId = default_config.clientEffectsPluginId
@@ -476,6 +690,70 @@ local function cancel_effect_timer(timer_id)
     end
 end
 
+local function is_client_effect(effect_id)
+    return effect_id == "blind" or effect_id == "earthquake"
+end
+
+local function find_conflicting_effect_entry(slot, effect_id)
+    if effect_id == "lowgrav" or effect_id == "highgrav" then
+        local lowgrav_entry = active_effects[create_effect_key(slot, "lowgrav")]
+        if lowgrav_entry ~= nil then
+            return lowgrav_entry
+        end
+
+        local highgrav_entry = active_effects[create_effect_key(slot, "highgrav")]
+        if highgrav_entry ~= nil then
+            return highgrav_entry
+        end
+
+        return nil
+    end
+
+    return active_effects[create_effect_key(slot, effect_id)]
+end
+
+local clear_effect_entry
+
+local function clear_conflicting_effect_entries(slot, effect_id)
+    if effect_id == "lowgrav" or effect_id == "highgrav" then
+        clear_effect_entry(slot, "lowgrav", false)
+        clear_effect_entry(slot, "highgrav", false)
+        return
+    end
+
+    clear_effect_entry(slot, effect_id, false)
+end
+
+local function restore_effect_state(entry)
+    if entry == nil then
+        return
+    end
+
+    if entry.effectId == "scale" then
+        if entry.restoreScale ~= nil then
+            plugin.host.try_set_player_scale(entry.slot, entry.restoreScale)
+        end
+        return
+    end
+
+    if entry.effectId == "speed" then
+        if entry.restoreMovementSpeedUsesGlobal then
+            plugin.host.try_clear_player_movement_speed_scale(entry.slot)
+        elseif entry.restoreMovementSpeedScale ~= nil then
+            plugin.host.try_set_player_movement_speed_scale(entry.slot, entry.restoreMovementSpeedScale)
+        end
+        return
+    end
+
+    if entry.effectId == "lowgrav" or entry.effectId == "highgrav" then
+        if entry.restoreGravityUsesGlobal then
+            plugin.host.try_clear_player_gravity_scale(entry.slot)
+        elseif entry.restoreGravityScale ~= nil then
+            plugin.host.try_set_player_gravity_scale(entry.slot, entry.restoreGravityScale)
+        end
+    end
+end
+
 local function collect_active_effect_keys(predicate)
     local keys = {}
     for key, entry in pairs(active_effects) do
@@ -486,7 +764,7 @@ local function collect_active_effect_keys(predicate)
     return keys
 end
 
-local function clear_effect_entry(slot, effect_id, notify_client)
+clear_effect_entry = function(slot, effect_id, notify_client)
     local effect_key = create_effect_key(slot, effect_id)
     local entry = active_effects[effect_key]
     if entry == nil then
@@ -494,12 +772,10 @@ local function clear_effect_entry(slot, effect_id, notify_client)
     end
 
     cancel_effect_timer(entry.timerId)
-    if effect_id == "scale" and entry.restoreScale ~= nil then
-        plugin.host.try_set_player_scale(slot, entry.restoreScale)
-    end
+    restore_effect_state(entry)
     active_effects[effect_key] = nil
-    if notify_client and (effect_id == "blind" or effect_id == "earthquake") then
-        send_effect_clear(slot, effect_id)
+    if notify_client and is_client_effect(entry.effectId) then
+        send_effect_clear(slot, entry.effectId)
     end
 
     return true
@@ -514,11 +790,9 @@ local function clear_effects_for_slot(slot, notify_client)
         local entry = active_effects[key]
         if entry ~= nil then
             cancel_effect_timer(entry.timerId)
-            if entry.effectId == "scale" and entry.restoreScale ~= nil then
-                plugin.host.try_set_player_scale(entry.slot, entry.restoreScale)
-            end
+            restore_effect_state(entry)
             active_effects[key] = nil
-            if notify_client and (entry.effectId == "blind" or entry.effectId == "earthquake") then
+            if notify_client and is_client_effect(entry.effectId) then
                 send_effect_clear(entry.slot, entry.effectId)
             end
             cleared_count = cleared_count + 1
@@ -541,11 +815,9 @@ local function clear_all_effects(notify_client)
         local entry = active_effects[key]
         if entry ~= nil then
             cancel_effect_timer(entry.timerId)
-            if entry.effectId == "scale" and entry.restoreScale ~= nil then
-                plugin.host.try_set_player_scale(entry.slot, entry.restoreScale)
-            end
+            restore_effect_state(entry)
             active_effects[key] = nil
-            if notify_client and (entry.effectId == "blind" or entry.effectId == "earthquake") then
+            if notify_client and is_client_effect(entry.effectId) then
                 send_effect_clear(entry.slot, entry.effectId)
             end
         end
@@ -561,6 +833,15 @@ local function get_default_effect_duration(effect_id)
     end
     if effect_id == "scale" then
         return config.scale.defaultSeconds
+    end
+    if effect_id == "speed" then
+        return config.speed.defaultSeconds
+    end
+    if effect_id == "lowgrav" then
+        return config.lowgrav.defaultSeconds
+    end
+    if effect_id == "highgrav" then
+        return config.highgrav.defaultSeconds
     end
     return nil
 end
@@ -583,38 +864,105 @@ local function parse_duration_seconds(text, effect_id)
     return clamp(parsed, 0.1, 600.0), nil
 end
 
-local function parse_scale_value_and_duration(text)
+local function get_numeric_effect_config(effect_id)
+    if effect_id == "scale" then
+        return config.scale, "Scale"
+    end
+    if effect_id == "speed" then
+        return config.speed, "Speed scale"
+    end
+    if effect_id == "lowgrav" or effect_id == "highgrav" then
+        return effect_id == "lowgrav" and config.lowgrav or config.highgrav, "Gravity scale"
+    end
+
+    return nil, nil
+end
+
+local function parse_numeric_effect_value_and_duration(effect_id, text)
+    local effect_config, value_label = get_numeric_effect_config(effect_id)
+    if effect_config == nil then
+        return nil, nil, "Unsupported effect value parser."
+    end
+
     local normalized = trim(text)
     if normalized == "" then
-        return config.scale.defaultValue, config.scale.defaultSeconds, nil
+        return effect_config.defaultValue, effect_config.defaultSeconds, nil
     end
 
-    local scale_text, remainder = split_first_word(normalized)
-    local parsed_scale = tonumber(scale_text)
-    if parsed_scale == nil then
-        return nil, nil, "Scale must be a number."
+    local value_text, remainder = split_first_word(normalized)
+    local parsed_value = tonumber(value_text)
+    if parsed_value == nil then
+        return nil, nil, value_label .. " must be a number."
     end
 
-    if parsed_scale < config.scale.minValue or parsed_scale > config.scale.maxValue then
-        return nil, nil, "Scale must be between " .. tostring(config.scale.minValue) .. " and " .. tostring(config.scale.maxValue) .. "."
+    if parsed_value < effect_config.minValue or parsed_value > effect_config.maxValue then
+        return nil, nil, value_label .. " must be between " .. tostring(effect_config.minValue) .. " and " .. tostring(effect_config.maxValue) .. "."
     end
 
-    local duration_seconds, duration_error = parse_duration_seconds(remainder, "scale")
+    local duration_seconds, duration_error = parse_duration_seconds(remainder, effect_id)
     if duration_seconds == nil then
         return nil, nil, duration_error
     end
 
-    return parsed_scale, duration_seconds, nil
+    return parsed_value, duration_seconds, nil
+end
+
+local function get_target_player_scale(target)
+    return target.playerScale or target.PlayerScale or 1
+end
+
+local function get_target_movement_speed_scale(target)
+    return target.movementSpeedScale or target.MovementSpeedScale or 1
+end
+
+local function get_target_has_movement_speed_scale_override(target)
+    local value = target.hasMovementSpeedScaleOverride
+    if value == nil then
+        value = target.HasMovementSpeedScaleOverride
+    end
+
+    return value == true
+end
+
+local function get_target_gravity_scale(target)
+    return target.gravityScale or target.GravityScale or 1
+end
+
+local function get_target_has_gravity_scale_override(target)
+    local value = target.hasGravityScaleOverride
+    if value == nil then
+        value = target.HasGravityScaleOverride
+    end
+
+    return value == true
 end
 
 local function apply_effect_to_slot(slot, effect_id, duration_seconds, parameters)
-    clear_effect_entry(slot, effect_id, false)
+    clear_conflicting_effect_entries(slot, effect_id)
 
     local restore_scale = nil
+    local restore_movement_speed_scale = nil
+    local restore_movement_speed_uses_global = false
+    local restore_gravity_scale = nil
+    local restore_gravity_uses_global = false
     if effect_id == "scale" then
         restore_scale = parameters ~= nil and parameters.restoreScale or nil
         local next_scale = parameters ~= nil and parameters.scale or config.scale.defaultValue
         if not plugin.host.try_set_player_scale(slot, next_scale) then
+            return false
+        end
+    elseif effect_id == "speed" then
+        restore_movement_speed_scale = parameters ~= nil and parameters.restoreMovementSpeedScale or nil
+        restore_movement_speed_uses_global = parameters ~= nil and parameters.restoreMovementSpeedUsesGlobal or false
+        local next_scale = parameters ~= nil and parameters.scale or config.speed.defaultValue
+        if not plugin.host.try_set_player_movement_speed_scale(slot, next_scale) then
+            return false
+        end
+    elseif effect_id == "lowgrav" or effect_id == "highgrav" then
+        restore_gravity_scale = parameters ~= nil and parameters.restoreGravityScale or nil
+        restore_gravity_uses_global = parameters ~= nil and parameters.restoreGravityUsesGlobal or false
+        local next_scale = parameters ~= nil and parameters.scale or (effect_id == "lowgrav" and config.lowgrav.defaultValue or config.highgrav.defaultValue)
+        if not plugin.host.try_set_player_gravity_scale(slot, next_scale) then
             return false
         end
     else
@@ -623,20 +971,26 @@ local function apply_effect_to_slot(slot, effect_id, duration_seconds, parameter
 
     local effect_key = create_effect_key(slot, effect_id)
     local timer_id = nil
-    timer_id = plugin.host.schedule_once(duration_seconds, function()
-        local entry = active_effects[effect_key]
-        if entry == nil or entry.timerId ~= timer_id then
-            return
-        end
+    if duration_seconds ~= nil and duration_seconds > 0.0 then
+        timer_id = plugin.host.schedule_once(duration_seconds, function()
+            local entry = active_effects[effect_key]
+            if entry == nil then
+                return
+            end
 
-        clear_effect_entry(slot, effect_id, true)
-    end, "gt_seffect " .. effect_id .. " slot " .. tostring(slot))
+            clear_effect_entry(slot, effect_id, true)
+        end, "gt_seffect " .. effect_id .. " slot " .. tostring(slot))
+    end
 
     active_effects[effect_key] = {
         slot = slot,
         effectId = effect_id,
         timerId = timer_id,
         restoreScale = restore_scale,
+        restoreMovementSpeedScale = restore_movement_speed_scale,
+        restoreMovementSpeedUsesGlobal = restore_movement_speed_uses_global,
+        restoreGravityScale = restore_gravity_scale,
+        restoreGravityUsesGlobal = restore_gravity_uses_global,
     }
 
     return true
@@ -653,53 +1007,59 @@ local function handle_help(event, arguments)
 
     local page_number = tonumber(search_text)
     if search_text ~= "" and page_number ~= nil and page_number == math.floor(page_number) then
-        local commands = get_sorted_command_specs()
-        local total_count = #commands
-        local total_pages = math.max(1, math.ceil(total_count / help_page_size))
-        local page_index = clamp(page_number, 1, total_pages)
-        local start_index = (page_index - 1) * help_page_size + 1
-        local end_index = math.min(start_index + help_page_size - 1, total_count)
-
-        send_private(event.slot, "[GT] help | page=" .. tostring(page_index) .. "/" .. tostring(total_pages) .. " | commands=" .. tostring(total_count))
-        for index = start_index, end_index do
-            send_command_summary_line(event.slot, commands[index])
-        end
-        send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search>")
-        send_private(event.slot, target_help_line)
+        local page_index = clamp(page_number, 1, help_page_count)
+        send_private(event.slot, "[GT] help | page=" .. tostring(page_index) .. "/" .. tostring(help_page_count) .. " | commands=" .. tostring(command_catalog_count))
+        send_private(event.slot, help_page_lines[page_index] or help_page_lines[1])
+        send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search> | targets: name | #userid | @me | @all | @alive | @dead | @red | @blue")
         return true
     end
 
     if search_text ~= "" then
-        local matches = find_matching_command_specs(search_text)
-        if #matches == 0 then
+        if normalize_search_text(search_text) == "protect" then
+            send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=1")
+            send_private(event.slot, "[GT] usage: !gt_cvar protect <name>")
+            send_command_detail(event.slot, find_command_spec_by_name("cvar"))
+            return true
+        end
+
+        local match_count = 0
+        local first_match = nil
+        for index = 1, command_catalog_count do
+            local spec = command_specs[index]
+            if spec ~= nil and command_matches_search(spec, search_text) then
+                match_count = match_count + 1
+                if first_match == nil then
+                    first_match = spec
+                end
+            end
+        end
+
+        if match_count == 0 then
             send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=0")
             return true
         end
 
-        send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=" .. tostring(#matches))
-        for _, spec in ipairs(matches) do
-            send_command_summary_line(event.slot, spec)
-        end
-        if #matches == 1 then
-            send_command_detail(event.slot, matches[1])
+        send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=" .. tostring(match_count))
+        if match_count == 1 and first_match ~= nil then
+            send_command_detail(event.slot, first_match)
+        elseif first_match ~= nil then
+            send_private(event.slot, "[GT] matches | " .. first_match.usage)
         end
         return true
     end
 
-    local commands = get_sorted_command_specs()
-    local total_pages = math.max(1, math.ceil(#commands / help_page_size))
-    send_private(event.slot, "[GT] help | page=1/" .. tostring(total_pages) .. " | commands=" .. tostring(#commands))
-    for index = 1, math.min(help_page_size, #commands) do
-        send_command_summary_line(event.slot, commands[index])
-    end
-    send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search>")
-    send_private(event.slot, target_help_line)
+    send_private(event.slot, "[GT] help | page=1/" .. tostring(help_page_count) .. " | commands=" .. tostring(command_catalog_count))
+    send_private(event.slot, help_page_lines[1])
+    send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search> | targets: name | #userid | @me | @all | @alive | @dead | @red | @blue")
     return true
 end
 
 local function handle_status(context, event)
     local summary = plugin.host.get_admin_summary()
     local players, _ = resolve_targets(event.slot, "@all", { allowMultiple = true, includeSpectators = true })
+    local identity = context ~= nil and (context.identity or context.Identity) or nil
+    local identity_display_name = identity ~= nil and (identity.displayName or identity.DisplayName) or "Admin"
+    local identity_authority = identity ~= nil and (identity.authority or identity.Authority) or "Unknown"
     send_private(
         event.slot,
         "[GT] status | server=" .. summary.serverName
@@ -718,8 +1078,8 @@ local function handle_status(context, event)
             .. "-" .. tostring(summary.blueCaps))
     send_private(
         event.slot,
-        "[GT] admin | identity=" .. context.identity.displayName
-            .. " | authority=" .. context.identity.authority
+        "[GT] admin | identity=" .. tostring(identity_display_name)
+            .. " | authority=" .. tostring(identity_authority)
             .. " | timers=" .. tostring(summary.scheduledTaskCount)
             .. " | uptime=" .. string.format("%.0fs", tonumber(summary.uptimeSeconds) or 0))
     if players ~= nil then
@@ -843,7 +1203,7 @@ local function handle_seffect(event, arguments)
     local effect_id = normalize_effect_id(effect_text)
     if effect_id == nil then
         send_private(event.slot, "[GT] usage: !gt_seffect <effect> <target> [time]")
-        send_private(event.slot, "[GT] usage: !gt_seffect scale <target> [scale] [time]")
+        send_private(event.slot, "[GT] usage: !gt_seffect scale|speed|lowgrav|highgrav <target> [value] [time]")
         send_private(event.slot, seffect_help_line)
         return true
     end
@@ -851,7 +1211,7 @@ local function handle_seffect(event, arguments)
     local target_text, trailing = parse_target_and_optional_argument(remainder)
     if target_text == nil then
         send_private(event.slot, "[GT] usage: !gt_seffect <effect> <target> [time]")
-        send_private(event.slot, "[GT] usage: !gt_seffect scale <target> [scale] [time]")
+        send_private(event.slot, "[GT] usage: !gt_seffect scale|speed|lowgrav|highgrav <target> [value] [time]")
         return true
     end
 
@@ -902,15 +1262,15 @@ local function handle_seffect(event, arguments)
 
     local duration_seconds = nil
     local effect_parameters = nil
-    if effect_id == "scale" then
-        local scale_value, parsed_duration_seconds, scale_error = parse_scale_value_and_duration(trailing)
-        if scale_value == nil then
-            send_private(event.slot, "[GT] " .. scale_error)
+    if effect_id == "scale" or effect_id == "speed" or effect_id == "lowgrav" or effect_id == "highgrav" then
+        local effect_value, parsed_duration_seconds, effect_value_error = parse_numeric_effect_value_and_duration(effect_id, trailing)
+        if effect_value == nil then
+            send_private(event.slot, "[GT] " .. effect_value_error)
             return true
         end
 
         duration_seconds = parsed_duration_seconds
-        effect_parameters = { scale = scale_value }
+        effect_parameters = { scale = effect_value }
     else
         local duration_error = nil
         duration_seconds, duration_error = parse_duration_seconds(trailing, effect_id)
@@ -926,10 +1286,24 @@ local function handle_seffect(event, arguments)
         local target = targets[index]
         local parameters = effect_parameters
         if effect_id == "scale" then
-            local active_entry = active_effects[create_effect_key(target.slot, effect_id)]
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
             parameters = {
                 scale = effect_parameters.scale,
-                restoreScale = active_entry ~= nil and active_entry.restoreScale or target.playerScale,
+                restoreScale = active_entry ~= nil and active_entry.restoreScale or get_target_player_scale(target),
+            }
+        elseif effect_id == "speed" then
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
+            parameters = {
+                scale = effect_parameters.scale,
+                restoreMovementSpeedScale = active_entry ~= nil and active_entry.restoreMovementSpeedScale or get_target_movement_speed_scale(target),
+                restoreMovementSpeedUsesGlobal = active_entry ~= nil and active_entry.restoreMovementSpeedUsesGlobal or not get_target_has_movement_speed_scale_override(target),
+            }
+        elseif effect_id == "lowgrav" or effect_id == "highgrav" then
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
+            parameters = {
+                scale = effect_parameters.scale,
+                restoreGravityScale = active_entry ~= nil and active_entry.restoreGravityScale or get_target_gravity_scale(target),
+                restoreGravityUsesGlobal = active_entry ~= nil and active_entry.restoreGravityUsesGlobal or not get_target_has_gravity_scale_override(target),
             }
         end
 
@@ -939,10 +1313,10 @@ local function handle_seffect(event, arguments)
         index = index + 1
     end
 
-    if effect_id == "scale" then
+    if effect_id == "scale" or effect_id == "speed" or effect_id == "lowgrav" or effect_id == "highgrav" then
         send_private(
             event.slot,
-            "[GT] applied scale "
+            "[GT] applied " .. effect_id .. " "
                 .. tostring(effect_parameters.scale)
                 .. " to " .. tostring(applied_count)
                 .. " target(s) for " .. format_seconds(duration_seconds) .. "s.")
@@ -1289,19 +1663,687 @@ local function handle_nextmap(event, arguments)
     return true
 end
 
-local function handle_admin_menu(event)
-    local grouped = build_commands_by_category()
-    send_private(event.slot, "[GT] admin menu | categories=" .. tostring(#command_categories) .. " | commands=" .. tostring(#command_specs))
-    for _, category in ipairs(command_categories) do
-        local commands = grouped[category]
-        if commands ~= nil and commands[1] ~= nil then
-            send_private(event.slot, "[GT] category | " .. category .. " | count=" .. tostring(#commands))
-            for _, spec in ipairs(commands) do
-                send_command_summary_line(event.slot, spec)
-            end
+local admin_menu_scale_values = { "1.0", "0.9", "0.8", "0.7", "0.6", "0.5", "0.4", "0.3", "0.2", "0.1" }
+local admin_menu_speed_values = { "0.5", "0.75", "1.0", "1.25", "1.5", "2.0", "2.5", "3.0", "4.0" }
+local admin_menu_gravity_values = { "0.1", "0.25", "0.5", "0.75", "1.0", "1.5", "2.0", "3.0", "4.0" }
+
+local function shallow_copy_table(source)
+    local copy = {}
+    if source == nil then
+        return copy
+    end
+
+    for key, value in pairs(source) do
+        copy[key] = value
+    end
+
+    return copy
+end
+
+local function escape_admin_menu_value(text)
+    local value = tostring(text or "")
+    value = value:gsub("%%", "%%25")
+    value = value:gsub("\t", "%%09")
+    value = value:gsub("\r", "%%0D")
+    value = value:gsub("\n", "%%0A")
+    return value
+end
+
+local function build_admin_menu_payload(screen)
+    local entries = screen ~= nil and screen.entries or {}
+    local lines = {}
+    lines[1] = escape_admin_menu_value(screen ~= nil and screen.title or "")
+    lines[2] = escape_admin_menu_value(screen ~= nil and screen.subtitle or "")
+    lines[3] = escape_admin_menu_value(screen ~= nil and screen.breadcrumb or "")
+    for index = 1, #entries do
+        local entry = entries[index]
+        if entry ~= nil then
+            lines[#lines + 1] = escape_admin_menu_value(entry.token or "") .. "\t" .. escape_admin_menu_value(entry.label or entry.token or "")
         end
     end
-    send_private(event.slot, "[GT] admin menu UI is not available yet; showing the shared command catalog.")
+
+    return table.concat(lines, "\n")
+end
+
+local function make_admin_menu_screen(title, subtitle, breadcrumb, entries)
+    return {
+        title = title or "Admin Menu",
+        subtitle = subtitle or "",
+        breadcrumb = breadcrumb or "",
+        entries = entries or {},
+    }
+end
+
+local function send_admin_menu_screen(slot, screen)
+    plugin.host.send_message_to_client(
+        slot,
+        admin_menu_client_plugin_id,
+        admin_menu_open_message_type,
+        build_admin_menu_payload(screen))
+end
+
+local function close_all_admin_menu_sessions(notify_client)
+    for slot, _ in pairs(admin_menu_sessions) do
+        if notify_client then
+            plugin.host.send_message_to_client(
+                slot,
+                admin_menu_client_plugin_id,
+                admin_menu_close_message_type,
+                "")
+        end
+    end
+
+    admin_menu_sessions = {}
+end
+
+local function close_admin_menu_session(slot)
+    admin_menu_sessions[slot] = nil
+    plugin.host.send_message_to_client(
+        slot,
+        admin_menu_client_plugin_id,
+        admin_menu_close_message_type,
+        "")
+end
+
+local function create_admin_menu_session(context, slot)
+    local identity = nil
+    local is_authenticated_admin = false
+    if context ~= nil then
+        identity = context.identity or context.Identity
+        is_authenticated_admin = context.isAuthenticatedAdmin == true or context.IsAuthenticatedAdmin == true
+    end
+
+    return {
+        slot = slot,
+        commandContext = {
+            identity = identity,
+            isAuthenticatedAdmin = is_authenticated_admin,
+        },
+        state = {
+            screen = admin_menu_root_screen,
+        },
+        stack = {},
+    }
+end
+
+local function push_admin_menu_state(session, next_state)
+    session.stack[#session.stack + 1] = shallow_copy_table(session.state)
+    session.state = next_state
+end
+
+local function pop_admin_menu_state(session)
+    if #session.stack == 0 then
+        return false
+    end
+
+    session.state = table.remove(session.stack)
+    return true
+end
+
+local function paginate_admin_menu_items(items, requested_page, page_size)
+    local total_pages = math.max(1, math.ceil(#items / page_size))
+    local page_index = clamp(requested_page or 1, 1, total_pages)
+    local page_items = {}
+    local start_index = ((page_index - 1) * page_size) + 1
+    local end_index = math.min(start_index + page_size - 1, #items)
+    for index = start_index, end_index do
+        page_items[#page_items + 1] = items[index]
+    end
+
+    return page_items, page_index, total_pages
+end
+
+local function next_admin_menu_page(page_index, total_pages)
+    if total_pages <= 1 then
+        return 1
+    end
+
+    return page_index >= total_pages and 1 or (page_index + 1)
+end
+
+local function get_admin_menu_players()
+    local resolved = plugin.host.resolve_targets("@all", {
+        sourceSlot = nil,
+        allowMultiple = true,
+        includeSpectators = true,
+    })
+    if resolved == nil or not resolved.success or resolved.targets == nil then
+        return {}
+    end
+
+    local players = {}
+    local index = 1
+    while resolved.targets[index] ~= nil do
+        players[#players + 1] = resolved.targets[index]
+        index = index + 1
+    end
+
+    table.sort(players, function(left, right)
+        local left_name = string.lower(left.name or "")
+        local right_name = string.lower(right.name or "")
+        if left_name == right_name then
+            return (left.userId or 0) < (right.userId or 0)
+        end
+
+        return left_name < right_name
+    end)
+    return players
+end
+
+local function get_admin_menu_value_options(action_kind)
+    if action_kind == "scale" then
+        return admin_menu_scale_values
+    end
+    if action_kind == "speed" then
+        return admin_menu_speed_values
+    end
+    if action_kind == "gravity" then
+        return admin_menu_gravity_values
+    end
+
+    return {}
+end
+
+local function get_admin_menu_action_title(action_kind)
+    if action_kind == "kick" then
+        return "Kick"
+    end
+    if action_kind == "slay" then
+        return "Slay"
+    end
+    if action_kind == "gag" then
+        return "Gag"
+    end
+    if action_kind == "scale" then
+        return "Scale"
+    end
+    if action_kind == "speed" then
+        return "Movement speed"
+    end
+    if action_kind == "gravity" then
+        return "Gravity"
+    end
+    if action_kind == "blind" then
+        return "Blind"
+    end
+    if action_kind == "burn" then
+        return "Burn"
+    end
+    if action_kind == "earthquake" or action_kind == "earthquake_all" then
+        return "Earthquake"
+    end
+    if action_kind == "blind_all" then
+        return "Blind"
+    end
+
+    return "Action"
+end
+
+local function get_admin_menu_action_breadcrumb(action_kind)
+    if action_kind == "kick" or action_kind == "slay" or action_kind == "gag" then
+        return "Player management > " .. get_admin_menu_action_title(action_kind)
+    end
+    if action_kind == "scale" or action_kind == "speed" or action_kind == "gravity" then
+        return "Fun > Player effects > Modifiers > " .. get_admin_menu_action_title(action_kind)
+    end
+    if action_kind == "blind" or action_kind == "burn" or action_kind == "earthquake" then
+        return "Fun > Player effects > Status effects > " .. get_admin_menu_action_title(action_kind)
+    end
+    if action_kind == "blind_all" or action_kind == "earthquake_all" then
+        return "Fun > Game effects > " .. get_admin_menu_action_title(action_kind)
+    end
+
+    return "Admin Menu"
+end
+
+local function format_admin_menu_duration_label(duration_seconds)
+    if duration_seconds ~= nil and duration_seconds <= 0 then
+        return "until cleared"
+    end
+
+    return "for " .. format_seconds(duration_seconds or 0) .. "s"
+end
+
+local function execute_menu_seffect_action(slot, effect_id, target_text, effect_value, duration_seconds)
+    local targets, error_text = resolve_targets(slot, target_text, {
+        allowMultiple = true,
+        includeSpectators = true,
+    })
+    if targets == nil then
+        send_private(slot, "[GT] " .. error_text)
+        return false
+    end
+
+    local applied_count = 0
+    local index = 1
+    while targets[index] ~= nil do
+        local target = targets[index]
+        local parameters = nil
+        if effect_id == "scale" then
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
+            parameters = {
+                scale = effect_value,
+                restoreScale = active_entry ~= nil and active_entry.restoreScale or get_target_player_scale(target),
+            }
+        elseif effect_id == "speed" then
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
+            parameters = {
+                scale = effect_value,
+                restoreMovementSpeedScale = active_entry ~= nil and active_entry.restoreMovementSpeedScale or get_target_movement_speed_scale(target),
+                restoreMovementSpeedUsesGlobal = active_entry ~= nil and active_entry.restoreMovementSpeedUsesGlobal or not get_target_has_movement_speed_scale_override(target),
+            }
+        elseif effect_id == "lowgrav" or effect_id == "highgrav" then
+            local active_entry = find_conflicting_effect_entry(target.slot, effect_id)
+            parameters = {
+                scale = effect_value,
+                restoreGravityScale = active_entry ~= nil and active_entry.restoreGravityScale or get_target_gravity_scale(target),
+                restoreGravityUsesGlobal = active_entry ~= nil and active_entry.restoreGravityUsesGlobal or not get_target_has_gravity_scale_override(target),
+            }
+        end
+
+        if apply_effect_to_slot(target.slot, effect_id, duration_seconds, parameters) then
+            applied_count = applied_count + 1
+        end
+        index = index + 1
+    end
+
+    if applied_count <= 0 then
+        send_private(slot, "[GT] no targets were updated.")
+        return false
+    end
+
+    local value_suffix = effect_value ~= nil and (" " .. tostring(effect_value)) or ""
+    send_private(
+        slot,
+        "[GT] applied " .. effect_id .. value_suffix
+            .. " to " .. tostring(applied_count)
+            .. " target(s) " .. format_admin_menu_duration_label(duration_seconds) .. ".")
+    return true
+end
+
+local function execute_admin_menu_action(session, action_kind, target_text, selected_value, duration_seconds)
+    local event = { slot = session.slot }
+    if action_kind == "kick" then
+        return handle_kick(event, target_text)
+    end
+    if action_kind == "slay" then
+        return handle_slay(event, target_text)
+    end
+    if action_kind == "gag" then
+        return handle_gag(event, target_text)
+    end
+    if action_kind == "blind" then
+        return execute_menu_seffect_action(session.slot, "blind", target_text, nil, duration_seconds)
+    end
+    if action_kind == "blind_all" then
+        return execute_menu_seffect_action(session.slot, "blind", "@all", nil, duration_seconds)
+    end
+    if action_kind == "earthquake" then
+        return execute_menu_seffect_action(session.slot, "earthquake", target_text, nil, duration_seconds)
+    end
+    if action_kind == "earthquake_all" then
+        return execute_menu_seffect_action(session.slot, "earthquake", "@all", nil, duration_seconds)
+    end
+    if action_kind == "burn" then
+        return handle_burn(event, target_text .. " " .. tostring(duration_seconds or default_burn_seconds))
+    end
+    if action_kind == "scale" then
+        return execute_menu_seffect_action(session.slot, "scale", target_text, tonumber(selected_value), duration_seconds)
+    end
+    if action_kind == "speed" then
+        return execute_menu_seffect_action(session.slot, "speed", target_text, tonumber(selected_value), duration_seconds)
+    end
+    if action_kind == "gravity" then
+        local gravity_value = tonumber(selected_value) or 1.0
+        local gravity_effect = gravity_value > 1.0 and "highgrav" or "lowgrav"
+        return execute_menu_seffect_action(session.slot, gravity_effect, target_text, gravity_value, duration_seconds)
+    end
+    if action_kind == "status" then
+        return handle_status(session.commandContext, event)
+    end
+    if action_kind == "help" then
+        return handle_help(event, "")
+    end
+
+    return false
+end
+
+local function build_admin_menu_target_screen(state)
+    local players = get_admin_menu_players()
+    local page_items, page_index, total_pages = paginate_admin_menu_items(players, state.page or 1, 3)
+    local entries = {}
+    for index = 1, #page_items do
+        local player = page_items[index]
+        entries[#entries + 1] = {
+            token = "target:#" .. tostring(player.userId),
+            label = tostring(player.name) .. " (#" .. tostring(player.userId) .. ")",
+        }
+    end
+
+    if total_pages > 1 then
+        entries[#entries + 1] = {
+            token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
+            label = "Next",
+        }
+    end
+
+    entries[#entries + 1] = { token = "back", label = "Back" }
+    entries[#entries + 1] = { token = "close", label = "Close" }
+
+    return make_admin_menu_screen(
+        "Select target",
+        "Page " .. tostring(page_index) .. "/" .. tostring(total_pages),
+        state.breadcrumb or "Admin Menu",
+        entries)
+end
+
+local function build_admin_menu_value_screen(state)
+    local options = get_admin_menu_value_options(state.actionKind)
+    local page_items, page_index, total_pages = paginate_admin_menu_items(options, state.page or 1, 4)
+    local entries = {}
+    for index = 1, #page_items do
+        local value = tostring(page_items[index])
+        entries[#entries + 1] = {
+            token = "value:" .. value,
+            label = value,
+        }
+    end
+
+    if total_pages > 1 then
+        entries[#entries + 1] = {
+            token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
+            label = "Next",
+        }
+    end
+
+    entries[#entries + 1] = { token = "back", label = "Back" }
+    if #entries < 6 then
+        entries[#entries + 1] = { token = "close", label = "Close" }
+    end
+
+    return make_admin_menu_screen(
+        "Select " .. string.lower(get_admin_menu_action_title(state.actionKind) or "value"),
+        "Page " .. tostring(page_index) .. "/" .. tostring(total_pages),
+        state.breadcrumb or "Admin Menu",
+        entries)
+end
+
+local function build_admin_menu_duration_screen(state)
+    local entries = {}
+    if state.includeInfinite then
+        entries[#entries + 1] = { token = "duration:0", label = "Infinite" }
+    end
+    entries[#entries + 1] = { token = "duration:180", label = "3 min" }
+    entries[#entries + 1] = { token = "duration:30", label = "30 seconds" }
+    entries[#entries + 1] = { token = "duration:10", label = "10 seconds" }
+    entries[#entries + 1] = { token = "back", label = "Back" }
+    entries[#entries + 1] = { token = "close", label = "Close" }
+    return make_admin_menu_screen(
+        "Duration",
+        "Pick how long the effect should last.",
+        state.breadcrumb or "Admin Menu",
+        entries)
+end
+
+local function build_admin_menu_screen_for_session(session)
+    local state = session.state
+    if state.screen == admin_menu_root_screen then
+        return make_admin_menu_screen("Admin Menu", "Choose a branch.", "", {
+            { token = "nav:server_management", label = "Server management" },
+            { token = "nav:game_management", label = "Game management" },
+            { token = "nav:player_management", label = "Player management" },
+            { token = "nav:fun", label = "Fun" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "server_management" then
+        return make_admin_menu_screen("Server management", "Reference and diagnostics.", "Server management", {
+            { token = "execute:status", label = "Status" },
+            { token = "execute:help", label = "Help" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "game_management" then
+        return make_admin_menu_screen("Game management", "Map selection is still chat-driven.", "Game management", {
+            { token = "info:game_management", label = "Use !gt_map / !gt_nextmap for now" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "player_management" then
+        return make_admin_menu_screen("Player management", "Choose a player action.", "Player management", {
+            { token = "action:kick", label = "Kick" },
+            { token = "action:slay", label = "Slay" },
+            { token = "action:gag", label = "Gag" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "fun" then
+        return make_admin_menu_screen("Fun", "Choose an effect branch.", "Fun", {
+            { token = "nav:fun_player_effects", label = "Player effects" },
+            { token = "nav:fun_game_effects", label = "Game effects" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "fun_player_effects" then
+        return make_admin_menu_screen("Player effects", "Choose a player effect branch.", "Fun > Player effects", {
+            { token = "nav:fun_player_modifiers", label = "Modifiers" },
+            { token = "nav:fun_player_status", label = "Status effects" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "fun_game_effects" then
+        return make_admin_menu_screen("Game effects", "Whole-match effect presets.", "Fun > Game effects", {
+            { token = "action:earthquake_all", label = "Earthquake (all players)" },
+            { token = "action:blind_all", label = "Blind (all players)" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "fun_player_modifiers" then
+        return make_admin_menu_screen("Modifiers", "Choose a modifier.", "Fun > Player effects > Modifiers", {
+            { token = "action:scale", label = "Scale" },
+            { token = "action:gravity", label = "Gravity" },
+            { token = "action:speed", label = "Movement speed" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "fun_player_status" then
+        return make_admin_menu_screen("Status effects", "Choose a status effect.", "Fun > Player effects > Status effects", {
+            { token = "action:blind", label = "Blind" },
+            { token = "action:burn", label = "Burn" },
+            { token = "action:earthquake", label = "Earthquake" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+    if state.screen == "select_target" then
+        return build_admin_menu_target_screen(state)
+    end
+    if state.screen == "select_value" then
+        return build_admin_menu_value_screen(state)
+    end
+    if state.screen == "select_duration" then
+        return build_admin_menu_duration_screen(state)
+    end
+
+    return make_admin_menu_screen("Admin Menu", "Unknown menu state.", "", {
+        { token = "close", label = "Close" },
+    })
+end
+
+local function refresh_admin_menu_session(session)
+    local screen = build_admin_menu_screen_for_session(session)
+    local payload = build_admin_menu_payload(screen)
+    plugin.host.send_message_to_client(
+        session.slot,
+        admin_menu_client_plugin_id,
+        admin_menu_open_message_type,
+        payload)
+end
+
+local function begin_admin_menu_action(session, action_kind)
+    local title = get_admin_menu_action_title(action_kind)
+    local breadcrumb = get_admin_menu_action_breadcrumb(action_kind)
+    if action_kind == "kick" or action_kind == "slay" or action_kind == "gag"
+        or action_kind == "scale" or action_kind == "speed" or action_kind == "gravity"
+        or action_kind == "blind" or action_kind == "burn" or action_kind == "earthquake" then
+        push_admin_menu_state(session, {
+            screen = "select_target",
+            actionKind = action_kind,
+            title = title,
+            breadcrumb = breadcrumb,
+            page = 1,
+        })
+        return
+    end
+
+    if action_kind == "blind_all" or action_kind == "earthquake_all" then
+        push_admin_menu_state(session, {
+            screen = "select_duration",
+            actionKind = action_kind,
+            title = title,
+            breadcrumb = breadcrumb,
+            includeInfinite = false,
+            targetText = "@all",
+        })
+        return
+    end
+end
+
+local function process_admin_menu_selection(session, payload)
+    local token = trim(payload)
+    if token == "" then
+        return
+    end
+
+    if token == "close" then
+        close_admin_menu_session(session.slot)
+        return
+    end
+
+    if token == "back" then
+        if not pop_admin_menu_state(session) then
+            close_admin_menu_session(session.slot)
+            return
+        end
+
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "page:") then
+        local next_page = tonumber(token:sub(6))
+        if next_page ~= nil then
+            session.state.page = next_page
+        end
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "nav:") then
+        local destination = token:sub(5)
+        push_admin_menu_state(session, { screen = destination })
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "info:") then
+        send_private(session.slot, "[GT] Map selection is not wired into the admin menu yet. Use !gt_map or !gt_nextmap for now.")
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "execute:") then
+        execute_admin_menu_action(session, token:sub(9), nil, nil, nil)
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "action:") then
+        begin_admin_menu_action(session, token:sub(8))
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "target:") then
+        local target_text = token:sub(8)
+        local action_kind = session.state.actionKind
+        if action_kind == "kick" or action_kind == "slay" or action_kind == "gag" then
+            execute_admin_menu_action(session, action_kind, target_text, nil, nil)
+            session.stack = {}
+            session.state = { screen = admin_menu_root_screen }
+            refresh_admin_menu_session(session)
+            return
+        end
+
+        if action_kind == "scale" or action_kind == "speed" or action_kind == "gravity" then
+            push_admin_menu_state(session, {
+                screen = "select_value",
+                actionKind = action_kind,
+                targetText = target_text,
+                breadcrumb = session.state.breadcrumb,
+                page = 1,
+            })
+            refresh_admin_menu_session(session)
+            return
+        end
+
+        if action_kind == "blind" or action_kind == "burn" or action_kind == "earthquake" then
+            push_admin_menu_state(session, {
+                screen = "select_duration",
+                actionKind = action_kind,
+                targetText = target_text,
+                breadcrumb = session.state.breadcrumb,
+                includeInfinite = false,
+            })
+            refresh_admin_menu_session(session)
+            return
+        end
+    end
+
+    if starts_with(token, "value:") then
+        local selected_value = token:sub(7)
+        push_admin_menu_state(session, {
+            screen = "select_duration",
+            actionKind = session.state.actionKind,
+            targetText = session.state.targetText,
+            selectedValue = selected_value,
+            breadcrumb = session.state.breadcrumb,
+            includeInfinite = true,
+        })
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "duration:") then
+        local duration_seconds = tonumber(token:sub(10)) or 0
+        execute_admin_menu_action(
+            session,
+            session.state.actionKind,
+            session.state.targetText,
+            session.state.selectedValue,
+            duration_seconds)
+        session.stack = {}
+        session.state = { screen = admin_menu_root_screen }
+        refresh_admin_menu_session(session)
+    end
+end
+
+local function handle_admin_menu(context, event)
+    if event == nil or event.slot == nil then
+        return false
+    end
+
+    local session = create_admin_menu_session(context, event.slot)
+    admin_menu_sessions[event.slot] = session
+    send_private(event.slot, "[GT] admin menu opened. Use 1-6 and Escape to navigate.")
+    refresh_admin_menu_session(session)
     return true
 end
 
@@ -1313,16 +2355,44 @@ end
 
 function plugin.shutdown()
     active_effects = {}
+    close_all_admin_menu_sessions(false)
 end
 
 function plugin.on_map_changing(e)
     clear_all_effects(true)
+    close_all_admin_menu_sessions(true)
 end
 
 function plugin.on_client_disconnected(e)
     if e ~= nil and e.slot ~= nil then
         clear_effects_for_slot(e.slot, false)
+        admin_menu_sessions[e.slot] = nil
     end
+end
+
+function plugin.on_client_plugin_message(e)
+    local source_plugin_id = e.sourcePluginId or e.SourcePluginId or e.source_plugin_id or ""
+    local message_type = e.messageType or e.MessageType or e.message_type or ""
+    local payload = e.payload or e.Payload or ""
+    local source_slot = e.sourceSlot or e.SourceSlot or e.source_slot
+    if source_plugin_id ~= admin_menu_client_source_plugin_id then
+        return
+    end
+
+    if message_type ~= admin_menu_select_message_type then
+        return
+    end
+
+    if source_slot == nil then
+        return
+    end
+
+    local session = admin_menu_sessions[source_slot]
+    if session == nil then
+        return
+    end
+
+    process_admin_menu_selection(session, payload)
 end
 
 function plugin.try_handle_chat_message(context, e)
@@ -1371,7 +2441,7 @@ function plugin.try_handle_chat_message(context, e)
     elseif command_name == "nextmap" then
         return handle_nextmap(e, arguments)
     elseif command_name == "adminmenu" then
-        return handle_admin_menu(e)
+        return handle_admin_menu(context, e)
     end
 
     return false

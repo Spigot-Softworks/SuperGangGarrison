@@ -530,6 +530,14 @@ public sealed class PluginContractValidationTests
 
         public bool TrySetPlayerScale(byte slot, float scale) => true;
 
+        public bool TrySetPlayerMovementSpeedScale(byte slot, float scale) => true;
+
+        public bool TryClearPlayerMovementSpeedScale(byte slot) => true;
+
+        public bool TrySetPlayerGravityScale(byte slot, float scale) => true;
+
+        public bool TryClearPlayerGravityScale(byte slot) => true;
+
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
 
         public bool TrySetCapLimit(int capLimit) => true;

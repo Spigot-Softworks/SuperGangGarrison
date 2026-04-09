@@ -198,6 +198,56 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void PackagedClientLuaGarrisonToolsMenuLoadsAndDrawsHud()
+    {
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedClientLuaPlugin("Lua.GarrisonToolsMenu", "open-garrison.client.lua-garrison-tools-menu", tempDirectory, logs);
+
+        var updateHooks = Assert.IsAssignableFrom<IOpenGarrisonClientUpdateHooks>(loadedPlugin.Plugin);
+        var messageHooks = Assert.IsAssignableFrom<IOpenGarrisonClientPluginMessageHooks>(loadedPlugin.Plugin);
+        var hudHooks = Assert.IsAssignableFrom<IOpenGarrisonClientHudHooks>(loadedPlugin.Plugin);
+
+        Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "adminmenu-slot-1" && entry.DefaultKey == Keys.D1);
+        Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "adminmenu-slot-6" && entry.DefaultKey == Keys.D6);
+        Assert.Contains(loadedPlugin.Context.HotkeysImpl.RegisteredHotkeys, entry => entry.HotkeyId == "adminmenu-close" && entry.DefaultKey == Keys.Escape);
+
+        messageHooks.OnServerPluginMessage(new ClientPluginMessageEnvelope(
+            "open-garrison.server.lua-garrison-tools",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "adminmenu.open",
+            "Admin Menu\nChoose a branch.\nRoot\nnav:server_management\tServer management\nnav:game_management\tGame management\nnav:player_management\tPlayer management\nnav:fun\tFun\nclose\tClose",
+            PluginMessagePayloadFormat.Text,
+            1));
+
+        var canvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(canvas);
+
+        Assert.True(canvas.FilledRectangleCount > 0);
+        Assert.True(canvas.OutlinedRectangleCount > 0);
+        Assert.True(canvas.BitmapTextDrawCount > 0);
+
+        loadedPlugin.Context.HotkeysImpl.PressedHotkeys.Add("adminmenu-slot-4");
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
+
+        messageHooks.OnServerPluginMessage(new ClientPluginMessageEnvelope(
+            "open-garrison.server.lua-garrison-tools",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "adminmenu.close",
+            string.Empty,
+            PluginMessagePayloadFormat.Text,
+            1));
+
+        var closedCanvas = new FakeHudCanvas();
+        hudHooks.OnGameplayHudDraw(closedCanvas);
+
+        Assert.Equal(0, closedCanvas.FilledRectangleCount);
+        Assert.Equal(0, closedCanvas.BitmapTextDrawCount);
+        Assert.DoesNotContain(logs, log => log.Contains("disabled open-garrison.client.lua-garrison-tools-menu", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void ClientLuaHostSupportsInitializeTimeConfigAndMenuRegistration()
     {
         using var tempDirectory = new TempDirectory();
@@ -1679,6 +1729,10 @@ public sealed class LuaPluginHostSmokeTests
             Team: PlayerTeam.Blue,
             PlayerClass: PlayerClass.Medic,
             PlayerScale: 1f,
+            MovementSpeedScale: 1.25f,
+            HasMovementSpeedScaleOverride: true,
+            GravityScale: 1f,
+            HasGravityScaleOverride: false,
             EndPoint: "127.0.0.1:8192",
             GameplayLoadoutId: "stock",
             GameplaySecondaryItemId: string.Empty,
@@ -1686,6 +1740,7 @@ public sealed class LuaPluginHostSmokeTests
             GameplayEquippedSlot: GameplayEquipmentSlot.Primary,
             GameplayEquippedItemId: "weapon.medigun"));
         var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var messageHooks = Assert.IsAssignableFrom<IOpenGarrisonServerPluginMessageHooks>(loadedPlugin.Plugin);
         var context = CreateAdminChatContext(loadedPlugin.Context, slot: 1);
 
         Assert.True(chatHooks.TryHandleChatMessage(
@@ -1781,12 +1836,86 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
-            new ChatReceivedEvent(1, "Admin", "!gt_adminmenu", Team: null, TeamOnly: false)));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin menu | categories=", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("category | Reference", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("category | Player Control", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("!gt_map <map> [area]", StringComparison.Ordinal));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("shared command catalog", StringComparison.OrdinalIgnoreCase));
+            new ChatReceivedEvent(1, "Admin", "!gt_adminmenu", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin menu opened", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            loadedPlugin.Context.SentPluginMessages,
+            message => message.Slot == 1
+                && message.TargetPluginId == "open-garrison.client.lua-garrison-tools-menu"
+                && message.MessageType == "adminmenu.open");
+
+        loadedPlugin.Context.SentPluginMessages.Clear();
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "nav:fun",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "nav:fun_player_effects",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "nav:fun_player_modifiers",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "action:scale",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "target:#303",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "value:0.5",
+            PluginMessagePayloadFormat.Text,
+            1));
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "duration:0",
+            PluginMessagePayloadFormat.Text,
+            1));
+
+        Assert.True(
+            loadedPlugin.Context.AdminImpl.ScaleRequests.Any(request => request.Slot == 3 && Math.Abs(request.Scale - 0.5f) < 0.001f),
+            string.Join(Environment.NewLine, logs));
+        Assert.Empty(loadedPlugin.Context.SchedulerImpl.Tasks);
+        Assert.Contains(
+            loadedPlugin.Context.AdminImpl.SystemMessages,
+            message => message.Slot == 1 && message.Text.Contains("applied scale 0.5 to 1 target(s) until cleared.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1825,6 +1954,10 @@ public sealed class LuaPluginHostSmokeTests
             Team: PlayerTeam.Blue,
             PlayerClass: PlayerClass.Medic,
             PlayerScale: 1f,
+            MovementSpeedScale: 1.25f,
+            HasMovementSpeedScaleOverride: true,
+            GravityScale: 1f,
+            HasGravityScaleOverride: false,
             EndPoint: "127.0.0.1:8192",
             GameplayLoadoutId: "stock",
             GameplaySecondaryItemId: string.Empty,
@@ -1882,6 +2015,10 @@ public sealed class LuaPluginHostSmokeTests
 
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
         loadedPlugin.Context.AdminImpl.ScaleRequests.Clear();
+        loadedPlugin.Context.AdminImpl.MovementSpeedScaleRequests.Clear();
+        loadedPlugin.Context.AdminImpl.ClearedMovementSpeedScaleSlots.Clear();
+        loadedPlugin.Context.AdminImpl.GravityScaleRequests.Clear();
+        loadedPlugin.Context.AdminImpl.ClearedGravityScaleSlots.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
@@ -1898,6 +2035,48 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.Contains(loadedPlugin.Context.AdminImpl.ScaleRequests, request =>
             request.Slot == 3 && Math.Abs(request.Scale - 1f) < 0.001f);
+        Assert.Empty(loadedPlugin.Context.SchedulerImpl.Tasks);
+
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+        loadedPlugin.Context.AdminImpl.MovementSpeedScaleRequests.Clear();
+        loadedPlugin.Context.AdminImpl.ClearedMovementSpeedScaleSlots.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_seffect speed #303 2.5 6", Team: null, TeamOnly: false)),
+            string.Join(Environment.NewLine, logs));
+
+        Assert.Contains(loadedPlugin.Context.AdminImpl.MovementSpeedScaleRequests, request =>
+            request.Slot == 3 && Math.Abs(request.Scale - 2.5f) < 0.001f);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message =>
+            message.Slot == 1 && message.Text.Contains("applied speed 2.5 to 1 target(s) for 6s.", StringComparison.Ordinal));
+        Assert.Single(loadedPlugin.Context.SchedulerImpl.Tasks);
+
+        loadedPlugin.Context.SchedulerImpl.RunAll();
+
+        Assert.Contains(loadedPlugin.Context.AdminImpl.MovementSpeedScaleRequests, request =>
+            request.Slot == 3 && Math.Abs(request.Scale - 1.25f) < 0.001f);
+        Assert.Empty(loadedPlugin.Context.AdminImpl.ClearedMovementSpeedScaleSlots);
+        Assert.Empty(loadedPlugin.Context.SchedulerImpl.Tasks);
+
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+        loadedPlugin.Context.AdminImpl.GravityScaleRequests.Clear();
+        loadedPlugin.Context.AdminImpl.ClearedGravityScaleSlots.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_seffect lowgrav #303 0.5 8", Team: null, TeamOnly: false)),
+            string.Join(Environment.NewLine, logs));
+
+        Assert.Contains(loadedPlugin.Context.AdminImpl.GravityScaleRequests, request =>
+            request.Slot == 3 && Math.Abs(request.Scale - 0.5f) < 0.001f);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message =>
+            message.Slot == 1 && message.Text.Contains("applied lowgrav 0.5 to 1 target(s) for 8s.", StringComparison.Ordinal));
+        Assert.Single(loadedPlugin.Context.SchedulerImpl.Tasks);
+
+        loadedPlugin.Context.SchedulerImpl.RunAll();
+
+        Assert.Contains((byte)3, loadedPlugin.Context.AdminImpl.ClearedGravityScaleSlots);
         Assert.Empty(loadedPlugin.Context.SchedulerImpl.Tasks);
         Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
@@ -1966,7 +2145,8 @@ public sealed class LuaPluginHostSmokeTests
             (_, _, _) => context,
             logs.Add);
 
-        var loadedPlugin = Assert.Single(loadedPlugins);
+        Assert.True(loadedPlugins.Count == 1, string.Join(Environment.NewLine, logs));
+        var loadedPlugin = loadedPlugins[0];
         Assert.Equal(pluginId, loadedPlugin.Plugin.Id);
         return new LoadedServerLuaTemplate(loadedPlugin.Plugin, context, configDirectory);
     }
@@ -2113,6 +2293,8 @@ public sealed class LuaPluginHostSmokeTests
 
         public FakeClientUi UiImpl { get; }
 
+        public List<(string TargetPluginId, string MessageType, string Payload, PluginMessagePayloadFormat PayloadFormat, ushort SchemaVersion)> SentMessages { get; } = [];
+
         public GraphicsDevice GraphicsDevice => null!;
 
         public IOpenGarrisonClientReadOnlyState ClientState => StateImpl;
@@ -2127,6 +2309,7 @@ public sealed class LuaPluginHostSmokeTests
 
         public void SendMessageToServer(string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)
         {
+            SentMessages.Add((targetPluginId, messageType, payload, payloadFormat, schemaVersion));
         }
     }
 
@@ -2490,7 +2673,7 @@ public sealed class LuaPluginHostSmokeTests
         public MatchPhase MatchPhase => MatchPhase.Running;
         public int RedCaps => 0;
         public int BlueCaps => 0;
-        public List<OpenGarrisonServerPlayerInfo> Players { get; } = [];
+        public readonly List<OpenGarrisonServerPlayerInfo> Players = [];
 
         public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot) => [];
 
@@ -2641,37 +2824,45 @@ public sealed class LuaPluginHostSmokeTests
 
     private sealed class FakeServerAdminOperations : IOpenGarrisonServerAdminOperations
     {
-        public List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelections { get; } = [];
+        public readonly List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelections = [];
 
-        public List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelectionAttempts { get; } = [];
+        public readonly List<(string SelectionKind, byte Slot, string? ItemId)> GameplayItemSelectionAttempts = [];
 
-        public List<(string ChangeKind, byte Slot, string ItemId)> GameplayOwnershipChanges { get; } = [];
+        public readonly List<(string ChangeKind, byte Slot, string ItemId)> GameplayOwnershipChanges = [];
 
-        public List<string> BroadcastSystemMessages { get; } = [];
+        public readonly List<string> BroadcastSystemMessages = [];
 
-        public List<(byte Slot, string Text)> SystemMessages { get; } = [];
+        public readonly List<(byte Slot, string Text)> SystemMessages = [];
 
-        public List<(byte Slot, string Reason)> DisconnectRequests { get; } = [];
+        public readonly List<(byte Slot, string Reason)> DisconnectRequests = [];
 
-        public List<(byte Slot, TimeSpan? Duration, string Reason)> BanPlayerRequests { get; } = [];
+        public readonly List<(byte Slot, TimeSpan? Duration, string Reason)> BanPlayerRequests = [];
 
-        public List<(string Address, TimeSpan? Duration, string Reason)> BanIpRequests { get; } = [];
+        public readonly List<(string Address, TimeSpan? Duration, string Reason)> BanIpRequests = [];
 
-        public List<string> UnbanIpRequests { get; } = [];
+        public readonly List<string> UnbanIpRequests = [];
 
-        public List<byte> ForceKillRequests { get; } = [];
+        public readonly List<byte> ForceKillRequests = [];
 
-        public List<(byte Slot, float DurationSeconds)> IgniteRequests { get; } = [];
+        public readonly List<(byte Slot, float DurationSeconds)> IgniteRequests = [];
 
-        public List<(byte Slot, float Scale)> ScaleRequests { get; } = [];
+        public readonly List<(byte Slot, float Scale)> ScaleRequests = [];
 
-        public List<(byte Slot, bool IsGagged)> GagRequests { get; } = [];
+        public readonly List<(byte Slot, float Scale)> MovementSpeedScaleRequests = [];
 
-        public List<(byte Slot, string NewName)> RenameRequests { get; } = [];
+        public readonly List<byte> ClearedMovementSpeedScaleSlots = [];
 
-        public List<(string LevelName, int AreaIndex, bool PreservePlayerStats)> MapChangeRequests { get; } = [];
+        public readonly List<(byte Slot, float Scale)> GravityScaleRequests = [];
 
-        public List<(string LevelName, int AreaIndex)> NextRoundMapRequests { get; } = [];
+        public readonly List<byte> ClearedGravityScaleSlots = [];
+
+        public readonly List<(byte Slot, bool IsGagged)> GagRequests = [];
+
+        public readonly List<(byte Slot, string NewName)> RenameRequests = [];
+
+        public readonly List<(string LevelName, int AreaIndex, bool PreservePlayerStats)> MapChangeRequests = [];
+
+        public readonly List<(string LevelName, int AreaIndex)> NextRoundMapRequests = [];
 
         public void BroadcastSystemMessage(string text)
         {
@@ -2740,6 +2931,30 @@ public sealed class LuaPluginHostSmokeTests
         public bool TrySetPlayerScale(byte slot, float scale)
         {
             ScaleRequests.Add((slot, scale));
+            return true;
+        }
+
+        public bool TrySetPlayerMovementSpeedScale(byte slot, float scale)
+        {
+            MovementSpeedScaleRequests.Add((slot, scale));
+            return true;
+        }
+
+        public bool TryClearPlayerMovementSpeedScale(byte slot)
+        {
+            ClearedMovementSpeedScaleSlots.Add(slot);
+            return true;
+        }
+
+        public bool TrySetPlayerGravityScale(byte slot, float scale)
+        {
+            GravityScaleRequests.Add((slot, scale));
+            return true;
+        }
+
+        public bool TryClearPlayerGravityScale(byte slot)
+        {
+            ClearedGravityScaleSlots.Add(slot);
             return true;
         }
 
@@ -2912,7 +3127,7 @@ public sealed class LuaPluginHostSmokeTests
     private sealed class FakeServerScheduler : IOpenGarrisonServerScheduler
     {
         private readonly Dictionary<Guid, Action> _callbacks = [];
-        public List<OpenGarrisonServerScheduledTaskInfo> Tasks { get; } = [];
+        public readonly List<OpenGarrisonServerScheduledTaskInfo> Tasks = [];
 
         public TimeSpan Uptime => TimeSpan.Zero;
 

@@ -4,6 +4,10 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    public const string ServerTuningReplicatedStateOwnerId = "serverruntime";
+    public const string MovementSpeedScaleReplicatedStateKey = "movescale";
+    public const string GravityScaleReplicatedStateKey = "gravityscale";
+
     private int ExperimentalMovementBoostTicksRemaining { get; set; }
 
     private int ExperimentalPrimaryCooldownBuffTicksRemaining { get; set; }
@@ -37,6 +41,10 @@ public sealed partial class PlayerEntity
     private float ExperimentalDemoknightChargeRechargeAccumulator { get; set; }
 
     private bool ExperimentalDemoknightChargeWantsLift { get; set; }
+
+    public float ServerMovementSpeedScale => ServerMovementSpeedScaleValue;
+
+    public float ServerGravityScale => ServerGravityScaleValue;
 
     public void SetExperimentalDemoknightEnabled(bool enabled)
     {
@@ -364,6 +372,24 @@ public sealed partial class PlayerEntity
     private float GetServerVerticalSpeedClampPerTick()
     {
         return ServerVerticalSpeedClampPerTickValue;
+    }
+
+    private void RefreshServerGameplayTuningFromReplicatedStateEntries()
+    {
+        var movementSpeedScale = 1f;
+        if (TryGetReplicatedStateFloat(ServerTuningReplicatedStateOwnerId, MovementSpeedScaleReplicatedStateKey, out var replicatedMovementSpeedScale))
+        {
+            movementSpeedScale = replicatedMovementSpeedScale;
+        }
+
+        var gravityScale = 1f;
+        if (TryGetReplicatedStateFloat(ServerTuningReplicatedStateOwnerId, GravityScaleReplicatedStateKey, out var replicatedGravityScale))
+        {
+            gravityScale = replicatedGravityScale;
+        }
+
+        SetServerMovementSpeedScale(movementSpeedScale);
+        SetServerGravityScale(gravityScale);
     }
 
     private void StartExperimentalDemoknightChargeMovementState()

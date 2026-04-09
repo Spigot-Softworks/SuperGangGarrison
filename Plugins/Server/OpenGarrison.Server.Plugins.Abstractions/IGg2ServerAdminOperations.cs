@@ -46,6 +46,14 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TrySetPlayerScale(byte slot, float scale);
 
+    bool TrySetPlayerMovementSpeedScale(byte slot, float scale);
+
+    bool TryClearPlayerMovementSpeedScale(byte slot);
+
+    bool TrySetPlayerGravityScale(byte slot, float scale);
+
+    bool TryClearPlayerGravityScale(byte slot);
+
     bool TrySetTimeLimit(int timeLimitMinutes);
 
     bool TrySetCapLimit(int capLimit);

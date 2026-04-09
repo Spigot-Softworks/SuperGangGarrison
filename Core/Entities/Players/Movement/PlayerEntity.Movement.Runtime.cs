@@ -34,6 +34,8 @@ public sealed partial class PlayerEntity
         var previousScale = PlayerScale;
         var previousX = X;
         var previousY = Y;
+        GetCollisionBoundsAt(previousX, previousY, out var previousLeft, out _, out var previousRight, out var previousBottom);
+        var previousCollisionCenterX = (previousLeft + previousRight) * 0.5f;
         var previousHorizontalSpeed = HorizontalSpeed;
         var previousVerticalSpeed = VerticalSpeed;
         var previousGrounded = IsGrounded;
@@ -47,15 +49,18 @@ public sealed partial class PlayerEntity
             return true;
         }
 
-        if (TryCanOccupyWithinBounds(level, team, previousX, previousY))
+        var targetX = previousCollisionCenterX - ((CollisionLeftOffset + CollisionRightOffset) * 0.5f);
+        var targetY = previousBottom - CollisionBottomOffset;
+
+        if (TryCanOccupyWithinBounds(level, team, targetX, targetY))
         {
-            X = previousX;
-            Y = previousY;
+            X = targetX;
+            Y = targetY;
             RefreshGroundSupport(level, team, allowDropdownFallThrough: false);
             return true;
         }
 
-        if (TryFindNearestOccupiablePosition(level, team, previousX, previousY, out var resolvedX, out var resolvedY))
+        if (TryFindNearestOccupiablePosition(level, team, targetX, targetY, out var resolvedX, out var resolvedY))
         {
             X = resolvedX;
             Y = resolvedY;

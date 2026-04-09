@@ -284,6 +284,74 @@ internal sealed class ServerAdminOperations(
         return true;
     }
 
+    public bool TrySetPlayerMovementSpeedScale(byte slot, float scale)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TrySetNetworkPlayerMovementSpeedScale(slot, scale))
+        {
+            return false;
+        }
+
+        log($"[server] movement speed scale for slot {slot} set to {world.GetNetworkPlayerMovementSpeedScale(slot):G9}");
+        return true;
+    }
+
+    public bool TryClearPlayerMovementSpeedScale(byte slot)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TryClearNetworkPlayerMovementSpeedScale(slot))
+        {
+            return false;
+        }
+
+        log($"[server] movement speed scale override for slot {slot} cleared");
+        return true;
+    }
+
+    public bool TrySetPlayerGravityScale(byte slot, float scale)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TrySetNetworkPlayerGravityScale(slot, scale))
+        {
+            return false;
+        }
+
+        log($"[server] gravity scale for slot {slot} set to {world.GetNetworkPlayerGravityScale(slot):G9}");
+        return true;
+    }
+
+    public bool TryClearPlayerGravityScale(byte slot)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TryClearNetworkPlayerGravityScale(slot))
+        {
+            return false;
+        }
+
+        log($"[server] gravity scale override for slot {slot} cleared");
+        return true;
+    }
+
     public bool TrySetTimeLimit(int timeLimitMinutes)
     {
         if (timeLimitMinutes is < 1 or > 255)

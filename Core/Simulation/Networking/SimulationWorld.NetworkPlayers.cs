@@ -121,7 +121,7 @@ public sealed partial class SimulationWorld
         var defaultTeam = GetDefaultNetworkPlayerTeam(slot);
         player = new PlayerEntity(AllocateEntityId(), definition, GetNetworkPlayerDefaultName(slot));
         player.SetPlayerScale(_configuredPlayerScale);
-        ApplyServerGameplayTuning(player);
+        ApplyServerGameplayTuning(slot, player);
         SpawnPlayerResolved(player, defaultTeam, ReserveSpawn(player, defaultTeam), clearMedicHealingTarget: false);
         player.Kill();
         _additionalNetworkPlayersBySlot[slot] = player;

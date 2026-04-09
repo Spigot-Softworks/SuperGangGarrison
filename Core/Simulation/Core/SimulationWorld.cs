@@ -66,6 +66,8 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
+    private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
+    private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
@@ -311,13 +313,13 @@ public sealed partial class SimulationWorld
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), _localPlayerClassDefinition, DefaultLocalPlayerName);
         LocalPlayer.SetPlayerScale(_configuredPlayerScale);
-        ApplyServerGameplayTuning(LocalPlayer);
+        ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         _entities.Add(LocalPlayer.Id, LocalPlayer);
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
         EnemyPlayer.SetPlayerScale(_configuredPlayerScale);
-        ApplyServerGameplayTuning(EnemyPlayer);
+        ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
         if (Config.EnableLocalDummies && Config.EnableEnemyTrainingDummy)
         {
             var enemySpawn = ReserveSpawn(EnemyPlayer, _enemyDummyTeam);
@@ -332,7 +334,7 @@ public sealed partial class SimulationWorld
         _entities.Add(EnemyPlayer.Id, EnemyPlayer);
         FriendlyDummy = new PlayerEntity(AllocateEntityId(), _friendlyDummyClassDefinition, DefaultFriendlyDummyName);
         FriendlyDummy.SetPlayerScale(_configuredPlayerScale);
-        ApplyServerGameplayTuning(FriendlyDummy);
+        ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
         FriendlyDummy.Kill();
         _entities.Add(FriendlyDummy.Id, FriendlyDummy);
     }

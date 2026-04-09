@@ -96,6 +96,8 @@ public sealed partial class PlayerEntity
 
             ReplicatedStateEntries[CreateReplicatedStateDictionaryKey(normalizedEntry.OwnerId, normalizedEntry.Key)] = normalizedEntry;
         }
+
+        RefreshServerGameplayTuningFromReplicatedStateEntries();
     }
 
     private bool SetReplicatedState(GameplayReplicatedStateEntry entry)

@@ -2,6 +2,78 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public bool TrySetNetworkPlayerMovementSpeedScale(byte slot, float scale)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerMovementSpeedScaleOverrides[slot] = float.Clamp(scale, 0.1f, 4f);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
+    public bool TryClearNetworkPlayerMovementSpeedScale(byte slot)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
+    public float GetNetworkPlayerMovementSpeedScale(byte slot)
+    {
+        return TryGetNetworkPlayer(slot, out var player)
+            ? player.ServerMovementSpeedScale
+            : GetEffectiveNetworkPlayerMovementSpeedScale(slot);
+    }
+
+    public bool HasNetworkPlayerMovementSpeedScaleOverride(byte slot)
+    {
+        return _networkPlayerMovementSpeedScaleOverrides.ContainsKey(slot);
+    }
+
+    public bool TrySetNetworkPlayerGravityScale(byte slot, float scale)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerGravityScaleOverrides[slot] = float.Clamp(scale, 0f, 4f);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
+    public bool TryClearNetworkPlayerGravityScale(byte slot)
+    {
+        if (!TryGetNetworkPlayer(slot, out var player))
+        {
+            return false;
+        }
+
+        _networkPlayerGravityScaleOverrides.Remove(slot);
+        ApplyServerGameplayTuning(slot, player);
+        return true;
+    }
+
+    public float GetNetworkPlayerGravityScale(byte slot)
+    {
+        return TryGetNetworkPlayer(slot, out var player)
+            ? player.ServerGravityScale
+            : GetEffectiveNetworkPlayerGravityScale(slot);
+    }
+
+    public bool HasNetworkPlayerGravityScaleOverride(byte slot)
+    {
+        return _networkPlayerGravityScaleOverrides.ContainsKey(slot);
+    }
+
     public void SetPlayerScale(float scale)
     {
         _configuredPlayerScale = PlayerEntity.ClampPlayerScale(scale);
@@ -92,24 +164,48 @@ public sealed partial class SimulationWorld
 
     private void ApplyServerGameplayTuningToKnownPlayers()
     {
-        ApplyServerGameplayTuning(LocalPlayer);
-        ApplyServerGameplayTuning(EnemyPlayer);
-        ApplyServerGameplayTuning(FriendlyDummy);
+        ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
+        ApplyServerGameplayTuning(slot: 0, EnemyPlayer);
+        ApplyServerGameplayTuning(slot: 0, FriendlyDummy);
 
-        foreach (var player in _additionalNetworkPlayersBySlot.Values)
+        foreach (var entry in _additionalNetworkPlayersBySlot)
         {
-            ApplyServerGameplayTuning(player);
+            ApplyServerGameplayTuning(entry.Key, entry.Value);
         }
     }
 
-    private void ApplyServerGameplayTuning(PlayerEntity player)
+    private void ApplyServerGameplayTuning(byte slot, PlayerEntity player)
     {
-        player.SetServerMovementSpeedScale(_configuredMovementSpeedScale);
+        var movementSpeedScale = GetEffectiveNetworkPlayerMovementSpeedScale(slot);
+        var gravityScale = GetEffectiveNetworkPlayerGravityScale(slot);
+        player.SetServerMovementSpeedScale(movementSpeedScale);
         player.SetServerDamageScale(_configuredDamageScale);
-        player.SetServerGravityScale(_configuredGravityScale);
+        player.SetServerGravityScale(gravityScale);
         player.SetServerMovementSpeedClamps(
             _configuredHorizontalSpeedClampPerTick,
             _configuredVerticalSpeedClampPerTick);
+        player.SetReplicatedStateFloat(
+            PlayerEntity.ServerTuningReplicatedStateOwnerId,
+            PlayerEntity.MovementSpeedScaleReplicatedStateKey,
+            movementSpeedScale);
+        player.SetReplicatedStateFloat(
+            PlayerEntity.ServerTuningReplicatedStateOwnerId,
+            PlayerEntity.GravityScaleReplicatedStateKey,
+            gravityScale);
+    }
+
+    private float GetEffectiveNetworkPlayerMovementSpeedScale(byte slot)
+    {
+        return slot != 0 && _networkPlayerMovementSpeedScaleOverrides.TryGetValue(slot, out var scale)
+            ? scale
+            : _configuredMovementSpeedScale;
+    }
+
+    private float GetEffectiveNetworkPlayerGravityScale(byte slot)
+    {
+        return slot != 0 && _networkPlayerGravityScaleOverrides.TryGetValue(slot, out var scale)
+            ? scale
+            : _configuredGravityScale;
     }
 
     private void ApplyConfiguredPlayerScaleToKnownPlayers()

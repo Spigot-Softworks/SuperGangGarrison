@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.Input;
 using MoonSharp.Interpreter;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.PluginHost;
+using OpenGarrison.Protocol;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using ImageSharpRectangle = SixLabors.ImageSharp.Rectangle;
@@ -337,6 +338,19 @@ internal sealed partial class LuaClientPlugin(
         });
         host["was_hotkey_pressed"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(context.Hotkeys.WasHotkeyPressed(ReadStringArgument(args, 0))));
+        host["send_message_to_server"] = DynValue.NewCallback((_, args) =>
+        {
+            var targetPluginId = ReadStringArgument(args, 0);
+            var messageType = ReadStringArgument(args, 1);
+            var payload = ReadOptionalStringArgument(args, 2, string.Empty);
+            if (!CanSendPluginMessage("send_message_to_server", $"plugin message \"{messageType}\" to {targetPluginId}"))
+            {
+                return DynValue.False;
+            }
+
+            context.SendMessageToServer(targetPluginId, messageType, payload, PluginMessagePayloadFormat.Text, schemaVersion: 1);
+            return DynValue.True;
+        });
         host["format_key_display_name"] = DynValue.NewCallback((_, args) =>
             DynValue.NewString(FormatKeyDisplayName(ReadStringArgument(args, 0))));
         host["list_files"] = DynValue.NewCallback((_, args) =>
@@ -881,6 +895,19 @@ internal sealed partial class LuaClientPlugin(
             "Use client UI registration and notices during initialize, lifecycle, update, or interaction callbacks.");
     }
 
+    private bool CanSendPluginMessage(string functionName, string target)
+    {
+        if (IsClientPluginMessagingPhaseAllowed(_currentCallbackPhase))
+        {
+            return true;
+        }
+
+        return RejectHostOperation(
+            functionName,
+            target,
+            "Send client plugin messages during lifecycle, update, or interaction callbacks.");
+    }
+
     private bool RejectHostOperation(string functionName, string target, string guidance)
     {
         _context?.Log(
@@ -907,6 +934,15 @@ internal sealed partial class LuaClientPlugin(
     {
         return phase is LuaCallbackPhase.Initialize
             or LuaCallbackPhase.Lifecycle
+            or LuaCallbackPhase.Update
+            or LuaCallbackPhase.BubbleMenuInput
+            or LuaCallbackPhase.OptionsInteraction
+            or LuaCallbackPhase.MenuInteraction;
+    }
+
+    private static bool IsClientPluginMessagingPhaseAllowed(LuaCallbackPhase phase)
+    {
+        return phase is LuaCallbackPhase.Lifecycle
             or LuaCallbackPhase.Update
             or LuaCallbackPhase.BubbleMenuInput
             or LuaCallbackPhase.OptionsInteraction

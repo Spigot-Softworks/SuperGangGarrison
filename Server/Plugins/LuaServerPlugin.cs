@@ -20,6 +20,7 @@ internal sealed class LuaServerPlugin(
     IOpenGarrisonServerClientHooks,
     IOpenGarrisonServerChatHooks,
     IOpenGarrisonServerChatCommandHooks,
+    IOpenGarrisonServerPluginMessageHooks,
     IOpenGarrisonServerMapHooks,
     IOpenGarrisonServerGameplayHooks,
     IOpenGarrisonServerSemanticGameplayHooks
@@ -126,7 +127,7 @@ internal sealed class LuaServerPlugin(
         {
             return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
             {
-                if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
+                if (!TryInvokeCallback("try_handle_chat_message", out var result, CreateCommandInteractionContext(context), ToDynValue(e)))
                 {
                     return false;
                 }
@@ -139,6 +140,12 @@ internal sealed class LuaServerPlugin(
             _activeCommandIdentity = previousIdentity;
         }
     }
+
+    public void OnClientPluginMessage(OpenGarrisonServerPluginMessageEnvelope e)
+        // Client-originated plugin messages are typically explicit user interactions
+        // such as admin UI selections, so they need the same bounded headroom as
+        // chat/admin commands instead of the tighter generic event budget.
+        => ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () => CallIfPresent("on_client_plugin_message", ToDynValue(e)));
 
     public void OnMapChanging(MapChangingEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_map_changing", ToDynValue(e)));
 
@@ -321,13 +328,14 @@ internal sealed class LuaServerPlugin(
         host["resolve_targets"] = DynValue.NewCallback((_, args) =>
         {
             var options = ReadOptionalTableArgument(args, 1);
-            return ToDynValue(targetResolver.Resolve(
+            var resolution = targetResolver.Resolve(
                 ReadStringArgument(args, 0),
                 new ServerAdminTargetQueryOptions(
                     SourceSlot: ReadOptionalByteField(options, "sourceSlot"),
                     AllowMultiple: ReadOptionalBoolField(options, "allowMultiple", true),
                     RequireAlive: ReadOptionalBoolField(options, "requireAlive", false),
-                    IncludeSpectators: ReadOptionalBoolField(options, "includeSpectators", true))));
+                    IncludeSpectators: ReadOptionalBoolField(options, "includeSpectators", true)));
+            return ToDynValue(CreateLuaTargetResolution(resolution));
         });
         host["get_gameplay_mod_packs"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetGameplayModPacks()));
         host["get_gameplay_classes"] = DynValue.NewCallback((_, args) =>
@@ -614,6 +622,34 @@ internal sealed class LuaServerPlugin(
             return DynValue.NewBoolean(
                 CanIssueServerMutation("try_set_player_scale", $"player {slot}")
                 && context.AdminOperations.TrySetPlayerScale(slot, (float)ReadDoubleArgument(args, 1)));
+        });
+        host["try_set_player_movement_speed_scale"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_movement_speed_scale", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerMovementSpeedScale(slot, (float)ReadDoubleArgument(args, 1)));
+        });
+        host["try_clear_player_movement_speed_scale"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_clear_player_movement_speed_scale", $"player {slot}")
+                && context.AdminOperations.TryClearPlayerMovementSpeedScale(slot));
+        });
+        host["try_set_player_gravity_scale"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_gravity_scale", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerGravityScale(slot, (float)ReadDoubleArgument(args, 1)));
+        });
+        host["try_clear_player_gravity_scale"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_clear_player_gravity_scale", $"player {slot}")
+                && context.AdminOperations.TryClearPlayerGravityScale(slot));
         });
         host["try_set_cap_limit"] = DynValue.NewCallback((_, args) =>
         {
@@ -1033,6 +1069,51 @@ internal sealed class LuaServerPlugin(
         return combinedPath;
     }
 
+    private DynValue CreateCommandInteractionContext(OpenGarrisonServerChatMessageContext context)
+    {
+        return ToDynValue(new
+        {
+            context.Identity,
+            context.IsAuthenticatedAdmin,
+        });
+    }
+
+    private static object CreateLuaTargetResolution(ServerAdminTargetResolution resolution)
+    {
+        return new
+        {
+            resolution.Success,
+            resolution.Query,
+            resolution.MatchKind,
+            resolution.ErrorCode,
+            resolution.ErrorMessage,
+            Targets = resolution.Targets.Select(CreateLuaTargetInfo).ToArray(),
+        };
+    }
+
+    private static object CreateLuaTargetInfo(OpenGarrisonServerPlayerInfo player)
+    {
+        return new
+        {
+            player.Slot,
+            player.UserId,
+            player.Name,
+            player.IsSpectator,
+            player.IsAuthorized,
+            player.IsGagged,
+            player.IsAlive,
+            player.PlayerId,
+            player.Team,
+            player.PlayerClass,
+            player.PlayerScale,
+            player.EndPoint,
+            player.MovementSpeedScale,
+            player.HasMovementSpeedScaleOverride,
+            player.GravityScale,
+            player.HasGravityScaleOverride,
+        };
+    }
+
     private bool CanAccessPluginStorage(string functionName, string target)
     {
         if (IsPluginStoragePhaseAllowed(_currentCallbackPhase))
@@ -1181,7 +1262,9 @@ internal sealed class LuaServerPlugin(
             ServerLuaCallbackPhase.Lifecycle => TimeSpan.FromMilliseconds(50),
             ServerLuaCallbackPhase.Update => TimeSpan.FromMilliseconds(10),
             ServerLuaCallbackPhase.Query => TimeSpan.FromMilliseconds(10),
-            ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromMilliseconds(250),
+            // Admin/chat command callbacks are human-driven and may need to emit
+            // multiple status lines or perform bounded catalog/search work.
+            ServerLuaCallbackPhase.CommandInteraction => TimeSpan.FromSeconds(5),
             ServerLuaCallbackPhase.Event => TimeSpan.FromMilliseconds(10),
             _ => TimeSpan.FromMilliseconds(10),
         };
@@ -1192,6 +1275,7 @@ internal sealed class LuaServerPlugin(
         return phase switch
         {
             ServerLuaCallbackPhase.Initialize => MaxInitializeResumeCount,
+            ServerLuaCallbackPhase.CommandInteraction => MaxInitializeResumeCount,
             _ => MaxCallbackResumeCount,
         };
     }

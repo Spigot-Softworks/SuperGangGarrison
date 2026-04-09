@@ -70,8 +70,11 @@ public sealed partial class SimulationWorld
         SetNetworkPlayerDeathCam(slot, null);
         TrySetNetworkPlayerClassDefinition(slot, CharacterClassCatalog.Scout);
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
+        _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
+        _networkPlayerGravityScaleOverrides.Remove(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
         SyncExperimentalGameplayLoadout(slot, player);
+        ApplyServerGameplayTuning(slot, player);
         player.SetDisplayName(GetNetworkPlayerDefaultName(slot));
         player.SetBadgeMask(0);
         player.ResetRoundStats();

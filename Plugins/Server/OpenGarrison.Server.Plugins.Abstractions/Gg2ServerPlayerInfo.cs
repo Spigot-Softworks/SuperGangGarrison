@@ -20,7 +20,11 @@ public readonly record struct OpenGarrisonServerPlayerInfo(
     string GameplaySecondaryItemId,
     string GameplayAcquiredItemId,
     GameplayEquipmentSlot GameplayEquippedSlot,
-    string GameplayEquippedItemId);
+    string GameplayEquippedItemId,
+    float MovementSpeedScale = 1f,
+    bool HasMovementSpeedScaleOverride = false,
+    float GravityScale = 1f,
+    bool HasGravityScaleOverride = false);
 
 public readonly record struct OpenGarrisonServerGameplayLoadoutInfo(
     string LoadoutId,
