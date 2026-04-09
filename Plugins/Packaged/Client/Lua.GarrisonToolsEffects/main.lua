@@ -3,6 +3,8 @@ local plugin = {}
 local SOURCE_PLUGIN_ID = "open-garrison.server.lua-garrison-tools"
 local APPLY_MESSAGE_TYPE = "seffect.apply"
 local CLEAR_MESSAGE_TYPE = "seffect.clear"
+local ANNOUNCE_MESSAGE_TYPE = "announce.notice"
+local ANNOUNCE_NOTICE_TICKS = 300
 
 local blind_state = {
     remainingSeconds = 0.0,
@@ -44,6 +46,12 @@ local function parse_number(text, fallback)
         return fallback
     end
     return value
+end
+
+local function trim(text)
+    local normalized = tostring(text or ""):gsub("^%s+", "")
+    normalized = normalized:gsub("%s+$", "")
+    return normalized
 end
 
 local function reset_blind()
@@ -102,6 +110,15 @@ local function handle_clear_payload(payload)
     elseif effect_id == "earthquake" then
         reset_earthquake()
     end
+end
+
+local function handle_announce_payload(payload)
+    local message_text = tostring(payload or "")
+    if trim(message_text) == "" then
+        return
+    end
+
+    plugin.host.show_notice(message_text, ANNOUNCE_NOTICE_TICKS, false)
 end
 
 local function draw_blind_overlay(canvas, state)
@@ -196,6 +213,8 @@ function plugin.on_server_plugin_message(e)
         handle_apply_payload(payload)
     elseif message_type == CLEAR_MESSAGE_TYPE then
         handle_clear_payload(payload)
+    elseif message_type == ANNOUNCE_MESSAGE_TYPE then
+        handle_announce_payload(payload)
     end
 end
 

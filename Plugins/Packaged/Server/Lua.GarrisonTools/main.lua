@@ -4,6 +4,8 @@ local target_help_line = "[GT] targets | name | #userid | @me | @all | @alive | 
 local seffect_help_line = "[GT] seffects | blind | earthquake | scale | speed | lowgrav | highgrav | clear"
 local default_ban_minutes = 60
 local default_burn_seconds = 10.0
+local default_announcement_notice_ticks = 300
+local client_effects_announcement_message_type = "announce.notice"
 local help_page_size = 6
 local command_catalog_count = 20
 local command_category_count = 6
@@ -15,6 +17,23 @@ local admin_menu_close_message_type = "adminmenu.close"
 local admin_menu_select_message_type = "adminmenu.select"
 local admin_menu_payload_prefix = "am1"
 local admin_menu_root_screen = "root"
+
+local function list(...)
+    local items = {}
+    local item_count = select("#", ...)
+    for index = 1, item_count do
+        items[index] = select(index, ...)
+    end
+
+    return items
+end
+
+local function menu_entry(token, label)
+    return {
+        token = token,
+        label = label,
+    }
+end
 
 local default_config = {
     clientEffectsPluginId = "open-garrison.client.lua-garrison-tools-effects",
@@ -57,6 +76,11 @@ local default_config = {
 local config = default_config
 local active_effects = {}
 local admin_menu_sessions = {}
+local get_sequential_count
+local append_sequential
+local find_command_spec_by_name
+local get_admin_menu_action_title
+local get_admin_menu_action_breadcrumb
 local command_categories = {
     "Reference",
     "Communication",
@@ -68,7 +92,7 @@ local command_categories = {
 local command_specs = {}
 
 local function append_command_spec(spec)
-    table.insert(command_specs, spec)
+    command_specs[#command_specs + 1] = spec
 end
 
 append_command_spec({ name = "help", category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", keywords = "commands search page docs", detail = "Use a page number for paged output or a search term like cvar or ban." })
@@ -76,7 +100,7 @@ append_command_spec({ name = "status", category = "Reference", usage = "!gt_stat
 append_command_spec({ name = "cvars", category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text.", keywords = "config variables settings server" })
 append_command_spec({ name = "cvar", category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar.", keywords = "config variable set get protect server", detail = "Use !gt_cvar protect <name> to add a cvar to the runtime protected list." })
 append_command_spec({ name = "adminmenu", category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog.", keywords = "menu categories catalog ui", detail = "Admin menu reads the shared command catalog so text help and UI can stay in sync." })
-append_command_spec({ name = "say", category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a server chat message.", keywords = "broadcast chat message announce" })
+append_command_spec({ name = "say", category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a top-screen notice to all players for 5 seconds.", keywords = "broadcast announcement notice top screen" })
 append_command_spec({ name = "psay", category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", keywords = "private whisper tell target", usesTargets = true })
 append_command_spec({ name = "kick", category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", keywords = "disconnect remove player", usesTargets = true })
 append_command_spec({ name = "ban", category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", keywords = "ban player timeout permanent", usesTargets = true })
@@ -97,7 +121,7 @@ local command_catalog = {
     cvars = { category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text." },
     cvar = { category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar." },
     adminmenu = { category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog." },
-    say = { category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a server chat message." },
+    say = { category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a top-screen notice to all players for 5 seconds." },
     psay = { category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", usesTargets = true },
     kick = { category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", usesTargets = true },
     ban = { category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", usesTargets = true },
@@ -114,18 +138,18 @@ local command_catalog = {
     logout = { category = "Session", usage = "!gt_logout", summary = "End this admin session." },
 }
 local help_page_command_keys = {
-    { "help", "status", "cvars", "cvar", "adminmenu", "say" },
-    { "psay", "kick", "ban", "banip", "unban", "slay" },
-    { "burn", "gag", "rename", "map", "nextmap", "seffect" },
-    { "auth", "logout" },
+    list("help", "status", "cvars", "cvar", "adminmenu", "say"),
+    list("psay", "kick", "ban", "banip", "unban", "slay"),
+    list("burn", "gag", "rename", "map", "nextmap", "seffect"),
+    list("auth", "logout"),
 }
 local admin_category_command_keys = {
-    { category = "Reference", keys = { "help", "status", "cvars", "cvar", "adminmenu" } },
-    { category = "Communication", keys = { "say", "psay" } },
-    { category = "Player Control", keys = { "kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename" } },
-    { category = "Match Control", keys = { "map", "nextmap" } },
-    { category = "Effects", keys = { "seffect" } },
-    { category = "Session", keys = { "auth", "logout" } },
+    { category = "Reference", keys = list("help", "status", "cvars", "cvar", "adminmenu") },
+    { category = "Communication", keys = list("say", "psay") },
+    { category = "Player Control", keys = list("kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename") },
+    { category = "Match Control", keys = list("map", "nextmap") },
+    { category = "Effects", keys = list("seffect") },
+    { category = "Session", keys = list("auth", "logout") },
 }
 local help_search_aliases = {
     ["help"] = "help",
@@ -171,6 +195,209 @@ local admin_menu_lines = {
     "[GT] category | Effects | count=1 | !gt_seffect <effect> <target> [time]",
     "[GT] category | Session | count=2 | !gt_auth <password> | !gt_logout",
 }
+local function get_admin_menu_branch_title(branch_id)
+    if branch_id == "server_management" then
+        return "Server management"
+    end
+    if branch_id == "game_management" then
+        return "Game management"
+    end
+    if branch_id == "player_management" then
+        return "Player management"
+    end
+    if branch_id == "fun" then
+        return "Fun"
+    end
+
+    return "Admin Menu"
+end
+
+local function get_admin_menu_branch_ordered_categories(branch_id)
+    local categories = {}
+    local category_count = 0
+    if branch_id == "server_management" then
+        category_count = category_count + 1
+        categories[category_count] = "Reference"
+        category_count = category_count + 1
+        categories[category_count] = "Communication"
+        category_count = category_count + 1
+        categories[category_count] = "Session"
+        return categories
+    end
+    if branch_id == "game_management" then
+        category_count = category_count + 1
+        categories[category_count] = "Match Control"
+        return categories
+    end
+    if branch_id == "player_management" then
+        category_count = category_count + 1
+        categories[category_count] = "Player Control"
+        return categories
+    end
+
+    return categories
+end
+
+local function get_admin_menu_branch_subtitle(branch_id)
+    if branch_id == "server_management" then
+        return "Reference, communication, and session commands."
+    end
+    if branch_id == "game_management" then
+        return "Match and rotation commands."
+    end
+    if branch_id == "player_management" then
+        return "Player control commands."
+    end
+    if branch_id == "fun" then
+        return "Effects and modifiers."
+    end
+
+    return "Choose a branch."
+end
+
+local function get_admin_menu_command_mode(spec)
+    local name = spec ~= nil and spec.name or ""
+    if name == "adminmenu" or name == "auth" or name == "logout" or name == "seffect" then
+        return "hidden"
+    end
+    if name == "help" or name == "status" or name == "cvars" then
+        return "execute"
+    end
+    if name == "kick" or name == "slay" or name == "gag" or name == "burn" then
+        return "action"
+    end
+
+    return "detail"
+end
+
+local function get_admin_menu_command_branch(spec)
+    local category = spec ~= nil and spec.category or ""
+    if category == "Reference" or category == "Communication" or category == "Session" then
+        return "server_management"
+    end
+    if category == "Match Control" then
+        return "game_management"
+    end
+    if category == "Player Control" then
+        return "player_management"
+    end
+
+    return nil
+end
+
+local function get_admin_menu_command_label(spec)
+    if spec == nil then
+        return "Command"
+    end
+
+    if spec.name == "help" then
+        return "Help"
+    end
+    if spec.name == "status" then
+        return "Status"
+    end
+    if spec.name == "cvars" then
+        return "Cvars"
+    end
+    if spec.name == "cvar" then
+        return "Cvar"
+    end
+    if spec.name == "say" then
+        return "Say"
+    end
+    if spec.name == "psay" then
+        return "Private say"
+    end
+    if spec.name == "ban" then
+        return "Ban"
+    end
+    if spec.name == "banip" then
+        return "Ban IP"
+    end
+    if spec.name == "unban" then
+        return "Unban"
+    end
+    if spec.name == "rename" then
+        return "Rename"
+    end
+    if spec.name == "map" then
+        return "Map"
+    end
+    if spec.name == "nextmap" then
+        return "Next map"
+    end
+    if spec.name == "logout" then
+        return "Logout"
+    end
+
+    return get_admin_menu_action_title(spec.name)
+end
+
+local function get_admin_menu_command_specs_for_category(branch_id, category)
+    local specs = {}
+    for index = 1, command_category_count do
+        local category_entry = admin_category_command_keys[index]
+        if category_entry ~= nil and category_entry.category == category then
+            local keys = category_entry.keys or {}
+            local spec_count = 0
+            local key_index = 1
+            while keys[key_index] ~= nil do
+                local spec = find_command_spec_by_name(keys[key_index])
+                if spec ~= nil
+                    and get_admin_menu_command_branch(spec) == branch_id
+                    and get_admin_menu_command_mode(spec) ~= "hidden" then
+                    spec_count = spec_count + 1
+                    specs[spec_count] = spec
+                end
+
+                key_index = key_index + 1
+            end
+
+            break
+        end
+    end
+
+    return specs
+end
+
+local function get_admin_menu_branch_categories(branch_id)
+    local ordered_categories = get_admin_menu_branch_ordered_categories(branch_id)
+    local categories = {}
+    local index = 1
+    local category_count = 0
+    while ordered_categories[index] ~= nil do
+        local category = ordered_categories[index]
+        local category_specs = get_admin_menu_command_specs_for_category(branch_id, category)
+        if category_specs[1] ~= nil then
+            category_count = category_count + 1
+            categories[category_count] = category
+        end
+
+        index = index + 1
+    end
+
+    return categories
+end
+
+local function get_admin_menu_command_specs_for_branch(branch_id)
+    local specs = {}
+    local category_count = 0
+    local ordered_categories = get_admin_menu_branch_ordered_categories(branch_id)
+    local category_index = 1
+    while ordered_categories[category_index] ~= nil do
+        local category_specs = get_admin_menu_command_specs_for_category(branch_id, ordered_categories[category_index])
+        local spec_index = 1
+        while category_specs[spec_index] ~= nil do
+            category_count = category_count + 1
+            specs[category_count] = category_specs[spec_index]
+            spec_index = spec_index + 1
+        end
+
+        category_index = category_index + 1
+    end
+
+    return specs
+end
 local send_private
 local send_private_lines
 
@@ -211,13 +438,19 @@ local function get_sorted_command_specs()
     return command_specs
 end
 
-local function find_command_spec_by_name(name)
+find_command_spec_by_name = function(name)
     local normalized = normalize_command_lookup(name)
     for index = 1, command_catalog_count do
         local spec = command_specs[index]
         if spec ~= nil and spec.name == normalized then
             return spec
         end
+    end
+
+    local catalog_spec = command_catalog[normalized]
+    if catalog_spec ~= nil then
+        catalog_spec.name = catalog_spec.name or normalized
+        return catalog_spec
     end
 
     return nil
@@ -1333,13 +1566,19 @@ local function handle_seffect(event, arguments)
 end
 
 local function handle_say(event, arguments)
-    if trim(arguments) == "" then
+    local message_text = trim(arguments)
+    if message_text == "" then
         send_private(event.slot, "[GT] usage: !gt_say <text>")
         return true
     end
 
-    plugin.host.broadcast_system_message(arguments)
-    send_private(event.slot, "[GT] system message sent.")
+    plugin.host.broadcast_message_to_clients(
+        config.clientEffectsPluginId,
+        client_effects_announcement_message_type,
+        message_text,
+        "Text",
+        1)
+    send_private(event.slot, "[GT] announcement sent.")
     return true
 end
 
@@ -1681,6 +1920,25 @@ local function shallow_copy_table(source)
     return copy
 end
 
+get_sequential_count = function(items)
+    if items == nil then
+        return 0
+    end
+
+    local count = 0
+    while items[count + 1] ~= nil do
+        count = count + 1
+    end
+
+    return count
+end
+
+append_sequential = function(items, value)
+    local next_index = get_sequential_count(items) + 1
+    items[next_index] = value
+    return next_index
+end
+
 local function escape_admin_menu_value(text)
     local value = tostring(text or "")
     value = value:gsub("%%", "%%25")
@@ -1699,7 +1957,7 @@ local function build_admin_menu_payload(screen)
     payload = payload .. "|t=" .. escape_admin_menu_value(screen ~= nil and screen.title or "")
     payload = payload .. "|s=" .. escape_admin_menu_value(screen ~= nil and screen.subtitle or "")
     payload = payload .. "|b=" .. escape_admin_menu_value(screen ~= nil and screen.breadcrumb or "")
-    for index = 1, #entries do
+    for index = 1, get_sequential_count(entries) do
         local entry = entries[index]
         if entry ~= nil then
             payload = payload .. "|l=" .. escape_admin_menu_value(entry.label or entry.token or "")
@@ -1771,27 +2029,32 @@ local function create_admin_menu_session(context, slot)
 end
 
 local function push_admin_menu_state(session, next_state)
-    session.stack[#session.stack + 1] = shallow_copy_table(session.state)
+    append_sequential(session.stack, shallow_copy_table(session.state))
     session.state = next_state
 end
 
 local function pop_admin_menu_state(session)
-    if #session.stack == 0 then
+    local stack_count = get_sequential_count(session.stack)
+    if stack_count == 0 then
         return false
     end
 
-    session.state = table.remove(session.stack)
+    session.state = session.stack[stack_count]
+    session.stack[stack_count] = nil
     return true
 end
 
 local function paginate_admin_menu_items(items, requested_page, page_size)
-    local total_pages = math.max(1, math.ceil(#items / page_size))
+    local item_count = get_sequential_count(items)
+    local total_pages = math.max(1, math.ceil(item_count / page_size))
     local page_index = clamp(requested_page or 1, 1, total_pages)
     local page_items = {}
     local start_index = ((page_index - 1) * page_size) + 1
-    local end_index = math.min(start_index + page_size - 1, #items)
+    local end_index = math.min(start_index + page_size - 1, item_count)
+    local page_item_count = 0
     for index = start_index, end_index do
-        page_items[#page_items + 1] = items[index]
+        page_item_count = page_item_count + 1
+        page_items[page_item_count] = items[index]
     end
 
     return page_items, page_index, total_pages
@@ -1848,7 +2111,7 @@ local function get_admin_menu_value_options(action_kind)
     return {}
 end
 
-local function get_admin_menu_action_title(action_kind)
+get_admin_menu_action_title = function(action_kind)
     if action_kind == "kick" then
         return "Kick"
     end
@@ -1883,7 +2146,7 @@ local function get_admin_menu_action_title(action_kind)
     return "Action"
 end
 
-local function get_admin_menu_action_breadcrumb(action_kind)
+get_admin_menu_action_breadcrumb = function(action_kind)
     if action_kind == "kick" or action_kind == "slay" or action_kind == "gag" then
         return "Player management > " .. get_admin_menu_action_title(action_kind)
     end
@@ -2008,31 +2271,127 @@ local function execute_admin_menu_action(session, action_kind, target_text, sele
     if action_kind == "help" then
         return handle_help(event, "")
     end
+    if action_kind == "cvars" then
+        return handle_cvars(event, "")
+    end
 
     return false
+end
+
+local function build_admin_menu_branch_screen(branch_id, requested_page)
+    local specs = get_admin_menu_command_specs_for_branch(branch_id)
+    local page_items, page_index, total_pages = paginate_admin_menu_items(specs, requested_page or 1, 3)
+    local should_prefix_category = branch_id == "server_management"
+    local entries = {}
+    for index = 1, get_sequential_count(page_items) do
+        local spec = page_items[index]
+        local label = get_admin_menu_command_label(spec)
+        if should_prefix_category then
+            label = tostring(spec.category) .. ": " .. label
+        end
+
+        append_sequential(entries, {
+            token = "command:" .. spec.name,
+            label = label,
+        })
+    end
+
+    if total_pages > 1 then
+        append_sequential(entries, {
+            token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
+            label = "Next",
+        })
+    end
+
+    append_sequential(entries, { token = "back", label = "Back" })
+    if get_sequential_count(entries) < 6 then
+        append_sequential(entries, { token = "close", label = "Close" })
+    end
+
+    return make_admin_menu_screen(
+        get_admin_menu_branch_title(branch_id),
+        get_admin_menu_branch_subtitle(branch_id) .. " | Page " .. tostring(page_index) .. "/" .. tostring(total_pages),
+        get_admin_menu_branch_title(branch_id),
+        entries)
+end
+
+local function build_admin_menu_command_category_screen(state)
+    local specs = get_admin_menu_command_specs_for_category(state.branchId, state.category)
+    local page_items, page_index, total_pages = paginate_admin_menu_items(specs, state.page or 1, 4)
+    local entries = {}
+    for index = 1, get_sequential_count(page_items) do
+        local spec = page_items[index]
+        append_sequential(entries, {
+            token = "command:" .. spec.name,
+            label = get_admin_menu_command_label(spec),
+        })
+    end
+
+    if total_pages > 1 then
+        append_sequential(entries, {
+            token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
+            label = "Next",
+        })
+    end
+
+    append_sequential(entries, { token = "back", label = "Back" })
+    if get_sequential_count(entries) < 6 then
+        append_sequential(entries, { token = "close", label = "Close" })
+    end
+
+    return make_admin_menu_screen(
+        state.category or "Commands",
+        "Page " .. tostring(page_index) .. "/" .. tostring(total_pages),
+        get_admin_menu_branch_title(state.branchId) .. " > " .. tostring(state.category or "Commands"),
+        entries)
+end
+
+local function build_admin_menu_command_detail_screen(state)
+    local spec = find_command_spec_by_name(state.commandName)
+    if spec == nil then
+        return make_admin_menu_screen("Command", "Unknown command.", get_admin_menu_branch_title(state.branchId), {
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
+    end
+
+    local subtitle = spec.usage or spec.summary or "Use chat for this command."
+    if spec.summary ~= nil and spec.summary ~= "" and spec.summary ~= subtitle then
+        subtitle = subtitle .. " | " .. spec.summary
+    end
+
+    return make_admin_menu_screen(
+        get_admin_menu_command_label(spec),
+        subtitle,
+        get_admin_menu_branch_title(state.branchId) .. " > " .. tostring(state.category or spec.category) .. " > " .. get_admin_menu_command_label(spec),
+        {
+            { token = "showinfo:" .. spec.name, label = "Show usage in chat" },
+            { token = "back", label = "Back" },
+            { token = "close", label = "Close" },
+        })
 end
 
 local function build_admin_menu_target_screen(state)
     local players = get_admin_menu_players()
     local page_items, page_index, total_pages = paginate_admin_menu_items(players, state.page or 1, 3)
     local entries = {}
-    for index = 1, #page_items do
+    for index = 1, get_sequential_count(page_items) do
         local player = page_items[index]
-        entries[#entries + 1] = {
+        append_sequential(entries, {
             token = "target:#" .. tostring(player.userId),
             label = tostring(player.name) .. " (#" .. tostring(player.userId) .. ")",
-        }
+        })
     end
 
     if total_pages > 1 then
-        entries[#entries + 1] = {
+        append_sequential(entries, {
             token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
             label = "Next",
-        }
+        })
     end
 
-    entries[#entries + 1] = { token = "back", label = "Back" }
-    entries[#entries + 1] = { token = "close", label = "Close" }
+    append_sequential(entries, { token = "back", label = "Back" })
+    append_sequential(entries, { token = "close", label = "Close" })
 
     return make_admin_menu_screen(
         "Select target",
@@ -2045,24 +2404,24 @@ local function build_admin_menu_value_screen(state)
     local options = get_admin_menu_value_options(state.actionKind)
     local page_items, page_index, total_pages = paginate_admin_menu_items(options, state.page or 1, 4)
     local entries = {}
-    for index = 1, #page_items do
+    for index = 1, get_sequential_count(page_items) do
         local value = tostring(page_items[index])
-        entries[#entries + 1] = {
+        append_sequential(entries, {
             token = "value:" .. value,
             label = value,
-        }
+        })
     end
 
     if total_pages > 1 then
-        entries[#entries + 1] = {
+        append_sequential(entries, {
             token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
             label = "Next",
-        }
+        })
     end
 
-    entries[#entries + 1] = { token = "back", label = "Back" }
-    if #entries < 6 then
-        entries[#entries + 1] = { token = "close", label = "Close" }
+    append_sequential(entries, { token = "back", label = "Back" })
+    if get_sequential_count(entries) < 6 then
+        append_sequential(entries, { token = "close", label = "Close" })
     end
 
     return make_admin_menu_screen(
@@ -2075,13 +2434,13 @@ end
 local function build_admin_menu_duration_screen(state)
     local entries = {}
     if state.includeInfinite then
-        entries[#entries + 1] = { token = "duration:0", label = "Infinite" }
+        append_sequential(entries, { token = "duration:0", label = "Infinite" })
     end
-    entries[#entries + 1] = { token = "duration:180", label = "3 min" }
-    entries[#entries + 1] = { token = "duration:30", label = "30 seconds" }
-    entries[#entries + 1] = { token = "duration:10", label = "10 seconds" }
-    entries[#entries + 1] = { token = "back", label = "Back" }
-    entries[#entries + 1] = { token = "close", label = "Close" }
+    append_sequential(entries, { token = "duration:180", label = "3 min" })
+    append_sequential(entries, { token = "duration:30", label = "30 seconds" })
+    append_sequential(entries, { token = "duration:10", label = "10 seconds" })
+    append_sequential(entries, { token = "back", label = "Back" })
+    append_sequential(entries, { token = "close", label = "Close" })
     return make_admin_menu_screen(
         "Duration",
         "Pick how long the effect should last.",
@@ -2092,79 +2451,58 @@ end
 local function build_admin_menu_screen_for_session(session)
     local state = session.state
     if state.screen == admin_menu_root_screen then
-        return make_admin_menu_screen("Admin Menu", "Choose a branch.", "", {
-            { token = "nav:server_management", label = "Server management" },
-            { token = "nav:game_management", label = "Game management" },
-            { token = "nav:player_management", label = "Player management" },
-            { token = "nav:fun", label = "Fun" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Admin Menu", "Choose a branch.", "", list(
+            menu_entry("nav:server_management", "Server management"),
+            menu_entry("nav:game_management", "Game management"),
+            menu_entry("nav:player_management", "Player management"),
+            menu_entry("nav:fun", "Fun"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "server_management" then
-        return make_admin_menu_screen("Server management", "Reference and diagnostics.", "Server management", {
-            { token = "execute:status", label = "Status" },
-            { token = "execute:help", label = "Help" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return build_admin_menu_branch_screen("server_management", state.page)
     end
     if state.screen == "game_management" then
-        return make_admin_menu_screen("Game management", "Map selection is still chat-driven.", "Game management", {
-            { token = "info:game_management", label = "Use !gt_map / !gt_nextmap for now" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return build_admin_menu_branch_screen("game_management", state.page)
     end
     if state.screen == "player_management" then
-        return make_admin_menu_screen("Player management", "Choose a player action.", "Player management", {
-            { token = "action:kick", label = "Kick" },
-            { token = "action:slay", label = "Slay" },
-            { token = "action:gag", label = "Gag" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return build_admin_menu_branch_screen("player_management", state.page)
     end
     if state.screen == "fun" then
-        return make_admin_menu_screen("Fun", "Choose an effect branch.", "Fun", {
-            { token = "nav:fun_player_effects", label = "Player effects" },
-            { token = "nav:fun_game_effects", label = "Game effects" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Fun", "Choose an effect branch.", "Fun", list(
+            menu_entry("nav:fun_player_effects", "Player effects"),
+            menu_entry("nav:fun_game_effects", "Game effects"),
+            menu_entry("back", "Back"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "fun_player_effects" then
-        return make_admin_menu_screen("Player effects", "Choose a player effect branch.", "Fun > Player effects", {
-            { token = "nav:fun_player_modifiers", label = "Modifiers" },
-            { token = "nav:fun_player_status", label = "Status effects" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Player effects", "Choose a player effect branch.", "Fun > Player effects", list(
+            menu_entry("nav:fun_player_modifiers", "Modifiers"),
+            menu_entry("nav:fun_player_status", "Status effects"),
+            menu_entry("back", "Back"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "fun_game_effects" then
-        return make_admin_menu_screen("Game effects", "Whole-match effect presets.", "Fun > Game effects", {
-            { token = "action:earthquake_all", label = "Earthquake (all players)" },
-            { token = "action:blind_all", label = "Blind (all players)" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Game effects", "Whole-match effect presets.", "Fun > Game effects", list(
+            menu_entry("action:earthquake_all", "Earthquake (all players)"),
+            menu_entry("action:blind_all", "Blind (all players)"),
+            menu_entry("back", "Back"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "fun_player_modifiers" then
-        return make_admin_menu_screen("Modifiers", "Choose a modifier.", "Fun > Player effects > Modifiers", {
-            { token = "action:scale", label = "Scale" },
-            { token = "action:gravity", label = "Gravity" },
-            { token = "action:speed", label = "Movement speed" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Modifiers", "Choose a modifier.", "Fun > Player effects > Modifiers", list(
+            menu_entry("action:scale", "Scale"),
+            menu_entry("action:gravity", "Gravity"),
+            menu_entry("action:speed", "Movement speed"),
+            menu_entry("back", "Back"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "fun_player_status" then
-        return make_admin_menu_screen("Status effects", "Choose a status effect.", "Fun > Player effects > Status effects", {
-            { token = "action:blind", label = "Blind" },
-            { token = "action:burn", label = "Burn" },
-            { token = "action:earthquake", label = "Earthquake" },
-            { token = "back", label = "Back" },
-            { token = "close", label = "Close" },
-        })
+        return make_admin_menu_screen("Status effects", "Choose a status effect.", "Fun > Player effects > Status effects", list(
+            menu_entry("action:blind", "Blind"),
+            menu_entry("action:burn", "Burn"),
+            menu_entry("action:earthquake", "Earthquake"),
+            menu_entry("back", "Back"),
+            menu_entry("close", "Close")))
     end
     if state.screen == "select_target" then
         return build_admin_menu_target_screen(state)
@@ -2175,10 +2513,15 @@ local function build_admin_menu_screen_for_session(session)
     if state.screen == "select_duration" then
         return build_admin_menu_duration_screen(state)
     end
+    if state.screen == "command_category" then
+        return build_admin_menu_command_category_screen(state)
+    end
+    if state.screen == "command_detail" then
+        return build_admin_menu_command_detail_screen(state)
+    end
 
-    return make_admin_menu_screen("Admin Menu", "Unknown menu state.", "", {
-        { token = "close", label = "Close" },
-    })
+    return make_admin_menu_screen("Admin Menu", "Unknown menu state.", "", list(
+        menu_entry("close", "Close")))
 end
 
 local function refresh_admin_menu_session(session)
@@ -2273,14 +2616,71 @@ local function process_admin_menu_selection(session, payload)
         return
     end
 
+    if starts_with(token, "category:") then
+        local category_payload = token:sub(10)
+        local separator_index = string.find(category_payload, "|", 1, true)
+        if separator_index == nil then
+            return
+        end
+
+        local branch_id = category_payload:sub(1, separator_index - 1)
+        local category = category_payload:sub(separator_index + 1)
+        push_admin_menu_state(session, {
+            screen = "command_category",
+            branchId = branch_id,
+            category = category,
+            page = 1,
+        })
+        refresh_admin_menu_session(session)
+        return
+    end
+
     if starts_with(token, "info:") then
         send_private(session.slot, "[GT] Map selection is not wired into the admin menu yet. Use !gt_map or !gt_nextmap for now.")
         refresh_admin_menu_session(session)
         return
     end
 
+    if starts_with(token, "showinfo:") then
+        local spec = find_command_spec_by_name(token:sub(10))
+        if spec ~= nil then
+            send_command_detail(session.slot, spec)
+        end
+        refresh_admin_menu_session(session)
+        return
+    end
+
     if starts_with(token, "execute:") then
         execute_admin_menu_action(session, token:sub(9), nil, nil, nil)
+        refresh_admin_menu_session(session)
+        return
+    end
+
+    if starts_with(token, "command:") then
+        local command_name = token:sub(9)
+        local spec = find_command_spec_by_name(command_name)
+        if spec == nil then
+            return
+        end
+
+        local menu_mode = get_admin_menu_command_mode(spec)
+        if menu_mode == "execute" then
+            execute_admin_menu_action(session, spec.name, nil, nil, nil)
+            refresh_admin_menu_session(session)
+            return
+        end
+        if menu_mode == "action" then
+            begin_admin_menu_action(session, spec.name)
+            refresh_admin_menu_session(session)
+            return
+        end
+
+        push_admin_menu_state(session, {
+            screen = "command_detail",
+            branchId = get_admin_menu_command_branch(spec),
+            category = spec.category,
+            commandName = spec.name,
+        })
         refresh_admin_menu_session(session)
         return
     end

@@ -169,6 +169,13 @@ public sealed class LuaPluginHostSmokeTests
             "earthquake|6.000|12.000|18.000",
             PluginMessagePayloadFormat.Text,
             1));
+        messageHooks.OnServerPluginMessage(new ClientPluginMessageEnvelope(
+            "open-garrison.server.lua-garrison-tools",
+            "open-garrison.client.lua-garrison-tools-effects",
+            "announce.notice",
+            "Server restart soon",
+            PluginMessagePayloadFormat.Text,
+            1));
 
         updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
 
@@ -178,6 +185,7 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(float.IsFinite(offset.X), string.Join(Environment.NewLine, logs));
         Assert.True(float.IsFinite(offset.Y), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.UiImpl.Notices, notice => notice.Text == "Server restart soon" && notice.DurationTicks == 300 && notice.PlaySound == false);
 
         messageHooks.OnServerPluginMessage(new ClientPluginMessageEnvelope(
             "open-garrison.server.lua-garrison-tools",
@@ -1744,8 +1752,14 @@ public sealed class LuaPluginHostSmokeTests
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
             new ChatReceivedEvent(1, "Admin", "!gt_say Server restart soon", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
-        Assert.Contains("Server restart soon", loadedPlugin.Context.AdminImpl.BroadcastSystemMessages);
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("system message sent", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            loadedPlugin.Context.BroadcastPluginMessages,
+            message => message.TargetPluginId == "open-garrison.client.lua-garrison-tools-effects"
+                && message.MessageType == "announce.notice"
+                && message.Payload == "Server restart soon"
+                && message.PayloadFormat == PluginMessagePayloadFormat.Text
+                && message.SchemaVersion == 1);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("announcement sent", StringComparison.OrdinalIgnoreCase));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
         Assert.True(chatHooks.TryHandleChatMessage(
@@ -1840,7 +1854,55 @@ public sealed class LuaPluginHostSmokeTests
             message => message.Slot == 1
                 && message.TargetPluginId == "open-garrison.client.lua-garrison-tools-menu"
                 && message.MessageType == "adminmenu.open"
-                && message.Payload.StartsWith("am1|t=Admin Menu|", StringComparison.Ordinal));
+                && message.Payload.StartsWith("am1|t=Admin Menu|", StringComparison.Ordinal)
+                && message.Payload.Contains("|l=Server management|", StringComparison.Ordinal)
+                && message.Payload.Contains("|l=Player management|", StringComparison.Ordinal));
+
+        loadedPlugin.Context.SentPluginMessages.Clear();
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "select:3",
+            PluginMessagePayloadFormat.Text,
+            1));
+        Assert.True(
+            loadedPlugin.Context.SentPluginMessages.Any(
+                message => message.Slot == 1
+                    && message.TargetPluginId == "open-garrison.client.lua-garrison-tools-menu"
+                    && message.MessageType == "adminmenu.open"
+                    && message.Payload.Contains("|t=Player management|", StringComparison.Ordinal)
+                    && message.Payload.Contains("|l=Kick|", StringComparison.Ordinal)
+                    && message.Payload.Contains("|l=Ban|", StringComparison.Ordinal)
+                    && message.Payload.Contains("|l=Ban IP|", StringComparison.Ordinal)),
+            string.Join(Environment.NewLine, logs.Concat(loadedPlugin.Context.SentPluginMessages.Select(message => message.Payload))));
+
+        loadedPlugin.Context.SentPluginMessages.Clear();
+        messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+            1,
+            "Admin",
+            "open-garrison.client.lua-garrison-tools-menu",
+            "open-garrison.server.lua-garrison-tools",
+            "adminmenu.select",
+            "select:5",
+            PluginMessagePayloadFormat.Text,
+            1));
+        Assert.True(
+            loadedPlugin.Context.SentPluginMessages.Any(
+                message => message.Slot == 1
+                    && message.TargetPluginId == "open-garrison.client.lua-garrison-tools-menu"
+                    && message.MessageType == "adminmenu.open"
+                    && message.Payload.Contains("|t=Admin Menu|", StringComparison.Ordinal)
+                    && message.Payload.Contains("|l=Server management|", StringComparison.Ordinal)),
+            string.Join(Environment.NewLine, logs.Concat(loadedPlugin.Context.SentPluginMessages.Select(message => message.Payload))));
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_help", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("[GT] help |", StringComparison.Ordinal));
+        Assert.DoesNotContain(logs, log => log.Contains("callback failed", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logs, log => log.Contains("disabled open-garrison.server.lua-garrison-tools", StringComparison.OrdinalIgnoreCase));
 
         loadedPlugin.Context.SentPluginMessages.Clear();
         messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
