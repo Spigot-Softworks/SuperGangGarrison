@@ -52,6 +52,11 @@ internal sealed partial class LuaClientPlugin
 
     public void OnWorldSound(ClientWorldSoundEvent e) => ExecuteInPhase(LuaCallbackPhase.Update, () => CallIfPresent("on_world_sound", ToDynValue(e)));
 
+    public void OnServerPluginMessage(ClientPluginMessageEnvelope e)
+    {
+        ExecuteInPhase(LuaCallbackPhase.Update, () => CallIfPresent("on_server_plugin_message", ToDynValue(e)));
+    }
+
     public void OnLocalDamage(LocalDamageEvent e)
     {
         if (_script is null || _pluginTable is null)

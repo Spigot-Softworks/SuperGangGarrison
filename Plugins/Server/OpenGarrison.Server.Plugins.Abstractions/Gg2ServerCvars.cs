@@ -21,9 +21,26 @@ public readonly record struct OpenGarrisonServerCvarInfo(
 
 public interface IOpenGarrisonServerCvarRegistry
 {
-    IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll();
+    IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll()
+    {
+        return GetAll(includeProtectedValues: false);
+    }
 
-    bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar);
+    IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues);
 
-    bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string error);
+    bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
+    {
+        return TryGet(name, includeProtectedValue: false, out cvar);
+    }
+
+    bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar);
+
+    bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string error)
+    {
+        return TrySet(name, value, allowProtectedMutation: false, out cvar, out error);
+    }
+
+    bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string error);
+
+    bool TryProtect(string name, out OpenGarrisonServerCvarInfo cvar, out string error);
 }

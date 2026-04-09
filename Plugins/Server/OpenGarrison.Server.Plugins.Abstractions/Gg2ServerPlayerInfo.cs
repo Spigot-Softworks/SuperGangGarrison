@@ -9,6 +9,7 @@ public readonly record struct OpenGarrisonServerPlayerInfo(
     string Name,
     bool IsSpectator,
     bool IsAuthorized,
+    bool IsGagged,
     bool IsAlive,
     int? PlayerId,
     PlayerTeam? Team,

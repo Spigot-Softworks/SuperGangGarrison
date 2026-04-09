@@ -20,6 +20,7 @@ internal sealed partial class LuaClientPlugin(
     string pluginDirectory) : IOpenGarrisonClientPlugin,
     IOpenGarrisonClientLifecycleHooks,
     IOpenGarrisonClientUpdateHooks,
+    IOpenGarrisonClientPluginMessageHooks,
     IOpenGarrisonClientHudHooks,
     IOpenGarrisonClientScoreboardHooks,
     IOpenGarrisonClientSoundHooks,

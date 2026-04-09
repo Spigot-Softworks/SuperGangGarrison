@@ -270,6 +270,40 @@ public sealed class PluginContractValidationTests
         Assert.Contains("did not match expected message type", error, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void PackagedClientPluginBootstrapperMirrorsPackagedPluginsWithoutDeletingCustomRuntimePlugins()
+    {
+        var rootPath = CreateTempRoot();
+        var packagedSource = Path.Combine(rootPath, "Packaged");
+        var runtimeDestination = Path.Combine(rootPath, "Runtime");
+
+        var packagedPluginDirectory = Path.Combine(packagedSource, "Lua.GarrisonToolsEffects");
+        Directory.CreateDirectory(packagedPluginDirectory);
+        File.WriteAllText(Path.Combine(packagedPluginDirectory, "plugin.json"), """{"id":"open-garrison.client.lua-garrison-tools-effects"}""");
+        File.WriteAllText(Path.Combine(packagedPluginDirectory, "main.lua"), "return {}");
+
+        var nestedPackagedDirectory = Path.Combine(packagedPluginDirectory, "Resources");
+        Directory.CreateDirectory(nestedPackagedDirectory);
+        File.WriteAllText(Path.Combine(nestedPackagedDirectory, "effect.txt"), "blind");
+
+        var staleRuntimeDirectory = Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects");
+        Directory.CreateDirectory(staleRuntimeDirectory);
+        File.WriteAllText(Path.Combine(staleRuntimeDirectory, "old.txt"), "stale");
+
+        var customRuntimeDirectory = Path.Combine(runtimeDestination, "CustomPlugin");
+        Directory.CreateDirectory(customRuntimeDirectory);
+        File.WriteAllText(Path.Combine(customRuntimeDirectory, "custom.txt"), "keep");
+
+        Assert.True(PackagedClientPluginBootstrapper.TryMirrorPackagedPlugins(packagedSource, runtimeDestination, out var error), error);
+        Assert.Equal(string.Empty, error);
+
+        Assert.False(File.Exists(Path.Combine(staleRuntimeDirectory, "old.txt")));
+        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "plugin.json")));
+        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "main.lua")));
+        Assert.True(File.Exists(Path.Combine(runtimeDestination, "Lua.GarrisonToolsEffects", "Resources", "effect.txt")));
+        Assert.True(File.Exists(Path.Combine(customRuntimeDirectory, "custom.txt")));
+    }
+
     private static void InvokeClientSendMessage(
         ClientPluginHost host,
         string sourcePluginId,
@@ -460,7 +494,17 @@ public sealed class PluginContractValidationTests
         {
         }
 
+        public bool TryRenamePlayer(byte slot, string newName) => true;
+
         public bool TryDisconnect(byte slot, string reason) => true;
+
+        public OpenGarrisonServerBanActionResult TryBanPlayer(byte slot, TimeSpan? duration, string reason) => new(true, "127.0.0.1", string.Empty, !duration.HasValue, 0);
+
+        public OpenGarrisonServerBanActionResult TryBanIpAddress(string ipAddress, TimeSpan? duration, string reason) => new(true, ipAddress, string.Empty, !duration.HasValue, 0);
+
+        public OpenGarrisonServerAddressActionResult TryUnbanIpAddress(string ipAddress) => new(true, ipAddress, string.Empty);
+
+        public bool TrySetPlayerGagged(byte slot, bool isGagged) => true;
 
         public bool TryMoveToSpectator(byte slot) => true;
 
@@ -482,6 +526,8 @@ public sealed class PluginContractValidationTests
 
         public bool TryForceKill(byte slot) => true;
 
+        public bool TryIgnitePlayer(byte slot, float durationSeconds) => true;
+
         public bool TrySetPlayerScale(byte slot, float scale) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
@@ -497,15 +543,22 @@ public sealed class PluginContractValidationTests
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry
     {
-        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll() => [];
+        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues) => [];
 
-        public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
+        public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
         {
             cvar = default;
             return false;
         }
 
-        public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        {
+            cvar = default;
+            errorMessage = "unsupported";
+            return false;
+        }
+
+        public bool TryProtect(string name, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
         {
             cvar = default;
             errorMessage = "unsupported";

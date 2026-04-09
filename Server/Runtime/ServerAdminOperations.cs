@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
@@ -16,8 +18,12 @@ internal sealed class ServerAdminOperations(
     Func<GameplayOwnershipService?> gameplayOwnershipServiceGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
     Func<SnapshotBroadcaster> snapshotBroadcasterGetter,
-    Action<MapChangeTransition>? applyMapTransition = null) : IOpenGarrisonServerAdminOperations
+    Action<MapChangeTransition>? applyMapTransition = null,
+    ServerBanService? banService = null) : IOpenGarrisonServerAdminOperations
 {
+    private const int MaxPlayerNameLength = 20;
+    private const string DefaultPlayerName = "Player";
+
     public void BroadcastSystemMessage(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -53,6 +59,20 @@ internal sealed class ServerAdminOperations(
         log($"[server] system message to slot {slot}: {text.Trim()}");
     }
 
+    public bool TryRenamePlayer(byte slot, string newName)
+    {
+        if (!clientsGetter().TryGetValue(slot, out var client))
+        {
+            return false;
+        }
+
+        var sanitizedName = SanitizePlayerName(newName);
+        client.Name = sanitizedName;
+        sessionManagerGetter().ApplyClientProfile(slot, sanitizedName, client.BadgeMask);
+        log($"[server] renamed slot {slot} to \"{sanitizedName}\"");
+        return true;
+    }
+
     public bool TryDisconnect(byte slot, string reason)
     {
         if (!clientsGetter().TryGetValue(slot, out var client))
@@ -63,6 +83,86 @@ internal sealed class ServerAdminOperations(
         var finalReason = ProtocolCodec.TruncateUtf8(string.IsNullOrWhiteSpace(reason) ? "Disconnected." : reason.Trim(), ProtocolCodec.MaxReasonBytes);
         TrySend(client.EndPoint, new ConnectionDeniedMessage(finalReason));
         sessionManagerGetter().RemoveClient(slot, finalReason);
+        return true;
+    }
+
+    public OpenGarrisonServerBanActionResult TryBanPlayer(byte slot, TimeSpan? duration, string reason)
+    {
+        if (banService is null)
+        {
+            return new OpenGarrisonServerBanActionResult(false, string.Empty, "Ban service is not configured.", false, 0);
+        }
+
+        if (!clientsGetter().TryGetValue(slot, out var client))
+        {
+            return new OpenGarrisonServerBanActionResult(false, string.Empty, "No connected client for that slot.", false, 0);
+        }
+
+        var result = banService.BanIpAddress(client.EndPoint.Address, duration, reason, "admin", client.Name);
+        if (!result.Success)
+        {
+            return result;
+        }
+
+        var disconnectReason = banService.GetConnectionDeniedReason(client.EndPoint) ?? "You are banned from this server.";
+        TrySend(client.EndPoint, new ConnectionDeniedMessage(disconnectReason));
+        sessionManagerGetter().RemoveClient(slot, disconnectReason);
+        return result;
+    }
+
+    public OpenGarrisonServerBanActionResult TryBanIpAddress(string ipAddress, TimeSpan? duration, string reason)
+    {
+        if (banService is null)
+        {
+            return new OpenGarrisonServerBanActionResult(false, string.Empty, "Ban service is not configured.", false, 0);
+        }
+
+        var result = banService.BanIpAddress(ipAddress, duration, reason, "admin");
+        if (!result.Success)
+        {
+            return result;
+        }
+
+        var disconnectedSlots = clientsGetter().Values
+            .Where(client => string.Equals(
+                client.EndPoint.Address.IsIPv4MappedToIPv6 ? client.EndPoint.Address.MapToIPv4().ToString() : client.EndPoint.Address.ToString(),
+                result.Address,
+                StringComparison.Ordinal))
+            .Select(client => client.Slot)
+            .Distinct()
+            .ToArray();
+        for (var index = 0; index < disconnectedSlots.Length; index += 1)
+        {
+            var slot = disconnectedSlots[index];
+            if (clientsGetter().TryGetValue(slot, out var client))
+            {
+                var disconnectReason = banService.GetConnectionDeniedReason(client.EndPoint) ?? "You are banned from this server.";
+                TrySend(client.EndPoint, new ConnectionDeniedMessage(disconnectReason));
+                sessionManagerGetter().RemoveClient(slot, disconnectReason);
+            }
+        }
+
+        return result;
+    }
+
+    public OpenGarrisonServerAddressActionResult TryUnbanIpAddress(string ipAddress)
+    {
+        return banService is null
+            ? new OpenGarrisonServerAddressActionResult(false, string.Empty, "Ban service is not configured.")
+            : banService.UnbanIpAddress(ipAddress);
+    }
+
+    public bool TrySetPlayerGagged(byte slot, bool isGagged)
+    {
+        if (!clientsGetter().TryGetValue(slot, out var client))
+        {
+            return false;
+        }
+
+        client.IsGagged = isGagged;
+        log(isGagged
+            ? $"[server] gagged slot {slot} ({client.Name})"
+            : $"[server] ungagged slot {slot} ({client.Name})");
         return true;
     }
 
@@ -134,6 +234,37 @@ internal sealed class ServerAdminOperations(
         }
 
         return worldGetter().ForceKillNetworkPlayer(slot);
+    }
+
+    public bool TryIgnitePlayer(byte slot, float durationSeconds)
+    {
+        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        var world = worldGetter();
+        if (!world.TryGetNetworkPlayer(slot, out var player)
+            || !player.IsAlive
+            || player.IsUbered)
+        {
+            return false;
+        }
+
+        var clampedDurationSeconds = float.Clamp(durationSeconds, 0.1f, 60f);
+        player.IgniteAfterburn(
+            ownerPlayerId: 0,
+            durationIncreaseSourceTicks: clampedDurationSeconds * LegacyMovementModel.SourceTicksPerSecond,
+            intensityIncrease: PlayerEntity.BurnMaxIntensity,
+            afterburnFalloff: false,
+            burnFalloffAmount: 0f);
+        if (!player.IsBurning)
+        {
+            return false;
+        }
+
+        log($"[server] ignited slot {slot} ({player.DisplayName}) for {clampedDurationSeconds:G9}s");
+        return true;
     }
 
     public bool TrySetPlayerScale(byte slot, float scale)
@@ -229,6 +360,25 @@ internal sealed class ServerAdminOperations(
     private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)
     {
         return GameplayLoadoutSelectionResolver.TryResolveLoadoutId(playerClass, selection, out loadoutId);
+    }
+
+    private static string SanitizePlayerName(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return DefaultPlayerName;
+        }
+
+        var sanitized = value.Replace("#", string.Empty).Trim();
+        if (sanitized.Length == 0)
+        {
+            return DefaultPlayerName;
+        }
+
+        sanitized = ProtocolCodec.TruncateUtf8(sanitized, maxBytes: 80);
+        return sanitized.Length > MaxPlayerNameLength
+            ? sanitized[..MaxPlayerNameLength]
+            : sanitized;
     }
 
     private void TrySend(IPEndPoint endPoint, IProtocolMessage message)

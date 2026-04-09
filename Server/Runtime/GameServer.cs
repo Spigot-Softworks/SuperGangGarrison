@@ -92,6 +92,7 @@ sealed partial class GameServer
     private ServerScheduler _scheduler = null!;
     private IOpenGarrisonServerCvarRegistry _cvarRegistry = null!;
     private ServerAdminChatRouter _adminChatRouter = null!;
+    private ServerBanService _banService = null!;
 
     public GameServer(
         SimulationConfig config,

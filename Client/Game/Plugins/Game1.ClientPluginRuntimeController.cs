@@ -23,6 +23,11 @@ public partial class Game1
             var pluginsDirectory = Path.Combine(RuntimePaths.ApplicationRoot, "Plugins", "Client");
             var pluginConfigRoot = Path.Combine(RuntimePaths.ConfigDirectory, "plugins", "client");
             var pluginStatePath = Path.Combine(pluginConfigRoot, "plugins.json");
+            if (!PackagedClientPluginBootstrapper.TryPrepareRuntimePlugins(pluginsDirectory, out var packagedPluginError))
+            {
+                _game.AddConsoleLine(packagedPluginError);
+            }
+
             _game._clientPluginStateView = new ClientPluginStateView(_game);
             _game._clientPluginHost = new ClientPluginHost(_game._clientPluginStateView, _game.GraphicsDevice, pluginsDirectory, pluginConfigRoot, pluginStatePath, _game.AddConsoleLine);
             _game._clientPluginHost.LoadPlugins();

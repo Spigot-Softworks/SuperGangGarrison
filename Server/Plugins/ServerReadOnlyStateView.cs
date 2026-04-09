@@ -53,6 +53,7 @@ internal sealed class ServerReadOnlyStateView(
                     client.Name,
                     isSpectator,
                     client.IsAuthorized,
+                    client.IsGagged,
                     player?.IsAlive ?? false,
                     player?.Id,
                     team,

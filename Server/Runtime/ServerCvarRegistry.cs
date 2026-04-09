@@ -1,5 +1,6 @@
 using System.Globalization;
 using OpenGarrison.Server.Plugins;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;
 
@@ -7,16 +8,40 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
 {
     private const string ProtectedValueMask = "<protected>";
     private readonly Dictionary<string, CvarRegistration> _cvarsByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _runtimeProtectedNames = new(StringComparer.OrdinalIgnoreCase);
+    private string? _runtimeProtectionPath;
 
-    public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll()
+    public void EnableRuntimeProtectionPersistence(string path)
+    {
+        _runtimeProtectionPath = path;
+        var document = JsonConfigurationFile.LoadOrCreate(path, static () => new CvarProtectionDocument());
+        _runtimeProtectedNames.Clear();
+        for (var index = 0; index < document.ProtectedNames.Count; index += 1)
+        {
+            if (TryGetRegistration(document.ProtectedNames[index], out var registration)
+                && !registration.IsProtected)
+            {
+                _runtimeProtectedNames.Add(registration.Name);
+            }
+        }
+
+        PersistRuntimeProtectionOverrides();
+    }
+
+    public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues)
     {
         return _cvarsByName.Values
             .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(ToInfo)
+            .Select(entry => ToInfo(entry, includeProtectedValues))
             .ToArray();
     }
 
-    public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
+    public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll()
+    {
+        return GetAll(includeProtectedValues: false);
+    }
+
+    public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
     {
         cvar = default;
         if (!TryGetRegistration(name, out var registration))
@@ -24,11 +49,16 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
             return false;
         }
 
-        cvar = ToInfo(registration);
+        cvar = ToInfo(registration, includeProtectedValue);
         return true;
     }
 
-    public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string error)
+    public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
+    {
+        return TryGet(name, includeProtectedValue: false, out cvar);
+    }
+
+    public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string error)
     {
         cvar = default;
         error = string.Empty;
@@ -41,17 +71,49 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
         if (registration.IsReadOnly)
         {
             error = "Cvar is read-only.";
-            cvar = ToInfo(registration);
+            cvar = ToInfo(registration, includeProtectedValue: false);
+            return false;
+        }
+
+        if (IsProtected(registration.Name) && !allowProtectedMutation)
+        {
+            error = "Cvar is protected.";
+            cvar = ToInfo(registration, includeProtectedValue: false);
             return false;
         }
 
         if (!registration.TrySet(value?.Trim() ?? string.Empty, out error))
         {
-            cvar = ToInfo(registration);
+            cvar = ToInfo(registration, includeProtectedValue: false);
             return false;
         }
 
-        cvar = ToInfo(registration);
+        cvar = ToInfo(registration, allowProtectedMutation);
+        return true;
+    }
+
+    public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string error)
+    {
+        return TrySet(name, value, allowProtectedMutation: false, out cvar, out error);
+    }
+
+    public bool TryProtect(string name, out OpenGarrisonServerCvarInfo cvar, out string error)
+    {
+        cvar = default;
+        error = string.Empty;
+        if (!TryGetRegistration(name, out var registration))
+        {
+            error = "Unknown cvar.";
+            return false;
+        }
+
+        if (!registration.IsProtected)
+        {
+            _runtimeProtectedNames.Add(registration.Name);
+            PersistRuntimeProtectionOverrides();
+        }
+
+        cvar = ToInfo(registration, includeProtectedValue: false);
         return true;
     }
 
@@ -276,18 +338,49 @@ internal sealed class ServerCvarRegistry : IOpenGarrisonServerCvarRegistry
         return true;
     }
 
-    private static OpenGarrisonServerCvarInfo ToInfo(CvarRegistration registration)
+    private bool IsProtected(string name)
     {
+        return _runtimeProtectedNames.Contains(name)
+            || (_cvarsByName.TryGetValue(name, out var registration) && registration.IsProtected);
+    }
+
+    private void PersistRuntimeProtectionOverrides()
+    {
+        if (string.IsNullOrWhiteSpace(_runtimeProtectionPath))
+        {
+            return;
+        }
+
+        JsonConfigurationFile.Save(
+            _runtimeProtectionPath,
+            new CvarProtectionDocument
+            {
+                ProtectedNames = _runtimeProtectedNames
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            });
+    }
+
+    private OpenGarrisonServerCvarInfo ToInfo(CvarRegistration registration, bool includeProtectedValue)
+    {
+        var isProtected = IsProtected(registration.Name);
         return new OpenGarrisonServerCvarInfo(
             registration.Name,
             registration.Description,
             registration.ValueType,
             registration.DefaultValue,
-            registration.IsProtected ? ProtectedValueMask : registration.GetCurrentValue(),
-            registration.IsProtected,
+            isProtected && !includeProtectedValue ? ProtectedValueMask : registration.GetCurrentValue(),
+            isProtected,
             registration.IsReadOnly,
             registration.MinimumNumericValue,
             registration.MaximumNumericValue);
+    }
+
+    private sealed class CvarProtectionDocument
+    {
+        public int SchemaVersion { get; set; } = 1;
+
+        public List<string> ProtectedNames { get; set; } = [];
     }
 
     private sealed record CvarRegistration(

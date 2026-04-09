@@ -26,7 +26,8 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<IPEndPoint> sendServerStatus,
     Action<ClientSession, string, bool> broadcastChat,
     Action<string, (string Key, object? Value)[]> logServerEvent,
-    Action<string> log)
+    Action<string> log,
+    ServerBanService? banService = null)
 {
     public void Dispatch(IProtocolMessage message, IPEndPoint remoteEndPoint)
     {
@@ -49,6 +50,13 @@ internal sealed class ServerIncomingMessageDispatcher(
                 if (TryGetAuthorizedClient(remoteEndPoint, out var chatClient))
                 {
                     chatClient.LastSeen = elapsedGetter();
+                    if (chatClient.IsGagged)
+                    {
+                        sendMessage(remoteEndPoint, new ChatRelayMessage(0, "[server]", "You are gagged and cannot send chat.", false));
+                        log($"[server] gagged chat blocked slot={chatClient.Slot} endpoint={chatClient.EndPoint}");
+                        break;
+                    }
+
                     broadcastChat(chatClient, chatSubmit.Text, chatSubmit.TeamOnly);
                 }
                 break;
@@ -146,6 +154,19 @@ internal sealed class ServerIncomingMessageDispatcher(
         {
             log($"[server] rejected client {remoteEndPoint}; {rateLimitReason}");
             sendMessage(remoteEndPoint, new ConnectionDeniedMessage(rateLimitReason));
+            return;
+        }
+
+        if (banService?.GetConnectionDeniedReason(remoteEndPoint) is { } banReason)
+        {
+            log($"[server] rejected client {remoteEndPoint}; banned");
+            sendMessage(remoteEndPoint, new ConnectionDeniedMessage(banReason));
+            logServerEvent(
+                "client_rejected_banned",
+                [
+                    ("endpoint", remoteEndPoint.ToString()),
+                    ("reason", banReason)
+                ]);
             return;
         }
 

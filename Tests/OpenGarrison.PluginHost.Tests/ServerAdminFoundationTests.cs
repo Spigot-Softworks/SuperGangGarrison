@@ -61,11 +61,70 @@ public sealed class ServerAdminFoundationTests
 
         Assert.True(registry.TryGet("sv_rcon_password", out var protectedCvar));
         Assert.Equal("<protected>", protectedCvar.CurrentValue);
+        Assert.True(registry.TryGet("sv_rcon_password", includeProtectedValue: true, out var revealedProtectedCvar));
+        Assert.Equal("secret", revealedProtectedCvar.CurrentValue);
 
         Assert.True(registry.TrySet("sv_autobalance", "on", out var updatedCvar, out var errorMessage));
         Assert.Equal(string.Empty, errorMessage);
         Assert.True(autoBalance);
         Assert.Equal("true", updatedCvar.CurrentValue);
+    }
+
+    [Fact]
+    public void ServerCvarRegistrySupportsRuntimeProtectionOverrides()
+    {
+        var root = CreateTempRoot();
+        var policyPath = Path.Combine(root, "config", "server-cvar-policy.json");
+        var autoBalance = true;
+
+        var registry = new ServerCvarRegistry();
+        registry.RegisterBoolean(
+            "sv_autobalance",
+            "Auto-balance",
+            defaultValue: true,
+            () => autoBalance,
+            value => autoBalance = value);
+        registry.EnableRuntimeProtectionPersistence(policyPath);
+
+        Assert.True(registry.TryProtect("sv_autobalance", out var protectedCvar, out var protectError));
+        Assert.Equal(string.Empty, protectError);
+        Assert.True(protectedCvar.IsProtected);
+        Assert.Equal("<protected>", protectedCvar.CurrentValue);
+
+        Assert.True(registry.TryGet("sv_autobalance", out var maskedCvar));
+        Assert.True(maskedCvar.IsProtected);
+        Assert.Equal("<protected>", maskedCvar.CurrentValue);
+
+        Assert.True(registry.TryGet("sv_autobalance", includeProtectedValue: true, out var unmaskedCvar));
+        Assert.True(unmaskedCvar.IsProtected);
+        Assert.Equal("true", unmaskedCvar.CurrentValue);
+
+        Assert.False(registry.TrySet("sv_autobalance", "false", allowProtectedMutation: false, out var rejectedCvar, out var rejectedError));
+        Assert.Equal("Cvar is protected.", rejectedError);
+        Assert.True(rejectedCvar.IsProtected);
+        Assert.Equal("<protected>", rejectedCvar.CurrentValue);
+
+        Assert.True(registry.TrySet("sv_autobalance", "false", allowProtectedMutation: true, out var updatedCvar, out var updateError));
+        Assert.Equal(string.Empty, updateError);
+        Assert.True(updatedCvar.IsProtected);
+        Assert.Equal("false", updatedCvar.CurrentValue);
+        Assert.False(autoBalance);
+
+        var reloadedRegistry = new ServerCvarRegistry();
+        reloadedRegistry.RegisterBoolean(
+            "sv_autobalance",
+            "Auto-balance",
+            defaultValue: true,
+            () => autoBalance,
+            value => autoBalance = value);
+        reloadedRegistry.EnableRuntimeProtectionPersistence(policyPath);
+
+        Assert.True(reloadedRegistry.TryGet("sv_autobalance", out var reloadedMaskedCvar));
+        Assert.True(reloadedMaskedCvar.IsProtected);
+        Assert.Equal("<protected>", reloadedMaskedCvar.CurrentValue);
+        Assert.True(reloadedRegistry.TryGet("sv_autobalance", includeProtectedValue: true, out var reloadedUnmaskedCvar));
+        Assert.True(reloadedUnmaskedCvar.IsProtected);
+        Assert.Equal("false", reloadedUnmaskedCvar.CurrentValue);
     }
 
     [Fact]
@@ -496,6 +555,198 @@ public sealed class ServerAdminFoundationTests
         });
     }
 
+    [Fact]
+    public void ServerAdminOperationsCanRenameIgniteAndGagPlayers()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+        var world = new SimulationWorld();
+        var sessionManager = CreateSessionManager(world, clients);
+        var operations = new ServerAdminOperations(
+            _ => { },
+            static (_, _) => { },
+            () => clients,
+            () => sessionManager,
+            () => world,
+            static () => null,
+            static () => throw new InvalidOperationException("Unexpected map rotation access."),
+            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."));
+
+        Assert.True(operations.TryRenamePlayer(client.Slot, "##RenamedPlayer"));
+        Assert.Equal("RenamedPlayer", client.Name);
+        Assert.Equal("RenamedPlayer", world.LocalPlayer.DisplayName);
+
+        Assert.True(operations.TrySetPlayerGagged(client.Slot, true));
+        Assert.True(client.IsGagged);
+        Assert.True(operations.TrySetPlayerGagged(client.Slot, false));
+        Assert.False(client.IsGagged);
+
+        Assert.True(operations.TryIgnitePlayer(client.Slot, 4f));
+        Assert.True(world.LocalPlayer.IsBurning);
+    }
+
+    [Fact]
+    public void ServerIncomingMessageDispatcherBlocksChatForGaggedClients()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero)
+        {
+            IsAuthorized = true,
+            IsGagged = true,
+        };
+        var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+        var sessionManager = CreateSessionManager(world, clients);
+        var sentMessages = new List<IProtocolMessage>();
+        var broadcastAttempts = new List<string>();
+        var dispatcher = new ServerIncomingMessageDispatcher(
+            new SimulationConfig(),
+            "Test Server",
+            passwordRequired: false,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            clients,
+            sessionManager,
+            world,
+            () => TimeSpan.Zero,
+            static () => null,
+            static () => 999,
+            static _ => null,
+            static _ => { },
+            static () => (false, string.Empty, string.Empty),
+            (_, message) => sentMessages.Add(message),
+            static _ => { },
+            (_, text, _) => broadcastAttempts.Add(text),
+            static (_, _) => { },
+            static _ => { });
+
+        dispatcher.Dispatch(new ChatSubmitMessage("hello", TeamOnly: false), client.EndPoint);
+
+        Assert.Empty(broadcastAttempts);
+        var rejection = Assert.Single(sentMessages);
+        var relay = Assert.IsType<ChatRelayMessage>(rejection);
+        Assert.Contains("gagged", relay.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ServerBanServicePersistsRejectsAndExpiresBans()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var now = new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero);
+            var path = Path.Combine(root, "server-bans.json");
+            var service = new ServerBanService(path, () => now);
+
+            var banned = service.BanIpAddress(IPAddress.Parse("127.0.0.44"), TimeSpan.FromMinutes(5), "griefing", "Admin");
+            Assert.True(banned.Success);
+
+            var denyReason = service.GetConnectionDeniedReason(new IPEndPoint(IPAddress.Parse("127.0.0.44"), 9000));
+            Assert.NotNull(denyReason);
+            Assert.Contains("griefing", denyReason, StringComparison.OrdinalIgnoreCase);
+
+            var reloaded = new ServerBanService(path, () => now);
+            Assert.NotNull(reloaded.GetConnectionDeniedReason(new IPEndPoint(IPAddress.Parse("127.0.0.44"), 9001)));
+
+            now = now.AddMinutes(6);
+            Assert.Null(reloaded.GetConnectionDeniedReason(new IPEndPoint(IPAddress.Parse("127.0.0.44"), 9002)));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ServerAdminOperationsBanPlayerDisconnectsClientAndSupportsUnban()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var world = new SimulationWorld();
+            var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Parse("127.0.0.44"), 8190), "Tester", TimeSpan.Zero)
+            {
+                IsAuthorized = true,
+            };
+            var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
+            var sessionManager = CreateSessionManager(world, clients);
+            var sentMessages = new List<IProtocolMessage>();
+            var banService = new ServerBanService(Path.Combine(root, "server-bans.json"), () => new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero));
+            var operations = new ServerAdminOperations(
+                static _ => { },
+                (_, message) => sentMessages.Add(message),
+                () => clients,
+                () => sessionManager,
+                () => world,
+                static () => null,
+                () => new MapRotationManager(world, requestedMap: null, mapRotationFile: null, stockMapRotation: [], static _ => { }),
+                () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
+                banService: banService);
+
+            var banResult = operations.TryBanPlayer(client.Slot, TimeSpan.FromMinutes(15), "griefing");
+            Assert.True(banResult.Success);
+            Assert.DoesNotContain(client.Slot, clients.Keys);
+            Assert.NotNull(banService.GetConnectionDeniedReason(new IPEndPoint(IPAddress.Parse("127.0.0.44"), 9000)));
+            Assert.Contains(sentMessages, message => message is ConnectionDeniedMessage denied && denied.Reason.Contains("banned", StringComparison.OrdinalIgnoreCase));
+
+            var unbanResult = operations.TryUnbanIpAddress("127.0.0.44");
+            Assert.True(unbanResult.Success);
+            Assert.Null(banService.GetConnectionDeniedReason(new IPEndPoint(IPAddress.Parse("127.0.0.44"), 9001)));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ServerIncomingMessageDispatcherRejectsHelloFromBannedIp()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var world = new SimulationWorld();
+            var clients = new Dictionary<byte, ClientSession>();
+            var sessionManager = CreateSessionManager(world, clients);
+            var sentMessages = new List<IProtocolMessage>();
+            var banService = new ServerBanService(Path.Combine(root, "server-bans.json"), () => new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero));
+            Assert.True(banService.BanIpAddress("127.0.0.66", TimeSpan.FromMinutes(30), "abuse", "Admin").Success);
+            var dispatcher = new ServerIncomingMessageDispatcher(
+                new SimulationConfig(),
+                "Test Server",
+                passwordRequired: false,
+                maxPlayableClients: 24,
+                maxTotalClients: 32,
+                maxSpectatorClients: 8,
+                clients,
+                sessionManager,
+                world,
+                () => TimeSpan.Zero,
+                static () => null,
+                static () => 999,
+                static _ => null,
+                static _ => { },
+                static () => (false, string.Empty, string.Empty),
+                (_, message) => sentMessages.Add(message),
+                static _ => { },
+                static (_, _, _) => { },
+                static (_, _) => { },
+                static _ => { },
+                banService);
+
+            dispatcher.Dispatch(new HelloMessage("Banned", ProtocolVersion.Current, 0), new IPEndPoint(IPAddress.Parse("127.0.0.66"), 8190));
+
+            var denial = Assert.Single(sentMessages);
+            var message = Assert.IsType<ConnectionDeniedMessage>(denial);
+            Assert.Contains("banned", message.Reason, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(clients);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static OpenGarrisonServerCommandContext CreateCommandContext(OpenGarrisonServerAdminIdentity identity)
     {
         return new OpenGarrisonServerCommandContext(
@@ -530,6 +781,27 @@ public sealed class ServerAdminFoundationTests
         throw new DirectoryNotFoundException("Failed to locate repository root from test output directory.");
     }
 
+    private static ServerSessionManager CreateSessionManager(SimulationWorld world, Dictionary<byte, ClientSession> clients)
+    {
+        return new ServerSessionManager(
+            world,
+            clients,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            nowProvider: () => TimeSpan.Zero,
+            serverPassword: null,
+            passwordRequired: false,
+            clientTimeoutSeconds: 20,
+            passwordTimeoutSeconds: 20,
+            passwordRetrySeconds: 5,
+            getPasswordRateLimitReason: static _ => null,
+            recordPasswordFailure: static _ => { },
+            clearPasswordFailures: static _ => { },
+            sendMessage: static (_, _) => { },
+            log: static _ => { });
+    }
+
     private static OpenGarrisonServerPlayerInfo CreatePlayerInfo(
         byte slot,
         int userId,
@@ -547,6 +819,7 @@ public sealed class ServerAdminFoundationTests
             name,
             IsSpectator: isSpectator,
             IsAuthorized: isAuthorized,
+            IsGagged: false,
             IsAlive: isAlive,
             PlayerId: playerId,
             Team: team,
@@ -622,7 +895,17 @@ public sealed class ServerAdminFoundationTests
             SystemMessages.Add((slot, text));
         }
 
+        public bool TryRenamePlayer(byte slot, string newName) => true;
+
         public bool TryDisconnect(byte slot, string reason) => true;
+
+        public OpenGarrisonServerBanActionResult TryBanPlayer(byte slot, TimeSpan? duration, string reason) => new(true, "127.0.0.1", string.Empty, !duration.HasValue, 0);
+
+        public OpenGarrisonServerBanActionResult TryBanIpAddress(string ipAddress, TimeSpan? duration, string reason) => new(true, ipAddress, string.Empty, !duration.HasValue, 0);
+
+        public OpenGarrisonServerAddressActionResult TryUnbanIpAddress(string ipAddress) => new(true, ipAddress, string.Empty);
+
+        public bool TrySetPlayerGagged(byte slot, bool isGagged) => true;
 
         public bool TryMoveToSpectator(byte slot) => true;
 
@@ -644,6 +927,8 @@ public sealed class ServerAdminFoundationTests
 
         public bool TryForceKill(byte slot) => true;
 
+        public bool TryIgnitePlayer(byte slot, float durationSeconds) => true;
+
         public bool TrySetPlayerScale(byte slot, float scale) => true;
 
         public bool TrySetTimeLimit(int timeLimitMinutes) => true;
@@ -660,20 +945,42 @@ public sealed class ServerAdminFoundationTests
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry
     {
         private readonly Dictionary<string, OpenGarrisonServerCvarInfo> _entries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _runtimeProtectedNames = new(StringComparer.OrdinalIgnoreCase);
 
         public void Add(OpenGarrisonServerCvarInfo cvar)
         {
             _entries[cvar.Name] = cvar;
         }
 
-        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll() => _entries.Values.ToArray();
+        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll(bool includeProtectedValues)
+        {
+            return _entries.Values
+                .Select(cvar => includeProtectedValues ? MarkProtected(cvar) : MaskProtectedValue(cvar))
+                .ToArray();
+        }
+
+        public IReadOnlyList<OpenGarrisonServerCvarInfo> GetAll()
+        {
+            return GetAll(includeProtectedValues: false);
+        }
+
+        public bool TryGet(string name, bool includeProtectedValue, out OpenGarrisonServerCvarInfo cvar)
+        {
+            if (!_entries.TryGetValue(name, out cvar))
+            {
+                return false;
+            }
+
+            cvar = includeProtectedValue ? MarkProtected(cvar) : MaskProtectedValue(cvar);
+            return true;
+        }
 
         public bool TryGet(string name, out OpenGarrisonServerCvarInfo cvar)
         {
-            return _entries.TryGetValue(name, out cvar);
+            return TryGet(name, includeProtectedValue: false, out cvar);
         }
 
-        public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        public bool TrySet(string name, string value, bool allowProtectedMutation, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
         {
             if (!_entries.TryGetValue(name, out cvar))
             {
@@ -681,10 +988,58 @@ public sealed class ServerAdminFoundationTests
                 return false;
             }
 
+            if (IsProtected(cvar.Name) && !allowProtectedMutation)
+            {
+                errorMessage = "protected";
+                cvar = MaskProtectedValue(cvar);
+                return false;
+            }
+
             errorMessage = string.Empty;
             cvar = cvar with { CurrentValue = value };
             _entries[name] = cvar;
+            cvar = allowProtectedMutation ? MarkProtected(cvar) : MaskProtectedValue(cvar);
             return true;
+        }
+
+        public bool TrySet(string name, string value, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        {
+            return TrySet(name, value, allowProtectedMutation: false, out cvar, out errorMessage);
+        }
+
+        public bool TryProtect(string name, out OpenGarrisonServerCvarInfo cvar, out string errorMessage)
+        {
+            if (!_entries.TryGetValue(name, out cvar))
+            {
+                errorMessage = "unsupported";
+                return false;
+            }
+
+            _runtimeProtectedNames.Add(cvar.Name);
+            errorMessage = string.Empty;
+            cvar = MaskProtectedValue(cvar);
+            return true;
+        }
+
+        private bool IsProtected(string name)
+        {
+            return _runtimeProtectedNames.Contains(name)
+                || (_entries.TryGetValue(name, out var cvar) && cvar.IsProtected);
+        }
+
+        private OpenGarrisonServerCvarInfo MarkProtected(OpenGarrisonServerCvarInfo cvar)
+        {
+            return IsProtected(cvar.Name)
+                ? cvar with { IsProtected = true }
+                : cvar;
+        }
+
+        private OpenGarrisonServerCvarInfo MaskProtectedValue(OpenGarrisonServerCvarInfo cvar)
+        {
+            cvar = MarkProtected(cvar);
+            return cvar.IsProtected
+                ? cvar with { CurrentValue = "<protected>" }
+                : cvar;
         }
     }
 

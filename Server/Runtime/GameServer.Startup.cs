@@ -246,6 +246,7 @@ partial class GameServer
     {
         _scheduler = new ServerScheduler(() => _clock.Elapsed, Console.WriteLine);
         _adminSessionManager = new ServerAdminSessionManager(_rconPassword, () => _clock.Elapsed);
+        _banService = new ServerBanService(RuntimePaths.GetConfigPath("server-bans.json"), log: Console.WriteLine);
         _cvarRegistry = CreateServerCvarRegistry();
         var pluginRuntime = OpenGarrison.Server.ServerPluginRuntimeFactory.Create(
             _config,
@@ -278,7 +279,8 @@ partial class GameServer
             Console.WriteLine,
             Path.Combine(RuntimePaths.ApplicationRoot, "Plugins"),
             Path.Combine(RuntimePaths.ConfigDirectory, "plugins"),
-            Path.Combine(RuntimePaths.ApplicationRoot, "Maps"));
+            Path.Combine(RuntimePaths.ApplicationRoot, "Maps"),
+            _banService);
         _pluginCommandRegistry = pluginRuntime.CommandRegistry;
         _pluginHost = pluginRuntime.PluginHost;
         _serverState = pluginRuntime.ServerState;
@@ -419,6 +421,7 @@ partial class GameServer
             "Server simulation tick rate.",
             _config.TicksPerSecond,
             () => _config.TicksPerSecond);
+        registry.EnableRuntimeProtectionPersistence(RuntimePaths.GetConfigPath("server-cvar-policy.json"));
         return registry;
     }
 
@@ -461,7 +464,8 @@ partial class GameServer
             _outboundMessaging.SendServerStatus,
             _outboundMessaging.BroadcastChat,
             _eventReporter.WriteEvent,
-            Console.WriteLine);
+            Console.WriteLine,
+            _banService);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _udp,
             messageDispatcher,

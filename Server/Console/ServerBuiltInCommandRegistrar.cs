@@ -371,7 +371,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
     private List<string> BuildCvarLines(string arguments)
     {
         var filter = arguments.Trim();
-        var entries = cvarRegistry.GetAll()
+        var entries = cvarRegistry.GetAll(includeProtectedValues: true)
             .Where(entry => filter.Length == 0
                 || entry.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
                 || entry.Description.Contains(filter, StringComparison.OrdinalIgnoreCase))
@@ -411,12 +411,12 @@ internal sealed class ServerBuiltInCommandRegistrar(
         var name = parts[0];
         if (parts.Length == 1)
         {
-            return cvarRegistry.TryGet(name, out var existing)
+            return cvarRegistry.TryGet(name, includeProtectedValue: true, out var existing)
                 ? [$"[server] cvar | name={existing.Name} | value={existing.CurrentValue} | default={existing.DefaultValue} | type={existing.ValueType} | protected={(existing.IsProtected ? "yes" : "no")} | readonly={(existing.IsReadOnly ? "yes" : "no")}"]
                 : [$"[server] unknown cvar \"{name}\"."];
         }
 
-        return cvarRegistry.TrySet(name, parts[1], out var updated, out var error)
+        return cvarRegistry.TrySet(name, parts[1], allowProtectedMutation: true, out var updated, out var error)
             ? [$"[server] cvar {updated.Name} set to {updated.CurrentValue}."]
             : [$"[server] unable to set cvar \"{name}\": {error}"];
     }

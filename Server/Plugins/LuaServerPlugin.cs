@@ -37,6 +37,7 @@ internal sealed class LuaServerPlugin(
     private Table? _pluginTable;
     private IOpenGarrisonServerPluginContext? _context;
     private ServerLuaCallbackPhase _currentCallbackPhase = ServerLuaCallbackPhase.None;
+    private OpenGarrisonServerAdminIdentity? _activeCommandIdentity;
     private bool _callbacksDisabled;
     private readonly Dictionary<Guid, DynValue> _scheduledCallbacks = [];
     private const long CallbackAutoYieldCounter = 1000;
@@ -119,15 +120,24 @@ internal sealed class LuaServerPlugin(
             return false;
         }
 
-        return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
+        var previousIdentity = _activeCommandIdentity;
+        _activeCommandIdentity = context.Identity;
+        try
         {
-            if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
+            return ExecuteInPhase(ServerLuaCallbackPhase.CommandInteraction, () =>
             {
-                return false;
-            }
+                if (!TryInvokeCallback("try_handle_chat_message", out var result, ToDynValue(context), ToDynValue(e)))
+                {
+                    return false;
+                }
 
-            return result.CastToBool();
-        });
+                return result.CastToBool();
+            });
+        }
+        finally
+        {
+            _activeCommandIdentity = previousIdentity;
+        }
     }
 
     public void OnMapChanging(MapChangingEvent e) => ExecuteInPhase(ServerLuaCallbackPhase.Event, () => CallIfPresent("on_map_changing", ToDynValue(e)));
@@ -334,15 +344,15 @@ internal sealed class LuaServerPlugin(
             ToDynValue(context.ServerState.GetOwnedGameplayItems(ReadByteArgument(args, 0))));
         host["get_gameplay_loadouts_for_class"] = DynValue.NewCallback((_, args) =>
             ToDynValue(context.ServerState.GetGameplayLoadoutsForClass(ReadStringArgument(args, 0))));
-        host["get_cvars"] = DynValue.NewCallback((_, _) => ToDynValue(context.Cvars.GetAll()));
+        host["get_cvars"] = DynValue.NewCallback((_, _) => ToDynValue(context.Cvars.GetAll(CanAccessProtectedCvars())));
         host["find_cvars"] = DynValue.NewCallback((_, args) =>
             ToDynValue(CreateFilteredCvarResult(
-                context.Cvars.GetAll(),
+                context.Cvars.GetAll(CanAccessProtectedCvars()),
                 ReadOptionalStringArgument(args, 0),
                 ReadOptionalIntArgument(args, 1, 16))));
         host["get_cvar"] = DynValue.NewCallback((_, args) =>
         {
-            return context.Cvars.TryGet(ReadStringArgument(args, 0), out var cvar)
+            return context.Cvars.TryGet(ReadStringArgument(args, 0), CanAccessProtectedCvars(), out var cvar)
                 ? ToDynValue(cvar)
                 : DynValue.Nil;
         });
@@ -355,13 +365,30 @@ internal sealed class LuaServerPlugin(
 
             var name = ReadStringArgument(args, 0);
             var value = ReadStringArgument(args, 1);
-            if (context.Cvars.TrySet(name, value, out var _, out var errorMessage))
+            if (context.Cvars.TrySet(name, value, CanAccessProtectedCvars(), out var _, out var errorMessage))
             {
                 return DynValue.True;
             }
 
             context.Log($"[lua-plugin] set_cvar rejected for {manifest.Id} {name}: {errorMessage}");
             return DynValue.False;
+        });
+        host["protect_cvar"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("protect_cvar", "host cvar protection"))
+            {
+                return DynValue.Nil;
+            }
+
+            if (!CanAccessProtectedCvars())
+            {
+                context.Log($"[lua-plugin] protect_cvar rejected for {manifest.Id}: protected cvar access requires rcon-level authority.");
+                return DynValue.Nil;
+            }
+
+            return context.Cvars.TryProtect(ReadStringArgument(args, 0), out var cvar, out var errorMessage)
+                ? ToDynValue(cvar)
+                : ToDynValue(new { success = false, errorMessage });
         });
         host["get_scheduled_tasks"] = DynValue.NewCallback((_, _) => ToDynValue(context.Scheduler.GetScheduledTasks()));
         host["schedule_once"] = DynValue.NewCallback((_, args) =>
@@ -448,12 +475,58 @@ internal sealed class LuaServerPlugin(
             context.AdminOperations.SendSystemMessage(slot, ReadStringArgument(args, 1));
             return DynValue.True;
         });
+        host["try_set_player_name"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_name", $"player {slot}")
+                && context.AdminOperations.TryRenamePlayer(slot, ReadStringArgument(args, 1)));
+        });
         host["try_disconnect"] = DynValue.NewCallback((_, args) =>
         {
             var slot = ReadByteArgument(args, 0);
             return DynValue.NewBoolean(
                 CanIssueServerMutation("try_disconnect", $"player {slot}")
                 && context.AdminOperations.TryDisconnect(slot, ReadStringArgument(args, 1)));
+        });
+        host["try_ban_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            if (!CanIssueServerMutation("try_ban_player", $"player {slot}"))
+            {
+                return ToDynValue(new OpenGarrisonServerBanActionResult(false, string.Empty, "Admin access required.", false, 0));
+            }
+
+            var minutes = ReadIntArgument(args, 1);
+            var duration = minutes <= 0 ? (TimeSpan?)null : TimeSpan.FromMinutes(minutes);
+            return ToDynValue(context.AdminOperations.TryBanPlayer(slot, duration, ReadOptionalStringArgument(args, 2) ?? string.Empty));
+        });
+        host["try_ban_ip_address"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_ban_ip_address", "ip address"))
+            {
+                return ToDynValue(new OpenGarrisonServerBanActionResult(false, string.Empty, "Admin access required.", false, 0));
+            }
+
+            var minutes = ReadIntArgument(args, 1);
+            var duration = minutes <= 0 ? (TimeSpan?)null : TimeSpan.FromMinutes(minutes);
+            return ToDynValue(context.AdminOperations.TryBanIpAddress(ReadStringArgument(args, 0), duration, ReadOptionalStringArgument(args, 2) ?? string.Empty));
+        });
+        host["try_unban_ip_address"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_unban_ip_address", "ip address"))
+            {
+                return ToDynValue(new OpenGarrisonServerAddressActionResult(false, string.Empty, "Admin access required."));
+            }
+
+            return ToDynValue(context.AdminOperations.TryUnbanIpAddress(ReadStringArgument(args, 0)));
+        });
+        host["try_set_player_gagged"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_gagged", $"player {slot}")
+                && context.AdminOperations.TrySetPlayerGagged(slot, ReadBoolArgument(args, 1)));
         });
         host["try_move_to_spectator"] = DynValue.NewCallback((_, args) =>
         {
@@ -527,6 +600,13 @@ internal sealed class LuaServerPlugin(
             return DynValue.NewBoolean(
                 CanIssueServerMutation("try_force_kill", $"player {slot}")
                 && context.AdminOperations.TryForceKill(slot));
+        });
+        host["try_ignite_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_ignite_player", $"player {slot}")
+                && context.AdminOperations.TryIgnitePlayer(slot, (float)ReadDoubleArgument(args, 1)));
         });
         host["try_set_player_scale"] = DynValue.NewCallback((_, args) =>
         {
@@ -977,6 +1057,13 @@ internal sealed class LuaServerPlugin(
             functionName,
             target,
             "Use bounded server mutations during lifecycle, update, event, or command callbacks.");
+    }
+
+    private bool CanAccessProtectedCvars()
+    {
+        return _activeCommandIdentity?.Authority is OpenGarrisonServerAdminAuthority.RconSession
+            or OpenGarrisonServerAdminAuthority.HostConsole
+            or OpenGarrisonServerAdminAuthority.AdminPipe;
     }
 
     private bool CanManageScheduler(string functionName, string target)

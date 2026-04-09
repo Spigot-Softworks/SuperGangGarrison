@@ -1,3 +1,4 @@
+using System;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 
@@ -9,7 +10,17 @@ public interface IOpenGarrisonServerAdminOperations
 
     void SendSystemMessage(byte slot, string text);
 
+    bool TryRenamePlayer(byte slot, string newName);
+
     bool TryDisconnect(byte slot, string reason);
+
+    OpenGarrisonServerBanActionResult TryBanPlayer(byte slot, TimeSpan? duration, string reason);
+
+    OpenGarrisonServerBanActionResult TryBanIpAddress(string ipAddress, TimeSpan? duration, string reason);
+
+    OpenGarrisonServerAddressActionResult TryUnbanIpAddress(string ipAddress);
+
+    bool TrySetPlayerGagged(byte slot, bool isGagged);
 
     bool TryMoveToSpectator(byte slot);
 
@@ -30,6 +41,8 @@ public interface IOpenGarrisonServerAdminOperations
     bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot);
 
     bool TryForceKill(byte slot);
+
+    bool TryIgnitePlayer(byte slot, float durationSeconds);
 
     bool TrySetPlayerScale(byte slot, float scale);
 

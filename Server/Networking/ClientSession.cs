@@ -35,6 +35,7 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
     public TimeSpan AdminAuthenticatedAt { get; set; } = TimeSpan.MinValue;
     public string PendingAdminChatCommand { get; set; } = string.Empty;
     public TimeSpan PendingAdminChatCommandQueuedAt { get; set; } = TimeSpan.MinValue;
+    public bool IsGagged { get; set; }
 
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)
     {

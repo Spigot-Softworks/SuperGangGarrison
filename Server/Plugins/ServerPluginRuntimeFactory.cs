@@ -36,7 +36,8 @@ internal static class ServerPluginRuntimeFactory
         Action<string> log,
         string pluginsDirectory,
         string pluginConfigRoot,
-        string mapsDirectory)
+        string mapsDirectory,
+        ServerBanService? banService = null)
     {
         var commandRegistry = new PluginCommandRegistry();
         var serverState = new ServerReadOnlyStateView(() => serverName, () => world, () => clientsBySlot);
@@ -50,7 +51,8 @@ internal static class ServerPluginRuntimeFactory
             () => gameplayOwnershipService,
             () => mapRotationManager,
             () => snapshotBroadcaster,
-            applyMapTransition);
+            applyMapTransition,
+            banService);
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(
             config,
             port,
