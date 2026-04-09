@@ -99,12 +99,19 @@ public sealed partial class SimulationWorld
 
     private PlayerEntity? FindPlayerById(int playerId)
     {
-        foreach (var player in EnumerateSimulatedPlayers())
+        if (_activeNetworkPlayersById.TryGetValue(playerId, out var player))
         {
-            if (player.Id == playerId)
-            {
-                return player;
-            }
+            return player;
+        }
+
+        if (EnemyPlayerEnabled && EnemyPlayer.Id == playerId)
+        {
+            return EnemyPlayer;
+        }
+
+        if (FriendlyDummyEnabled && FriendlyDummy.Id == playerId)
+        {
+            return FriendlyDummy;
         }
 
         return null;

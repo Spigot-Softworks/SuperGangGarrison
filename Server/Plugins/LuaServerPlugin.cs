@@ -37,6 +37,7 @@ internal sealed class LuaServerPlugin(
     private Script? _script;
     private Table? _pluginTable;
     private IOpenGarrisonServerPluginContext? _context;
+    private readonly Dictionary<string, DynValue> _callbackCache = new(StringComparer.Ordinal);
     private ServerLuaCallbackPhase _currentCallbackPhase = ServerLuaCallbackPhase.None;
     private OpenGarrisonServerAdminIdentity? _activeCommandIdentity;
     private bool _callbacksDisabled;
@@ -70,6 +71,7 @@ internal sealed class LuaServerPlugin(
             var hostTable = CreateHostTable(_script, context);
             var result = _script.DoFile(entryPointPath);
             _pluginTable = ResolvePluginTable(_script, result);
+            _callbackCache.Clear();
             ExecuteInPhase(
                 ServerLuaCallbackPhase.Initialize,
                 () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(hostTable)));
@@ -84,6 +86,7 @@ internal sealed class LuaServerPlugin(
     {
         CancelAllScheduledCallbacks();
         ExecuteInPhase(ServerLuaCallbackPhase.Shutdown, () => CallIfPresent("shutdown"));
+        _callbackCache.Clear();
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -205,8 +208,7 @@ internal sealed class LuaServerPlugin(
             return false;
         }
 
-        var function = _pluginTable.Get(callbackName);
-        if (function.Type is not (DataType.Function or DataType.ClrFunction))
+        if (!TryGetCachedCallbackFunction(callbackName, out var function))
         {
             return false;
         }
@@ -322,9 +324,9 @@ internal sealed class LuaServerPlugin(
 
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
-        host["get_server_state"] = DynValue.NewCallback((_, _) => ToDynValue(CreateServerStateSnapshot(context.ServerState)));
+        host["get_server_state"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateServerStateTable(script, context.ServerState)));
         host["get_admin_summary"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateAdminSummaryTable(script, context)));
-        host["get_players"] = DynValue.NewCallback((_, _) => ToDynValue(context.ServerState.GetPlayers()));
+        host["get_players"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreatePlayerListTable(script, context.ServerState.GetPlayers())));
         host["resolve_targets"] = DynValue.NewCallback((_, args) =>
         {
             var options = ReadOptionalTableArgument(args, 1);
@@ -913,6 +915,28 @@ internal sealed class LuaServerPlugin(
         throw new InvalidOperationException("Lua plugin entry point must return a plugin table or assign one to global 'plugin'.");
     }
 
+    private bool TryGetCachedCallbackFunction(string callbackName, out DynValue function)
+    {
+        function = DynValue.Nil;
+        if (_pluginTable is null)
+        {
+            return false;
+        }
+
+        if (_callbackCache.TryGetValue(callbackName, out var cachedFunction)
+            && cachedFunction is not null)
+        {
+            function = cachedFunction;
+        }
+        else
+        {
+            function = _pluginTable.Get(callbackName);
+            _callbackCache[callbackName] = function;
+        }
+
+        return function.Type is DataType.Function or DataType.ClrFunction;
+    }
+
     private DynValue ToDynValue(object? value)
     {
         if (_script is null)
@@ -1346,20 +1370,19 @@ internal sealed class LuaServerPlugin(
         return DynValue.NewTable(table);
     }
 
-    private static object CreateServerStateSnapshot(IOpenGarrisonServerReadOnlyState state)
+    private static Table CreateServerStateTable(Script script, IOpenGarrisonServerReadOnlyState state)
     {
-        return new
-        {
-            state.ServerName,
-            state.LevelName,
-            state.MapAreaIndex,
-            state.MapAreaCount,
-            state.MapScale,
-            GameMode = state.GameMode.ToString(),
-            MatchPhase = state.MatchPhase.ToString(),
-            state.RedCaps,
-            state.BlueCaps,
-        };
+        var table = new Table(script);
+        SetNamedValue(table, nameof(state.ServerName), DynValue.NewString(state.ServerName));
+        SetNamedValue(table, nameof(state.LevelName), DynValue.NewString(state.LevelName));
+        SetNamedValue(table, nameof(state.MapAreaIndex), DynValue.NewNumber(state.MapAreaIndex));
+        SetNamedValue(table, nameof(state.MapAreaCount), DynValue.NewNumber(state.MapAreaCount));
+        SetNamedValue(table, nameof(state.MapScale), DynValue.NewNumber(state.MapScale));
+        SetNamedValue(table, "GameMode", DynValue.NewString(state.GameMode.ToString()));
+        SetNamedValue(table, "MatchPhase", DynValue.NewString(state.MatchPhase.ToString()));
+        SetNamedValue(table, nameof(state.RedCaps), DynValue.NewNumber(state.RedCaps));
+        SetNamedValue(table, nameof(state.BlueCaps), DynValue.NewNumber(state.BlueCaps));
+        return table;
     }
 
     private static Table CreateAdminSummaryTable(Script script, IOpenGarrisonServerPluginContext context)
@@ -1386,6 +1409,54 @@ internal sealed class LuaServerPlugin(
         table["scheduledTaskCount"] = DynValue.NewNumber(context.Scheduler.GetScheduledTasks().Count);
         table["uptimeSeconds"] = DynValue.NewNumber(context.Scheduler.Uptime.TotalSeconds);
         return table;
+    }
+
+    private static Table CreatePlayerListTable(Script script, IReadOnlyList<OpenGarrisonServerPlayerInfo> players)
+    {
+        var table = new Table(script);
+        for (var index = 0; index < players.Count; index += 1)
+        {
+            table[index + 1] = DynValue.NewTable(CreatePlayerInfoTable(script, players[index]));
+        }
+
+        return table;
+    }
+
+    private static Table CreatePlayerInfoTable(Script script, OpenGarrisonServerPlayerInfo player)
+    {
+        var table = new Table(script);
+        SetNamedValue(table, nameof(player.Slot), DynValue.NewNumber(player.Slot));
+        SetNamedValue(table, nameof(player.UserId), DynValue.NewNumber(player.UserId));
+        SetNamedValue(table, nameof(player.Name), DynValue.NewString(player.Name));
+        SetNamedValue(table, nameof(player.IsSpectator), DynValue.NewBoolean(player.IsSpectator));
+        SetNamedValue(table, nameof(player.IsAuthorized), DynValue.NewBoolean(player.IsAuthorized));
+        SetNamedValue(table, nameof(player.IsGagged), DynValue.NewBoolean(player.IsGagged));
+        SetNamedValue(table, nameof(player.IsAlive), DynValue.NewBoolean(player.IsAlive));
+        SetNamedValue(table, nameof(player.PlayerId), player.PlayerId.HasValue ? DynValue.NewNumber(player.PlayerId.Value) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.Team), player.Team.HasValue ? DynValue.NewString(player.Team.Value.ToString()) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.PlayerClass), player.PlayerClass.HasValue ? DynValue.NewString(player.PlayerClass.Value.ToString()) : DynValue.Nil);
+        SetNamedValue(table, nameof(player.PlayerScale), DynValue.NewNumber(player.PlayerScale));
+        SetNamedValue(table, nameof(player.MovementSpeedScale), DynValue.NewNumber(player.MovementSpeedScale));
+        SetNamedValue(table, nameof(player.HasMovementSpeedScaleOverride), DynValue.NewBoolean(player.HasMovementSpeedScaleOverride));
+        SetNamedValue(table, nameof(player.GravityScale), DynValue.NewNumber(player.GravityScale));
+        SetNamedValue(table, nameof(player.HasGravityScaleOverride), DynValue.NewBoolean(player.HasGravityScaleOverride));
+        SetNamedValue(table, nameof(player.EndPoint), DynValue.NewString(player.EndPoint));
+        SetNamedValue(table, nameof(player.GameplayLoadoutId), DynValue.NewString(player.GameplayLoadoutId));
+        SetNamedValue(table, nameof(player.GameplaySecondaryItemId), DynValue.NewString(player.GameplaySecondaryItemId));
+        SetNamedValue(table, nameof(player.GameplayAcquiredItemId), DynValue.NewString(player.GameplayAcquiredItemId));
+        SetNamedValue(table, nameof(player.GameplayEquippedSlot), DynValue.NewString(player.GameplayEquippedSlot.ToString()));
+        SetNamedValue(table, nameof(player.GameplayEquippedItemId), DynValue.NewString(player.GameplayEquippedItemId));
+        return table;
+    }
+
+    private static void SetNamedValue(Table table, string name, DynValue value)
+    {
+        table[name] = value;
+        var camelCaseName = ToCamelCase(name);
+        if (!string.Equals(camelCaseName, name, StringComparison.Ordinal))
+        {
+            table[camelCaseName] = value;
+        }
     }
 
     private static object CreateFilteredCvarResult(

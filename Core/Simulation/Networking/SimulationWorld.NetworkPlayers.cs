@@ -86,23 +86,7 @@ public sealed partial class SimulationWorld
 
     private bool TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot)
     {
-        if (ReferenceEquals(player, LocalPlayer))
-        {
-            slot = LocalPlayerSlot;
-            return true;
-        }
-
-        foreach (var entry in _additionalNetworkPlayersBySlot)
-        {
-            if (ReferenceEquals(entry.Value, player))
-            {
-                slot = entry.Key;
-                return true;
-            }
-        }
-
-        slot = 0;
-        return false;
+        return _networkPlayerSlotsByPlayerId.TryGetValue(player.Id, out slot);
     }
 
     private bool TryGetAdditionalNetworkPlayer(byte slot, out PlayerEntity player)
@@ -125,6 +109,7 @@ public sealed partial class SimulationWorld
         SpawnPlayerResolved(player, defaultTeam, ReserveSpawn(player, defaultTeam), clearMedicHealingTarget: false);
         player.Kill();
         _additionalNetworkPlayersBySlot[slot] = player;
+        _networkPlayerSlotsByPlayerId[player.Id] = slot;
         _additionalNetworkPlayerClassDefinitions[slot] = definition;
         _additionalNetworkPlayerTeams[slot] = defaultTeam;
         _additionalNetworkPlayerAwaitingJoin[slot] = true;
@@ -156,12 +141,17 @@ public sealed partial class SimulationWorld
 
         if (enabled)
         {
-            EnsureAdditionalNetworkPlayer(slot);
+            var player = EnsureAdditionalNetworkPlayer(slot);
             _enabledAdditionalNetworkPlayerSlots.Add(slot);
+            _activeNetworkPlayersById[player.Id] = player;
         }
         else
         {
-            _enabledAdditionalNetworkPlayerSlots.Remove(slot);
+            if (_enabledAdditionalNetworkPlayerSlots.Remove(slot)
+                && _additionalNetworkPlayersBySlot.TryGetValue(slot, out var player))
+            {
+                _activeNetworkPlayersById.Remove(player.Id);
+            }
         }
     }
 }

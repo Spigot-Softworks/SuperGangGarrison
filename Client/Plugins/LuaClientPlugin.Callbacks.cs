@@ -22,10 +22,11 @@ internal sealed partial class LuaClientPlugin
         _registeredTextures.Clear();
         _registeredTextureAtlases.Clear();
         _registeredTextureRegions.Clear();
+        _callbackCache.Clear();
         _pendingLocalDamageEvents.Clear();
         _pendingHealEvents.Clear();
-        _cachedClientStateSnapshot = null;
-        _cachedClientStateSnapshotWorldFrame = null;
+        _cachedClientState = DynValue.Nil;
+        _cachedClientStateKey = null;
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -282,8 +283,7 @@ internal sealed partial class LuaClientPlugin
             return false;
         }
 
-        var function = _pluginTable.Get(callbackName);
-        if (function.Type is not (DataType.Function or DataType.ClrFunction))
+        if (!TryGetCachedCallbackFunction(callbackName, out var function))
         {
             return false;
         }

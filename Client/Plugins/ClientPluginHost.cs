@@ -33,6 +33,8 @@ internal sealed class ClientPluginHost
     private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<RegisteredMenuEntry>> _registeredMenuEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PluginProfileAggregate> _profileAggregates = new(StringComparer.OrdinalIgnoreCase);
+    private LoadedPluginEntry[]? _cachedGameplayHudEntries;
+    private LoadedPluginEntry[]? _cachedScoreboardEntries;
     private DateTimeOffset _nextProfileLogAt = DateTimeOffset.UtcNow + ProfileLogInterval;
     private ClientPluginLifecyclePhase _lifecyclePhase;
 
@@ -119,10 +121,7 @@ internal sealed class ClientPluginHost
 
     public void NotifyGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
     {
-        var orderedEntries = _loadedPlugins
-            .OrderBy(entry => entry.LoadedPlugin.Plugin is IOpenGarrisonClientHudOrderHooks orderedHook ? orderedHook.GameplayHudOrder : 0)
-            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var orderedEntries = GetOrderedGameplayHudEntries();
         WriteGameplayHudTrace($"begin count={orderedEntries.Length}");
         for (var index = 0; index < orderedEntries.Length; index += 1)
         {
@@ -204,11 +203,7 @@ internal sealed class ClientPluginHost
 
     public void NotifyScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
     {
-        var orderedEntries = _loadedPlugins
-            .OrderBy(entry => GetScoreboardLocation(entry.LoadedPlugin.Plugin))
-            .ThenBy(entry => GetScoreboardOrder(entry.LoadedPlugin.Plugin))
-            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var orderedEntries = GetOrderedScoreboardEntries();
         for (var index = 0; index < orderedEntries.Length; index += 1)
         {
             var entry = orderedEntries[index];
@@ -438,6 +433,7 @@ internal sealed class ClientPluginHost
         _registeredHotkeys.Clear();
         _registeredMenuEntries.Clear();
         _loadedPlugins.Clear();
+        InvalidateLoadedPluginOrderCaches();
     }
 
     private void LoadDiscoveredPlugins(IReadOnlyList<ClientPluginLoader.DiscoveredPlugin> discoveredPlugins)
@@ -447,6 +443,7 @@ internal sealed class ClientPluginHost
         _registeredHotkeys.Clear();
         _registeredMenuEntries.Clear();
         _discoveredPlugins.AddRange(discoveredPlugins);
+        InvalidateLoadedPluginOrderCaches();
 
         for (var index = 0; index < _discoveredPlugins.Count; index += 1)
         {
@@ -477,6 +474,7 @@ internal sealed class ClientPluginHost
         }
 
         _loadedPlugins.Clear();
+        InvalidateLoadedPluginOrderCaches();
     }
 
     private List<ClientPluginOptionsSection> GetPluginOptionsSections(
@@ -614,6 +612,7 @@ internal sealed class ClientPluginHost
 
         var entry = new LoadedPluginEntry(discoveredPlugin, loadedPlugin);
         _loadedPlugins.Add(entry);
+        InvalidateLoadedPluginOrderCaches();
         _log($"[plugin] loaded {discoveredPlugin.DisplayName} ({discoveredPlugin.PluginId} {discoveredPlugin.Version})");
         if (catchUpLifecycle)
         {
@@ -652,6 +651,7 @@ internal sealed class ClientPluginHost
             _registeredHotkeys.Remove(entry.DiscoveredPlugin.PluginId);
             _registeredMenuEntries.Remove(entry.DiscoveredPlugin.PluginId);
             _loadedPlugins.RemoveAt(index);
+            InvalidateLoadedPluginOrderCaches();
             _log($"[plugin] unloaded {entry.DiscoveredPlugin.DisplayName} ({entry.DiscoveredPlugin.PluginId})");
             return true;
         }
@@ -883,6 +883,41 @@ internal sealed class ClientPluginHost
 
         _profileAggregates.Clear();
         _nextProfileLogAt = DateTimeOffset.UtcNow + ProfileLogInterval;
+    }
+
+    private LoadedPluginEntry[] GetOrderedGameplayHudEntries()
+    {
+        if (_cachedGameplayHudEntries is not null)
+        {
+            return _cachedGameplayHudEntries;
+        }
+
+        _cachedGameplayHudEntries = _loadedPlugins
+            .OrderBy(entry => entry.LoadedPlugin.Plugin is IOpenGarrisonClientHudOrderHooks orderedHook ? orderedHook.GameplayHudOrder : 0)
+            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return _cachedGameplayHudEntries;
+    }
+
+    private LoadedPluginEntry[] GetOrderedScoreboardEntries()
+    {
+        if (_cachedScoreboardEntries is not null)
+        {
+            return _cachedScoreboardEntries;
+        }
+
+        _cachedScoreboardEntries = _loadedPlugins
+            .OrderBy(entry => GetScoreboardLocation(entry.LoadedPlugin.Plugin))
+            .ThenBy(entry => GetScoreboardOrder(entry.LoadedPlugin.Plugin))
+            .ThenBy(entry => entry.DiscoveredPlugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return _cachedScoreboardEntries;
+    }
+
+    private void InvalidateLoadedPluginOrderCaches()
+    {
+        _cachedGameplayHudEntries = null;
+        _cachedScoreboardEntries = null;
     }
 
     private static void DisposePluginResources(LoadedPluginEntry entry)

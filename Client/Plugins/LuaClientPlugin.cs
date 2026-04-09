@@ -52,10 +52,11 @@ internal sealed partial class LuaClientPlugin(
     private readonly Dictionary<string, ClientPluginTextureAtlas> _registeredTextureAtlases = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ClientPluginTextureRegion> _registeredTextureRegions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, OwnedTextureSequence> _ownedTextureSequences = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DynValue> _callbackCache = new(StringComparer.Ordinal);
     private readonly List<DynValue> _pendingLocalDamageEvents = [];
     private readonly List<DynValue> _pendingHealEvents = [];
-    private object? _cachedClientStateSnapshot;
-    private ulong? _cachedClientStateSnapshotWorldFrame;
+    private DynValue _cachedClientState = DynValue.Nil;
+    private LuaClientStateCacheKey? _cachedClientStateKey;
     private LuaCallbackPhase _currentCallbackPhase = LuaCallbackPhase.None;
     private bool _callbacksDisabled;
     private const long CallbackAutoYieldCounter = 1000;
@@ -87,6 +88,7 @@ internal sealed partial class LuaClientPlugin(
             var hostTable = CreateHostTable(_script, context);
             var result = _script.DoFile(entryPointPath);
             _pluginTable = ResolvePluginTable(_script, result);
+            _callbackCache.Clear();
             ExecuteInPhase(
                 LuaCallbackPhase.Initialize,
                 () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(hostTable)));
@@ -148,7 +150,7 @@ internal sealed partial class LuaClientPlugin(
         });
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
-        host["get_client_state"] = DynValue.NewCallback((_, _) => ToDynValue(GetCachedClientStateSnapshot(context.ClientState)));
+        host["get_client_state"] = DynValue.NewCallback((_, _) => GetCachedClientState(context.ClientState));
         host["try_get_player_world_position"] = DynValue.NewCallback((_, args) =>
         {
             var playerId = ReadIntArgument(args, 0);
@@ -814,8 +816,7 @@ internal sealed partial class LuaClientPlugin(
             return 0;
         }
 
-        var getter = _pluginTable.Get("get_scoreboard_panel_order");
-        if (getter.Type is DataType.Function or DataType.ClrFunction)
+        if (TryGetCachedCallbackFunction("get_scoreboard_panel_order", out _))
         {
             if (!TryInvokeCallback("get_scoreboard_panel_order", out var result))
             {
@@ -836,8 +837,7 @@ internal sealed partial class LuaClientPlugin(
             return string.Empty;
         }
 
-        var getter = _pluginTable.Get(getterName);
-        if (getter.Type is DataType.Function or DataType.ClrFunction)
+        if (TryGetCachedCallbackFunction(getterName, out _))
         {
             if (!TryInvokeCallback(getterName, out var result))
             {
@@ -1047,6 +1047,28 @@ internal sealed partial class LuaClientPlugin(
         throw new InvalidOperationException("Lua plugin entry point must return a plugin table or assign one to global 'plugin'.");
     }
 
+    private bool TryGetCachedCallbackFunction(string callbackName, out DynValue function)
+    {
+        function = DynValue.Nil;
+        if (_pluginTable is null)
+        {
+            return false;
+        }
+
+        if (_callbackCache.TryGetValue(callbackName, out var cachedFunction)
+            && cachedFunction is not null)
+        {
+            function = cachedFunction;
+        }
+        else
+        {
+            function = _pluginTable.Get(callbackName);
+            _callbackCache[callbackName] = function;
+        }
+
+        return function.Type is DataType.Function or DataType.ClrFunction;
+    }
+
     private DynValue ToDynValue(object? value)
     {
         if (_script is null)
@@ -1218,16 +1240,57 @@ internal sealed partial class LuaClientPlugin(
             state.GetObjectiveMarkers().ToArray());
     }
 
-    private object GetCachedClientStateSnapshot(IOpenGarrisonClientReadOnlyState state)
+    private DynValue GetCachedClientState(IOpenGarrisonClientReadOnlyState state)
     {
-        if (_cachedClientStateSnapshot is not null && _cachedClientStateSnapshotWorldFrame == state.WorldFrame)
+        if (_script is null)
         {
-            return _cachedClientStateSnapshot;
+            return DynValue.Nil;
         }
 
-        _cachedClientStateSnapshot = CreateClientStateSnapshot(state);
-        _cachedClientStateSnapshotWorldFrame = state.WorldFrame;
-        return _cachedClientStateSnapshot;
+        var cacheKey = CreateClientStateCacheKey(state);
+        if (_cachedClientStateKey.HasValue && _cachedClientStateKey.Value.Equals(cacheKey))
+        {
+            return _cachedClientState;
+        }
+
+        var snapshot = CreateClientStateSnapshot(state);
+        _cachedClientState = DynValue.NewTable(ToClientStateSnapshotTable(_script, snapshot));
+        _cachedClientStateKey = cacheKey;
+        return _cachedClientState;
+    }
+
+    private static LuaClientStateCacheKey CreateClientStateCacheKey(IOpenGarrisonClientReadOnlyState state)
+    {
+        var hasHealth = state.TryGetLocalPlayerHealth(out var health, out var maxHealth);
+        var hasLocalPosition = state.TryGetLocalPlayerWorldPosition(out var localPosition);
+        return new LuaClientStateCacheKey(
+            state.IsConnected,
+            state.IsMainMenuOpen,
+            state.IsGameplayActive,
+            state.IsGameplayInputBlocked,
+            state.IsSpectator,
+            state.IsLocalPlayerAlive,
+            state.IsLocalPlayerScoped,
+            state.IsLocalPlayerHealing,
+            state.WorldFrame,
+            state.TickRate,
+            state.LocalPingMilliseconds,
+            state.LevelName,
+            state.LevelWidth,
+            state.LevelHeight,
+            state.ViewportWidth,
+            state.ViewportHeight,
+            state.LocalPlayerId ?? -1,
+            state.LocalPlayerTeam.ToString(),
+            state.LocalPlayerClass.ToString(),
+            hasHealth,
+            hasHealth ? health : -1,
+            hasHealth ? maxHealth : -1,
+            hasLocalPosition,
+            hasLocalPosition ? localPosition.X : 0f,
+            hasLocalPosition ? localPosition.Y : 0f,
+            state.CameraTopLeft.X,
+            state.CameraTopLeft.Y);
     }
 
     private bool TryResolveTexture(string assetId, out Texture2D texture)
@@ -2095,6 +2158,35 @@ internal sealed partial class LuaClientPlugin(
         ClientPlayerMarker[] PlayerMarkers,
         ClientSentryMarker[] SentryMarkers,
         ClientObjectiveMarker[] ObjectiveMarkers);
+
+    private readonly record struct LuaClientStateCacheKey(
+        bool IsConnected,
+        bool IsMainMenuOpen,
+        bool IsGameplayActive,
+        bool IsGameplayInputBlocked,
+        bool IsSpectator,
+        bool IsLocalPlayerAlive,
+        bool IsLocalPlayerScoped,
+        bool IsLocalPlayerHealing,
+        ulong WorldFrame,
+        int TickRate,
+        int LocalPingMilliseconds,
+        string LevelName,
+        float LevelWidth,
+        float LevelHeight,
+        int ViewportWidth,
+        int ViewportHeight,
+        int LocalPlayerId,
+        string LocalPlayerTeam,
+        string LocalPlayerClass,
+        bool HasLocalPlayerHealth,
+        int LocalPlayerHealth,
+        int LocalPlayerMaxHealth,
+        bool HasLocalPlayerPosition,
+        float LocalPlayerWorldX,
+        float LocalPlayerWorldY,
+        float CameraTopLeftX,
+        float CameraTopLeftY);
 
     private sealed class OwnedTextureSequence(List<Texture2D> frames) : IDisposable
     {

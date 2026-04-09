@@ -71,9 +71,9 @@ local function parse_command(text)
     return string.lower(command_name), arguments
 end
 
-local function find_player(slot)
-    local players = plugin.host.get_players()
-    for _, player in ipairs(players) do
+local function find_player(slot, players)
+    local player_list = players or plugin.host.get_players()
+    for _, player in ipairs(player_list) do
         if player.slot == slot then
             return player
         end
@@ -88,9 +88,10 @@ local function is_player_eligible(player)
         and (config.allowSpectatorsToVote or not player.isSpectator)
 end
 
-local function get_eligible_players()
+local function get_eligible_players(players)
     local result = {}
-    for _, player in ipairs(plugin.host.get_players()) do
+    local player_list = players or plugin.host.get_players()
+    for _, player in ipairs(player_list) do
         if is_player_eligible(player) then
             table.insert(result, player)
         end
@@ -99,8 +100,8 @@ local function get_eligible_players()
     return result
 end
 
-local function get_eligible_count()
-    return #get_eligible_players()
+local function get_eligible_count(players)
+    return #get_eligible_players(players)
 end
 
 local function get_required_yes_votes(eligible_count)
@@ -127,7 +128,7 @@ local function build_vote_counts_label()
         return "0/0 yes, 0 no"
     end
 
-    return tostring(active_vote.yes_count) .. "/" .. tostring(get_eligible_count()) .. " yes, " .. tostring(active_vote.no_count) .. " no"
+    return tostring(active_vote.yes_count) .. "/" .. tostring(active_vote.eligible_count or get_eligible_count()) .. " yes, " .. tostring(active_vote.no_count) .. " no"
 end
 
 local function build_vote_summary()
@@ -167,9 +168,9 @@ local function pass_vote()
     clear_active_vote(true)
 end
 
-local function recount_votes()
+local function recount_votes(eligible_players)
     local eligible_slots = {}
-    for _, player in ipairs(get_eligible_players()) do
+    for _, player in ipairs(eligible_players) do
         eligible_slots[player.slot] = true
     end
 
@@ -193,15 +194,17 @@ local function recount_votes()
 
     active_vote.yes_count = yes_count
     active_vote.no_count = no_count
+    active_vote.eligible_count = #eligible_players
 end
 
-local function resolve_vote_if_possible()
+local function resolve_vote_if_possible(players)
     if active_vote == nil then
         return
     end
 
-    recount_votes()
-    local eligible_count = get_eligible_count()
+    local eligible_players = get_eligible_players(players)
+    recount_votes(eligible_players)
+    local eligible_count = #eligible_players
     if eligible_count < config.minimumEligiblePlayers then
         fail_vote("Vote canceled: not enough eligible players remain")
         return
@@ -226,7 +229,8 @@ local function expire_vote_if_needed()
 end
 
 local function try_get_eligible_player(slot)
-    local player = find_player(slot)
+    local players = plugin.host.get_players()
+    local player = find_player(slot, players)
     if is_player_eligible(player) then
         return player
     end
@@ -272,7 +276,8 @@ local function try_start_vote(event, arguments, vote_kind)
         return true
     end
 
-    local eligible_count = get_eligible_count()
+    local players = plugin.host.get_players()
+    local eligible_count = get_eligible_count(players)
     if eligible_count < config.minimumEligiblePlayers then
         plugin.host.send_system_message(
             event.slot,
@@ -291,7 +296,8 @@ local function try_start_vote(event, arguments, vote_kind)
         yes_votes = {},
         no_votes = {},
         yes_count = 1,
-        no_count = 0
+        no_count = 0,
+        eligible_count = eligible_count
     }
     active_vote.yes_votes[initiator.slot] = true
 
@@ -342,10 +348,10 @@ local function try_register_vote(event, arguments)
         active_vote.no_votes[player.slot] = true
     end
 
-    recount_votes()
+    recount_votes(get_eligible_players(plugin.host.get_players()))
     plugin.host.broadcast_system_message(
         player.name .. " voted " .. (is_yes_vote and "yes" or "no") .. " (" .. build_vote_counts_label() .. ")")
-    resolve_vote_if_possible()
+    resolve_vote_if_possible(plugin.host.get_players())
     return true
 end
 
@@ -397,7 +403,7 @@ function plugin.on_client_disconnected(e)
 
     active_vote.yes_votes[e.slot] = nil
     active_vote.no_votes[e.slot] = nil
-    resolve_vote_if_possible()
+    resolve_vote_if_possible(plugin.host.get_players())
 end
 
 function plugin.on_map_changing()

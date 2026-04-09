@@ -41,6 +41,7 @@ local default_config = {
 local config = default_config
 local zooming = false
 local zoom_hotkey_id = "zoom-toggle"
+local cached_client_state = nil
 
 local function clamp(value, minimum, maximum)
     if value < minimum then
@@ -408,6 +409,7 @@ end
 
 function plugin.on_client_frame(e)
     local state = plugin.host.get_client_state()
+    cached_client_state = state
     if not e.isGameplayActive then
         return
     end
@@ -422,7 +424,7 @@ function plugin.on_client_frame(e)
 end
 
 function plugin.on_gameplay_hud_draw(canvas)
-    local state = plugin.host.get_client_state()
+    local state = cached_client_state or plugin.host.get_client_state()
     if not config.enabled
         or not state.isGameplayActive
         or state.isSpectator

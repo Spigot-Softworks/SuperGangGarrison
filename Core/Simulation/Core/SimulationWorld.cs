@@ -59,6 +59,8 @@ public sealed partial class SimulationWorld
     private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
     private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
     private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
+    private readonly Dictionary<int, PlayerEntity> _activeNetworkPlayersById = new();
+    private readonly Dictionary<int, byte> _networkPlayerSlotsByPlayerId = new();
     private readonly HashSet<byte> _enabledAdditionalNetworkPlayerSlots = new();
     private readonly Dictionary<byte, CharacterClassDefinition> _additionalNetworkPlayerClassDefinitions = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _additionalNetworkPlayerInputs = new();
@@ -317,6 +319,8 @@ public sealed partial class SimulationWorld
         var initialSpawn = ReserveSpawn(LocalPlayer, LocalPlayerTeam);
         SpawnPlayerResolved(LocalPlayer, LocalPlayerTeam, initialSpawn);
         _entities.Add(LocalPlayer.Id, LocalPlayer);
+        _activeNetworkPlayersById[LocalPlayer.Id] = LocalPlayer;
+        _networkPlayerSlotsByPlayerId[LocalPlayer.Id] = LocalPlayerSlot;
         EnemyPlayer = new PlayerEntity(AllocateEntityId(), _enemyDummyClassDefinition, DefaultEnemyPlayerName);
         EnemyPlayer.SetPlayerScale(_configuredPlayerScale);
         ApplyServerGameplayTuning(slot: 0, EnemyPlayer);

@@ -31,46 +31,49 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers()
     {
         var world = worldGetter();
-        return clientsGetter()
-            .Values
-            .OrderBy(client => client.Slot)
-            .Select(client =>
-            {
-                var isSpectator = IsSpectatorSlot(client.Slot);
-                PlayerTeam? team = null;
-                PlayerClass? playerClass = null;
-                PlayerEntity? player = null;
-                if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
-                {
-                    player = networkPlayer;
-                    team = networkPlayer.Team;
-                    playerClass = networkPlayer.ClassId;
-                }
+        var clients = clientsGetter().Values.ToList();
+        clients.Sort(static (left, right) => left.Slot.CompareTo(right.Slot));
 
-                return new OpenGarrisonServerPlayerInfo(
-                    Slot: client.Slot,
-                    UserId: client.UserId,
-                    Name: client.Name,
-                    IsSpectator: isSpectator,
-                    IsAuthorized: client.IsAuthorized,
-                    IsGagged: client.IsGagged,
-                    IsAlive: player?.IsAlive ?? false,
-                    PlayerId: player?.Id,
-                    Team: team,
-                    PlayerClass: playerClass,
-                    PlayerScale: player?.PlayerScale ?? 1f,
-                    MovementSpeedScale: player?.ServerMovementSpeedScale ?? (!isSpectator ? world.GetNetworkPlayerMovementSpeedScale(client.Slot) : 1f),
-                    HasMovementSpeedScaleOverride: !isSpectator && world.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
-                    GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.GetNetworkPlayerGravityScale(client.Slot) : 1f),
-                    HasGravityScaleOverride: !isSpectator && world.HasNetworkPlayerGravityScaleOverride(client.Slot),
-                    EndPoint: client.EndPoint.ToString(),
-                    GameplayLoadoutId: player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
-                    GameplaySecondaryItemId: player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
-                    GameplayAcquiredItemId: player?.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
-                    GameplayEquippedSlot: player?.GameplayLoadoutState.EquippedSlot ?? GameplayEquipmentSlot.Primary,
-                    GameplayEquippedItemId: player?.GameplayLoadoutState.EquippedItemId ?? string.Empty);
-            })
-            .ToArray();
+        var players = new OpenGarrisonServerPlayerInfo[clients.Count];
+        for (var index = 0; index < clients.Count; index += 1)
+        {
+            var client = clients[index];
+            var isSpectator = IsSpectatorSlot(client.Slot);
+            PlayerTeam? team = null;
+            PlayerClass? playerClass = null;
+            PlayerEntity? player = null;
+            if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
+            {
+                player = networkPlayer;
+                team = networkPlayer.Team;
+                playerClass = networkPlayer.ClassId;
+            }
+
+            players[index] = new OpenGarrisonServerPlayerInfo(
+                Slot: client.Slot,
+                UserId: client.UserId,
+                Name: client.Name,
+                IsSpectator: isSpectator,
+                IsAuthorized: client.IsAuthorized,
+                IsGagged: client.IsGagged,
+                IsAlive: player?.IsAlive ?? false,
+                PlayerId: player?.Id,
+                Team: team,
+                PlayerClass: playerClass,
+                PlayerScale: player?.PlayerScale ?? 1f,
+                MovementSpeedScale: player?.ServerMovementSpeedScale ?? (!isSpectator ? world.GetNetworkPlayerMovementSpeedScale(client.Slot) : 1f),
+                HasMovementSpeedScaleOverride: !isSpectator && world.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
+                GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.GetNetworkPlayerGravityScale(client.Slot) : 1f),
+                HasGravityScaleOverride: !isSpectator && world.HasNetworkPlayerGravityScaleOverride(client.Slot),
+                EndPoint: client.EndPoint.ToString(),
+                GameplayLoadoutId: player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
+                GameplaySecondaryItemId: player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
+                GameplayAcquiredItemId: player?.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+                GameplayEquippedSlot: player?.GameplayLoadoutState.EquippedSlot ?? GameplayEquipmentSlot.Primary,
+                GameplayEquippedItemId: player?.GameplayLoadoutState.EquippedItemId ?? string.Empty);
+        }
+
+        return players;
     }
 
     public IReadOnlyList<OpenGarrisonServerGameplayModPackInfo> GetGameplayModPacks()

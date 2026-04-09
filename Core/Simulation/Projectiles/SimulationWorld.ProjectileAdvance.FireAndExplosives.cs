@@ -29,11 +29,11 @@ public sealed partial class SimulationWorld
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;
+                var owner = FindPlayerById(flame.OwnerId);
                 flame.MoveTo(hitResult.HitX, hitResult.HitY);
                 if (hitResult.HitPlayer is not null)
                 {
                     var hitPlayer = hitResult.HitPlayer;
-                    var owner = FindPlayerById(flame.OwnerId);
                     var playerDied = ApplyPlayerContinuousDamage(hitPlayer, flame.DirectHitDamageValue, owner);
                     if (playerDied)
                     {
@@ -59,14 +59,14 @@ public sealed partial class SimulationWorld
                         flame.MoveTo(hitResult.HitX + directionX, hitResult.HitY + directionY);
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)flame.DirectHitDamageValue, FindPlayerById(flame.OwnerId)))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)flame.DirectHitDamageValue, owner))
                 {
-                    DestroySentry(hitResult.HitSentry, FindPlayerById(flame.OwnerId));
+                    DestroySentry(hitResult.HitSentry, owner);
                     flame.Destroy();
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)flame.DirectHitDamageValue, FindPlayerById(flame.OwnerId));
+                    TryDamageGenerator(hitResult.HitGenerator.Team, (int)flame.DirectHitDamageValue, owner);
                     flame.Destroy();
                 }
                 else
@@ -123,12 +123,12 @@ public sealed partial class SimulationWorld
             else if (hit.HasValue)
             {
                 var hitResult = hit.Value;
+                var owner = FindPlayerById(flare.OwnerId);
                 flare.MoveTo(hitResult.HitX, hitResult.HitY);
                 RegisterCombatTrace(flare.PreviousX, flare.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var owner = FindPlayerById(flare.OwnerId);
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, FlareProjectileEntity.DamagePerHit, out var damageFlags);
                     var playerDied = ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags);
                     if (playerDied)
@@ -145,13 +145,13 @@ public sealed partial class SimulationWorld
                             burnFalloffAmount: 0f);
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, FlareProjectileEntity.DamagePerHit, FindPlayerById(flare.OwnerId)))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, FlareProjectileEntity.DamagePerHit, owner))
                 {
-                    DestroySentry(hitResult.HitSentry, FindPlayerById(flare.OwnerId));
+                    DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit, FindPlayerById(flare.OwnerId));
+                    TryDamageGenerator(hitResult.HitGenerator.Team, FlareProjectileEntity.DamagePerHit, owner);
                 }
 
                 flare.Destroy();
