@@ -225,6 +225,7 @@ public partial class Game1 : Game
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
+    private ClientPluginOverlayMenuState? _clientPluginOverlayMenu;
 
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
@@ -546,6 +547,24 @@ public partial class Game1 : Game
         public bool TeamOnly { get; }
 
         public int TicksRemaining { get; set; }
+    }
+
+    private sealed class ClientPluginOverlayMenuState(
+        string pluginId,
+        string title,
+        string subtitle,
+        string breadcrumb,
+        IReadOnlyList<string> entries)
+    {
+        public string PluginId { get; } = pluginId;
+
+        public string Title { get; } = title;
+
+        public string Subtitle { get; } = subtitle;
+
+        public string Breadcrumb { get; } = breadcrumb;
+
+        public IReadOnlyList<string> Entries { get; } = entries;
     }
 
     private sealed class PracticeMapEntry

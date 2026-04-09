@@ -5,7 +5,7 @@ namespace OpenGarrison.Protocol;
 
 public static class SnapshotDelta
 {
-    public static SnapshotMessage ToFullSnapshot(SnapshotMessage snapshot, SnapshotMessage? baseline = null)
+    public static SnapshotMessage ToFullSnapshot(SnapshotMessage snapshot, ISnapshotBaselineState? baseline = null)
     {
         if (!snapshot.IsDelta)
         {

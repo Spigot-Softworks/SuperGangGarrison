@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace OpenGarrison.Client.Plugins;
 
@@ -13,4 +14,8 @@ public interface IOpenGarrisonClientPluginUi
     void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order = 0);
 
     void ShowNotice(string text, int durationTicks = 200, bool playSound = true);
+
+    void ShowOverlayMenu(string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries);
+
+    void HideOverlayMenu();
 }

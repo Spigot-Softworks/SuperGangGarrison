@@ -2,9 +2,11 @@
 
 using Microsoft.Xna.Framework.Audio;
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Linq;
 using OpenGarrison.Core;
+using NVorbis;
 
 namespace OpenGarrison.Client;
 
@@ -37,7 +39,7 @@ public partial class Game1
             }
 
             var chosen = candidates[Random.Shared.Next(candidates.Length)];
-            TryLoadLoopedMusic(Path.Combine("Music", chosen), out _game._menuMusic, out _game._menuMusicInstance, 0.8f);
+            TryLoadLoopedMusic(chosen, out _game._menuMusic, out _game._menuMusicInstance, 0.8f);
         }
 
         public void LoadFaucetMusic()
@@ -215,8 +217,7 @@ public partial class Game1
 
                 try
                 {
-                    using var stream = File.OpenRead(soundPath);
-                    _game._lastToDieGameOverSound = SoundEffect.FromStream(stream);
+                    _game._lastToDieGameOverSound = LoadMusicSoundEffect(soundPath);
                     _game._lastToDieGameOverSoundInstance = _game._lastToDieGameOverSound.CreateInstance();
                     _game._lastToDieGameOverSoundInstance.IsLooped = false;
                     _game._lastToDieGameOverSoundInstance.Volume = 0.85f;
@@ -291,8 +292,7 @@ public partial class Game1
 
             try
             {
-                using var stream = File.OpenRead(musicPath);
-                music = SoundEffect.FromStream(stream);
+                music = LoadMusicSoundEffect(musicPath);
                 musicInstance = music.CreateInstance();
                 musicInstance.IsLooped = true;
                 musicInstance.Volume = volume;
@@ -304,19 +304,13 @@ public partial class Game1
                 musicInstance = null;
                 music = null;
 
-                if (LooksLikeUnsupportedLoopedMusicFormat(musicPath))
-                {
-                    _game.AddConsoleLine($"skipping looped music {Path.GetFileName(musicPath)}: MonoGame SoundEffect streaming expects RIFF/WAV data");
-                    return;
-                }
-
                 if (disableAudioOnFailure)
                 {
-                    _game.DisableAudio($"initializing {Path.GetFileName(relativePath)}", ex);
+                    _game.AddConsoleLine($"music unavailable: {Path.GetFileName(musicPath)} ({ex.GetType().Name}: {ex.Message})");
                     return;
                 }
 
-                _game.AddConsoleLine($"optional music unavailable: {Path.GetFileName(relativePath)} ({ex.GetType().Name}: {ex.Message})");
+                _game.AddConsoleLine($"optional music unavailable: {Path.GetFileName(musicPath)} ({ex.GetType().Name}: {ex.Message})");
             }
         }
 
@@ -357,17 +351,26 @@ public partial class Game1
                     : Path.Combine(directoryPath, fileName);
             }
 
-            yield return ComposePath(directory, $"{baseName}.wav");
-            if (!string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase))
+            var normalizedExtension = string.IsNullOrWhiteSpace(extension)
+                ? string.Empty
+                : extension;
+            if (string.Equals(normalizedExtension, ".ogg", StringComparison.OrdinalIgnoreCase))
             {
                 yield return ComposePath(directory, $"{baseName}.ogg");
+                yield return ComposePath(directory, $"{baseName}.wav");
+                yield break;
             }
 
-            if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(normalizedExtension, ".wav", StringComparison.OrdinalIgnoreCase))
             {
-                yield return relativePath;
+                yield return ComposePath(directory, $"{baseName}.wav");
+                yield return ComposePath(directory, $"{baseName}.ogg");
+                yield break;
             }
+
+            yield return ComposePath(directory, $"{baseName}.ogg");
+            yield return ComposePath(directory, $"{baseName}.wav");
+            yield return relativePath;
         }
 
         private void HandleMusicPlaybackFailure(
@@ -383,9 +386,103 @@ public partial class Game1
             _game.AddConsoleLine($"music unavailable while {operation} ({ex.GetType().Name}: {ex.Message})");
         }
 
-        private static bool LooksLikeUnsupportedLoopedMusicFormat(string path)
+        private static SoundEffect LoadMusicSoundEffect(string path)
         {
-            return string.Equals(Path.GetExtension(path), ".ogg", StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(Path.GetExtension(path), ".ogg", StringComparison.OrdinalIgnoreCase))
+            {
+                return LoadOggSoundEffect(path);
+            }
+
+            using var stream = File.OpenRead(path);
+            return SoundEffect.FromStream(stream);
+        }
+
+        private static SoundEffect LoadOggSoundEffect(string path)
+        {
+            using var vorbis = new VorbisReader(path);
+            if (vorbis.Channels is < 1 or > 2)
+            {
+                throw new NotSupportedException($"Unsupported Ogg channel count {vorbis.Channels} for {Path.GetFileName(path)}.");
+            }
+
+            var channels = vorbis.Channels == 1 ? AudioChannels.Mono : AudioChannels.Stereo;
+            var sampleRate = vorbis.SampleRate;
+            var sampleBuffer = new float[4096];
+            byte[] pcmBytes;
+
+            if (vorbis.TotalSamples > 0)
+            {
+                var estimatedBytes = checked((int)Math.Min(vorbis.TotalSamples * vorbis.Channels * sizeof(short), int.MaxValue));
+                pcmBytes = new byte[estimatedBytes];
+                var offset = 0;
+                while (true)
+                {
+                    var samplesRead = vorbis.ReadSamples(sampleBuffer, 0, sampleBuffer.Length);
+                    if (samplesRead <= 0)
+                    {
+                        break;
+                    }
+
+                    EnsureCapacity(ref pcmBytes, offset, samplesRead * sizeof(short));
+                    WritePcm16(sampleBuffer.AsSpan(0, samplesRead), pcmBytes.AsSpan(offset));
+                    offset += samplesRead * sizeof(short);
+                }
+
+                if (offset != pcmBytes.Length)
+                {
+                    Array.Resize(ref pcmBytes, offset);
+                }
+            }
+            else
+            {
+                pcmBytes = Array.Empty<byte>();
+                var offset = 0;
+                while (true)
+                {
+                    var samplesRead = vorbis.ReadSamples(sampleBuffer, 0, sampleBuffer.Length);
+                    if (samplesRead <= 0)
+                    {
+                        break;
+                    }
+
+                    EnsureCapacity(ref pcmBytes, offset, samplesRead * sizeof(short));
+                    WritePcm16(sampleBuffer.AsSpan(0, samplesRead), pcmBytes.AsSpan(offset));
+                    offset += samplesRead * sizeof(short);
+                }
+
+                Array.Resize(ref pcmBytes, offset);
+            }
+
+            return new SoundEffect(pcmBytes, sampleRate, channels);
+        }
+
+        private static void EnsureCapacity(ref byte[] buffer, int offset, int additionalBytes)
+        {
+            var requiredLength = checked(offset + additionalBytes);
+            if (requiredLength <= buffer.Length)
+            {
+                return;
+            }
+
+            var nextLength = buffer.Length == 0 ? 8192 : buffer.Length;
+            while (nextLength < requiredLength)
+            {
+                nextLength = checked(nextLength * 2);
+            }
+
+            Array.Resize(ref buffer, nextLength);
+        }
+
+        private static void WritePcm16(ReadOnlySpan<float> samples, Span<byte> destination)
+        {
+            for (var index = 0; index < samples.Length; index += 1)
+            {
+                var clamped = Math.Clamp(samples[index], -1f, 1f);
+                var value = clamped >= 0f
+                    ? (short)Math.Round(clamped * short.MaxValue)
+                    : (short)Math.Round(clamped * -short.MinValue);
+                BinaryPrimitives.WriteInt16LittleEndian(destination.Slice(index * sizeof(short), sizeof(short)), value);
+            }
         }
     }
 }

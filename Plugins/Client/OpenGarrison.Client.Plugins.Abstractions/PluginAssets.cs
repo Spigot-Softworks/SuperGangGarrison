@@ -61,4 +61,6 @@ public interface IOpenGarrisonClientPluginHotkeys
     Keys RegisterHotkey(string hotkeyId, string displayName, Keys defaultKey);
 
     bool WasHotkeyPressed(string hotkeyId);
+
+    void SetHotkeyCaptureEnabled(bool enabled);
 }

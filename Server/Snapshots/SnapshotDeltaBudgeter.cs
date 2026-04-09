@@ -7,26 +7,37 @@ namespace OpenGarrison.Server;
 
 internal static class SnapshotDeltaBudgeter
 {
+    private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
+
     public const int TargetSnapshotPayloadBytes = 1200;
 
     internal sealed record Contribution(int Priority, float DistanceSquared, int EstimatedBytes, Action<Builder> Apply);
 
     public static (SnapshotMessage Message, byte[] Payload) BuildBudgetedSnapshot(
         SnapshotMessage fullSnapshot,
-        SnapshotMessage? baseline,
+        ISnapshotBaselineState? baseline,
+        IReadOnlyList<Contribution> contributions)
+    {
+        var result = BuildBudgetedSnapshotWithMetrics(fullSnapshot, baseline, contributions);
+        return (result.Message, result.Payload);
+    }
+
+    internal static SnapshotBudgetBuildResult BuildBudgetedSnapshotWithMetrics(
+        SnapshotMessage fullSnapshot,
+        ISnapshotBaselineState? baseline,
         IReadOnlyList<Contribution> contributions)
     {
         var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: baseline is null);
         var snapshot = builder.Build();
-        var payload = ProtocolCodec.Serialize(snapshot);
-        var payloadSize = payload.Length;
+        var serializePassCount = 0;
+        byte[]? payload = null;
+        var payloadSize = Measure(snapshot);
 
         if (payloadSize > TargetSnapshotPayloadBytes)
         {
             TrimAuxiliaryCollections(builder);
             snapshot = builder.Build();
-            payload = ProtocolCodec.Serialize(snapshot);
-            payloadSize = payload.Length;
+            payloadSize = Measure(snapshot);
         }
 
         var remainingBudget = TargetSnapshotPayloadBytes - payloadSize;
@@ -42,26 +53,35 @@ internal static class SnapshotDeltaBudgeter
         }
 
         snapshot = builder.Build();
-        payload = ProtocolCodec.Serialize(snapshot);
+        payloadSize = Measure(snapshot);
 
-        if (payload.Length > TargetSnapshotPayloadBytes)
+        if (payloadSize > TargetSnapshotPayloadBytes)
         {
-            ReduceToBudget(builder);
-            snapshot = builder.Build();
-            payload = ProtocolCodec.Serialize(snapshot);
-            if (payload.Length > TargetSnapshotPayloadBytes)
+            if (TryReduceToBudget(builder, ref serializePassCount) is { } reducedBuilderSnapshot)
             {
-                snapshot = ReduceSnapshotForBudget(snapshot);
-                payload = ProtocolCodec.Serialize(snapshot);
+                snapshot = reducedBuilderSnapshot.Message;
+                payload = reducedBuilderSnapshot.Payload;
             }
-            if (payload.Length > TargetSnapshotPayloadBytes)
+            else
             {
-                snapshot = ReduceSnapshotToAbsoluteMinimum(snapshot);
-                payload = ProtocolCodec.Serialize(snapshot);
+                if (TryReduceSnapshotForBudget(snapshot, ref serializePassCount) is { } reducedSnapshot)
+                {
+                    snapshot = reducedSnapshot.Message;
+                    payload = reducedSnapshot.Payload;
+                }
+                else
+                {
+                    snapshot = ReduceSnapshotToAbsoluteMinimum(snapshot);
+                    payload = Serialize(snapshot, ref serializePassCount);
+                }
             }
         }
+        else
+        {
+            payload = Serialize(snapshot, ref serializePassCount);
+        }
 
-        return (snapshot, payload);
+        return new SnapshotBudgetBuildResult(snapshot, payload!, serializePassCount);
     }
 
     private static void TrimAuxiliaryCollections(Builder builder)
@@ -73,21 +93,23 @@ internal static class SnapshotDeltaBudgeter
         builder.SoundEvents.Clear();
     }
 
-    private static void ReduceToBudget(Builder builder)
+    private static SerializedSnapshot? TryReduceToBudget(Builder builder, ref int serializePassCount)
     {
         foreach (var dropStep in BudgetDropSteps)
         {
             dropStep(builder);
 
-            var payload = ProtocolCodec.Serialize(builder.Build());
-            if (payload.Length <= TargetSnapshotPayloadBytes)
+            var snapshot = builder.Build();
+            if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
             {
-                return;
+                return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
             }
         }
+
+        return null;
     }
 
-    private static SnapshotMessage ReduceSnapshotForBudget(SnapshotMessage snapshot)
+    private static SerializedSnapshot? TryReduceSnapshotForBudget(SnapshotMessage snapshot, ref int serializePassCount)
     {
         snapshot = snapshot with
         {
@@ -97,10 +119,9 @@ internal static class SnapshotDeltaBudgeter
             LocalDeathCam = null,
         };
 
-        var payload = ProtocolCodec.Serialize(snapshot);
-        if (payload.Length <= TargetSnapshotPayloadBytes)
+        if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
         {
-            return snapshot;
+            return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
         }
 
         snapshot = snapshot with
@@ -110,16 +131,31 @@ internal static class SnapshotDeltaBudgeter
                 .ToArray(),
         };
 
-        payload = ProtocolCodec.Serialize(snapshot);
-        if (payload.Length <= TargetSnapshotPayloadBytes)
+        if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
         {
-            return snapshot;
+            return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
         }
 
-        return snapshot with
+        snapshot = snapshot with
         {
             Players = Array.Empty<SnapshotPlayerState>(),
         };
+
+        var payload = Serialize(snapshot, ref serializePassCount);
+        return payload.Length <= TargetSnapshotPayloadBytes
+            ? new SerializedSnapshot(snapshot, payload)
+            : null;
+    }
+
+    private static int Measure(SnapshotMessage snapshot)
+    {
+        return ProtocolCodec.MeasureSerializedSize(snapshot);
+    }
+
+    private static byte[] Serialize(SnapshotMessage snapshot, ref int serializePassCount)
+    {
+        serializePassCount += 1;
+        return ProtocolCodec.Serialize(snapshot);
     }
 
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)

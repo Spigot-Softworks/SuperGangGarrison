@@ -10,7 +10,7 @@ internal static class SnapshotContributionPlanner
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
         SnapshotMessage fullSnapshot,
-        SnapshotMessage? baseline,
+        ISnapshotBaselineState? baseline,
         SimulationWorld world)
     {
         var focus = GetClientFocusPoint(client, world);

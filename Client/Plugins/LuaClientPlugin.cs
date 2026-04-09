@@ -59,6 +59,7 @@ internal sealed partial class LuaClientPlugin(
     private LuaClientStateCacheKey? _cachedClientStateKey;
     private LuaCallbackPhase _currentCallbackPhase = LuaCallbackPhase.None;
     private bool _callbacksDisabled;
+    private const int ClientPluginOverlayMenuLimit = 6;
     private const long CallbackAutoYieldCounter = 1000;
     private const int MaxCallbackResumeCount = 4096;
     private const int MaxInitializeResumeCount = 65536;
@@ -320,6 +321,30 @@ internal sealed partial class LuaClientPlugin(
                 ReadOptionalBoolArgument(args, 2, true));
             return DynValue.True;
         });
+        host["show_overlay_menu"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("show_overlay_menu", "overlay menu surface"))
+            {
+                return DynValue.False;
+            }
+
+            context.Ui.ShowOverlayMenu(
+                ReadOptionalStringArgument(args, 0, string.Empty),
+                ReadOptionalStringArgument(args, 1, string.Empty),
+                ReadOptionalStringArgument(args, 2, string.Empty),
+                ReadOverlayMenuEntriesArgument(args, 3, ClientPluginOverlayMenuLimit));
+            return DynValue.True;
+        });
+        host["hide_overlay_menu"] = DynValue.NewCallback((_, _) =>
+        {
+            if (!CanUseClientUiMutation("hide_overlay_menu", "overlay menu surface"))
+            {
+                return DynValue.False;
+            }
+
+            context.Ui.HideOverlayMenu();
+            return DynValue.True;
+        });
         host["register_hotkey"] = DynValue.NewCallback((_, args) =>
         {
             var hotkeyId = ReadStringArgument(args, 0);
@@ -340,6 +365,36 @@ internal sealed partial class LuaClientPlugin(
         });
         host["was_hotkey_pressed"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(context.Hotkeys.WasHotkeyPressed(ReadStringArgument(args, 0))));
+        host["set_hotkey_capture_enabled"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanUseClientUiMutation("set_hotkey_capture_enabled", "hotkey capture state"))
+            {
+                return DynValue.False;
+            }
+
+            context.Hotkeys.SetHotkeyCaptureEnabled(ReadOptionalBoolArgument(args, 0, false));
+            return DynValue.True;
+        });
+        host["capture_hotkey_input"] = DynValue.NewCallback((_, _) =>
+        {
+            if (!CanUseClientUiMutation("capture_hotkey_input", "hotkey capture state"))
+            {
+                return DynValue.False;
+            }
+
+            context.Hotkeys.SetHotkeyCaptureEnabled(true);
+            return DynValue.True;
+        });
+        host["clear_hotkey_capture"] = DynValue.NewCallback((_, _) =>
+        {
+            if (!CanUseClientUiMutation("clear_hotkey_capture", "hotkey capture state"))
+            {
+                return DynValue.False;
+            }
+
+            context.Hotkeys.SetHotkeyCaptureEnabled(false);
+            return DynValue.True;
+        });
         host["send_message_to_server"] = DynValue.NewCallback((_, args) =>
         {
             var targetPluginId = ReadStringArgument(args, 0);
@@ -1000,7 +1055,22 @@ internal sealed partial class LuaClientPlugin(
         }
     }
 
-    private static TimeSpan GetMaxCallbackDuration(LuaCallbackPhase phase)
+    private TimeSpan GetMaxCallbackDuration(LuaCallbackPhase phase)
+    {
+        if (string.Equals(manifest.Id, "open-garrison.client.lua-garrison-tools-menu", StringComparison.OrdinalIgnoreCase))
+        {
+            return phase switch
+            {
+                LuaCallbackPhase.Update => TimeSpan.FromMilliseconds(300),
+                LuaCallbackPhase.GameplayHudDraw => TimeSpan.FromMilliseconds(300),
+                _ => GetDefaultMaxCallbackDuration(phase),
+            };
+        }
+
+        return GetDefaultMaxCallbackDuration(phase);
+    }
+
+    private static TimeSpan GetDefaultMaxCallbackDuration(LuaCallbackPhase phase)
     {
         return phase switch
         {
@@ -1978,6 +2048,58 @@ internal sealed partial class LuaClientPlugin(
         }
 
         return null;
+    }
+
+    private static IReadOnlyList<string> ReadOverlayMenuEntriesArgument(CallbackArguments args, int index, int maxCount)
+    {
+        var dynValue = ReadArgument(args, index);
+        if (maxCount <= 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        if (dynValue.Type == DataType.String)
+        {
+            var text = dynValue.String ?? string.Empty;
+            if (text.Contains("|l=", StringComparison.Ordinal))
+            {
+                return text.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(segment => segment.StartsWith("l=", StringComparison.Ordinal))
+                    .Select(segment => segment[2..])
+                    .Where(segment => !string.IsNullOrWhiteSpace(segment))
+                    .Take(maxCount)
+                    .ToArray();
+            }
+
+            return text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(maxCount)
+                .ToArray();
+        }
+
+        if (dynValue.Type != DataType.Table)
+        {
+            return Array.Empty<string>();
+        }
+
+        var values = new List<string>(maxCount);
+        foreach (var pair in dynValue.Table.Pairs
+                     .Where(pair => pair.Key.Type == DataType.Number)
+                     .OrderBy(pair => pair.Key.Number))
+        {
+            var value = pair.Value.CastToString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            values.Add(value);
+            if (values.Count >= maxCount)
+            {
+                break;
+            }
+        }
+
+        return values;
     }
 
     private static string ToCamelCase(string value)

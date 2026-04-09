@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Protocol;
+using System.Collections.Generic;
 
 namespace OpenGarrison.Client;
 
@@ -19,8 +20,11 @@ internal sealed class ClientPluginContext(
     ClientPluginAssetRegistry assetRegistry,
     Func<string, string, Keys, Keys> registerHotkey,
     Func<string, bool> wasHotkeyPressed,
+    Action<bool> setHotkeyCaptureEnabled,
     Action<string, string, ClientPluginMenuLocation, Action, int> registerMenuEntry,
     Action<string, int, bool> showNotice,
+    Action<string, string, string, IReadOnlyList<string>> showOverlayMenu,
+    Action hideOverlayMenu,
     Action<string, string, string, PluginMessagePayloadFormat, ushort> sendMessageToServer,
     Action<string> log) : IOpenGarrisonClientPluginContext, IDisposable
 {
@@ -40,9 +44,9 @@ internal sealed class ClientPluginContext(
 
     public IOpenGarrisonClientPluginAssets Assets { get; } = new AssetAccess(assetRegistry);
 
-    public IOpenGarrisonClientPluginHotkeys Hotkeys { get; } = new HotkeyAccess(registerHotkey, wasHotkeyPressed);
+    public IOpenGarrisonClientPluginHotkeys Hotkeys { get; } = new HotkeyAccess(registerHotkey, wasHotkeyPressed, setHotkeyCaptureEnabled);
 
-    public IOpenGarrisonClientPluginUi Ui { get; } = new UiAccess(registerMenuEntry, showNotice);
+    public IOpenGarrisonClientPluginUi Ui { get; } = new UiAccess(registerMenuEntry, showNotice, showOverlayMenu, hideOverlayMenu);
 
     public void SendMessageToServer(
         string targetPluginId,
@@ -109,7 +113,8 @@ internal sealed class ClientPluginContext(
 
     private sealed class HotkeyAccess(
         Func<string, string, Keys, Keys> registerHotkey,
-        Func<string, bool> wasHotkeyPressed) : IOpenGarrisonClientPluginHotkeys
+        Func<string, bool> wasHotkeyPressed,
+        Action<bool> setHotkeyCaptureEnabled) : IOpenGarrisonClientPluginHotkeys
     {
         public Keys RegisterHotkey(string hotkeyId, string displayName, Keys defaultKey)
         {
@@ -120,11 +125,18 @@ internal sealed class ClientPluginContext(
         {
             return wasHotkeyPressed(hotkeyId);
         }
+
+        public void SetHotkeyCaptureEnabled(bool enabled)
+        {
+            setHotkeyCaptureEnabled(enabled);
+        }
     }
 
     private sealed class UiAccess(
         Action<string, string, ClientPluginMenuLocation, Action, int> registerMenuEntry,
-        Action<string, int, bool> showNotice) : IOpenGarrisonClientPluginUi
+        Action<string, int, bool> showNotice,
+        Action<string, string, string, IReadOnlyList<string>> showOverlayMenu,
+        Action hideOverlayMenu) : IOpenGarrisonClientPluginUi
     {
         public void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order = 0)
         {
@@ -134,6 +146,16 @@ internal sealed class ClientPluginContext(
         public void ShowNotice(string text, int durationTicks = 200, bool playSound = true)
         {
             showNotice(text, durationTicks, playSound);
+        }
+
+        public void ShowOverlayMenu(string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries)
+        {
+            showOverlayMenu(title, subtitle, breadcrumb, entries);
+        }
+
+        public void HideOverlayMenu()
+        {
+            hideOverlayMenu();
         }
     }
 }

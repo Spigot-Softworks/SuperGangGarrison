@@ -31,6 +31,7 @@ internal sealed class ClientPluginHost
     private readonly List<ClientPluginLoader.DiscoveredPlugin> _discoveredPlugins = new();
     private readonly List<LoadedPluginEntry> _loadedPlugins = new();
     private readonly Dictionary<string, List<RegisteredHotkey>> _registeredHotkeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _hotkeyCaptureEnabledPlugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<RegisteredMenuEntry>> _registeredMenuEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PluginProfileAggregate> _profileAggregates = new(StringComparer.OrdinalIgnoreCase);
     private LoadedPluginEntry[]? _cachedGameplayHudEntries;
@@ -431,6 +432,7 @@ internal sealed class ClientPluginHost
         }
 
         _registeredHotkeys.Clear();
+        _hotkeyCaptureEnabledPlugins.Clear();
         _registeredMenuEntries.Clear();
         _loadedPlugins.Clear();
         InvalidateLoadedPluginOrderCaches();
@@ -441,6 +443,7 @@ internal sealed class ClientPluginHost
         ResetLoadedPluginsForDiscovery();
         _discoveredPlugins.Clear();
         _registeredHotkeys.Clear();
+        _hotkeyCaptureEnabledPlugins.Clear();
         _registeredMenuEntries.Clear();
         _discoveredPlugins.AddRange(discoveredPlugins);
         InvalidateLoadedPluginOrderCaches();
@@ -649,6 +652,7 @@ internal sealed class ClientPluginHost
 
             DisposePluginResources(entry);
             _registeredHotkeys.Remove(entry.DiscoveredPlugin.PluginId);
+            _hotkeyCaptureEnabledPlugins.Remove(entry.DiscoveredPlugin.PluginId);
             _registeredMenuEntries.Remove(entry.DiscoveredPlugin.PluginId);
             _loadedPlugins.RemoveAt(index);
             InvalidateLoadedPluginOrderCaches();
@@ -690,8 +694,11 @@ internal sealed class ClientPluginHost
             assetRegistry,
             (hotkeyId, displayName, defaultKey) => RegisterHotkey(plugin.Id, hotkeyId, displayName, defaultKey),
             hotkeyId => WasHotkeyPressed(plugin.Id, hotkeyId),
+            enabled => SetHotkeyCaptureEnabled(plugin.Id, enabled),
             (menuEntryId, label, location, activate, order) => RegisterMenuEntry(plugin.Id, menuEntryId, label, location, activate, order),
             (text, durationTicks, playSound) => ShowNotice(plugin.Id, text, durationTicks, playSound),
+            (title, subtitle, breadcrumb, entries) => ShowOverlayMenu(plugin.Id, title, subtitle, breadcrumb, entries),
+            () => HideOverlayMenu(plugin.Id),
             (targetPluginId, messageType, payload, payloadFormat, schemaVersion) => SendMessageToServer(plugin.Id, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
             _log);
     }
@@ -734,6 +741,43 @@ internal sealed class ClientPluginHost
     {
         var registeredHotkey = GetRegisteredHotkey(pluginId, hotkeyId);
         return registeredHotkey is not null && _clientState.WasKeyPressedThisFrame(registeredHotkey.CurrentKey);
+    }
+
+    public bool IsCapturedHotkeyPressed(Keys key)
+    {
+        if (_hotkeyCaptureEnabledPlugins.Count == 0 || !_clientState.WasKeyPressedThisFrame(key))
+        {
+            return false;
+        }
+
+        foreach (var pluginId in _hotkeyCaptureEnabledPlugins)
+        {
+            if (!_registeredHotkeys.TryGetValue(pluginId, out var hotkeys))
+            {
+                continue;
+            }
+
+            for (var index = 0; index < hotkeys.Count; index += 1)
+            {
+                if (hotkeys[index].CurrentKey == key)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void SetHotkeyCaptureEnabled(string pluginId, bool enabled)
+    {
+        if (enabled)
+        {
+            _hotkeyCaptureEnabledPlugins.Add(pluginId);
+            return;
+        }
+
+        _hotkeyCaptureEnabledPlugins.Remove(pluginId);
     }
 
     private void RegisterMenuEntry(string pluginId, string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order)
@@ -830,6 +874,42 @@ internal sealed class ClientPluginHost
         for (var index = 0; index < _loadedPlugins.Count; index += 1)
         {
             DispatchHook(_loadedPlugins[index], callback, hookName);
+        }
+    }
+
+    private void ShowOverlayMenu(string pluginId, string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries)
+    {
+        if (_clientState is not ClientPluginUiSink sink)
+        {
+            _log($"[plugin] client plugin overlay surface unavailable for {pluginId}.");
+            return;
+        }
+
+        try
+        {
+            sink.ShowPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries);
+        }
+        catch (Exception ex)
+        {
+            _log($"[plugin] overlay menu update failed for {pluginId}: {ex.Message}");
+        }
+    }
+
+    private void HideOverlayMenu(string pluginId)
+    {
+        if (_clientState is not ClientPluginUiSink sink)
+        {
+            _log($"[plugin] client plugin overlay surface unavailable for {pluginId}.");
+            return;
+        }
+
+        try
+        {
+            sink.HidePluginOverlayMenu(pluginId);
+        }
+        catch (Exception ex)
+        {
+            _log($"[plugin] overlay menu clear failed for {pluginId}: {ex.Message}");
         }
     }
 
@@ -1038,6 +1118,10 @@ internal interface ClientPluginMessageSink
 internal interface ClientPluginUiSink
 {
     void EnqueuePluginNotice(string text, int durationTicks, bool playSound);
+
+    void ShowPluginOverlayMenu(string pluginId, string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries);
+
+    void HidePluginOverlayMenu(string pluginId);
 }
 
 internal sealed record ClientPluginMenuEntry(

@@ -27,6 +27,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after killfeed");
         DrawChatHud();
         WriteGameplayRenderTrace("hud after chat");
+        DrawClientPluginOverlayMenuHud();
+        WriteGameplayRenderTrace("hud after clientpluginoverlaymenu");
         DrawScorePanelHud();
         WriteGameplayRenderTrace("hud after scorepanel");
         DrawAutoBalanceNotice();

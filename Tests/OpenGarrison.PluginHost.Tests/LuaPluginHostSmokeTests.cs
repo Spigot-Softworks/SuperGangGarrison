@@ -216,16 +216,16 @@ public sealed class LuaPluginHostSmokeTests
             "open-garrison.server.lua-garrison-tools",
             "open-garrison.client.lua-garrison-tools-menu",
             "adminmenu.open",
-            "Admin Menu\nChoose a branch.\nRoot\nnav:server_management\tServer management\nnav:game_management\tGame management\nnav:player_management\tPlayer management\nnav:fun\tFun\nclose\tClose",
+            "am1|t=Admin Menu|s=Choose a branch.|b=Root|l=Server management|l=Game management|l=Player management|l=Fun|l=Close",
             PluginMessagePayloadFormat.Text,
             1));
 
-        var canvas = new FakeHudCanvas();
-        hudHooks.OnGameplayHudDraw(canvas);
-
-        Assert.True(canvas.FilledRectangleCount > 0);
-        Assert.True(canvas.OutlinedRectangleCount > 0);
-        Assert.True(canvas.BitmapTextDrawCount > 0);
+        Assert.NotNull(loadedPlugin.Context.UiImpl.OverlayMenu);
+        Assert.Equal("Admin Menu", loadedPlugin.Context.UiImpl.OverlayMenu!.Title);
+        Assert.Equal("Choose a branch.", loadedPlugin.Context.UiImpl.OverlayMenu.Subtitle);
+        Assert.Equal("Root", loadedPlugin.Context.UiImpl.OverlayMenu.Breadcrumb);
+        Assert.Equal(5, loadedPlugin.Context.UiImpl.OverlayMenu.Entries.Count);
+        Assert.True(loadedPlugin.Context.HotkeysImpl.CaptureEnabled, string.Join(Environment.NewLine, logs));
 
         loadedPlugin.Context.HotkeysImpl.PressedHotkeys.Add("adminmenu-slot-4");
         updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 1, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
@@ -238,11 +238,9 @@ public sealed class LuaPluginHostSmokeTests
             PluginMessagePayloadFormat.Text,
             1));
 
-        var closedCanvas = new FakeHudCanvas();
-        hudHooks.OnGameplayHudDraw(closedCanvas);
+        updateHooks.OnClientFrame(new ClientFrameEvent(0.016f, 2, IsMainMenuOpen: false, IsGameplayActive: true, IsConnected: true, IsSpectator: false));
 
-        Assert.Equal(0, closedCanvas.FilledRectangleCount);
-        Assert.Equal(0, closedCanvas.BitmapTextDrawCount);
+        Assert.Null(loadedPlugin.Context.UiImpl.OverlayMenu);
         Assert.DoesNotContain(logs, log => log.Contains("disabled open-garrison.client.lua-garrison-tools-menu", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(logs, log => log.Contains("callback failure", StringComparison.OrdinalIgnoreCase));
     }
@@ -1837,12 +1835,12 @@ public sealed class LuaPluginHostSmokeTests
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
             new ChatReceivedEvent(1, "Admin", "!gt_adminmenu", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("admin menu opened", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(
             loadedPlugin.Context.SentPluginMessages,
             message => message.Slot == 1
                 && message.TargetPluginId == "open-garrison.client.lua-garrison-tools-menu"
-                && message.MessageType == "adminmenu.open");
+                && message.MessageType == "adminmenu.open"
+                && message.Payload.StartsWith("am1|t=Admin Menu|", StringComparison.Ordinal));
 
         loadedPlugin.Context.SentPluginMessages.Clear();
         messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
@@ -2451,6 +2449,8 @@ public sealed class LuaPluginHostSmokeTests
 
         public HashSet<string> PressedHotkeys { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+        public bool CaptureEnabled { get; private set; }
+
         public Keys RegisterHotkey(string hotkeyId, string displayName, Keys defaultKey)
         {
             RegisteredHotkeys.Add((hotkeyId, displayName, defaultKey));
@@ -2458,6 +2458,11 @@ public sealed class LuaPluginHostSmokeTests
         }
 
         public bool WasHotkeyPressed(string hotkeyId) => PressedHotkeys.Remove(hotkeyId);
+
+        public void SetHotkeyCaptureEnabled(bool enabled)
+        {
+            CaptureEnabled = enabled;
+        }
     }
 
     private sealed class FakeClientUi : IOpenGarrisonClientPluginUi
@@ -2465,6 +2470,8 @@ public sealed class LuaPluginHostSmokeTests
         public List<(string MenuEntryId, string Label, ClientPluginMenuLocation Location, int Order, Action Activate)> MenuEntries { get; } = [];
 
         public List<(string Text, int DurationTicks, bool PlaySound)> Notices { get; } = [];
+
+        public FakeOverlayMenuState? OverlayMenu { get; private set; }
 
         public void RegisterMenuEntry(string menuEntryId, string label, ClientPluginMenuLocation location, Action activate, int order = 0)
         {
@@ -2475,7 +2482,23 @@ public sealed class LuaPluginHostSmokeTests
         {
             Notices.Add((text, durationTicks, playSound));
         }
+
+        public void ShowOverlayMenu(string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries)
+        {
+            OverlayMenu = new FakeOverlayMenuState(title, subtitle, breadcrumb, entries.ToArray());
+        }
+
+        public void HideOverlayMenu()
+        {
+            OverlayMenu = null;
+        }
     }
+
+    private sealed record FakeOverlayMenuState(
+        string Title,
+        string Subtitle,
+        string Breadcrumb,
+        IReadOnlyList<string> Entries);
 
     private sealed class FakeHudCanvas : IOpenGarrisonClientScoreboardCanvas
     {

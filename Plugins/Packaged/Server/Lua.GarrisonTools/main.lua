@@ -13,6 +13,7 @@ local admin_menu_client_source_plugin_id = "open-garrison.client.lua-garrison-to
 local admin_menu_open_message_type = "adminmenu.open"
 local admin_menu_close_message_type = "adminmenu.close"
 local admin_menu_select_message_type = "adminmenu.select"
+local admin_menu_payload_prefix = "am1"
 local admin_menu_root_screen = "root"
 
 local default_config = {
@@ -1683,6 +1684,9 @@ end
 local function escape_admin_menu_value(text)
     local value = tostring(text or "")
     value = value:gsub("%%", "%%25")
+    value = value:gsub("|", "%%7C")
+    value = value:gsub("=", "%%3D")
+    value = value:gsub("~", "%%7E")
     value = value:gsub("\t", "%%09")
     value = value:gsub("\r", "%%0D")
     value = value:gsub("\n", "%%0A")
@@ -1691,18 +1695,18 @@ end
 
 local function build_admin_menu_payload(screen)
     local entries = screen ~= nil and screen.entries or {}
-    local lines = {}
-    lines[1] = escape_admin_menu_value(screen ~= nil and screen.title or "")
-    lines[2] = escape_admin_menu_value(screen ~= nil and screen.subtitle or "")
-    lines[3] = escape_admin_menu_value(screen ~= nil and screen.breadcrumb or "")
+    local payload = admin_menu_payload_prefix
+    payload = payload .. "|t=" .. escape_admin_menu_value(screen ~= nil and screen.title or "")
+    payload = payload .. "|s=" .. escape_admin_menu_value(screen ~= nil and screen.subtitle or "")
+    payload = payload .. "|b=" .. escape_admin_menu_value(screen ~= nil and screen.breadcrumb or "")
     for index = 1, #entries do
         local entry = entries[index]
         if entry ~= nil then
-            lines[#lines + 1] = escape_admin_menu_value(entry.token or "") .. "\t" .. escape_admin_menu_value(entry.label or entry.token or "")
+            payload = payload .. "|l=" .. escape_admin_menu_value(entry.label or entry.token or "")
         end
     end
 
-    return table.concat(lines, "\n")
+    return payload
 end
 
 local function make_admin_menu_screen(title, subtitle, breadcrumb, entries)
@@ -2222,6 +2226,22 @@ local function process_admin_menu_selection(session, payload)
         return
     end
 
+    if starts_with(token, "select:") then
+        local selected_index = tonumber(token:sub(8))
+        if selected_index == nil then
+            return
+        end
+
+        local screen = build_admin_menu_screen_for_session(session)
+        local entries = screen ~= nil and screen.entries or {}
+        local selected_entry = entries[selected_index]
+        if selected_entry == nil or selected_entry.token == nil then
+            return
+        end
+
+        token = selected_entry.token
+    end
+
     if token == "close" then
         close_admin_menu_session(session.slot)
         return
@@ -2342,7 +2362,6 @@ local function handle_admin_menu(context, event)
 
     local session = create_admin_menu_session(context, event.slot)
     admin_menu_sessions[event.slot] = session
-    send_private(event.slot, "[GT] admin menu opened. Use 1-6 and Escape to navigate.")
     refresh_admin_menu_session(session)
     return true
 end

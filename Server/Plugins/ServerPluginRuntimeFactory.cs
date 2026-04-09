@@ -59,6 +59,7 @@ internal static class ServerPluginRuntimeFactory
             () => serverName,
             () => world,
             () => clientsBySlot,
+            () => snapshotBroadcaster.Metrics,
             uptimeGetter,
             maxPlayableClients,
             useLobbyServer,

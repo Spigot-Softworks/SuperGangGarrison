@@ -31,7 +31,9 @@ public partial class Game1
 
     private bool IsKeyPressed(KeyboardState keyboard, Keys key)
     {
-        return keyboard.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+        return keyboard.IsKeyDown(key)
+            && !_previousKeyboard.IsKeyDown(key)
+            && !(_clientPluginHost?.IsCapturedHotkeyPressed(key) ?? false);
     }
 
     private void UpdateScoreboardState(KeyboardState keyboard)

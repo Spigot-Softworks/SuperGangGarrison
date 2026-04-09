@@ -8,8 +8,10 @@ using static ServerHelpers;
 
 sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
 {
-    private const int SnapshotHistoryLimit = 96;
-    private readonly Dictionary<ulong, SnapshotMessage> _snapshotStatesByFrame = new();
+    private const int MinimumSnapshotHistoryLimit = 12;
+    private const int SnapshotHistorySlackFrames = 12;
+    private const int MaximumSnapshotHistoryLimit = 48;
+    private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
 
     public byte Slot { get; set; } = slot;
@@ -36,6 +38,7 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
     public string PendingAdminChatCommand { get; set; } = string.Empty;
     public TimeSpan PendingAdminChatCommandQueuedAt { get; set; } = TimeSpan.MinValue;
     public bool IsGagged { get; set; }
+    public int SnapshotHistoryCount => _snapshotFrameOrder.Count;
 
     public bool TrySetLatestInput(uint sequence, PlayerInputSnapshot input)
     {
@@ -69,12 +72,13 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
         var fullSnapshot = snapshot.IsDelta
             ? SnapshotDelta.ToFullSnapshot(snapshot)
             : snapshot;
+        var baseline = SnapshotBaselineState.FromSnapshot(fullSnapshot);
         if (!_snapshotStatesByFrame.ContainsKey(fullSnapshot.Frame))
         {
             _snapshotFrameOrder.Enqueue(fullSnapshot.Frame);
         }
 
-        _snapshotStatesByFrame[fullSnapshot.Frame] = fullSnapshot;
+        _snapshotStatesByFrame[fullSnapshot.Frame] = baseline;
         TrimSnapshotHistory();
     }
 
@@ -89,7 +93,7 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
         PruneOlderSnapshotHistory(frame);
     }
 
-    public bool TryGetSnapshotState(ulong frame, out SnapshotMessage snapshot)
+    public bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
     {
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }
@@ -103,16 +107,15 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
 
     private void TrimSnapshotHistory()
     {
-        while (_snapshotFrameOrder.Count > SnapshotHistoryLimit)
+        var targetHistoryCount = ComputeTargetHistoryCount();
+        while (_snapshotFrameOrder.Count > targetHistoryCount)
         {
             var oldestFrame = _snapshotFrameOrder.Dequeue();
+            _snapshotStatesByFrame.Remove(oldestFrame);
             if (oldestFrame == LastAcknowledgedSnapshotFrame)
             {
-                _snapshotFrameOrder.Enqueue(oldestFrame);
-                continue;
+                LastAcknowledgedSnapshotFrame = 0;
             }
-
-            _snapshotStatesByFrame.Remove(oldestFrame);
         }
     }
 
@@ -122,5 +125,25 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
         {
             _snapshotStatesByFrame.Remove(_snapshotFrameOrder.Dequeue());
         }
+    }
+
+    private int ComputeTargetHistoryCount()
+    {
+        if (_snapshotFrameOrder.Count == 0)
+        {
+            return MinimumSnapshotHistoryLimit;
+        }
+
+        var newestFrame = _snapshotFrameOrder.Peek();
+        foreach (var frame in _snapshotFrameOrder)
+        {
+            newestFrame = frame;
+        }
+
+        var pendingFrames = LastAcknowledgedSnapshotFrame == 0 || newestFrame <= LastAcknowledgedSnapshotFrame
+            ? _snapshotFrameOrder.Count
+            : (int)Math.Clamp(newestFrame - LastAcknowledgedSnapshotFrame, 0UL, int.MaxValue);
+        var targetHistoryCount = pendingFrames + SnapshotHistorySlackFrames;
+        return Math.Clamp(targetHistoryCount, MinimumSnapshotHistoryLimit, MaximumSnapshotHistoryLimit);
     }
 }

@@ -557,7 +557,7 @@ public sealed record SnapshotMessage(
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
     string MapContentHash = "",
-    float MapScale = 1f) : IProtocolMessage
+    float MapScale = 1f) : IProtocolMessage, ISnapshotBaselineState
 {
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }

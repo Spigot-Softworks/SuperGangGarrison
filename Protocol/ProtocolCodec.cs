@@ -24,133 +24,77 @@ public static partial class ProtocolCodec
 
     public static byte[] Serialize(IProtocolMessage message)
     {
-        using var stream = new MemoryStream();
+        var size = MeasureSerializedSize(message);
+        using var stream = new MemoryStream(size);
         using var writer = new BinaryWriter(stream, Utf8, leaveOpen: true);
-        writer.Write((byte)message.Type);
-
-        switch (message)
+        WriteMessage(writer, message);
+        writer.Flush();
+        if (stream.TryGetBuffer(out var buffer)
+            && buffer.Offset == 0
+            && buffer.Array is not null
+            && buffer.Count == buffer.Array.Length)
         {
-            case HelloMessage hello:
-                WriteString(writer, hello.Name, MaxPlayerNameBytes, nameof(hello.Name));
-                writer.Write(hello.Version);
-                writer.Write(hello.BadgeMask);
-                break;
-            case WelcomeMessage welcome:
-                WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
-                writer.Write(welcome.Version);
-                writer.Write(welcome.TickRate);
-                WriteString(writer, welcome.LevelName, MaxLevelNameBytes, nameof(welcome.LevelName));
-                writer.Write(welcome.PlayerSlot);
-                writer.Write(welcome.IsCustomMap);
-                WriteString(writer, welcome.MapDownloadUrl, MaxMapUrlBytes, nameof(welcome.MapDownloadUrl));
-                WriteString(writer, welcome.MapContentHash, MaxMapHashBytes, nameof(welcome.MapContentHash));
-                writer.Write(welcome.MapScale);
-                break;
-            case ConnectionDeniedMessage denied:
-                WriteString(writer, denied.Reason, MaxReasonBytes, nameof(denied.Reason));
-                break;
-            case PasswordRequestMessage:
-                break;
-            case PasswordSubmitMessage passwordSubmit:
-                WriteString(writer, passwordSubmit.Password, MaxPasswordBytes, nameof(passwordSubmit.Password));
-                break;
-            case PasswordResultMessage passwordResult:
-                writer.Write(passwordResult.Accepted);
-                WriteString(writer, passwordResult.Reason, MaxReasonBytes, nameof(passwordResult.Reason));
-                break;
-            case ChatSubmitMessage chatSubmit:
-                WriteString(writer, chatSubmit.Text, MaxChatBytes, nameof(chatSubmit.Text));
-                writer.Write(chatSubmit.TeamOnly);
-                break;
-            case ChatRelayMessage chatRelay:
-                writer.Write(chatRelay.Team);
-                WriteString(writer, chatRelay.PlayerName, MaxPlayerNameBytes, nameof(chatRelay.PlayerName));
-                WriteString(writer, chatRelay.Text, MaxChatBytes, nameof(chatRelay.Text));
-                writer.Write(chatRelay.TeamOnly);
-                break;
-            case AutoBalanceNoticeMessage notice:
-                writer.Write((byte)notice.Kind);
-                WriteString(writer, notice.PlayerName, MaxPlayerNameBytes, nameof(notice.PlayerName));
-                writer.Write(notice.FromTeam);
-                writer.Write(notice.ToTeam);
-                writer.Write(notice.DelaySeconds);
-                break;
-            case SessionSlotChangedMessage slotChanged:
-                writer.Write(slotChanged.PlayerSlot);
-                break;
-            case ServerStatusRequestMessage:
-                break;
-            case ServerStatusResponseMessage status:
-                WriteString(writer, status.ServerName, MaxServerNameBytes, nameof(status.ServerName));
-                WriteString(writer, status.LevelName, MaxLevelNameBytes, nameof(status.LevelName));
-                writer.Write(status.GameMode);
-                writer.Write(status.PlayerCount);
-                writer.Write(status.MaxPlayerCount);
-                writer.Write(status.SpectatorCount);
-                break;
-            case InputStateMessage input:
-                writer.Write(input.Sequence);
-                writer.Write((ushort)input.Buttons);
-                writer.Write(input.AimWorldX);
-                writer.Write(input.AimWorldY);
-                writer.Write(input.ChatBubbleFrameIndex);
-                break;
-            case ControlCommandMessage command:
-                writer.Write(command.Sequence);
-                writer.Write((byte)command.Kind);
-                writer.Write(command.Value);
-                WriteString(writer, command.TextValue ?? string.Empty, MaxGameplayIdBytes, nameof(command.TextValue));
-                break;
-            case ControlAckMessage ack:
-                writer.Write(ack.Sequence);
-                writer.Write((byte)ack.Kind);
-                writer.Write(ack.Accepted);
-                break;
-            case SnapshotAckMessage snapshotAck:
-                writer.Write(snapshotAck.Frame);
-                break;
-            case PlayerProfileUpdateMessage profileUpdate:
-                WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));
-                writer.Write(profileUpdate.BadgeMask);
-                break;
-            case ClientPluginMessage clientPluginMessage:
-                WriteString(writer, clientPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(clientPluginMessage.SourcePluginId));
-                WriteString(writer, clientPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(clientPluginMessage.TargetPluginId));
-                WriteString(writer, clientPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(clientPluginMessage.MessageTypeName));
-                WriteString(writer, clientPluginMessage.Payload, MaxPluginPayloadBytes, nameof(clientPluginMessage.Payload));
-                writer.Write((byte)clientPluginMessage.PayloadFormat);
-                writer.Write(clientPluginMessage.SchemaVersion);
-                break;
-            case ServerPluginMessage serverPluginMessage:
-                WriteString(writer, serverPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(serverPluginMessage.SourcePluginId));
-                WriteString(writer, serverPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(serverPluginMessage.TargetPluginId));
-                WriteString(writer, serverPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(serverPluginMessage.MessageTypeName));
-                WriteString(writer, serverPluginMessage.Payload, MaxPluginPayloadBytes, nameof(serverPluginMessage.Payload));
-                writer.Write((byte)serverPluginMessage.PayloadFormat);
-                writer.Write(serverPluginMessage.SchemaVersion);
-                break;
-            case SnapshotMessage snapshot:
-                WriteSnapshot(writer, snapshot);
-                break;
-            default:
-                throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
+            return buffer.Array;
         }
 
-        writer.Flush();
         return stream.ToArray();
+    }
+
+    public static int MeasureSerializedSize(IProtocolMessage message)
+    {
+        using var stream = new CountingStream();
+        using var writer = new BinaryWriter(stream, Utf8, leaveOpen: true);
+        WriteMessage(writer, message);
+        writer.Flush();
+        return checked((int)stream.Length);
+    }
+
+    public static bool TryDeserialize(byte[] payload, out IProtocolMessage? message)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        if (payload.Length < 1)
+        {
+            message = null;
+            return false;
+        }
+
+        try
+        {
+            using var stream = new MemoryStream(payload, 0, payload.Length, writable: false, publiclyVisible: true);
+            return TryDeserializeCore(stream, out message);
+        }
+        catch (IOException)
+        {
+            message = null;
+            return false;
+        }
     }
 
     public static bool TryDeserialize(ReadOnlySpan<byte> payload, out IProtocolMessage? message)
     {
-        message = null;
         if (payload.Length < 1)
         {
+            message = null;
             return false;
         }
 
         try
         {
             using var stream = new MemoryStream(payload.ToArray(), writable: false);
+            return TryDeserializeCore(stream, out message);
+        }
+        catch (IOException)
+        {
+            message = null;
+            return false;
+        }
+    }
+
+    private static bool TryDeserializeCore(Stream stream, out IProtocolMessage? message)
+    {
+        message = null;
+        try
+        {
             using var reader = new BinaryReader(stream, Utf8, leaveOpen: true);
             var type = (MessageType)reader.ReadByte();
 
@@ -309,5 +253,174 @@ public static partial class ProtocolCodec
         }
 
         return string.Empty;
+    }
+
+    private static void WriteMessage(BinaryWriter writer, IProtocolMessage message)
+    {
+        writer.Write((byte)message.Type);
+
+        switch (message)
+        {
+            case HelloMessage hello:
+                WriteString(writer, hello.Name, MaxPlayerNameBytes, nameof(hello.Name));
+                writer.Write(hello.Version);
+                writer.Write(hello.BadgeMask);
+                break;
+            case WelcomeMessage welcome:
+                WriteString(writer, welcome.ServerName, MaxServerNameBytes, nameof(welcome.ServerName));
+                writer.Write(welcome.Version);
+                writer.Write(welcome.TickRate);
+                WriteString(writer, welcome.LevelName, MaxLevelNameBytes, nameof(welcome.LevelName));
+                writer.Write(welcome.PlayerSlot);
+                writer.Write(welcome.IsCustomMap);
+                WriteString(writer, welcome.MapDownloadUrl, MaxMapUrlBytes, nameof(welcome.MapDownloadUrl));
+                WriteString(writer, welcome.MapContentHash, MaxMapHashBytes, nameof(welcome.MapContentHash));
+                writer.Write(welcome.MapScale);
+                break;
+            case ConnectionDeniedMessage denied:
+                WriteString(writer, denied.Reason, MaxReasonBytes, nameof(denied.Reason));
+                break;
+            case PasswordRequestMessage:
+                break;
+            case PasswordSubmitMessage passwordSubmit:
+                WriteString(writer, passwordSubmit.Password, MaxPasswordBytes, nameof(passwordSubmit.Password));
+                break;
+            case PasswordResultMessage passwordResult:
+                writer.Write(passwordResult.Accepted);
+                WriteString(writer, passwordResult.Reason, MaxReasonBytes, nameof(passwordResult.Reason));
+                break;
+            case ChatSubmitMessage chatSubmit:
+                WriteString(writer, chatSubmit.Text, MaxChatBytes, nameof(chatSubmit.Text));
+                writer.Write(chatSubmit.TeamOnly);
+                break;
+            case ChatRelayMessage chatRelay:
+                writer.Write(chatRelay.Team);
+                WriteString(writer, chatRelay.PlayerName, MaxPlayerNameBytes, nameof(chatRelay.PlayerName));
+                WriteString(writer, chatRelay.Text, MaxChatBytes, nameof(chatRelay.Text));
+                writer.Write(chatRelay.TeamOnly);
+                break;
+            case AutoBalanceNoticeMessage notice:
+                writer.Write((byte)notice.Kind);
+                WriteString(writer, notice.PlayerName, MaxPlayerNameBytes, nameof(notice.PlayerName));
+                writer.Write(notice.FromTeam);
+                writer.Write(notice.ToTeam);
+                writer.Write(notice.DelaySeconds);
+                break;
+            case SessionSlotChangedMessage slotChanged:
+                writer.Write(slotChanged.PlayerSlot);
+                break;
+            case ServerStatusRequestMessage:
+                break;
+            case ServerStatusResponseMessage status:
+                WriteString(writer, status.ServerName, MaxServerNameBytes, nameof(status.ServerName));
+                WriteString(writer, status.LevelName, MaxLevelNameBytes, nameof(status.LevelName));
+                writer.Write(status.GameMode);
+                writer.Write(status.PlayerCount);
+                writer.Write(status.MaxPlayerCount);
+                writer.Write(status.SpectatorCount);
+                break;
+            case InputStateMessage input:
+                writer.Write(input.Sequence);
+                writer.Write((ushort)input.Buttons);
+                writer.Write(input.AimWorldX);
+                writer.Write(input.AimWorldY);
+                writer.Write(input.ChatBubbleFrameIndex);
+                break;
+            case ControlCommandMessage command:
+                writer.Write(command.Sequence);
+                writer.Write((byte)command.Kind);
+                writer.Write(command.Value);
+                WriteString(writer, command.TextValue ?? string.Empty, MaxGameplayIdBytes, nameof(command.TextValue));
+                break;
+            case ControlAckMessage ack:
+                writer.Write(ack.Sequence);
+                writer.Write((byte)ack.Kind);
+                writer.Write(ack.Accepted);
+                break;
+            case SnapshotAckMessage snapshotAck:
+                writer.Write(snapshotAck.Frame);
+                break;
+            case PlayerProfileUpdateMessage profileUpdate:
+                WriteString(writer, profileUpdate.Name, MaxPlayerNameBytes, nameof(profileUpdate.Name));
+                writer.Write(profileUpdate.BadgeMask);
+                break;
+            case ClientPluginMessage clientPluginMessage:
+                WriteString(writer, clientPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(clientPluginMessage.SourcePluginId));
+                WriteString(writer, clientPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(clientPluginMessage.TargetPluginId));
+                WriteString(writer, clientPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(clientPluginMessage.MessageTypeName));
+                WriteString(writer, clientPluginMessage.Payload, MaxPluginPayloadBytes, nameof(clientPluginMessage.Payload));
+                writer.Write((byte)clientPluginMessage.PayloadFormat);
+                writer.Write(clientPluginMessage.SchemaVersion);
+                break;
+            case ServerPluginMessage serverPluginMessage:
+                WriteString(writer, serverPluginMessage.SourcePluginId, MaxPluginIdBytes, nameof(serverPluginMessage.SourcePluginId));
+                WriteString(writer, serverPluginMessage.TargetPluginId, MaxPluginIdBytes, nameof(serverPluginMessage.TargetPluginId));
+                WriteString(writer, serverPluginMessage.MessageTypeName, MaxPluginMessageTypeBytes, nameof(serverPluginMessage.MessageTypeName));
+                WriteString(writer, serverPluginMessage.Payload, MaxPluginPayloadBytes, nameof(serverPluginMessage.Payload));
+                writer.Write((byte)serverPluginMessage.PayloadFormat);
+                writer.Write(serverPluginMessage.SchemaVersion);
+                break;
+            case SnapshotMessage snapshot:
+                WriteSnapshot(writer, snapshot);
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
+        }
+    }
+
+    private sealed class CountingStream : Stream
+    {
+        private long _position;
+
+        public override bool CanRead => false;
+        public override bool CanSeek => true;
+        public override bool CanWrite => true;
+        public override long Length => _position;
+        public override long Position
+        {
+            get => _position;
+            set => _position = value;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            _position = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => Length + offset,
+                _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+            };
+            return _position;
+        }
+
+        public override void SetLength(long value)
+        {
+            _position = value;
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            _position += count;
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            _position += buffer.Length;
+        }
+
+        public override void WriteByte(byte value)
+        {
+            _position += 1;
+        }
     }
 }

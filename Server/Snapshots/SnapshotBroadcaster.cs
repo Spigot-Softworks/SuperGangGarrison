@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -9,7 +9,18 @@ using static ServerHelpers;
 
 sealed class SnapshotBroadcaster
 {
-    private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
+    private readonly record struct SentSnapshotMetrics(
+        int FullPayloadBytes,
+        int SentPayloadBytes,
+        int SerializePassCount,
+        bool WasBudgeted,
+        bool BaselineHit,
+        bool BaselineMiss,
+        int SnapshotHistoryCount);
+
+    private sealed record SharedSnapshotData(
+        ClientSession[] OrderedClients,
+        SnapshotMessage Template);
 
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
@@ -37,10 +48,13 @@ sealed class SnapshotBroadcaster
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
         new([], [], []);
 
+    public SnapshotBroadcastMetrics Metrics { get; private set; }
+
     public void ResetTransientEvents()
     {
         _transientEventBuffer.Reset(_clientsBySlot.Values);
         LastCapturedTransientEvents = new([], [], []);
+        Metrics = default;
     }
 
     public void BroadcastSnapshot()
@@ -48,86 +62,147 @@ sealed class SnapshotBroadcaster
         if (_clientsBySlot.Count == 0)
         {
             LastCapturedTransientEvents = _transientEventBuffer.CaptureCurrentEvents(_world);
+            Metrics = default;
             return;
         }
 
+        var totalStartTimestamp = Stopwatch.GetTimestamp();
+        var totalStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
         var transientEvents = _transientEventBuffer.CaptureCurrentEvents(_world);
         LastCapturedTransientEvents = transientEvents;
-        foreach (var client in _clientsBySlot.Values)
+
+        var sharedCaptureStartTimestamp = Stopwatch.GetTimestamp();
+        var sharedCaptureStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
+        var sharedSnapshot = CaptureSharedSnapshotData(
+            transientEvents.VisualEvents,
+            transientEvents.DamageEvents,
+            transientEvents.SoundEvents);
+        var sharedCaptureTicks = Stopwatch.GetTimestamp() - sharedCaptureStartTimestamp;
+        var sharedCaptureAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - sharedCaptureStartAllocatedBytes;
+
+        long perClientTicks = 0;
+        long perClientAllocatedBytes = 0;
+        var totalFullPayloadBytes = 0;
+        var totalSentPayloadBytes = 0;
+        var totalSerializePassCount = 0;
+        var budgetedClientCount = 0;
+        var baselineHitCount = 0;
+        var baselineMissCount = 0;
+        var totalSnapshotHistoryCount = 0;
+        var maxSnapshotHistoryCount = 0;
+        foreach (var client in sharedSnapshot.OrderedClients)
         {
-            SendSnapshot(client, transientEvents.VisualEvents, transientEvents.DamageEvents, transientEvents.SoundEvents);
+            var clientStartTimestamp = Stopwatch.GetTimestamp();
+            var clientStartAllocatedBytes = GC.GetAllocatedBytesForCurrentThread();
+            var clientMetrics = SendSnapshot(client, sharedSnapshot);
+            perClientTicks += Stopwatch.GetTimestamp() - clientStartTimestamp;
+            perClientAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - clientStartAllocatedBytes;
+            totalFullPayloadBytes += clientMetrics.FullPayloadBytes;
+            totalSentPayloadBytes += clientMetrics.SentPayloadBytes;
+            totalSerializePassCount += clientMetrics.SerializePassCount;
+            if (clientMetrics.WasBudgeted)
+            {
+                budgetedClientCount += 1;
+            }
+
+            if (clientMetrics.BaselineHit)
+            {
+                baselineHitCount += 1;
+            }
+
+            if (clientMetrics.BaselineMiss)
+            {
+                baselineMissCount += 1;
+            }
+
+            totalSnapshotHistoryCount += clientMetrics.SnapshotHistoryCount;
+            maxSnapshotHistoryCount = Math.Max(maxSnapshotHistoryCount, clientMetrics.SnapshotHistoryCount);
         }
+
+        var totalTicks = Stopwatch.GetTimestamp() - totalStartTimestamp;
+        var totalAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - totalStartAllocatedBytes;
+        var clientCount = sharedSnapshot.OrderedClients.Length;
+        Metrics = new SnapshotBroadcastMetrics(
+            HasMeasurements: true,
+            Frame: (ulong)_world.Frame,
+            ClientCount: clientCount,
+            SharedCaptureMilliseconds: TicksToMilliseconds(sharedCaptureTicks),
+            PerClientMilliseconds: TicksToMilliseconds(perClientTicks),
+            TotalMilliseconds: TicksToMilliseconds(totalTicks),
+            SharedCaptureAllocatedBytes: sharedCaptureAllocatedBytes,
+            PerClientAllocatedBytes: perClientAllocatedBytes,
+            TotalAllocatedBytes: totalAllocatedBytes,
+            AverageFullPayloadBytes: clientCount == 0 ? 0 : totalFullPayloadBytes / clientCount,
+            AverageSentPayloadBytes: clientCount == 0 ? 0 : totalSentPayloadBytes / clientCount,
+            AverageSerializePasses: clientCount == 0 ? 0d : (double)totalSerializePassCount / clientCount,
+            BudgetedClientCount: budgetedClientCount,
+            BaselineHitCount: baselineHitCount,
+            BaselineMissCount: baselineMissCount,
+            AverageSnapshotHistoryCount: clientCount == 0 ? 0d : (double)totalSnapshotHistoryCount / clientCount,
+            MaxSnapshotHistoryCount: maxSnapshotHistoryCount);
     }
 
-    private void SendSnapshot(
-        ClientSession client,
-        SnapshotVisualEvent[] visualEvents,
-        SnapshotDamageEvent[] damageEvents,
-        SnapshotSoundEvent[] soundEvents)
+    private SentSnapshotMetrics SendSnapshot(ClientSession client, SharedSnapshotData sharedSnapshot)
     {
-        var fullSnapshot = CaptureFullSnapshot(client, visualEvents, damageEvents, soundEvents);
-        var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
-        if (fullSnapshotPayload.Length <= OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes)
+        var fullSnapshot = CaptureFullSnapshot(client, sharedSnapshot);
+        var fullSnapshotPayloadBytes = ProtocolCodec.MeasureSerializedSize(fullSnapshot);
+        if (fullSnapshotPayloadBytes <= OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes)
         {
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
             _sendSnapshot(client.EndPoint, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
-            return;
+            return new SentSnapshotMetrics(
+                FullPayloadBytes: fullSnapshotPayloadBytes,
+                SentPayloadBytes: fullSnapshotPayloadBytes,
+                SerializePassCount: 1,
+                WasBudgeted: false,
+                BaselineHit: false,
+                BaselineMiss: false,
+                SnapshotHistoryCount: client.SnapshotHistoryCount);
         }
 
         var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
         var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline);
         _sendSnapshot(client.EndPoint, snapshot.Message, snapshot.Payload);
         client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
+        return new SentSnapshotMetrics(
+            FullPayloadBytes: fullSnapshotPayloadBytes,
+            SentPayloadBytes: snapshot.Payload.Length,
+            SerializePassCount: snapshot.SerializePassCount,
+            WasBudgeted: true,
+            BaselineHit: baseline is not null,
+            BaselineMiss: baseline is null,
+            SnapshotHistoryCount: client.SnapshotHistoryCount);
     }
 
-    private SnapshotMessage CaptureFullSnapshot(
-        ClientSession client,
+    private SharedSnapshotData CaptureSharedSnapshotData(
         SnapshotVisualEvent[] visualEvents,
         SnapshotDamageEvent[] damageEvents,
         SnapshotSoundEvent[] soundEvents)
     {
-        PlayerEntity? viewer = null;
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
-            && _world.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
-        {
-            viewer = viewerPlayer;
-        }
-
-        var players = new List<SnapshotPlayerState>(_clientsBySlot.Count);
-        foreach (var entry in _clientsBySlot.OrderBy(static entry => entry.Key))
-        {
-            if (IsSpectatorSlot(entry.Key))
-            {
-                players.Add(CreateSpectatorSnapshotPlayerState(entry.Value));
-                continue;
-            }
-
-            if (_world.TryGetNetworkPlayer(entry.Key, out var player))
-            {
-                players.Add(ToSnapshotPlayerState(_world, entry.Key, player, viewer));
-            }
-        }
+        var orderedClients = _clientsBySlot.Values.ToArray();
+        Array.Sort(orderedClients, static (left, right) => left.Slot.CompareTo(right.Slot));
 
         var spectatorCount = 0;
-        foreach (var slot in _clientsBySlot.Keys)
+        foreach (var client in orderedClients)
         {
-            if (IsSpectatorSlot(slot))
+            if (IsSpectatorSlot(client.Slot))
             {
                 spectatorCount += 1;
                 continue;
             }
 
-            if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-                && _world.IsNetworkPlayerAwaitingJoin(slot))
+            if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
+                && _world.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 spectatorCount += 1;
             }
         }
+
         var mapAreaIndex = (byte)Math.Clamp(_world.Level.MapAreaIndex, 1, byte.MaxValue);
         var mapAreaCount = (byte)Math.Clamp(_world.Level.MapAreaCount, 1, byte.MaxValue);
-        var mapMetadata = GetCurrentMapMetadata();
-        return new SnapshotMessage(
+        var mapMetadata = _mapMetadataResolver.GetCurrentMapMetadata();
+        var template = new SnapshotMessage(
             (ulong)_world.Frame,
             _config.TicksPerSecond,
             _world.Level.Name,
@@ -140,32 +215,32 @@ sealed class SnapshotBroadcaster
             _world.RedCaps,
             _world.BlueCaps,
             spectatorCount,
-            client.LastProcessedInputSequence,
+            LastProcessedInputSequence: 0,
             ToSnapshotIntelState(_world.RedIntel),
             ToSnapshotIntelState(_world.BlueIntel),
-            players,
-            _world.CombatTraces.Select(ToSnapshotCombatTraceState).ToArray(),
-            _world.Sentries.Select(ToSnapshotSentryState).ToArray(),
-            _world.Shots.Select(ToSnapshotBulletState).ToArray(),
-            _world.Bubbles.Select(ToSnapshotBubbleState).ToArray(),
-            _world.Blades.Select(ToSnapshotBladeState).ToArray(),
-            _world.Needles.Select(ToSnapshotNeedleState).ToArray(),
-            _world.RevolverShots.Select(ToSnapshotRevolverState).ToArray(),
-            _world.Rockets.Select(ToSnapshotRocketState).ToArray(),
-            _world.Flames.Select(ToSnapshotFlameState).ToArray(),
-            _world.Flares.Select(ToSnapshotFlareState).ToArray(),
-            _world.Mines.Select(ToSnapshotMineState).ToArray(),
-            _world.PlayerGibs.Select(ToSnapshotPlayerGibState).ToArray(),
-            _world.BloodDrops.Select(ToSnapshotBloodDropState).ToArray(),
-            _world.DeadBodies.Select(ToSnapshotDeadBodyState).ToArray(),
+            Players: Array.Empty<SnapshotPlayerState>(),
+            ConvertToArray(_world.CombatTraces, static trace => ToSnapshotCombatTraceState(trace)),
+            ConvertToArray(_world.Sentries, static sentry => ToSnapshotSentryState(sentry)),
+            ConvertToArray(_world.Shots, static shot => ToSnapshotBulletState(shot)),
+            ConvertToArray(_world.Bubbles, static bubble => ToSnapshotBubbleState(bubble)),
+            ConvertToArray(_world.Blades, static blade => ToSnapshotBladeState(blade)),
+            ConvertToArray(_world.Needles, static needle => ToSnapshotNeedleState(needle)),
+            ConvertToArray(_world.RevolverShots, static shot => ToSnapshotRevolverState(shot)),
+            ConvertToArray(_world.Rockets, static rocket => ToSnapshotRocketState(rocket)),
+            ConvertToArray(_world.Flames, static flame => ToSnapshotFlameState(flame)),
+            ConvertToArray(_world.Flares, static flare => ToSnapshotFlareState(flare)),
+            ConvertToArray(_world.Mines, static mine => ToSnapshotMineState(mine)),
+            ConvertToArray(_world.PlayerGibs, static gib => ToSnapshotPlayerGibState(gib)),
+            ConvertToArray(_world.BloodDrops, static drop => ToSnapshotBloodDropState(drop)),
+            ConvertToArray(_world.DeadBodies, static body => ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
             _world.KothUnlockTicksRemaining,
             _world.KothRedTimerTicksRemaining,
             _world.KothBlueTimerTicksRemaining,
-            _world.ControlPoints.Select(ToSnapshotControlPointState).ToArray(),
-            _world.Generators.Select(ToSnapshotGeneratorState).ToArray(),
-            ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
-            _world.KillFeed.Select(ToSnapshotKillFeedEntry).ToArray(),
+            ConvertToArray(_world.ControlPoints, static point => ToSnapshotControlPointState(point)),
+            ConvertToArray(_world.Generators, static generator => ToSnapshotGeneratorState(generator)),
+            LocalDeathCam: null,
+            ConvertToArray(_world.KillFeed, static entry => ToSnapshotKillFeedEntry(entry)),
             visualEvents,
             damageEvents,
             soundEvents,
@@ -174,7 +249,42 @@ sealed class SnapshotBroadcaster
             mapMetadata.MapContentHash,
             _world.Level.MapScale)
         {
-            SentryGibs = _world.SentryGibs.Select(ToSnapshotSentryGibState).ToArray(),
+            SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
+        };
+
+        return new SharedSnapshotData(orderedClients, template);
+    }
+
+    private SnapshotMessage CaptureFullSnapshot(ClientSession client, SharedSnapshotData sharedSnapshot)
+    {
+        PlayerEntity? viewer = null;
+        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
+            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && _world.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
+        {
+            viewer = viewerPlayer;
+        }
+
+        var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length);
+        foreach (var entry in sharedSnapshot.OrderedClients)
+        {
+            if (IsSpectatorSlot(entry.Slot))
+            {
+                players.Add(CreateSpectatorSnapshotPlayerState(entry));
+                continue;
+            }
+
+            if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
+            {
+                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
+            }
+        }
+
+        return sharedSnapshot.Template with
+        {
+            LastProcessedInputSequence = client.LastProcessedInputSequence,
+            Players = players.ToArray(),
+            LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
         };
     }
 
@@ -239,12 +349,7 @@ sealed class SnapshotBroadcaster
             PlayerScale: 1f);
     }
 
-    private (bool IsCustomMap, string MapDownloadUrl, string MapContentHash) GetCurrentMapMetadata()
-    {
-        return _mapMetadataResolver.GetCurrentMapMetadata();
-    }
-
-    private static SnapshotMessage? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)
+    private static SnapshotBaselineState? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)
     {
         if (client.LastAcknowledgedSnapshotFrame == 0
             || !client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out var baseline))
@@ -260,10 +365,61 @@ sealed class SnapshotBroadcaster
             : null;
     }
 
-    private SerializedSnapshot BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotMessage? baseline)
+    private static TTarget[] ConvertToArray<TSource, TTarget>(IEnumerable<TSource> source, Func<TSource, TTarget> selector)
+    {
+        if (source is ICollection<TSource> collection)
+        {
+            if (collection.Count == 0)
+            {
+                return Array.Empty<TTarget>();
+            }
+
+            var result = new TTarget[collection.Count];
+            var index = 0;
+            foreach (var item in collection)
+            {
+                result[index] = selector(item);
+                index += 1;
+            }
+
+            return result;
+        }
+
+        if (source is IReadOnlyCollection<TSource> readOnlyCollection)
+        {
+            if (readOnlyCollection.Count == 0)
+            {
+                return Array.Empty<TTarget>();
+            }
+
+            var result = new TTarget[readOnlyCollection.Count];
+            var index = 0;
+            foreach (var item in source)
+            {
+                result[index] = selector(item);
+                index += 1;
+            }
+
+            return result;
+        }
+
+        var list = new List<TTarget>();
+        foreach (var item in source)
+        {
+            list.Add(selector(item));
+        }
+
+        return list.Count == 0 ? Array.Empty<TTarget>() : [.. list];
+    }
+
+    private static double TicksToMilliseconds(long ticks)
+    {
+        return ticks * 1000d / Stopwatch.Frequency;
+    }
+
+    private SnapshotBudgetBuildResult BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotBaselineState? baseline)
     {
         var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(client, fullSnapshot, baseline, _world);
-        var snapshot = OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshot(fullSnapshot, baseline, contributions);
-        return new SerializedSnapshot(snapshot.Message, snapshot.Payload);
+        return OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(fullSnapshot, baseline, contributions);
     }
 }

@@ -139,5 +139,15 @@ public partial class Game1
         {
             game.QueuePluginNotice(text, durationTicks, playSound);
         }
+
+        public void ShowPluginOverlayMenu(string pluginId, string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries)
+        {
+            game.ShowClientPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries);
+        }
+
+        public void HidePluginOverlayMenu(string pluginId)
+        {
+            game.HideClientPluginOverlayMenu(pluginId);
+        }
     }
 }
