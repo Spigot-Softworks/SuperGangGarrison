@@ -1,0 +1,34 @@
+﻿{
+    "id":  "RandomPortraitAnimationS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 0.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 1.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 2.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 3.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 4.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 5.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 6.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 7.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 8.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 9.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 10.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 11.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 12.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 13.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 14.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 15.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 16.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/RandomPortraitAnimationS/image 17.png"
+                   ],
+    "originX":  26,
+    "originY":  26,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

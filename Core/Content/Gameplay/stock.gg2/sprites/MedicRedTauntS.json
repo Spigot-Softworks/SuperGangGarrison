@@ -1,0 +1,28 @@
+﻿{
+    "id":  "MedicRedTauntS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 0.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 1.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 2.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 3.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 4.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 5.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 6.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 7.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 8.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 9.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 10.png",
+                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 11.png"
+                   ],
+    "originX":  27,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  20,
+                 "top":  32,
+                 "right":  34,
+                 "bottom":  63
+             }
+}

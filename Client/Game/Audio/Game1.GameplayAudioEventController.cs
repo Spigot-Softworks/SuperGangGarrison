@@ -127,6 +127,8 @@ public partial class Game1
 
         public void PlayPendingSoundEvents()
         {
+            ReplayPendingBrowserSoundEvents();
+
             foreach (var soundEvent in _game._world.DrainPendingSoundEvents())
             {
                 if (!Game1.ShouldProcessNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder))
@@ -155,20 +157,60 @@ public partial class Game1
                 var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
                     ? "ExplosionSnd"
                     : soundEvent.SoundName;
-                var sound = _game._runtimeAssets.GetSound(resolvedSoundName);
-                if (sound is null)
+                if (_game._runtimeAssets is null)
                 {
                     continue;
                 }
 
-                var (volume, pan) = _game.GetWorldSoundMix(soundEvent.X, soundEvent.Y);
-                if (volume <= 0f)
-                {
-                    continue;
-                }
-
-                _game.TryPlaySound(sound, volume, 0f, pan);
+                TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser());
             }
+        }
+
+        private void ReplayPendingBrowserSoundEvents()
+        {
+            if (!OperatingSystem.IsBrowser() || !_game._audioAvailable || _game._pendingBrowserSoundEvents.Count == 0)
+            {
+                return;
+            }
+
+            for (var index = _game._pendingBrowserSoundEvents.Count - 1; index >= 0; index -= 1)
+            {
+                var pendingSound = _game._pendingBrowserSoundEvents[index];
+                if (TryPlayResolvedWorldSound(pendingSound.SoundName, pendingSound.X, pendingSound.Y, allowBrowserDefer: false))
+                {
+                    _game._pendingBrowserSoundEvents.RemoveAt(index);
+                    continue;
+                }
+
+                pendingSound.TicksRemaining -= 1;
+                if (pendingSound.TicksRemaining <= 0)
+                {
+                    _game._pendingBrowserSoundEvents.RemoveAt(index);
+                }
+            }
+        }
+
+        private bool TryPlayResolvedWorldSound(string resolvedSoundName, float worldX, float worldY, bool allowBrowserDefer)
+        {
+            var sound = _game._runtimeAssets.GetSound(resolvedSoundName);
+            if (sound is null)
+            {
+                if (allowBrowserDefer)
+                {
+                    _game.EnqueuePendingBrowserSoundEvent(resolvedSoundName, worldX, worldY);
+                }
+
+                return false;
+            }
+
+            var (volume, pan) = _game.GetWorldSoundMix(worldX, worldY);
+            if (volume <= 0f)
+            {
+                return true;
+            }
+
+            _game.TryPlaySound(sound, volume, 0f, pan);
+            return true;
         }
     }
 }

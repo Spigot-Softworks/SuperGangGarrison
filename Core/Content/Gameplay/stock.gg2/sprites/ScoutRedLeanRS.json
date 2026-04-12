@@ -1,0 +1,17 @@
+﻿{
+    "id":  "ScoutRedLeanRS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedLeanRS/image 0.png"
+                   ],
+    "originX":  30,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  24,
+                 "top":  30,
+                 "right":  36,
+                 "bottom":  63
+             }
+}

@@ -1,0 +1,36 @@
+﻿{
+    "id":  "ClassSelectSpritesS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 0.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 1.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 2.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 3.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 4.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 5.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 6.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 7.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 8.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 9.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 10.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 11.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 12.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 13.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 14.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 15.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 16.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 17.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 18.png",
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectSpritesS/image 19.png"
+                   ],
+    "originX":  0,
+    "originY":  0,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

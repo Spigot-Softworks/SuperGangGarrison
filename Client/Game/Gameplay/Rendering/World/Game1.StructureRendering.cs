@@ -15,7 +15,7 @@ public partial class Game1
         var renderPosition = owner is null
             ? new Vector2(stabAnimation.X, stabAnimation.Y)
             : GetRenderPosition(owner, allowInterpolation: !ReferenceEquals(owner, _world.LocalPlayer));
-        var torsoSprite = _runtimeAssets.GetSprite(stabAnimation.Team == PlayerTeam.Blue ? "SpyBlueBackstabTorsoS" : "SpyRedBackstabTorsoS");
+        var torsoSprite = GetResolvedSprite(stabAnimation.Team == PlayerTeam.Blue ? "SpyBlueBackstabTorsoS" : "SpyRedBackstabTorsoS");
         if (torsoSprite is null || torsoSprite.Frames.Count == 0)
         {
             var directionRadians = MathF.PI * stabAnimation.DirectionDegrees / 180f;
@@ -39,7 +39,7 @@ public partial class Game1
         var facingLeft = stabAnimation.FacingLeft;
         var position = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y);
         var scale = new Vector2(facingLeft ? -1f : 1f, 1f);
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             torsoSprite.Frames[frameIndex],
             position,
             null,
@@ -50,7 +50,7 @@ public partial class Game1
             SpriteEffects.None,
             0f);
 
-        var legsSprite = _runtimeAssets.GetSprite("BackstabLegsS");
+        var legsSprite = GetResolvedSprite("BackstabLegsS");
         if (legsSprite is null || legsSprite.Frames.Count == 0)
         {
             return;
@@ -60,7 +60,7 @@ public partial class Game1
             (stabAnimation.Team == PlayerTeam.Blue ? 1 : 0) + ((owner is not null && !GetPlayerRenderIsGrounded(owner)) ? 2 : 0),
             0,
             legsSprite.Frames.Count - 1);
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             legsSprite.Frames[legFrameIndex],
             position,
             null,
@@ -84,7 +84,7 @@ public partial class Game1
             return;
         }
 
-        var sprite = _runtimeAssets.GetSprite(gib.SpriteName);
+        var sprite = GetResolvedSprite(gib.SpriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var gibScale = GetPlayerGibRenderScale(gib);
@@ -100,7 +100,7 @@ public partial class Game1
 
         var frameIndex = Math.Clamp(gib.FrameIndex, 0, sprite.Frames.Count - 1);
         var renderScale = GetPlayerGibRenderScale(gib);
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
@@ -132,7 +132,7 @@ public partial class Game1
             return;
         }
 
-        var sprite = _runtimeAssets.GetSprite("BloodDropS");
+        var sprite = GetResolvedSprite("BloodDropS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var size = Math.Max(2, (int)MathF.Round(2f * bloodDrop.Scale));
@@ -145,7 +145,7 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             sprite.Frames[0],
             new Vector2(bloodDrop.X - cameraPosition.X, bloodDrop.Y - cameraPosition.Y),
             null,
@@ -161,7 +161,7 @@ public partial class Game1
     {
         var renderPosition = RoundToSourcePixels(GetRenderPosition(sentry.Id, sentry.X, sentry.Y));
         var baseSpriteName = sentry.Team == PlayerTeam.Blue ? "SentryBlue" : "SentryRed";
-        var baseSprite = _runtimeAssets.GetSprite(baseSpriteName);
+        var baseSprite = GetResolvedSprite(baseSpriteName);
         if (baseSprite is null || baseSprite.Frames.Count == 0)
         {
             return false;
@@ -169,7 +169,7 @@ public partial class Game1
 
         var baseFrameIndex = GetSentryBaseFrameIndex(sentry, baseSprite.Frames.Count);
         var baseEffects = sentry.FacingDirectionX < 0f ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             baseSprite.Frames[baseFrameIndex],
             new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
             null,
@@ -185,7 +185,7 @@ public partial class Game1
             return true;
         }
 
-        var turretSprite = _runtimeAssets.GetSprite("SentryTurretS");
+        var turretSprite = GetResolvedSprite("SentryTurretS");
         if (turretSprite is null || turretSprite.Frames.Count == 0)
         {
             return true;
@@ -200,7 +200,7 @@ public partial class Game1
         var turretRotation = MathF.PI * turretAngleDegrees / 180f;
         var drawX = renderPosition.X + (turretSprite.Origin.X - 17f) * facingScale;
         var drawY = renderPosition.Y + turretSprite.Origin.Y - 10f;
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             turretSprite.Frames[turretFrameIndex],
             new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y),
             null,
@@ -265,14 +265,14 @@ public partial class Game1
 
     private bool TryDrawSentryGib(SentryGibEntity gib, Vector2 cameraPosition)
     {
-        var sprite = _runtimeAssets.GetSprite("SentryGibsS");
+        var sprite = GetResolvedSprite("SentryGibsS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
         }
 
         var frameIndex = Math.Clamp(gib.Team == PlayerTeam.Blue ? 1 : 0, 0, sprite.Frames.Count - 1);
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
@@ -289,11 +289,11 @@ public partial class Game1
     {
         var renderPosition = GetRenderPosition(healthPack.Id, healthPack.X, healthPack.Y);
         var alpha = healthPack.Alpha;
-        var pulseSprite = _runtimeAssets.GetSprite("HealthPackPulseS");
+        var pulseSprite = GetResolvedSprite("HealthPackPulseS");
         if (pulseSprite is not null && pulseSprite.Frames.Count > 0)
         {
             var pulseFrameIndex = (int)((_world.Frame / 5) % pulseSprite.Frames.Count);
-            _spriteBatch.Draw(
+            DrawLoadedSpriteFrame(
                 pulseSprite.Frames[pulseFrameIndex],
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
                 null,
@@ -317,11 +317,11 @@ public partial class Game1
         var packSpriteName = healthPack.Size == HealthPackSize.Large
             ? "HealthPackLargeS"
             : "HealthPackSmallS";
-        var packSprite = _runtimeAssets.GetSprite(packSpriteName);
+        var packSprite = GetResolvedSprite(packSpriteName);
         if (packSprite is not null && packSprite.Frames.Count > 0)
         {
             var packFrameIndex = (int)((_world.Frame / 5) % packSprite.Frames.Count);
-            _spriteBatch.Draw(
+            DrawLoadedSpriteFrame(
                 packSprite.Frames[packFrameIndex],
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
                 null,

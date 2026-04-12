@@ -1,0 +1,22 @@
+﻿{
+    "id":  "QuerlyRedHS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 0.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 1.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 2.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 3.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 4.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedHS/image 5.png"
+                   ],
+    "originX":  16,
+    "originY":  20,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  9,
+                 "top":  7,
+                 "right":  23,
+                 "bottom":  31
+             }
+}

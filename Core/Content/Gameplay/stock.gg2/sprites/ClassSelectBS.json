@@ -1,0 +1,17 @@
+﻿{
+    "id":  "ClassSelectBS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Class and Team Select/ClassSelectBS/image 0.png"
+                   ],
+    "originX":  0,
+    "originY":  120,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

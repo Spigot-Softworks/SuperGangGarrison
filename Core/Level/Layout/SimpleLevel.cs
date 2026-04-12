@@ -4,6 +4,13 @@ namespace OpenGarrison.Core;
 
 public sealed class SimpleLevel
 {
+    private readonly Dictionary<RoomObjectType, RoomObjectMarker[]> _roomObjectsByType;
+    private readonly SpatialSolidIndex _solidIndex;
+    private bool _controlPointSetupGatesActive;
+    private TeamGateLockMask _forcedBlockingTeamGates;
+    private BlockingTeamGateCacheKey _blockingTeamGateCacheKey;
+    private IReadOnlyList<RoomObjectMarker>? _blockingTeamGateCache;
+
     public SimpleLevel(
         string name,
         GameModeKind mode,
@@ -40,6 +47,10 @@ public sealed class SimpleLevel
         ImportedFromSource = importedFromSource;
         AreaTransitionMarkers = areaTransitionMarkers ?? Array.Empty<AreaTransitionMarker>();
         UnsupportedSourceEntities = unsupportedSourceEntities ?? Array.Empty<string>();
+        _roomObjectsByType = RoomObjects
+            .GroupBy(roomObject => roomObject.Type)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        _solidIndex = SpatialSolidIndex.Build(Solids);
     }
 
     public string Name { get; }
@@ -76,9 +87,35 @@ public sealed class SimpleLevel
 
     public IReadOnlyList<string> UnsupportedSourceEntities { get; }
 
-    public bool ControlPointSetupGatesActive { get; set; }
+    public bool ControlPointSetupGatesActive
+    {
+        get => _controlPointSetupGatesActive;
+        set
+        {
+            if (_controlPointSetupGatesActive == value)
+            {
+                return;
+            }
 
-    public TeamGateLockMask ForcedBlockingTeamGates { get; set; }
+            _controlPointSetupGatesActive = value;
+            _blockingTeamGateCache = null;
+        }
+    }
+
+    public TeamGateLockMask ForcedBlockingTeamGates
+    {
+        get => _forcedBlockingTeamGates;
+        set
+        {
+            if (_forcedBlockingTeamGates == value)
+            {
+                return;
+            }
+
+            _forcedBlockingTeamGates = value;
+            _blockingTeamGateCache = null;
+        }
+    }
 
     public SpawnPoint GetSpawn(PlayerTeam team, int spawnIndex)
     {
@@ -109,13 +146,19 @@ public sealed class SimpleLevel
 
     public IReadOnlyList<RoomObjectMarker> GetRoomObjects(RoomObjectType type)
     {
-        return RoomObjects
-            .Where(roomObject => roomObject.Type == type)
-            .ToArray();
+        return _roomObjectsByType.TryGetValue(type, out var roomObjects)
+            ? roomObjects
+            : Array.Empty<RoomObjectMarker>();
     }
 
     public IReadOnlyList<RoomObjectMarker> GetBlockingTeamGates(PlayerTeam team, bool carryingIntel)
     {
+        var cacheKey = new BlockingTeamGateCacheKey(team, carryingIntel, ControlPointSetupGatesActive, ForcedBlockingTeamGates);
+        if (_blockingTeamGateCache is not null && _blockingTeamGateCacheKey.Equals(cacheKey))
+        {
+            return _blockingTeamGateCache;
+        }
+
         var blockingGates = new List<RoomObjectMarker>();
         foreach (var roomObject in RoomObjects)
         {
@@ -148,7 +191,19 @@ public sealed class SimpleLevel
             }
         }
 
-        return blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
+        _blockingTeamGateCacheKey = cacheKey;
+        _blockingTeamGateCache = blockingGates.Count == 0 ? Array.Empty<RoomObjectMarker>() : blockingGates.ToArray();
+        return _blockingTeamGateCache;
+    }
+
+    public bool IntersectsSolid(float left, float top, float right, float bottom)
+    {
+        return _solidIndex.Intersects(left, top, right, bottom);
+    }
+
+    public float? FindBlockingSolidTop(float left, float top, float right, float bottom)
+    {
+        return _solidIndex.FindTop(left, top, right, bottom);
     }
 
     private bool IsForcedBlockingTeamGate(PlayerTeam team)
@@ -174,5 +229,129 @@ public sealed class SimpleLevel
         }
 
         return true;
+    }
+
+    private readonly record struct BlockingTeamGateCacheKey(
+        PlayerTeam Team,
+        bool CarryingIntel,
+        bool ControlPointSetupGatesActive,
+        TeamGateLockMask ForcedBlockingTeamGates);
+
+    private sealed class SpatialSolidIndex
+    {
+        private const float CellSize = 128f;
+        private readonly IReadOnlyList<LevelSolid> _solids;
+        private readonly Dictionary<CellKey, List<int>> _solidIndicesByCell;
+
+        private SpatialSolidIndex(IReadOnlyList<LevelSolid> solids, Dictionary<CellKey, List<int>> solidIndicesByCell)
+        {
+            _solids = solids;
+            _solidIndicesByCell = solidIndicesByCell;
+        }
+
+        public static SpatialSolidIndex Build(IReadOnlyList<LevelSolid> solids)
+        {
+            var solidIndicesByCell = new Dictionary<CellKey, List<int>>();
+            for (var solidIndex = 0; solidIndex < solids.Count; solidIndex += 1)
+            {
+                var solid = solids[solidIndex];
+                var minCellX = GetCellCoordinate(solid.Left);
+                var maxCellX = GetCellCoordinate(solid.Right);
+                var minCellY = GetCellCoordinate(solid.Top);
+                var maxCellY = GetCellCoordinate(solid.Bottom);
+                for (var cellY = minCellY; cellY <= maxCellY; cellY += 1)
+                {
+                    for (var cellX = minCellX; cellX <= maxCellX; cellX += 1)
+                    {
+                        var key = new CellKey(cellX, cellY);
+                        if (!solidIndicesByCell.TryGetValue(key, out var indices))
+                        {
+                            indices = [];
+                            solidIndicesByCell[key] = indices;
+                        }
+
+                        indices.Add(solidIndex);
+                    }
+                }
+            }
+
+            return new SpatialSolidIndex(solids, solidIndicesByCell);
+        }
+
+        public bool Intersects(float left, float top, float right, float bottom)
+        {
+            if (_solids.Count == 0)
+            {
+                return false;
+            }
+
+            var minCellX = GetCellCoordinate(left);
+            var maxCellX = GetCellCoordinate(right);
+            var minCellY = GetCellCoordinate(top);
+            var maxCellY = GetCellCoordinate(bottom);
+            for (var cellY = minCellY; cellY <= maxCellY; cellY += 1)
+            {
+                for (var cellX = minCellX; cellX <= maxCellX; cellX += 1)
+                {
+                    if (!_solidIndicesByCell.TryGetValue(new CellKey(cellX, cellY), out var solidIndices))
+                    {
+                        continue;
+                    }
+
+                    for (var index = 0; index < solidIndices.Count; index += 1)
+                    {
+                        var solid = _solids[solidIndices[index]];
+                        if (left < solid.Right && right > solid.Left && top < solid.Bottom && bottom > solid.Top)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public float? FindTop(float left, float top, float right, float bottom)
+        {
+            if (_solids.Count == 0)
+            {
+                return null;
+            }
+
+            float? obstacleTop = null;
+            var minCellX = GetCellCoordinate(left);
+            var maxCellX = GetCellCoordinate(right);
+            var minCellY = GetCellCoordinate(top);
+            var maxCellY = GetCellCoordinate(bottom);
+            for (var cellY = minCellY; cellY <= maxCellY; cellY += 1)
+            {
+                for (var cellX = minCellX; cellX <= maxCellX; cellX += 1)
+                {
+                    if (!_solidIndicesByCell.TryGetValue(new CellKey(cellX, cellY), out var solidIndices))
+                    {
+                        continue;
+                    }
+
+                    for (var index = 0; index < solidIndices.Count; index += 1)
+                    {
+                        var solid = _solids[solidIndices[index]];
+                        if (left < solid.Right && right > solid.Left && top < solid.Bottom && bottom > solid.Top)
+                        {
+                            obstacleTop = obstacleTop.HasValue ? MathF.Min(obstacleTop.Value, solid.Top) : solid.Top;
+                        }
+                    }
+                }
+            }
+
+            return obstacleTop;
+        }
+
+        private static int GetCellCoordinate(float value)
+        {
+            return (int)MathF.Floor(value / CellSize);
+        }
+
+        private readonly record struct CellKey(int X, int Y);
     }
 }

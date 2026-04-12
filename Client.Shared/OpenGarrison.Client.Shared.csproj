@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OpenGarrison.Client.Shared</AssemblyName>
+    <RootNamespace>OpenGarrison.ClientShared</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
+    <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
+    <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+  </ItemGroup>
+</Project>

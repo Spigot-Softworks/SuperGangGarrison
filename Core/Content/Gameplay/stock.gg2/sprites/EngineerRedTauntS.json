@@ -1,0 +1,29 @@
+﻿{
+    "id":  "EngineerRedTauntS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 0.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 1.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 2.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 3.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 4.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 5.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 6.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 7.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 8.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 9.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 10.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 11.png",
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedTauntS/image 12.png"
+                   ],
+    "originX":  32,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  34,
+                 "right":  38,
+                 "bottom":  63
+             }
+}

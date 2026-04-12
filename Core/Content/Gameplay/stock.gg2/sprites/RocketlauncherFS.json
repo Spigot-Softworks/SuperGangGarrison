@@ -1,0 +1,40 @@
+﻿{
+    "id":  "RocketlauncherFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Firing/RocketlauncherFS/image 23.png"
+                   ],
+    "originX":  28,
+    "originY":  16,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

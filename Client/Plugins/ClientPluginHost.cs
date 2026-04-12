@@ -24,6 +24,11 @@ internal sealed class ClientPluginHost
     private readonly IOpenGarrisonClientReadOnlyState _clientState;
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Action<string> _log;
+    private readonly Func<Keys, bool> _wasKeyPressedThisFrame;
+    private readonly Action<string, string, string, string, PluginMessagePayloadFormat, ushort>? _sendPluginMessage;
+    private readonly Action<string, string, int, bool>? _enqueuePluginNotice;
+    private readonly Action<string, string, string, string, IReadOnlyList<string>>? _showPluginOverlayMenu;
+    private readonly Action<string>? _hidePluginOverlayMenu;
     private readonly string _pluginsDirectory;
     private readonly string _pluginConfigRoot;
     private readonly ClientPluginStateStore _stateStore;
@@ -45,7 +50,12 @@ internal sealed class ClientPluginHost
         string pluginsDirectory,
         string pluginConfigRoot,
         string pluginStatePath,
-        Action<string> log)
+        Action<string> log,
+        Func<Keys, bool>? wasKeyPressedThisFrame = null,
+        Action<string, string, string, string, PluginMessagePayloadFormat, ushort>? sendPluginMessage = null,
+        Action<string, string, int, bool>? enqueuePluginNotice = null,
+        Action<string, string, string, string, IReadOnlyList<string>>? showPluginOverlayMenu = null,
+        Action<string>? hidePluginOverlayMenu = null)
     {
         _clientState = clientState;
         _graphicsDevice = graphicsDevice;
@@ -53,6 +63,11 @@ internal sealed class ClientPluginHost
         _pluginConfigRoot = pluginConfigRoot;
         _stateStore = new ClientPluginStateStore(pluginStatePath, log);
         _log = log;
+        _wasKeyPressedThisFrame = wasKeyPressedThisFrame ?? (static key => false);
+        _sendPluginMessage = sendPluginMessage;
+        _enqueuePluginNotice = enqueuePluginNotice;
+        _showPluginOverlayMenu = showPluginOverlayMenu;
+        _hidePluginOverlayMenu = hidePluginOverlayMenu;
     }
 
     public IReadOnlyList<string> LoadedPluginIds => _loadedPlugins
@@ -680,8 +695,12 @@ internal sealed class ClientPluginHost
     private IOpenGarrisonClientPluginContext CreateContext(IOpenGarrisonClientPlugin plugin, OpenGarrisonPluginManifest manifest, string pluginDirectory)
     {
         var configDirectory = Path.Combine(_pluginConfigRoot, plugin.Id);
-        Directory.CreateDirectory(pluginDirectory);
-        Directory.CreateDirectory(configDirectory);
+        if (!OperatingSystem.IsBrowser())
+        {
+            Directory.CreateDirectory(pluginDirectory);
+            Directory.CreateDirectory(configDirectory);
+        }
+
         var assetRegistry = new ClientPluginAssetRegistry(plugin.Id, pluginDirectory, _graphicsDevice);
         return new ClientPluginContext(
             plugin.Id,
@@ -740,12 +759,12 @@ internal sealed class ClientPluginHost
     private bool WasHotkeyPressed(string pluginId, string hotkeyId)
     {
         var registeredHotkey = GetRegisteredHotkey(pluginId, hotkeyId);
-        return registeredHotkey is not null && _clientState.WasKeyPressedThisFrame(registeredHotkey.CurrentKey);
+        return registeredHotkey is not null && _wasKeyPressedThisFrame(registeredHotkey.CurrentKey);
     }
 
     public bool IsCapturedHotkeyPressed(Keys key)
     {
-        if (_hotkeyCaptureEnabledPlugins.Count == 0 || !_clientState.WasKeyPressedThisFrame(key))
+        if (_hotkeyCaptureEnabledPlugins.Count == 0 || !_wasKeyPressedThisFrame(key))
         {
             return false;
         }
@@ -814,7 +833,7 @@ internal sealed class ClientPluginHost
 
     private void ShowNotice(string pluginId, string text, int durationTicks, bool playSound)
     {
-        if (_clientState is not ClientPluginUiSink sink)
+        if (_enqueuePluginNotice is null && _clientState is not ClientPluginUiSink)
         {
             _log($"[plugin] client plugin notice surface unavailable for {pluginId}.");
             return;
@@ -822,7 +841,13 @@ internal sealed class ClientPluginHost
 
         try
         {
-            sink.EnqueuePluginNotice(text, durationTicks, playSound);
+            if (_enqueuePluginNotice is not null)
+            {
+                _enqueuePluginNotice(pluginId, text, durationTicks, playSound);
+                return;
+            }
+
+            ((ClientPluginUiSink)_clientState).EnqueuePluginNotice(text, durationTicks, playSound);
         }
         catch (Exception ex)
         {
@@ -838,7 +863,7 @@ internal sealed class ClientPluginHost
         PluginMessagePayloadFormat payloadFormat,
         ushort schemaVersion)
     {
-        if (_clientState is not ClientPluginMessageSink sink)
+        if (_sendPluginMessage is null && _clientState is not ClientPluginMessageSink)
         {
             _log($"[plugin] client plugin messaging unavailable for {sourcePluginId}.");
             return;
@@ -861,7 +886,13 @@ internal sealed class ClientPluginHost
                 return;
             }
 
-            sink.SendPluginMessage(sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
+            if (_sendPluginMessage is not null)
+            {
+                _sendPluginMessage(sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
+                return;
+            }
+
+            ((ClientPluginMessageSink)_clientState).SendPluginMessage(sourcePluginId, normalizedTargetPluginId, normalizedMessageType, normalizedPayload, payloadFormat, schemaVersion);
         }
         catch (Exception ex)
         {
@@ -879,7 +910,7 @@ internal sealed class ClientPluginHost
 
     private void ShowOverlayMenu(string pluginId, string title, string subtitle, string breadcrumb, IReadOnlyList<string> entries)
     {
-        if (_clientState is not ClientPluginUiSink sink)
+        if (_showPluginOverlayMenu is null && _clientState is not ClientPluginUiSink)
         {
             _log($"[plugin] client plugin overlay surface unavailable for {pluginId}.");
             return;
@@ -887,7 +918,13 @@ internal sealed class ClientPluginHost
 
         try
         {
-            sink.ShowPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries);
+            if (_showPluginOverlayMenu is not null)
+            {
+                _showPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries);
+                return;
+            }
+
+            ((ClientPluginUiSink)_clientState).ShowPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries);
         }
         catch (Exception ex)
         {
@@ -897,7 +934,7 @@ internal sealed class ClientPluginHost
 
     private void HideOverlayMenu(string pluginId)
     {
-        if (_clientState is not ClientPluginUiSink sink)
+        if (_hidePluginOverlayMenu is null && _clientState is not ClientPluginUiSink)
         {
             _log($"[plugin] client plugin overlay surface unavailable for {pluginId}.");
             return;
@@ -905,7 +942,13 @@ internal sealed class ClientPluginHost
 
         try
         {
-            sink.HidePluginOverlayMenu(pluginId);
+            if (_hidePluginOverlayMenu is not null)
+            {
+                _hidePluginOverlayMenu(pluginId);
+                return;
+            }
+
+            ((ClientPluginUiSink)_clientState).HidePluginOverlayMenu(pluginId);
         }
         catch (Exception ex)
         {

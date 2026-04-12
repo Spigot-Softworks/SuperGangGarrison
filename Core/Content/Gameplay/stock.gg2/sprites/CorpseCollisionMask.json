@@ -1,0 +1,17 @@
+﻿{
+    "id":  "CorpseCollisionMask",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/CorpseCollisionMask/image 0.png"
+                   ],
+    "originX":  32,
+    "originY":  32,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

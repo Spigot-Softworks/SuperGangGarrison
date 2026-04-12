@@ -248,12 +248,17 @@ public partial class Game1
 
         public bool HandleHostSetupTextInput(TextInputEventArgs e)
         {
+            return HandleHostSetupTextInput(e.Character);
+        }
+
+        public bool HandleHostSetupTextInput(char character)
+        {
             if (_game.IsServerLauncherMode && _game._hostSetupTab == HostSetupTab.ServerConsole)
             {
-                return HandleHostedServerConsoleTextInput(e);
+                return HandleHostedServerConsoleTextInput(character);
             }
 
-            switch (e.Character)
+            switch (character)
             {
                 case '\b':
                     _game._hostSetupState.BackspaceActiveField();
@@ -266,7 +271,7 @@ public partial class Game1
                     _game.TryHostFromSetup();
                     break;
                 default:
-                    _game._hostSetupState.AppendCharacterToActiveField(e.Character);
+                    _game._hostSetupState.AppendCharacterToActiveField(character);
                     break;
             }
 
@@ -541,7 +546,12 @@ public partial class Game1
 
         private bool HandleHostedServerConsoleTextInput(TextInputEventArgs e)
         {
-            switch (e.Character)
+            return HandleHostedServerConsoleTextInput(e.Character);
+        }
+
+        private bool HandleHostedServerConsoleTextInput(char character)
+        {
+            switch (character)
             {
                 case '\b':
                     _game._hostedServerConsole.BackspaceCommandInput();
@@ -554,7 +564,7 @@ public partial class Game1
                     FocusHostSetupField(HostSetupEditField.ServerConsoleCommand);
                     break;
                 default:
-                    _game._hostedServerConsole.AppendCommandInput(e.Character, 120);
+                    _game._hostedServerConsole.AppendCommandInput(character, 120);
                     break;
             }
 

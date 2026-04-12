@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.ClientShared;
+using OpenGarrison.Core;
 using OpenGarrison.PluginHost;
 
 namespace OpenGarrison.Client;
@@ -11,6 +13,11 @@ internal static class ClientPluginLoader
         string pluginsDirectory,
         Action<string> log)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return DiscoverFromBrowserBundle(pluginsDirectory, log);
+        }
+
         Directory.CreateDirectory(pluginsDirectory);
         var loadedAssemblies = new List<LoadedAssembly>();
         foreach (var candidate in EnumerateAssemblyCandidates(pluginsDirectory, log))
@@ -53,6 +60,81 @@ internal static class ClientPluginLoader
                 luaCandidate.Manifest);
             discoveredPlugins.Add(luaPlugin);
             discoveredPluginsById[luaCandidate.Manifest.Id] = luaPlugin;
+        }
+
+        return discoveredPlugins
+            .OrderBy(plugin => plugin.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<DiscoveredPlugin> DiscoverFromBrowserBundle(
+        string pluginsDirectory,
+        Action<string> log)
+    {
+        var discoveredPlugins = new List<DiscoveredPlugin>();
+        var discoveredPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var manifestPaths = BrowserContentCatalog.GetBinaryPaths("Plugins/Client")
+            .Where(static path => string.Equals(Path.GetFileName(path), OpenGarrisonPluginManifestLoader.DefaultManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var manifestPath in manifestPaths)
+        {
+            var error = string.Empty;
+            if (!BrowserContentCatalog.TryGetText(manifestPath, out var manifestJson)
+                || !OpenGarrisonPluginManifestLoader.TryLoadFromJson(manifestJson, out var manifest, out error))
+            {
+                log($"[plugin] failed to read manifest \"{manifestPath}\": {error}");
+                continue;
+            }
+
+            if (manifest.Type != OpenGarrisonPluginType.Client)
+            {
+                log($"[plugin] skipped manifest \"{manifestPath}\" because it targets {manifest.Type} plugins.");
+                continue;
+            }
+
+            if (BrowserClientPluginCompatibility.IsBrowserDisabledPluginId(manifest.Id))
+            {
+                log($"[plugin] browser host skipped disabled client plugin \"{manifest.Id}\" from \"{manifestPath}\".");
+                continue;
+            }
+
+            if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
+            {
+                log($"[plugin] browser host skipped unsupported client plugin runtime {manifest.Runtime} from \"{manifestPath}\".");
+                continue;
+            }
+
+            var pluginRelativeDirectory = Path.GetDirectoryName(manifestPath.Replace('/', Path.DirectorySeparatorChar)) ?? string.Empty;
+            var browserPluginRoot = Path.Combine("Plugins", "Client");
+            var relativePluginDirectory = Path.GetRelativePath(browserPluginRoot, pluginRelativeDirectory);
+            var pluginDirectory = Path.GetFullPath(Path.Combine(pluginsDirectory, relativePluginDirectory));
+            if (!OpenGarrisonPluginManifestLoader.TryResolveEntryPointPath(manifest, pluginDirectory, out var entryPointPath, out error))
+            {
+                log($"[plugin] invalid Lua manifest \"{manifestPath}\": {error}");
+                continue;
+            }
+
+            if (!BrowserPluginFileSystem.Exists(entryPointPath))
+            {
+                log($"[plugin] Lua manifest entry point \"{entryPointPath}\" was not found.");
+                continue;
+            }
+
+            if (!discoveredPluginIds.Add(manifest.Id))
+            {
+                log($"[plugin] duplicate client plugin id \"{manifest.Id}\" from Lua manifest \"{manifestPath}\" ignored.");
+                continue;
+            }
+
+            discoveredPlugins.Add(new DiscoveredPlugin(
+                manifest.Id,
+                manifest.DisplayName,
+                Version.TryParse(manifest.Version, out var version) ? version : new Version(1, 0, 0, 0),
+                typeof(LuaClientPlugin),
+                pluginDirectory,
+                manifest));
         }
 
         return discoveredPlugins

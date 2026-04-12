@@ -1,0 +1,17 @@
+﻿{
+    "id":  "DominationKL",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Kill Icons/DominationKL/image 0.png"
+                   ],
+    "originX":  10,
+    "originY":  10,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

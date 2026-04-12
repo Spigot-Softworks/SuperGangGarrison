@@ -1,0 +1,17 @@
+﻿{
+    "id":  "MenuBackgroundVersionS",
+    "framePaths":  [
+                       "assets/legacy-sprites/GameElements/MenuBackgroundVersionS/image 0.png"
+                   ],
+    "originX":  300,
+    "originY":  300,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

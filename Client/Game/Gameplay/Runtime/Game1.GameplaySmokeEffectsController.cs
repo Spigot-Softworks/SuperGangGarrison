@@ -11,6 +11,11 @@ public partial class Game1
 {
     private sealed class GameplaySmokeEffectsController
     {
+        private const int BrowserRocketSmokeVisualLimit = 48;
+        private const int BrowserFlameSmokeVisualLimit = 40;
+        private const int BrowserBlastJumpFlameVisualLimit = 20;
+        private const int BrowserMineTrailVisualLimit = 24;
+        private const int BrowserWallspinDustVisualLimit = 24;
         private readonly Game1 _game;
 
         public GameplaySmokeEffectsController(Game1 game)
@@ -40,10 +45,16 @@ public partial class Game1
                     continue;
                 }
 
+                if (!CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
+                {
+                    continue;
+                }
+
                 _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
                     rocket.X - (velocityX * 1.3f),
                     rocket.Y - (velocityY * 1.3f)));
-                if (_game._particleMode == 0)
+                if (_game._particleMode == 0
+                    && CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {
                     _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
                         rocket.X - (velocityX * 0.75f),
@@ -80,7 +91,10 @@ public partial class Game1
                     continue;
                 }
 
-                _game._flameSmokeVisuals.Add(new FlameSmokeVisual(flame.X, flame.Y - 8f));
+                if (CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(flame.X, flame.Y - 8f));
+                }
             }
 
             foreach (var player in _game.EnumerateRenderablePlayers())
@@ -91,7 +105,8 @@ public partial class Game1
                 }
 
                 var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
-                if (_game._visualRandom.NextSingle() < GetBlastJumpFlameProbability())
+                if (_game._visualRandom.NextSingle() < GetBlastJumpFlameProbability()
+                    && CanEmitBrowserVisual(_game._blastJumpFlameVisuals.Count, BrowserBlastJumpFlameVisualLimit))
                 {
                     _game._blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
                         renderPosition.X,
@@ -113,7 +128,10 @@ public partial class Game1
 
                 var smokeX = renderPosition.X - (player.HorizontalSpeed * (float)_game._config.FixedDeltaSeconds * 1.2f);
                 var smokeY = renderPosition.Y - (player.VerticalSpeed * (float)_game._config.FixedDeltaSeconds * 1.2f) + (player.Height * 0.5f) + 2f;
-                _game._flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
+                if (CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
+                }
             }
 
             AdvanceWallspinDustVisuals();
@@ -153,6 +171,11 @@ public partial class Game1
         {
             for (var emissionIndex = 0; emissionIndex < emissionTicks; emissionIndex += 1)
             {
+                if (!CanEmitBrowserVisual(_game._wallspinDustVisuals.Count, BrowserWallspinDustVisualLimit))
+                {
+                    break;
+                }
+
                 _game._wallspinDustVisuals.Add(new WallspinDustVisual(
                     x,
                     y,
@@ -182,7 +205,10 @@ public partial class Game1
                     continue;
                 }
 
-                _game._mineTrailVisuals.Add(new MineTrailVisual(mine.X, mine.Y));
+                if (CanEmitBrowserVisual(_game._mineTrailVisuals.Count, BrowserMineTrailVisualLimit))
+                {
+                    _game._mineTrailVisuals.Add(new MineTrailVisual(mine.X, mine.Y));
+                }
             }
 
             for (var index = _game._mineTrailVisuals.Count - 1; index >= 0; index -= 1)
@@ -197,7 +223,7 @@ public partial class Game1
 
         public void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("FlameS");
+            var sprite = _game.GetResolvedSprite("FlameS");
             for (var index = 0; index < _game._blastJumpFlameVisuals.Count; index += 1)
             {
                 var flame = _game._blastJumpFlameVisuals[index];
@@ -207,7 +233,7 @@ public partial class Game1
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var frameIndex = Math.Abs(flame.FrameSeed + ((int)(_game._world.Frame + index))) % sprite.Frames.Count;
-                    _game._spriteBatch.Draw(
+                    _game.DrawLoadedSpriteFrame(
                         sprite.Frames[frameIndex],
                         new Vector2(flame.X - cameraPosition.X, flame.Y - cameraPosition.Y),
                         null,
@@ -268,7 +294,7 @@ public partial class Game1
 
         public void DrawMineTrailVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("MineTrailS");
+            var sprite = _game.GetResolvedSprite("MineTrailS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -279,7 +305,7 @@ public partial class Game1
                 var trail = _game._mineTrailVisuals[index];
                 var progress = 1f - (trail.TicksRemaining / (float)MineTrailVisual.LifetimeTicks);
                 var frameIndex = Math.Clamp((int)MathF.Floor(progress * sprite.Frames.Count), 0, sprite.Frames.Count - 1);
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[frameIndex],
                     new Vector2(trail.X - cameraPosition.X, trail.Y - cameraPosition.Y),
                     null,
@@ -294,7 +320,7 @@ public partial class Game1
 
         public void DrawWallspinDustVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("SpeedBoostS");
+            var sprite = _game.GetResolvedSprite("SpeedBoostS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -307,7 +333,7 @@ public partial class Game1
                 var alpha = progress < 0.5f
                     ? MathHelper.Lerp(0.7f, 0.5f, progress * 2f)
                     : MathHelper.Lerp(0.5f, 0f, (progress - 0.5f) * 2f);
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[0],
                     new Vector2(dust.X - cameraPosition.X, dust.Y - cameraPosition.Y),
                     null,
@@ -362,6 +388,11 @@ public partial class Game1
         private static int GetWallspinDustMaximumLifetimeTicks()
         {
             return (int)MathF.Ceiling(Game1.GetSourceTicksAsSeconds(30f) * ClientUpdateTicksPerSecond);
+        }
+
+        private static bool CanEmitBrowserVisual(int currentCount, int browserLimit)
+        {
+            return !OperatingSystem.IsBrowser() || currentCount < browserLimit;
         }
     }
 }

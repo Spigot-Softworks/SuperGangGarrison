@@ -1,0 +1,32 @@
+﻿{
+    "id":  "ShotgunFRS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Reloading/ShotgunFRS/image 15.png"
+                   ],
+    "originX":  20,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

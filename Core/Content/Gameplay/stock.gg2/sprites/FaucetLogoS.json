@@ -1,0 +1,38 @@
+﻿{
+    "id":  "FaucetLogoS",
+    "framePaths":  [
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 0.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 1.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 2.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 3.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 4.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 5.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 6.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 7.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 8.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 9.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 10.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 11.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 12.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 13.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 14.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 15.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 16.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 17.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 18.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 19.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 20.png",
+                       "assets/legacy-sprites/GameElements/FaucetLogoS/image 21.png"
+                   ],
+    "originX":  60,
+    "originY":  41,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

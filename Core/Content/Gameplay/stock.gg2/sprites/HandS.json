@@ -1,0 +1,27 @@
+﻿{
+    "id":  "HandS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 1.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 2.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 3.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 4.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 5.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 6.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 7.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 8.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 9.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/HandS/image 10.png"
+                   ],
+    "originX":  3,
+    "originY":  2,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

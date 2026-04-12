@@ -18,4 +18,11 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core.Tests'">
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true' and ('$(MSBuildProjectName)' == 'OpenGarrison.Client' or '$(MSBuildProjectName)' == 'OpenGarrison.Client.Plugins.Abstractions')">
+    <BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>obj\browser\</MSBuildProjectExtensionsPath>
+    <IntermediateOutputPath>obj\browser\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>bin\browser\$(Configuration)\$(TargetFramework)\</OutputPath>
+  </PropertyGroup>
 </Project>

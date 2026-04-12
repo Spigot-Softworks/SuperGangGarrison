@@ -1,0 +1,17 @@
+﻿{
+    "id":  "EngineerRedDeadS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Engineer/EngineerRedDeadS/image 0.png"
+                   ],
+    "originX":  32,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  38,
+                 "bottom":  63
+             }
+}

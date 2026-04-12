@@ -1,0 +1,21 @@
+﻿{
+    "id":  "ShellS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Other/ShellS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Other/ShellS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Other/ShellS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Other/ShellS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Other/ShellS/image 4.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  true,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -40,6 +40,7 @@ public partial class Game1
         _gameplayImpactEffectsController.ResetTransientEffects();
         ResetRetainedDeadBodies();
         _gameplayGoreEffectsController.ResetTransientEffects();
+        ResetPendingBrowserSoundEvents();
         ResetExperimentalHealingHudIndicators();
         _gameplayMaterialEffectsController.ResetTransientEffects();
         _rocketSmokeVisuals.Clear();
@@ -407,7 +408,7 @@ public partial class Game1
         public const int FadeTicks = 60;
         public const int BurnLifetimeTicks = 24;
 
-        public LooseSheetVisual(float x, float y, float velocityX, float velocityY, float rotationSpeedRadians, string spriteName)
+        public LooseSheetVisual(float x, float y, float velocityX, float velocityY, float rotationSpeedRadians, string spriteName, int lifetimeTicks = LifetimeTicks, int fadeTicks = FadeTicks)
         {
             X = x;
             Y = y;
@@ -415,7 +416,8 @@ public partial class Game1
             VelocityY = velocityY;
             RotationSpeedRadians = rotationSpeedRadians;
             SpriteName = spriteName;
-            TicksRemaining = LifetimeTicks;
+            TicksRemaining = Math.Max(1, lifetimeTicks);
+            FadeTicksRemaining = Math.Max(1, fadeTicks);
         }
 
         public float X { get; set; }
@@ -439,6 +441,8 @@ public partial class Game1
         public int BurnAnimationTicks { get; set; }
 
         public int TicksRemaining { get; set; }
+
+        public int FadeTicksRemaining { get; }
     }
 
     private sealed class StickyGibBloodCoating

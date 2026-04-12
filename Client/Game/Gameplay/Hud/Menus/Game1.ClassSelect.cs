@@ -28,7 +28,7 @@ public partial class Game1
             return;
         }
 
-        var keyboard = Keyboard.GetState();
+        var keyboard = GetCurrentKeyboardState();
         if (keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q))
         {
             ApplyDirectClassSelection(PlayerClass.Quote);
@@ -140,6 +140,8 @@ public partial class Game1
 
     private void ApplyDirectClassSelection(PlayerClass selectedClass)
     {
+        WarmBrowserPlayableClassAssets(selectedClass, _pendingClassSelectTeam ?? _world.LocalPlayerTeam);
+
         if (_networkClient.IsConnected)
         {
             _networkClient.QueueClassSelection(selectedClass);
@@ -241,7 +243,7 @@ public partial class Game1
             return;
         }
 
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return;
@@ -271,7 +273,7 @@ public partial class Game1
             return false;
         }
 
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;

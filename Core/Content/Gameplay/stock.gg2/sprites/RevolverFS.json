@@ -1,0 +1,40 @@
+﻿{
+    "id":  "RevolverFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Firing/RevolverFS/image 23.png"
+                   ],
+    "originX":  13,
+    "originY":  10,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

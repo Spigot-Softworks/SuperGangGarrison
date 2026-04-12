@@ -5,7 +5,9 @@ namespace OpenGarrison.Core;
 
 public static class RuntimePaths
 {
-    public static string ApplicationRoot => AppContext.BaseDirectory;
+    public static string ApplicationRoot => OperatingSystem.IsBrowser()
+        ? "."
+        : AppContext.BaseDirectory;
 
     public static string AssetsDirectory => Path.Combine(ApplicationRoot, "Assets");
 
@@ -14,7 +16,11 @@ public static class RuntimePaths
         get
         {
             var path = Path.Combine(ApplicationRoot, "config");
-            Directory.CreateDirectory(path);
+            if (!OperatingSystem.IsBrowser())
+            {
+                Directory.CreateDirectory(path);
+            }
+
             return path;
         }
     }
@@ -24,7 +30,11 @@ public static class RuntimePaths
         get
         {
             var path = Path.Combine(ApplicationRoot, "Maps");
-            Directory.CreateDirectory(path);
+            if (!OperatingSystem.IsBrowser())
+            {
+                Directory.CreateDirectory(path);
+            }
+
             return path;
         }
     }
@@ -34,7 +44,11 @@ public static class RuntimePaths
         get
         {
             var path = Path.Combine(ApplicationRoot, "logs");
-            Directory.CreateDirectory(path);
+            if (!OperatingSystem.IsBrowser())
+            {
+                Directory.CreateDirectory(path);
+            }
+
             return path;
         }
     }

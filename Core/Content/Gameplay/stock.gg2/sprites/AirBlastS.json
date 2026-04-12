@@ -1,0 +1,22 @@
+﻿{
+    "id":  "AirBlastS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 0.png",
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 1.png",
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 2.png",
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 3.png",
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 4.png",
+                       "assets/legacy-sprites/Projectiles/AirBlastS/image 5.png"
+                   ],
+    "originX":  0,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

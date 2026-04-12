@@ -17,7 +17,12 @@ public partial class Game1
 
         public bool TryHandleManualConnect(TextInputEventArgs e)
         {
-            switch (e.Character)
+            return TryHandleManualConnect(e.Character);
+        }
+
+        public bool TryHandleManualConnect(char character)
+        {
+            switch (character)
             {
                 case '\b':
                     if (_game._editingConnectPort)
@@ -40,21 +45,21 @@ public partial class Game1
                     _game.TryConnectFromMenu();
                     break;
                 default:
-                    if (char.IsControl(e.Character))
+                    if (char.IsControl(character))
                     {
                         break;
                     }
 
                     if (_game._editingConnectPort)
                     {
-                        if (char.IsDigit(e.Character) && _game._connectPortBuffer.Length < 5)
+                        if (char.IsDigit(character) && _game._connectPortBuffer.Length < 5)
                         {
-                            _game._connectPortBuffer += e.Character;
+                            _game._connectPortBuffer += character;
                         }
                     }
                     else if (_game._connectHostBuffer.Length < 64)
                     {
-                        _game._connectHostBuffer += e.Character;
+                        _game._connectHostBuffer += character;
                     }
                     break;
             }
@@ -64,7 +69,12 @@ public partial class Game1
 
         public bool TryHandlePlayerNameEdit(TextInputEventArgs e)
         {
-            switch (e.Character)
+            return TryHandlePlayerNameEdit(e.Character);
+        }
+
+        public bool TryHandlePlayerNameEdit(char character)
+        {
+            switch (character)
             {
                 case '\b':
                     if (_game._playerNameEditBuffer.Length > 0)
@@ -78,9 +88,9 @@ public partial class Game1
                     _game._editingPlayerName = false;
                     break;
                 default:
-                    if (!char.IsControl(e.Character) && _game._playerNameEditBuffer.Length < 20 && e.Character != '#')
+                    if (!char.IsControl(character) && _game._playerNameEditBuffer.Length < 20 && character != '#')
                     {
-                        _game._playerNameEditBuffer += e.Character;
+                        _game._playerNameEditBuffer += character;
                     }
                     break;
             }

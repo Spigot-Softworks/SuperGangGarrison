@@ -122,7 +122,7 @@ public partial class Game1
                 return;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite("BloodS");
+            var sprite = _game.GetResolvedSprite("BloodS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -134,7 +134,7 @@ public partial class Game1
                 var frameIndex = Math.Clamp(elapsedTicks, 0, sprite.Frames.Count - 1);
                 var scale = elapsedTicks < 2 ? 0.5f : 1f;
                 var alpha = elapsedTicks < 2 ? 1f : 0.5f;
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[frameIndex],
                     new Vector2(blood.X - cameraPosition.X, blood.Y - cameraPosition.Y),
                     null,
@@ -146,14 +146,14 @@ public partial class Game1
                     0f);
             }
 
-            var bloodDropSprite = _game._runtimeAssets.GetSprite("BloodDropS");
+            var bloodDropSprite = _game.GetResolvedSprite("BloodDropS");
             for (var index = 0; index < _game._bloodSprayVisuals.Count; index += 1)
             {
                 var spray = _game._bloodSprayVisuals[index];
                 var alpha = Math.Clamp(spray.TicksRemaining / (float)spray.InitialTicks, 0f, 1f);
                 if (bloodDropSprite is not null && bloodDropSprite.Frames.Count > 0)
                 {
-                    _game._spriteBatch.Draw(
+                    _game.DrawLoadedSpriteFrame(
                         bloodDropSprite.Frames[0],
                         new Vector2(spray.X - cameraPosition.X, spray.Y - cameraPosition.Y),
                         null,
@@ -263,7 +263,7 @@ public partial class Game1
                 return;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite("BloodS");
+            var sprite = _game.GetResolvedSprite("BloodS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -293,7 +293,7 @@ public partial class Game1
                     _ => 6f,
                 };
                 var scale = 0.48f + (coating.Intensity * 0.16f) + (splashIndex * 0.04f);
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[frameIndex],
                     new Vector2(roundedOrigin.X + offsetX - cameraPosition.X, roundedOrigin.Y + offsetY - cameraPosition.Y),
                     null,

@@ -24,6 +24,23 @@ internal sealed class ClientPluginAssetRegistry(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var path = ResolveRegisteredPath(relativePath);
+        if (OperatingSystem.IsBrowser())
+        {
+            if (!BrowserPluginFileSystem.TryReadAllBytes(path, out var browserBytes) || browserBytes.Length == 0)
+            {
+                throw new FileNotFoundException($"Texture asset not found for plugin '{pluginId}'.", path);
+            }
+
+            var browserTexture = TextureDecodeUtility.LoadTexture(graphicsDevice, browserBytes, applyLegacyChromaKey: false);
+            if (_textures.TryGetValue(assetId, out var existingBrowserTexture))
+            {
+                existingBrowserTexture.Dispose();
+            }
+
+            _textures[assetId] = browserTexture;
+            return;
+        }
+
         if (!File.Exists(path))
         {
             throw new FileNotFoundException($"Texture asset not found for plugin '{pluginId}'.", path);
@@ -121,13 +138,32 @@ internal sealed class ClientPluginAssetRegistry(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var path = ResolveRegisteredPath(relativePath);
+        if (OperatingSystem.IsBrowser())
+        {
+            if (!BrowserPluginFileSystem.TryReadAllBytes(path, out var browserBytes) || browserBytes.Length == 0)
+            {
+                throw new FileNotFoundException($"Sound asset not found for plugin '{pluginId}'.", path);
+            }
+
+            var browserSound = SoundDecodeUtility.LoadSoundEffect(browserBytes, path);
+            if (_sounds.TryGetValue(assetId, out var existingBrowserSound))
+            {
+                existingBrowserSound.Dispose();
+            }
+
+            _sounds[assetId] = browserSound;
+            return;
+        }
+
         if (!File.Exists(path))
         {
             throw new FileNotFoundException($"Sound asset not found for plugin '{pluginId}'.", path);
         }
 
         using var stream = File.OpenRead(path);
-        var sound = SoundEffect.FromStream(stream);
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        var sound = SoundDecodeUtility.LoadSoundEffect(buffer.ToArray(), path);
         if (_sounds.TryGetValue(assetId, out var existing))
         {
             existing.Dispose();

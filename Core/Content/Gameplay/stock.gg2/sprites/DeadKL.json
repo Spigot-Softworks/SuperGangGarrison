@@ -1,0 +1,18 @@
+﻿{
+    "id":  "DeadKL",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Kill Icons/DeadKL/image 0.png",
+                       "assets/legacy-sprites/HUDs/Kill Icons/DeadKL/image 1.png"
+                   ],
+    "originX":  9,
+    "originY":  6,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -78,6 +78,26 @@ internal sealed partial class LuaClientPlugin(
         {
             _context = context;
             var entryPointPath = Path.GetFullPath(Path.Combine(pluginDirectory, manifest.EntryPoint));
+            if (OperatingSystem.IsBrowser())
+            {
+                if (!BrowserPluginFileSystem.TryReadAllText(entryPointPath, out var browserScriptSource))
+                {
+                    throw new FileNotFoundException($"Lua entry point was not found: {entryPointPath}", entryPointPath);
+                }
+
+                _script = new Script(CoreModules.Preset_SoftSandbox);
+                _script.Options.DebugPrint = message => context.Log($"[lua] {message}");
+
+                var browserHostTable = CreateHostTable(_script, context);
+                var browserResult = _script.DoString(browserScriptSource, codeFriendlyName: entryPointPath);
+                _pluginTable = ResolvePluginTable(_script, browserResult);
+                _callbackCache.Clear();
+                ExecuteInPhase(
+                    LuaCallbackPhase.Initialize,
+                    () => CallIfPresent("initialize", rethrowOnFailure: true, DynValue.NewTable(browserHostTable)));
+                return;
+            }
+
             if (!File.Exists(entryPointPath))
             {
                 throw new FileNotFoundException($"Lua entry point was not found: {entryPointPath}", entryPointPath);
@@ -126,13 +146,12 @@ internal sealed partial class LuaClientPlugin(
             }
 
             var path = ResolveConfigPath(context.ConfigDirectory, relativePath);
-            if (!File.Exists(path))
+            if (!TryReadConfigJson(path, out var json))
             {
                 SaveLuaTableJson(path, defaultValue);
                 return defaultValue;
             }
 
-            var json = File.ReadAllText(path);
             var value = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
             return ToDynValue(value);
         });
@@ -420,6 +439,11 @@ internal sealed partial class LuaClientPlugin(
             }
 
             var directoryPath = ResolvePluginPath(context.PluginDirectory, relativeDirectory, defaultRelativePath: ".");
+            if (OperatingSystem.IsBrowser())
+            {
+                return ToDynValue(BrowserPluginFileSystem.EnumerateFiles(directoryPath, searchPattern).ToArray());
+            }
+
             if (!Directory.Exists(directoryPath))
             {
                 return DynValue.NewTable(new Table(script));
@@ -1447,10 +1471,49 @@ internal sealed partial class LuaClientPlugin(
 
     private static void SaveLuaTableJson(string path, DynValue value)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? string.Empty);
         var serialized = DynValueToPlainObject(value);
         var json = JsonSerializer.Serialize(serialized, JsonOptions);
+        if (OperatingSystem.IsBrowser())
+        {
+            SaveBrowserConfigJson(path, json);
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? string.Empty);
         File.WriteAllText(path, json);
+    }
+
+    private static bool TryReadConfigJson(string path, out string json)
+    {
+        json = string.Empty;
+        if (OperatingSystem.IsBrowser())
+        {
+            return TryReadBrowserConfigJson(path, out json);
+        }
+
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        json = File.ReadAllText(path);
+        return true;
+    }
+
+    private static bool TryReadBrowserConfigJson(string path, out string json)
+    {
+        lock (BrowserConfigSync)
+        {
+            return BrowserConfigDocuments.TryGetValue(path, out json!);
+        }
+    }
+
+    private static void SaveBrowserConfigJson(string path, string json)
+    {
+        lock (BrowserConfigSync)
+        {
+            BrowserConfigDocuments[path] = json;
+        }
     }
 
     private static object? DynValueToPlainObject(DynValue value)
@@ -1518,6 +1581,9 @@ internal sealed partial class LuaClientPlugin(
         var dynValue = ReadArgument(args, index);
         return dynValue.IsNil() ? string.Empty : dynValue.CastToString();
     }
+
+    private static readonly object BrowserConfigSync = new();
+    private static readonly Dictionary<string, string> BrowserConfigDocuments = new(StringComparer.OrdinalIgnoreCase);
 
     private static string ReadOptionalStringArgument(CallbackArguments args, int index, string defaultValue)
     {
@@ -1877,6 +1943,16 @@ internal sealed partial class LuaClientPlugin(
         out OwnedTextureSequence textureSequence)
     {
         textureSequence = null!;
+        if (OperatingSystem.IsBrowser())
+        {
+            if (!BrowserPluginFileSystem.TryReadAllBytes(path, out var browserBytes) || browserBytes.Length == 0)
+            {
+                return false;
+            }
+
+            return TryLoadTextureSequence(graphicsDevice, browserBytes, path, frameCount, applyChromaKey, out textureSequence);
+        }
+
         if (!File.Exists(path))
         {
             return false;
@@ -1884,7 +1960,27 @@ internal sealed partial class LuaClientPlugin(
 
         try
         {
-            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(path);
+            var bytes = File.ReadAllBytes(path);
+            return TryLoadTextureSequence(graphicsDevice, bytes, path, frameCount, applyChromaKey, out textureSequence);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryLoadTextureSequence(
+        GraphicsDevice graphicsDevice,
+        byte[] bytes,
+        string path,
+        int frameCount,
+        bool applyChromaKey,
+        out OwnedTextureSequence textureSequence)
+    {
+        textureSequence = null!;
+        try
+        {
+            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(bytes);
             var frames = new List<Texture2D>(Math.Max(1, frameCount));
             if (Path.GetExtension(path).Equals(".gif", StringComparison.OrdinalIgnoreCase))
             {

@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
+    <AssemblyName>OG2.Browser</AssemblyName>
+    <RootNamespace>OpenGarrison.Client.Browser</RootNamespace>
+    <OpenGarrisonClientAsLibrary>true</OpenGarrisonClientAsLibrary>
+    <OpenGarrisonBrowserAot Condition="'$(OpenGarrisonBrowserAot)' == ''">true</OpenGarrisonBrowserAot>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OpenGarrisonBrowserAot)' == 'true'">
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+  </PropertyGroup>
+
+  <Target Name="RejectNonAotBrowserPublish"
+          BeforeTargets="Publish"
+          Condition="'$(OpenGarrisonBrowserAot)' != 'true' or '$(RunAOTCompilation)' != 'true'">
+    <Error Text="The browser publish path is AOT-only. Remove non-AOT overrides and publish with OpenGarrisonBrowserAot=true." />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.5" PrivateAssets="all" />
+    <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Client\OpenGarrison.Client.csproj">
+      <AdditionalProperties>OpenGarrisonClientAsLibrary=true</AdditionalProperties>
+    </ProjectReference>
+    <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj">
+      <AdditionalProperties>OpenGarrisonClientAsLibrary=true</AdditionalProperties>
+    </ProjectReference>
+    <ProjectReference Include="..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
+    <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
+    <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
+    <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+  </ItemGroup>
+
+  <Target Name="SyncCoreContentToBrowserWwwroot"
+          BeforeTargets="Build;Publish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <BrowserMirroredContent Include="..\Core\Content\**\*"
+                              Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb;..\Core\Content\**\*.cs" />
+      <BrowserCompiledClientContent Include="..\Client\Content\bin\DesktopGL\Content\**\*" />
+      <BrowserPackagedClientPlugins Include="..\Plugins\Packaged\Client\**\*"
+                                    Exclude="..\Plugins\Packaged\Client\Lua.MoreAnimations\**\*" />
+      <BrowserGameplaySpriteDefinitions Include="..\Core\Content\Gameplay\stock.gg2\sprites\*.json" />
+      <BrowserGameMakerSpriteFrames Include="..\Core\Content\Sprites\**\*.png" />
+      <BrowserStaleSourceFiles Include="$(MSBuildProjectDirectory)\wwwroot\Content\**\*.cs" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content\Gameplay\stock.gg2\sprites" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins\Client" />
+    <Delete Files="@(BrowserStaleSourceFiles)" />
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins\Client\Lua.MoreAnimations" />
+    <Copy SourceFiles="@(BrowserMirroredContent)"
+          DestinationFiles="@(BrowserMirroredContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BrowserCompiledClientContent)"
+          DestinationFiles="@(BrowserCompiledClientContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BrowserPackagedClientPlugins)"
+          DestinationFiles="@(BrowserPackagedClientPlugins->'$(MSBuildProjectDirectory)\wwwroot\Plugins\Client\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <WriteLinesToFile
+        File="$(MSBuildProjectDirectory)\wwwroot\Content\Gameplay\stock.gg2\sprites\_sprite-index.txt"
+        Lines="@(BrowserGameplaySpriteDefinitions->'%(Filename)%(Extension)')"
+        Overwrite="true" />
+    <WriteLinesToFile
+        File="$(MSBuildProjectDirectory)\wwwroot\Content\Sprites\_frame-index.txt"
+        Lines="@(BrowserGameMakerSpriteFrames->'Content/Sprites/%(RecursiveDir)%(Filename)%(Extension)')"
+        Overwrite="true" />
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot;" />
+  </Target>
+
+  <Target Name="CleanBrowserMirroredContent" AfterTargets="Clean">
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins" />
+  </Target>
+</Project>

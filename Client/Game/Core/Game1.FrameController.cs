@@ -21,14 +21,29 @@ public partial class Game1
         public int Update(GameTime gameTime)
         {
             var clientTicks = _game.ConsumeClientTickCount(gameTime);
-            var windowActive = _game.IsActive;
-            var keyboard = windowActive ? Keyboard.GetState() : default;
-            var rawMouse = windowActive ? _game.GetConstrainedMouseState(Mouse.GetState()) : default;
+            if (OperatingSystem.IsBrowser())
+            {
+                BrowserInputBridge.BeginFrame();
+            }
+
+            var windowActive = OperatingSystem.IsBrowser()
+                ? BrowserInputBridge.IsFocused
+                : _game.IsActive;
+            var keyboard = windowActive ? _game.GetCurrentKeyboardState() : default;
+            var rawMouse = windowActive ? _game.GetConstrainedMouseState(_game.GetCurrentMouseState()) : default;
             var mouse = windowActive ? _game.GetScaledMouseState(rawMouse) : default;
             if (!_game._wasWindowActive && windowActive)
             {
                 _game._previousKeyboard = keyboard;
                 _game._previousMouse = mouse;
+            }
+
+            if (OperatingSystem.IsBrowser() && windowActive)
+            {
+                foreach (var character in BrowserInputBridge.DrainTextInput())
+                {
+                    _game.HandleBrowserTextInput(character);
+                }
             }
 
             _game._clientPluginPreviousKeyboard = _game._previousKeyboard;
@@ -139,7 +154,7 @@ public partial class Game1
             _game._menuController.Draw();
             if (_game.ShouldDrawSoftwareMenuCursor())
             {
-                _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(Mouse.GetState())));
+                _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(_game.GetCurrentMouseState())));
             }
 
             _game.EndLogicalFrame();

@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -31,7 +32,7 @@ public partial class Game1
                 return false;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite(spriteName);
+            var sprite = _game.GetResolvedSprite(spriteName);
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return false;
@@ -79,7 +80,7 @@ public partial class Game1
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
             if (_game._world.IsPlayerHumiliated(player))
             {
-                return new PlayerBodySpriteSelection(GetTeamSpriteName(player.ClassId, player.Team, "HS"), animationImage, 0f, 0f, false, true);
+                return new PlayerBodySpriteSelection(GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);
             }
 
             if (player.ClassId == PlayerClass.Quote)
@@ -89,7 +90,7 @@ public partial class Game1
 
             if (player.ClassId == PlayerClass.Sniper && player.IsSniperScoped)
             {
-                return new PlayerBodySpriteSelection(GetTeamSpriteName(player.ClassId, player.Team, "CrouchS"), WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
+                return new PlayerBodySpriteSelection(GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.ScopedSuffix ?? presentation.BaseSuffix, "CrouchS"), WrapAnimationImage(animationImage, 2f), 0f, 0f, false, false);
             }
 
             string? spriteName;
@@ -98,7 +99,7 @@ public partial class Game1
             var isHeavySlowWalk = false;
             if (appearsAirborne)
             {
-                spriteName = GetTeamSpriteName(player.ClassId, player.Team, "JumpS");
+                spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.JumpSuffix ?? presentation.BaseSuffix, "JumpS");
             }
             else if (horizontalSourceStepSpeed < 0.2f)
             {
@@ -110,12 +111,12 @@ public partial class Game1
             }
             else if (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f)
             {
-                spriteName = GetTeamSpriteName(player.ClassId, player.Team, "WalkS");
+                spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.WalkSuffix ?? presentation.RunSuffix ?? presentation.BaseSuffix, "WalkS");
                 isHeavySlowWalk = true;
             }
             else
             {
-                spriteName = GetTeamSpriteName(player.ClassId, player.Team, "RunS");
+                spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.RunSuffix ?? presentation.BaseSuffix, "RunS");
                 isRunSprite = true;
             }
 
@@ -145,10 +146,10 @@ public partial class Game1
             return System.MathF.Cos(radians) < 0f;
         }
 
-        public static string? GetTauntSpriteName(PlayerEntity player) => GetTeamSpriteName(player.ClassId, player.Team, "TauntS");
-        public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetTeamSpriteName(player.ClassId, player.Team, "OmnomnomnomS") : null;
+        public static string? GetTauntSpriteName(PlayerEntity player) => GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.TauntSuffix ?? presentation.BaseSuffix, "TauntS");
+        public static string? GetHeavyEatSpriteName(PlayerEntity player) => player.ClassId == PlayerClass.Heavy ? GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HeavyEatSuffix ?? presentation.BaseSuffix, "OmnomnomnomS") : null;
         public static string? GetPlayerSpriteName(PlayerEntity player) => GetPlayerSpriteName(player.ClassId, player.Team);
-        public static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team) => GetTeamSpriteName(classId, team, "S");
+        public static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team) => GetPresentationSpriteName(classId, team, static presentation => presentation.BaseSuffix, "S");
 
         public static string? GetDeadBodySpriteName(PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind = DeadBodyAnimationKind.Default)
         {
@@ -157,7 +158,7 @@ public partial class Game1
                 return ExperimentalDemoknightCatalog.GetDecapitatedDeadBodySpriteName(classId, team);
             }
 
-            return GetTeamSpriteName(classId, team, "DeadS");
+            return GetPresentationSpriteName(classId, team, static presentation => presentation.DeadSuffix ?? presentation.BaseSuffix, "DeadS");
         }
 
         public void DrawIntelUnderlaySprite(PlayerEntity player, Vector2 cameraPosition, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 roundedOrigin)
@@ -183,13 +184,13 @@ public partial class Game1
 
         private void DrawIntelUnderlaySpriteCore(PlayerEntity player, Vector2 cameraPosition, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 roundedOrigin)
         {
-            var spriteName = GetTeamSpriteName(player.ClassId, player.Team, "IntelS");
+            var spriteName = GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.IntelSuffix ?? presentation.BaseSuffix, "IntelS");
             if (spriteName is null)
             {
                 return;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite(spriteName);
+            var sprite = _game.GetResolvedSprite(spriteName);
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -206,7 +207,7 @@ public partial class Game1
 
         private void DrawCarriedIntelTimerSpriteCore(PlayerEntity player, Vector2 cameraPosition, Vector2 roundedOrigin)
         {
-            var timerSprite = _game._runtimeAssets.GetSprite("IntelTimerS");
+            var timerSprite = _game.GetResolvedSprite("IntelTimerS");
             if (timerSprite is null || timerSprite.Frames.Count == 0)
             {
                 return;
@@ -277,21 +278,38 @@ public partial class Game1
 
         private string? GetStandingSpriteNameCore(PlayerEntity player)
         {
+            if (OperatingSystem.IsBrowser())
+            {
+                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
+            }
+
             var leanDirection = GetPlayerLeanDirection(player);
             if (leanDirection == LeanDirection.None)
             {
-                return GetTeamSpriteName(player.ClassId, player.Team, "StandS");
+                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
             }
 
             var facingLeft = IsFacingLeftByAim(player);
-            var suffix = leanDirection switch
+            return leanDirection switch
             {
-                LeanDirection.Left => facingLeft ? "LeanRS" : "LeanLS",
-                LeanDirection.Right => facingLeft ? "LeanLS" : "LeanRS",
-                _ => "StandS",
+                LeanDirection.Left => GetPresentationFacingSpriteName(
+                    player.ClassId,
+                    player.Team,
+                    static presentation => presentation.LeanRightSuffix ?? presentation.BaseSuffix,
+                    static presentation => presentation.LeanLeftSuffix ?? presentation.BaseSuffix,
+                    facingLeft,
+                    "LeanRS",
+                    "LeanLS"),
+                LeanDirection.Right => GetPresentationFacingSpriteName(
+                    player.ClassId,
+                    player.Team,
+                    static presentation => presentation.LeanLeftSuffix ?? presentation.BaseSuffix,
+                    static presentation => presentation.LeanRightSuffix ?? presentation.BaseSuffix,
+                    facingLeft,
+                    "LeanLS",
+                    "LeanRS"),
+                _ => GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS"),
             };
-
-            return GetTeamSpriteName(player.ClassId, player.Team, suffix);
         }
 
         private LeanDirection GetPlayerLeanDirectionCore(PlayerEntity player)
@@ -361,7 +379,7 @@ public partial class Game1
 
         private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)
         {
-            var prefix = GetPlayerSpritePrefix(classId);
+            var prefix = GetPresentationSpritePrefix(classId) ?? GetPlayerSpritePrefix(classId);
             if (prefix is null)
             {
                 return null;
@@ -393,6 +411,44 @@ public partial class Game1
                 PlayerClass.Quote => "Querly",
                 _ => null,
             };
+        }
+
+        private static string? GetPresentationSpriteName(
+            PlayerClass classId,
+            PlayerTeam team,
+            Func<GameplayClassPresentationDefinition, string> suffixSelector,
+            string legacySuffix)
+        {
+            var presentation = GetClassPresentation(classId);
+            return GetTeamSpriteName(classId, team, presentation is null ? legacySuffix : suffixSelector(presentation));
+        }
+
+        private static string? GetPresentationFacingSpriteName(
+            PlayerClass classId,
+            PlayerTeam team,
+            Func<GameplayClassPresentationDefinition, string> facingLeftSuffixSelector,
+            Func<GameplayClassPresentationDefinition, string> facingRightSuffixSelector,
+            bool facingLeft,
+            string legacyFacingLeftSuffix,
+            string legacyFacingRightSuffix)
+        {
+            var presentation = GetClassPresentation(classId);
+            return GetTeamSpriteName(
+                classId,
+                team,
+                presentation is null
+                    ? (facingLeft ? legacyFacingLeftSuffix : legacyFacingRightSuffix)
+                    : (facingLeft ? facingLeftSuffixSelector(presentation) : facingRightSuffixSelector(presentation)));
+        }
+
+        private static GameplayClassPresentationDefinition? GetClassPresentation(PlayerClass classId)
+        {
+            return CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(classId).Presentation;
+        }
+
+        private static string? GetPresentationSpritePrefix(PlayerClass classId)
+        {
+            return GetClassPresentation(classId)?.SpritePrefix;
         }
     }
 }

@@ -1,0 +1,22 @@
+﻿{
+    "id":  "SoldierBlueHS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 0.png",
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 1.png",
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 2.png",
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 3.png",
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 4.png",
+                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueHS/image 5.png"
+                   ],
+    "originX":  30,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  24,
+                 "top":  32,
+                 "right":  36,
+                 "bottom":  63
+             }
+}

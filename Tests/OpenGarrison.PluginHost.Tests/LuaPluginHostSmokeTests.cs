@@ -1764,7 +1764,7 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
-            new ChatReceivedEvent(1, "Admin", "!gt_psay #303 hello target", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+            new ChatReceivedEvent(1, "Admin", "!gt_psay #303 \"hello target\"", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 3 && message.Text == "hello target");
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("sent private message to Target (#303)", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
@@ -1778,8 +1778,8 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
-            new ChatReceivedEvent(1, "Admin", "!gt_ban #303 5 griefing", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
-        Assert.Contains(loadedPlugin.Context.AdminImpl.BanPlayerRequests, request => request.Slot == 3 && request.Duration == TimeSpan.FromMinutes(5) && request.Reason == "griefing");
+            new ChatReceivedEvent(1, "Admin", "!gt_ban #303 5 \"team griefing\"", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.BanPlayerRequests, request => request.Slot == 3 && request.Duration == TimeSpan.FromMinutes(5) && request.Reason == "team griefing");
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("banned Target (#303, ip 127.0.0.3) for 5 minute(s).", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
 
@@ -1821,7 +1821,7 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
-            new ChatReceivedEvent(1, "Admin", "!gt_rename #303 Renamed Medic", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+            new ChatReceivedEvent(1, "Admin", "!gt_rename #303 \"Renamed Medic\"", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
         Assert.Contains(loadedPlugin.Context.AdminImpl.RenameRequests, request => request.Slot == 3 && request.NewName == "Renamed Medic");
         Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("renamed Target to Renamed Medic.", StringComparison.Ordinal));
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();

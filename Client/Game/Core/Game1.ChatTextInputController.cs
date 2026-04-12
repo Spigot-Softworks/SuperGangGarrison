@@ -17,12 +17,17 @@ public partial class Game1
 
         public bool TryHandle(TextInputEventArgs e)
         {
+            return TryHandle(e.Character);
+        }
+
+        public bool TryHandle(char character)
+        {
             if (!_game._chatOpen)
             {
                 return false;
             }
 
-            switch (e.Character)
+            switch (character)
             {
                 case '\b':
                     if (_game._chatInput.Length > 0)
@@ -35,9 +40,9 @@ public partial class Game1
                     _game.SubmitChatMessage();
                     break;
                 default:
-                    if (!char.IsControl(e.Character) && _game._chatInput.Length < 120)
+                    if (!char.IsControl(character) && _game._chatInput.Length < 120)
                     {
-                        _game._chatInput += e.Character;
+                        _game._chatInput += character;
                     }
                     break;
             }

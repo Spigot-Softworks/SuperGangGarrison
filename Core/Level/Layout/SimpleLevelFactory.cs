@@ -259,6 +259,11 @@ public static class SimpleLevelFactory
 
     private static void AppendCustomMapEntries(List<LevelCatalogEntry> entries)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
         var customMapsDirectory = Path.Combine(RuntimePaths.ApplicationRoot, "Maps");
         if (!Directory.Exists(customMapsDirectory))
         {
@@ -313,6 +318,11 @@ public static class SimpleLevelFactory
     {
         var fileName = $"{definition.IniKey}.png";
         var runtimePath = ContentRoot.GetPath("StockMaps", fileName);
+        if (OperatingSystem.IsBrowser())
+        {
+            return runtimePath;
+        }
+
         if (File.Exists(runtimePath))
         {
             return runtimePath;

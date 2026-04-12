@@ -1,0 +1,18 @@
+﻿{
+    "id":  "MinegunS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/MinegunS/image 0.png",
+                       "assets/legacy-sprites/Weapons/MinegunS/image 1.png"
+                   ],
+    "originX":  3,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

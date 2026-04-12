@@ -1,0 +1,17 @@
+﻿{
+    "id":  "DemomanBlueJumpS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueJumpS/image 0.png"
+                   ],
+    "originX":  33,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  40,
+                 "bottom":  63
+             }
+}

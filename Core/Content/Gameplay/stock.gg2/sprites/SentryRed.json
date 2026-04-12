@@ -1,0 +1,28 @@
+﻿{
+    "id":  "SentryRed",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 0.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 1.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 2.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 3.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 4.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 5.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 6.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 7.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 8.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 9.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 10.png",
+                       "assets/legacy-sprites/InGameElements/SentryRed/image 11.png"
+                   ],
+    "originX":  22,
+    "originY":  27,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  8,
+                 "top":  19,
+                 "right":  35,
+                 "bottom":  40
+             }
+}

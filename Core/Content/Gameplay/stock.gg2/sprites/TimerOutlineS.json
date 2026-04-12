@@ -1,0 +1,17 @@
+﻿{
+    "id":  "TimerOutlineS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Timer/TimerOutlineS/image 0.png"
+                   ],
+    "originX":  23,
+    "originY":  9,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

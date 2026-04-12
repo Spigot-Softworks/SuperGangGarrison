@@ -14,3 +14,7 @@ tmp_*.cs
 Thumbs.db
 *.user
 *.suo
+Client.Browser/wwwroot/Content/
+artifacts/
+Tests/BrowserSmoke/artifacts/
+Tests/BrowserSmoke/node_modules/

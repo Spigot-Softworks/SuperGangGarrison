@@ -1,0 +1,18 @@
+﻿{
+    "id":  "SentryHUD",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/SentryHUD/image 0.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/SentryHUD/image 1.png"
+                   ],
+    "originX":  0,
+    "originY":  0,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

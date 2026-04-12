@@ -10,6 +10,10 @@ public partial class Game1
 {
     private sealed class GameplayMaterialEffectsController
     {
+        private const int BrowserMaxLooseSheetVisuals = 12;
+        private const int BrowserLooseSheetLifetimeTicks = 90;
+        private const int BrowserLooseSheetFadeTicks = 24;
+        private const float BrowserLooseSheetSpawnChance = 0.4f;
         private readonly Game1 _game;
 
         public GameplayMaterialEffectsController(Game1 game)
@@ -49,7 +53,9 @@ public partial class Game1
                 AdvanceLooseSheetAxis(ref sheetX, sheetY, ref velocityX, horizontal: true);
                 AdvanceLooseSheetAxis(ref sheetY, sheetX, ref velocityY, horizontal: false);
 
-                if (!sheet.IsBurning && IsLooseSheetIgnited(sheetX, sheetY))
+                if (!sheet.IsBurning
+                    && !OperatingSystem.IsBrowser()
+                    && IsLooseSheetIgnited(sheetX, sheetY))
                 {
                     sheet.IsBurning = true;
                     sheet.SpriteName = "SheetBurning";
@@ -173,14 +179,14 @@ public partial class Game1
             for (var index = 0; index < _game._looseSheetVisuals.Count; index += 1)
             {
                 var sheet = _game._looseSheetVisuals[index];
-                var sprite = _game._runtimeAssets.GetSprite(sheet.SpriteName);
-                var alpha = sheet.TicksRemaining <= LooseSheetVisual.FadeTicks
-                    ? sheet.TicksRemaining / (float)LooseSheetVisual.FadeTicks
+                var sprite = _game.GetResolvedSprite(sheet.SpriteName);
+                var alpha = sheet.TicksRemaining <= sheet.FadeTicksRemaining
+                    ? sheet.TicksRemaining / (float)sheet.FadeTicksRemaining
                     : 1f;
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var frameIndex = sheet.IsBurning ? Math.Clamp(sheet.BurnAnimationTicks / 4, 0, sprite.Frames.Count - 1) : 0;
-                    _game._spriteBatch.Draw(sprite.Frames[frameIndex], new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y), null, Color.White * alpha, sheet.RotationRadians, sprite.Origin.ToVector2(), new Vector2(2f, 2f), SpriteEffects.None, 0f);
+                    _game.DrawLoadedSpriteFrame(sprite.Frames[frameIndex], new Vector2(sheet.X - cameraPosition.X, sheet.Y - cameraPosition.Y), null, Color.White * alpha, sheet.RotationRadians, sprite.Origin.ToVector2(), new Vector2(2f, 2f), SpriteEffects.None, 0f);
                     continue;
                 }
 
@@ -196,14 +202,14 @@ public partial class Game1
                 return;
             }
 
-            var shellSprite = _game._runtimeAssets.GetSprite("ShellS");
+            var shellSprite = _game.GetResolvedSprite("ShellS");
             for (var index = 0; index < _game._shellVisuals.Count; index += 1)
             {
                 var shell = _game._shellVisuals[index];
                 if (shellSprite is not null && shellSprite.Frames.Count > 0)
                 {
                     var frameIndex = Math.Clamp(shell.FrameIndex, 0, shellSprite.Frames.Count - 1);
-                    _game._spriteBatch.Draw(shellSprite.Frames[frameIndex], new Vector2(shell.X - cameraPosition.X, shell.Y - cameraPosition.Y), null, Color.White * shell.Alpha, MathHelper.ToRadians(shell.RotationDegrees), shellSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+                    _game.DrawLoadedSpriteFrame(shellSprite.Frames[frameIndex], new Vector2(shell.X - cameraPosition.X, shell.Y - cameraPosition.Y), null, Color.White * shell.Alpha, MathHelper.ToRadians(shell.RotationDegrees), shellSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
                     continue;
                 }
 
@@ -230,9 +236,32 @@ public partial class Game1
         public void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
         {
             string[] sheetSprites = ["SheetFalling1", "SheetFalling2", "SheetFalling3"];
+            if (OperatingSystem.IsBrowser())
+            {
+                if (_game._visualRandom.NextSingle() > BrowserLooseSheetSpawnChance)
+                {
+                    return;
+                }
+
+                while (_game._looseSheetVisuals.Count >= BrowserMaxLooseSheetVisuals)
+                {
+                    _game._looseSheetVisuals.RemoveAt(0);
+                }
+            }
+
             var horizontalVelocity = (initialHorizontalSpeed / ClientUpdateTicksPerSecond) + ((_game._visualRandom.NextSingle() * 0.6f) - 0.3f);
             var verticalVelocity = -0.8f - (_game._visualRandom.NextSingle() * 0.45f);
-            _game._looseSheetVisuals.Add(new LooseSheetVisual(x, y, horizontalVelocity, verticalVelocity, ((_game._visualRandom.NextSingle() * 0.12f) - 0.06f) * MathF.PI, sheetSprites[_game._visualRandom.Next(sheetSprites.Length)]));
+            var lifetimeTicks = OperatingSystem.IsBrowser() ? BrowserLooseSheetLifetimeTicks : LooseSheetVisual.LifetimeTicks;
+            var fadeTicks = OperatingSystem.IsBrowser() ? BrowserLooseSheetFadeTicks : LooseSheetVisual.FadeTicks;
+            _game._looseSheetVisuals.Add(new LooseSheetVisual(
+                x,
+                y,
+                horizontalVelocity,
+                verticalVelocity,
+                ((_game._visualRandom.NextSingle() * 0.12f) - 0.06f) * MathF.PI,
+                sheetSprites[_game._visualRandom.Next(sheetSprites.Length)],
+                lifetimeTicks,
+                fadeTicks));
         }
 
         public bool IsShellBlocked(float x, float y)

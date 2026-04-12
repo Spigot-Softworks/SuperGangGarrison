@@ -85,8 +85,15 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float ModernMineDetonationRadius = 50f;
 
     private readonly Dictionary<byte, BotMemory> _memoryBySlot = new();
+    private readonly Dictionary<byte, PlayerInputSnapshot> _inputsBuffer = new();
+    private readonly Dictionary<byte, ControlledPlayerState> _controlledPlayersBuffer = new();
     private readonly Dictionary<string, BotNavigationRuntimeGraph> _navigationGraphsByKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<PlayerClass, BotNavigationRuntimeGraph> _navigationGraphsByClassBuffer = new();
     private readonly Dictionary<int, int> _modernSpyVisibleTicksByPlayerId = new();
+    private readonly List<PlayerEntity> _allPlayersBuffer = new();
+    private readonly HashSet<int> _activeSpyIdsBuffer = new();
+    private readonly List<int> _staleSpyIdsBuffer = new();
+    private readonly List<byte> _staleMemorySlotsBuffer = new();
     private readonly Random _random = new(1337);
     private int _modernSpyReactTicksThreshold = ModernSpyReactTimeSourceTicks;
     private static readonly ConditionalWeakTable<SimpleLevel, ModernObstacleIndex> ModernObstacleIndexByLevel = new();
@@ -108,14 +115,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
         IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? navigationAssets = null)
     {
-        var inputs = new Dictionary<byte, PlayerInputSnapshot>();
+        _inputsBuffer.Clear();
         if (controlledSlots.Count == 0)
         {
             LastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
-            return inputs;
+            return _inputsBuffer;
         }
 
-        PruneMemory(controlledSlots.Keys);
+        PruneMemory(controlledSlots);
 
         var allPlayers = BuildPlayerRoster(world);
         var controlledPlayers = BuildControlledPlayerRoster(world, controlledSlots);
@@ -144,7 +151,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (!player.IsAlive)
             {
                 ResetTransientState(memory, keepObservedPosition: false);
-                inputs[slot] = default;
+                _inputsBuffer[slot] = default;
                 if (diagnosticsEntries is not null)
                 {
                     diagnosticsEntries.Add(CreateRespawningDiagnosticsEntry(entry.Value.ControlledSlot, player));
@@ -153,7 +160,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             }
 
             const BotRole role = BotRole.None;
-            inputs[slot] = BuildInputForBot(
+            _inputsBuffer[slot] = BuildInputForBot(
                 world,
                 entry.Value.ControlledSlot,
                 player,
@@ -184,7 +191,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 cabinetSeekCount,
                 unstickCount);
 
-        return inputs;
+        return _inputsBuffer;
     }
 
     private PlayerInputSnapshot BuildInputForBot(
@@ -305,11 +312,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             DropIntel: dropIntel);
     }
 
-    private static Dictionary<byte, ControlledPlayerState> BuildControlledPlayerRoster(
+    private Dictionary<byte, ControlledPlayerState> BuildControlledPlayerRoster(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
-        var roster = new Dictionary<byte, ControlledPlayerState>();
+        _controlledPlayersBuffer.Clear();
         foreach (var entry in controlledSlots)
         {
             if (!world.TryGetNetworkPlayer(entry.Key, out var player)
@@ -318,31 +325,31 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            roster[entry.Key] = new ControlledPlayerState(entry.Value, player);
+            _controlledPlayersBuffer[entry.Key] = new ControlledPlayerState(entry.Value, player);
         }
 
-        return roster;
+        return _controlledPlayersBuffer;
     }
 
-    private static List<PlayerEntity> BuildPlayerRoster(SimulationWorld world)
+    private List<PlayerEntity> BuildPlayerRoster(SimulationWorld world)
     {
-        var players = new List<PlayerEntity>();
+        _allPlayersBuffer.Clear();
         foreach (var entry in world.EnumerateActiveNetworkPlayers())
         {
-            players.Add(entry.Player);
+            _allPlayersBuffer.Add(entry.Player);
         }
 
         if (world.EnemyPlayerEnabled)
         {
-            players.Add(world.EnemyPlayer);
+            _allPlayersBuffer.Add(world.EnemyPlayer);
         }
 
         if (world.FriendlyDummyEnabled)
         {
-            players.Add(world.FriendlyDummy);
+            _allPlayersBuffer.Add(world.FriendlyDummy);
         }
 
-        return players;
+        return _allPlayersBuffer;
     }
 
     private static PlayerEntity? FindCarrier(IEnumerable<PlayerEntity> players)
@@ -392,10 +399,10 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private Dictionary<PlayerClass, BotNavigationRuntimeGraph> BuildNavigationGraphs(
         IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? navigationAssets)
     {
-        var graphs = new Dictionary<PlayerClass, BotNavigationRuntimeGraph>();
+        _navigationGraphsByClassBuffer.Clear();
         if (navigationAssets is null || navigationAssets.Count == 0)
         {
-            return graphs;
+            return _navigationGraphsByClassBuffer;
         }
 
         foreach (var entry in navigationAssets)
@@ -418,10 +425,10 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 _navigationGraphsByKey[cacheKey] = graph;
             }
 
-            graphs[entry.Key] = graph;
+            _navigationGraphsByClassBuffer[entry.Key] = graph;
         }
 
-        return graphs;
+        return _navigationGraphsByClassBuffer;
     }
 
     private static NavigationDecision ResolveNavigationDecision(
@@ -3697,7 +3704,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
     private void UpdateModernSpyVisibilityMemory(List<PlayerEntity> allPlayers)
     {
-        var activeSpyIds = new HashSet<int>();
+        _activeSpyIdsBuffer.Clear();
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var player = allPlayers[index];
@@ -3706,7 +3713,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            activeSpyIds.Add(player.Id);
+            _activeSpyIdsBuffer.Add(player.Id);
             _modernSpyVisibleTicksByPlayerId.TryGetValue(player.Id, out var visibleTicks);
             var isVisibleToBots = player.SpyCloakAlpha > 0.2f || player.IsSpyBackstabAnimating || !player.IsSpyCloaked;
             visibleTicks = isVisibleToBots
@@ -3715,18 +3722,18 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             _modernSpyVisibleTicksByPlayerId[player.Id] = visibleTicks;
         }
 
-        var staleSpyIds = new List<int>();
+        _staleSpyIdsBuffer.Clear();
         foreach (var entry in _modernSpyVisibleTicksByPlayerId)
         {
-            if (!activeSpyIds.Contains(entry.Key))
+            if (!_activeSpyIdsBuffer.Contains(entry.Key))
             {
-                staleSpyIds.Add(entry.Key);
+                _staleSpyIdsBuffer.Add(entry.Key);
             }
         }
 
-        for (var index = 0; index < staleSpyIds.Count; index += 1)
+        for (var index = 0; index < _staleSpyIdsBuffer.Count; index += 1)
         {
-            _modernSpyVisibleTicksByPlayerId.Remove(staleSpyIds[index]);
+            _modernSpyVisibleTicksByPlayerId.Remove(_staleSpyIdsBuffer[index]);
         }
     }
 
@@ -5101,21 +5108,20 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && bottomA >= topB;
     }
 
-    private void PruneMemory(IEnumerable<byte> activeSlots)
+    private void PruneMemory(IReadOnlyDictionary<byte, ControlledBotSlot> activeSlots)
     {
-        var activeSet = activeSlots.ToHashSet();
-        var staleSlots = new List<byte>();
+        _staleMemorySlotsBuffer.Clear();
         foreach (var entry in _memoryBySlot)
         {
-            if (!activeSet.Contains(entry.Key))
+            if (!activeSlots.ContainsKey(entry.Key))
             {
-                staleSlots.Add(entry.Key);
+                _staleMemorySlotsBuffer.Add(entry.Key);
             }
         }
 
-        for (var index = 0; index < staleSlots.Count; index += 1)
+        for (var index = 0; index < _staleMemorySlotsBuffer.Count; index += 1)
         {
-            _memoryBySlot.Remove(staleSlots[index]);
+            _memoryBySlot.Remove(_staleMemorySlotsBuffer[index]);
         }
     }
 

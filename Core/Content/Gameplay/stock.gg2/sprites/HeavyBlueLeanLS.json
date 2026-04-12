@@ -1,0 +1,17 @@
+﻿{
+    "id":  "HeavyBlueLeanLS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueLeanLS/image 0.png"
+                   ],
+    "originX":  19,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  10,
+                 "top":  28,
+                 "right":  28,
+                 "bottom":  63
+             }
+}

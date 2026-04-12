@@ -1,0 +1,40 @@
+﻿{
+    "id":  "RocketlauncherFRS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 23.png"
+                   ],
+    "originX":  16,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

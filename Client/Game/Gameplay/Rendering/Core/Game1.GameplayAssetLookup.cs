@@ -6,7 +6,12 @@ public partial class Game1
 {
     private LoadedGameMakerSprite? GetResolvedSprite(string spriteName)
     {
-        return _gameplayModAssets?.GetSprite(spriteName)
-            ?? _runtimeAssets.GetSprite(spriteName);
+        var gameplaySprite = _gameplayModAssets?.GetSprite(spriteName);
+        if (gameplaySprite is not null || _clientSettings.DisableLegacyGameplaySpriteFallback)
+        {
+            return gameplaySprite;
+        }
+
+        return _runtimeAssets?.GetSprite(spriteName);
     }
 }

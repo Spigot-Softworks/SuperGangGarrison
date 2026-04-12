@@ -34,6 +34,22 @@ public static class OpenGarrisonPluginManifestLoader
             }
 
             var json = File.ReadAllText(manifestPath);
+            return TryLoadFromJson(json, out manifest, out error);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public static bool TryLoadFromJson(string json, out OpenGarrisonPluginManifest manifest, out string error)
+    {
+        manifest = default!;
+        error = string.Empty;
+
+        try
+        {
             manifest = JsonSerializer.Deserialize<OpenGarrisonPluginManifest>(json, JsonOptions) ?? new OpenGarrisonPluginManifest();
         }
         catch (Exception ex)

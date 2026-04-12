@@ -1,0 +1,25 @@
+﻿{
+    "id":  "ScoutBlueTauntS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 0.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 1.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 2.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 3.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 4.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 5.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 6.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 7.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 8.png"
+                   ],
+    "originX":  30,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  25,
+                 "top":  30,
+                 "right":  36,
+                 "bottom":  63
+             }
+}

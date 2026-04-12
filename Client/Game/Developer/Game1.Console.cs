@@ -62,8 +62,14 @@ public partial class Game1
     private void ExecuteConsoleCommand()
     {
         var commandText = _consoleInput.Trim();
-        AddConsoleLine($"> {commandText}");
         _consoleInput = string.Empty;
+        ExecuteConsoleCommand(commandText);
+    }
+
+    private void ExecuteConsoleCommand(string commandText)
+    {
+        commandText = commandText.Trim();
+        AddConsoleLine($"> {commandText}");
         if (string.IsNullOrWhiteSpace(commandText))
         {
             return;
@@ -415,6 +421,17 @@ public partial class Game1
                 AddConsoleLine($"unknown command: {command}");
                 break;
         }
+    }
+
+    public bool TryRunBrowserAutomationConsoleCommand(string commandText)
+    {
+        if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(commandText))
+        {
+            return false;
+        }
+
+        ExecuteConsoleCommand(commandText);
+        return true;
     }
 
     private static bool TryParseSingleInt(string[] parts, out int value)

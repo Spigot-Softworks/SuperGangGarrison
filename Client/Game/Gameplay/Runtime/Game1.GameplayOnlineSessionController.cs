@@ -31,6 +31,12 @@ public partial class Game1
             string? requestedMap,
             string? mapRotationFile)
         {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                return;
+            }
+
             _game.PrepareHostedServerLaunchUi(closeHostSetup: true, disconnectNetworkClient: true);
 
             if (!_game.TryStartHostedServerBackground(
@@ -58,6 +64,12 @@ public partial class Game1
 
         public bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
         {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
+                return false;
+            }
+
             if (_game._networkClient.Connect(host, port, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out var error))
             {
                 _game.RecordRecentConnection(host, port);

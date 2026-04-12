@@ -1,0 +1,17 @@
+﻿{
+    "id":  "QuerlyBlueDeadS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueDeadS/image 0.png"
+                   ],
+    "originX":  32,
+    "originY":  52,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  25,
+                 "top":  40,
+                 "right":  39,
+                 "bottom":  63
+             }
+}

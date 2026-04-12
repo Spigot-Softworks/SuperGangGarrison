@@ -363,15 +363,7 @@ public sealed partial class PlayerEntity
             right = x + CollisionRightOffset;
         }
 
-        float? obstacleTop = null;
-
-        foreach (var solid in level.Solids)
-        {
-            if (left < solid.Right && right > solid.Left && top < solid.Bottom && bottom > solid.Top)
-            {
-                obstacleTop = obstacleTop.HasValue ? MathF.Min(obstacleTop.Value, solid.Top) : solid.Top;
-            }
-        }
+        var obstacleTop = level.FindBlockingSolidTop(left, top, right, bottom);
 
         foreach (var wall in level.GetRoomObjects(RoomObjectType.PlayerWall))
         {

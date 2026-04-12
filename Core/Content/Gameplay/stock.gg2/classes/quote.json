@@ -12,6 +12,13 @@
     "maxAirJumps": 0,
     "tauntLengthFrames": 16
   },
+  "presentation": {
+    "spritePrefix": "Querly",
+    "baseSuffix": "S",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "HS",
+    "deadSuffix": "DeadS"
+  },
   "loadouts": {
     "quote.stock": {
       "id": "quote.stock",

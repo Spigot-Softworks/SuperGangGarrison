@@ -26,15 +26,63 @@ public partial class Game1
 
     private void LoadGameplayLoadoutMenuTextures()
     {
-        _gameplayLoadoutClassStripTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "LoadoutStrip.png");
-        _gameplayLoadoutClassSelectionTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "LoadoutSelectionStrip.png");
-        _gameplayLoadoutBackgroundBarTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "LoadoutBackgroundBar.png");
-        _gameplayLoadoutDescriptionBoardTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "DescriptionBoardS.png");
-        _gameplayLoadoutSelectionAtlasTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "SelectionS.png");
-        _gameplayLoadoutSelectionTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "SelectionS2.png");
-        _gameplayLoadoutScrollerTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "ScrollerS.png");
-        _gameplayLoadoutPageTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "PageS.png");
-        _gameplayLoadoutBackButtonTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "BackS.png");
+        _gameplayLoadoutClassStripTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutStrip.png");
+        _gameplayLoadoutClassSelectionTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutSelectionStrip.png");
+        _gameplayLoadoutBackgroundBarTexture = TryLoadGameplayLoadoutMenuTexture("LoadoutBackgroundBar.png");
+        _gameplayLoadoutDescriptionBoardTexture = TryLoadGameplayLoadoutMenuTexture("DescriptionBoardS.png");
+        LoadGameplayLoadoutSelectionAtlasTextures();
+        _gameplayLoadoutSelectionTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS2.png");
+        _gameplayLoadoutScrollerTexture = TryLoadGameplayLoadoutMenuTexture("ScrollerS.png");
+        _gameplayLoadoutPageTexture = TryLoadGameplayLoadoutMenuTexture("PageS.png");
+        _gameplayLoadoutBackButtonTexture = TryLoadGameplayLoadoutMenuTexture("BackS.png");
+    }
+
+    private LoadedSpriteFrame? TryLoadGameplayLoadoutMenuTexture(string fileName)
+    {
+        try
+        {
+            return LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", fileName);
+        }
+        catch (Exception ex) when (OperatingSystem.IsBrowser())
+        {
+            AddConsoleLine($"browser skipped loadout texture {fileName}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private void LoadGameplayLoadoutSelectionAtlasTextures()
+    {
+        _gameplayLoadoutSelectionAtlasTexture?.Dispose();
+        _gameplayLoadoutSelectionAtlasTexture = null;
+
+        foreach (var chunk in _gameplayLoadoutSelectionAtlasChunks)
+        {
+            chunk.Dispose();
+        }
+
+        _gameplayLoadoutSelectionAtlasChunks.Clear();
+
+        if (!OperatingSystem.IsBrowser())
+        {
+            _gameplayLoadoutSelectionAtlasTexture = LoadMenuTexture("Sprites", "Menu", "RandomizerLoadout", "SelectionS.png");
+            return;
+        }
+
+        for (var chunkIndex = 0; ; chunkIndex += 1)
+        {
+            var relativePath = $"Content/Sprites/Menu/RandomizerLoadout/SelectionS.chunk{chunkIndex}.png";
+            if (!TryLoadBrowserFrameByRelativePath(relativePath, out var chunkTexture))
+            {
+                break;
+            }
+
+            _gameplayLoadoutSelectionAtlasChunks.Add(chunkTexture!);
+        }
+
+        if (_gameplayLoadoutSelectionAtlasChunks.Count == 0)
+        {
+            _gameplayLoadoutSelectionAtlasTexture = TryLoadGameplayLoadoutMenuTexture("SelectionS.png");
+        }
     }
 
     private void UpdateGameplayLoadoutMenu(KeyboardState keyboard, MouseState mouse)
@@ -290,7 +338,7 @@ public partial class Game1
     {
         if (_gameplayLoadoutClassSelectionTexture is not null)
         {
-            _spriteBatch.Draw(_gameplayLoadoutClassSelectionTexture, layout.ClassStripBounds, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutClassSelectionTexture, layout.ClassStripBounds, Color.White);
         }
         else
         {
@@ -354,7 +402,7 @@ public partial class Game1
         {
             var frameWidth = _gameplayLoadoutScrollerTexture.Width / 5;
             var source = new Rectangle(frameWidth * selectedOptionIndex, 0, frameWidth, _gameplayLoadoutScrollerTexture.Height);
-            _spriteBatch.Draw(_gameplayLoadoutScrollerTexture, columnBounds, source, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
         }
         else
         {
@@ -402,7 +450,7 @@ public partial class Game1
 
         if (_gameplayLoadoutDescriptionBoardTexture is not null)
         {
-            _spriteBatch.Draw(_gameplayLoadoutDescriptionBoardTexture, layout.DescriptionBounds, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutDescriptionBoardTexture, layout.DescriptionBounds, Color.White);
         }
         else
         {
@@ -432,7 +480,7 @@ public partial class Game1
                 0,
                 _gameplayLoadoutBackButtonTexture.Width / 2,
                 _gameplayLoadoutBackButtonTexture.Height);
-            _spriteBatch.Draw(_gameplayLoadoutBackButtonTexture, layout.BackButtonBounds, source, Color.White);
+            DrawLoadedSpriteFrame(_gameplayLoadoutBackButtonTexture, layout.BackButtonBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(layout.BackButtonBounds.Width / (float)source.Width, layout.BackButtonBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
         }
         else
         {
@@ -457,13 +505,14 @@ public partial class Game1
 
     private void DrawGameplayLoadoutMenuOption(Rectangle bounds, GameplayLoadoutMenuSlotOption option, bool hovered, bool canEquipClass)
     {
+        var usedSelectionAtlas = false;
         if (GameplayLoadoutMenuPresentation.TryGetSelectionFrame(option.Item.Id, out var frameIndex))
         {
-            if (_gameplayLoadoutSelectionAtlasTexture is not null)
+            var drawFrame = option.IsSelected ? frameIndex + 90 : frameIndex;
+            var source = new Rectangle(drawFrame * 40, 0, 40, 24);
+            if (TryDrawGameplayLoadoutSelectionAtlas(bounds, source))
             {
-                var drawFrame = option.IsSelected ? frameIndex + 90 : frameIndex;
-                var source = new Rectangle(drawFrame * 40, 0, 40, 24);
-                _spriteBatch.Draw(_gameplayLoadoutSelectionAtlasTexture, bounds, source, Color.White);
+                usedSelectionAtlas = true;
             }
             else
             {
@@ -480,7 +529,7 @@ public partial class Game1
             DrawGameplayLoadoutMenuOutline(bounds, new Color(255, 239, 198), 2);
         }
 
-        if (!GameplayLoadoutMenuPresentation.TryGetSelectionFrame(option.Item.Id, out _))
+        if (!usedSelectionAtlas)
         {
             var textColor = option.IsSelected ? new Color(51, 40, 31) : new Color(240, 233, 221);
             DrawCenteredMenuFontText(option.Item.DisplayName, bounds, textColor, 1f, 0.5f);
@@ -490,6 +539,35 @@ public partial class Game1
         {
             DrawGameplayLoadoutMenuOutline(bounds, new Color(154, 107, 100), 2);
         }
+    }
+
+    private bool TryDrawGameplayLoadoutSelectionAtlas(Rectangle destination, Rectangle source)
+    {
+        if (_gameplayLoadoutSelectionAtlasTexture is not null)
+        {
+            DrawLoadedSpriteFrame(_gameplayLoadoutSelectionAtlasTexture, destination.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(destination.Width / (float)source.Width, destination.Height / (float)source.Height), SpriteEffects.None, 0f);
+            return true;
+        }
+
+        if (_gameplayLoadoutSelectionAtlasChunks.Count == 0)
+        {
+            return false;
+        }
+
+        var sourceOffset = source.X;
+        foreach (var chunk in _gameplayLoadoutSelectionAtlasChunks)
+        {
+            if (sourceOffset < chunk.Width)
+            {
+                var chunkSource = new Rectangle(sourceOffset, source.Y, source.Width, source.Height);
+                DrawLoadedSpriteFrame(chunk, destination.Location.ToVector2(), chunkSource, Color.White, 0f, Vector2.Zero, new Vector2(destination.Width / (float)chunkSource.Width, destination.Height / (float)chunkSource.Height), SpriteEffects.None, 0f);
+                return true;
+            }
+
+            sourceOffset -= chunk.Width;
+        }
+
+        return false;
     }
 
     private void DrawGameplayLoadoutMenuOutline(Rectangle bounds, Color color, int thickness)
@@ -518,7 +596,7 @@ public partial class Game1
             return;
         }
 
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return;
@@ -541,7 +619,7 @@ public partial class Game1
         var spriteName = GetClassSelectPortraitAnimationSpriteName(hoverIndex);
         if (spriteName is not null)
         {
-            var sprite = _runtimeAssets.GetSprite(spriteName);
+            var sprite = GetResolvedSprite(spriteName);
             if (sprite is not null && sprite.Frames.Count > 0)
             {
                 var perTeamFrames = Math.Max(1, sprite.Frames.Count / 2);

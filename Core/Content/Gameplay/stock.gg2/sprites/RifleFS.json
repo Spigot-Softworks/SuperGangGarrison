@@ -1,0 +1,30 @@
+﻿{
+    "id":  "RifleFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/RifleFS/image 13.png"
+                   ],
+    "originX":  16,
+    "originY":  12,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

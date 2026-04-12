@@ -111,7 +111,7 @@ public partial class Game1
                 return;
             }
 
-            var sprite = _game._runtimeAssets.GetSprite("FlameS");
+            var sprite = _game.GetResolvedSprite("FlameS");
             var sourceFrame = (int)((_game._world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _game._config.TicksPerSecond);
             var flameColor = Color.White * alpha;
             for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
@@ -120,7 +120,7 @@ public partial class Game1
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var frameIndex = player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count);
-                    _game._spriteBatch.Draw(sprite.Frames[frameIndex], new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+                    _game.DrawLoadedSpriteFrame(sprite.Frames[frameIndex], new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
                     continue;
                 }
 

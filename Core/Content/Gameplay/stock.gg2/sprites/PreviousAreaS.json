@@ -1,0 +1,17 @@
+﻿{
+    "id":  "PreviousAreaS",
+    "framePaths":  [
+                       "assets/legacy-sprites/MapElements/PreviousAreaS/image 0.png"
+                   ],
+    "originX":  32,
+    "originY":  16,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

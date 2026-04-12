@@ -87,9 +87,9 @@ public partial class Game1
                 1f);
         }
 
-        _clientPluginHost?.NotifyScoreboardDraw(
-            new ScoreboardCanvas(this),
-            new ClientScoreboardRenderState(
+        if (!OperatingSystem.IsBrowser())
+        {
+            NotifyClientPluginsScoreboardDraw(
                 scoreboardBounds,
                 alpha,
                 serverMetaLabel,
@@ -97,7 +97,8 @@ public partial class Game1
                 redTeam.Count,
                 blueTeam.Count,
                 redCenterText,
-                blueCenterText));
+                blueCenterText);
+        }
     }
 
     private List<PlayerEntity> GetScoreboardPlayers(PlayerTeam team)
@@ -318,7 +319,7 @@ public partial class Game1
     {
         try
         {
-            var sprite = _runtimeAssets.GetSprite("HaxxyBadgeS");
+            var sprite = GetResolvedSprite("HaxxyBadgeS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return 0f;

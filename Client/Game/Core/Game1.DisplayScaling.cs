@@ -10,6 +10,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private bool _logicalFrameRendersDirectlyToBackBuffer;
+
     private int ViewportWidth => GetViewportDimensions(_ingameResolution).X;
 
     private int ViewportHeight => GetViewportDimensions(_ingameResolution).Y;
@@ -22,7 +24,7 @@ public partial class Game1
     private void ApplyGraphicsSettings()
     {
         _graphics.IsFullScreen = _clientSettings.Fullscreen;
-        _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
+        _graphics.SynchronizeWithVerticalRetrace = !OperatingSystem.IsBrowser() && _clientSettings.VSync;
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution);
         _graphics.ApplyChanges();
@@ -63,6 +65,17 @@ public partial class Game1
 
     private void BeginLogicalFrame(Color clearColor)
     {
+        _logicalFrameRendersDirectlyToBackBuffer = ShouldRenderDirectlyToBackBuffer();
+        if (_logicalFrameRendersDirectlyToBackBuffer)
+        {
+            WriteGameplayRenderTrace("frame beginlogical clear-backbuffer-direct");
+            GraphicsDevice.Clear(clearColor);
+            WriteGameplayRenderTrace("frame beginlogical spritebatchbegin-direct");
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            WriteGameplayRenderTrace("frame beginlogical done-direct");
+            return;
+        }
+
         EnsureGameRenderTarget();
         WriteGameplayRenderTrace("frame beginlogical setrendertarget");
         GraphicsDevice.SetRenderTarget(_gameRenderTarget);
@@ -75,6 +88,15 @@ public partial class Game1
 
     private void EndLogicalFrame()
     {
+        if (_logicalFrameRendersDirectlyToBackBuffer)
+        {
+            WriteGameplayRenderTrace("frame endlogical spritebatchend-direct");
+            _spriteBatch.End();
+            WriteGameplayRenderTrace("frame endlogical done-direct");
+            _logicalFrameRendersDirectlyToBackBuffer = false;
+            return;
+        }
+
         WriteGameplayRenderTrace("frame endlogical spritebatchend-1");
         _spriteBatch.End();
         WriteGameplayRenderTrace("frame endlogical setrendertarget-null");
@@ -87,6 +109,7 @@ public partial class Game1
         _spriteBatch.Draw(_gameRenderTarget, GetPresentationDestinationRectangle(), Color.White);
         WriteGameplayRenderTrace("frame endlogical spritebatchend-2");
         _spriteBatch.End();
+        _logicalFrameRendersDirectlyToBackBuffer = false;
         WriteGameplayRenderTrace("frame endlogical done");
     }
 
@@ -103,8 +126,30 @@ public partial class Game1
         return GetGameplayDestinationRectangle(actualWidth, actualHeight);
     }
 
+    private bool ShouldRenderDirectlyToBackBuffer()
+    {
+        if (ShouldUseNavEditorWindowGutter())
+        {
+            return false;
+        }
+
+        var viewport = GraphicsDevice.Viewport;
+        return viewport.Width == ViewportWidth
+            && viewport.Height == ViewportHeight;
+    }
+
     private Rectangle GetInputDestinationRectangle()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            var viewportWidth = GraphicsDevice.Viewport.Width;
+            var viewportHeight = GraphicsDevice.Viewport.Height;
+            if (viewportWidth > 0 && viewportHeight > 0)
+            {
+                return GetGameplayDestinationRectangle(viewportWidth, viewportHeight);
+            }
+        }
+
         var clientBounds = Window.ClientBounds;
         var inputWidth = clientBounds.Width;
         var inputHeight = clientBounds.Height;

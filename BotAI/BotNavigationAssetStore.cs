@@ -1,6 +1,7 @@
 using OpenGarrison.Core;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text;
 
 namespace OpenGarrison.BotAI;
 
@@ -145,6 +146,14 @@ public static class BotNavigationAssetStore
         }
 
         return null;
+    }
+
+    public static IReadOnlyList<string> EnumerateModernShippedRelativePaths(string levelName, int mapAreaIndex)
+    {
+        return EnumerateShippedLevelNameCandidates(levelName)
+            .Select(candidateLevelName => $"Content/BotNav/{GetModernAssetFileName(candidateLevelName, mapAreaIndex)}")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static BotNavigationLoadResult LoadModernAssets(
@@ -468,7 +477,7 @@ public static class BotNavigationAssetStore
     {
         candidate = null;
         failureMessage = string.Empty;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || !AssetExists(path))
         {
             return false;
         }
@@ -677,7 +686,11 @@ public static class BotNavigationAssetStore
         asset = null;
         try
         {
-            var json = File.ReadAllText(path);
+            if (!TryReadAssetText(path, out var json))
+            {
+                return false;
+            }
+
             asset = JsonSerializer.Deserialize<BotNavigationAsset>(json, SerializerOptions);
             return asset is not null;
         }
@@ -720,6 +733,11 @@ public static class BotNavigationAssetStore
     private static string? ResolvePath(string fileName)
     {
         var runtimePath = ContentRoot.GetPath("BotNav", fileName);
+        if (OperatingSystem.IsBrowser())
+        {
+            return runtimePath;
+        }
+
         if (File.Exists(runtimePath))
         {
             return runtimePath;
@@ -732,6 +750,42 @@ public static class BotNavigationAssetStore
         }
 
         return null;
+    }
+
+    private static bool AssetExists(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return File.Exists(path)
+            || OperatingSystem.IsBrowser() && BrowserContentCatalog.TryGetBinaryForPath(path, out _);
+    }
+
+    private static bool TryReadAssetText(string path, out string json)
+    {
+        json = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (OperatingSystem.IsBrowser()
+            && BrowserContentCatalog.TryGetBinaryForPath(path, out var bytes)
+            && bytes.Length > 0)
+        {
+            json = Encoding.UTF8.GetString(bytes);
+            return true;
+        }
+
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        json = File.ReadAllText(path);
+        return true;
     }
 
     private static IEnumerable<string> EnumerateShippedLevelNameCandidates(string levelName)

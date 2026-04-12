@@ -7,6 +7,10 @@
     <PublishReadyToRun>false</PublishReadyToRun>
     <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <OutputType>Library</OutputType>
+    <DefineConstants>$(DefineConstants);BROWSER_KNI</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup>
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
     <ApplicationIcon>Properties\Icon.ico</ApplicationIcon>
@@ -26,10 +30,15 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.*" />
-    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
-    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" />
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
+    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Core\Content\**\*" Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb">
@@ -40,16 +49,28 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BotAI\OpenGarrison.BotAI.csproj" />
+    <ProjectReference Include="..\Client.Shared\OpenGarrison.Client.Shared.csproj" />
     <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
-    <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj">
+      <AdditionalProperties>OpenGarrisonClientAsLibrary=true</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <ProjectReference Include="..\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\OpenGarrison.Client.Plugins.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <Compile Remove="obj\**\*.cs" />
+    <Compile Remove="Program.cs" />
+  </ItemGroup>
 
   <Target Name="MirrorPackagedClientPluginsToOutput"
           AfterTargets="Build"
-          Condition="Exists('..\Plugins\Packaged\Client')">
+          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('..\Plugins\Packaged\Client')">
     <PropertyGroup>
       <PackagedClientPluginsSource>$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client\</PackagedClientPluginsSource>
       <PackagedClientPluginsDestination>$(TargetDir)Plugins\Client\</PackagedClientPluginsDestination>

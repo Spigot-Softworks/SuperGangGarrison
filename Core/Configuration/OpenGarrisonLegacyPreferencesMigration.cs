@@ -30,6 +30,11 @@ public static class OpenGarrisonLegacyPreferencesMigration
 
     public static bool TryMigrate(string? destinationPath = null)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return false;
+        }
+
         var resolvedPath = destinationPath ?? RuntimePaths.GetConfigPath(OpenGarrisonPreferencesDocument.DefaultFileName);
         if (File.Exists(resolvedPath))
         {

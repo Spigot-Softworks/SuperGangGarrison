@@ -1,0 +1,18 @@
+﻿{
+    "id":  "ControlPointRedS",
+    "framePaths":  [
+                       "assets/legacy-sprites/MapElements/ControlPointRedS/image 0.png",
+                       "assets/legacy-sprites/MapElements/ControlPointRedS/image 1.png"
+                   ],
+    "originX":  12,
+    "originY":  12,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

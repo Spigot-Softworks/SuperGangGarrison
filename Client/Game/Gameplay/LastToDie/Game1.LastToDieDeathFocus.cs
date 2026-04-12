@@ -287,16 +287,22 @@ public partial class Game1
 
         EnsureLastToDieDeathFocusTarget(viewportWidth, viewportHeight);
         var focusCameraPosition = GetLastToDieDeathFocusCameraTopLeft(viewportWidth, viewportHeight);
+        WriteGameplayRenderTrace("lasttodie focus setrendertarget");
         GraphicsDevice.SetRenderTarget(_lastToDieDeathFocusTarget);
         GraphicsDevice.Clear(new Color(24, 32, 48));
+        WriteGameplayRenderTrace("lasttodie focus spritebatchbegin");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        WriteGameplayRenderTrace("lasttodie focus drawworld");
         DrawGameplayWorldForCamera(
             focusCameraPosition,
             viewportWidth,
             viewportHeight,
             skippedDeadBodySourcePlayerId: _lastToDieDeathFocus!.SourcePlayerId);
+        WriteGameplayRenderTrace("lasttodie focus drawcorpse");
         DrawLastToDieDeathFocusCorpse(focusCameraPosition);
+        WriteGameplayRenderTrace("lasttodie focus spritebatchend");
         _spriteBatch.End();
+        WriteGameplayRenderTrace("lasttodie focus setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
 
         PrepareLastToDieFailureCorpseOverlayIfNeeded(viewportWidth, viewportHeight);
@@ -317,8 +323,10 @@ public partial class Game1
         }
 
         var corpsePosition = new Vector2(viewportWidth / 2f, viewportHeight * 0.54f);
+        WriteGameplayRenderTrace("lasttodie failure setrendertarget");
         GraphicsDevice.SetRenderTarget(_lastToDieFailureCorpseTarget);
         GraphicsDevice.Clear(Color.Transparent);
+        WriteGameplayRenderTrace("lasttodie failure spritebatchbegin");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
         var syntheticTicksRemaining = Math.Max(
             0,
@@ -340,10 +348,13 @@ public partial class Game1
             pluginAnimationKind));
         if (!_lastToDieFailureCorpseTargetHasVisual)
         {
+            WriteGameplayRenderTrace("lasttodie failure drawfallbackcorpse");
             _lastToDieFailureCorpseTargetHasVisual = TryDrawLastToDieFailureCorpseSprite(corpsePosition, _lastToDieDeathFocus);
         }
 
+        WriteGameplayRenderTrace("lasttodie failure spritebatchend");
         _spriteBatch.End();
+        WriteGameplayRenderTrace("lasttodie failure setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
     }
 
@@ -355,13 +366,13 @@ public partial class Game1
             return false;
         }
 
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
         }
 
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             sprite.Frames[0],
             corpsePosition,
             null,

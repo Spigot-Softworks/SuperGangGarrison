@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.BotAI;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -15,16 +16,35 @@ public partial class Game1
 
     private void LoadPracticeNavigationAssetsForCurrentLevel()
     {
+        EnsureBrowserPracticeNavigationAssetsForCurrentLevel();
         _practiceNavigationAssets = BotNavigationAssetStore.LoadForLevel(
             _world.Level,
             useModernRuntimeGeneration: true,
-            allowSynchronousGeneration: true,
+            allowSynchronousGeneration: !OperatingSystem.IsBrowser(),
             preferFreshModernGeneration: false);
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary());
         foreach (var status in _practiceNavigationAssets.Statuses.Where(static status => status.IsLoaded && !status.IsStructurallyValid))
         {
             AddConsoleLine($"nav {BotNavigationClasses.GetShortLabel(status.ClassId)} invalid: {status.StructuralMessage}");
         }
+    }
+
+    private void EnsureBrowserPracticeNavigationAssetsForCurrentLevel()
+    {
+        if (!OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        foreach (var relativePath in BotNavigationAssetStore.EnumerateModernShippedRelativePaths(_world.Level.Name, _world.Level.MapAreaIndex))
+        {
+            if (BrowserContentCatalog.TryGetBinary(relativePath, out _))
+            {
+                return;
+            }
+        }
+
+        AddConsoleLine($"nav preload missing {_world.Level.Name}.a{Math.Max(1, _world.Level.MapAreaIndex)}");
     }
 
     private string GetPracticeNavigationDiagnosticsSummary()

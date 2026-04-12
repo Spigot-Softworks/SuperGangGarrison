@@ -424,14 +424,95 @@ local function normalize_command_lookup(text)
     return normalized
 end
 
-local function split_first_word(text)
+local function is_whitespace(character)
+    return character == " "
+        or character == "\t"
+        or character == "\r"
+        or character == "\n"
+end
+
+local function tokenize_arguments(text)
     local normalized = trim(text)
-    local space_index = normalized:find("%s")
-    if space_index == nil then
-        return normalized, ""
+    local tokens = {}
+    local token_count = 0
+    local length = #normalized
+    local index = 1
+
+    while index <= length do
+        while index <= length and is_whitespace(normalized:sub(index, index)) do
+            index = index + 1
+        end
+
+        if index > length then
+            break
+        end
+
+        local token = ""
+        local current = normalized:sub(index, index)
+        local quoted = current == "\""
+        if quoted then
+            index = index + 1
+        end
+
+        while index <= length do
+            current = normalized:sub(index, index)
+            if current == "\\" and index < length then
+                local escaped = normalized:sub(index + 1, index + 1)
+                if escaped == "\"" or escaped == "\\" then
+                    token = token .. escaped
+                    index = index + 2
+                else
+                    token = token .. current
+                    index = index + 1
+                end
+            elseif quoted then
+                if current == "\"" then
+                    index = index + 1
+                    break
+                end
+
+                token = token .. current
+                index = index + 1
+            else
+                if is_whitespace(current) then
+                    break
+                end
+
+                token = token .. current
+                index = index + 1
+            end
+        end
+
+        token_count = token_count + 1
+        tokens[token_count] = token
     end
 
-    return normalized:sub(1, space_index - 1), trim(normalized:sub(space_index + 1))
+    return tokens
+end
+
+local function join_tokens(tokens, start_index)
+    local combined = ""
+    local index = start_index or 1
+    while tokens[index] ~= nil do
+        if combined ~= "" then
+            combined = combined .. " "
+        end
+
+        combined = combined .. tostring(tokens[index])
+        index = index + 1
+    end
+
+    return combined
+end
+
+local function split_first_word(text)
+    local tokens = tokenize_arguments(text)
+    local first = tokens[1]
+    if first == nil then
+        return "", ""
+    end
+
+    return first, join_tokens(tokens, 2)
 end
 
 local function get_sorted_command_specs()

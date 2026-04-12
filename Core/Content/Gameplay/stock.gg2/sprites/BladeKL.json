@@ -1,0 +1,18 @@
+﻿{
+    "id":  "BladeKL",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Kill Icons/BladeKL/image 0.png",
+                       "assets/legacy-sprites/HUDs/Kill Icons/BladeKL/image 1.png"
+                   ],
+    "originX":  8,
+    "originY":  6,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -3,20 +3,40 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Diagnostics;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private static string _browserLastGameplayRenderTrace = "not-started";
+    private static readonly Queue<string> _browserRecentGameplayRenderTraces = new();
+
+    public static string GetBrowserLastGameplayRenderTrace()
+    {
+        return _browserLastGameplayRenderTrace;
+    }
+
+    public static string GetBrowserRecentGameplayRenderTraces()
+    {
+        return _browserRecentGameplayRenderTraces.Count == 0
+            ? "none"
+            : string.Join(" -> ", _browserRecentGameplayRenderTraces);
+    }
+
     private const string GameplayRenderTraceFileName = "client-gameplay-render-trace.log";
+    private static readonly bool GameplayRenderTraceEnabled = GetGameplayRenderTraceEnabled();
 
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
+        var browserHudDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         if (IsLastToDieDeathFocusPresentationActive())
         {
+            RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
             return;
         }
 
@@ -91,10 +111,12 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after clientpluginhud");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
+        RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }
 
     private void DrawGameplayModalOverlays(MouseState mouse)
     {
+        var browserModalDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         if (IsLastToDieDeathFocusPresentationActive())
         {
             if (IsLastToDieFailureOverlayActive())
@@ -106,6 +128,7 @@ public partial class Game1
                 }
             }
 
+            RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
             return;
         }
 
@@ -197,10 +220,27 @@ public partial class Game1
             DrawSoftwareMenuCursor(mouse);
             WriteGameplayRenderTrace("modal after softwarecursor");
         }
+
+        RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
     }
 
     private static void WriteGameplayRenderTrace(string message)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserLastGameplayRenderTrace = message;
+            _browserRecentGameplayRenderTraces.Enqueue(message);
+            while (_browserRecentGameplayRenderTraces.Count > 16)
+            {
+                _browserRecentGameplayRenderTraces.Dequeue();
+            }
+        }
+
+        if (!GameplayRenderTraceEnabled)
+        {
+            return;
+        }
+
         try
         {
             var timestamp = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
@@ -209,5 +249,22 @@ public partial class Game1
         catch
         {
         }
+    }
+
+    private static bool GetGameplayRenderTraceEnabled()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return false;
+        }
+
+        if (AppContext.TryGetSwitch("OpenGarrison.EnableGameplayRenderTrace", out var enabledBySwitch))
+        {
+            return enabledBySwitch;
+        }
+
+        var envValue = Environment.GetEnvironmentVariable("OPENGARRISON_TRACE_GAMEPLAY_RENDER");
+        return string.Equals(envValue, "1", StringComparison.Ordinal)
+            || string.Equals(envValue, "true", StringComparison.OrdinalIgnoreCase);
     }
 }

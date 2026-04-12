@@ -11,7 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState, ClientPluginMessageSink, ClientPluginUiSink
+    private sealed class ClientPluginStateView(Game1 game) : IOpenGarrisonClientReadOnlyState
     {
         public bool IsConnected => game._networkClient.IsConnected;
         public bool IsMainMenuOpen => game._mainMenuOpen;
@@ -121,10 +121,9 @@ public partial class Game1
             return false;
         }
 
-        public bool WasKeyPressedThisFrame(Keys key)
-        {
-            return game._clientPluginKeyboard.IsKeyDown(key) && !game._clientPluginPreviousKeyboard.IsKeyDown(key);
-        }
+#if !BROWSER_KNI
+        public bool WasKeyPressedThisFrame(Keys key) => game.WasClientPluginKeyPressedThisFrame(key);
+#endif
 
         public IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers() => game.GetClientPluginPlayerMarkers();
         public IReadOnlyList<ClientSentryMarker> GetSentryMarkers() => game.GetClientPluginSentryMarkers();

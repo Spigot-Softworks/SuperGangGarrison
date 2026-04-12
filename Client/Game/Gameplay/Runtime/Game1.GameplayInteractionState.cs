@@ -11,13 +11,20 @@ public partial class Game1
 
     private bool IsGameplayInputBlocked()
     {
-        return !IsActive
+        return !IsGameplayWindowInputActive()
             || IsGameplayMenuOpen()
             || _consoleOpen
             || _chatOpen
             || _teamSelectOpen
             || _classSelectOpen
             || _passwordPromptOpen;
+    }
+
+    private bool IsGameplayWindowInputActive()
+    {
+        return OperatingSystem.IsBrowser()
+            ? BrowserInputBridge.IsFocused
+            : IsActive;
     }
 
     private bool CanOpenGameplayChat()

@@ -2,11 +2,13 @@ namespace OpenGarrison.Core;
 
 public static class ContentRoot
 {
-    public static string Path { get; private set; } = "Content";
+    private static string? _path;
+
+    public static string Path => string.IsNullOrWhiteSpace(_path) ? "Content" : _path;
 
     public static void Initialize(string rootDirectory)
     {
-        Path = rootDirectory;
+        _path = rootDirectory;
         SimpleLevelFactory.ClearCachedCatalog();
     }
 

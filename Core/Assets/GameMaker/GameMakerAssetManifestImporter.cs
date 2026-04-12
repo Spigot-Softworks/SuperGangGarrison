@@ -11,15 +11,16 @@ public static class GameMakerAssetManifestImporter
 {
     public static GameMakerAssetManifest ImportProjectAssets()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return CreateEmptyManifest();
+        }
+
         var sourceRootFile = ContentRoot.GetPath("Constants.xml");
         // var sourceRootFile = ProjectSourceLocator.FindFile("Core/Content/Constants.xml");
         if (sourceRootFile is null)
         {
-            return new GameMakerAssetManifest(
-                sourceRootPath: null,
-                sprites: new Dictionary<string, GameMakerSpriteAsset>(StringComparer.OrdinalIgnoreCase),
-                backgrounds: new Dictionary<string, GameMakerBackgroundAsset>(StringComparer.OrdinalIgnoreCase),
-                sounds: new Dictionary<string, GameMakerSoundAsset>(StringComparer.OrdinalIgnoreCase));
+            return CreateEmptyManifest();
         }
 
         var sourceRootPath = Path.GetDirectoryName(sourceRootFile)!;
@@ -36,6 +37,15 @@ public static class GameMakerAssetManifestImporter
             sprites,
             ImportBackgrounds(Path.Combine(sourceRootPath, "Backgrounds")),
             ImportSounds(Path.Combine(sourceRootPath, "Sounds")));
+    }
+
+    private static GameMakerAssetManifest CreateEmptyManifest()
+    {
+        return new GameMakerAssetManifest(
+            sourceRootPath: null,
+            sprites: new Dictionary<string, GameMakerSpriteAsset>(StringComparer.OrdinalIgnoreCase),
+            backgrounds: new Dictionary<string, GameMakerBackgroundAsset>(StringComparer.OrdinalIgnoreCase),
+            sounds: new Dictionary<string, GameMakerSoundAsset>(StringComparer.OrdinalIgnoreCase));
     }
 
     private static Dictionary<string, GameMakerSpriteAsset> ImportSprites(string spritesRootPath)
@@ -56,17 +66,31 @@ public static class GameMakerAssetManifestImporter
 
     private static void ImportSprite(string metadataPath, Dictionary<string, GameMakerSpriteAsset> sprites)
     {
+        if (!TryImportSpriteMetadata(metadataPath, out var sprite))
+        {
+            return;
+        }
+
+        sprites[sprite.Name] = sprite;
+    }
+
+    public static bool TryImportSpriteMetadata(string metadataPath, out GameMakerSpriteAsset sprite)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(metadataPath);
+
         var metadataName = Path.GetFileName(metadataPath);
         if (metadataName.StartsWith("_resources", StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            sprite = null!;
+            return false;
         }
 
         var document = XDocument.Load(metadataPath);
         var root = document.Root;
         if (root?.Name != "sprite")
         {
-            return;
+            sprite = null!;
+            return false;
         }
 
         var name = Path.GetFileNameWithoutExtension(metadataPath);
@@ -82,7 +106,7 @@ public static class GameMakerAssetManifestImporter
                 .ToArray()
             : Array.Empty<string>();
 
-        sprites[name] = new GameMakerSpriteAsset(
+        sprite = new GameMakerSpriteAsset(
             Name: name,
             MetadataPath: metadataPath,
             FramePaths: framePaths,
@@ -98,6 +122,7 @@ public static class GameMakerAssetManifestImporter
                 Top: ReadNullableIntAttribute(boundsElement, "top"),
                 Right: ReadNullableIntAttribute(boundsElement, "right"),
                 Bottom: ReadNullableIntAttribute(boundsElement, "bottom")));
+        return true;
     }
 
     private static Dictionary<string, GameMakerBackgroundAsset> ImportBackgrounds(string backgroundsRootPath)

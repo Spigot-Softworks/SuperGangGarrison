@@ -171,7 +171,7 @@ public partial class Game1
 
         public void DrawCenterStatusHud(string label, float value, float maxValue, float viewportYRatio, float textAlpha)
         {
-            var sprite = _game._runtimeAssets.GetSprite("HealedHudS");
+            var sprite = _game.GetResolvedSprite("HealedHudS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -187,7 +187,7 @@ public partial class Game1
             var hudX = (viewportWidth / 2) - (hudWidth / 2);
             var hudY = (int)MathF.Round(viewportHeight * viewportYRatio);
             var destination = new Rectangle(hudX, hudY, hudWidth, hudHeight);
-            _game._spriteBatch.Draw(frame, destination, Color.White * 0.5f);
+            _game.DrawLoadedSpriteFrame(frame, destination, Color.White * 0.5f);
             _game.DrawHudTextCentered(label, new Vector2(viewportWidth / 2f, hudY + 12f), Color.White * textAlpha, 0.7f);
             _game.DrawScreenHealthBar(new Rectangle(hudX + 10, hudY + 20, Math.Max(1, hudWidth - 20), 8), value, maxValue, false, Color.White, Color.Black);
         }

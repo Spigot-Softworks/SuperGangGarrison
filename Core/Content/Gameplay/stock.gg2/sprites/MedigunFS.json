@@ -1,0 +1,20 @@
+﻿{
+    "id":  "MedigunFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/MedigunFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/MedigunFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/MedigunFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/MedigunFS/image 3.png"
+                   ],
+    "originX":  16,
+    "originY":  41,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

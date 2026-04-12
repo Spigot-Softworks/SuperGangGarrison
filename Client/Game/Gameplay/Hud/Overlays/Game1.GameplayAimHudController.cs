@@ -46,13 +46,13 @@ public partial class Game1
 
         public void DrawCrosshair(MouseState mouse)
         {
-            var crosshair = _game._runtimeAssets.GetSprite("CrosshairS");
+            var crosshair = _game.GetResolvedSprite("CrosshairS");
             if (crosshair is null || crosshair.Frames.Count == 0)
             {
                 return;
             }
 
-            _game._spriteBatch.Draw(crosshair.Frames[0], new Vector2(mouse.X, mouse.Y), null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+            _game.DrawLoadedSpriteFrame(crosshair.Frames[0], new Vector2(mouse.X, mouse.Y), null, Color.White, 0f, crosshair.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
         }
     }
 }

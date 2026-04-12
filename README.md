@@ -8,6 +8,8 @@ This repository contains the OpenGarrison solution and supporting tools.
 
 - `Core/`: shared gameplay, simulation, entities, map import, content metadata, and common runtime logic.
 - `Client/`: MonoGame client, menus, HUD, rendering, networking, hosting UI, and client plugin host.
+- `Client.Browser/`: Blazor WebAssembly/KNI browser host for offline browser gameplay and future browser networking.
+- `Client.Shared/`: shared runtime bootstrap and browser/desktop asset-loading seams used by the client hosts.
 - `Server/`: dedicated server runtime, networking, sessions, snapshots, admin commands, plugins, and map rotation.
 - `Protocol/`: network message contracts and binary serialization.
 - `BotAI/`: bot behavior and navigation runtime.
@@ -17,6 +19,8 @@ This repository contains the OpenGarrison solution and supporting tools.
 - `ServerLauncher/`: launcher-focused entry point built on the client runtime.
 - `packaging/`: release packaging notes and default packaged config files.
 - `scripts/`: packaging entry points.
+- `Tools/Browser*/`: browser publish and atlas/manifest generation tools.
+- `Tests/BrowserSmoke/`: Playwright smoke test for the browser host.
 - `docs/`: focused design and reference notes.
 
 ## Build
@@ -29,20 +33,6 @@ dotnet build .\OpenGarrison.sln -c Debug
 
 OpenGarrison targets .NET 10.
 
-## Plugins
-
-- The plugin system now supports manifest-driven packaged plugins with
-  `plugin.json`.
-- Lua is the default direction for plugin authoring going forward.
-- Packaged runtime outputs now ship the Lua plugin packages by default rather
-  than the legacy CLR plugin implementations.
-- Barebones Lua hosts exist on both server and client.
-- Server Lua currently covers event-driven plugins, bounded mutation surfaces,
-  replicated state, and plugin messaging.
-- Client Lua currently covers menu/main-menu integration, HUD and scoreboard
-  drawing, lightweight audio playback, config-backed options, camera offsets,
-  dead-body rendering, and bubble-menu overrides for presentation plugins.
-- See [Plugins/README.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/README.md), [Plugins/PLUGIN_HOST_CONTRACT.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/PLUGIN_HOST_CONTRACT.md), and [Plugins/Templates/README.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/Plugins/Templates/README.md) for plugin conventions, engine seam rules, authoring templates, and packaged examples.
 
 ## Run
 
@@ -64,6 +54,14 @@ Server launcher:
 dotnet run --project .\ServerLauncher\OpenGarrison.ServerLauncher.csproj
 ```
 
+Browser AOT publish:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Tools\Browser\publish-browser.ps1
+python -m http.server 5014 -d .\artifacts\browser-publish-aot\wwwroot
+```
+
+Then open `http://127.0.0.1:5014/`. 
 ## Packaging
 
 Packaging is handled by the existing scripts in `scripts/` and docs in `packaging/`.
@@ -87,12 +85,3 @@ bash ./scripts/build.sh linux-x64
 ```
 
 See [packaging/DISTRO_QUICKSTART.txt] and [packaging/README.txt] for current packaging details.
-
-## License And Provenance
-
-- Original OpenGarrison source code in this repository is distributed under the
-  GNU GPLv3. See [LICENSE](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/LICENSE) and [GPL.txt](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/GPL.txt).
-- Third-party package dependencies are documented in [THIRD_PARTY_NOTICES.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/THIRD_PARTY_NOTICES.md).
-- Bundled stock game content and other non-code assets are documented in [ASSET_PROVENANCE.md](C:/Users/level/Desktop/OpenGarrison%20Active/OpenGarrison-Fork/ASSET_PROVENANCE.md).
-- GG2 Randomizer / RM-derived assets are not yet covered by the current
-  provenance bundle and remain pending separate review.

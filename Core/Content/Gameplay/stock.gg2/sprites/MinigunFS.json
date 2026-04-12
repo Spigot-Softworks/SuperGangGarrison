@@ -1,0 +1,20 @@
+﻿{
+    "id":  "MinigunFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/MinigunFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinigunFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinigunFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinigunFS/image 3.png"
+                   ],
+    "originX":  22,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

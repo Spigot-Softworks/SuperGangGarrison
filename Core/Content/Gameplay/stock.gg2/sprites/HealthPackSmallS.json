@@ -1,0 +1,18 @@
+﻿{
+    "id":  "HealthPackSmallS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/HealthPackSmallS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/HealthPackSmallS/image 1.png"
+                   ],
+    "originX":  15,
+    "originY":  15,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

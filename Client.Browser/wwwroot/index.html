@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenGarrison Browser</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+    <div class="game-shell">
+        <canvas id="theCanvas" class="game-canvas" width="800" height="600" tabindex="0"></canvas>
+    </div>
+    <div id="app"></div>
+    <script src="_content/nkast.Wasm.JSInterop/js/JSObject.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Dom/js/Window.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Dom/js/Document.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Dom/js/Navigator.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Dom/js/Media.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Dom/js/Gamepad.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Canvas/js/Canvas.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Canvas/js/Canvas2dContext.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Canvas/js/CanvasGLContext.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.Audio/js/Audio.8.0.11.js"></script>
+    <script src="_content/nkast.Wasm.XHR/js/XHR.8.0.11.js"></script>
+    <script>
+        window.OpenGarrisonBrowserHost = {
+            hostState: {
+                started: false,
+                failed: false,
+                status: "Not started."
+            },
+            gameLoopHandle: 0,
+            gameLoopActive: false,
+            gameLoopPending: false,
+            gameLoopHost: null,
+            preferSynchronousGameLoopPump: false,
+            inputBridgeHost: null,
+            metrics: {
+                loopStartedAt: 0,
+                firstPumpStartedAt: 0,
+                firstPumpCompletedAt: 0,
+                completedPumps: 0,
+                lastPumpDurationMs: 0,
+                maxPumpDurationMs: 0,
+                pumpCompletions: []
+            },
+            ensureKniGlobals: function () {
+                const runtime = typeof globalThis.getDotnetRuntime === "function"
+                    ? globalThis.getDotnetRuntime(0)
+                    : null;
+
+                if (runtime && runtime.Module && typeof globalThis.Module === "undefined") {
+                    globalThis.Module = runtime.Module;
+                }
+
+                if (typeof globalThis.BINDING === "undefined" && runtime && runtime.INTERNAL && typeof runtime.INTERNAL.monoStringToStringUnsafe === "function") {
+                    globalThis.BINDING = {
+                        conv_string: function (pointer) {
+                            if (!pointer) {
+                                return null;
+                            }
+
+                            return runtime.INTERNAL.monoStringToStringUnsafe(pointer);
+                        }
+                    };
+                }
+
+                if (globalThis.Blazor && globalThis.Blazor.platform) {
+                    if (typeof globalThis.Blazor.platform.readObject !== "function"
+                        && typeof globalThis.Blazor.platform.readObjectField === "function") {
+                        globalThis.Blazor.platform.readObject = function (pointer) {
+                            return globalThis.Blazor.platform.readObjectField(pointer, 0);
+                        };
+                    }
+
+                    if (typeof globalThis.Blazor.platform.getArrayLength !== "function"
+                        && typeof globalThis.Blazor.platform.readInt32Field === "function") {
+                        globalThis.Blazor.platform.getArrayLength = function (arrayPointer) {
+                            return globalThis.Blazor.platform.readInt32Field(arrayPointer, 12);
+                        };
+                    }
+                }
+
+                return typeof window.nkJSObject !== "undefined"
+                    && typeof globalThis.Module !== "undefined"
+                    && typeof globalThis.DotNet !== "undefined";
+            },
+            isKniReady: function () {
+                return window.OpenGarrisonBrowserHost.ensureKniGlobals()
+                    && document.getElementById("theCanvas") !== null;
+            },
+            waitForCanvasFrame: function () {
+                return new Promise(function (resolve) {
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(function () {
+                            resolve(document.getElementById("theCanvas") !== null);
+                        });
+                    });
+                });
+            },
+            describeCanvas: function () {
+                const canvas = document.getElementById("theCanvas");
+                if (!canvas) {
+                    return "missing";
+                }
+
+                return "present " + canvas.width + "x" + canvas.height + " client " + canvas.clientWidth + "x" + canvas.clientHeight;
+            },
+            focusCanvas: function () {
+                const canvas = document.getElementById("theCanvas");
+                if (!canvas) {
+                    return false;
+                }
+
+                canvas.focus({ preventScroll: true });
+                return document.activeElement === canvas;
+            },
+            getCanvasInputPoint: function (event) {
+                const canvas = document.getElementById("theCanvas");
+                if (!canvas) {
+                    return { x: 0, y: 0 };
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: Math.max(0, Math.min(canvas.width - 1, Math.round((event.clientX - rect.left) * scaleX))),
+                    y: Math.max(0, Math.min(canvas.height - 1, Math.round((event.clientY - rect.top) * scaleY)))
+                };
+            },
+            attachInputBridge: function (host) {
+                const api = window.OpenGarrisonBrowserHost;
+                const canvas = document.getElementById("theCanvas");
+                if (!canvas) {
+                    return;
+                }
+
+                api.inputBridgeHost = host;
+                const invokeHostVoid = function (methodName, ...args) {
+                    if (host && typeof host.invokeMethod === "function") {
+                        try {
+                            host.invokeMethod(methodName, ...args);
+                            return;
+                        } catch (error) {
+                            console.error("Browser host sync invoke failed.", methodName, error);
+                        }
+                    }
+
+                    host.invokeMethodAsync(methodName, ...args).catch(function (error) {
+                        console.error("Browser host async invoke failed.", methodName, error);
+                    });
+                };
+                const isEditableEventTarget = function (target) {
+                    if (!target || target === document || target === window) {
+                        return false;
+                    }
+
+                    const element = target instanceof Element ? target : target.parentElement;
+                    if (!element) {
+                        return false;
+                    }
+
+                    return !!element.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']");
+                };
+                const captureKeyboardForGame = function (event) {
+                    if (isEditableEventTarget(event.target)) {
+                        return false;
+                    }
+
+                    if (document.activeElement !== canvas) {
+                        api.focusCanvas();
+                    }
+
+                    invokeHostVoid("HandleBrowserFocus", true);
+                    return true;
+                };
+                const sendTextInput = function (text) {
+                    if (!text || document.activeElement !== canvas) {
+                        return;
+                    }
+
+                    invokeHostVoid("HandleBrowserText", text);
+                };
+                canvas.onmousemove = function (event) {
+                    const point = api.getCanvasInputPoint(event);
+                    invokeHostVoid("HandleBrowserMouseMove", point.x, point.y);
+                };
+                canvas.onmousedown = function (event) {
+                    const point = api.getCanvasInputPoint(event);
+                    api.focusCanvas();
+                    invokeHostVoid("HandleBrowserMouseButton", event.button, true, point.x, point.y);
+                    event.preventDefault();
+                };
+                canvas.onmouseup = function (event) {
+                    const point = api.getCanvasInputPoint(event);
+                    invokeHostVoid("HandleBrowserMouseButton", event.button, false, point.x, point.y);
+                    event.preventDefault();
+                };
+                canvas.onwheel = function (event) {
+                    const point = api.getCanvasInputPoint(event);
+                    invokeHostVoid("HandleBrowserWheel", Math.round(event.deltaY), point.x, point.y);
+                    event.preventDefault();
+                };
+                canvas.oncontextmenu = function (event) {
+                    event.preventDefault();
+                };
+                window.onkeydown = function (event) {
+                    if (captureKeyboardForGame(event)) {
+                        invokeHostVoid("HandleBrowserKey", event.code ?? "", true);
+                        if (event.key === "Backspace") {
+                            sendTextInput("\b");
+                        } else if (event.key === "Enter") {
+                            sendTextInput("\r");
+                        } else if (event.key === "Tab") {
+                            sendTextInput("\t");
+                        } else if (event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                            sendTextInput(event.key);
+                        }
+
+                        event.preventDefault();
+                    }
+                };
+                window.onkeyup = function (event) {
+                    if (captureKeyboardForGame(event)) {
+                        invokeHostVoid("HandleBrowserKey", event.code ?? "", false);
+                        event.preventDefault();
+                    }
+                };
+                window.onfocus = function () {
+                    invokeHostVoid("HandleBrowserFocus", document.activeElement === canvas);
+                };
+                window.onblur = function () {
+                    invokeHostVoid("HandleBrowserFocus", false);
+                };
+                canvas.onblur = function () {
+                    invokeHostVoid("HandleBrowserFocus", false);
+                };
+                canvas.onfocus = function () {
+                    invokeHostVoid("HandleBrowserFocus", true);
+                };
+                invokeHostVoid("HandleBrowserFocus", document.activeElement === canvas);
+            },
+            setManagedState: function (status, started, failed) {
+                window.OpenGarrisonBrowserHost.hostState = {
+                    status: status ?? "Not started.",
+                    started: !!started,
+                    failed: !!failed
+                };
+            },
+            getManagedState: function () {
+                return window.OpenGarrisonBrowserHost.hostState;
+            },
+            getAutomationState: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(null);
+                }
+
+                return host.invokeMethodAsync("GetAutomationState")
+                    .catch(function (error) {
+                        console.error("Browser host automation-state invoke failed.", error);
+                        return null;
+                    });
+            },
+            runAutomationConsoleCommand: function (commandText) {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(false);
+                }
+
+                return host.invokeMethodAsync("RunAutomationConsoleCommand", commandText ?? "")
+                    .catch(function (error) {
+                        console.error("Browser host automation command invoke failed.", error);
+                        return false;
+                    });
+            },
+            invokeAutomationAction: function (actionSet, label) {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(false);
+                }
+
+                return host.invokeMethodAsync("InvokeAutomationAction", actionSet ?? "", label ?? "")
+                    .catch(function (error) {
+                        console.error("Browser host automation action invoke failed.", error);
+                        return false;
+                    });
+            },
+            getPerformanceSnapshot: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(null);
+                }
+
+                return host.invokeMethodAsync("GetPerformanceSnapshot")
+                    .catch(function (error) {
+                        console.error("Browser host performance snapshot invoke failed.", error);
+                        return null;
+                    });
+            },
+            getMetrics: function () {
+                const metrics = window.OpenGarrisonBrowserHost.metrics;
+                const now = performance.now();
+                const recentCutoff = now - 5000;
+                const recentPumps = metrics.pumpCompletions.filter(function (timestamp) {
+                    return timestamp >= recentCutoff;
+                });
+
+                return {
+                    loopStartedAt: metrics.loopStartedAt,
+                    firstPumpStartedAt: metrics.firstPumpStartedAt,
+                    firstPumpCompletedAt: metrics.firstPumpCompletedAt,
+                    completedPumps: metrics.completedPumps,
+                    lastPumpDurationMs: metrics.lastPumpDurationMs,
+                    maxPumpDurationMs: metrics.maxPumpDurationMs,
+                    recentCompletedPumps: recentPumps.length,
+                    recentFps: recentPumps.length / 5,
+                    pending: window.OpenGarrisonBrowserHost.gameLoopPending,
+                    active: window.OpenGarrisonBrowserHost.gameLoopActive
+                };
+            },
+            resetMetrics: function () {
+                window.OpenGarrisonBrowserHost.metrics = {
+                    loopStartedAt: performance.now(),
+                    firstPumpStartedAt: 0,
+                    firstPumpCompletedAt: 0,
+                    completedPumps: 0,
+                    lastPumpDurationMs: 0,
+                    maxPumpDurationMs: 0,
+                    pumpCompletions: []
+                };
+            },
+            startGameLoop: function (host) {
+                const api = window.OpenGarrisonBrowserHost;
+                api.stopGameLoop();
+                api.gameLoopHost = host;
+                api.gameLoopActive = true;
+                api.resetMetrics();
+
+                const pump = function () {
+                    if (!api.gameLoopActive) {
+                        return;
+                    }
+
+                    api.gameLoopHandle = requestAnimationFrame(pump);
+                    if (api.gameLoopPending || !api.gameLoopHost) {
+                        return;
+                    }
+
+                    api.gameLoopPending = true;
+                    const pumpStartedAt = performance.now();
+                    if (!api.metrics.firstPumpStartedAt) {
+                        api.metrics.firstPumpStartedAt = pumpStartedAt;
+                    }
+
+                    const finalizePump = function () {
+                        const pumpCompletedAt = performance.now();
+                        const pumpDurationMs = pumpCompletedAt - pumpStartedAt;
+                        api.metrics.completedPumps += 1;
+                        api.metrics.lastPumpDurationMs = pumpDurationMs;
+                        api.metrics.maxPumpDurationMs = Math.max(api.metrics.maxPumpDurationMs, pumpDurationMs);
+                        if (!api.metrics.firstPumpCompletedAt) {
+                            api.metrics.firstPumpCompletedAt = pumpCompletedAt;
+                        }
+
+                        api.metrics.pumpCompletions.push(pumpCompletedAt);
+                        const historyCutoff = pumpCompletedAt - 10000;
+                        while (api.metrics.pumpCompletions.length > 0 && api.metrics.pumpCompletions[0] < historyCutoff) {
+                            api.metrics.pumpCompletions.shift();
+                        }
+
+                        api.gameLoopPending = false;
+                    };
+
+                    if (api.preferSynchronousGameLoopPump
+                        && api.gameLoopHost
+                        && typeof api.gameLoopHost.invokeMethod === "function") {
+                        try {
+                            api.gameLoopHost.invokeMethod("PumpFrame");
+                            finalizePump();
+                            return;
+                        } catch (error) {
+                            console.warn("Browser host sync frame pump failed, falling back to async.", error);
+                            api.preferSynchronousGameLoopPump = false;
+                            finalizePump();
+                            return;
+                        }
+                    }
+
+                    api.gameLoopHost.invokeMethodAsync("PumpFrameAsync")
+                        .catch(function (error) {
+                            console.error("Browser host frame pump failed.", error);
+                        })
+                        .finally(finalizePump);
+                };
+
+                api.gameLoopHandle = requestAnimationFrame(pump);
+            },
+            stopGameLoop: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                api.gameLoopActive = false;
+                api.gameLoopPending = false;
+                api.gameLoopHost = null;
+
+                if (api.gameLoopHandle) {
+                    cancelAnimationFrame(api.gameLoopHandle);
+                    api.gameLoopHandle = 0;
+                }
+            }
+        };
+
+        window.addEventListener("load", function () {
+            window.OpenGarrisonBrowserHost.focusCanvas();
+            const canvas = document.getElementById("theCanvas");
+            if (canvas) {
+                canvas.addEventListener("pointerdown", function () {
+                    window.OpenGarrisonBrowserHost.focusCanvas();
+                });
+            }
+        });
+    </script>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

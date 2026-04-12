@@ -1,0 +1,17 @@
+﻿{
+    "id":  "WaterwayS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Collision Maps/WaterwayS/image 0.png"
+                   ],
+    "originX":  0,
+    "originY":  0,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "FULL",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

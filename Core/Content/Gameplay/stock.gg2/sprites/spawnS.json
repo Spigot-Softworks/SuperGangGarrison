@@ -1,0 +1,26 @@
+﻿{
+    "id":  "spawnS",
+    "framePaths":  [
+                       "assets/legacy-sprites/MapElements/spawnS/image 0.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 1.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 2.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 3.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 4.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 5.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 6.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 7.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 8.png",
+                       "assets/legacy-sprites/MapElements/spawnS/image 9.png"
+                   ],
+    "originX":  30,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

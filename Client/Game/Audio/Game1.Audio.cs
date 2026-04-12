@@ -11,6 +11,28 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const int BrowserPendingSoundEventLifetimeTicks = 30;
+    private const int BrowserPendingSoundEventLimit = 96;
+
+    private sealed class PendingBrowserSoundEvent
+    {
+        public PendingBrowserSoundEvent(string soundName, float x, float y, int ticksRemaining)
+        {
+            SoundName = soundName;
+            X = x;
+            Y = y;
+            TicksRemaining = ticksRemaining;
+        }
+
+        public string SoundName { get; }
+
+        public float X { get; }
+
+        public float Y { get; }
+
+        public int TicksRemaining { get; set; }
+    }
+
     private SoundEffect? _menuMusic;
     private SoundEffectInstance? _menuMusicInstance;
     private SoundEffect? _lastToDieMenuMusic;
@@ -29,10 +51,17 @@ public partial class Game1
     private bool _audioAvailable = true;
     private bool _audioMuted;
     private MusicMode _musicMode = MusicMode.MenuAndInGame;
+    private bool _menuMusicLoadAttempted;
+    private bool _lastToDieMenuMusicLoadAttempted;
+    private bool _faucetMusicLoadAttempted;
+    private bool _ingameMusicLoadAttempted;
+    private bool _lastToDieIngameMusicLoadAttempted;
+    private bool _lastToDieGameOverSoundLoadAttempted;
     private readonly HashSet<ulong> _processedNetworkSoundEventIds = new();
     private readonly Queue<ulong> _processedNetworkSoundEventOrder = new();
     private readonly HashSet<ulong> _processedKillFeedEventIds = new();
     private readonly Queue<ulong> _processedKillFeedEventOrder = new();
+    private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
 
     private void LoadMenuMusic()
     {
@@ -187,6 +216,26 @@ public partial class Game1
     private void PlayPendingSoundEvents()
     {
         _gameplayAudioEventController.PlayPendingSoundEvents();
+    }
+
+    private void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y)
+    {
+        if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(soundName))
+        {
+            return;
+        }
+
+        while (_pendingBrowserSoundEvents.Count >= BrowserPendingSoundEventLimit)
+        {
+            _pendingBrowserSoundEvents.RemoveAt(0);
+        }
+
+        _pendingBrowserSoundEvents.Add(new PendingBrowserSoundEvent(soundName, x, y, BrowserPendingSoundEventLifetimeTicks));
+    }
+
+    private void ResetPendingBrowserSoundEvents()
+    {
+        _pendingBrowserSoundEvents.Clear();
     }
 
     private void TryPlaySound(SoundEffect? sound, float volume, float pitch, float pan)

@@ -1,0 +1,40 @@
+﻿{
+    "id":  "MinegunFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Firing/MinegunFS/image 23.png"
+                   ],
+    "originX":  25,
+    "originY":  19,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -22,6 +22,7 @@ public partial class Game1
     {
         _classSelectOpen = true;
         _teamSelectOpen = false;
+        WarmBrowserClassSelectionAssets(_pendingClassSelectTeam ?? _world.LocalPlayerTeam);
     }
 
     private void ToggleGameplayTeamSelection()

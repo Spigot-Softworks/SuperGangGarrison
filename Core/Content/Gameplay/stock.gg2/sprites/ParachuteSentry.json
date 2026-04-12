@@ -1,0 +1,22 @@
+﻿{
+    "id":  "ParachuteSentry",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 0.png",
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 1.png",
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 2.png",
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 3.png",
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 4.png",
+                       "assets/legacy-sprites/InGameElements/ParachuteSentry/image 5.png"
+                   ],
+    "originX":  22,
+    "originY":  27,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "MANUAL",
+                 "left":  8,
+                 "top":  19,
+                 "right":  35,
+                 "bottom":  40
+             }
+}

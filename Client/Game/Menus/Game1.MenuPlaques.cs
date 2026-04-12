@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using OpenGarrison.Core;
 
@@ -84,21 +83,35 @@ public partial class Game1
         var texturePath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", textureFileName);
         var metadataPath = ContentRoot.GetPath("Sprites", "Menu", "Fonts", metadataFileName);
         if (string.IsNullOrWhiteSpace(texturePath)
-            || string.IsNullOrWhiteSpace(metadataPath)
-            || !File.Exists(texturePath)
-            || !File.Exists(metadataPath))
+            || string.IsNullOrWhiteSpace(metadataPath))
         {
             return false;
         }
 
-        using (var stream = File.OpenRead(texturePath))
+        _menuBitmapFontTexture = LoadSpriteFrameFromPath(texturePath);
+        if (_menuBitmapFontTexture is null)
         {
-            _menuBitmapFontTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            return false;
         }
 
-        var metadata = JsonSerializer.Deserialize<MenuBitmapFontData>(File.ReadAllText(metadataPath), MenuBitmapFontJsonOptions);
+        string? metadataJson = TryGetBrowserContentText(metadataPath, out var browserMetadata)
+            ? browserMetadata
+            : System.IO.File.Exists(metadataPath)
+                ? System.IO.File.ReadAllText(metadataPath)
+                : null;
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            _menuBitmapFontTexture.Dispose();
+            _menuBitmapFontTexture = null;
+            return false;
+        }
+
+        metadataJson = NormalizeMenuBitmapFontMetadataJson(metadataJson);
+        var metadata = JsonSerializer.Deserialize<MenuBitmapFontData>(metadataJson, MenuBitmapFontJsonOptions);
         if (metadata is null)
         {
+            _menuBitmapFontTexture.Dispose();
+            _menuBitmapFontTexture = null;
             return false;
         }
 
@@ -116,16 +129,27 @@ public partial class Game1
         return _menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0;
     }
 
-    private Texture2D? LoadMenuTexture(params string[] pathParts)
+    private static string NormalizeMenuBitmapFontMetadataJson(string metadataJson)
+    {
+        if (string.IsNullOrEmpty(metadataJson))
+        {
+            return string.Empty;
+        }
+
+        return metadataJson.Length > 0 && metadataJson[0] == '\uFEFF'
+            ? metadataJson[1..]
+            : metadataJson;
+    }
+
+    private LoadedSpriteFrame? LoadMenuTexture(params string[] pathParts)
     {
         var path = ContentRoot.GetPath(pathParts);
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
             return null;
         }
 
-        using var stream = File.OpenRead(path);
-        return Texture2D.FromStream(GraphicsDevice, stream);
+        return LoadSpriteFrameFromPath(path);
     }
 
     private PlaqueMenuLayout GetCenteredPlaqueMenuLayout(bool tall, int stackedButtonCount, bool includeBottomBarButton)
@@ -197,7 +221,7 @@ public partial class Game1
         return new PlaqueMenuLayout(plaqueBounds, stackedBounds, soloBounds, bottomBarBounds, bottomBarButtonBounds, scale);
     }
 
-    private Texture2D? GetMenuStackedButtonTexture(int index, int count)
+    private LoadedSpriteFrame? GetMenuStackedButtonTexture(int index, int count)
     {
         return count switch
         {
@@ -229,7 +253,7 @@ public partial class Game1
             : _menuPlaqueTexture;
         if (backgroundTexture is not null)
         {
-            _spriteBatch.Draw(backgroundTexture, layout.PlaqueBounds, Color.White);
+            DrawLoadedSpriteFrame(backgroundTexture, layout.PlaqueBounds, Color.White);
         }
 
         for (var index = 0; index < stackedActions.Count && index < layout.StackedButtonBounds.Length; index += 1)
@@ -247,7 +271,7 @@ public partial class Game1
         }
     }
 
-    private void DrawPlaqueMenuButton(Texture2D? texture, Rectangle bounds, string label, bool hovered, float plaqueScale, float textScaleMultiplier)
+    private void DrawPlaqueMenuButton(LoadedSpriteFrame? texture, Rectangle bounds, string label, bool hovered, float plaqueScale, float textScaleMultiplier)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
@@ -256,7 +280,7 @@ public partial class Game1
 
         if (texture is not null)
         {
-            _spriteBatch.Draw(texture, bounds, hovered ? new Color(210, 210, 210) : Color.White);
+            DrawLoadedSpriteFrame(texture, bounds, hovered ? new Color(210, 210, 210) : Color.White);
         }
         else
         {
@@ -333,13 +357,13 @@ public partial class Game1
             if (glyph.SourceRect.Width > 0 && glyph.SourceRect.Height > 0)
             {
                 _spriteBatch.Draw(
-                    _menuBitmapFontTexture,
+                    _menuBitmapFontTexture.Texture,
                     new Rectangle(
                         (int)MathF.Round(cursor.X),
                         (int)MathF.Round(cursor.Y),
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Width * scale)),
                         Math.Max(1, (int)MathF.Round(glyph.SourceRect.Height * scale))),
-                    glyph.SourceRect,
+                    CombineSourceRectangles(_menuBitmapFontTexture.SourceRectangle, glyph.SourceRect),
                     color);
             }
             cursor.X += (glyph.Advance + _menuBitmapFontSpacing) * scale;

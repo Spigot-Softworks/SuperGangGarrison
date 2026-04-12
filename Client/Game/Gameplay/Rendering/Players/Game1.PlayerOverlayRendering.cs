@@ -17,7 +17,7 @@ public partial class Game1
         }
 
         var renderPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
-        var sprite = _runtimeAssets.GetSprite("BubblesS");
+        var sprite = GetResolvedSprite("BubblesS");
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return;
@@ -31,7 +31,7 @@ public partial class Game1
             return;
         }
 
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             sprite.Frames[frameIndex],
             new Vector2(MathF.Round(renderPosition.X) + 10f - cameraPosition.X, MathF.Round(renderPosition.Y) - 18f - cameraPosition.Y),
             null,

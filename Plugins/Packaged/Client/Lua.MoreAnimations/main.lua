@@ -29,8 +29,6 @@ local definitions = {
 }
 
 local loaded_animations = {}
-local next_definition_index = 1
-local animations_preloaded = false
 
 local function clamp(value, minimum, maximum)
     if value < minimum then
@@ -46,21 +44,9 @@ end
 
 local function reset_animation_load_state()
     loaded_animations = {}
-    next_definition_index = 1
-    animations_preloaded = false
 end
 
-local function load_next_animation()
-    if animations_preloaded then
-        return
-    end
-
-    local definition = definitions[next_definition_index]
-    if definition == nil then
-        animations_preloaded = true
-        return
-    end
-
+local function load_animation_definition(definition)
     local loaded_frame_count = plugin.host.register_legacy_animation_asset(
         definition.key,
         "Animations/" .. definition.fileName,
@@ -74,10 +60,18 @@ local function load_next_animation()
     else
         plugin.host.log("failed to load animation asset: " .. definition.fileName)
     end
+end
 
-    next_definition_index = next_definition_index + 1
-    if definitions[next_definition_index] == nil then
-        animations_preloaded = true
+local function ensure_animation_loaded(animation_key)
+    if animation_key == nil or loaded_animations[animation_key] ~= nil then
+        return
+    end
+
+    for _, definition in ipairs(definitions) do
+        if definition.key == animation_key then
+            load_animation_definition(definition)
+            return
+        end
     end
 end
 
@@ -140,7 +134,6 @@ function plugin.on_client_started()
 end
 
 function plugin.on_client_frame(e)
-    load_next_animation()
 end
 
 function plugin.try_draw_dead_body(canvas, dead_body)
@@ -149,6 +142,7 @@ function plugin.try_draw_dead_body(canvas, dead_body)
     end
 
     local animation_key = try_resolve_animation_key(dead_body)
+    ensure_animation_loaded(animation_key)
     local animation = animation_key and loaded_animations[animation_key] or nil
     if animation == nil or animation.frameCount <= 0 then
         return false

@@ -1,0 +1,26 @@
+﻿{
+    "id":  "Icon",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 0.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 1.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 2.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 3.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 4.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 5.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 6.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 7.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 8.png",
+                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 9.png"
+                   ],
+    "originX":  0,
+    "originY":  0,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

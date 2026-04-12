@@ -17,12 +17,17 @@ public partial class Game1
 
         public void Handle(TextInputEventArgs e)
         {
+            Handle(e.Character);
+        }
+
+        public void Handle(char character)
+        {
             if (!_game._consoleOpen)
             {
                 return;
             }
 
-            switch (e.Character)
+            switch (character)
             {
                 case '\b':
                     if (_game._consoleInput.Length > 0)
@@ -37,9 +42,9 @@ public partial class Game1
                 case '~':
                     break;
                 default:
-                    if (!char.IsControl(e.Character))
+                    if (!char.IsControl(character))
                     {
-                        _game._consoleInput += e.Character;
+                        _game._consoleInput += character;
                     }
                     break;
             }

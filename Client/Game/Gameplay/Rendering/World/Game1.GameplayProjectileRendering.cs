@@ -57,7 +57,7 @@ public partial class Game1
             return roundedOrigin;
         }
 
-        var sprite = _runtimeAssets.GetSprite(weaponDefinition.NormalSpriteName);
+        var sprite = GetResolvedSprite(weaponDefinition.NormalSpriteName);
         if (sprite is null)
         {
             return roundedOrigin;
@@ -232,7 +232,7 @@ public partial class Game1
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
         var flameColor = Color.White;
-        var flameSprite = _runtimeAssets.GetSprite("FlameS");
+        var flameSprite = GetResolvedSprite("FlameS");
         if (flameSprite is not null && flameSprite.Frames.Count > 0)
         {
             var flameAgeTicks = flame.IsAttached
@@ -242,7 +242,7 @@ public partial class Game1
                 Math.Abs(flameAgeTicks) % flameSprite.Frames.Count,
                 0,
                 flameSprite.Frames.Count - 1);
-            _spriteBatch.Draw(
+            DrawLoadedSpriteFrame(
                 flameSprite.Frames[frameIndex],
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
                 null,

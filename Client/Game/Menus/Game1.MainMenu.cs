@@ -54,7 +54,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
 
         var panel = GetCreditsPanelBounds();
-        var creditsSprite = _runtimeAssets.GetSprite("CreditsS");
+        var creditsSprite = GetResolvedSprite("CreditsS");
         if (creditsSprite is not null && creditsSprite.Frames.Count > 0)
         {
             var creditsFrame = creditsSprite.Frames[0];
@@ -65,7 +65,7 @@ public partial class Game1
             var creditsX = (viewportWidth - creditsFrame.Width * creditsScale) / 2f;
             var additionalCreditsY = _creditsScrollY + creditsFrame.Height * creditsScale + additionalCreditsGap;
             var additionalCreditsColor = new Color(240, 228, 196);
-            _spriteBatch.Draw(
+            DrawLoadedSpriteFrame(
                 creditsFrame,
                 new Vector2(creditsX, _creditsScrollY),
                 null,
@@ -160,7 +160,7 @@ public partial class Game1
 
     private float GetCreditsContentHeight()
     {
-        var creditsSprite = _runtimeAssets.GetSprite("CreditsS");
+        var creditsSprite = GetResolvedSprite("CreditsS");
         if (creditsSprite is null || creditsSprite.Frames.Count == 0)
         {
             return 0f;

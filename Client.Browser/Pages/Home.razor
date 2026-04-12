@@ -1,0 +1,54 @@
+@page "/"
+@inject BrowserGameHostService GameHostService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>OpenGarrison Browser</PageTitle>
+
+<div class="browser-host-status @(GameHostService.HasFailed ? "failed" : GameHostService.IsStarted ? "started" : "pending")">
+    @GameHostService.StatusMessage
+</div>
+
+@code {
+    private bool _startRequested;
+
+    protected override void OnInitialized()
+    {
+        GameHostService.StateChanged += HandleHostStateChanged;
+    }
+
+    public void Dispose()
+    {
+        GameHostService.StateChanged -= HandleHostStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _startRequested)
+        {
+            return;
+        }
+
+        _startRequested = true;
+
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            if (await JSRuntime.InvokeAsync<bool>("OpenGarrisonBrowserHost.isKniReady"))
+            {
+                await JSRuntime.InvokeAsync<bool>("OpenGarrisonBrowserHost.waitForCanvasFrame");
+                await JSRuntime.InvokeVoidAsync("OpenGarrisonBrowserHost.focusCanvas");
+                _ = GameHostService.StartAsync();
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            await Task.Delay(100);
+        }
+
+        GameHostService.SetStatus("Browser host did not observe KNI runtime globals becoming ready within 5 seconds.");
+    }
+
+    private void HandleHostStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+}

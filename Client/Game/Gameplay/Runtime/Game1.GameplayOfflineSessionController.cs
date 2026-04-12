@@ -2,6 +2,7 @@
 
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
+using System.Diagnostics;
 
 namespace OpenGarrison.Client;
 
@@ -20,6 +21,12 @@ public partial class Game1
 
         public void TryStartPracticeFromSetup()
         {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                return;
+            }
+
             var selectedMap = _game.GetSelectedPracticeMapEntry();
             if (selectedMap is null)
             {
@@ -37,6 +44,12 @@ public partial class Game1
                 return;
             }
 
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                return;
+            }
+
             var levelName = _game._world.Level.Name;
             _game._practiceMapEntries = Game1.BuildPracticeMapEntries();
             if (!_game.SelectPracticeMapEntry(levelName))
@@ -50,6 +63,12 @@ public partial class Game1
 
         public void BeginPracticeSession(string levelName)
         {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                return;
+            }
+
             _ = TryBeginOfflineBotSession(
                 levelName,
                 GameplaySessionKind.Practice,
@@ -122,10 +141,34 @@ public partial class Game1
             bool openJoinMenus,
             string consoleSessionName)
         {
+            var sessionStartTimestamp = Stopwatch.GetTimestamp();
+            var stepStartTimestamp = sessionStartTimestamp;
+            void LogBrowserPracticeStartupStep(string label)
+            {
+                if (!OperatingSystem.IsBrowser())
+                {
+                    return;
+                }
+
+                var now = Stopwatch.GetTimestamp();
+                var stepMilliseconds = (now - stepStartTimestamp) * 1000d / Stopwatch.Frequency;
+                var totalMilliseconds = (now - sessionStartTimestamp) * 1000d / Stopwatch.Frequency;
+                Console.WriteLine($"Browser practice startup {label}: step={stepMilliseconds:0.0}ms total={totalMilliseconds:0.0}ms");
+                stepStartTimestamp = now;
+            }
+
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game._menuStatusMessage = bootstrapReason ?? "Browser client assets are still loading.";
+                return false;
+            }
+            LogBrowserPracticeStartupStep("bootstrap-ready");
+
             if (sessionKind != GameplaySessionKind.LastToDie)
             {
                 _game.ResetLastToDieState();
             }
+            LogBrowserPracticeStartupStep("reset-last-to-die");
 
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
             _game.ResetPracticeNavigationState();
@@ -141,6 +184,7 @@ public partial class Game1
             _game.StopFaucetMusic();
             _game.StopLastToDieIngameMusic();
             _game.StopLastToDieGameOverSound();
+            LogBrowserPracticeStartupStep("reset-runtime");
 
             _game.ReinitializeSimulationForTickRate(tickRate);
             _game.ResetGameplayRuntimeState();
@@ -149,28 +193,37 @@ public partial class Game1
                 timeLimitMinutes: timeLimitMinutes,
                 capLimit: capLimit,
                 respawnSeconds: respawnSeconds);
+            LogBrowserPracticeStartupStep("configure-world");
+
             if (!_game._world.TryLoadLevel(levelName))
             {
                 _game._menuStatusMessage = $"Failed to load local map: {levelName}";
                 return false;
             }
+            LogBrowserPracticeStartupStep("load-level");
 
             _game._world.Level.ForcedBlockingTeamGates = sessionKind == GameplaySessionKind.LastToDie
                 ? TeamGateLockMask.Red
                 : TeamGateLockMask.None;
 
             _game._world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
+            LogBrowserPracticeStartupStep("configure-level");
             _game.LoadPracticeNavigationAssetsForCurrentLevel();
+            LogBrowserPracticeStartupStep("load-navigation");
             _sessionController.EnterGameplaySession(sessionKind, openJoinMenus, statusMessage: string.Empty);
+            LogBrowserPracticeStartupStep("enter-session");
             _game.InitializePracticeBotNamePoolForMatch();
+            LogBrowserPracticeStartupStep("bot-names");
 
             if (openJoinMenus)
             {
                 _game._world.PrepareLocalPlayerJoin();
                 _game.ApplyPracticeDummyPreferencesBeforeJoin();
+                LogBrowserPracticeStartupStep("prepare-local-join");
             }
 
             _game.AddConsoleLine($"{consoleSessionName} started on {levelName} tickrate={tickRate}");
+            LogBrowserPracticeStartupStep("complete");
             return true;
         }
     }

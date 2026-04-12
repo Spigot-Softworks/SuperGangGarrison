@@ -1,0 +1,20 @@
+﻿{
+    "id":  "FlameS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Projectiles/FlameS/image 0.png",
+                       "assets/legacy-sprites/Projectiles/FlameS/image 1.png",
+                       "assets/legacy-sprites/Projectiles/FlameS/image 2.png",
+                       "assets/legacy-sprites/Projectiles/FlameS/image 3.png"
+                   ],
+    "originX":  10,
+    "originY":  9,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  9,
+                 "top":  8,
+                 "right":  11,
+                 "bottom":  10
+             }
+}

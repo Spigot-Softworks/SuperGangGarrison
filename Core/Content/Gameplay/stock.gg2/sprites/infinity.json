@@ -1,0 +1,17 @@
+﻿{
+    "id":  "infinity",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Timer/infinity/image 0.png"
+                   ],
+    "originX":  5,
+    "originY":  2,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "FULL",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

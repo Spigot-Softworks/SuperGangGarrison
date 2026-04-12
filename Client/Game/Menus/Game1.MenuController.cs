@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
-using System.IO;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -53,7 +52,7 @@ public partial class Game1
 
             if (_game._menuBackgroundTexture is not null)
             {
-                _game._spriteBatch.Draw(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+                _game.DrawLoadedSpriteFrame(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
             }
             else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
             {
@@ -65,6 +64,7 @@ public partial class Game1
             if (!_game._mainMenuOverlayController.TryDraw())
             {
                 var buttons = _game.BuildMainMenuButtons();
+                _game.LogBrowserMenuState(buttons.Count);
                 _game.DrawCurrentMainMenuPage(buttons);
                 _game.DrawMenuStatusText();
                 _game.DrawQuitPrompt();
@@ -158,8 +158,11 @@ public partial class Game1
 
             try
             {
-                using var stream = File.OpenRead(path);
-                _game._menuBackgroundTexture = Texture2D.FromStream(_game.GraphicsDevice, stream);
+                _game._menuBackgroundTexture = _game.LoadSpriteFrameFromPath(path);
+                if (_game._menuBackgroundTexture is null)
+                {
+                    throw new InvalidOperationException("The menu background bytes were unavailable.");
+                }
             }
             catch (Exception ex)
             {
@@ -174,7 +177,7 @@ public partial class Game1
             var pluginOverride = _game.GetClientPluginMainMenuBackgroundOverride();
             if (pluginOverride is not null
                 && !string.IsNullOrWhiteSpace(pluginOverride.ImagePath)
-                && File.Exists(pluginOverride.ImagePath))
+                && (OperatingSystem.IsBrowser() || System.IO.File.Exists(pluginOverride.ImagePath)))
             {
                 return (pluginOverride.ImagePath, pluginOverride.AttributionText);
             }
@@ -191,13 +194,13 @@ public partial class Game1
                     ? "background-4x3.png"
                     : "background.png";
             var path = ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
-            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path) && (OperatingSystem.IsBrowser() || System.IO.File.Exists(path)))
             {
                 return path;
             }
 
             var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.png");
-            return !string.IsNullOrWhiteSpace(fallbackPath) && File.Exists(fallbackPath)
+            return !string.IsNullOrWhiteSpace(fallbackPath) && (OperatingSystem.IsBrowser() || System.IO.File.Exists(fallbackPath))
                 ? fallbackPath
                 : null;
         }

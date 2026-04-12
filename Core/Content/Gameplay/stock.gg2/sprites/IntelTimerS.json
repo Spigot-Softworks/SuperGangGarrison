@@ -1,0 +1,40 @@
+﻿{
+    "id":  "IntelTimerS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 1.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 2.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 3.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 4.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 5.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 6.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 7.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 8.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 9.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 10.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 11.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 12.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 13.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 14.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 15.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 16.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 17.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 18.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 19.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 20.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 21.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 22.png",
+                       "assets/legacy-sprites/InGameElements/IntelTimerS/image 23.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

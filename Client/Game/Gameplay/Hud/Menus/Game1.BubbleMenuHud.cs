@@ -21,7 +21,7 @@ public partial class Game1
             _bubbleMenuAlpha,
             _bubbleMenuXPageIndex,
             _world.LocalPlayer.AimDirectionDegrees,
-            GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(Mouse.GetState()))));
+                GetBubbleWheelSelectedSlot(GetScaledMouseState(GetConstrainedMouseState(GetCurrentMouseState()))));
         if (TryDrawClientPluginBubbleMenu(GetCurrentClientPluginCameraTopLeft(), renderState))
         {
             return;

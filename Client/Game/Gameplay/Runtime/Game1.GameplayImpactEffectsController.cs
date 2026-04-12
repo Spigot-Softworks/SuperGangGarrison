@@ -133,8 +133,8 @@ public partial class Game1
             DrawAirBlastVisuals(cameraPosition);
             DrawBubblePopVisuals(cameraPosition);
             DrawFallbackExplosionVisuals(cameraPosition);
-            var largeSprite = _game._runtimeAssets.GetSprite("ExplosionS");
-            var smallSprite = _game._runtimeAssets.GetSprite("ExplosionSmallS");
+            var largeSprite = _game.GetResolvedSprite("ExplosionS");
+            var smallSprite = _game.GetResolvedSprite("ExplosionSmallS");
             if ((largeSprite is null || largeSprite.Frames.Count == 0)
                 && (smallSprite is null || smallSprite.Frames.Count == 0))
             {
@@ -150,7 +150,7 @@ public partial class Game1
 
         public void DrawImpactVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("ImpactS");
+            var sprite = _game.GetResolvedSprite("ImpactS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -162,7 +162,7 @@ public partial class Game1
                 var secondStage = impact.ElapsedSourceTicks >= (ImpactVisual.LifetimeSourceTicks / 2);
                 var alpha = secondStage ? 0.5f : 1f;
                 var scale = secondStage ? 1f : 0.5f;
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[0],
                     new Vector2(impact.X - cameraPosition.X, impact.Y - cameraPosition.Y),
                     null,
@@ -249,7 +249,7 @@ public partial class Game1
                 ? Math.Min(startingFrameBias, sprite.Frames.Count - 1)
                 : (int)MathF.Floor(explosion.ElapsedSourceTicks * sprite.Frames.Count / (float)ExplosionVisual.LifetimeSourceTicks);
             var frameIndex = Math.Clamp(rawFrameIndex, 0, sprite.Frames.Count - 1);
-            _game._spriteBatch.Draw(
+            _game.DrawLoadedSpriteFrame(
                 sprite.Frames[frameIndex],
                 new Vector2(explosion.X - cameraPosition.X, explosion.Y - cameraPosition.Y),
                 null,
@@ -286,7 +286,7 @@ public partial class Game1
 
         private void DrawBubblePopVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("PopS");
+            var sprite = _game.GetResolvedSprite("PopS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -298,7 +298,7 @@ public partial class Game1
                     (int)MathF.Floor(bubblePop.ElapsedSourceTicks * sprite.Frames.Count / (float)BubblePopVisual.LifetimeSourceTicks),
                     0,
                     sprite.Frames.Count - 1);
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[frameIndex],
                     new Vector2(bubblePop.X - cameraPosition.X, bubblePop.Y - cameraPosition.Y),
                     null,
@@ -313,7 +313,7 @@ public partial class Game1
 
         private void DrawAirBlastVisuals(Vector2 cameraPosition)
         {
-            var sprite = _game._runtimeAssets.GetSprite("AirBlastS");
+            var sprite = _game.GetResolvedSprite("AirBlastS");
             if (sprite is null || sprite.Frames.Count == 0)
             {
                 return;
@@ -323,7 +323,7 @@ public partial class Game1
             {
                 var elapsedTicks = AirBlastVisual.LifetimeTicks - airBlast.TicksRemaining;
                 var frameIndex = Math.Clamp((int)MathF.Floor(elapsedTicks * sprite.Frames.Count / (float)AirBlastVisual.LifetimeTicks), 0, sprite.Frames.Count - 1);
-                _game._spriteBatch.Draw(
+                _game.DrawLoadedSpriteFrame(
                     sprite.Frames[frameIndex],
                     new Vector2(airBlast.X - cameraPosition.X, airBlast.Y - cameraPosition.Y),
                     null,

@@ -1,0 +1,22 @@
+﻿{
+    "id":  "DemomanBlueHS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 0.png",
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 1.png",
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 2.png",
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 3.png",
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 4.png",
+                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 5.png"
+                   ],
+    "originX":  33,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  26,
+                 "top":  30,
+                 "right":  40,
+                 "bottom":  63
+             }
+}

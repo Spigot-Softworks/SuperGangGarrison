@@ -41,6 +41,12 @@ public partial class Game1
     private bool DrawLevelBackground(Rectangle worldRectangle)
     {
         var backgroundName = _world.Level.BackgroundAssetName;
+        if (_runtimeAssets is null)
+        {
+            _spriteBatch.Draw(_pixel, worldRectangle, new Color(34, 44, 60));
+            return false;
+        }
+
         var background = string.IsNullOrWhiteSpace(backgroundName)
             ? null
             : _runtimeAssets.GetBackground(backgroundName);
@@ -80,7 +86,7 @@ public partial class Game1
 
     private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation = 0f)
     {
-        var sprite = _runtimeAssets.GetSprite(spriteName);
+        var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             return false;
@@ -98,7 +104,7 @@ public partial class Game1
     }
 
     private void DrawSpriteFrameWithOptionalShadow(
-        Texture2D frame,
+        LoadedSpriteFrame frame,
         Vector2 position,
         Color tint,
         float rotation,
@@ -106,14 +112,14 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
-        if (_spriteDropShadowEnabled && tint.A > 0)
+        if (!OperatingSystem.IsBrowser() && _spriteDropShadowEnabled && tint.A > 0)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
             var shadowTint = new Color(0, 0, 0) * shadowAlpha;
             _spriteBatch.Draw(
-                frame,
+                frame.Texture,
                 position + new Vector2(1f, 1f),
-                null,
+                frame.SourceRectangle,
                 shadowTint,
                 rotation,
                 origin,
@@ -123,15 +129,68 @@ public partial class Game1
         }
 
         _spriteBatch.Draw(
-            frame,
+            frame.Texture,
             position,
-            null,
+            frame.SourceRectangle,
             tint,
             rotation,
             origin,
             scale,
             effects,
             0f);
+    }
+
+    private void DrawLoadedSpriteFrame(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Rectangle? sourceRectangle,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects,
+        float layerDepth)
+    {
+        _spriteBatch.Draw(
+            frame.Texture,
+            position,
+            CombineSourceRectangles(frame.SourceRectangle, sourceRectangle),
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            layerDepth);
+    }
+
+    private void DrawLoadedSpriteFrame(LoadedSpriteFrame frame, Rectangle destinationRectangle, Color tint)
+    {
+        _spriteBatch.Draw(
+            frame.Texture,
+            destinationRectangle,
+            frame.SourceRectangle,
+            tint);
+    }
+
+    private static Rectangle? CombineSourceRectangles(Rectangle? frameSourceRectangle, Rectangle? requestedSourceRectangle)
+    {
+        if (requestedSourceRectangle is null)
+        {
+            return frameSourceRectangle;
+        }
+
+        if (frameSourceRectangle is null)
+        {
+            return requestedSourceRectangle;
+        }
+
+        var requested = requestedSourceRectangle.Value;
+        var frameSource = frameSourceRectangle.Value;
+        return new Rectangle(
+            frameSource.X + requested.X,
+            frameSource.Y + requested.Y,
+            requested.Width,
+            requested.Height);
     }
 
     private static float GetVelocityRotation(float velocityX, float velocityY)

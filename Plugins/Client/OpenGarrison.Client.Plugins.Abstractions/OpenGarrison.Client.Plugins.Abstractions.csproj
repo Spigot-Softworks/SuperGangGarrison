@@ -4,8 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
+  <PropertyGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <DefineConstants>$(DefineConstants);BROWSER_KNI</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
+    <Compile Remove="obj\**\*.cs" />
+    <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

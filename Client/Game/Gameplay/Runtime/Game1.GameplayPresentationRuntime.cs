@@ -16,6 +16,7 @@ public partial class Game1
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
     {
+        var browserPresentationStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         var interpolationStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         UpdateInterpolatedWorldState();
         if (_networkDiagnosticsEnabled)
@@ -48,6 +49,7 @@ public partial class Game1
         UpdateLastToDieCombatFeedbackPresentation();
         UpdateTeamSelect(keyboard, mouse);
         UpdateClassSelect(mouse);
+        RecordBrowserPresentationDuration(browserPresentationStartTimestamp);
     }
 
     private void UpdateGameplayWindowState()

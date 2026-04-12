@@ -1,0 +1,17 @@
+﻿{
+    "id":  "ArenaPlayerCountS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Gamemode HUDS/Arena/ArenaPlayerCountS/image 0.png"
+                   ],
+    "originX":  18,
+    "originY":  7,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

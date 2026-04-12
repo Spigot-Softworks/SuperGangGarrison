@@ -6,12 +6,14 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using OpenGarrison.Client.Plugins;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -155,34 +157,36 @@ public partial class Game1 : Game
     private readonly GameMakerAssetManifest _assetManifest;
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
-    private Texture2D? _menuBackgroundTexture;
+    private LoadedSpriteFrame? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
     private string? _menuBackgroundFailedPath;
     private string _menuBackgroundAttributionText = string.Empty;
     private SpriteFont _consoleFont = null!;
     private SpriteFont _menuFont = null!;
-    private Texture2D? _menuBitmapFontTexture;
+    private LoadedSpriteFrame? _menuBitmapFontTexture;
     private readonly Dictionary<char, MenuBitmapGlyph> _menuBitmapFontGlyphs = new();
     private int _menuBitmapFontLineHeight;
     private int _menuBitmapFontSpacing = 1;
-    private Texture2D? _menuPlaqueTexture;
-    private Texture2D? _menuPlaqueTallTexture;
-    private Texture2D? _menuTextBoxTopTexture;
-    private Texture2D? _menuTextBoxMiddleTexture;
-    private Texture2D? _menuTextBoxBottomTexture;
-    private Texture2D? _menuTextBoxSoloTexture;
-    private Texture2D? _gameplayLoadoutClassStripTexture;
-    private Texture2D? _gameplayLoadoutClassSelectionTexture;
-    private Texture2D? _gameplayLoadoutBackgroundBarTexture;
-    private Texture2D? _gameplayLoadoutDescriptionBoardTexture;
-    private Texture2D? _gameplayLoadoutSelectionAtlasTexture;
-    private Texture2D? _gameplayLoadoutSelectionTexture;
-    private Texture2D? _gameplayLoadoutScrollerTexture;
-    private Texture2D? _gameplayLoadoutPageTexture;
-    private Texture2D? _gameplayLoadoutBackButtonTexture;
+    private LoadedSpriteFrame? _menuPlaqueTexture;
+    private LoadedSpriteFrame? _menuPlaqueTallTexture;
+    private LoadedSpriteFrame? _menuTextBoxTopTexture;
+    private LoadedSpriteFrame? _menuTextBoxMiddleTexture;
+    private LoadedSpriteFrame? _menuTextBoxBottomTexture;
+    private LoadedSpriteFrame? _menuTextBoxSoloTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutClassStripTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutClassSelectionTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutBackgroundBarTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutDescriptionBoardTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutSelectionAtlasTexture;
+    private readonly List<LoadedSpriteFrame> _gameplayLoadoutSelectionAtlasChunks = [];
+    private LoadedSpriteFrame? _gameplayLoadoutSelectionTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutScrollerTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutPageTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutBackButtonTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private GameplayModAssetCache _gameplayModAssets = null!;
-    private readonly Dictionary<Texture2D, Rectangle> _spriteFontOpaqueBoundsCache = new();
+    private ClientRuntimeComposition? _runtimeComposition;
+    private readonly Dictionary<LoadedSpriteFrame, Rectangle> _spriteFontOpaqueBoundsCache = new();
     private KeyboardState _previousKeyboard;
     private KeyboardState _clientPluginPreviousKeyboard;
     private KeyboardState _clientPluginKeyboard;
@@ -225,7 +229,12 @@ public partial class Game1 : Game
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
+    private readonly HashSet<string> _browserLoggedCriticalHudSpriteEvents = new(StringComparer.Ordinal);
     private ClientPluginOverlayMenuState? _clientPluginOverlayMenu;
+    private int _browserDebugUpdateCount;
+    private int _browserDebugDrawCount;
+    private int _browserDebugMenuCount;
+    private int _browserHostLifecycleEnsureCallCount;
 
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)
     {
@@ -282,23 +291,47 @@ public partial class Game1 : Game
             _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
         _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
-        ContentRoot.Initialize(Content.RootDirectory);
+        ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         IsMouseVisible = false;
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyPreferredBackBufferSize(_clientSettings.Fullscreen, _ingameResolution);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
-        _assetManifest = GameMakerAssetManifestImporter.ImportProjectAssets();
+        _assetManifest = OperatingSystem.IsBrowser()
+            ? ClientRuntimeBootstrap.GetBrowserRuntimeAssetManifest() ?? GameMakerAssetManifestImporter.ImportProjectAssets()
+            : GameMakerAssetManifestImporter.ImportProjectAssets();
+        StartBrowserBootstrapAssetPreloadIfNeeded();
         ApplyLoadedSettings();
 
-        IsFixedTimeStep = true;
-        TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
+        if (OperatingSystem.IsBrowser())
+        {
+            IsFixedTimeStep = false;
+            InactiveSleepTime = TimeSpan.Zero;
+            _particleMode = Math.Max(_particleMode, 1);
+        }
+        else
+        {
+            IsFixedTimeStep = true;
+            TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
+        }
     }
 
     protected override void Initialize()
     {
         _bootstrapController.Initialize();
         base.Initialize();
+    }
+
+    public void EnsureBrowserHostLifecycleInitialized()
+    {
+        if (!OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        _browserHostLifecycleEnsureCallCount += 1;
+        _bootstrapController.Initialize();
+        _bootstrapController.LoadContent();
     }
 
     protected override void LoadContent()
@@ -314,6 +347,10 @@ public partial class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
+        var browserUpdateStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        LogBrowserFrameState("update", ref _browserDebugUpdateCount, gameTime);
+        PollBrowserBootstrapAssetPreload();
+        _bootstrapController.AdvanceDeferredContentBootstrap();
         BeginNetworkDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _frameController.Update(gameTime);
@@ -321,20 +358,62 @@ public partial class Game1 : Game
         FinalizeNetworkDiagnosticsFrame();
 
         base.Update(gameTime);
+        RecordBrowserUpdateDuration(browserUpdateStartTimestamp);
     }
 
     protected override void Draw(GameTime gameTime)
     {
+        var browserDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         GraphicsDevice.Clear(new Color(24, 32, 48));
         _frameController.Draw(gameTime);
 
         base.Draw(gameTime);
+        RecordBrowserDrawDuration(browserDrawStartTimestamp);
+    }
+
+    private void LogBrowserFrameState(string phase, ref int counter, GameTime gameTime)
+    {
+        if (!OperatingSystem.IsBrowser() || counter >= 8)
+        {
+            return;
+        }
+
+        counter += 1;
+        Console.WriteLine(
+            $"Browser frame {phase} #{counter}: startupSplash={_startupSplashOpen} mainMenu={_mainMenuOpen} bootstrapComplete={_bootstrapController.IsContentBootstrapComplete} elapsed={gameTime.ElapsedGameTime.TotalMilliseconds:0.##}ms");
+    }
+
+    private void LogBrowserMenuState(int buttonCount)
+    {
+        if (!OperatingSystem.IsBrowser() || _browserDebugMenuCount >= 6)
+        {
+            return;
+        }
+
+        _browserDebugMenuCount += 1;
+        Console.WriteLine(
+            $"Browser menu draw #{_browserDebugMenuCount}: page={_mainMenuPage} overlay={GetActiveMainMenuOverlay()} buttons={buttonCount} plaque={_menuPlaqueTexture is not null} solo={_menuTextBoxSoloTexture is not null} bitmapFont={_menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0} menuFontLineSpacing={_menuFont.LineSpacing}");
     }
 
     private void DrawGameplayWorldForCamera(Vector2 cameraPosition, int viewportWidth, int viewportHeight, int? skippedDeadBodySourcePlayerId = null)
     {
         _frameController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
+    }
+
+    private KeyboardState GetCurrentKeyboardState()
+    {
+        return OperatingSystem.IsBrowser()
+            ? BrowserInputBridge.GetKeyboardState()
+            : Keyboard.GetState();
+    }
+
+    private MouseState GetCurrentMouseState()
+    {
+        return OperatingSystem.IsBrowser()
+            ? BrowserInputBridge.GetMouseState()
+            : Mouse.GetState();
     }
 
     private MainMenuOverlayKind GetActiveMainMenuOverlay()

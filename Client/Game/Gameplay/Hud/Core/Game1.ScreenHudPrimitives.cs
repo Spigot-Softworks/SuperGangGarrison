@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 
 namespace OpenGarrison.Client;
 
@@ -114,7 +115,7 @@ public partial class Game1
         var drawPosition = new Vector2(
             visualCenter.X + ((sprite.Origin.X - (frame.Width / 2f)) * scale.X),
             visualCenter.Y + ((sprite.Origin.Y - (frame.Height / 2f)) * scale.Y));
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             frame,
             drawPosition,
             null,
@@ -136,11 +137,19 @@ public partial class Game1
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
+            LogCriticalBrowserHudSpriteState(
+                spriteName,
+                sprite is null ? "missing" : "empty",
+                $"frameIndex={frameIndex} position={position} teamSelectOpen={_teamSelectOpen} classSelectOpen={_classSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
             return false;
         }
 
         var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
-        _spriteBatch.Draw(
+        LogCriticalBrowserHudSpriteState(
+            spriteName,
+            "drawn",
+            $"requestedFrame={frameIndex} drawnFrame={clampedFrameIndex} frames={sprite.Frames.Count} position={position} teamSelectOpen={_teamSelectOpen} classSelectOpen={_classSelectOpen} awaitingJoin={_world.LocalPlayerAwaitingJoin}");
+        DrawLoadedSpriteFrame(
             sprite.Frames[clampedFrameIndex],
             position,
             null,
@@ -152,6 +161,35 @@ public partial class Game1
             0f);
         return true;
     }
+
+    private void LogCriticalBrowserHudSpriteState(string spriteName, string state, string details)
+    {
+        if (!OperatingSystem.IsBrowser() || !CriticalBrowserHudSprites.Contains(spriteName))
+        {
+            return;
+        }
+
+        var eventKey = $"{spriteName}:{state}";
+        if (!_browserLoggedCriticalHudSpriteEvents.Add(eventKey))
+        {
+            return;
+        }
+
+        Console.WriteLine($"Browser critical HUD sprite {spriteName} {state}: {details}");
+    }
+
+    private static readonly HashSet<string> CriticalBrowserHudSprites = new(StringComparer.Ordinal)
+    {
+        "TeamSelectS",
+        "ClassSelectS",
+        "TeamDoorS",
+        "DoorTopLightUpS",
+        "TVLightUpS",
+        "ClassSelectPortraitS",
+        "ClassSelectSpritesS",
+        "TimerHudS",
+        "TimerS",
+    };
 
     private bool TryDrawScreenSpritePart(string spriteName, int frameIndex, Rectangle sourceRectangle, Vector2 position, Color tint, Vector2 scale)
     {
@@ -171,7 +209,7 @@ public partial class Game1
         }
 
         var clampedSourceRectangle = new Rectangle(sourceRectangle.X, sourceRectangle.Y, safeWidth, safeHeight);
-        _spriteBatch.Draw(
+        DrawLoadedSpriteFrame(
             frame,
             position,
             clampedSourceRectangle,

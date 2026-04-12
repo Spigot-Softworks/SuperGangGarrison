@@ -348,12 +348,17 @@ public partial class Game1
 
     private bool HandleNavEditorTextInput(TextInputEventArgs e)
     {
+        return HandleNavEditorTextInput(e.Character);
+    }
+
+    private bool HandleNavEditorTextInput(char character)
+    {
         if (!_navEditorEnabled || !_navEditorRenamingAnchor)
         {
             return false;
         }
 
-        switch (e.Character)
+        switch (character)
         {
             case '\b':
                 if (_navEditorRenameBuffer.Length > 0)
@@ -366,9 +371,9 @@ public partial class Game1
                 CommitNavEditorRename();
                 break;
             default:
-                if (!char.IsControl(e.Character) && _navEditorRenameBuffer.Length < 48)
+                if (!char.IsControl(character) && _navEditorRenameBuffer.Length < 48)
                 {
-                    _navEditorRenameBuffer += e.Character;
+                    _navEditorRenameBuffer += character;
                 }
                 break;
         }

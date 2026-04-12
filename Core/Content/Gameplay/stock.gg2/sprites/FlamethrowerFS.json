@@ -1,0 +1,22 @@
+﻿{
+    "id":  "FlamethrowerFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/FlamethrowerFS/image 5.png"
+                   ],
+    "originX":  14,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

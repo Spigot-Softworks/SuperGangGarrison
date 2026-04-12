@@ -125,14 +125,14 @@ public partial class Game1
                 : cursor;
             if (rotation == 0f || rotationCenter is null)
             {
-                _spriteBatch.Draw(frame, SnapTextPosition(drawPosition), null, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+                _spriteBatch.Draw(frame.Texture, SnapTextPosition(drawPosition), frame.SourceRectangle, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             }
             else
             {
                 _spriteBatch.Draw(
-                    frame,
+                    frame.Texture,
                     rotationCenter.Value,
-                    null,
+                    frame.SourceRectangle,
                     color,
                     rotation,
                     (rotationCenter.Value - drawPosition) / scale,
@@ -207,7 +207,7 @@ public partial class Game1
     {
         try
         {
-            var candidate = _runtimeAssets.GetSprite(definition.SpriteName);
+            var candidate = GetResolvedSprite(definition.SpriteName);
             if (candidate is null || candidate.Frames.Count == 0)
             {
                 fontSprite = null!;
@@ -262,7 +262,7 @@ public partial class Game1
         return metrics.CellWidth;
     }
 
-    private SpriteFontGlyphMetrics GetSpriteFontGlyphMetrics(SpriteFontDefinition definition, Texture2D frame)
+    private SpriteFontGlyphMetrics GetSpriteFontGlyphMetrics(SpriteFontDefinition definition, LoadedSpriteFrame frame)
     {
         if (!definition.IsProportional)
         {
@@ -273,15 +273,27 @@ public partial class Game1
         return new SpriteFontGlyphMetrics(bounds.X, bounds.Width);
     }
 
-    private Rectangle GetSpriteFontOpaqueBounds(Texture2D frame)
+    private Rectangle GetSpriteFontOpaqueBounds(LoadedSpriteFrame frame)
     {
+        if (frame.OpaqueBounds is { } opaqueBounds)
+        {
+            return opaqueBounds;
+        }
+
         if (_spriteFontOpaqueBoundsCache.TryGetValue(frame, out var cached))
         {
             return cached;
         }
 
-        var pixelData = new Color[frame.Width * frame.Height];
-        frame.GetData(pixelData);
+        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+        var texturePixels = new Color[frame.Texture.Width * frame.Texture.Height];
+        frame.Texture.GetData(texturePixels);
+        var pixelData = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        for (var row = 0; row < sourceRectangle.Height; row += 1)
+        {
+            var sourceIndex = ((sourceRectangle.Y + row) * frame.Texture.Width) + sourceRectangle.X;
+            Array.Copy(texturePixels, sourceIndex, pixelData, row * sourceRectangle.Width, sourceRectangle.Width);
+        }
 
         var minX = frame.Width;
         var minY = frame.Height;

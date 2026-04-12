@@ -30,6 +30,11 @@ public static class JsonConfigurationFile
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(defaultFactory);
 
+        if (OperatingSystem.IsBrowser())
+        {
+            return defaultFactory();
+        }
+
         if (!File.Exists(path))
         {
             var created = defaultFactory();
@@ -61,6 +66,11 @@ public static class JsonConfigurationFile
     public static void Save<T>(string path, T value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))

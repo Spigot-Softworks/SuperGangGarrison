@@ -1,0 +1,33 @@
+﻿{
+    "id":  "QuerlyRedTauntS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 0.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 1.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 2.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 3.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 4.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 5.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 6.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 7.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 8.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 9.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 10.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 11.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 12.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 13.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 14.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 15.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyRedTauntS/image 16.png"
+                   ],
+    "originX":  16,
+    "originY":  20,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  9,
+                 "top":  7,
+                 "right":  23,
+                 "bottom":  31
+             }
+}

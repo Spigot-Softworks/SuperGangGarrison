@@ -1,0 +1,36 @@
+﻿{
+    "id":  "MedRadarArrow",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 0.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 1.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 2.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 3.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 4.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 5.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 6.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 7.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 8.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 9.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 10.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 11.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 12.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 13.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 14.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 15.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 16.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 17.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 18.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/MedRadarArrow/image 19.png"
+                   ],
+    "originX":  12,
+    "originY":  12,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

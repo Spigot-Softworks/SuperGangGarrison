@@ -1,0 +1,23 @@
+﻿{
+    "id":  "GibS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 1.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 2.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 3.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 4.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 5.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/GibS/image 6.png"
+                   ],
+    "originX":  3,
+    "originY":  3,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

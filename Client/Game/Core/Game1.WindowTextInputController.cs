@@ -17,37 +17,42 @@ public partial class Game1
 
         public void Handle(TextInputEventArgs e)
         {
-            if (_game.HandleNavEditorTextInput(e))
+            Handle(e.Character);
+        }
+
+        public void Handle(char character)
+        {
+            if (_game.HandleNavEditorTextInput(character))
             {
                 return;
             }
 
-            if (_game._networkPromptTextInputController.TryHandle(e))
+            if (_game._networkPromptTextInputController.TryHandle(character))
             {
                 return;
             }
 
-            if (_game._mainMenuOpen && _game._manualConnectOpen && _game._menuTextInputController.TryHandleManualConnect(e))
+            if (_game._mainMenuOpen && _game._manualConnectOpen && _game._menuTextInputController.TryHandleManualConnect(character))
             {
                 return;
             }
 
-            if (_game._mainMenuOpen && _game._hostSetupOpen && _game._hostSetupFlowController.HandleHostSetupTextInput(e))
+            if (_game._mainMenuOpen && _game._hostSetupOpen && _game._hostSetupFlowController.HandleHostSetupTextInput(character))
             {
                 return;
             }
 
-            if (_game._optionsMenuOpen && _game._editingPlayerName && _game._menuTextInputController.TryHandlePlayerNameEdit(e))
+            if (_game._optionsMenuOpen && _game._editingPlayerName && _game._menuTextInputController.TryHandlePlayerNameEdit(character))
             {
                 return;
             }
 
-            if (_game._chatTextInputController.TryHandle(e))
+            if (_game._chatTextInputController.TryHandle(character))
             {
                 return;
             }
 
-            _game._consoleTextInputController.Handle(e);
+            _game._consoleTextInputController.Handle(character);
         }
     }
 }

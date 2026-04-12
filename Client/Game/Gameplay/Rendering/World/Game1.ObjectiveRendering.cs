@@ -42,11 +42,11 @@ public partial class Game1
             timerFrame += 12;
         }
 
-        var timerSprite = _runtimeAssets.GetSprite("IntelTimerS");
+        var timerSprite = GetResolvedSprite("IntelTimerS");
         if (timerSprite is not null && timerSprite.Frames.Count > 0)
         {
             var clampedFrameIndex = Math.Clamp(timerFrame, 0, timerSprite.Frames.Count - 1);
-            _spriteBatch.Draw(
+            DrawLoadedSpriteFrame(
                 timerSprite.Frames[clampedFrameIndex],
                 new Vector2(renderPosition.X + 2f - cameraPosition.X, renderPosition.Y - 25f - cameraPosition.Y),
                 null,

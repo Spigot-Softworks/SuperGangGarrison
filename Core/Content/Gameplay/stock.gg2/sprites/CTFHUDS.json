@@ -1,0 +1,17 @@
+﻿{
+    "id":  "CTFHUDS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/CTFHUDS/image 0.png"
+                   ],
+    "originX":  57,
+    "originY":  72,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

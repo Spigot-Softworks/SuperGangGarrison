@@ -70,6 +70,12 @@ public static class StockGameplayModCatalog
 
     private static GameplayModPackDefinition LoadDefinition()
     {
+        if (OperatingSystem.IsBrowser()
+            && BrowserGameplayModCatalog.TryGetDefinition(StockPackDirectoryName, out var browserDefinition))
+        {
+            return browserDefinition;
+        }
+
         var packDirectory = GameplayModPackDirectoryLoader.FindPackDirectory(StockPackDirectoryName);
         if (string.IsNullOrWhiteSpace(packDirectory))
         {

@@ -17,18 +17,35 @@ public sealed class FixedStepSimulator
 
     public int Step(double elapsedSeconds, Action? beforeTickAdvanced, Action? onTickAdvanced)
     {
+        return Step(elapsedSeconds, beforeTickAdvanced, onTickAdvanced, maxTicksPerAdvance: null);
+    }
+
+    public int Step(
+        double elapsedSeconds,
+        Action? beforeTickAdvanced,
+        Action? onTickAdvanced,
+        int? maxTicksPerAdvance)
+    {
         var frameDelta = _world.Config.FixedDeltaSeconds;
         _accumulatorSeconds += elapsedSeconds;
 
         var ticks = 0;
 
-        while (_accumulatorSeconds >= frameDelta)
+        while (_accumulatorSeconds >= frameDelta
+            && (!maxTicksPerAdvance.HasValue || ticks < maxTicksPerAdvance.Value))
         {
             beforeTickAdvanced?.Invoke();
             _world.AdvanceOneTick();
             _accumulatorSeconds -= frameDelta;
             ticks += 1;
             onTickAdvanced?.Invoke();
+        }
+
+        if (maxTicksPerAdvance.HasValue
+            && ticks >= maxTicksPerAdvance.Value
+            && _accumulatorSeconds >= frameDelta)
+        {
+            _accumulatorSeconds = 0d;
         }
 
         return ticks;

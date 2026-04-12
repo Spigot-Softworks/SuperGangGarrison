@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -114,6 +115,28 @@ public partial class Game1
         return _clientPluginUiBridgeController.GetClientPluginLevelBackgroundTexture();
     }
 
+    private bool WasClientPluginKeyPressedThisFrame(Keys key)
+    {
+        return _clientPluginKeyboard.IsKeyDown(key) && !_clientPluginPreviousKeyboard.IsKeyDown(key);
+    }
+
+    private ClientPluginHost CreateClientPluginHost(string pluginsDirectory, string pluginConfigRoot, string pluginStatePath)
+    {
+        return new ClientPluginHost(
+            _clientPluginStateView!,
+            GraphicsDevice,
+            pluginsDirectory,
+            pluginConfigRoot,
+            pluginStatePath,
+            AddConsoleLine,
+            WasClientPluginKeyPressedThisFrame,
+            (sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion) =>
+                _networkClient.SendPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion),
+            (_, text, durationTicks, playSound) => QueuePluginNotice(text, durationTicks, playSound),
+            (pluginId, title, subtitle, breadcrumb, entries) => ShowClientPluginOverlayMenu(pluginId, title, subtitle, breadcrumb, entries),
+            HideClientPluginOverlayMenu);
+    }
+
     private List<ClientPlayerMarker> GetClientPluginPlayerMarkers()
     {
         return _clientPluginMarkerController.GetClientPluginPlayerMarkers();
@@ -137,6 +160,29 @@ public partial class Game1
     private void DispatchPendingDamageEventsToPlugins()
     {
         _clientPluginEventController.DispatchPendingDamageEventsToPlugins();
+    }
+
+    private void NotifyClientPluginsScoreboardDraw(
+        Rectangle scoreboardBounds,
+        float alpha,
+        string serverMetaLabel,
+        string mapMetaLabel,
+        int redPlayerCount,
+        int bluePlayerCount,
+        string redCenterText,
+        string blueCenterText)
+    {
+        _clientPluginHost?.NotifyScoreboardDraw(
+            new ScoreboardCanvas(this),
+            new ClientScoreboardRenderState(
+                scoreboardBounds,
+                alpha,
+                serverMetaLabel,
+                mapMetaLabel,
+                redPlayerCount,
+                bluePlayerCount,
+                redCenterText,
+                blueCenterText));
     }
 
     private void ResetClientPluginGameplayEventState()

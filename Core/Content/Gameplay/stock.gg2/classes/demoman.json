@@ -12,6 +12,18 @@
     "maxAirJumps": 0,
     "tauntLengthFrames": 10
   },
+  "presentation": {
+    "spritePrefix": "Demoman",
+    "standSuffix": "StandS",
+    "runSuffix": "RunS",
+    "jumpSuffix": "JumpS",
+    "leanLeftSuffix": "LeanLS",
+    "leanRightSuffix": "LeanRS",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "HS",
+    "deadSuffix": "DeadS",
+    "intelSuffix": "IntelS"
+  },
   "loadouts": {
     "demoman.stock": {
       "id": "demoman.stock",

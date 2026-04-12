@@ -152,11 +152,16 @@ public partial class Game1
 
         EnsureDeathCamCaptureTarget(viewportWidth, viewportHeight);
         var focusCameraPosition = GetDeathCamFocusCameraTopLeft(viewportWidth, viewportHeight);
+        WriteGameplayRenderTrace("deathcam prepare setrendertarget");
         GraphicsDevice.SetRenderTarget(_deathCamCaptureTarget);
         GraphicsDevice.Clear(new Color(24, 32, 48));
+        WriteGameplayRenderTrace("deathcam prepare spritebatchbegin");
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        WriteGameplayRenderTrace("deathcam prepare drawworld");
         DrawGameplayWorldForCamera(focusCameraPosition, viewportWidth, viewportHeight);
+        WriteGameplayRenderTrace("deathcam prepare spritebatchend");
         _spriteBatch.End();
+        WriteGameplayRenderTrace("deathcam prepare setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
         _deathCamCaptureValid = true;
     }

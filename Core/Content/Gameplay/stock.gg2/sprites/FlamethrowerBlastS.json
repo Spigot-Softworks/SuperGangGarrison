@@ -1,0 +1,32 @@
+﻿{
+    "id":  "FlamethrowerBlastS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerBlastS/image 15.png"
+                   ],
+    "originX":  14,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -1,0 +1,25 @@
+﻿{
+    "id":  "ScoutRedHS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 0.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 1.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 2.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 3.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 4.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 5.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 6.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 7.png",
+                       "assets/legacy-sprites/Characters/Scout/ScoutRedHS/image 8.png"
+                   ],
+    "originX":  30,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  24,
+                 "top":  30,
+                 "right":  36,
+                 "bottom":  63
+             }
+}

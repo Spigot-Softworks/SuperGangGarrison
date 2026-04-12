@@ -83,6 +83,20 @@ public partial class Game1
                 return;
             }
 
+            EnsureBrowserMusicLoaded(
+                ref _game._menuMusicLoadAttempted,
+                _game._menuMusicInstance,
+                LoadMenuMusic);
+            EnsureBrowserMusicLoaded(
+                ref _game._lastToDieMenuMusicLoadAttempted,
+                _game._lastToDieMenuMusicInstance,
+                LoadLastToDieMenuMusic);
+
+            if (!CanStartAudioPlayback())
+            {
+                return;
+            }
+
             if (_game.IsLastToDieMenuActive() && _game._lastToDieMenuMusicInstance is not null)
             {
                 StopMenuMusic();
@@ -122,6 +136,16 @@ public partial class Game1
 
         public void EnsureFaucetMusicPlaying()
         {
+            EnsureBrowserMusicLoaded(
+                ref _game._faucetMusicLoadAttempted,
+                _game._faucetMusicInstance,
+                LoadFaucetMusic);
+
+            if (!CanStartAudioPlayback())
+            {
+                return;
+            }
+
             if (_game._faucetMusicInstance is null || !_game._audioAvailable || !_game.AllowsMenuMusic())
             {
                 StopFaucetMusic();
@@ -147,6 +171,20 @@ public partial class Game1
             {
                 StopIngameMusic();
                 StopLastToDieIngameMusic();
+                return;
+            }
+
+            EnsureBrowserMusicLoaded(
+                ref _game._ingameMusicLoadAttempted,
+                _game._ingameMusicInstance,
+                LoadIngameMusic);
+            EnsureBrowserMusicLoaded(
+                ref _game._lastToDieIngameMusicLoadAttempted,
+                _game._lastToDieIngameMusicInstance,
+                LoadLastToDieIngameMusic);
+
+            if (!CanStartAudioPlayback())
+            {
                 return;
             }
 
@@ -209,8 +247,18 @@ public partial class Game1
 
             if (_game._lastToDieGameOverSound is null)
             {
+                if (OperatingSystem.IsBrowser())
+                {
+                    if (_game._lastToDieGameOverSoundLoadAttempted)
+                    {
+                        return;
+                    }
+
+                    _game._lastToDieGameOverSoundLoadAttempted = true;
+                }
+
                 var soundPath = FindLoopedMusicPath(Path.Combine("Music", "ltdgameover.fixed.wav"));
-                if (string.IsNullOrWhiteSpace(soundPath) || !File.Exists(soundPath))
+                if (string.IsNullOrWhiteSpace(soundPath) || !MusicAssetExists(soundPath))
                 {
                     return;
                 }
@@ -258,6 +306,15 @@ public partial class Game1
         {
             foreach (var preferredRelativePath in EnumeratePreferredMusicRelativePaths(relativePath))
             {
+                if (OperatingSystem.IsBrowser())
+                {
+                    var browserRelativePath = Path.Combine("Content", "Sounds", preferredRelativePath).Replace('\\', '/');
+                    if (BrowserContentCatalog.TryGetBinary(browserRelativePath, out _))
+                    {
+                        return browserRelativePath;
+                    }
+                }
+
                 var candidatePaths = new[]
                 {
                     Path.Combine("Content", "Sounds", preferredRelativePath),
@@ -276,6 +333,7 @@ public partial class Game1
                 }
             }
 
+            // Browser music is optional; never block the WASM main thread for a late fetch.
             return null;
         }
 
@@ -285,7 +343,7 @@ public partial class Game1
             musicInstance = null;
 
             var musicPath = FindLoopedMusicPath(relativePath);
-            if (musicPath is null || !File.Exists(musicPath))
+            if (musicPath is null || !MusicAssetExists(musicPath))
             {
                 return;
             }
@@ -326,6 +384,25 @@ public partial class Game1
             catch
             {
             }
+        }
+
+        private static void EnsureBrowserMusicLoaded(
+            ref bool attempted,
+            SoundEffectInstance? instance,
+            Action loader)
+        {
+            if (!OperatingSystem.IsBrowser() || attempted || instance is not null)
+            {
+                return;
+            }
+
+            attempted = true;
+            loader();
+        }
+
+        private static bool CanStartAudioPlayback()
+        {
+            return !OperatingSystem.IsBrowser() || BrowserInputBridge.HasUserActivation;
         }
 
         private static IEnumerable<string> EnumeratePreferredMusicRelativePaths(string relativePath)
@@ -388,6 +465,23 @@ public partial class Game1
 
         private static SoundEffect LoadMusicSoundEffect(string path)
         {
+            if (OperatingSystem.IsBrowser())
+            {
+                var bytes = TryGetBrowserMusicBytes(path);
+                if (bytes is null || bytes.Length == 0)
+                {
+                    throw new FileNotFoundException($"Browser music asset was not available: {path}", path);
+                }
+
+                if (string.Equals(Path.GetExtension(path), ".ogg", StringComparison.OrdinalIgnoreCase))
+                {
+                    return LoadOggSoundEffect(bytes, Path.GetFileName(path));
+                }
+
+                using var browserStream = new MemoryStream(bytes, writable: false);
+                return SoundEffect.FromStream(browserStream);
+            }
+
             if (string.Equals(Path.GetExtension(path), ".ogg", StringComparison.OrdinalIgnoreCase))
             {
                 return LoadOggSoundEffect(path);
@@ -400,9 +494,21 @@ public partial class Game1
         private static SoundEffect LoadOggSoundEffect(string path)
         {
             using var vorbis = new VorbisReader(path);
+            return LoadVorbisSoundEffect(vorbis, Path.GetFileName(path));
+        }
+
+        private static SoundEffect LoadOggSoundEffect(byte[] bytes, string assetName)
+        {
+            using var stream = new MemoryStream(bytes, writable: false);
+            using var vorbis = new VorbisReader(stream, false);
+            return LoadVorbisSoundEffect(vorbis, assetName);
+        }
+
+        private static SoundEffect LoadVorbisSoundEffect(VorbisReader vorbis, string assetName)
+        {
             if (vorbis.Channels is < 1 or > 2)
             {
-                throw new NotSupportedException($"Unsupported Ogg channel count {vorbis.Channels} for {Path.GetFileName(path)}.");
+                throw new NotSupportedException($"Unsupported Ogg channel count {vorbis.Channels} for {assetName}.");
             }
 
             var channels = vorbis.Channels == 1 ? AudioChannels.Mono : AudioChannels.Stereo;
@@ -454,6 +560,33 @@ public partial class Game1
             }
 
             return new SoundEffect(pcmBytes, sampleRate, channels);
+        }
+
+        private static bool MusicAssetExists(string path)
+        {
+            return OperatingSystem.IsBrowser()
+                ? TryGetBrowserMusicBytes(path) is { Length: > 0 }
+                : File.Exists(path);
+        }
+
+        private static byte[]? TryGetBrowserMusicBytes(string path)
+        {
+            if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            if (BrowserContentCatalog.TryGetBinary(path, out var directBytes))
+            {
+                return directBytes;
+            }
+
+            if (BrowserContentCatalog.TryGetBinaryForPath(path, out var normalizedBytes))
+            {
+                return normalizedBytes;
+            }
+
+            return null;
         }
 
         private static void EnsureCapacity(ref byte[] buffer, int offset, int additionalBytes)

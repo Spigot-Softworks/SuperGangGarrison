@@ -1,0 +1,18 @@
+﻿{
+    "id":  "SandwichHudS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS/image 0.png",
+                       "assets/legacy-sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS/image 1.png"
+                   ],
+    "originX":  19,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -1,0 +1,21 @@
+﻿{
+    "id":  "SheetFalling2",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/SheetFalling2/image 0.png",
+                       "assets/legacy-sprites/InGameElements/SheetFalling2/image 1.png",
+                       "assets/legacy-sprites/InGameElements/SheetFalling2/image 2.png",
+                       "assets/legacy-sprites/InGameElements/SheetFalling2/image 3.png",
+                       "assets/legacy-sprites/InGameElements/SheetFalling2/image 4.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

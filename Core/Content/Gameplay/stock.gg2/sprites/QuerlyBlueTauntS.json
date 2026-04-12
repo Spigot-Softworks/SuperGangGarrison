@@ -1,0 +1,33 @@
+﻿{
+    "id":  "QuerlyBlueTauntS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 0.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 1.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 2.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 3.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 4.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 5.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 6.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 7.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 8.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 9.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 10.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 11.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 12.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 13.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 14.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 15.png",
+                       "assets/legacy-sprites/Characters/Querly/QuerlyBlueTauntS/image 16.png"
+                   ],
+    "originX":  16,
+    "originY":  20,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  9,
+                 "top":  7,
+                 "right":  23,
+                 "bottom":  31
+             }
+}

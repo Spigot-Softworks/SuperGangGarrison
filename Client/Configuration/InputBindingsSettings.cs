@@ -49,6 +49,11 @@ public sealed class InputBindingsSettings
 
     public static InputBindingsSettings Load(string? path = null)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return new InputBindingsSettings();
+        }
+
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
         if (File.Exists(resolvedPath))
         {
@@ -70,6 +75,11 @@ public sealed class InputBindingsSettings
 
     public void Save(string? path = null)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
         var document = new IniConfigurationFile();
 
@@ -94,6 +104,11 @@ public sealed class InputBindingsSettings
 
     private static InputBindingsSettings LoadFromIni(string path)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return new InputBindingsSettings();
+        }
+
         var document = IniConfigurationFile.Load(path);
         return new InputBindingsSettings
         {

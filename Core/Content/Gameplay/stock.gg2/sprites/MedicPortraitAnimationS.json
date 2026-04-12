@@ -1,0 +1,36 @@
+﻿{
+    "id":  "MedicPortraitAnimationS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 0.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 1.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 2.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 3.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 4.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 5.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 6.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 7.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 8.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 9.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 10.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 11.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 12.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 13.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 14.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 15.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 16.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 17.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 18.png",
+                       "assets/legacy-sprites/HUDs/PortraitAnimations/MedicPortraitAnimationS/image 19.png"
+                   ],
+    "originX":  26,
+    "originY":  26,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

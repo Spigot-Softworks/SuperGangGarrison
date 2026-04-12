@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
@@ -15,12 +17,30 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
     private readonly Dictionary<string, LoadedGameMakerSprite> _sprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _backgrounds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundEffect> _sounds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Task<LoadedGameMakerSprite?>> _pendingBrowserSprites = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Task<Texture2D?>> _pendingBrowserBackgrounds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Task<SoundEffect?>> _pendingBrowserSounds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _failedBrowserSprites = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _failedBrowserBackgrounds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _failedBrowserSounds = new(StringComparer.OrdinalIgnoreCase);
+    private BrowserAtlasTextureCache? _browserAtlasTextureCache;
+    private BrowserGameMakerAtlasSpriteResolver? _browserGameMakerAtlasResolver;
     private bool _disposed;
 
     public GameMakerRuntimeAssetCache(GraphicsDevice graphicsDevice, GameMakerAssetManifest manifest)
     {
         _graphicsDevice = graphicsDevice;
         _manifest = manifest;
+
+        if (OperatingSystem.IsBrowser())
+        {
+            var atlasManifest = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest();
+            if (atlasManifest is not null)
+            {
+                _browserAtlasTextureCache = new BrowserAtlasTextureCache(graphicsDevice);
+                _browserGameMakerAtlasResolver = new BrowserGameMakerAtlasSpriteResolver(atlasManifest, _browserAtlasTextureCache);
+            }
+        }
     }
 
     public LoadedGameMakerSprite? GetSprite(string spriteName)
@@ -32,12 +52,22 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return cached;
         }
 
-        if (!_manifest.Sprites.TryGetValue(spriteName, out var spriteAsset) || spriteAsset.FramePaths.Count == 0)
+        if (!_manifest.Sprites.TryGetValue(spriteName, out var spriteAsset))
         {
             return null;
         }
 
-        var frames = new Texture2D[spriteAsset.FramePaths.Count];
+        if (OperatingSystem.IsBrowser())
+        {
+            return TryGetBrowserSprite(spriteName, spriteAsset);
+        }
+
+        if (spriteAsset.FramePaths.Count == 0)
+        {
+            return null;
+        }
+
+        var frames = new LoadedSpriteFrame[spriteAsset.FramePaths.Count];
         for (var frameIndex = 0; frameIndex < spriteAsset.FramePaths.Count; frameIndex += 1)
         {
             var framePath = spriteAsset.FramePaths[frameIndex];
@@ -47,7 +77,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             }
 
             using var stream = File.OpenRead(framePath);
-            frames[frameIndex] = Texture2D.FromStream(_graphicsDevice, stream);
+            frames[frameIndex] = new LoadedSpriteFrame(Texture2D.FromStream(_graphicsDevice, stream));
         }
 
         cached = new LoadedGameMakerSprite(frames, new Point(spriteAsset.OriginX, spriteAsset.OriginY));
@@ -62,6 +92,22 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         if (_backgrounds.TryGetValue(backgroundName, out var cached))
         {
             return cached;
+        }
+
+        if (OperatingSystem.IsBrowser())
+        {
+            if (TryGetBrowserBackgroundByPath(backgroundName, out var directBackground))
+            {
+                _backgrounds[backgroundName] = directBackground;
+                return directBackground;
+            }
+
+            if (!_manifest.Backgrounds.TryGetValue(backgroundName, out var browserBackgroundAsset))
+            {
+                return null;
+            }
+
+            return TryGetBrowserBackground(backgroundName, browserBackgroundAsset);
         }
 
         if (File.Exists(backgroundName))
@@ -93,8 +139,17 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return cached;
         }
 
-        if (!_manifest.Sounds.TryGetValue(soundName, out var soundAsset)
-            || !File.Exists(soundAsset.AudioPath))
+        if (!_manifest.Sounds.TryGetValue(soundName, out var soundAsset))
+        {
+            return null;
+        }
+
+        if (OperatingSystem.IsBrowser())
+        {
+            return TryGetBrowserSound(soundName, soundAsset);
+        }
+
+        if (!File.Exists(soundAsset.AudioPath))
         {
             return null;
         }
@@ -141,7 +196,484 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         _sprites.Clear();
         _backgrounds.Clear();
         _sounds.Clear();
+        _pendingBrowserSprites.Clear();
+        _pendingBrowserBackgrounds.Clear();
+        _pendingBrowserSounds.Clear();
+        _failedBrowserSprites.Clear();
+        _failedBrowserBackgrounds.Clear();
+        _failedBrowserSounds.Clear();
+        _browserGameMakerAtlasResolver = null;
+        _browserAtlasTextureCache?.Dispose();
+        _browserAtlasTextureCache = null;
     }
+
+    private LoadedGameMakerSprite? TryGetBrowserSprite(string spriteName, GameMakerSpriteAsset spriteAsset)
+    {
+        if (_failedBrowserSprites.Contains(spriteName))
+        {
+            LogCriticalBrowserRuntimeSprite(spriteName, "previously-failed", $"metadata={spriteAsset.MetadataPath}");
+            return null;
+        }
+
+        if (!_pendingBrowserSprites.TryGetValue(spriteName, out var pendingTask))
+        {
+            LogCriticalBrowserRuntimeSprite(spriteName, "begin-load", $"metadata={spriteAsset.MetadataPath}");
+            pendingTask = LoadBrowserSpriteAsync(spriteAsset);
+            _pendingBrowserSprites[spriteName] = pendingTask;
+        }
+
+        if (!pendingTask.IsCompleted)
+        {
+            return null;
+        }
+
+        _pendingBrowserSprites.Remove(spriteName);
+        try
+        {
+            var sprite = pendingTask.GetAwaiter().GetResult();
+            if (sprite is null)
+            {
+                LogCriticalBrowserRuntimeSprite(spriteName, "resolved-null", $"metadata={spriteAsset.MetadataPath}");
+                _failedBrowserSprites.Add(spriteName);
+                return null;
+            }
+
+            LogCriticalBrowserRuntimeSprite(spriteName, "loaded", $"frames={sprite.Frames.Count} metadata={spriteAsset.MetadataPath}");
+            _sprites[spriteName] = sprite;
+            return sprite;
+        }
+        catch (Exception ex)
+        {
+            if (_failedBrowserSprites.Add(spriteName))
+            {
+                Console.WriteLine($"Browser runtime sprite load failed for \"{spriteName}\": {ex.Message}");
+            }
+
+            return null;
+        }
+    }
+
+    private SoundEffect? TryGetBrowserSound(string soundName, GameMakerSoundAsset soundAsset)
+    {
+        if (_failedBrowserSounds.Contains(soundName))
+        {
+            return null;
+        }
+
+        if (TryGetCachedBrowserSound(soundAsset, out var cachedSound))
+        {
+            _sounds[soundName] = cachedSound;
+            return cachedSound;
+        }
+
+        if (!_pendingBrowserSounds.TryGetValue(soundName, out var pendingTask))
+        {
+            pendingTask = LoadBrowserSoundAsync(soundAsset);
+            _pendingBrowserSounds[soundName] = pendingTask;
+        }
+
+        if (!pendingTask.IsCompleted)
+        {
+            return null;
+        }
+
+        _pendingBrowserSounds.Remove(soundName);
+        try
+        {
+            var sound = pendingTask.GetAwaiter().GetResult();
+            if (sound is null)
+            {
+                _failedBrowserSounds.Add(soundName);
+                return null;
+            }
+
+            _sounds[soundName] = sound;
+            return sound;
+        }
+        catch (Exception ex)
+        {
+            if (_failedBrowserSounds.Add(soundName))
+            {
+                Console.WriteLine($"Browser runtime sound load failed for \"{soundName}\": {ex.Message}");
+            }
+
+            return null;
+        }
+    }
+
+    private bool TryGetCachedBrowserSound(GameMakerSoundAsset soundAsset, out SoundEffect sound)
+    {
+        sound = null!;
+        if (!TryGetCachedBrowserSoundBytes(soundAsset.AudioPath, out var bytes)
+            || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            sound = SoundDecodeUtility.LoadSoundEffect(bytes, soundAsset.AudioPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Browser runtime cached sound decode failed for \"{soundAsset.Name}\": {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryGetCachedBrowserSoundBytes(string soundPath, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(soundPath))
+        {
+            return false;
+        }
+
+        if (BrowserContentCatalog.TryGetBinaryForPath(soundPath, out var directBytes)
+            && directBytes.Length > 0)
+        {
+            bytes = directBytes;
+            return true;
+        }
+
+        if (!TryNormalizeBrowserAssetPath(soundPath, out var relativePath))
+        {
+            return false;
+        }
+
+        if (BrowserContentCatalog.TryGetBinary(relativePath, out var cachedBytes)
+            && cachedBytes.Length > 0)
+        {
+            bytes = cachedBytes;
+            return true;
+        }
+
+        return false;
+    }
+
+    private Texture2D? TryGetBrowserBackground(string backgroundName, GameMakerBackgroundAsset backgroundAsset)
+    {
+        if (_failedBrowserBackgrounds.Contains(backgroundName))
+        {
+            return null;
+        }
+
+        if (!_pendingBrowserBackgrounds.TryGetValue(backgroundName, out var pendingTask))
+        {
+            pendingTask = LoadBrowserBackgroundAsync(backgroundAsset);
+            _pendingBrowserBackgrounds[backgroundName] = pendingTask;
+        }
+
+        if (!pendingTask.IsCompleted)
+        {
+            return null;
+        }
+
+        _pendingBrowserBackgrounds.Remove(backgroundName);
+        try
+        {
+            var background = pendingTask.GetAwaiter().GetResult();
+            if (background is null)
+            {
+                _failedBrowserBackgrounds.Add(backgroundName);
+                return null;
+            }
+
+            _backgrounds[backgroundName] = background;
+            return background;
+        }
+        catch (Exception ex)
+        {
+            if (_failedBrowserBackgrounds.Add(backgroundName))
+            {
+                Console.WriteLine($"Browser runtime background load failed for \"{backgroundName}\": {ex.Message}");
+            }
+
+            return null;
+        }
+    }
+
+    private async Task<LoadedGameMakerSprite?> LoadBrowserSpriteAsync(GameMakerSpriteAsset spriteAsset)
+    {
+        if (_browserGameMakerAtlasResolver?.CanResolve(spriteAsset.Name) == true)
+        {
+            var atlasSprite = await _browserGameMakerAtlasResolver.LoadSpriteAsync(spriteAsset.Name).ConfigureAwait(false);
+            if (atlasSprite is not null)
+            {
+                return atlasSprite;
+            }
+        }
+
+        var framePaths = spriteAsset.FramePaths.Count > 0
+            ? spriteAsset.FramePaths
+            : await ResolveBrowserSpriteFramePathsAsync(spriteAsset.MetadataPath).ConfigureAwait(false);
+        if (framePaths.Count == 0)
+        {
+            LogCriticalBrowserRuntimeSprite(spriteAsset.Name, "no-frame-paths", $"metadata={spriteAsset.MetadataPath}");
+            return null;
+        }
+
+        var frameByteTasks = framePaths
+            .Select(TryGetBrowserBytesAsync)
+            .ToArray();
+        var frameBytes = await Task.WhenAll(frameByteTasks).ConfigureAwait(false);
+
+        await Task.Yield();
+
+        var frames = new LoadedSpriteFrame[framePaths.Count];
+        for (var frameIndex = 0; frameIndex < framePaths.Count; frameIndex += 1)
+        {
+            var bytes = frameBytes[frameIndex];
+            if (bytes is null || bytes.Length == 0)
+            {
+                LogCriticalBrowserRuntimeSprite(spriteAsset.Name, "missing-frame-bytes", $"framePath={framePaths[frameIndex]} frameIndex={frameIndex}");
+                return null;
+            }
+
+            frames[frameIndex] = new LoadedSpriteFrame(TextureDecodeUtility.LoadTexture(_graphicsDevice, bytes, applyLegacyChromaKey: true));
+        }
+
+        return new LoadedGameMakerSprite(frames, new Point(spriteAsset.OriginX, spriteAsset.OriginY));
+    }
+
+    private async Task<Texture2D?> LoadBrowserBackgroundAsync(GameMakerBackgroundAsset backgroundAsset)
+    {
+        var bytes = await TryGetBrowserBytesAsync(backgroundAsset.ImagePath).ConfigureAwait(false);
+        if (bytes is null || bytes.Length == 0)
+        {
+            return null;
+        }
+
+        await Task.Yield();
+        return TextureDecodeUtility.LoadTexture(_graphicsDevice, bytes, applyLegacyChromaKey: false);
+    }
+
+    private static async Task<SoundEffect?> LoadBrowserSoundAsync(GameMakerSoundAsset soundAsset)
+    {
+        var relativePath = soundAsset.AudioPath.Replace('\\', '/');
+        var bytes = await BrowserAssetFetchUtility.TryGetBytesAsync(relativePath).ConfigureAwait(false);
+        if (bytes is null || bytes.Length == 0)
+        {
+            return null;
+        }
+
+        await Task.Yield();
+        return SoundDecodeUtility.LoadSoundEffect(bytes, soundAsset.AudioPath);
+    }
+
+    private static async Task<IReadOnlyList<string>> ResolveBrowserSpriteFramePathsAsync(string metadataPath)
+    {
+        if (string.IsNullOrWhiteSpace(metadataPath) || !metadataPath.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+        {
+            return Array.Empty<string>();
+        }
+
+        var imageRoot = metadataPath[..^4] + ".images";
+        var framePaths = new List<string>();
+        for (var frameIndex = 0; frameIndex < 512; frameIndex += 1)
+        {
+            var framePath = await TryResolveBrowserSpriteFramePathAsync(imageRoot, frameIndex).ConfigureAwait(false);
+            if (framePath is null)
+            {
+                break;
+            }
+
+            framePaths.Add(framePath);
+        }
+
+        return framePaths;
+    }
+
+    private static async Task<string?> TryResolveBrowserSpriteFramePathAsync(string imageRoot, int frameIndex)
+    {
+        var spacedPath = $"{imageRoot}/image {frameIndex}.png";
+        if (await BrowserAssetExistsAsync(spacedPath).ConfigureAwait(false))
+        {
+            return spacedPath;
+        }
+
+        var compactPath = $"{imageRoot}/image{frameIndex}.png";
+        return await BrowserAssetExistsAsync(compactPath).ConfigureAwait(false)
+            ? compactPath
+            : null;
+    }
+
+    private static async Task<bool> BrowserAssetExistsAsync(string relativePath)
+    {
+        if (BrowserContentCatalog.TryGetBinary(relativePath, out _))
+        {
+            return true;
+        }
+
+        var httpClient = ClientRuntimeBootstrap.GetBrowserHttpClient();
+        if (httpClient is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var response = await httpClient.GetAsync(relativePath, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool TryGetBrowserBackgroundByPath(string backgroundPath, out Texture2D texture)
+    {
+        texture = null!;
+        if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(backgroundPath))
+        {
+            return false;
+        }
+
+        if (BrowserContentCatalog.TryGetBinaryForPath(backgroundPath, out var cachedBytes)
+            && cachedBytes.Length > 0)
+        {
+            texture = TextureDecodeUtility.LoadTexture(_graphicsDevice, cachedBytes, applyLegacyChromaKey: false);
+            return true;
+        }
+
+        if (!TryNormalizeBrowserAssetPath(backgroundPath, out var relativePath))
+        {
+            return false;
+        }
+
+        if (_failedBrowserBackgrounds.Contains(backgroundPath))
+        {
+            return false;
+        }
+
+        if (!_pendingBrowserBackgrounds.TryGetValue(backgroundPath, out var pendingTask))
+        {
+            pendingTask = LoadBrowserBackgroundByRelativePathAsync(relativePath);
+            _pendingBrowserBackgrounds[backgroundPath] = pendingTask;
+        }
+
+        if (!pendingTask.IsCompleted)
+        {
+            return false;
+        }
+
+        _pendingBrowserBackgrounds.Remove(backgroundPath);
+        try
+        {
+            texture = pendingTask.GetAwaiter().GetResult()!;
+            if (texture is null)
+            {
+                _failedBrowserBackgrounds.Add(backgroundPath);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            if (_failedBrowserBackgrounds.Add(backgroundPath))
+            {
+                Console.WriteLine($"Browser runtime background load failed for \"{backgroundPath}\": {ex.Message}");
+            }
+
+            return false;
+        }
+    }
+
+    private static bool TryNormalizeBrowserAssetPath(string path, out string relativePath)
+    {
+        relativePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var normalizedPath = path.Replace('\\', '/');
+        const string contentMarker = "Content/";
+        var contentIndex = normalizedPath.IndexOf(contentMarker, StringComparison.OrdinalIgnoreCase);
+        if (contentIndex < 0)
+        {
+            return false;
+        }
+
+        relativePath = normalizedPath[contentIndex..];
+        return relativePath.Length > 0;
+    }
+
+    private static async Task<byte[]?> TryGetBrowserBytesAsync(string relativePath)
+    {
+        if (BrowserContentCatalog.TryGetBinary(relativePath, out var cachedBytes))
+        {
+            return cachedBytes;
+        }
+
+        var httpClient = ClientRuntimeBootstrap.GetBrowserHttpClient();
+        if (httpClient is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var response = await httpClient.GetAsync(relativePath, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            if (bytes.Length > 0)
+            {
+                BrowserContentCatalog.AddOrUpdateBinaryAssets(
+                [
+                    new KeyValuePair<string, byte[]>(relativePath, bytes),
+                ]);
+            }
+
+            return bytes;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<Texture2D?> LoadBrowserBackgroundByRelativePathAsync(string relativePath)
+    {
+        var bytes = await BrowserAssetFetchUtility.TryGetBytesAsync(relativePath).ConfigureAwait(false);
+        if (bytes is null || bytes.Length == 0)
+        {
+            return null;
+        }
+
+        await Task.Yield();
+        return TextureDecodeUtility.LoadTexture(_graphicsDevice, bytes, applyLegacyChromaKey: false);
+    }
+
+    private static void LogCriticalBrowserRuntimeSprite(string spriteName, string state, string details)
+    {
+        if (!OperatingSystem.IsBrowser() || !CriticalBrowserSpriteNames.Contains(spriteName))
+        {
+            return;
+        }
+
+        Console.WriteLine($"Browser runtime sprite {spriteName} {state}: {details}");
+    }
+
+    private static readonly HashSet<string> CriticalBrowserSpriteNames = new(StringComparer.Ordinal)
+    {
+        "TeamSelectS",
+        "ClassSelectS",
+        "TeamDoorS",
+        "DoorTopLightUpS",
+        "TVLightUpS",
+        "ClassSelectPortraitS",
+        "ClassSelectSpritesS",
+        "TimerHudS",
+        "TimerS",
+    };
 }
 
-public sealed record LoadedGameMakerSprite(IReadOnlyList<Texture2D> Frames, Point Origin);
+public sealed record LoadedGameMakerSprite(IReadOnlyList<LoadedSpriteFrame> Frames, Point Origin);

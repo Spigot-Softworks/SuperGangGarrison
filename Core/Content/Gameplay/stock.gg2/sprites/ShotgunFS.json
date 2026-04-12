@@ -1,0 +1,40 @@
+﻿{
+    "id":  "ShotgunFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Firing/ShotgunFS/image 23.png"
+                   ],
+    "originX":  20,
+    "originY":  23,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

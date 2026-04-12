@@ -25,7 +25,7 @@ public partial class Game1
         _clientTickAccumulatorSeconds += _clientUpdateElapsedSeconds;
 
         var ticks = 0;
-        var maxCatchUpTicks = 8;
+        var maxCatchUpTicks = OperatingSystem.IsBrowser() ? 2 : 8;
         while (_clientTickAccumulatorSeconds >= ClientUpdateStepSeconds && ticks < maxCatchUpTicks)
         {
             _clientTickAccumulatorSeconds -= ClientUpdateStepSeconds;

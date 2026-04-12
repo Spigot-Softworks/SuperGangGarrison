@@ -1,0 +1,40 @@
+﻿{
+    "id":  "FlamethrowerDropS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Other/FlamethrowerDropS/image 23.png"
+                   ],
+    "originX":  15,
+    "originY":  14,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

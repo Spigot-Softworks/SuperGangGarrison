@@ -1,0 +1,22 @@
+﻿{
+    "id":  "PyroRedHS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 0.png",
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 1.png",
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 2.png",
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 3.png",
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 4.png",
+                       "assets/legacy-sprites/Characters/Pyro/PyroRedHS/image 5.png"
+                   ],
+    "originX":  31,
+    "originY":  40,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "MANUAL",
+                 "left":  24,
+                 "top":  34,
+                 "right":  38,
+                 "bottom":  63
+             }
+}

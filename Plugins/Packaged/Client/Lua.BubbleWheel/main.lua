@@ -111,6 +111,7 @@ end
 
 function plugin.initialize(host)
     plugin.host = host
+    ensure_textures_loaded()
 end
 
 function plugin.shutdown()

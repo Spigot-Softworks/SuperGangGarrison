@@ -10,4 +10,9 @@ public partial class Game1
     {
         _windowTextInputController.Handle(e);
     }
+
+    private void HandleBrowserTextInput(char character)
+    {
+        _windowTextInputController.Handle(character);
+    }
 }

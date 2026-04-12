@@ -1,0 +1,17 @@
+﻿{
+    "id":  "RedIntelSL",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Kill Icons/RedIntelSL/image 0.png"
+                   ],
+    "originX":  10,
+    "originY":  11,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

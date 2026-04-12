@@ -1,0 +1,29 @@
+﻿{
+    "id":  "ExplosionSmallS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 1.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 2.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 3.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 4.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 5.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 6.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 7.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 8.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 9.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 10.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 11.png",
+                       "assets/legacy-sprites/InGameElements/ExplosionSmallS/image 12.png"
+                   ],
+    "originX":  16,
+    "originY":  16,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

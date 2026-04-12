@@ -1,0 +1,28 @@
+﻿{
+    "id":  "TimerS",
+    "framePaths":  [
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 0.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 1.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 2.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 3.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 4.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 5.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 6.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 7.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 8.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 9.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 10.png",
+                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 11.png"
+                   ],
+    "originX":  5,
+    "originY":  5,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

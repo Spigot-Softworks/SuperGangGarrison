@@ -6,6 +6,11 @@ public sealed partial class GameplayRuntimeRegistry
 {
     public static GameplayRuntimeRegistry CreateStock()
     {
+        if (OperatingSystem.IsBrowser() && BrowserGameplayModCatalog.HasDefinitions)
+        {
+            return CreateStock(BrowserGameplayModCatalog.GetDefinitions());
+        }
+
         return CreateStock(GameplayModPackDirectoryLoader.LoadAllFromContentRoot());
     }
 

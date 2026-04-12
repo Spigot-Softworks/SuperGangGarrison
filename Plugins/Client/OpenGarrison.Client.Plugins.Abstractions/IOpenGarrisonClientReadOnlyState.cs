@@ -1,5 +1,7 @@
 using Microsoft.Xna.Framework;
+#if !BROWSER_KNI
 using Microsoft.Xna.Framework.Input;
+#endif
 
 namespace OpenGarrison.Client.Plugins;
 
@@ -63,7 +65,9 @@ public interface IOpenGarrisonClientReadOnlyState
 
     bool TryGetPlayerReplicatedStateBool(int playerId, string ownerPluginId, string stateKey, out bool value);
 
+#if !BROWSER_KNI
     bool WasKeyPressedThisFrame(Keys key);
+#endif
 
     IReadOnlyList<ClientPlayerMarker> GetPlayerMarkers();
 

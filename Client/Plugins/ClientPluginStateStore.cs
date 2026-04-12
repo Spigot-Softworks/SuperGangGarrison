@@ -88,12 +88,6 @@ internal sealed class ClientPluginStateStore
     {
         try
         {
-            var directory = Path.GetDirectoryName(_path);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
             var normalized = new ClientPluginStateDocument();
             foreach (var entry in _document.PluginEnabledStates
                          .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
@@ -113,6 +107,18 @@ internal sealed class ClientPluginStateStore
                 normalized.PluginHotkeyStates[pluginEntry.Key] = normalizedHotkeys;
             }
 
+            if (OperatingSystem.IsBrowser())
+            {
+                _document = normalized;
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             File.WriteAllText(_path, JsonSerializer.Serialize(normalized, SerializerOptions));
             _document = normalized;
         }
@@ -124,6 +130,11 @@ internal sealed class ClientPluginStateStore
 
     private static ClientPluginStateDocument LoadDocument(string path, Action<string> log)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return new ClientPluginStateDocument();
+        }
+
         try
         {
             if (File.Exists(path))

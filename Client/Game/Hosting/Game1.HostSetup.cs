@@ -8,6 +8,12 @@ public partial class Game1
 {
     private void OpenHostSetupMenu()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            _menuStatusMessage = "Hosting is unavailable in browser.";
+            return;
+        }
+
         _mainMenuOverlayStateController.OpenHostSetupMenu();
     }
 
@@ -18,6 +24,12 @@ public partial class Game1
 
     private void TryHostFromSetup(bool runInTerminal = false)
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            _menuStatusMessage = "Hosting is unavailable in browser.";
+            return;
+        }
+
         if (!_hostSetupState.TryBuildLaunchRequest(out var request, out var error))
         {
             _menuStatusMessage = error;

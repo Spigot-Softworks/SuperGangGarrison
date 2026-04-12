@@ -1,15 +1,69 @@
 using OpenGarrison.Core;
+using OpenGarrison.ClientShared;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using Xunit;
 using System.IO;
 using System.Linq;
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class GameplayModPackLoaderTests
 {
+    [Fact]
+    public void ClientSettingsRoundTripThroughIniDocument()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-client-settings-tests", Path.GetRandomFileName());
+        Directory.CreateDirectory(rootDirectory);
+        var settingsPath = Path.Combine(rootDirectory, ClientSettings.DefaultFileName);
+
+        try
+        {
+            var settings = new ClientSettings
+            {
+                PlayerName = "BrowserTester",
+                Rewards = "rocketjumper,marketgardener",
+                Fullscreen = true,
+                VSync = true,
+                DisableLegacyGameplaySpriteFallback = true,
+                RecentConnection = new ClientRecentConnectionSettings
+                {
+                    Host = "example.invalid",
+                    Port = 9001,
+                },
+                LobbyHost = "lobby.example.invalid",
+                LobbyPort = 5001,
+            };
+
+            settings.Save(settingsPath);
+
+            var loaded = ClientSettings.Load(settingsPath);
+
+            Assert.Equal("BrowserTester", loaded.PlayerName);
+            Assert.Equal("rocketjumper,marketgardener", loaded.Rewards);
+            Assert.True(loaded.Fullscreen);
+            Assert.True(loaded.VSync);
+            Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
+            Assert.Equal("example.invalid", loaded.RecentConnection.Host);
+            Assert.Equal(9001, loaded.RecentConnection.Port);
+            Assert.Equal("lobby.example.invalid", loaded.LobbyHost);
+            Assert.Equal(5001, loaded.LobbyPort);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public void StockGameplayPackLoadsFromJsonDirectory()
     {
@@ -22,6 +76,37 @@ public sealed class GameplayModPackLoaderTests
         Assert.True(pack.Classes.ContainsKey("soldier"));
         Assert.Equal("soldier.stock", pack.Classes["soldier"].DefaultLoadoutId);
         Assert.True(pack.Classes["soldier"].Loadouts.ContainsKey("soldier.direct-hit"));
+        var soldierPresentation = pack.Classes["soldier"].Presentation;
+        Assert.NotNull(soldierPresentation);
+        Assert.Equal("Soldier", soldierPresentation.SpritePrefix);
+        Assert.Equal("StandS", soldierPresentation.StandSuffix);
+        Assert.True(pack.Assets.Sprites.ContainsKey("ScoutRedStandS"));
+        var scoutStandSprite = pack.Assets.Sprites["ScoutRedStandS"];
+        Assert.Equal("assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", scoutStandSprite.FramePaths[0]);
+        Assert.Equal(30, scoutStandSprite.OriginX);
+        Assert.Equal(40, scoutStandSprite.OriginY);
+        Assert.NotNull(scoutStandSprite.Mask);
+        Assert.Equal("RECTANGLE", scoutStandSprite.Mask!.Shape);
+        Assert.Equal("MANUAL", scoutStandSprite.Mask.BoundsMode);
+        Assert.Equal(24, scoutStandSprite.Mask.Left);
+        Assert.Equal(63, scoutStandSprite.Mask.Bottom);
+        Assert.True(pack.Assets.Sprites.ContainsKey("gg2FontS"));
+        var fontSprite = pack.Assets.Sprites["gg2FontS"];
+        Assert.Equal("assets/legacy-sprites/gg2FontS/image 0.png", fontSprite.FramePaths[0]);
+        Assert.Equal("assets/legacy-sprites/gg2FontS/image 10.png", fontSprite.FramePaths[10]);
+        Assert.NotNull(fontSprite.Mask);
+        Assert.Equal("MANUAL", fontSprite.Mask!.BoundsMode);
+        Assert.True(pack.Assets.Sprites.ContainsKey("IntelTimerS"));
+        var intelTimerSprite = pack.Assets.Sprites["IntelTimerS"];
+        Assert.Equal(24, intelTimerSprite.FramePaths.Count);
+        Assert.Equal("assets/legacy-sprites/InGameElements/IntelTimerS/image 23.png", intelTimerSprite.FramePaths[23]);
+        Assert.Equal(5, intelTimerSprite.OriginX);
+        Assert.True(pack.Assets.Sprites.ContainsKey("RocketlauncherFRS"));
+        var reloadSprite = pack.Assets.Sprites["RocketlauncherFRS"];
+        Assert.Equal(24, reloadSprite.FramePaths.Count);
+        Assert.Equal("assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 23.png", reloadSprite.FramePaths[23]);
+        Assert.NotNull(reloadSprite.Mask);
+        Assert.Equal("PRECISE", reloadSprite.Mask!.Shape);
         Assert.True(pack.Assets.Sprites.ContainsKey("stock.gg2.weapon.directhit.world"));
         Assert.Equal(2, pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths.Count);
         Assert.Equal("assets/directhit/DirectHit.red.png", pack.Assets.Sprites["stock.gg2.weapon.directhit.world"].FramePaths[0]);
@@ -104,7 +189,16 @@ public sealed class GameplayModPackLoaderTests
                     "assets/test-shotgun.png"
                   ],
                   "originX": 0,
-                  "originY": 0
+                  "originY": 0,
+                  "mask": {
+                    "separate": true,
+                    "shape": "Rectangle",
+                    "boundsMode": "Manual",
+                    "left": 1,
+                    "top": 2,
+                    "right": 3,
+                    "bottom": 4
+                  }
                 }
                 """);
             File.WriteAllText(
@@ -123,6 +217,13 @@ public sealed class GameplayModPackLoaderTests
                     "jumpStrength": 8.3,
                     "maxAirJumps": 0,
                     "tauntLengthFrames": 8
+                  },
+                  "presentation": {
+                    "spritePrefix": "Tester",
+                    "baseSuffix": "S",
+                    "standSuffix": "StandS",
+                    "runSuffix": "RunS",
+                    "jumpSuffix": "JumpS"
                   },
                   "loadouts": {
                     "tester.stock": {
@@ -143,8 +244,19 @@ public sealed class GameplayModPackLoaderTests
             var modPack = registry.GetRequiredModPack("example.test");
             Assert.Equal("Example Test Pack", modPack.DisplayName);
             Assert.Equal("weapon.test-shotgun", modPack.Classes["tester"].Loadouts["tester.stock"].PrimaryItemId);
+            var presentation = modPack.Classes["tester"].Presentation;
+            Assert.NotNull(presentation);
+            Assert.Equal("Tester", presentation.SpritePrefix);
+            Assert.Equal("StandS", presentation.StandSuffix);
             Assert.True(modPack.Assets.Sprites.ContainsKey("example.test.weapon.test-shotgun.world"));
             Assert.Equal("assets/test-shotgun.png", modPack.Assets.Sprites["example.test.weapon.test-shotgun.world"].FramePaths[0]);
+            var mask = modPack.Assets.Sprites["example.test.weapon.test-shotgun.world"].Mask;
+            Assert.NotNull(mask);
+            Assert.True(mask.Separate);
+            Assert.Equal("Rectangle", mask.Shape);
+            Assert.Equal("Manual", mask.BoundsMode);
+            Assert.Equal(1, mask.Left);
+            Assert.Equal(4, mask.Bottom);
             Assert.Equal(2, registry.ModPacks.Count);
         }
         finally
@@ -154,6 +266,236 @@ public sealed class GameplayModPackLoaderTests
                 Directory.Delete(rootDirectory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void GameplaySpriteMigrationImportsOriginAndMaskFromLegacyMetadata()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+
+        try
+        {
+            var metadataPath = Path.Combine(rootDirectory, "PistolS.xml");
+            var imagesDirectory = Path.Combine(rootDirectory, "PistolS.images");
+            Directory.CreateDirectory(imagesDirectory);
+            File.WriteAllText(
+                metadataPath,
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                <sprite>
+                  <origin x="8" y="7"/>
+                  <mask>
+                    <separate>false</separate>
+                    <shape>PRECISE</shape>
+                    <bounds alphaTolerance="0" mode="AUTO"/>
+                  </mask>
+                  <preload>true</preload>
+                  <transparent>false</transparent>
+                </sprite>
+                """);
+            File.WriteAllBytes(
+                Path.Combine(imagesDirectory, "image0.png"),
+                Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6l8AAAAASUVORK5CYII="));
+
+            var imported = GameplaySpriteAssetMigration.ImportDefinitionFromGameMakerMetadata(
+                "example.test.weapon.pistol.world",
+                metadataPath);
+
+            Assert.Equal("example.test.weapon.pistol.world", imported.Id);
+            Assert.Single(imported.FramePaths);
+            Assert.Equal(8, imported.OriginX);
+            Assert.Equal(7, imported.OriginY);
+            var mask = imported.Mask;
+            Assert.NotNull(mask);
+            Assert.False(mask.Separate);
+            Assert.Equal("PRECISE", mask.Shape);
+            Assert.Equal("AUTO", mask.BoundsMode);
+            Assert.Null(mask.Left);
+            Assert.Null(mask.Bottom);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackLoaderAllowsDeferredSpriteFrameResolution()
+    {
+        var rootDirectory = Path.Combine(Path.GetTempPath(), "og2-gameplay-pack-tests", Path.GetRandomFileName());
+        var gameplayRootDirectory = Path.Combine(rootDirectory, "Gameplay");
+        var packDirectory = Path.Combine(gameplayRootDirectory, "example.missing-frame");
+        Directory.CreateDirectory(Path.Combine(packDirectory, "sprites"));
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(packDirectory, "pack.json"),
+                """
+                {
+                  "id": "example.missing-frame",
+                  "displayName": "Missing Frame Pack",
+                  "version": "1.0.0"
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(packDirectory, "sprites", "missing.json"),
+                """
+                {
+                  "id": "example.missing-frame.sprite",
+                  "framePaths": [
+                    "assets/does-not-exist.png"
+                  ],
+                  "originX": 3,
+                  "originY": 4
+                }
+                """);
+
+            var pack = GameplayModPackDirectoryLoader.LoadFromDirectory(packDirectory);
+
+            Assert.True(pack.Assets.Sprites.ContainsKey("example.missing-frame.sprite"));
+            Assert.Equal("assets/does-not-exist.png", pack.Assets.Sprites["example.missing-frame.sprite"].FramePaths[0]);
+            Assert.Equal(3, pack.Assets.Sprites["example.missing-frame.sprite"].OriginX);
+            Assert.Equal(4, pack.Assets.Sprites["example.missing-frame.sprite"].OriginY);
+        }
+        finally
+        {
+            if (Directory.Exists(rootDirectory))
+            {
+                Directory.Delete(rootDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GameplayPackAssetPathUtilityBuildsStableContentPaths()
+    {
+        ContentRoot.Initialize("Content");
+
+        Assert.Equal("Content/Gameplay/stock.gg2", GameplayPackAssetPathUtility.GetPackContentRoot("stock.gg2"));
+        Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", GameplayPackAssetPathUtility.GetSpriteDefinitionPath("stock.gg2", "ScoutRedStandS"));
+        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", GameplayPackAssetPathUtility.BuildPackAssetPath("stock.gg2", "assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"));
+    }
+
+    [Fact]
+    public void ClientRuntimeBootstrapInitializesContentRoot()
+    {
+        ClientRuntimeBootstrap.InitializeContentRoot("Content");
+
+        Assert.Equal("Content", ContentRoot.Path);
+    }
+
+    [Fact]
+    public async Task GameplaySpriteDefinitionHttpReaderBuildsStableDefinitionAndFramePaths()
+    {
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """
+                    {
+                      "id": "ScoutRedStandS",
+                      "framePaths": [
+                        "assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"
+                      ],
+                      "originX": 30,
+                      "originY": 40
+                    }
+                    """,
+                    Encoding.UTF8,
+                    "application/json"),
+            }))
+        {
+            BaseAddress = new Uri("https://example.invalid/"),
+        };
+        var reader = new GameplaySpriteDefinitionHttpReader(httpClient);
+
+        var loaded = await reader.TryLoadAsync("stock.gg2", "ScoutRedStandS");
+
+        Assert.NotNull(loaded);
+        Assert.Equal("stock.gg2", loaded!.PackId);
+        Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", loaded.DefinitionPath);
+        Assert.Equal("ScoutRedStandS", loaded.Definition.Id);
+        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.FirstFrameContentPath);
+    }
+
+    [Fact]
+    public void GameplaySpriteBinaryLoaderLoadsSourceImagesFromAssetSource()
+    {
+        var spriteDefinition = new GameplaySpriteAssetDefinition(
+            "ScoutRedStandS",
+            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"],
+            OriginX: 30,
+            OriginY: 40);
+        var assetSource = new StubAssetBinarySource(new Dictionary<string, byte[]>
+        {
+            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"] = [1, 2, 3, 4],
+        });
+
+        var loaded = GameplaySpriteBinaryLoader.LoadSourceImages(assetSource, spriteDefinition);
+
+        Assert.Equal("ScoutRedStandS", loaded.Definition.Id);
+        Assert.Single(loaded.SourceImages);
+        Assert.Equal("assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.SourceImages[0].FramePath);
+        Assert.Equal([1, 2, 3, 4], loaded.SourceImages[0].Bytes);
+    }
+
+    [Fact]
+    public void GameplayPackSpriteAssetServiceLoadsRegisteredSprite()
+    {
+        var spriteDefinition = new GameplaySpriteAssetDefinition(
+            "ScoutRedStandS",
+            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"],
+            OriginX: 30,
+            OriginY: 40);
+        var assetSource = new StubAssetBinarySource(new Dictionary<string, byte[]>
+        {
+            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"] = [5, 6, 7, 8],
+        });
+        var spriteAssetService = new GameplayPackSpriteAssetService("stock.gg2", assetSource);
+
+        var loaded = spriteAssetService.LoadRegisteredSprite(spriteDefinition);
+
+        Assert.Equal("stock.gg2", loaded.Definition.PackId);
+        Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", loaded.Definition.DefinitionPath);
+        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.Definition.FirstFrameContentPath);
+        Assert.Single(loaded.SourceSet.SourceImages);
+        Assert.Equal([5, 6, 7, 8], loaded.SourceSet.SourceImages[0].Bytes);
+    }
+
+    [Fact]
+    public void GameplayPackSpriteAssetServiceRegistryResolvesRegisteredPackServices()
+    {
+        var stockService = new GameplayPackSpriteAssetService("stock.gg2", new StubAssetBinarySource(new Dictionary<string, byte[]>()));
+        var customService = new GameplayPackSpriteAssetService("example.test", new StubAssetBinarySource(new Dictionary<string, byte[]>()));
+        var registry = new GameplayPackSpriteAssetServiceRegistry(new Dictionary<string, GameplayPackSpriteAssetService>
+        {
+            ["stock.gg2"] = stockService,
+            ["example.test"] = customService,
+        });
+
+        Assert.True(registry.TryGet("stock.gg2", out var resolvedStockService));
+        Assert.Same(stockService, resolvedStockService);
+        Assert.Same(customService, registry.GetRequired("example.test"));
+    }
+
+    [Fact]
+    public void ClientRuntimeCompositionExposesGameplayPackSpriteAssets()
+    {
+        var stockService = new GameplayPackSpriteAssetService("stock.gg2", new StubAssetBinarySource(new Dictionary<string, byte[]>()));
+        var registry = new GameplayPackSpriteAssetServiceRegistry(new Dictionary<string, GameplayPackSpriteAssetService>
+        {
+            ["stock.gg2"] = stockService,
+        });
+        var gameplayModPacks = (IReadOnlyList<GameplayModPackDefinition>)[StockGameplayModCatalog.Definition];
+        var composition = new ClientRuntimeComposition(gameplayModPacks, registry);
+
+        Assert.Single(composition.GameplayModPacks);
+        Assert.Equal("stock.gg2", composition.GameplayModPacks[0].Id);
+        Assert.Same(stockService, composition.GameplayPackSpriteAssets.GetRequired("stock.gg2"));
     }
 
     [Fact]
@@ -344,5 +686,30 @@ public sealed class GameplayModPackLoaderTests
         var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(deserializedSnapshot);
         Assert.Equal("soldier.direct-hit", Assert.Single(roundTrippedSnapshot.Players).GameplayLoadoutId);
         Assert.Equal(2, Assert.Single(roundTrippedSnapshot.Players).OwnedGameplayItemIds!.Count);
+    }
+
+    private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder = responder;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_responder(request));
+        }
+    }
+
+    private sealed class StubAssetBinarySource(IReadOnlyDictionary<string, byte[]> assets) : IAssetBinarySource
+    {
+        private readonly IReadOnlyDictionary<string, byte[]> _assets = assets;
+
+        public byte[]? TryReadAllBytes(string assetPath)
+        {
+            return _assets.TryGetValue(assetPath, out var bytes) ? bytes : null;
+        }
+
+        public Task<byte[]?> TryReadAllBytesAsync(string assetPath, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(TryReadAllBytes(assetPath));
+        }
     }
 }

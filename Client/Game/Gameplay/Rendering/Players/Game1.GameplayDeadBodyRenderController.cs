@@ -108,7 +108,7 @@ public partial class Game1
             var spriteName = Game1.GetDeadBodySpriteName(classId, team, animationKind);
             if (spriteName is not null)
             {
-                var sprite = _game._runtimeAssets.GetSprite(spriteName);
+                var sprite = _game.GetResolvedSprite(spriteName);
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);

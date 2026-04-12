@@ -58,7 +58,7 @@ public sealed partial class SimulationWorld
             UpdateProjectileHit<TProjectile> updateHit)
         {
             var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
-            foreach (var solid in Level.Solids)
+            foreach (var solid in GetPotentialSolidRaycastCandidates(rayBounds))
             {
                 if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom))
                 {

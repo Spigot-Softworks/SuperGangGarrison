@@ -12,6 +12,20 @@
     "maxAirJumps": 0,
     "tauntLengthFrames": 11
   },
+  "presentation": {
+    "spritePrefix": "Heavy",
+    "standSuffix": "StandS",
+    "walkSuffix": "WalkS",
+    "runSuffix": "RunS",
+    "jumpSuffix": "JumpS",
+    "leanLeftSuffix": "LeanLS",
+    "leanRightSuffix": "LeanRS",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "HS",
+    "deadSuffix": "DeadS",
+    "intelSuffix": "IntelS",
+    "heavyEatSuffix": "OmnomnomnomS"
+  },
   "loadouts": {
     "heavy.stock": {
       "id": "heavy.stock",

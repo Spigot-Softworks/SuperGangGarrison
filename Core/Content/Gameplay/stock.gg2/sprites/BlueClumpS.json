@@ -1,0 +1,20 @@
+﻿{
+    "id":  "BlueClumpS",
+    "framePaths":  [
+                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 0.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 1.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 2.png",
+                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 3.png"
+                   ],
+    "originX":  3,
+    "originY":  2,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "RECTANGLE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

@@ -14,6 +14,11 @@ public sealed class IniConfigurationFile
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var document = new IniConfigurationFile();
+        if (OperatingSystem.IsBrowser())
+        {
+            return document;
+        }
+
         if (!File.Exists(path))
         {
             return document;
@@ -115,6 +120,11 @@ public sealed class IniConfigurationFile
     public void Save(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))

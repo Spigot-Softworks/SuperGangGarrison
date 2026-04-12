@@ -618,12 +618,9 @@ public sealed partial class PlayerEntity : SimulationEntity
         GetCollisionBounds(out var previousLeft, out _, out var previousRight, out _);
         GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
-        foreach (var solid in level.Solids)
+        if (level.IntersectsSolid(left, top, right, bottom))
         {
-            if (left < solid.Right && right > solid.Left && top < solid.Bottom && bottom > solid.Top)
-            {
-                return false;
-            }
+            return false;
         }
 
         foreach (var gate in level.GetBlockingTeamGates(team, IsCarryingIntel))

@@ -95,6 +95,7 @@ public static class GameplayModPackDirectoryLoader
                 return sprite with
                 {
                     FramePaths = normalizedFramePaths,
+                    Mask = NormalizeMask(sprite.Mask),
                 };
             });
         var spritesById = sprites.ToDictionary(static sprite => sprite.Id, StringComparer.Ordinal);
@@ -121,7 +122,10 @@ public static class GameplayModPackDirectoryLoader
                     ValidateOptionalReferencedItem(itemsById, loadout.UtilityItemId, GameplayEquipmentSlot.Utility, gameplayClass.Id, loadout.Id, filePath);
                 }
 
-                return gameplayClass;
+                return gameplayClass with
+                {
+                    Presentation = NormalizePresentation(gameplayClass.Presentation),
+                };
             });
         var classesById = classes.ToDictionary(static gameplayClass => gameplayClass.Id, StringComparer.Ordinal);
         var versionText = metadata.Version?.Trim();
@@ -284,6 +288,52 @@ public static class GameplayModPackDirectoryLoader
         }
     }
 
+    private static GameplaySpriteMaskDefinition? NormalizeMask(GameplaySpriteMaskDefinition? mask)
+    {
+        if (mask is null)
+        {
+            return null;
+        }
+
+        return mask with
+        {
+            Shape = mask.Shape?.Trim() ?? string.Empty,
+            BoundsMode = mask.BoundsMode?.Trim() ?? string.Empty,
+        };
+    }
+
+    private static GameplayClassPresentationDefinition? NormalizePresentation(GameplayClassPresentationDefinition? presentation)
+    {
+        if (presentation is null)
+        {
+            return null;
+        }
+
+        ValidateRequiredText(presentation.SpritePrefix, nameof(GameplayClassPresentationDefinition.SpritePrefix), nameof(GameplayClassPresentationDefinition));
+        return presentation with
+        {
+            SpritePrefix = presentation.SpritePrefix.Trim(),
+            BaseSuffix = string.IsNullOrWhiteSpace(presentation.BaseSuffix) ? "S" : presentation.BaseSuffix.Trim(),
+            StandSuffix = NormalizeOptionalPresentationSuffix(presentation.StandSuffix),
+            WalkSuffix = NormalizeOptionalPresentationSuffix(presentation.WalkSuffix),
+            RunSuffix = NormalizeOptionalPresentationSuffix(presentation.RunSuffix),
+            JumpSuffix = NormalizeOptionalPresentationSuffix(presentation.JumpSuffix),
+            LeanLeftSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanLeftSuffix),
+            LeanRightSuffix = NormalizeOptionalPresentationSuffix(presentation.LeanRightSuffix),
+            TauntSuffix = NormalizeOptionalPresentationSuffix(presentation.TauntSuffix),
+            HumiliationSuffix = NormalizeOptionalPresentationSuffix(presentation.HumiliationSuffix),
+            DeadSuffix = NormalizeOptionalPresentationSuffix(presentation.DeadSuffix),
+            IntelSuffix = NormalizeOptionalPresentationSuffix(presentation.IntelSuffix),
+            ScopedSuffix = NormalizeOptionalPresentationSuffix(presentation.ScopedSuffix),
+            HeavyEatSuffix = NormalizeOptionalPresentationSuffix(presentation.HeavyEatSuffix),
+        };
+    }
+
+    private static string? NormalizeOptionalPresentationSuffix(string? suffix)
+    {
+        return string.IsNullOrWhiteSpace(suffix) ? null : suffix.Trim();
+    }
+
     private static string NormalizeAndValidatePackRelativeFilePath(string packDirectory, string? relativePath, string assetId, string filePath)
     {
         ValidateRequiredText(relativePath, "framePaths", filePath);
@@ -292,11 +342,6 @@ public static class GameplayModPackDirectoryLoader
         if (!combinedPath.StartsWith(fullPackDirectory, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes pack directory in \"{filePath}\": {relativePath}");
-        }
-
-        if (!File.Exists(combinedPath))
-        {
-            throw new FileNotFoundException($"Gameplay asset \"{assetId}\" frame path was not found: {combinedPath}", combinedPath);
         }
 
         return relativePath.Trim();

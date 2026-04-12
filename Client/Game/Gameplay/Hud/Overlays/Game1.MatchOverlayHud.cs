@@ -183,6 +183,20 @@ public partial class Game1
         DrawHudTextCentered(_world.MatchRules.CapLimit.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 2f, viewportHeight - 15f), Color.Black, 1f);
     }
 
+    private void DrawFallbackScorePanelHud(float centerX, int viewportHeight)
+    {
+        var panel = new Rectangle((int)MathF.Round(centerX - 168f), viewportHeight - 72, 336, 54);
+        var teamPanelHeight = panel.Height - 16;
+        var leftTeamPanel = new Rectangle(panel.X + 8, panel.Y + 8, 112, teamPanelHeight);
+        var rightTeamPanel = new Rectangle(panel.Right - 120, panel.Y + 8, 112, teamPanelHeight);
+        var centerPanel = new Rectangle((int)MathF.Round(centerX - 32f), panel.Y + 8, 64, teamPanelHeight);
+
+        DrawInsetHudPanel(panel, new Color(42, 36, 28), new Color(208, 198, 170));
+        _spriteBatch.Draw(_pixel, leftTeamPanel, new Color(171, 78, 70));
+        _spriteBatch.Draw(_pixel, rightTeamPanel, new Color(100, 116, 132));
+        _spriteBatch.Draw(_pixel, centerPanel, new Color(228, 220, 196));
+    }
+
     private void DrawMatchTimerHud(float centerX)
     {
         var teamOffset = _world.LocalPlayerTeam == PlayerTeam.Blue ? 1 : 0;
@@ -249,7 +263,7 @@ public partial class Game1
         var messageHighlightWidth = string.IsNullOrEmpty(messageHighlight) ? 0f : MeasureBitmapFontWidth(messageHighlight, 1f);
         var messageSuffixWidth = string.IsNullOrEmpty(messageSuffix) ? 0f : MeasureBitmapFontWidth(messageSuffix, 1f);
         var victimWidth = MeasureBitmapFontWidth(victimName, 1f);
-        var weaponSprite = _runtimeAssets.GetSprite(entry.WeaponSpriteName);
+        var weaponSprite = GetResolvedSprite(entry.WeaponSpriteName);
         var weaponWidth = weaponSprite?.Frames.Count > 0 ? weaponSprite.Frames[0].Width : 0f;
         var hasWeaponIcon = weaponSprite is not null && weaponSprite.Frames.Count > 0;
         var contentWidth = killerWidth

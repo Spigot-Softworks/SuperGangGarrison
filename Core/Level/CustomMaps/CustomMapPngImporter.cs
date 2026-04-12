@@ -24,12 +24,10 @@ public static class CustomMapPngImporter
 
     public static Result? Import(string pngPath)
     {
-        if (!File.Exists(pngPath))
+        if (!TryExtractLevelData(pngPath, out var levelData))
         {
             return null;
         }
-
-        var levelData = ExtractLevelData(pngPath);
         if (string.IsNullOrWhiteSpace(levelData))
         {
             return null;
@@ -61,50 +59,65 @@ public static class CustomMapPngImporter
         return new Result(room, solids);
     }
 
-    private static string ExtractLevelData(string pngPath)
+    private static bool TryExtractLevelData(string pngPath, out string levelData)
     {
-        using var stream = File.OpenRead(pngPath);
-        using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
-        var signature = reader.ReadBytes(PngSignature.Length);
-        if (!signature.SequenceEqual(PngSignature))
+        Stream? stream = null;
+        if (File.Exists(pngPath))
         {
-            return string.Empty;
+            stream = File.OpenRead(pngPath);
+        }
+        else if (OperatingSystem.IsBrowser() && BrowserContentCatalog.TryGetBinaryForPath(pngPath, out var bytes))
+        {
+            stream = new MemoryStream(bytes, writable: false);
         }
 
-        var builder = new StringBuilder();
-        while (stream.Position + 8 <= stream.Length)
+        if (stream is null)
         {
-            var lengthBytes = reader.ReadBytes(4);
-            if (lengthBytes.Length < 4)
+            levelData = string.Empty;
+            return false;
+        }
+
+        using (stream)
+        {
+            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+            var signature = reader.ReadBytes(PngSignature.Length);
+            if (!signature.SequenceEqual(PngSignature))
             {
-                break;
+                levelData = string.Empty;
+                return false;
             }
 
-            var dataLength = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
-            var chunkType = Encoding.ASCII.GetString(reader.ReadBytes(4));
-            var chunkData = reader.ReadBytes(Math.Max(0, dataLength));
-            _ = reader.ReadUInt32();
-
-            switch (chunkType)
+            var builder = new StringBuilder();
+            while (stream.Position + 8 <= stream.Length)
             {
-                case "tEXt":
-                    AppendTextChunk(builder, chunkData);
+                var lengthBytes = reader.ReadBytes(4);
+                if (lengthBytes.Length < 4)
+                {
                     break;
-                case "zTXt":
-                    AppendCompressedTextChunk(builder, chunkData);
-                    break;
-                case "iTXt":
-                    AppendInternationalTextChunk(builder, chunkData);
-                    break;
+                }
+
+                var dataLength = BinaryPrimitives.ReadInt32BigEndian(lengthBytes);
+                var chunkType = Encoding.ASCII.GetString(reader.ReadBytes(4));
+                var chunkData = reader.ReadBytes(Math.Max(0, dataLength));
+                _ = reader.ReadUInt32();
+
+                switch (chunkType)
+                {
+                    case "tEXt":
+                        AppendTextChunk(builder, chunkData);
+                        break;
+                    case "zTXt":
+                        AppendCompressedTextChunk(builder, chunkData);
+                        break;
+                    case "iTXt":
+                        AppendInternationalTextChunk(builder, chunkData);
+                        break;
+                }
             }
-        }
 
-        if (builder.Length > 0)
-        {
-            return builder.ToString();
+            levelData = builder.Length > 0 ? builder.ToString() : string.Empty;
+            return levelData.Length > 0;
         }
-
-        return string.Empty;
     }
 
     private static void AppendTextChunk(StringBuilder builder, byte[] chunkData)

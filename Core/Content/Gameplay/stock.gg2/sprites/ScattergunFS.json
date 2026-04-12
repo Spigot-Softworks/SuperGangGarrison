@@ -1,0 +1,40 @@
+﻿{
+    "id":  "ScattergunFS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 0.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 1.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 2.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 3.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 4.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 5.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 6.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 7.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 8.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 9.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 10.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 11.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 12.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 13.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 14.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 15.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 16.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 17.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 18.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 19.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 20.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 21.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 22.png",
+                       "assets/legacy-sprites/Weapons/Firing/ScattergunFS/image 23.png"
+                   ],
+    "originX":  28,
+    "originY":  8,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

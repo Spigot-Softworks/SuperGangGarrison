@@ -1,0 +1,18 @@
+﻿{
+    "id":  "PaintrainS",
+    "framePaths":  [
+                       "assets/legacy-sprites/Weapons/PaintrainS/image 0.png",
+                       "assets/legacy-sprites/Weapons/PaintrainS/image 1.png"
+                   ],
+    "originX":  11,
+    "originY":  33,
+    "mask":  {
+                 "separate":  false,
+                 "shape":  "PRECISE",
+                 "boundsMode":  "AUTO",
+                 "left":  null,
+                 "top":  null,
+                 "right":  null,
+                 "bottom":  null
+             }
+}

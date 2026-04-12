@@ -17,12 +17,17 @@ public partial class Game1
 
         public bool TryHandle(TextInputEventArgs e)
         {
+            return TryHandle(e.Character);
+        }
+
+        public bool TryHandle(char character)
+        {
             if (!_game._passwordPromptOpen)
             {
                 return false;
             }
 
-            switch (e.Character)
+            switch (character)
             {
                 case '\b':
                     if (_game._passwordEditBuffer.Length > 0)
@@ -43,9 +48,9 @@ public partial class Game1
                     }
                     break;
                 default:
-                    if (!char.IsControl(e.Character) && _game._passwordEditBuffer.Length < 32)
+                    if (!char.IsControl(character) && _game._passwordEditBuffer.Length < 32)
                     {
-                        _game._passwordEditBuffer += e.Character;
+                        _game._passwordEditBuffer += character;
                         _game._passwordPromptMessage = string.Empty;
                     }
                     break;

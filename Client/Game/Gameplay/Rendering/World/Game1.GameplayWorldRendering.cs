@@ -2,6 +2,7 @@
 
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
+using System.Diagnostics;
 
 namespace OpenGarrison.Client;
 
@@ -26,6 +27,7 @@ public partial class Game1
         Rectangle spawnRectangle,
         int? skippedDeadBodySourcePlayerId = null)
     {
+        var browserWorldDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
@@ -34,6 +36,7 @@ public partial class Game1
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
         DrawGameplayPlayers(cameraPosition, playerRectangle);
         DrawBackstabVisuals(cameraPosition);
+        RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
     }
 
     private void DrawFallbackLevelSolids(Vector2 cameraPosition, bool hasLevelBackground)
