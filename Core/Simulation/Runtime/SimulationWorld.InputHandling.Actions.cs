@@ -31,7 +31,10 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (!input.FirePrimary || !player.TryFirePrimaryWeapon())
+        var ignorePrimaryAmmoCost = player.ClassId == PlayerClass.Soldier
+            && player.IsRaging
+            && ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage;
+        if (!input.FirePrimary || !player.TryFirePrimaryWeapon(ignorePrimaryAmmoCost))
         {
             return;
         }
@@ -156,6 +159,20 @@ public sealed partial class SimulationWorld
         {
             if (player.IsExperimentalDemoknightEnabled)
             {
+                if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
+                {
+                    if (player.TryStartExperimentalGhostDash(
+                        GetExperimentalGhostDashDurationTicks(),
+                        GetExperimentalGhostDashCooldownTicks(),
+                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
+                        GetExperimentalGhostDashImpulse()))
+                    {
+                        RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+                    }
+
+                    return;
+                }
+
                 if (player.IsExperimentalDemoknightCharging)
                 {
                     player.CancelExperimentalDemoknightCharge(depleteMeter: true);

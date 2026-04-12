@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 using System;
 
 namespace OpenGarrison.Core;
@@ -13,6 +15,24 @@ public sealed partial class PlayerEntity
             AdvanceExperimentalOffhandWeaponState();
             AdvanceAcquiredWeaponState();
             return;
+        }
+
+        if (ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled
+            && ClassId == PlayerClass.Soldier
+            && SelectedGameplayEquippedSlot != GameplayEquipmentSlot.Primary
+            && CurrentShells < PrimaryWeapon.MaxAmmo)
+        {
+            ExperimentalSoldierSwappedOutAmmoRegenAccumulator += 1f;
+            if (ExperimentalSoldierSwappedOutAmmoRegenAccumulator >= LegacyMovementModel.SourceTicksPerSecond)
+            {
+                ExperimentalSoldierSwappedOutAmmoRegenAccumulator -= LegacyMovementModel.SourceTicksPerSecond;
+                CurrentShells = int.Min(PrimaryWeapon.MaxAmmo, CurrentShells + 1);
+                ResetPyroPrimaryStateFromCurrentAmmo();
+            }
+        }
+        else if (SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Primary || CurrentShells >= PrimaryWeapon.MaxAmmo)
+        {
+            ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
         }
 
         if (PrimaryWeapon.AmmoRegenPerTick > 0 && CurrentShells < PrimaryWeapon.MaxAmmo)

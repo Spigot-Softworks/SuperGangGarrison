@@ -30,6 +30,13 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                if (world.ExperimentalGameplaySettings.EnableSoldierRageCaptureLockout
+                    && world.LocalPlayer.IsRaging
+                    && player.Team != world.LocalPlayer.Team)
+                {
+                    continue;
+                }
+
                 for (var zoneIndex = 0; zoneIndex < world._controlPointZones.Count; zoneIndex += 1)
                 {
                     var zone = world._controlPointZones[zoneIndex];

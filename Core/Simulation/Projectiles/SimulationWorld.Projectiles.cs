@@ -162,6 +162,8 @@ public sealed partial class SimulationWorld
         float directHitHealAmount = 0f,
         bool explodeImmediately = false,
         bool canGrantExperimentalInstantReloadOnHit = true,
+        float knockbackScale = 1f,
+        bool canIgniteTargets = false,
         string? killFeedWeaponSpriteNameOverride = null)
     {
         var rocket = new RocketProjectileEntity(
@@ -178,6 +180,8 @@ public sealed partial class SimulationWorld
             lastKnownRangeOriginY: owner.Y,
             directHitHealAmount: directHitHealAmount,
             canGrantExperimentalInstantReloadOnHit: canGrantExperimentalInstantReloadOnHit,
+            knockbackScale: knockbackScale,
+            canIgniteTargets: canIgniteTargets,
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {

@@ -22,38 +22,38 @@ internal sealed class ServerIncomingMessageDispatcher(
     Func<IPEndPoint, string?> getHelloRateLimitReason,
     Action<IPEndPoint> resetConnectionAttemptLimits,
     Func<(bool IsCustomMap, string MapDownloadUrl, string MapContentHash)> getCurrentMapMetadata,
-    Action<IPEndPoint, IProtocolMessage> sendMessage,
-    Action<IPEndPoint> sendServerStatus,
+    Action<ServerTransportPeer, IProtocolMessage> sendMessage,
+    Action<ServerTransportPeer> sendServerStatus,
     Action<ClientSession, string, bool> broadcastChat,
     Action<string, (string Key, object? Value)[]> logServerEvent,
     Action<string> log,
     ServerBanService? banService = null)
 {
-    public void Dispatch(IProtocolMessage message, IPEndPoint remoteEndPoint)
+    public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
     {
         switch (message)
         {
             case ServerStatusRequestMessage:
-                sendServerStatus(remoteEndPoint);
+                sendServerStatus(remotePeer);
                 break;
             case HelloMessage hello:
-                HandleHello(hello, remoteEndPoint);
+                HandleHello(hello, remotePeer);
                 break;
             case PasswordSubmitMessage passwordSubmit:
-                if (TryGetClient(remoteEndPoint, out var passwordClient))
+                if (TryGetClient(remotePeer, out var passwordClient))
                 {
                     passwordClient.LastSeen = elapsedGetter();
                     sessionManager.HandlePasswordSubmit(passwordClient, passwordSubmit);
                 }
                 break;
             case ChatSubmitMessage chatSubmit:
-                if (TryGetAuthorizedClient(remoteEndPoint, out var chatClient))
+                if (TryGetAuthorizedClient(remotePeer, out var chatClient))
                 {
                     chatClient.LastSeen = elapsedGetter();
                     if (chatClient.IsGagged)
                     {
-                        sendMessage(remoteEndPoint, new ChatRelayMessage(0, "[server]", "You are gagged and cannot send chat.", false));
-                        log($"[server] gagged chat blocked slot={chatClient.Slot} endpoint={chatClient.EndPoint}");
+                        sendMessage(remotePeer, new ChatRelayMessage(0, "[server]", "You are gagged and cannot send chat.", false));
+                        log($"[server] gagged chat blocked slot={chatClient.Slot} peer={chatClient.RemoteDescription}");
                         break;
                     }
 
@@ -61,14 +61,14 @@ internal sealed class ServerIncomingMessageDispatcher(
                 }
                 break;
             case SnapshotAckMessage snapshotAck:
-                if (TryGetClient(remoteEndPoint, out var ackClient))
+                if (TryGetClient(remotePeer, out var ackClient))
                 {
                     ackClient.LastSeen = elapsedGetter();
                     ackClient.AcknowledgeSnapshot(snapshotAck.Frame);
                 }
                 break;
             case PlayerProfileUpdateMessage profileUpdate:
-                if (TryGetClient(remoteEndPoint, out var profileClient))
+                if (TryGetClient(remotePeer, out var profileClient))
                 {
                     profileClient.LastSeen = elapsedGetter();
                     profileClient.Name = profileUpdate.Name;
@@ -77,7 +77,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 }
                 break;
             case InputStateMessage input:
-                if (TryGetAuthorizedClient(remoteEndPoint, out var inputClient))
+                if (TryGetAuthorizedClient(remotePeer, out var inputClient))
                 {
                     inputClient.LastSeen = elapsedGetter();
                     inputClient.TrySetLatestInput(input.Sequence, ToCoreInput(input));
@@ -88,14 +88,14 @@ internal sealed class ServerIncomingMessageDispatcher(
                 }
                 break;
             case ControlCommandMessage command:
-                if (TryGetAuthorizedClient(remoteEndPoint, out var controlClient))
+                if (TryGetAuthorizedClient(remotePeer, out var controlClient))
                 {
                     controlClient.LastSeen = elapsedGetter();
                     sessionManager.HandleControlCommand(controlClient, command);
                 }
                 break;
             case ClientPluginMessage pluginMessage:
-                if (TryGetAuthorizedClient(remoteEndPoint, out var pluginClient))
+                if (TryGetAuthorizedClient(remotePeer, out var pluginClient))
                 {
                     pluginClient.LastSeen = elapsedGetter();
                     pluginHostGetter()?.NotifyClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
@@ -112,17 +112,23 @@ internal sealed class ServerIncomingMessageDispatcher(
         }
     }
 
-    private void HandleHello(HelloMessage hello, IPEndPoint remoteEndPoint)
+    public void Dispatch(IProtocolMessage message, IPEndPoint remoteEndPoint)
     {
-        pluginHostGetter()?.NotifyHelloReceived(new HelloReceivedEvent(hello.Name, remoteEndPoint.ToString(), hello.Version));
+        Dispatch(message, ServerTransportPeer.FromUdpEndPoint(remoteEndPoint));
+    }
+
+    private void HandleHello(HelloMessage hello, ServerTransportPeer remotePeer)
+    {
+        var remoteDescription = remotePeer.ToString();
+        pluginHostGetter()?.NotifyHelloReceived(new HelloReceivedEvent(hello.Name, remoteDescription, hello.Version));
         if (hello.Version != ProtocolVersion.Current)
         {
-            log($"[server] rejected client {remoteEndPoint} due to protocol mismatch client={hello.Version} server={ProtocolVersion.Current}");
-            sendMessage(remoteEndPoint, new ConnectionDeniedMessage("Protocol mismatch."));
+            log($"[server] rejected client {remoteDescription} due to protocol mismatch client={hello.Version} server={ProtocolVersion.Current}");
+            sendMessage(remotePeer, new ConnectionDeniedMessage("Protocol mismatch."));
             return;
         }
 
-        var existingClient = FindClient(clientsBySlot, remoteEndPoint);
+        var existingClient = FindClient(clientsBySlot, remotePeer);
         if (existingClient is not null)
         {
             existingClient.Name = hello.Name;
@@ -130,7 +136,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             existingClient.LastSeen = elapsedGetter();
             sessionManager.ApplyClientProfile(existingClient.Slot, hello.Name, hello.BadgeMask);
             var existingMapMetadata = getCurrentMapMetadata();
-            sendMessage(remoteEndPoint, new WelcomeMessage(
+            sendMessage(remotePeer, new WelcomeMessage(
                 serverName,
                 ProtocolVersion.Current,
                 config.TicksPerSecond,
@@ -142,29 +148,30 @@ internal sealed class ServerIncomingMessageDispatcher(
                 world.Level.MapScale));
             if (passwordRequired && !existingClient.IsAuthorized)
             {
-                sendMessage(remoteEndPoint, new PasswordRequestMessage());
+                sendMessage(remotePeer, new PasswordRequestMessage());
                 existingClient.LastPasswordRequestSentAt = elapsedGetter();
             }
 
-            log($"[server] client refreshed {remoteEndPoint} slot={existingClient.Slot} name=\"{hello.Name}\" version={hello.Version}");
+            log($"[server] client refreshed {remoteDescription} slot={existingClient.Slot} name=\"{hello.Name}\" version={hello.Version}");
             return;
         }
 
-        if (getHelloRateLimitReason(remoteEndPoint) is { } rateLimitReason)
+        var remoteEndPoint = remotePeer.UdpEndPoint;
+        if (remoteEndPoint is not null && getHelloRateLimitReason(remoteEndPoint) is { } rateLimitReason)
         {
-            log($"[server] rejected client {remoteEndPoint}; {rateLimitReason}");
-            sendMessage(remoteEndPoint, new ConnectionDeniedMessage(rateLimitReason));
+            log($"[server] rejected client {remoteDescription}; {rateLimitReason}");
+            sendMessage(remotePeer, new ConnectionDeniedMessage(rateLimitReason));
             return;
         }
 
-        if (banService?.GetConnectionDeniedReason(remoteEndPoint) is { } banReason)
+        if (remoteEndPoint is not null && banService?.GetConnectionDeniedReason(remoteEndPoint) is { } banReason)
         {
-            log($"[server] rejected client {remoteEndPoint}; banned");
-            sendMessage(remoteEndPoint, new ConnectionDeniedMessage(banReason));
+            log($"[server] rejected client {remoteDescription}; banned");
+            sendMessage(remotePeer, new ConnectionDeniedMessage(banReason));
             logServerEvent(
                 "client_rejected_banned",
                 [
-                    ("endpoint", remoteEndPoint.ToString()),
+                    ("endpoint", remoteDescription),
                     ("reason", banReason)
                 ]);
             return;
@@ -173,13 +180,13 @@ internal sealed class ServerIncomingMessageDispatcher(
         var assignedSlot = FindAvailableSlot(clientsBySlot, maxTotalClients, maxSpectatorClients, maxPlayableClients);
         if (assignedSlot == 0)
         {
-            log($"[server] rejected client {remoteEndPoint}; server is full");
-            sendMessage(remoteEndPoint, new ConnectionDeniedMessage("Server is full."));
+            log($"[server] rejected client {remoteDescription}; server is full");
+            sendMessage(remotePeer, new ConnectionDeniedMessage("Server is full."));
             return;
         }
 
         var now = elapsedGetter();
-        var client = new ClientSession(assignedSlot, allocateUserId(), remoteEndPoint, hello.Name, now)
+        var client = new ClientSession(assignedSlot, allocateUserId(), remotePeer, hello.Name, now)
         {
             IsAuthorized = !passwordRequired,
             BadgeMask = hello.BadgeMask,
@@ -192,7 +199,7 @@ internal sealed class ServerIncomingMessageDispatcher(
         sessionManager.ApplyClientProfile(assignedSlot, hello.Name, hello.BadgeMask);
 
         var mapMetadata = getCurrentMapMetadata();
-        sendMessage(remoteEndPoint, new WelcomeMessage(
+        sendMessage(remotePeer, new WelcomeMessage(
             serverName,
             ProtocolVersion.Current,
             config.TicksPerSecond,
@@ -204,18 +211,22 @@ internal sealed class ServerIncomingMessageDispatcher(
             world.Level.MapScale));
         if (passwordRequired && !client.IsAuthorized)
         {
-            sendMessage(remoteEndPoint, new PasswordRequestMessage());
+            sendMessage(remotePeer, new PasswordRequestMessage());
             client.LastPasswordRequestSentAt = elapsedGetter();
         }
 
-        resetConnectionAttemptLimits(remoteEndPoint);
-        log($"[server] client connected {remoteEndPoint} slot={assignedSlot} name=\"{hello.Name}\" version={hello.Version}");
+        if (remoteEndPoint is not null)
+        {
+            resetConnectionAttemptLimits(remoteEndPoint);
+        }
+
+        log($"[server] client connected {remoteDescription} slot={assignedSlot} name=\"{hello.Name}\" version={hello.Version}");
         logServerEvent(
             "client_connected",
             [
                 ("slot", assignedSlot),
                 ("player_name", hello.Name),
-                ("endpoint", remoteEndPoint.ToString()),
+                ("endpoint", remoteDescription),
                 ("is_authorized", client.IsAuthorized),
                 ("is_spectator", IsSpectatorSlot(assignedSlot)),
                 ("version", hello.Version)
@@ -223,20 +234,20 @@ internal sealed class ServerIncomingMessageDispatcher(
         pluginHostGetter()?.NotifyClientConnected(new ClientConnectedEvent(
             assignedSlot,
             hello.Name,
-            remoteEndPoint.ToString(),
+            remoteDescription,
             client.IsAuthorized,
             IsSpectatorSlot(assignedSlot)));
     }
 
-    private bool TryGetClient(IPEndPoint remoteEndPoint, out ClientSession client)
+    private bool TryGetClient(ServerTransportPeer remotePeer, out ClientSession client)
     {
-        client = FindClient(clientsBySlot, remoteEndPoint)!;
+        client = FindClient(clientsBySlot, remotePeer)!;
         return client is not null;
     }
 
-    private bool TryGetAuthorizedClient(IPEndPoint remoteEndPoint, out ClientSession client)
+    private bool TryGetAuthorizedClient(ServerTransportPeer remotePeer, out ClientSession client)
     {
-        if (!TryGetClient(remoteEndPoint, out client))
+        if (!TryGetClient(remotePeer, out client))
         {
             return false;
         }

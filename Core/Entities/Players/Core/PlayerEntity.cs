@@ -166,6 +166,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int PrimaryCooldownTicks { get; private set; }
 
+    public bool LastPrimaryShotIgnoredAmmoCost { get; private set; }
+
     public int ReloadTicksUntilNextShell { get; private set; }
 
     public PrimaryWeaponDefinition? ExperimentalOffhandWeapon { get; private set; }
@@ -291,6 +293,28 @@ public sealed partial class PlayerEntity : SimulationEntity
     public bool IsExperimentalDemoknightChargeFlightActive { get; private set; }
 
     public float ExperimentalDemoknightChargeAcceleration { get; private set; }
+
+    public bool IsExperimentalGhostDashing => ExperimentalGhostDashTicksRemaining > 0;
+
+    private bool ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled { get; set; }
+
+    private bool ExperimentalSoldierInfiniteAmmoDuringRageEnabled { get; set; }
+
+    private float ExperimentalSoldierSwappedOutAmmoRegenAccumulator { get; set; }
+
+    private bool ExperimentalDemoknightChargeFullControlEnabled { get; set; }
+
+    private int ExperimentalDemoknightPostRageRegenTicksRemaining { get; set; }
+
+    private float ExperimentalDemoknightPostRageRegenPerTickValue { get; set; }
+
+    private int ExperimentalGhostDashTicksRemaining { get; set; }
+
+    private int ExperimentalGhostDashCooldownTicksRemaining { get; set; }
+
+    private int ExperimentalGhostDashVisibilityTicksRemaining { get; set; }
+
+    private float ExperimentalGhostDashNextAttackDamageMultiplierValue { get; set; } = 1f;
 
     public int PyroAirblastCooldownTicks { get; private set; }
 
@@ -531,6 +555,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
         PyroPrimaryRequiresReleaseAfterEmpty = false;
+        LastPrimaryShotIgnoredAmmoCost = false;
         if (clearSpawnRoomState)
         {
             IsInSpawnRoom = false;

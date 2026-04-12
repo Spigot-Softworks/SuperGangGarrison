@@ -115,6 +115,8 @@ public sealed partial class SimulationWorld
             var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 20f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 20f;
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
+            var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
+                && attacker.ClassId == PlayerClass.Soldier;
             SpawnRocket(
                 attacker,
                 spawnX,
@@ -124,8 +126,34 @@ public sealed partial class SimulationWorld
                 weaponDefinition.RocketCombat,
                 weaponDefinition.DirectHitHealAmount ?? 0f,
                 explodeImmediately,
-                canGrantExperimentalInstantReloadOnHit: false,
+                canGrantExperimentalInstantReloadOnHit: experimentalSoldierPerkOwner
+                    && _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
+                knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
+                    ? 0.75f
+                    : 1f,
+                canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+
+            if (experimentalSoldierPerkOwner
+                && _world.ExperimentalGameplaySettings.EnableSoldierFinalClipRocketBurst
+                && !attacker.LastPrimaryShotIgnoredAmmoCost
+                && attacker.CurrentShells == 0)
+            {
+                _world.QueueExperimentalSoldierFinalRocketBurst(
+                    attacker,
+                    spawnX,
+                    spawnY,
+                    _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
+                    directionRadians,
+                    weaponDefinition.RocketCombat,
+                    weaponDefinition.DirectHitHealAmount ?? 0f,
+                    canGrantExperimentalInstantReloadOnHit: _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
+                    knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
+                        ? 0.75f
+                        : 1f,
+                    canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
+                    killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+            }
         }
 
         private void FireRevolver(PlayerEntity attacker, float aimWorldX, float aimWorldY)

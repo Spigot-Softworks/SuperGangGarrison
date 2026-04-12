@@ -10,6 +10,7 @@ internal static class ServerRuntimeBootstrapFactory
     public static ServerRuntimeBootstrap Create(
         SimulationConfig config,
         UdpClient udp,
+        IServerDatagramTransport transport,
         int port,
         byte[] protocolUuidBytes,
         bool useLobbyServer,
@@ -90,7 +91,7 @@ internal static class ServerRuntimeBootstrapFactory
         var eventReporter = new ServerRuntimeEventReporter(world, pluginHostGetter, writeEvent, mapMetadataResolver);
         eventReporter.ResetObservedGameplayState();
         var outboundMessaging = new ServerOutboundMessaging(
-            udp,
+            transport,
             serverName,
             world,
             clientsBySlot,

@@ -28,6 +28,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Xna.Framework.Input">
+      <HintPath>$(NuGetPackageRoot)nkast.xna.framework.input\4.2.9001\lib\net8.0\Xna.Framework.Input.dll</HintPath>
+      <Aliases>KNIInput</Aliases>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Client\OpenGarrison.Client.csproj">
       <AdditionalProperties>OpenGarrisonClientAsLibrary=true</AdditionalProperties>
     </ProjectReference>

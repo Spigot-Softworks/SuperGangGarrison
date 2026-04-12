@@ -50,6 +50,11 @@ public partial class Game1
         InvincibilityOnKill,
         ProjectileSpeedMultiplier,
         AirshotDamageMultiplier,
+        SoldierAmmoRegeneratesWhileSwappedOut,
+        SoldierInfiniteAmmoDuringRage,
+        SoldierRageCaptureLockout,
+        SoldierNapalmRockets,
+        SoldierFinalClipRocketBurst,
         DemoknightMeleeRange,
         DemoknightLifesteal,
         DemoknightMoveSpeed,
@@ -60,6 +65,9 @@ public partial class Game1
         DemoknightDamageMultiplier,
         DemoknightFullHealOnKill,
         DemoknightAttackSpeed,
+        DemoknightPostRageRegeneration,
+        DemoknightFullControlDuringCharge,
+        DemoknightGhostDash,
     }
 
     private readonly record struct LastToDiePerkDefinition(
@@ -139,6 +147,11 @@ public partial class Game1
         new(LastToDiePerkKind.InvincibilityOnKill, "Invincibility on kill", "Gain 0.5s of invulnerability after kills."),
         new(LastToDiePerkKind.ProjectileSpeedMultiplier, "Projectile speed +20%", "All spawned projectile weapons fly 20% faster."),
         new(LastToDiePerkKind.AirshotDamageMultiplier, "Airshot damage +25%", "Direct projectile airshots deal bonus damage."),
+        new(LastToDiePerkKind.SoldierAmmoRegeneratesWhileSwappedOut, "Stowed ammo regen", "Regenerate rocket ammo while using another weapon."),
+        new(LastToDiePerkKind.SoldierInfiniteAmmoDuringRage, "Rage ammo storm", "Fire rockets without spending ammo while raging."),
+        new(LastToDiePerkKind.SoldierRageCaptureLockout, "Rage capture lockout", "Enemy captures are locked out during rage."),
+        new(LastToDiePerkKind.SoldierNapalmRockets, "Napalm rockets", "Rockets ignite enemies but have reduced knockback."),
+        new(LastToDiePerkKind.SoldierFinalClipRocketBurst, "Final-clip rocket burst", "Emptying your clip fires a delayed bonus rocket."),
     ];
 
     private static readonly LastToDiePerkDefinition[] LastToDieDemoknightPerkCatalog =
@@ -153,6 +166,9 @@ public partial class Game1
         new(LastToDiePerkKind.DemoknightDamageMultiplier, "+40% damage", "Increase Eyelander damage by 40%."),
         new(LastToDiePerkKind.DemoknightFullHealOnKill, "Full heal on kill", "Restore to full health on kill."),
         new(LastToDiePerkKind.DemoknightAttackSpeed, "+50% attack speed", "Swing the Eyelander 50% faster."),
+        new(LastToDiePerkKind.DemoknightPostRageRegeneration, "Rage recovery", "Regenerate health for 10 seconds after rage."),
+        new(LastToDiePerkKind.DemoknightFullControlDuringCharge, "Full charge control", "Keep full movement control while charging."),
+        new(LastToDiePerkKind.DemoknightGhostDash, "Ghost dash", "Right-click dashes through danger with a boosted next hit."),
     ];
 
     private LastToDieRunState? _lastToDieRun;
@@ -617,6 +633,11 @@ public partial class Game1
                 LastToDiePerkKind.InvincibilityOnKill => settings with { EnableInvincibilityOnKill = true },
                 LastToDiePerkKind.ProjectileSpeedMultiplier => settings with { EnableProjectileSpeedMultiplier = true },
                 LastToDiePerkKind.AirshotDamageMultiplier => settings with { EnableAirshotDamageMultiplier = true },
+                LastToDiePerkKind.SoldierAmmoRegeneratesWhileSwappedOut => settings with { EnableSoldierAmmoRegeneratesWhileSwappedOut = true },
+                LastToDiePerkKind.SoldierInfiniteAmmoDuringRage => settings with { EnableSoldierInfiniteAmmoDuringRage = true },
+                LastToDiePerkKind.SoldierRageCaptureLockout => settings with { EnableSoldierRageCaptureLockout = true },
+                LastToDiePerkKind.SoldierNapalmRockets => settings with { EnableSoldierNapalmRockets = true },
+                LastToDiePerkKind.SoldierFinalClipRocketBurst => settings with { EnableSoldierFinalClipRocketBurst = true },
                 LastToDiePerkKind.DemoknightMeleeRange => settings with { DemoknightSwordRangeMultiplier = 1.5f },
                 LastToDiePerkKind.DemoknightLifesteal => settings with { EnableHealOnDamage = true, HealOnDamageFraction = 0.6f },
                 LastToDiePerkKind.DemoknightMoveSpeed => settings with { PassiveMovementSpeedMultiplier = 1.3f },
@@ -627,6 +648,9 @@ public partial class Game1
                 LastToDiePerkKind.DemoknightDamageMultiplier => settings with { DemoknightSwordDamageMultiplier = 1.4f },
                 LastToDiePerkKind.DemoknightFullHealOnKill => settings with { EnableFullHealOnKill = true },
                 LastToDiePerkKind.DemoknightAttackSpeed => settings with { DemoknightSwordCooldownMultiplier = 1f / 1.5f },
+                LastToDiePerkKind.DemoknightPostRageRegeneration => settings with { EnableDemoknightPostRageRegeneration = true },
+                LastToDiePerkKind.DemoknightFullControlDuringCharge => settings with { EnableDemoknightFullControlDuringCharge = true },
+                LastToDiePerkKind.DemoknightGhostDash => settings with { EnableDemoknightGhostDash = true },
                 _ => settings,
             };
         }

@@ -5,8 +5,9 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
-    public bool TryFirePrimaryWeapon()
+    public bool TryFirePrimaryWeapon(bool ignoreAmmoCost = false)
     {
+        LastPrimaryShotIgnoredAmmoCost = false;
         if (ClassId == PlayerClass.Pyro)
         {
             if (!TryPreparePyroPrimaryFireAttempt())
@@ -18,14 +19,18 @@ public sealed partial class PlayerEntity
             return true;
         }
 
-        if (!IsAlive || IsHeavyEating || IsTaunting || IsSpyCloaked || PrimaryCooldownTicks > 0 || CurrentShells < PrimaryWeapon.AmmoPerShot)
+        if (!IsAlive || IsHeavyEating || IsTaunting || IsSpyCloaked || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
         {
             return false;
         }
 
-        CurrentShells -= PrimaryWeapon.AmmoPerShot;
+        if (!ignoreAmmoCost)
+        {
+            CurrentShells -= PrimaryWeapon.AmmoPerShot;
+        }
+        LastPrimaryShotIgnoredAmmoCost = ignoreAmmoCost;
         PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
-        if (PrimaryWeapon.AutoReloads && CurrentShells < PrimaryWeapon.MaxAmmo)
+        if (PrimaryWeapon.AutoReloads && !ignoreAmmoCost && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             ReloadTicksUntilNextShell = PrimaryWeapon.AmmoReloadTicks;
         }

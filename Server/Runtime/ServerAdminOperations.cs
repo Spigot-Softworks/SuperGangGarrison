@@ -11,7 +11,7 @@ namespace OpenGarrison.Server;
 
 internal sealed class ServerAdminOperations(
     Action<string> log,
-    Action<IPEndPoint, IProtocolMessage> sendMessage,
+    Action<ServerTransportPeer, IProtocolMessage> sendMessage,
     Func<IReadOnlyDictionary<byte, ClientSession>> clientsGetter,
     Func<ServerSessionManager> sessionManagerGetter,
     Func<SimulationWorld> worldGetter,
@@ -36,7 +36,7 @@ internal sealed class ServerAdminOperations(
         {
             for (var index = 0; index < messageSegments.Count; index += 1)
             {
-                TrySend(client.EndPoint, new ChatRelayMessage(0, "[server]", messageSegments[index]));
+                TrySend(client.Peer, new ChatRelayMessage(0, "[server]", messageSegments[index]));
             }
         }
 
@@ -53,7 +53,7 @@ internal sealed class ServerAdminOperations(
         var messageSegments = SplitSystemMessageSegments(text);
         for (var index = 0; index < messageSegments.Count; index += 1)
         {
-            TrySend(client.EndPoint, new ChatRelayMessage(0, "[server]", messageSegments[index]));
+            TrySend(client.Peer, new ChatRelayMessage(0, "[server]", messageSegments[index]));
         }
 
         log($"[server] system message to slot {slot}: {text.Trim()}");
@@ -81,7 +81,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var finalReason = ProtocolCodec.TruncateUtf8(string.IsNullOrWhiteSpace(reason) ? "Disconnected." : reason.Trim(), ProtocolCodec.MaxReasonBytes);
-        TrySend(client.EndPoint, new ConnectionDeniedMessage(finalReason));
+        TrySend(client.Peer, new ConnectionDeniedMessage(finalReason));
         sessionManagerGetter().RemoveClient(slot, finalReason);
         return true;
     }
@@ -98,14 +98,19 @@ internal sealed class ServerAdminOperations(
             return new OpenGarrisonServerBanActionResult(false, string.Empty, "No connected client for that slot.", false, 0);
         }
 
-        var result = banService.BanIpAddress(client.EndPoint.Address, duration, reason, "admin", client.Name);
+        if (client.UdpEndPoint is not { } clientEndPoint)
+        {
+            return new OpenGarrisonServerBanActionResult(false, string.Empty, "That client transport does not expose an IP address.", false, 0);
+        }
+
+        var result = banService.BanIpAddress(clientEndPoint.Address, duration, reason, "admin", client.Name);
         if (!result.Success)
         {
             return result;
         }
 
-        var disconnectReason = banService.GetConnectionDeniedReason(client.EndPoint) ?? "You are banned from this server.";
-        TrySend(client.EndPoint, new ConnectionDeniedMessage(disconnectReason));
+        var disconnectReason = banService.GetConnectionDeniedReason(clientEndPoint) ?? "You are banned from this server.";
+        TrySend(client.Peer, new ConnectionDeniedMessage(disconnectReason));
         sessionManagerGetter().RemoveClient(slot, disconnectReason);
         return result;
     }
@@ -125,7 +130,9 @@ internal sealed class ServerAdminOperations(
 
         var disconnectedSlots = clientsGetter().Values
             .Where(client => string.Equals(
-                client.EndPoint.Address.IsIPv4MappedToIPv6 ? client.EndPoint.Address.MapToIPv4().ToString() : client.EndPoint.Address.ToString(),
+                client.UdpEndPoint is { } endPoint
+                    ? endPoint.Address.IsIPv4MappedToIPv6 ? endPoint.Address.MapToIPv4().ToString() : endPoint.Address.ToString()
+                    : string.Empty,
                 result.Address,
                 StringComparison.Ordinal))
             .Select(client => client.Slot)
@@ -136,8 +143,10 @@ internal sealed class ServerAdminOperations(
             var slot = disconnectedSlots[index];
             if (clientsGetter().TryGetValue(slot, out var client))
             {
-                var disconnectReason = banService.GetConnectionDeniedReason(client.EndPoint) ?? "You are banned from this server.";
-                TrySend(client.EndPoint, new ConnectionDeniedMessage(disconnectReason));
+                var disconnectReason = client.UdpEndPoint is { } endPoint
+                    ? banService.GetConnectionDeniedReason(endPoint) ?? "You are banned from this server."
+                    : "You are banned from this server.";
+                TrySend(client.Peer, new ConnectionDeniedMessage(disconnectReason));
                 sessionManagerGetter().RemoveClient(slot, disconnectReason);
             }
         }
@@ -449,11 +458,11 @@ internal sealed class ServerAdminOperations(
             : sanitized;
     }
 
-    private void TrySend(IPEndPoint endPoint, IProtocolMessage message)
+    private void TrySend(ServerTransportPeer peer, IProtocolMessage message)
     {
         try
         {
-            sendMessage(endPoint, message);
+            sendMessage(peer, message);
         }
         catch (Exception ex)
         {
@@ -461,7 +470,7 @@ internal sealed class ServerAdminOperations(
         }
     }
 
-    private static IReadOnlyList<string> SplitSystemMessageSegments(string text)
+    private static List<string> SplitSystemMessageSegments(string text)
     {
         var normalized = text.Trim();
         if (normalized.Length == 0)

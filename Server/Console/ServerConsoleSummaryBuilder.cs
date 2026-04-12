@@ -106,7 +106,7 @@ internal sealed class ServerConsoleSummaryBuilder(
             var connectedFor = FormatDuration(uptimeGetter() - client.ConnectedAt);
             var authorized = client.IsAuthorized ? "yes" : "pending";
             lines.Add(
-                $"[server] player | userid={client.UserId} | slot={client.Slot} | name={client.Name} | role={role} | authorized={authorized} | endpoint={client.EndPoint} | connected={connectedFor}");
+                $"[server] player | userid={client.UserId} | slot={client.Slot} | name={client.Name} | role={role} | authorized={authorized} | endpoint={client.RemoteDescription} | connected={connectedFor}");
         }
     }
 

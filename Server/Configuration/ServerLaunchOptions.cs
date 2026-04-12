@@ -32,6 +32,9 @@ sealed class ServerLaunchOptions
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
+    public int WebTransportPort { get; private init; }
+    public string? WebTransportCertificatePath { get; private init; }
+    public string? WebTransportCertificatePassword { get; private init; }
 
     public static ServerLaunchOptions Load(string[] args)
     {
@@ -81,6 +84,9 @@ sealed class ServerLaunchOptions
         int? capLimitOverride = settings.CapLimit > 0 ? Math.Clamp(settings.CapLimit, 1, 255) : null;
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
+        var webTransportPort = 0;
+        string? webTransportCertificatePath = null;
+        string? webTransportCertificatePassword = null;
 
         for (var index = 0; index < args.Length; index += 1)
         {
@@ -255,6 +261,35 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--webtransport-port", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+            {
+                if (int.TryParse(args[index + 1], out var parsedWebTransportPort) && parsedWebTransportPort > 0 && parsedWebTransportPort <= 65535)
+                {
+                    webTransportPort = parsedWebTransportPort;
+                }
+
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--webtransport-cert", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--webtransport-certificate", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                webTransportCertificatePath = Path.GetFullPath(args[index + 1]);
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--webtransport-cert-password", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--webtransport-certificate-password", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                webTransportCertificatePassword = args[index + 1];
+                index += 1;
+                continue;
+            }
+
             if (index == 0 && int.TryParse(arg, out var firstPort))
             {
                 port = firstPort;
@@ -284,6 +319,9 @@ sealed class ServerLaunchOptions
             TimeLimitMinutesOverride = timeLimitMinutesOverride,
             CapLimitOverride = capLimitOverride,
             RespawnSecondsOverride = respawnSecondsOverride,
+            WebTransportPort = webTransportPort,
+            WebTransportCertificatePath = webTransportCertificatePath,
+            WebTransportCertificatePassword = webTransportCertificatePassword,
         };
     }
 }

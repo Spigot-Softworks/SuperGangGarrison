@@ -65,7 +65,7 @@ internal sealed class ServerReadOnlyStateView(
                 HasMovementSpeedScaleOverride: !isSpectator && world.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
                 GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.GetNetworkPlayerGravityScale(client.Slot) : 1f),
                 HasGravityScaleOverride: !isSpectator && world.HasNetworkPlayerGravityScaleOverride(client.Slot),
-                EndPoint: client.EndPoint.ToString(),
+                EndPoint: client.RemoteDescription,
                 GameplayLoadoutId: player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
                 GameplaySecondaryItemId: player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
                 GameplayAcquiredItemId: player?.GameplayLoadoutState.AcquiredItemId ?? string.Empty,

@@ -40,6 +40,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         IReadOnlyList<int>? passedFriendlyPlayerIds = null,
         float directHitHealAmount = 0f,
         bool canGrantExperimentalInstantReloadOnHit = true,
+        float knockbackScale = 1f,
+        bool canIgniteTargets = false,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
@@ -62,6 +64,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         DistanceToTravel = MathF.Max(0f, distanceToTravel);
         DirectHitHealAmountValue = MathF.Max(0f, directHitHealAmount);
         CanGrantExperimentalInstantReloadOnHit = canGrantExperimentalInstantReloadOnHit;
+        KnockbackScale = MathF.Max(0f, knockbackScale);
+        CanIgniteTargets = canIgniteTargets;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
@@ -100,6 +104,10 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool CanGrantExperimentalInstantReloadOnHit { get; private set; }
 
+    public float KnockbackScale { get; }
+
+    public bool CanIgniteTargets { get; }
+
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public bool IsFading { get; private set; }
@@ -111,8 +119,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public float CurrentKnockback => ZeroKnockbackSourceTicksRemaining <= 0f
         ? 0f
         : ReducedKnockbackSourceTicksRemaining <= 0f
-            ? ReducedKnockback
-            : InitialKnockback;
+            ? ReducedKnockback * KnockbackScale
+            : InitialKnockback * KnockbackScale;
 
     public int DirectHitDamageValue { get; }
 

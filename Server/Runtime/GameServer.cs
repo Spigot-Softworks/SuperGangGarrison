@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,6 +15,7 @@ using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The server owns disposables for the duration of Run() and shuts them down in the startup lifecycle finally block.")]
 sealed partial class GameServer
 {
     private sealed record PendingConsoleCommand(
@@ -56,6 +58,9 @@ sealed partial class GameServer
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
+    private readonly int _webTransportPort;
+    private readonly string? _webTransportCertificatePath;
+    private readonly string? _webTransportCertificatePassword;
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
@@ -69,6 +74,8 @@ sealed partial class GameServer
     private int _nextClientUserId = 1;
 
     private UdpClient _udp = null!;
+    private OpenGarrison.Server.IServerDatagramTransport _datagramTransport = null!;
+    private OpenGarrison.Server.WebTransportServerHost? _webTransportHost;
     private LobbyServerRegistrar? _lobbyRegistrar;
     private SimulationWorld _world = null!;
     private FixedStepSimulator _simulator = null!;
@@ -119,6 +126,9 @@ sealed partial class GameServer
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
+        int webTransportPort,
+        string? webTransportCertificatePath,
+        string? webTransportCertificatePassword,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
@@ -151,6 +161,9 @@ sealed partial class GameServer
         _timeLimitMinutesOverride = timeLimitMinutesOverride;
         _capLimitOverride = capLimitOverride;
         _respawnSecondsOverride = respawnSecondsOverride;
+        _webTransportPort = webTransportPort;
+        _webTransportCertificatePath = webTransportCertificatePath;
+        _webTransportCertificatePassword = webTransportCertificatePassword;
         _clientTimeoutSeconds = clientTimeoutSeconds;
         _passwordTimeoutSeconds = passwordTimeoutSeconds;
         _passwordRetrySeconds = passwordRetrySeconds;

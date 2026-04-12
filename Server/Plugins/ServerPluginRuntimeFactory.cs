@@ -1,4 +1,3 @@
-using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
@@ -30,7 +29,7 @@ internal static class ServerPluginRuntimeFactory
         ServerSessionManager sessionManager,
         SnapshotBroadcaster snapshotBroadcaster,
         Action<MapChangeTransition> applyMapTransition,
-        Action<IPEndPoint, IProtocolMessage> sendMessage,
+        Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendPluginMessageToClient,
         Action<string, string, string, string, PluginMessagePayloadFormat, ushort> broadcastPluginMessage,
         Action<string> log,

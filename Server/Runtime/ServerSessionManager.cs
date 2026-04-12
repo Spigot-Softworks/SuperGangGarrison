@@ -22,7 +22,7 @@ sealed class ServerSessionManager
     private readonly Func<IPEndPoint, string?> _getPasswordRateLimitReason;
     private readonly Action<IPEndPoint> _recordPasswordFailure;
     private readonly Action<IPEndPoint> _clearPasswordFailures;
-    private readonly Action<IPEndPoint, IProtocolMessage> _sendMessage;
+    private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
     private readonly Action<string> _log;
     private readonly Action<ClientSession, string> _clientRemoved;
     private readonly Action<ClientSession> _passwordAccepted;
@@ -45,7 +45,7 @@ sealed class ServerSessionManager
         Func<IPEndPoint, string?> getPasswordRateLimitReason,
         Action<IPEndPoint> recordPasswordFailure,
         Action<IPEndPoint> clearPasswordFailures,
-        Action<IPEndPoint, IProtocolMessage> sendMessage,
+        Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<string> log,
         Action<ClientSession, string>? clientRemoved = null,
         Action<ClientSession>? passwordAccepted = null,
@@ -108,7 +108,7 @@ sealed class ServerSessionManager
     {
         if (_passwordRequired && !client.IsAuthorized)
         {
-            _sendMessage(client.EndPoint, new ControlAckMessage(command.Sequence, command.Kind, false));
+            _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, false));
             return;
         }
 
@@ -122,7 +122,7 @@ sealed class ServerSessionManager
         };
         if (previousSequence == command.Sequence)
         {
-            _sendMessage(client.EndPoint, new ControlAckMessage(command.Sequence, command.Kind, true));
+            _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, true));
             return;
         }
 
@@ -155,7 +155,7 @@ sealed class ServerSessionManager
             }
         }
 
-        _sendMessage(client.EndPoint, new ControlAckMessage(command.Sequence, command.Kind, accepted));
+        _sendMessage(client.Peer, new ControlAckMessage(command.Sequence, command.Kind, accepted));
     }
 
     public void HandlePasswordSubmit(ClientSession client, PasswordSubmitMessage passwordSubmit)
@@ -163,15 +163,19 @@ sealed class ServerSessionManager
         if (!_passwordRequired)
         {
             client.IsAuthorized = true;
-            _clearPasswordFailures(client.EndPoint);
-            _sendMessage(client.EndPoint, new PasswordResultMessage(true, string.Empty));
+            if (client.UdpEndPoint is { } authorizedEndPoint)
+            {
+                _clearPasswordFailures(authorizedEndPoint);
+            }
+
+            _sendMessage(client.Peer, new PasswordResultMessage(true, string.Empty));
             _passwordAccepted(client);
             return;
         }
 
-        if (_getPasswordRateLimitReason(client.EndPoint) is { } rateLimitReason)
+        if (client.UdpEndPoint is { } rateLimitEndPoint && _getPasswordRateLimitReason(rateLimitEndPoint) is { } rateLimitReason)
         {
-            _sendMessage(client.EndPoint, new PasswordResultMessage(false, rateLimitReason));
+            _sendMessage(client.Peer, new PasswordResultMessage(false, rateLimitReason));
             RemoveClient(client.Slot, "password rate limited");
             return;
         }
@@ -179,15 +183,23 @@ sealed class ServerSessionManager
         if (string.Equals(passwordSubmit.Password, _serverPassword, StringComparison.Ordinal))
         {
             client.IsAuthorized = true;
-            _clearPasswordFailures(client.EndPoint);
-            _sendMessage(client.EndPoint, new PasswordResultMessage(true, string.Empty));
-            _log($"[server] client authorized slot={client.Slot} endpoint={client.EndPoint}");
+            if (client.UdpEndPoint is { } acceptedEndPoint)
+            {
+                _clearPasswordFailures(acceptedEndPoint);
+            }
+
+            _sendMessage(client.Peer, new PasswordResultMessage(true, string.Empty));
+            _log($"[server] client authorized slot={client.Slot} peer={client.RemoteDescription}");
             _passwordAccepted(client);
             return;
         }
 
-        _recordPasswordFailure(client.EndPoint);
-        _sendMessage(client.EndPoint, new PasswordResultMessage(false, "Incorrect password."));
+        if (client.UdpEndPoint is { } failedEndPoint)
+        {
+            _recordPasswordFailure(failedEndPoint);
+        }
+
+        _sendMessage(client.Peer, new PasswordResultMessage(false, "Incorrect password."));
         RemoveClient(client.Slot, "bad password");
     }
 
@@ -198,7 +210,7 @@ sealed class ServerSessionManager
             return;
         }
 
-        _log($"[server] client removed slot={slot} endpoint={removedClient.EndPoint} reason={reason}");
+        _log($"[server] client removed slot={slot} peer={removedClient.RemoteDescription} reason={reason}");
         _clientRemoved(removedClient, reason);
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
         {
@@ -267,14 +279,14 @@ sealed class ServerSessionManager
 
             if ((now - client.ConnectedAt).TotalSeconds >= _passwordTimeoutSeconds)
             {
-                _sendMessage(client.EndPoint, new ConnectionDeniedMessage("Password entry timed out."));
+                _sendMessage(client.Peer, new ConnectionDeniedMessage("Password entry timed out."));
                 toRemove.Add(entry.Key);
                 continue;
             }
 
             if ((now - client.LastPasswordRequestSentAt).TotalSeconds >= _passwordRetrySeconds)
             {
-                _sendMessage(client.EndPoint, new PasswordRequestMessage());
+                _sendMessage(client.Peer, new PasswordRequestMessage());
                 client.LastPasswordRequestSentAt = now;
             }
         }
@@ -287,13 +299,7 @@ sealed class ServerSessionManager
 
     private double GetEffectiveClientTimeoutSeconds(ClientSession client)
     {
-        var address = client.EndPoint.Address;
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        return IPAddress.IsLoopback(address)
+        return client.IsLoopbackConnection
             ? Math.Max(_clientTimeoutSeconds, 30d)
             : _clientTimeoutSeconds;
     }
@@ -368,8 +374,8 @@ sealed class ServerSessionManager
             ApplyClientProfile(newSlot, client.Name, client.BadgeMask);
         }
 
-        _sendMessage(client.EndPoint, new SessionSlotChangedMessage(newSlot));
-        _log($"[server] client moved endpoint={client.EndPoint} slot={newSlot}");
+        _sendMessage(client.Peer, new SessionSlotChangedMessage(newSlot));
+        _log($"[server] client moved peer={client.RemoteDescription} slot={newSlot}");
         return true;
     }
 

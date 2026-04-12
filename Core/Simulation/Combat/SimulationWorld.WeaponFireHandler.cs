@@ -145,9 +145,23 @@ public sealed partial class SimulationWorld
             float directHitHealAmount = 0f,
             bool explodeImmediately = false,
             bool canGrantExperimentalInstantReloadOnHit = true,
+            float knockbackScale = 1f,
+            bool canIgniteTargets = false,
             string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnRocket(owner, x, y, speed, directionRadians, rocketCombat, directHitHealAmount, explodeImmediately, canGrantExperimentalInstantReloadOnHit, killFeedWeaponSpriteNameOverride);
+            _world.SpawnRocket(
+                owner,
+                x,
+                y,
+                speed,
+                directionRadians,
+                rocketCombat,
+                directHitHealAmount,
+                explodeImmediately,
+                canGrantExperimentalInstantReloadOnHit,
+                knockbackScale,
+                canIgniteTargets,
+                killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnRevolverShot(

@@ -7,7 +7,7 @@ public sealed partial class PlayerEntity
 
     public bool ApplyDamage(int damage, float spyRevealAlpha = 0f)
     {
-        if (!IsAlive || IsUbered || damage <= 0)
+        if (!IsAlive || IsUbered || IsExperimentalGhostDashing || damage <= 0)
         {
             return false;
         }
@@ -19,7 +19,7 @@ public sealed partial class PlayerEntity
 
     public bool ApplyContinuousDamage(float damage, float spyRevealAlpha = 0f)
     {
-        if (!IsAlive || IsUbered || damage <= 0f)
+        if (!IsAlive || IsUbered || IsExperimentalGhostDashing || damage <= 0f)
         {
             return false;
         }

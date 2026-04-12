@@ -509,12 +509,17 @@ public sealed partial class SimulationWorld
         if (slot != LocalPlayerSlot)
         {
             player.SetExperimentalDemoknightEnabled(false);
-            player.SetExperimentalPassiveMovementSpeedMultiplier(ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
-            player.SetExperimentalDemoknightSwordRangeMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordRangeMultiplier);
-            player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
-            player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
-            player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
-            player.SetExperimentalDemoknightChargeRechargeMultiplier(ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
+            player.SetExperimentalPassiveMovementSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
+            player.SetExperimentalDemoknightSwordRangeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordRangeMultiplier);
+            player.SetExperimentalDemoknightSwordBaseDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
+            player.SetExperimentalDemoknightSwordDamageMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
+            player.SetExperimentalDemoknightSwordCooldownMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
+            player.SetExperimentalDemoknightChargeRechargeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
+            player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(false);
+            player.SetExperimentalSoldierInfiniteAmmoDuringRage(false);
+            player.SetExperimentalDemoknightChargeFullControlEnabled(false);
+            player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
+            player.StartExperimentalDemoknightPostRageRegeneration(0);
             player.SetExperimentalOffhandWeapon(null);
             player.SetAcquiredWeapon(null);
             return;
@@ -529,6 +534,26 @@ public sealed partial class SimulationWorld
         player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DemoknightSwordDamageMultiplier);
         player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DemoknightSwordCooldownMultiplier);
         player.SetExperimentalDemoknightChargeRechargeMultiplier(ExperimentalGameplaySettings.DemoknightChargeRechargeMultiplier);
+        player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(
+            ExperimentalGameplaySettings.EnableSoldierAmmoRegeneratesWhileSwappedOut
+            && player.ClassId == PlayerClass.Soldier);
+        player.SetExperimentalSoldierInfiniteAmmoDuringRage(
+            ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage
+            && player.ClassId == PlayerClass.Soldier);
+        player.SetExperimentalDemoknightChargeFullControlEnabled(
+            ExperimentalGameplaySettings.EnableDemoknightFullControlDuringCharge
+            && player.ClassId == PlayerClass.Demoman);
+        if (ExperimentalGameplaySettings.EnableDemoknightPostRageRegeneration
+            && player.ClassId == PlayerClass.Demoman)
+        {
+            player.ConfigureExperimentalDemoknightPostRageRegeneration(
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightPostRageRegenerationPerSecond);
+        }
+        else
+        {
+            player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
+            player.StartExperimentalDemoknightPostRageRegeneration(0);
+        }
         player.SetExperimentalOffhandWeapon(
             ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon
                 && player.ClassId == PlayerClass.Soldier

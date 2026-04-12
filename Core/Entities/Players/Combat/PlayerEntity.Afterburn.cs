@@ -90,6 +90,11 @@ public sealed partial class PlayerEntity
             return;
         }
 
+        if (IsExperimentalGhostDashing)
+        {
+            return;
+        }
+
         BurnDurationSourceTicks += durationIncreaseSourceTicks;
 
         var falloffFactor = 1f;
@@ -121,6 +126,11 @@ public sealed partial class PlayerEntity
         if (IsUbered)
         {
             ExtinguishAfterburn();
+            return default;
+        }
+
+        if (IsExperimentalGhostDashing)
+        {
             return default;
         }
 

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 
 internal static partial class ServerHelpers
 {
@@ -15,11 +16,24 @@ internal static partial class ServerHelpers
         return unchecked((int)(sequence - previousSequence)) > 0;
     }
 
+    internal static ClientSession? FindClient(IReadOnlyDictionary<byte, ClientSession> clientsBySlot, ServerTransportPeer remotePeer)
+    {
+        foreach (var client in clientsBySlot.Values)
+        {
+            if (remotePeer == client.Peer)
+            {
+                return client;
+            }
+        }
+
+        return null;
+    }
+
     internal static ClientSession? FindClient(IReadOnlyDictionary<byte, ClientSession> clientsBySlot, IPEndPoint remoteEndPoint)
     {
         foreach (var client in clientsBySlot.Values)
         {
-            if (EndpointsEqual(remoteEndPoint, client.EndPoint))
+            if (client.UdpEndPoint is { } clientEndPoint && EndpointsEqual(remoteEndPoint, clientEndPoint))
             {
                 return client;
             }

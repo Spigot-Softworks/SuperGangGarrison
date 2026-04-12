@@ -18,6 +18,7 @@ partial class GameServer
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
+        InitializeWebTransportHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
         InitializeIncomingPacketPump();
@@ -44,6 +45,38 @@ partial class GameServer
         _udp = udp;
         _udp.Client.Blocking = false;
         TryDisableUdpConnectionReset(_udp.Client);
+        _datagramTransport = new OpenGarrison.Server.CompositeServerDatagramTransport(_udp);
+    }
+
+    private void InitializeWebTransportHost()
+    {
+        if (_webTransportPort <= 0)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_webTransportCertificatePath))
+        {
+            Console.WriteLine("[server] WebTransport disabled: --webtransport-port requires --webtransport-cert.");
+            return;
+        }
+
+        try
+        {
+            _webTransportHost = new OpenGarrison.Server.WebTransportServerHost(
+                _webTransportPort,
+                _webTransportCertificatePath,
+                _webTransportCertificatePassword,
+                (OpenGarrison.Server.CompositeServerDatagramTransport)_datagramTransport,
+                Console.WriteLine);
+            _webTransportHost.Start();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[server] failed to start WebTransport listener: {ex.Message}");
+            _webTransportHost?.Dispose();
+            _webTransportHost = null;
+        }
     }
 
     private OpenGarrison.Server.ServerRuntimeBootstrap CreateRuntimeBootstrap(PersistentServerEventLog eventLog)
@@ -51,6 +84,7 @@ partial class GameServer
         return OpenGarrison.Server.ServerRuntimeBootstrapFactory.Create(
             _config,
             _udp,
+            _datagramTransport,
             _port,
             _protocolUuidBytes,
             _useLobbyServer,
@@ -114,6 +148,9 @@ partial class GameServer
         Console.WriteLine($"OG2.Server booting at {_config.TicksPerSecond} ticks/sec.");
         Console.WriteLine($"Protocol version: {ProtocolVersion.Current}");
         Console.WriteLine($"UDP bind: 0.0.0.0:{_port}");
+        Console.WriteLine(_webTransportHost is null
+            ? "[server] WebTransport: disabled"
+            : $"[server] WebTransport: https://0.0.0.0:{_webTransportPort}/.well-known/opengarrison/wt");
         Console.WriteLine($"Name: {_serverName}");
         Console.WriteLine($"Max players: {_maxPlayableClients}");
         if (highResolutionTimerEnabled)
@@ -236,6 +273,8 @@ partial class GameServer
                 ("frame", _world?.Frame ?? 0L));
             _pluginHost?.NotifyServerStopping();
             _outboundMessaging.NotifyClientsOfShutdown();
+            _webTransportHost?.Dispose();
+            _webTransportHost = null;
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
             Console.WriteLine("[server] shutdown complete.");
@@ -467,7 +506,7 @@ partial class GameServer
             Console.WriteLine,
             _banService);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
-            _udp,
+            _datagramTransport,
             messageDispatcher,
             WsaConnReset,
             Console.WriteLine);

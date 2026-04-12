@@ -150,8 +150,9 @@ public sealed partial class PlayerEntity
         var preserveHorizontalMomentum = ClassId == PlayerClass.Spy && IsSpyBackstabAnimating;
 
         var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
+        var allowChargeFullControl = isDemoknightChargeDriving && ExperimentalDemoknightChargeFullControlEnabled;
         var horizontalDirection = 0f;
-        if (!isDemoknightChargeDriving)
+        if (!isDemoknightChargeDriving || allowChargeFullControl)
         {
             if (canMove && input.Left)
             {
@@ -166,9 +167,20 @@ public sealed partial class PlayerEntity
         {
             ExperimentalDemoknightChargeWantsLift = input.Up;
             ApplyExperimentalDemoknightChargeDrive(dt);
+            if (allowChargeFullControl)
+            {
+                if (input.Left)
+                {
+                    horizontalDirection -= 1f;
+                }
+                if (input.Right)
+                {
+                    horizontalDirection += 1f;
+                }
+            }
         }
 
-        if (!isDemoknightChargeDriving && horizontalDirection != 0f)
+        if ((!isDemoknightChargeDriving || allowChargeFullControl) && horizontalDirection != 0f)
         {
             FacingDirectionX = horizontalDirection;
         }
@@ -178,8 +190,11 @@ public sealed partial class PlayerEntity
             var hasHorizontalInput = canMove && (input.Left || input.Right);
             if (isDemoknightChargeDriving)
             {
-                hasHorizontalInput = false;
-                horizontalDirection = 0f;
+                hasHorizontalInput = allowChargeFullControl ? hasHorizontalInput : false;
+                if (!allowChargeFullControl)
+                {
+                    horizontalDirection = 0f;
+                }
             }
 
             HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(

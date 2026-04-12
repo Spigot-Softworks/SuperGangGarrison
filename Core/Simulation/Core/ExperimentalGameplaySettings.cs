@@ -6,6 +6,11 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableDemoknightKit = false,
     bool EnableCapturedPointHealingAura = false,
     bool EnableSoldierShotgunSecondaryWeapon = false,
+    bool EnableSoldierAmmoRegeneratesWhileSwappedOut = false,
+    bool EnableSoldierInfiniteAmmoDuringRage = false,
+    bool EnableSoldierRageCaptureLockout = false,
+    bool EnableSoldierNapalmRockets = false,
+    bool EnableSoldierFinalClipRocketBurst = false,
     bool EnableHealOnDamage = false,
     bool EnableHealOnKill = false,
     bool EnableRage = false,
@@ -32,7 +37,10 @@ public sealed record ExperimentalGameplaySettings(
     float DemoknightSwordCooldownMultiplier = 1f,
     float DemoknightChargeRechargeMultiplier = 1f,
     float DemoknightChargeDamageTakenMultiplier = 1f,
-    bool EnableFullHealOnKill = false)
+    bool EnableFullHealOnKill = false,
+    bool EnableDemoknightPostRageRegeneration = false,
+    bool EnableDemoknightFullControlDuringCharge = false,
+    bool EnableDemoknightGhostDash = false)
 {
     public const float CapturedPointHealingPerSecond = 8f;
     public const float DefaultEnemyHealthPackDropChance = 0.1f;
@@ -57,6 +65,15 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultDemoknightChargeDamageTakenMultiplier = 1f;
     public const float ProjectileSpeedMultiplier = 1.2f;
     public const float AirshotDamageMultiplier = 1.25f;
+    public const float DefaultDemoknightPostRageRegenerationPerSecond = 35f;
+    public const float DefaultDemoknightPostRageRegenerationDurationSeconds = 10f;
+    public const float DefaultSoldierCriticalInvincibilityDurationSeconds = 3f;
+    public const float DefaultSoldierNapalmAfterburnIntensity = 1.2f;
+    public const float DefaultSoldierNapalmAfterburnDurationSourceTicks = 90f;
+    public const float DefaultSoldierFinalRocketDamageMultiplier = 1.25f;
+    public const float DefaultGhostDashDurationSeconds = 0.5f;
+    public const float DefaultGhostDashCooldownSeconds = 1f;
+    public const float DefaultGhostDashNextAttackDamageMultiplier = 1.4f;
     public const float ComboTimeoutSeconds = 6f;
     public const float MultiKillWindowSeconds = 3f;
     public const float EnemyHealthPackLargeChance = 0.5f;

@@ -72,6 +72,16 @@ public sealed partial class SimulationWorld
                         weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
                 }
 
+                if (rocket.CanIgniteTargets && directHitPlayer.IsAlive)
+                {
+                    directHitPlayer.IgniteAfterburn(
+                        owner?.Id ?? 0,
+                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks,
+                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnIntensity,
+                        afterburnFalloff: false,
+                        burnFalloffAmount: 1f);
+                }
+
                 if (hitEnemyPlayer && owner is not null && rocket.DirectHitHealAmountValue > 0f)
                 {
                     var appliedHealing = world.ApplyHealingWithFeedback(owner, rocket.DirectHitHealAmountValue);
@@ -147,6 +157,16 @@ public sealed partial class SimulationWorld
                         gibbed: true,
                         killer: owner,
                         weaponSpriteName: rocket.KillFeedWeaponSpriteNameOverride ?? "RocketKL");
+                }
+
+                if (rocket.CanIgniteTargets)
+                {
+                    player.IgniteAfterburn(
+                        owner?.Id ?? 0,
+                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks,
+                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnIntensity,
+                        afterburnFalloff: false,
+                        burnFalloffAmount: 1f);
                 }
             }
 

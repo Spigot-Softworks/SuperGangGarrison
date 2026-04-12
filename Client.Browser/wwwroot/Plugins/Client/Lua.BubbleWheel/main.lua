@@ -111,6 +111,7 @@ end
 
 function plugin.initialize(host)
     plugin.host = host
+    ensure_textures_loaded()
 end
 
 function plugin.shutdown()
@@ -119,6 +120,7 @@ function plugin.shutdown()
 end
 
 function plugin.on_client_started()
+    ensure_textures_loaded()
 end
 
 function plugin.try_handle_bubble_menu_input(input_state)

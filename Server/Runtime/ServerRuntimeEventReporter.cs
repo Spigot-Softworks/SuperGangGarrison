@@ -173,13 +173,13 @@ internal sealed class ServerRuntimeEventReporter(
             "client_disconnected",
             ("slot", client.Slot),
             ("player_name", client.Name),
-            ("endpoint", client.EndPoint.ToString()),
+            ("endpoint", client.RemoteDescription),
             ("reason", reason),
             ("was_authorized", client.IsAuthorized));
         pluginHostGetter()?.NotifyClientDisconnected(new ClientDisconnectedEvent(
             client.Slot,
             client.Name,
-            client.EndPoint.ToString(),
+            client.RemoteDescription,
             reason,
             client.IsAuthorized));
     }
@@ -190,11 +190,11 @@ internal sealed class ServerRuntimeEventReporter(
             "password_accepted",
             ("slot", client.Slot),
             ("player_name", client.Name),
-            ("endpoint", client.EndPoint.ToString()));
+            ("endpoint", client.RemoteDescription));
         pluginHostGetter()?.NotifyPasswordAccepted(new PasswordAcceptedEvent(
             client.Slot,
             client.Name,
-            client.EndPoint.ToString()));
+            client.RemoteDescription));
     }
 
     public void NotifyPlayerTeamChanged(ClientSession client, PlayerTeam team)

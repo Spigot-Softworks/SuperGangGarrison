@@ -35,6 +35,7 @@
             gameLoopPending: false,
             gameLoopHost: null,
             preferSynchronousGameLoopPump: false,
+            webTransportClients: {},
             inputBridgeHost: null,
             metrics: {
                 loopStartedAt: 0,
@@ -115,6 +116,241 @@
 
                 canvas.focus({ preventScroll: true });
                 return document.activeElement === canvas;
+            },
+            buildWebTransportUrl: function (host, port) {
+                const normalizedHost = typeof host === "string" ? host.trim() : "";
+                if (!normalizedHost) {
+                    throw new Error("Browser multiplayer requires a server host.");
+                }
+
+                const hostWithBrackets = normalizedHost.includes(":") && !normalizedHost.startsWith("[")
+                    ? "[" + normalizedHost + "]"
+                    : normalizedHost;
+                return "https://" + hostWithBrackets + ":" + port + "/.well-known/opengarrison/wt";
+            },
+            buildWebTransportOptions: function () {
+                const configuredHashes = [];
+                const configuredValue = typeof window.localStorage !== "undefined"
+                    ? window.localStorage.getItem("opengarrison.webtransport.cert.sha256")
+                    : null;
+                if (typeof configuredValue === "string" && configuredValue.trim().length > 0) {
+                    const values = configuredValue.split(/[,\s]+/);
+                    for (const rawValue of values) {
+                        const normalizedValue = rawValue.trim().toLowerCase();
+                        if (!normalizedValue) {
+                            continue;
+                        }
+
+                        if (!/^[0-9a-f]{64}$/.test(normalizedValue)) {
+                            console.warn("Ignoring invalid OpenGarrison WebTransport SHA-256 certificate hash.", rawValue);
+                            continue;
+                        }
+
+                        const hashBytes = new Uint8Array(32);
+                        for (let index = 0; index < 32; index += 1) {
+                            hashBytes[index] = parseInt(normalizedValue.substring(index * 2, (index * 2) + 2), 16);
+                        }
+
+                        configuredHashes.push({
+                            algorithm: "sha-256",
+                            value: hashBytes
+                        });
+                    }
+                }
+
+                return configuredHashes.length > 0
+                    ? { serverCertificateHashes: configuredHashes }
+                    : undefined;
+            },
+            openWebTransportDatagramClient: function (clientId, host, port, transportHost) {
+                const api = window.OpenGarrisonBrowserHost;
+                if (typeof WebTransport === "undefined") {
+                    throw new Error("WebTransport is not available in this browser.");
+                }
+
+                const url = api.buildWebTransportUrl(host, port);
+                const entry = {
+                    id: clientId,
+                    url: url,
+                    host: transportHost,
+                    session: null,
+                    stream: null,
+                    writer: null,
+                    reader: null,
+                    pendingBytes: new Uint8Array(0),
+                    isClosed: false,
+                    isReady: false
+                };
+                api.webTransportClients[clientId] = entry;
+
+                const notify = function (methodName, ...args) {
+                    if (!entry.host || typeof entry.host.invokeMethodAsync !== "function") {
+                        return Promise.resolve();
+                    }
+
+                    return entry.host.invokeMethodAsync(methodName, ...args).catch(function (error) {
+                        console.error("Browser WebTransport callback failed.", methodName, error);
+                    });
+                };
+                const closeEntry = function (reason) {
+                    if (entry.isClosed) {
+                        return;
+                    }
+
+                    entry.isClosed = true;
+                    delete api.webTransportClients[clientId];
+
+                    if (entry.reader) {
+                        try {
+                            entry.reader.releaseLock();
+                        } catch (error) {
+                            console.warn("Browser WebTransport reader release failed.", error);
+                        }
+                    }
+
+                    if (entry.writer) {
+                        try {
+                            entry.writer.releaseLock();
+                        } catch (error) {
+                            console.warn("Browser WebTransport writer release failed.", error);
+                        }
+                    }
+
+                    notify("HandleWebTransportDisconnect", reason || "WebTransport connection closed.");
+                };
+                const appendBytes = function (left, right) {
+                    if (!left || left.length === 0) {
+                        return right;
+                    }
+
+                    if (!right || right.length === 0) {
+                        return left;
+                    }
+
+                    const combined = new Uint8Array(left.length + right.length);
+                    combined.set(left, 0);
+                    combined.set(right, left.length);
+                    return combined;
+                };
+                const pumpFrames = async function (chunk) {
+                    entry.pendingBytes = appendBytes(entry.pendingBytes, chunk);
+                    while (entry.pendingBytes.length >= 4) {
+                        const payloadLength =
+                            entry.pendingBytes[0]
+                            | (entry.pendingBytes[1] << 8)
+                            | (entry.pendingBytes[2] << 16)
+                            | (entry.pendingBytes[3] << 24);
+                        if (payloadLength <= 0) {
+                            closeEntry("WebTransport payload frame was invalid.");
+                            return false;
+                        }
+
+                        if (entry.pendingBytes.length < 4 + payloadLength) {
+                            return true;
+                        }
+
+                        const payload = entry.pendingBytes.slice(4, 4 + payloadLength);
+                        entry.pendingBytes = entry.pendingBytes.slice(4 + payloadLength);
+                        await notify("HandleWebTransportDatagram", payload);
+                    }
+
+                    return true;
+                };
+                const readLoop = async function () {
+                    while (!entry.isClosed && entry.reader) {
+                        let result;
+                        try {
+                            result = await entry.reader.read();
+                        } catch (error) {
+                            closeEntry(error && error.message ? error.message : "WebTransport datagram read failed.");
+                            return;
+                        }
+
+                        if (!result || result.done) {
+                            closeEntry("WebTransport datagram stream closed.");
+                            return;
+                        }
+
+                        if (result.value && result.value.length > 0) {
+                            if (!await pumpFrames(result.value)) {
+                                return;
+                            }
+                        }
+                    }
+                };
+
+                (async function () {
+                    try {
+                        const transportOptions = api.buildWebTransportOptions();
+                        entry.session = transportOptions
+                            ? new WebTransport(url, transportOptions)
+                            : new WebTransport(url);
+                        await entry.session.ready;
+                        if (entry.isClosed) {
+                            return;
+                        }
+
+                        entry.stream = await entry.session.createBidirectionalStream();
+                        entry.writer = entry.stream.writable.getWriter();
+                        entry.reader = entry.stream.readable.getReader();
+                        entry.isReady = true;
+                        await notify("HandleWebTransportReady");
+                        await readLoop();
+                        await entry.session.closed;
+                        closeEntry("WebTransport connection closed.");
+                    } catch (error) {
+                        closeEntry(error && error.message ? error.message : "WebTransport connection failed.");
+                    }
+                })();
+            },
+            sendWebTransportDatagram: function (clientId, payload) {
+                const entry = window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+                if (!entry || entry.isClosed) {
+                    throw new Error("WebTransport client is not available.");
+                }
+
+                if (!entry.isReady || !entry.writer) {
+                    return false;
+                }
+
+                const frame = new Uint8Array(payload.length + 4);
+                frame[0] = payload.length & 0xff;
+                frame[1] = (payload.length >> 8) & 0xff;
+                frame[2] = (payload.length >> 16) & 0xff;
+                frame[3] = (payload.length >> 24) & 0xff;
+                frame.set(payload, 4);
+
+                entry.writer.write(frame).catch(function (error) {
+                    if (entry.host && typeof entry.host.invokeMethodAsync === "function") {
+                        entry.host.invokeMethodAsync(
+                            "HandleWebTransportDisconnect",
+                            error && error.message ? error.message : "WebTransport datagram send failed.")
+                            .catch(function (callbackError) {
+                                console.error("Browser WebTransport disconnect callback failed.", callbackError);
+                            });
+                    }
+                });
+                return true;
+            },
+            closeWebTransportDatagramClient: function (clientId) {
+                const entry = window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+                if (!entry) {
+                    return;
+                }
+
+                delete window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+                entry.isClosed = true;
+                if (entry.reader) {
+                    entry.reader.cancel().catch(function () { });
+                }
+
+                if (entry.writer) {
+                    entry.writer.close().catch(function () { });
+                }
+
+                if (entry.session) {
+                    entry.session.close();
+                }
             },
             getCanvasInputPoint: function (event) {
                 const canvas = document.getElementById("theCanvas");

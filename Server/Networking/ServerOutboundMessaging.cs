@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server.Plugins;
@@ -8,7 +7,7 @@ using OpenGarrison.Server.Plugins;
 namespace OpenGarrison.Server;
 
 internal sealed class ServerOutboundMessaging(
-    UdpClient udp,
+    IServerDatagramTransport transport,
     string serverName,
     SimulationWorld world,
     Dictionary<byte, ClientSession> clientsBySlot,
@@ -18,23 +17,23 @@ internal sealed class ServerOutboundMessaging(
     Action<string, (string Key, object? Value)[]> writeEvent,
     Action<string> log)
 {
-    public void SendMessage(IPEndPoint remoteEndPoint, IProtocolMessage message)
+    public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
         var payload = ProtocolCodec.Serialize(message);
-        SendPayload(remoteEndPoint, payload);
+        SendPayload(remotePeer, payload);
     }
 
-    public void SendSnapshotPayload(IPEndPoint remoteEndPoint, SnapshotMessage _, byte[] payload)
+    public void SendSnapshotPayload(ServerTransportPeer remotePeer, SnapshotMessage _, byte[] payload)
     {
-        SendPayload(remoteEndPoint, payload);
+        SendPayload(remotePeer, payload);
     }
 
-    public void SendServerStatus(IPEndPoint remoteEndPoint)
+    public void SendServerStatus(ServerTransportPeer remotePeer)
     {
         var playerCount = clientsBySlot.Count;
         var spectatorCount = clientsBySlot.Keys.Count(ServerHelpers.IsSpectatorSlot);
         SendMessage(
-            remoteEndPoint,
+            remotePeer,
             new ServerStatusResponseMessage(
                 serverName,
                 world.Level.Name,
@@ -105,7 +104,7 @@ internal sealed class ServerOutboundMessaging(
                 }
             }
 
-            SendMessage(session.EndPoint, relay);
+            SendMessage(session.Peer, relay);
         }
 
         log(teamOnly
@@ -127,7 +126,7 @@ internal sealed class ServerOutboundMessaging(
             return;
         }
 
-        SendMessage(client.EndPoint, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
+        SendMessage(client.Peer, new ServerPluginMessage(sourcePluginId, targetPluginId, messageType, payload, payloadFormat, schemaVersion));
     }
 
     public void BroadcastPluginMessage(
@@ -146,7 +145,7 @@ internal sealed class ServerOutboundMessaging(
                 continue;
             }
 
-            SendMessage(client.EndPoint, message);
+            SendMessage(client.Peer, message);
         }
     }
 
@@ -161,7 +160,7 @@ internal sealed class ServerOutboundMessaging(
         {
             try
             {
-                SendMessage(client.EndPoint, new ConnectionDeniedMessage("Server shutting down."));
+                SendMessage(client.Peer, new ConnectionDeniedMessage("Server shutting down."));
             }
             catch
             {
@@ -177,8 +176,8 @@ internal sealed class ServerOutboundMessaging(
             : null;
     }
 
-    private void SendPayload(IPEndPoint remoteEndPoint, byte[] payload)
+    private void SendPayload(ServerTransportPeer remotePeer, byte[] payload)
     {
-        udp.Send(payload, payload.Length, remoteEndPoint);
+        transport.Send(remotePeer, payload);
     }
 }

@@ -2,10 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -31,8 +30,9 @@ internal sealed class NetworkGameClient : IDisposable
     private const long LocalWelcomeTimeoutMilliseconds = 30000;
     private const long LocalConnectedTimeoutMilliseconds = 30000;
     private const int MaxTrackedInputRoundTrips = 512;
-    private UdpClient? _udpClient;
-    private IPEndPoint? _serverEndPoint;
+
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebTransport adapters.")]
+    private INetworkClientDatagramTransport? _transport;
     private uint _nextInputSequence = 1;
     private uint _nextControlSequence = 1;
     private int _pendingChatBubbleFrameIndex = -1;
@@ -50,7 +50,7 @@ internal sealed class NetworkGameClient : IDisposable
     private string? _lastDisconnectReason;
 
     public bool CollectDiagnostics { get; set; }
-    public bool IsConnected => _udpClient is not null && _serverEndPoint is not null;
+    public bool IsConnected => _transport is not null;
     public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
 
@@ -67,26 +67,19 @@ internal sealed class NetworkGameClient : IDisposable
 
         try
         {
-            var addresses = Dns.GetHostAddresses(host);
-            var address = addresses.FirstOrDefault(candidate => candidate.AddressFamily == AddressFamily.InterNetwork)
-                ?? addresses.FirstOrDefault();
-            if (address is null)
+            if (!NetworkClientDatagramTransportRegistry.TryConnect(host, port, out var transport, out error) || transport is null)
             {
-                error = $"could not resolve host {host}";
                 return false;
             }
 
-            _serverEndPoint = new IPEndPoint(address, port);
-            _udpClient = new UdpClient(0);
-            _udpClient.Client.Blocking = false;
-            TryDisableUdpConnectionReset(_udpClient.Client);
+            _transport = transport;
             _pendingHelloPlayerName = playerName;
             _pendingHelloBadgeMask = badgeMask;
             _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
             _lastHelloSentAtMilliseconds = -1;
             LocalPlayerSlot = 0;
             SendHello();
-            ServerDescription = $"{_serverEndPoint.Address}:{_serverEndPoint.Port}";
+            ServerDescription = transport.RemoteDescription;
             return true;
         }
         catch (SocketException ex)
@@ -99,9 +92,8 @@ internal sealed class NetworkGameClient : IDisposable
 
     public void Disconnect()
     {
-        _udpClient?.Dispose();
-        _udpClient = null;
-        _serverEndPoint = null;
+        _transport?.Dispose();
+        _transport = null;
         _nextInputSequence = 1;
         _nextControlSequence = 1;
         _pendingChatBubbleFrameIndex = -1;
@@ -311,17 +303,18 @@ internal sealed class NetworkGameClient : IDisposable
 
     public IEnumerable<IProtocolMessage> ReceiveMessages()
     {
-        var udpClient = _udpClient;
-        if (!IsConnected || udpClient is null)
+        var transport = _transport;
+        if (!IsConnected || transport is null)
         {
             LastReceiveDiagnostics = default;
             return [];
         }
 
         FlushHandshakeState();
+        FlushTransportState();
         FlushPendingOutboundPackets();
-        udpClient = _udpClient;
-        if (!IsConnected || udpClient is null)
+        transport = _transport;
+        if (!IsConnected || transport is null)
         {
             LastReceiveDiagnostics = default;
             return [];
@@ -335,22 +328,20 @@ internal sealed class NetworkGameClient : IDisposable
         var deserializeMilliseconds = 0d;
         var maxDeserializeMilliseconds = 0d;
         var messages = new List<IProtocolMessage>();
-        while (udpClient.Available > 0)
+        while (transport.HasPendingDatagrams)
         {
             try
             {
-                IPEndPoint remoteEndPoint = new(IPAddress.Any, 0);
-                var payload = udpClient.Receive(ref remoteEndPoint);
+                if (!transport.TryReceive(out var payload))
+                {
+                    continue;
+                }
+
                 if (collectDiagnostics)
                 {
                     packetsRead += 1;
                     bytesRead += payload.Length;
                     maxPayloadBytes = Math.Max(maxPayloadBytes, payload.Length);
-                }
-
-                if (_serverEndPoint is not null && !EndpointsEqual(remoteEndPoint, _serverEndPoint))
-                {
-                    continue;
                 }
 
                 var deserializeStartTimestamp = collectDiagnostics ? Stopwatch.GetTimestamp() : 0L;
@@ -390,6 +381,7 @@ internal sealed class NetworkGameClient : IDisposable
             }
         }
 
+        FlushTransportState();
         FlushConnectedState();
         while (_pendingInboundMessages.Count > 0 && _pendingInboundMessages.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
         {
@@ -425,7 +417,8 @@ internal sealed class NetworkGameClient : IDisposable
 
     private void Send(IProtocolMessage message)
     {
-        if (_udpClient is null || _serverEndPoint is null)
+        var transport = _transport;
+        if (transport is null)
         {
             return;
         }
@@ -438,7 +431,7 @@ internal sealed class NetworkGameClient : IDisposable
             return;
         }
 
-        _udpClient.Send(payload, payload.Length, _serverEndPoint);
+        transport.Send(payload);
     }
 
     public void Dispose()
@@ -484,17 +477,15 @@ internal sealed class NetworkGameClient : IDisposable
             while (_pendingOutboundPackets.Count > 0)
             {
                 var pending = _pendingOutboundPackets.Dequeue();
-                if (_udpClient is not null && _serverEndPoint is not null)
-                {
-                    _udpClient.Send(pending.Payload, pending.Payload.Length, _serverEndPoint);
-                }
+                _transport?.Send(pending.Payload);
             }
         }
     }
 
     private void FlushPendingOutboundPackets()
     {
-        if (_udpClient is null || _serverEndPoint is null)
+        var transport = _transport;
+        if (transport is null)
         {
             _pendingOutboundPackets.Clear();
             return;
@@ -503,7 +494,7 @@ internal sealed class NetworkGameClient : IDisposable
         while (_pendingOutboundPackets.Count > 0 && _pendingOutboundPackets.Peek().ReleaseAtMilliseconds <= _clock.ElapsedMilliseconds)
         {
             var pending = _pendingOutboundPackets.Dequeue();
-            _udpClient.Send(pending.Payload, pending.Payload.Length, _serverEndPoint);
+            transport.Send(pending.Payload);
         }
     }
 
@@ -556,25 +547,6 @@ internal sealed class NetworkGameClient : IDisposable
         _lastHelloSentAtMilliseconds = _clock.ElapsedMilliseconds;
     }
 
-    private static bool EndpointsEqual(IPEndPoint left, IPEndPoint right)
-    {
-        return left.Address.Equals(right.Address) && left.Port == right.Port;
-    }
-
-    private static void TryDisableUdpConnectionReset(Socket socket)
-    {
-        try
-        {
-            socket.IOControl((IOControlCode)SioUdpConnReset, [0, 0, 0, 0], null);
-        }
-        catch (PlatformNotSupportedException)
-        {
-        }
-        catch (NotSupportedException)
-        {
-        }
-    }
-
     private static double GetElapsedMilliseconds(long startTimestamp)
     {
         return (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
@@ -596,18 +568,21 @@ internal sealed class NetworkGameClient : IDisposable
 
     private bool IsLoopbackConnection()
     {
-        var address = _serverEndPoint?.Address;
-        if (address is null)
+        return _transport?.IsLoopbackConnection == true;
+    }
+
+    private void FlushTransportState()
+    {
+        var transport = _transport;
+        if (transport is null || !transport.TryConsumeDisconnectReason(out var reason))
         {
-            return false;
+            return;
         }
 
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        return IPAddress.IsLoopback(address);
+        _lastDisconnectReason = string.IsNullOrWhiteSpace(reason)
+            ? "Connection closed."
+            : reason;
+        Disconnect();
     }
 
     private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value, string TextValue);

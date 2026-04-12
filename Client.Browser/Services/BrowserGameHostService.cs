@@ -1,7 +1,8 @@
+extern alias KNIInput;
+
 using Microsoft.JSInterop;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
-using Microsoft.Xna.Framework.Input;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Threading;
@@ -457,47 +458,47 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         Console.WriteLine($"Browser host: preloaded {pages.Length}/{pagePaths.Length} atlas pages.");
     }
 
-    private static bool TryMapBrowserKey(string? code, out Keys key)
+    private static bool TryMapBrowserKey(string? code, out KNIInput::Microsoft.Xna.Framework.Input.Keys key)
     {
         key = code switch
         {
-            "ArrowUp" => Keys.Up,
-            "ArrowDown" => Keys.Down,
-            "ArrowLeft" => Keys.Left,
-            "ArrowRight" => Keys.Right,
-            "Escape" => Keys.Escape,
-            "Enter" => Keys.Enter,
-            "Space" => Keys.Space,
-            "Tab" => Keys.Tab,
-            "Backspace" => Keys.Back,
-            "Delete" => Keys.Delete,
-            "Insert" => Keys.Insert,
-            "Home" => Keys.Home,
-            "End" => Keys.End,
-            "PageUp" => Keys.PageUp,
-            "PageDown" => Keys.PageDown,
-            "CapsLock" => Keys.CapsLock,
-            "ShiftLeft" => Keys.LeftShift,
-            "ShiftRight" => Keys.RightShift,
-            "ControlLeft" => Keys.LeftControl,
-            "ControlRight" => Keys.RightControl,
-            "AltLeft" => Keys.LeftAlt,
-            "AltRight" => Keys.RightAlt,
-            "Backquote" => Keys.OemTilde,
-            "Minus" => Keys.OemMinus,
-            "Equal" => Keys.OemPlus,
-            "BracketLeft" => Keys.OemOpenBrackets,
-            "BracketRight" => Keys.OemCloseBrackets,
-            "Backslash" => Keys.OemPipe,
-            "Semicolon" => Keys.OemSemicolon,
-            "Quote" => Keys.OemQuotes,
-            "Comma" => Keys.OemComma,
-            "Period" => Keys.OemPeriod,
-            "Slash" => Keys.OemQuestion,
-            _ => Keys.None,
+            "ArrowUp" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Up,
+            "ArrowDown" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Down,
+            "ArrowLeft" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Left,
+            "ArrowRight" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Right,
+            "Escape" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Escape,
+            "Enter" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Enter,
+            "Space" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Space,
+            "Tab" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Tab,
+            "Backspace" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Back,
+            "Delete" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Delete,
+            "Insert" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Insert,
+            "Home" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Home,
+            "End" => KNIInput::Microsoft.Xna.Framework.Input.Keys.End,
+            "PageUp" => KNIInput::Microsoft.Xna.Framework.Input.Keys.PageUp,
+            "PageDown" => KNIInput::Microsoft.Xna.Framework.Input.Keys.PageDown,
+            "CapsLock" => KNIInput::Microsoft.Xna.Framework.Input.Keys.CapsLock,
+            "ShiftLeft" => KNIInput::Microsoft.Xna.Framework.Input.Keys.LeftShift,
+            "ShiftRight" => KNIInput::Microsoft.Xna.Framework.Input.Keys.RightShift,
+            "ControlLeft" => KNIInput::Microsoft.Xna.Framework.Input.Keys.LeftControl,
+            "ControlRight" => KNIInput::Microsoft.Xna.Framework.Input.Keys.RightControl,
+            "AltLeft" => KNIInput::Microsoft.Xna.Framework.Input.Keys.LeftAlt,
+            "AltRight" => KNIInput::Microsoft.Xna.Framework.Input.Keys.RightAlt,
+            "Backquote" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemTilde,
+            "Minus" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemMinus,
+            "Equal" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemPlus,
+            "BracketLeft" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemOpenBrackets,
+            "BracketRight" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemCloseBrackets,
+            "Backslash" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemPipe,
+            "Semicolon" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemSemicolon,
+            "Quote" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemQuotes,
+            "Comma" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemComma,
+            "Period" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemPeriod,
+            "Slash" => KNIInput::Microsoft.Xna.Framework.Input.Keys.OemQuestion,
+            _ => KNIInput::Microsoft.Xna.Framework.Input.Keys.None,
         };
 
-        if (key != Keys.None)
+        if (key != KNIInput::Microsoft.Xna.Framework.Input.Keys.None)
         {
             return true;
         }
@@ -510,13 +511,13 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
             return true;
         }
 
-        key = Keys.None;
+        key = KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
         return false;
     }
 
-    private static bool TryMapBrowserLetterKey(string? code, out Keys key)
+    private static bool TryMapBrowserLetterKey(string? code, out KNIInput::Microsoft.Xna.Framework.Input.Keys key)
     {
-        key = Keys.None;
+        key = KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
         if (string.IsNullOrWhiteSpace(code)
             || code.Length != 4
             || !code.StartsWith("Key", StringComparison.Ordinal)
@@ -525,12 +526,12 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
             return false;
         }
 
-        return Enum.TryParse(code[3].ToString(), ignoreCase: true, out key) && key != Keys.None;
+        return Enum.TryParse(code[3].ToString(), ignoreCase: true, out key) && key != KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
     }
 
-    private static bool TryMapBrowserDigitKey(string? code, out Keys key)
+    private static bool TryMapBrowserDigitKey(string? code, out KNIInput::Microsoft.Xna.Framework.Input.Keys key)
     {
-        key = Keys.None;
+        key = KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
         if (string.IsNullOrWhiteSpace(code)
             || code.Length != 6
             || !code.StartsWith("Digit", StringComparison.Ordinal)
@@ -539,38 +540,38 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
             return false;
         }
 
-        return Enum.TryParse("D" + code[5], ignoreCase: false, out key) && key != Keys.None;
+        return Enum.TryParse("D" + code[5], ignoreCase: false, out key) && key != KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
     }
 
-    private static bool TryMapBrowserNumpadKey(string? code, out Keys key)
+    private static bool TryMapBrowserNumpadKey(string? code, out KNIInput::Microsoft.Xna.Framework.Input.Keys key)
     {
         key = code switch
         {
-            "Numpad0" => Keys.NumPad0,
-            "Numpad1" => Keys.NumPad1,
-            "Numpad2" => Keys.NumPad2,
-            "Numpad3" => Keys.NumPad3,
-            "Numpad4" => Keys.NumPad4,
-            "Numpad5" => Keys.NumPad5,
-            "Numpad6" => Keys.NumPad6,
-            "Numpad7" => Keys.NumPad7,
-            "Numpad8" => Keys.NumPad8,
-            "Numpad9" => Keys.NumPad9,
-            "NumpadAdd" => Keys.Add,
-            "NumpadSubtract" => Keys.Subtract,
-            "NumpadMultiply" => Keys.Multiply,
-            "NumpadDivide" => Keys.Divide,
-            "NumpadDecimal" => Keys.Decimal,
-            "NumpadEnter" => Keys.Enter,
-            _ => Keys.None,
+            "Numpad0" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad0,
+            "Numpad1" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad1,
+            "Numpad2" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad2,
+            "Numpad3" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad3,
+            "Numpad4" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad4,
+            "Numpad5" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad5,
+            "Numpad6" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad6,
+            "Numpad7" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad7,
+            "Numpad8" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad8,
+            "Numpad9" => KNIInput::Microsoft.Xna.Framework.Input.Keys.NumPad9,
+            "NumpadAdd" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Add,
+            "NumpadSubtract" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Subtract,
+            "NumpadMultiply" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Multiply,
+            "NumpadDivide" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Divide,
+            "NumpadDecimal" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Decimal,
+            "NumpadEnter" => KNIInput::Microsoft.Xna.Framework.Input.Keys.Enter,
+            _ => KNIInput::Microsoft.Xna.Framework.Input.Keys.None,
         };
 
-        return key != Keys.None;
+        return key != KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
     }
 
-    private static bool TryMapBrowserFunctionKey(string? code, out Keys key)
+    private static bool TryMapBrowserFunctionKey(string? code, out KNIInput::Microsoft.Xna.Framework.Input.Keys key)
     {
-        key = Keys.None;
+        key = KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
         if (string.IsNullOrWhiteSpace(code)
             || code.Length < 3
             || code[0] != 'F'
@@ -581,7 +582,7 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
 
         return functionNumber is >= 1 and <= 24
             && Enum.TryParse("F" + functionNumber, ignoreCase: false, out key)
-            && key != Keys.None;
+            && key != KNIInput::Microsoft.Xna.Framework.Input.Keys.None;
     }
 
 }

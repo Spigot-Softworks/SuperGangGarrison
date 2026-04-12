@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
@@ -25,7 +24,7 @@ sealed class SnapshotBroadcaster
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
     private readonly Dictionary<byte, ClientSession> _clientsBySlot;
-    private readonly Action<IPEndPoint, SnapshotMessage, byte[]> _sendSnapshot;
+    private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
 
@@ -35,7 +34,7 @@ sealed class SnapshotBroadcaster
         Dictionary<byte, ClientSession> clientsBySlot,
         ulong transientEventReplayTicks,
         OpenGarrison.Server.ServerMapMetadataResolver mapMetadataResolver,
-        Action<IPEndPoint, SnapshotMessage, byte[]> sendSnapshot)
+        Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot)
     {
         _world = world;
         _config = config;
@@ -149,7 +148,7 @@ sealed class SnapshotBroadcaster
         if (fullSnapshotPayloadBytes <= OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes)
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
-            _sendSnapshot(client.EndPoint, fullSnapshot, fullSnapshotPayload);
+            _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
@@ -163,7 +162,7 @@ sealed class SnapshotBroadcaster
 
         var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
         var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline);
-        _sendSnapshot(client.EndPoint, snapshot.Message, snapshot.Payload);
+        _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
         client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
         return new SentSnapshotMetrics(
             FullPayloadBytes: fullSnapshotPayloadBytes,

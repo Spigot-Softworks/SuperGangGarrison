@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 
 sealed class AutoBalancer
 {
@@ -12,7 +12,7 @@ sealed class AutoBalancer
     private readonly int _autoBalanceDelaySeconds;
     private readonly int _autoBalanceNewPlayerGraceSeconds;
     private readonly bool _passwordRequired;
-    private readonly Action<IPEndPoint, IProtocolMessage> _sendMessage;
+    private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
     private readonly Action<string> _log;
     private int _autoBalanceCountdownTicks = -1;
     private PlayerTeam? _autoBalanceTeam;
@@ -24,7 +24,7 @@ sealed class AutoBalancer
         int autoBalanceDelaySeconds,
         int autoBalanceNewPlayerGraceSeconds,
         bool passwordRequired,
-        Action<IPEndPoint, IProtocolMessage> sendMessage,
+        Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<string> log)
     {
         _world = world;
@@ -155,7 +155,7 @@ sealed class AutoBalancer
                 continue;
             }
 
-            _sendMessage(client.EndPoint, notice);
+            _sendMessage(client.Peer, notice);
         }
     }
 }

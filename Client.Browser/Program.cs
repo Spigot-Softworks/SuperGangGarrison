@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.JSInterop;
+using OpenGarrison.Client;
 using OpenGarrison.Client.Browser;
 using OpenGarrison.Client.Browser.Services;
 using OpenGarrison.ClientShared;
@@ -31,4 +33,10 @@ builder.Services.AddScoped<BrowserGameHostService>();
 ClientRuntimeBootstrap.InitializeContentRoot();
 ClientRuntimeBootstrap.InitializeBrowserBaseAddress(builder.HostEnvironment.BaseAddress);
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+var jsRuntime = host.Services.GetRequiredService<IJSRuntime>();
+NetworkClientDatagramTransportRegistry.SetBrowserTransportFactory(
+    (string targetHost, int targetPort, out INetworkClientDatagramTransport? transport, out string error) =>
+        BrowserWebTransportDatagramTransport.TryConnect(jsRuntime, targetHost, targetPort, out transport, out error));
+
+await host.RunAsync();

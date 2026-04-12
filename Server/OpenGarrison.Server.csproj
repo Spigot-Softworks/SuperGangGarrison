@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
@@ -16,6 +16,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>OG2.Server</AssemblyName>
     <PublishSingleFile>false</PublishSingleFile>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
   </PropertyGroup>
 
   <ItemGroup>

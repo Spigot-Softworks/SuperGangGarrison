@@ -117,7 +117,7 @@ public sealed partial class SimulationWorld
             PlayerEntity player,
             float maxDistance)
         {
-            if (!player.IsAlive)
+            if (!player.IsAlive || player.IsExperimentalGhostDashing)
             {
                 return null;
             }
@@ -205,7 +205,7 @@ public sealed partial class SimulationWorld
             PlayerEntity player,
             float maxDistance)
         {
-            if (!player.IsAlive)
+            if (!player.IsAlive || player.IsExperimentalGhostDashing)
             {
                 return null;
             }
@@ -230,7 +230,7 @@ public sealed partial class SimulationWorld
             float maxDistance,
             float thicknessRadius)
         {
-            if (!player.IsAlive)
+            if (!player.IsAlive || player.IsExperimentalGhostDashing)
             {
                 return null;
             }

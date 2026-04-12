@@ -60,6 +60,17 @@ public partial class Game1
                         rocket.X - (velocityX * 0.75f),
                         rocket.Y - (velocityY * 0.75f)));
                 }
+
+                if (rocket.CanIgniteTargets
+                    && CanEmitBrowserVisual(_game._blastJumpFlameVisuals.Count, BrowserBlastJumpFlameVisualLimit))
+                {
+                    var flameOffset = _game._particleMode == 2 ? 0.9f : 0.55f;
+                    _game._blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
+                        rocket.X - (velocityX * flameOffset),
+                        rocket.Y - (velocityY * flameOffset),
+                        _game._visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
+                        _game._visualRandom.Next()));
+                }
             }
 
             for (var index = _game._rocketSmokeVisuals.Count - 1; index >= 0; index -= 1)

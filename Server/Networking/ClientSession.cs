@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
 using static ServerHelpers;
 
-sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
+sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, string name, TimeSpan lastSeen)
 {
     private const int MinimumSnapshotHistoryLimit = 12;
     private const int SnapshotHistorySlackFrames = 12;
@@ -14,9 +15,18 @@ sealed class ClientSession(byte slot, int userId, IPEndPoint endPoint, string na
     private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotFrameOrder = new();
 
+    public ClientSession(byte slot, int userId, IPEndPoint endPoint, string name, TimeSpan lastSeen)
+        : this(slot, userId, ServerTransportPeer.FromUdpEndPoint(endPoint), name, lastSeen)
+    {
+    }
+
     public byte Slot { get; set; } = slot;
     public int UserId { get; } = userId;
-    public IPEndPoint EndPoint { get; } = endPoint;
+    public ServerTransportPeer Peer { get; } = peer;
+    public IPEndPoint EndPoint => Peer.UdpEndPoint ?? throw new InvalidOperationException($"Client peer {Peer} has no UDP endpoint.");
+    public IPEndPoint? UdpEndPoint => Peer.UdpEndPoint;
+    public string RemoteDescription => Peer.Description;
+    public bool IsLoopbackConnection => Peer.IsLoopback;
     public string Name { get; set; } = name;
     public ulong BadgeMask { get; set; }
     public TimeSpan ConnectedAt { get; } = lastSeen;
