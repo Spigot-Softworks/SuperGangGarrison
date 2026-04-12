@@ -18,6 +18,7 @@ internal sealed class ServerAdminOperations(
     Func<GameplayOwnershipService?> gameplayOwnershipServiceGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
     Func<SnapshotBroadcaster> snapshotBroadcasterGetter,
+    Func<ServerBotManager> botManagerGetter,
     Action<MapChangeTransition>? applyMapTransition = null,
     ServerBanService? banService = null) : IOpenGarrisonServerAdminOperations
 {
@@ -432,6 +433,87 @@ internal sealed class ServerAdminOperations(
     public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1)
     {
         return mapRotationManagerGetter().TrySetNextRoundMap(levelName, mapAreaIndex);
+    }
+
+    // Bot management
+    public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName)
+    {
+        var result = botManagerGetter().TryAddBot(slot, team, playerClass, displayName);
+        if (result)
+        {
+            log($"[server] added bot slot={slot} team={team} class={playerClass} name=\"{displayName}\"");
+        }
+        else
+        {
+            log($"[server] failed to add bot slot={slot}: slot unavailable or invalid");
+        }
+        return result;
+    }
+
+    public bool TryRemoveBot(byte slot)
+    {
+        var result = botManagerGetter().TryRemoveBot(slot);
+        if (result)
+        {
+            log($"[server] removed bot slot={slot}");
+        }
+        else
+        {
+            log($"[server] failed to remove bot slot={slot}: no bot in that slot");
+        }
+        return result;
+    }
+
+    public bool TrySetBotTeam(byte slot, PlayerTeam team)
+    {
+        var result = botManagerGetter().TrySetBotTeam(slot, team);
+        if (result)
+        {
+            log($"[server] set bot slot={slot} team={team}");
+        }
+        return result;
+    }
+
+    public bool TrySetBotClass(byte slot, PlayerClass playerClass)
+    {
+        var result = botManagerGetter().TrySetBotClass(slot, playerClass);
+        if (result)
+        {
+            log($"[server] set bot slot={slot} class={playerClass}");
+        }
+        return result;
+    }
+
+    public int TryFillBots(int targetPerTeam, PlayerClass defaultClass)
+    {
+        var addedCount = botManagerGetter().FillBots(targetPerTeam, defaultClass);
+        log($"[server] fillbots target={targetPerTeam} per team, added {addedCount} bots");
+        return addedCount;
+    }
+
+    public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass)
+    {
+        var addedCount = botManagerGetter().TryFillTeam(team, targetCount, defaultClass);
+        log($"[server] fillbots target={targetCount} team={team}, added {addedCount} bots");
+        return addedCount;
+    }
+
+    public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots()
+    {
+        return botManagerGetter()
+            .BotSlots
+            .Values
+            .OrderBy(state => state.Slot)
+            .Select(state => new OpenGarrisonServerBotSlotInfo(state.Slot, state.Team, state.ClassId, state.DisplayName))
+            .ToArray();
+    }
+
+    public int TryClearAllBots()
+    {
+        var count = botManagerGetter().BotSlots.Count;
+        botManagerGetter().ClearAllBots();
+        log($"[server] clearbots removed {count} bots");
+        return count;
     }
 
     private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)

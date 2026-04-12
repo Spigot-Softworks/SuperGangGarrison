@@ -241,7 +241,7 @@ public sealed partial class SimulationWorld
         if (ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))
         {
-            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplier;
+            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplierValue;
         }
 
         return launchSpeed * speedScale;
@@ -256,7 +256,7 @@ public sealed partial class SimulationWorld
         if (ExperimentalGameplaySettings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))
         {
-            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplier;
+            speedScale *= ExperimentalGameplaySettings.ProjectileSpeedMultiplierValue;
         }
 
         return (
@@ -283,6 +283,6 @@ public sealed partial class SimulationWorld
         }
 
         damageFlags = DamageEventFlags.Airshot;
-        return Math.Max(1, (int)MathF.Round(baseDamage * ExperimentalGameplaySettings.AirshotDamageMultiplier));
+        return Math.Max(1, (int)MathF.Round(baseDamage * ExperimentalGameplaySettings.AirshotDamageMultiplierValue));
     }
 }

@@ -28,6 +28,7 @@ internal static class ServerPluginRuntimeFactory
         string? mapRotationFile,
         ServerSessionManager sessionManager,
         SnapshotBroadcaster snapshotBroadcaster,
+        ServerBotManager botManager,
         Action<MapChangeTransition> applyMapTransition,
         Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendPluginMessageToClient,
@@ -50,6 +51,7 @@ internal static class ServerPluginRuntimeFactory
             () => gameplayOwnershipService,
             () => mapRotationManager,
             () => snapshotBroadcaster,
+            () => botManager,
             applyMapTransition,
             banService);
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(

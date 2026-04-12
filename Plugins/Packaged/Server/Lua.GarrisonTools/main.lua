@@ -7,7 +7,7 @@ local default_burn_seconds = 10.0
 local default_announcement_notice_ticks = 300
 local client_effects_announcement_message_type = "announce.notice"
 local help_page_size = 6
-local command_catalog_count = 20
+local command_catalog_count = 21
 local command_category_count = 6
 local help_page_count = 4
 local admin_menu_client_plugin_id = "open-garrison.client.lua-garrison-tools-menu"
@@ -110,6 +110,7 @@ append_command_spec({ name = "slay", category = "Player Control", usage = "!gt_s
 append_command_spec({ name = "burn", category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true })
 append_command_spec({ name = "gag", category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true })
 append_command_spec({ name = "rename", category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true })
+append_command_spec({ name = "bots", category = "Player Control", usage = "!gt_bots <list|add|remove|fill|clear> ...", summary = "Manage host bots through the authenticated GarrisonTools chat flow.", keywords = "bot bots add remove fill clear ai" })
 append_command_spec({ name = "map", category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map.", keywords = "level rotation change round" })
 append_command_spec({ name = "nextmap", category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map.", keywords = "level rotation next round future" })
 append_command_spec({ name = "seffect", category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", keywords = "blind earthquake scale speed lowgrav highgrav clear visual fx", usesTargets = true, showSeffectHelp = true })
@@ -131,6 +132,7 @@ local command_catalog = {
     burn = { category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", usesTargets = true },
     gag = { category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", usesTargets = true },
     rename = { category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", usesTargets = true },
+    bots = { category = "Player Control", usage = "!gt_bots <list|add|remove|fill|clear> ...", summary = "Manage host bots through the authenticated GarrisonTools chat flow." },
     map = { category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map." },
     nextmap = { category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map." },
     seffect = { category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", usesTargets = true, showSeffectHelp = true },
@@ -140,13 +142,13 @@ local command_catalog = {
 local help_page_command_keys = {
     list("help", "status", "cvars", "cvar", "adminmenu", "say"),
     list("psay", "kick", "ban", "banip", "unban", "slay"),
-    list("burn", "gag", "rename", "map", "nextmap", "seffect"),
-    list("auth", "logout"),
+    list("burn", "gag", "rename", "bots", "map", "nextmap"),
+    list("seffect", "auth", "logout"),
 }
 local admin_category_command_keys = {
     { category = "Reference", keys = list("help", "status", "cvars", "cvar", "adminmenu") },
     { category = "Communication", keys = list("say", "psay") },
-    { category = "Player Control", keys = list("kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename") },
+    { category = "Player Control", keys = list("kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename", "bots") },
     { category = "Match Control", keys = list("map", "nextmap") },
     { category = "Effects", keys = list("seffect") },
     { category = "Session", keys = list("auth", "logout") },
@@ -174,6 +176,8 @@ local help_search_aliases = {
     ["burn"] = "burn",
     ["gag"] = "gag",
     ["rename"] = "rename",
+    ["bot"] = "bots",
+    ["bots"] = "bots",
     ["map"] = "map",
     ["nextmap"] = "nextmap",
     ["seffect"] = "seffect",
@@ -184,13 +188,13 @@ local help_search_aliases = {
 local help_page_lines = {
     [1] = "[GT] commands | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu | !gt_say <text>",
     [2] = "[GT] commands | !gt_psay <target> <message> | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target>",
-    [3] = "[GT] commands | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_map <map> [area] | !gt_nextmap <map> [area] | !gt_seffect <effect> <target> [time]",
-    [4] = "[GT] commands | !gt_auth <password> | !gt_logout",
+    [3] = "[GT] commands | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_bots <list|add|remove|fill|clear> ... | !gt_map <map> [area] | !gt_nextmap <map> [area]",
+    [4] = "[GT] commands | !gt_seffect <effect> <target> [time] | !gt_auth <password> | !gt_logout",
 }
 local admin_menu_lines = {
     "[GT] category | Reference | count=5 | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu",
     "[GT] category | Communication | count=2 | !gt_say <text> | !gt_psay <target> <message>",
-    "[GT] category | Player Control | count=8 | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target> | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name>",
+    "[GT] category | Player Control | count=9 | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target> | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_bots <list|add|remove|fill|clear> ...",
     "[GT] category | Match Control | count=2 | !gt_map <map> [area] | !gt_nextmap <map> [area]",
     "[GT] category | Effects | count=1 | !gt_seffect <effect> <target> [time]",
     "[GT] category | Session | count=2 | !gt_auth <password> | !gt_logout",
@@ -1952,6 +1956,168 @@ local function handle_rename(event, arguments)
     return true
 end
 
+local function send_bots_usage(slot)
+    send_private(slot, "[GT] usage: !gt_bots")
+    send_private(slot, "[GT] usage: !gt_bots list")
+    send_private(slot, "[GT] usage: !gt_bots add <slot> <red|blue> <class> [name]")
+    send_private(slot, "[GT] usage: !gt_bots remove <slot>")
+    send_private(slot, "[GT] usage: !gt_bots fill <count> [red|blue] [class]")
+    send_private(slot, "[GT] usage: !gt_bots clear")
+end
+
+local function parse_bot_slot(text)
+    local value = tonumber(trim(text))
+    if value == nil or value < 1 or value ~= math.floor(value) then
+        return nil
+    end
+
+    return value
+end
+
+local function normalize_bot_team(text)
+    local normalized = string.lower(trim(text))
+    if normalized == "red" then
+        return "Red"
+    end
+    if normalized == "blue" or normalized == "blu" then
+        return "Blue"
+    end
+
+    return nil
+end
+
+local function normalize_bot_class(text)
+    local normalized = string.lower(trim(text))
+    if normalized == "engi" then
+        return "Engineer"
+    end
+    if normalized == "solly" then
+        return "Soldier"
+    end
+    if normalized == "demo" then
+        return "Demoman"
+    end
+
+    local class_map = {
+        scout = "Scout",
+        engineer = "Engineer",
+        pyro = "Pyro",
+        soldier = "Soldier",
+        demoman = "Demoman",
+        heavy = "Heavy",
+        sniper = "Sniper",
+        medic = "Medic",
+        spy = "Spy",
+        quote = "Quote",
+    }
+
+    return class_map[normalized]
+end
+
+local function handle_bots(event, arguments)
+    local subcommand, remainder = split_first_word(arguments)
+    subcommand = string.lower(trim(subcommand))
+    if subcommand == "" or subcommand == "list" then
+        local bot_slots = plugin.host.get_bot_slots() or {}
+        if bot_slots[1] == nil then
+            send_private(event.slot, "[GT] no bots active.")
+            return true
+        end
+
+        send_private(event.slot, "[GT] bots | count=" .. tostring(#bot_slots))
+        for index = 1, #bot_slots do
+            local bot = bot_slots[index]
+            send_private(
+                event.slot,
+                "[GT] bot | slot=" .. tostring(bot.slot or bot.Slot)
+                    .. " | team=" .. tostring(bot.team or bot.Team)
+                    .. " | class=" .. tostring(bot.playerClass or bot.PlayerClass)
+                    .. " | name=" .. tostring(bot.displayName or bot.DisplayName))
+        end
+
+        return true
+    end
+
+    if subcommand == "add" then
+        local slot_text, add_remainder = split_first_word(remainder)
+        local team_text, add_remainder2 = split_first_word(add_remainder)
+        local class_text, display_name = split_first_word(add_remainder2)
+        local slot = parse_bot_slot(slot_text)
+        local team = normalize_bot_team(team_text)
+        local class_name = normalize_bot_class(class_text)
+        local trimmed_display_name = trim(display_name)
+        if slot == nil or team == nil or class_name == nil then
+            send_bots_usage(event.slot)
+            return true
+        end
+
+        if trimmed_display_name == "" then
+            trimmed_display_name = team .. " Bot " .. tostring(slot)
+        end
+
+        if plugin.host.try_add_bot(slot, team, class_name, trimmed_display_name) then
+            send_private(event.slot, "[GT] bot added at slot " .. tostring(slot) .. ".")
+        else
+            send_private(event.slot, "[GT] unable to add bot at slot " .. tostring(slot) .. ".")
+        end
+        return true
+    end
+
+    if subcommand == "remove" then
+        local slot = parse_bot_slot(remainder)
+        if slot == nil then
+            send_bots_usage(event.slot)
+            return true
+        end
+
+        if plugin.host.try_remove_bot(slot) then
+            send_private(event.slot, "[GT] bot removed from slot " .. tostring(slot) .. ".")
+        else
+            send_private(event.slot, "[GT] no bot at slot " .. tostring(slot) .. ".")
+        end
+        return true
+    end
+
+    if subcommand == "fill" then
+        local count_text, fill_remainder = split_first_word(remainder)
+        local count = tonumber(trim(count_text))
+        local team_text, class_text = split_first_word(fill_remainder)
+        if count == nil or count < 1 or count ~= math.floor(count) then
+            send_bots_usage(event.slot)
+            return true
+        end
+
+        local maybe_team = normalize_bot_team(team_text)
+        local maybe_class = normalize_bot_class(class_text)
+        if maybe_team == nil and trim(class_text) == "" then
+            maybe_class = normalize_bot_class(team_text)
+        end
+        if maybe_team == nil and trim(team_text) ~= "" and maybe_class == nil then
+            send_bots_usage(event.slot)
+            return true
+        end
+
+        local added_count
+        if maybe_team ~= nil then
+            added_count = plugin.host.try_fill_bot_team(maybe_team, count, maybe_class or "Soldier")
+            send_private(event.slot, "[GT] filled " .. tostring(added_count) .. " bot slots on " .. maybe_team .. " team.")
+        else
+            added_count = plugin.host.try_fill_bots(count, maybe_class or "Soldier")
+            send_private(event.slot, "[GT] filled " .. tostring(added_count) .. " bot slots total (" .. tostring(count) .. " per team).")
+        end
+        return true
+    end
+
+    if subcommand == "clear" then
+        local removed = plugin.host.try_clear_all_bots()
+        send_private(event.slot, "[GT] removed " .. tostring(removed) .. " bots.")
+        return true
+    end
+
+    send_bots_usage(event.slot)
+    return true
+end
+
 local function handle_map(event, arguments)
     local level_name, area_index = parse_map_arguments(arguments)
     if level_name == nil then
@@ -2936,6 +3102,8 @@ function plugin.try_handle_chat_message(context, e)
         return handle_gag(e, arguments)
     elseif command_name == "rename" then
         return handle_rename(e, arguments)
+    elseif command_name == "bots" then
+        return handle_bots(e, arguments)
     elseif command_name == "map" then
         return handle_map(e, arguments)
     elseif command_name == "nextmap" then

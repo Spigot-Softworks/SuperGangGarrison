@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
+    <ProjectReference Include="..\BotAI\OpenGarrison.BotAI.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -27,6 +28,16 @@
     </None>
     <None Include="..\Core\Content\Gameplay\**\*">
       <TargetPath>Content\Gameplay\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="..\Core\Content\BotNav\**\*">
+      <TargetPath>Content\BotNav\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="..\Core\Content\BotNavHints\**\*">
+      <TargetPath>Content\BotNavHints\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </None>

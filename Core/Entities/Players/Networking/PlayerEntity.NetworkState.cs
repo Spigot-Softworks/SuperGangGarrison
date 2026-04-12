@@ -145,6 +145,7 @@ public sealed partial class PlayerEntity
         BurnDecayDelaySourceTicksRemaining = float.Max(0f, burnDecayDelaySourceTicksRemaining);
         BurnIntensityDecayPerSourceTick = float.Max(0f, burnIntensityDecayPerSourceTick);
         BurnedByPlayerId = burnedByPlayerId > 0 ? burnedByPlayerId : null;
+        NapalmCoveredSourceTicks = 0f;
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);

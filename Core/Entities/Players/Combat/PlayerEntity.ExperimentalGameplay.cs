@@ -465,7 +465,13 @@ public sealed partial class PlayerEntity
 
     private float GetServerScaledAirborneGravityPerTick(LegacyMovementState movementState)
     {
-        return LegacyMovementModel.GetAirborneGravityPerTick(movementState) * ServerGravityScaleValue;
+        var gravityScale = ServerGravityScaleValue;
+        if (IsNapalmCovered)
+        {
+            gravityScale *= global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmGravityMultiplier;
+        }
+
+        return LegacyMovementModel.GetAirborneGravityPerTick(movementState) * gravityScale;
     }
 
     private float GetServerVerticalSpeedClampPerTick()

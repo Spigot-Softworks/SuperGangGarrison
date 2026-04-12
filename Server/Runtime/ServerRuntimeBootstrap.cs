@@ -17,4 +17,5 @@ internal sealed record ServerRuntimeBootstrap(
     ServerSessionManager SessionManager,
     AutoBalancer AutoBalancer,
     SnapshotBroadcaster SnapshotBroadcaster,
-    MapRotationManager MapRotationManager);
+    MapRotationManager MapRotationManager,
+    ServerBotManager BotManager);

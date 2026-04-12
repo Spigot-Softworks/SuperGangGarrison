@@ -152,7 +152,11 @@ public sealed partial class PlayerEntity
         var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
         var allowChargeFullControl = isDemoknightChargeDriving && ExperimentalDemoknightChargeFullControlEnabled;
         var horizontalDirection = 0f;
-        if (!isDemoknightChargeDriving || allowChargeFullControl)
+        if (allowChargeFullControl)
+        {
+            horizontalDirection = GetExperimentalDemoknightChargeTurnDirection(input, canMove);
+        }
+        else if (!isDemoknightChargeDriving)
         {
             if (canMove && input.Left)
             {
@@ -165,24 +169,18 @@ public sealed partial class PlayerEntity
         }
         else
         {
-            ExperimentalDemoknightChargeWantsLift = input.Up;
-            ApplyExperimentalDemoknightChargeDrive(dt);
-            if (allowChargeFullControl)
-            {
-                if (input.Left)
-                {
-                    horizontalDirection -= 1f;
-                }
-                if (input.Right)
-                {
-                    horizontalDirection += 1f;
-                }
-            }
+            horizontalDirection = FacingDirectionX;
         }
 
         if ((!isDemoknightChargeDriving || allowChargeFullControl) && horizontalDirection != 0f)
         {
             FacingDirectionX = horizontalDirection;
+        }
+
+        if (isDemoknightChargeDriving)
+        {
+            ExperimentalDemoknightChargeWantsLift = input.Up;
+            ApplyExperimentalDemoknightChargeDrive(dt);
         }
 
         if (!preserveHorizontalMomentum)

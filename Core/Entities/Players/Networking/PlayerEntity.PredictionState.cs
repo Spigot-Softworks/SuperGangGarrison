@@ -71,6 +71,7 @@ public sealed partial class PlayerEntity
         float BurnDecayDelaySourceTicksRemaining,
         float BurnIntensityDecayPerSourceTick,
         int? BurnedByPlayerId,
+        float NapalmCoveredSourceTicks,
         int Kills,
         int Deaths,
         int Caps,
@@ -168,6 +169,7 @@ public sealed partial class PlayerEntity
             BurnDecayDelaySourceTicksRemaining,
             BurnIntensityDecayPerSourceTick,
             BurnedByPlayerId,
+            NapalmCoveredSourceTicks,
             Kills,
             Deaths,
             Caps,
@@ -269,6 +271,7 @@ public sealed partial class PlayerEntity
         BurnDecayDelaySourceTicksRemaining = float.Max(0f, state.BurnDecayDelaySourceTicksRemaining);
         BurnIntensityDecayPerSourceTick = float.Max(0f, state.BurnIntensityDecayPerSourceTick);
         BurnedByPlayerId = state.BurnedByPlayerId;
+        NapalmCoveredSourceTicks = float.Max(0f, state.NapalmCoveredSourceTicks);
         Kills = state.Kills;
         Deaths = state.Deaths;
         Caps = state.Caps;

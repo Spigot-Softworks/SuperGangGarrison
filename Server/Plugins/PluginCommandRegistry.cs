@@ -64,10 +64,7 @@ internal sealed class PluginCommandRegistry
         }
 
         var trimmed = commandLine.Trim();
-        var separatorIndex = trimmed.IndexOf(' ');
-        var commandName = separatorIndex < 0 ? trimmed : trimmed[..separatorIndex];
-        var arguments = separatorIndex < 0 ? string.Empty : trimmed[(separatorIndex + 1)..].Trim();
-        if (!_commandsByName.TryGetValue(commandName, out var registration))
+        if (!TryResolveCommand(trimmed, out var commandName, out var arguments, out var registration))
         {
             return false;
         }
@@ -101,6 +98,41 @@ internal sealed class PluginCommandRegistry
         }
 
         return true;
+    }
+
+    private bool TryResolveCommand(
+        string commandLine,
+        out string commandName,
+        out string arguments,
+        out CommandRegistration registration)
+    {
+        foreach (var entry in _commandsByName.OrderByDescending(entry => entry.Key.Length))
+        {
+            if (!IsCommandNameMatch(commandLine, entry.Key))
+            {
+                continue;
+            }
+
+            commandName = entry.Key;
+            arguments = commandLine.Length == entry.Key.Length
+                ? string.Empty
+                : commandLine[entry.Key.Length..].Trim();
+            registration = entry.Value;
+            return true;
+        }
+
+        commandName = string.Empty;
+        arguments = string.Empty;
+        registration = default!;
+        return false;
+    }
+
+    private static bool IsCommandNameMatch(string commandLine, string registeredName)
+    {
+        return commandLine.Equals(registeredName, StringComparison.OrdinalIgnoreCase)
+            || (commandLine.Length > registeredName.Length
+                && char.IsWhiteSpace(commandLine[registeredName.Length])
+                && commandLine.StartsWith(registeredName, StringComparison.OrdinalIgnoreCase));
     }
 
     private void Register(

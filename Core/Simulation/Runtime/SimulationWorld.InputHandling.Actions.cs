@@ -143,6 +143,34 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.IsExperimentalDemoknightEnabled)
+        {
+            if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
+            {
+                if (player.TryStartExperimentalGhostDash(
+                    GetExperimentalGhostDashDurationTicks(),
+                    GetExperimentalGhostDashCooldownTicks(),
+                    global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
+                    GetExperimentalGhostDashImpulse()))
+                {
+                    RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+                }
+
+                return;
+            }
+
+            if (player.IsExperimentalDemoknightCharging)
+            {
+                player.CancelExperimentalDemoknightCharge(depleteMeter: true);
+            }
+            else if (player.TryStartExperimentalDemoknightCharge())
+            {
+                RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+            }
+
+            return;
+        }
+
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding);
@@ -157,34 +185,6 @@ public sealed partial class SimulationWorld
 
         if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
         {
-            if (player.IsExperimentalDemoknightEnabled)
-            {
-                if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
-                {
-                    if (player.TryStartExperimentalGhostDash(
-                        GetExperimentalGhostDashDurationTicks(),
-                        GetExperimentalGhostDashCooldownTicks(),
-                        global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
-                        GetExperimentalGhostDashImpulse()))
-                    {
-                        RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
-                    }
-
-                    return;
-                }
-
-                if (player.IsExperimentalDemoknightCharging)
-                {
-                    player.CancelExperimentalDemoknightCharge(depleteMeter: true);
-                }
-                else if (player.TryStartExperimentalDemoknightCharge())
-                {
-                    RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
-                }
-
-                return;
-            }
-
             DetonateOwnedMines(player.Id);
             return;
         }

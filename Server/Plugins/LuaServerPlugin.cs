@@ -703,6 +703,60 @@ internal sealed class LuaServerPlugin(
                 ReadStringArgument(args, 0),
                 ReadOptionalIntArgument(args, 1, 1)));
         });
+        host["get_bot_slots"] = DynValue.NewCallback((_, _) =>
+            ToDynValue(context.AdminOperations.GetBotSlots()));
+        host["try_add_bot"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_add_bot", $"bot slot {slot}")
+                && TryParseEnumArgument<PlayerTeam>(args, 1, out var team)
+                && TryParseEnumArgument<PlayerClass>(args, 2, out var playerClass)
+                && context.AdminOperations.TryAddBot(slot, team, playerClass, ReadOptionalStringArgument(args, 3) ?? string.Empty));
+        });
+        host["try_remove_bot"] = DynValue.NewCallback((_, args) =>
+        {
+            var slot = ReadByteArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_remove_bot", $"bot slot {slot}")
+                && context.AdminOperations.TryRemoveBot(slot));
+        });
+        host["try_fill_bots"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_fill_bots", "bot roster"))
+            {
+                return DynValue.NewNumber(0);
+            }
+
+            var defaultClass = TryParseOptionalEnumArgument(args, 1, out PlayerClass playerClass)
+                ? playerClass
+                : PlayerClass.Soldier;
+            return DynValue.NewNumber(context.AdminOperations.TryFillBots(ReadIntArgument(args, 0), defaultClass));
+        });
+        host["try_fill_bot_team"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_fill_bot_team", "bot team roster"))
+            {
+                return DynValue.NewNumber(0);
+            }
+
+            var defaultClass = TryParseOptionalEnumArgument(args, 2, out PlayerClass playerClass)
+                ? playerClass
+                : PlayerClass.Soldier;
+            return DynValue.NewNumber(
+                TryParseEnumArgument<PlayerTeam>(args, 0, out var team)
+                    ? context.AdminOperations.TryFillBotTeam(team, ReadIntArgument(args, 1), defaultClass)
+                    : 0);
+        });
+        host["try_clear_all_bots"] = DynValue.NewCallback((_, _) =>
+        {
+            if (!CanIssueServerMutation("try_clear_all_bots", "bot roster"))
+            {
+                return DynValue.NewNumber(0);
+            }
+
+            return DynValue.NewNumber(context.AdminOperations.TryClearAllBots());
+        });
         host["send_message_to_client"] = DynValue.NewCallback((_, args) =>
         {
             var slot = ReadByteArgument(args, 0);
@@ -1689,6 +1743,18 @@ internal sealed class LuaServerPlugin(
         {
             value = (TEnum)Enum.ToObject(typeof(TEnum), (int)dynValue.Number);
             return Enum.IsDefined(value);
+        }
+
+        return Enum.TryParse(dynValue.CastToString(), ignoreCase: true, out value);
+    }
+
+    private static bool TryParseOptionalEnumArgument<TEnum>(CallbackArguments args, int index, out TEnum value) where TEnum : struct, Enum
+    {
+        var dynValue = ReadArgument(args, index);
+        if (dynValue.IsNil())
+        {
+            value = default;
+            return false;
         }
 
         return Enum.TryParse(dynValue.CastToString(), ignoreCase: true, out value);

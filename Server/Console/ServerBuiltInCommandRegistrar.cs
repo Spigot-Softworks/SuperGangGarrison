@@ -332,6 +332,110 @@ internal sealed class ServerBuiltInCommandRegistrar(
             },
             OpenGarrisonServerAdminPermissions.ManageMatch,
             "mapchange");
+        commandRegistry.RegisterBuiltIn(
+            "bots",
+            "List current bots.",
+            "bots",
+            (context, arguments, _) =>
+            {
+                var botSlots = GetBotSlots(context);
+                if (botSlots.Count == 0)
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] no bots active."]);
+                }
+
+                var lines = new List<string> { $"[server] bots | count={botSlots.Count}" };
+                foreach (var (slot, team, playerClass, displayName) in botSlots)
+                {
+                    lines.Add($"[server] bot | slot={slot} | team={team} | class={playerClass} | name={displayName}");
+                }
+                return Task.FromResult<IReadOnlyList<string>>(lines);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "bots add",
+            "Add a bot to a specific slot.",
+            "bots add <slot> <red|blue> <scout|soldier|medic|...>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseBotAddArguments(arguments, out var slot, out var team, out var playerClass, out var displayName))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots add <slot> <red|blue> <class>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryAddBot(slot, team, playerClass, displayName)
+                    ? [$"[server] bot added at slot {slot}."]
+                    : [$"[server] unable to add bot at slot {slot} (slot may be occupied or invalid)."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "bots remove",
+            "Remove a bot from a slot.",
+            "bots remove <slot>",
+            (context, arguments, _) =>
+            {
+                if (!TryParseSlot(arguments, out var slot))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots remove <slot>"]);
+                }
+
+                return Task.FromResult<IReadOnlyList<string>>(context.AdminOperations.TryRemoveBot(slot)
+                    ? [$"[server] bot removed from slot {slot}."]
+                    : [$"[server] no bot at slot {slot}."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "bots fill",
+            "Fill team slots with bots.",
+            "bots fill <count> [red|blue]",
+            (context, arguments, _) =>
+            {
+                var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0 || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count < 1)
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue]"]);
+                }
+
+                // Default to filling both teams if no team specified
+                PlayerTeam? targetTeam = null;
+                if (parts.Length > 1)
+                {
+                    if (!TryParseTeam(parts[1], out var team))
+                    {
+                        return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue]"]);
+                    }
+
+                    targetTeam = team;
+                }
+
+                // For simplicity, use soldier as the default class for filled bots
+                var defaultClass = PlayerClass.Soldier;
+                var addedCount = 0;
+
+                if (targetTeam.HasValue)
+                {
+                    // Fill one team
+                    addedCount = context.AdminOperations.TryFillBotTeam(targetTeam.Value, count, defaultClass);
+                    return Task.FromResult<IReadOnlyList<string>>([$"[server] filled {addedCount} bot slots on {targetTeam.Value} team."]);
+                }
+                else
+                {
+                    // Fill both teams (count bots per team)
+                    var totalAdded = context.AdminOperations.TryFillBots(count, defaultClass);
+                    return Task.FromResult<IReadOnlyList<string>>([$"[server] filled {totalAdded} bot slots total ({count} per team)."]);
+                }
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
+        commandRegistry.RegisterBuiltIn(
+            "bots clear",
+            "Remove all bots.",
+            "bots clear",
+            (context, arguments, _) =>
+            {
+                var removed = context.AdminOperations.TryClearAllBots();
+                return Task.FromResult<IReadOnlyList<string>>([$"[server] removed {removed} bots."]);
+            },
+            OpenGarrisonServerAdminPermissions.ManagePlayers);
     }
 
     private List<string> BuildHelpLines(OpenGarrisonServerCommandContext context)
@@ -533,5 +637,53 @@ internal sealed class ServerBuiltInCommandRegistrar(
         }
 
         return int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out areaIndex) && areaIndex >= 1;
+    }
+
+    private static bool TryParseBotAddArguments(string arguments, out byte slot, out PlayerTeam team, out PlayerClass playerClass, out string displayName)
+    {
+        slot = 0;
+        team = default;
+        playerClass = default;
+        displayName = string.Empty;
+        var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+        {
+            return false;
+        }
+
+        if (!TryParseSlot(parts[0], out slot))
+        {
+            return false;
+        }
+
+        if (!TryParseTeam(parts[1], out team))
+        {
+            return false;
+        }
+
+        if (!Enum.TryParse<PlayerClass>(parts[2], ignoreCase: true, out playerClass))
+        {
+            return false;
+        }
+
+        // Display name is optional (parts[3]), if not provided, use a default
+        if (parts.Length > 3)
+        {
+            displayName = parts[3].Trim();
+        }
+        else
+        {
+            displayName = $"{team} Bot {slot}";
+        }
+
+        return true;
+    }
+
+    private static List<(byte Slot, PlayerTeam Team, PlayerClass PlayerClass, string DisplayName)> GetBotSlots(OpenGarrisonServerCommandContext context)
+    {
+        return context.AdminOperations
+            .GetBotSlots()
+            .Select(slot => (slot.Slot, slot.Team, slot.PlayerClass, slot.DisplayName))
+            .ToList();
     }
 }

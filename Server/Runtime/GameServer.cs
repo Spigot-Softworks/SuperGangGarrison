@@ -55,6 +55,10 @@ sealed partial class GameServer
     private readonly int _autoBalanceDelaySeconds;
     private readonly int _autoBalanceNewPlayerGraceSeconds;
     private bool _autoBalanceEnabled;
+    private bool _botAutofillEnabled;
+    private int _botAutofillMinPlayers;
+    private int _botAutofillPerTeam;
+    private int _botAutofillLastTick;
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
@@ -100,6 +104,7 @@ sealed partial class GameServer
     private IOpenGarrisonServerCvarRegistry _cvarRegistry = null!;
     private ServerAdminChatRouter _adminChatRouter = null!;
     private ServerBanService _banService = null!;
+    private ServerBotManager _botManager = null!;
 
     public GameServer(
         SimulationConfig config,

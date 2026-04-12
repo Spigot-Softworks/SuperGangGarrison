@@ -17,24 +17,6 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled
-            && ClassId == PlayerClass.Soldier
-            && SelectedGameplayEquippedSlot != GameplayEquipmentSlot.Primary
-            && CurrentShells < PrimaryWeapon.MaxAmmo)
-        {
-            ExperimentalSoldierSwappedOutAmmoRegenAccumulator += 1f;
-            if (ExperimentalSoldierSwappedOutAmmoRegenAccumulator >= LegacyMovementModel.SourceTicksPerSecond)
-            {
-                ExperimentalSoldierSwappedOutAmmoRegenAccumulator -= LegacyMovementModel.SourceTicksPerSecond;
-                CurrentShells = int.Min(PrimaryWeapon.MaxAmmo, CurrentShells + 1);
-                ResetPyroPrimaryStateFromCurrentAmmo();
-            }
-        }
-        else if (SelectedGameplayEquippedSlot == GameplayEquipmentSlot.Primary || CurrentShells >= PrimaryWeapon.MaxAmmo)
-        {
-            ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
-        }
-
         if (PrimaryWeapon.AmmoRegenPerTick > 0 && CurrentShells < PrimaryWeapon.MaxAmmo)
         {
             CurrentShells = int.Min(PrimaryWeapon.MaxAmmo, CurrentShells + PrimaryWeapon.AmmoRegenPerTick);
@@ -70,7 +52,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped)
+        if ((IsExperimentalOffhandEquipped || IsAcquiredWeaponEquipped) && !CanReloadExperimentalSoldierStowedWeapons())
         {
             AdvanceExperimentalOffhandWeaponState();
             AdvanceAcquiredWeaponState();
@@ -127,7 +109,7 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (!IsExperimentalOffhandEquipped || ExperimentalOffhandCooldownTicks > 0)
+        if ((!IsExperimentalOffhandEquipped && !CanReloadExperimentalSoldierStowedWeapons()) || ExperimentalOffhandCooldownTicks > 0)
         {
             return;
         }
@@ -187,7 +169,7 @@ public sealed partial class PlayerEntity
             AcquiredWeaponCooldownTicks -= 1;
         }
 
-        if (!IsAcquiredWeaponEquipped)
+        if (!IsAcquiredWeaponEquipped && !CanReloadExperimentalSoldierStowedWeapons())
         {
             return;
         }
@@ -262,6 +244,12 @@ public sealed partial class PlayerEntity
             AcquiredWeaponCurrentShells = weaponDefinition.MaxAmmo;
             MedicNeedleRefillTicks = 0;
         }
+    }
+
+    private bool CanReloadExperimentalSoldierStowedWeapons()
+    {
+        return ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled
+            && ClassId == PlayerClass.Soldier;
     }
 
 }

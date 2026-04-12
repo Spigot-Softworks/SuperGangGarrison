@@ -296,6 +296,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsExperimentalGhostDashing => ExperimentalGhostDashTicksRemaining > 0;
 
+    public bool IsExperimentalGhostDashVisible => ExperimentalGhostDashVisibilityTicksRemaining > 0;
+
     private bool ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled { get; set; }
 
     private bool ExperimentalSoldierInfiniteAmmoDuringRageEnabled { get; set; }

@@ -547,6 +547,22 @@ public sealed class PluginContractValidationTests
         public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
 
         public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
+
+        public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName) => true;
+
+        public bool TryRemoveBot(byte slot) => true;
+
+        public bool TrySetBotTeam(byte slot, PlayerTeam team) => true;
+
+        public bool TrySetBotClass(byte slot, PlayerClass playerClass) => true;
+
+        public int TryFillBots(int targetPerTeam, PlayerClass defaultClass) => 0;
+
+        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass) => 0;
+
+        public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
+
+        public int TryClearAllBots() => 0;
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

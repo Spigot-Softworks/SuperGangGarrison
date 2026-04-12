@@ -589,7 +589,8 @@ public sealed class ServerAdminFoundationTests
             static () => throw new InvalidOperationException("Unexpected world access."),
             static () => null,
             static () => throw new InvalidOperationException("Unexpected map rotation access."),
-            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."));
+            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."),
+            static () => throw new InvalidOperationException("Unexpected bot manager access."));
 
         var oversizedMessage = string.Join(" | ", Enumerable.Repeat("!gt_help", 40));
         operations.SendSystemMessage(client.Slot, oversizedMessage);
@@ -617,7 +618,8 @@ public sealed class ServerAdminFoundationTests
             () => world,
             static () => null,
             static () => throw new InvalidOperationException("Unexpected map rotation access."),
-            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."));
+            static () => throw new InvalidOperationException("Unexpected snapshot broadcaster access."),
+            static () => throw new InvalidOperationException("Unexpected bot manager access."));
 
         Assert.True(operations.TryRenamePlayer(client.Slot, "##RenamedPlayer"));
         Assert.Equal("RenamedPlayer", client.Name);
@@ -728,6 +730,7 @@ public sealed class ServerAdminFoundationTests
                 static () => null,
                 () => new MapRotationManager(world, requestedMap: null, mapRotationFile: null, stockMapRotation: [], static _ => { }),
                 () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
+                static () => throw new InvalidOperationException("Unexpected bot manager access."),
                 banService: banService);
 
             var banResult = operations.TryBanPlayer(client.Slot, TimeSpan.FromMinutes(15), "griefing");
@@ -995,6 +998,22 @@ public sealed class ServerAdminFoundationTests
         public bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false) => true;
 
         public bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1) => true;
+
+        public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName) => true;
+
+        public bool TryRemoveBot(byte slot) => true;
+
+        public bool TrySetBotTeam(byte slot, PlayerTeam team) => true;
+
+        public bool TrySetBotClass(byte slot, PlayerClass playerClass) => true;
+
+        public int TryFillBots(int targetPerTeam, PlayerClass defaultClass) => 0;
+
+        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass) => 0;
+
+        public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
+
+        public int TryClearAllBots() => 0;
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

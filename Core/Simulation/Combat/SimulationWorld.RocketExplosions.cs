@@ -79,7 +79,8 @@ public sealed partial class SimulationWorld
                         global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks,
                         global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnIntensity,
                         afterburnFalloff: false,
-                        burnFalloffAmount: 1f);
+                        burnFalloffAmount: 1f,
+                        applyNapalm: true);
                 }
 
                 if (hitEnemyPlayer && owner is not null && rocket.DirectHitHealAmountValue > 0f)
@@ -166,7 +167,8 @@ public sealed partial class SimulationWorld
                         global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks,
                         global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnIntensity,
                         afterburnFalloff: false,
-                        burnFalloffAmount: 1f);
+                        burnFalloffAmount: 1f,
+                        applyNapalm: true);
                 }
             }
 

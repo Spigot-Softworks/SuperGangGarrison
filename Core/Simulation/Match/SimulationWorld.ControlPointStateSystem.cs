@@ -25,7 +25,7 @@ public sealed partial class SimulationWorld
 
             foreach (var player in world.EnumerateSimulatedPlayers())
             {
-                if (!player.IsAlive || player.IsSpyCloaked || player.IsUbered)
+                if (!player.IsAlive || player.IsSpyCloaked || IsIgnoringPlayerForCapture(world, player))
                 {
                     continue;
                 }
@@ -191,6 +191,19 @@ public sealed partial class SimulationWorld
             }
 
             return 1;
+        }
+
+        private static bool IsIgnoringPlayerForCapture(SimulationWorld world, PlayerEntity player)
+        {
+            if (!player.IsUbered)
+            {
+                return false;
+            }
+
+            return !world.ExperimentalGameplaySettings.EnableSoldierRageCaptureDuringRage
+                || !player.IsRaging
+                || player.ClassId != PlayerClass.Soldier
+                || !world.IsExperimentalPracticePowerOwner(player);
         }
 
         private static bool IsLocked(SimulationWorld world, ControlPointState point)

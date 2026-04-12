@@ -23,7 +23,15 @@ public sealed partial class PlayerEntity
 
     public int? BurnedByPlayerId { get; private set; }
 
+    public float NapalmCoveredSourceTicks { get; private set; }
+
     public bool IsBurning => BurnIntensity > 0f || BurnDurationSourceTicks > 0f;
+
+    public bool IsNapalmCovered => NapalmCoveredSourceTicks > 0f;
+
+    public float NapalmCoveredVisualAlpha => !IsNapalmCovered
+        ? 0f
+        : 0.25f + (0.5f * float.Clamp(NapalmCoveredSourceTicks / global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks, 0f, 1f));
 
     public int BurnVisualCount
     {
@@ -83,7 +91,8 @@ public sealed partial class PlayerEntity
         float durationIncreaseSourceTicks,
         float intensityIncrease,
         bool afterburnFalloff,
-        float burnFalloffAmount)
+        float burnFalloffAmount,
+        bool applyNapalm = false)
     {
         if (!IsAlive || IsUbered || durationIncreaseSourceTicks <= 0f || intensityIncrease <= 0f)
         {
@@ -114,6 +123,10 @@ public sealed partial class PlayerEntity
         BurnedByPlayerId = ownerPlayerId > 0 ? ownerPlayerId : null;
         BurnDecayDelaySourceTicksRemaining = BurnDecayDelaySourceTicks;
         BurnIntensityDecayPerSourceTick = 0f;
+        if (applyNapalm)
+        {
+            NapalmCoveredSourceTicks = float.Max(NapalmCoveredSourceTicks, durationIncreaseSourceTicks);
+        }
     }
 
     public AfterburnTickResult AdvanceAfterburn(float deltaSeconds)
@@ -150,6 +163,10 @@ public sealed partial class PlayerEntity
         if (BurnDurationSourceTicks > 0f)
         {
             BurnDurationSourceTicks -= BurnDurationDecayPerSourceTick * sourceDelta;
+        }
+        if (NapalmCoveredSourceTicks > 0f)
+        {
+            NapalmCoveredSourceTicks = MathF.Max(0f, NapalmCoveredSourceTicks - sourceDelta);
         }
 
         if (BurnDecayDelaySourceTicksRemaining > 0f)
@@ -198,6 +215,7 @@ public sealed partial class PlayerEntity
         BurnDecayDelaySourceTicksRemaining = 0f;
         BurnIntensityDecayPerSourceTick = 0f;
         BurnedByPlayerId = null;
+        NapalmCoveredSourceTicks = 0f;
     }
 
     private float GetBurnMaxDurationSourceTicks()

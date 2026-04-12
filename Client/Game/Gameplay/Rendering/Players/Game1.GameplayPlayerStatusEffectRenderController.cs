@@ -31,7 +31,7 @@ public partial class Game1
 
         public void DrawExperimentalDemoknightChargeBlur(PlayerEntity player, Vector2 cameraPosition, Color spriteTint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (!player.IsExperimentalDemoknightCharging || visibilityAlpha <= 0.05f)
+            if ((!player.IsExperimentalDemoknightCharging && !player.IsExperimentalGhostDashVisible) || visibilityAlpha <= 0.05f)
             {
                 return;
             }
@@ -46,9 +46,13 @@ public partial class Game1
             var blurTint = spriteTint * 0.45f;
             for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
             {
-                var offsetDistance = 5f + (blurIndex * 6f);
+                var offsetDistance = player.IsExperimentalGhostDashVisible
+                    ? 8f + (blurIndex * 9f)
+                    : 5f + (blurIndex * 6f);
                 var blurPosition = renderPosition - blurDirection * offsetDistance;
-                var blurAlpha = visibilityAlpha * (blurIndex == 0 ? 0.18f : 0.1f);
+                var blurAlpha = visibilityAlpha * (player.IsExperimentalGhostDashVisible
+                    ? (blurIndex == 0 ? 0.32f : 0.2f)
+                    : (blurIndex == 0 ? 0.18f : 0.1f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
                 if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
@@ -99,6 +103,8 @@ public partial class Game1
                 return;
             }
 
+            DrawNapalmCoveredOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
+
             var alpha = player.BurnVisualAlpha * visibilityAlpha;
             if (alpha <= 0f)
             {
@@ -126,6 +132,39 @@ public partial class Game1
 
                 var flameRectangle = new Rectangle((int)(renderPosition.X + offsetX - 2f - cameraPosition.X), (int)(renderPosition.Y + offsetY - 2f - cameraPosition.Y), 4, 4);
                 _game._spriteBatch.Draw(_game._pixel, flameRectangle, flameColor);
+            }
+        }
+
+        private void DrawNapalmCoveredOverlay(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha)
+        {
+            var alpha = player.NapalmCoveredVisualAlpha * visibilityAlpha;
+            if (alpha <= 0f)
+            {
+                return;
+            }
+
+            var sourceFrame = (int)((_game._world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _game._config.TicksPerSecond);
+            var count = Math.Max(3, player.BurnVisualBaseCount + 1);
+            var color = Color.Black * alpha;
+            for (var dripIndex = 0; dripIndex < count; dripIndex += 1)
+            {
+                var xSeed = ComputeNapalmVisualHash(player.Id, dripIndex, axis: 0);
+                var ySeed = ComputeNapalmVisualHash(player.Id, dripIndex, axis: 1);
+                var speedSeed = ComputeNapalmVisualHash(player.Id, dripIndex, axis: 2);
+                var sizeSeed = ComputeNapalmVisualHash(player.Id, dripIndex, axis: 3);
+                var normalizedX = ((uint)xSeed / (float)uint.MaxValue) * 2f - 1f;
+                var startY = ((uint)ySeed / (float)uint.MaxValue) * player.Height * 0.55f - (player.Height * 0.5f);
+                var fallTicks = 18 + Math.Abs(speedSeed % 17);
+                var fallProgress = PositiveModulo(sourceFrame + speedSeed, fallTicks) / (float)fallTicks;
+                var dripX = renderPosition.X + normalizedX * player.Width * 0.42f;
+                var dripY = renderPosition.Y + startY + (fallProgress * player.Height * 0.7f);
+                var size = 2 + Math.Abs(sizeSeed % 3);
+                var dripRectangle = new Rectangle(
+                    (int)(dripX - cameraPosition.X),
+                    (int)(dripY - cameraPosition.Y),
+                    size,
+                    size);
+                _game._spriteBatch.Draw(_game._pixel, dripRectangle, color);
             }
         }
 
@@ -168,6 +207,25 @@ public partial class Game1
 
             velocity.Normalize();
             return velocity;
+        }
+
+        private static int ComputeNapalmVisualHash(int playerId, int dripIndex, int axis)
+        {
+            var hash = playerId;
+            hash = unchecked((hash * 397) ^ dripIndex);
+            hash = unchecked((hash * 397) ^ axis);
+            return hash;
+        }
+
+        private static int PositiveModulo(int value, int modulus)
+        {
+            if (modulus <= 0)
+            {
+                return 0;
+            }
+
+            var result = value % modulus;
+            return result < 0 ? result + modulus : result;
         }
     }
 }

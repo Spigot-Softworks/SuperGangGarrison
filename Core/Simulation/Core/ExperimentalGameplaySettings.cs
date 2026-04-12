@@ -9,6 +9,7 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableSoldierAmmoRegeneratesWhileSwappedOut = false,
     bool EnableSoldierInfiniteAmmoDuringRage = false,
     bool EnableSoldierRageCaptureLockout = false,
+    bool EnableSoldierRageCaptureDuringRage = false,
     bool EnableSoldierNapalmRockets = false,
     bool EnableSoldierFinalClipRocketBurst = false,
     bool EnableHealOnDamage = false,
@@ -30,6 +31,9 @@ public sealed record ExperimentalGameplaySettings(
     float HealOnDamageFraction = 0.35f,
     int HealOnKillAmount = 25,
     float KillInvincibilityDurationSeconds = 0.5f,
+    float PassiveHealthRegenerationPerSecond = 3f,
+    float ProjectileSpeedMultiplierValue = 1.2f,
+    float AirshotDamageMultiplierValue = 1.25f,
     float PassiveMovementSpeedMultiplier = 1f,
     float DemoknightSwordRangeMultiplier = 1f,
     int DemoknightSwordBaseDamage = 42,
@@ -46,7 +50,7 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultEnemyHealthPackDropChance = 0.1f;
     public const float DefaultHealOnDamageFraction = 0.35f;
     public const int DefaultHealOnKillAmount = 25;
-    public const float PassiveHealthRegenerationPerSecond = 3f;
+    public const float DefaultPassiveHealthRegenerationPerSecond = 3f;
     public const float RageMaxCharge = 500f;
     public const float RageDamageDealtChargeMultiplier = 1f;
     public const float RageDamageReceivedChargeMultiplier = 1f;
@@ -63,13 +67,14 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultDemoknightSwordCooldownMultiplier = 1f;
     public const float DefaultDemoknightChargeRechargeMultiplier = 1f;
     public const float DefaultDemoknightChargeDamageTakenMultiplier = 1f;
-    public const float ProjectileSpeedMultiplier = 1.2f;
-    public const float AirshotDamageMultiplier = 1.25f;
+    public const float DefaultProjectileSpeedMultiplier = 1.2f;
+    public const float DefaultAirshotDamageMultiplier = 1.25f;
     public const float DefaultDemoknightPostRageRegenerationPerSecond = 35f;
     public const float DefaultDemoknightPostRageRegenerationDurationSeconds = 10f;
     public const float DefaultSoldierCriticalInvincibilityDurationSeconds = 3f;
     public const float DefaultSoldierNapalmAfterburnIntensity = 1.2f;
     public const float DefaultSoldierNapalmAfterburnDurationSourceTicks = 90f;
+    public const float DefaultSoldierNapalmGravityMultiplier = 1.45f;
     public const float DefaultSoldierFinalRocketDamageMultiplier = 1.25f;
     public const float DefaultGhostDashDurationSeconds = 0.5f;
     public const float DefaultGhostDashCooldownSeconds = 1f;

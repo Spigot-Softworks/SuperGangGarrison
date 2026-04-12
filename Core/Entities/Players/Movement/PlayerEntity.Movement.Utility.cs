@@ -31,7 +31,7 @@ public sealed partial class PlayerEntity
     {
         if (IsExperimentalDemoknightCharging)
         {
-            return 0f;
+            return ExperimentalDemoknightChargeFullControlEnabled ? 1f : 0f;
         }
 
         if (HasScopedSniperWeaponEquipped && IsSniperScoped)
@@ -78,6 +78,27 @@ public sealed partial class PlayerEntity
     private static float GetSourceFacingDirectionX(float aimDirectionDegrees)
     {
         return NormalizeDegrees(aimDirectionDegrees + 270f) > 180f ? 1f : -1f;
+    }
+
+    private float GetExperimentalDemoknightChargeTurnDirection(PlayerInputSnapshot input, bool canMove)
+    {
+        var aimDeltaX = input.AimWorldX - X;
+        if (MathF.Abs(aimDeltaX) > 0.0001f)
+        {
+            return MathF.Sign(aimDeltaX);
+        }
+
+        var horizontalDirection = 0f;
+        if (canMove && input.Left)
+        {
+            horizontalDirection -= 1f;
+        }
+        if (canMove && input.Right)
+        {
+            horizontalDirection += 1f;
+        }
+
+        return horizontalDirection == 0f ? FacingDirectionX : MathF.Sign(horizontalDirection);
     }
 
     private bool ShouldCancelGravityForSourceSpinjump(SimpleLevel level, PlayerTeam team, float gravityPerTick)

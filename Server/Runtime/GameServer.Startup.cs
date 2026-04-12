@@ -138,6 +138,7 @@ partial class GameServer
         _autoBalancer = runtime.AutoBalancer;
         _snapshotBroadcaster = runtime.SnapshotBroadcaster;
         _mapRotationManager = runtime.MapRotationManager;
+        _botManager = runtime.BotManager;
     }
 
     private void StartAndAnnounceServer(bool highResolutionTimerEnabled, PersistentServerEventLog eventLog)
@@ -230,10 +231,14 @@ partial class GameServer
                 _scheduler.RunDueTasks();
                 _pluginHost?.NotifyServerHeartbeat(now);
 
+                // Feed client inputs first, then server bot inputs, before simulation advances
+                _sessionManager.PreparePlayableClientInputsForNextTick();
+                _botManager.FeedBotInputsBeforeSimulationAdvance();
+
                 var ticks = ServerSimulationBatch.Advance(
                     _simulator,
                     elapsedSeconds,
-                    _sessionManager.PreparePlayableClientInputsForNextTick,
+                    () => { }, // Client/bot inputs already fed above
                     () =>
                     {
                         _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
@@ -242,6 +247,8 @@ partial class GameServer
                             _eventReporter.ApplyMapTransition(transition);
                             _snapshotBroadcaster.ResetTransientEvents();
                         }
+                        // Update bot reactions/emotes AFTER simulation advances
+                        _botManager.AdvanceBotReactions();
                     },
                     _snapshotBroadcaster.BroadcastSnapshot);
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
@@ -258,6 +265,25 @@ partial class GameServer
                         $"mode={_world.MatchRules.Mode} phase={_world.MatchState.Phase} hp={_world.LocalPlayer.Health}/{_world.LocalPlayer.MaxHealth} " +
                         $"ammo={_world.LocalPlayer.CurrentShells}/{_world.LocalPlayer.MaxShells} pos=({_world.LocalPlayer.X:F1},{_world.LocalPlayer.Y:F1}) " +
                         $"activePlayable={activePlayableCount} spectators={_clientsBySlot.Keys.Count(IsSpectatorSlot)} caps={_world.RedCaps}-{_world.BlueCaps}");
+
+                    // Check bot autofill every 5 seconds
+                    if (_botAutofillEnabled && _world.Frame - _botAutofillLastTick >= (long)_config.TicksPerSecond * 5)
+                    {
+                        _botAutofillLastTick = (int)_world.Frame;
+                        var humanCount = _clientsBySlot.Count(slot => !IsSpectatorSlot(slot.Key));
+                        var needed = _botAutofillMinPlayers - humanCount;
+                        if (needed > 0)
+                        {
+                            var perTeam = needed / 2 + (needed % 2);
+                            var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, Math.Min(perTeam, _botAutofillPerTeam), PlayerClass.Soldier);
+                            var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, Math.Min(perTeam + (needed % 2), _botAutofillPerTeam), PlayerClass.Soldier);
+                            var totalAdded = addedRed + addedBlue;
+                            if (totalAdded > 0)
+                            {
+                                Console.WriteLine($"[server] autofill: added {totalAdded} bots ({addedRed} red, {addedBlue} blue) to reach {_botAutofillMinPlayers} players.");
+                            }
+                        }
+                    }
                 }
 
                 Thread.Sleep(1);
@@ -311,6 +337,7 @@ partial class GameServer
             _mapRotationFile,
             _sessionManager,
             _snapshotBroadcaster,
+            _botManager,
             _eventReporter.ApplyMapTransition,
             _outboundMessaging.SendMessage,
             _outboundMessaging.SendPluginMessage,
@@ -460,6 +487,28 @@ partial class GameServer
             "Server simulation tick rate.",
             _config.TicksPerSecond,
             () => _config.TicksPerSecond);
+        registry.RegisterBoolean(
+            "sv_bot_autofill",
+            "Enable automatic bot filling to maintain minimum player count.",
+            _botAutofillEnabled,
+            () => _botAutofillEnabled,
+            value => _botAutofillEnabled = value);
+        registry.RegisterInteger(
+            "sv_bot_autofill_min_players",
+            "Minimum total players before bots are automatically added.",
+            _botAutofillMinPlayers,
+            () => _botAutofillMinPlayers,
+            value => _botAutofillMinPlayers = value,
+            minValue: 0,
+            maxValue: 24);
+        registry.RegisterInteger(
+            "sv_bot_autofill_per_team",
+            "Target bot count per team when autofilling.",
+            _botAutofillPerTeam,
+            () => _botAutofillPerTeam,
+            value => _botAutofillPerTeam = value,
+            minValue: 0,
+            maxValue: 12);
         registry.EnableRuntimeProtectionPersistence(RuntimePaths.GetConfigPath("server-cvar-policy.json"));
         return registry;
     }

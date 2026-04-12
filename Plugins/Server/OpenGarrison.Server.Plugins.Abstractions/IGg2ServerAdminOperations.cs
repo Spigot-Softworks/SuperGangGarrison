@@ -1,8 +1,15 @@
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Server.Plugins;
+
+public readonly record struct OpenGarrisonServerBotSlotInfo(
+    byte Slot,
+    PlayerTeam Team,
+    PlayerClass PlayerClass,
+    string DisplayName);
 
 public interface IOpenGarrisonServerAdminOperations
 {
@@ -63,4 +70,21 @@ public interface IOpenGarrisonServerAdminOperations
     bool TryChangeMap(string levelName, int mapAreaIndex = 1, bool preservePlayerStats = false);
 
     bool TrySetNextRoundMap(string levelName, int mapAreaIndex = 1);
+
+    // Bot management
+    bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName);
+
+    bool TryRemoveBot(byte slot);
+
+    bool TrySetBotTeam(byte slot, PlayerTeam team);
+
+    bool TrySetBotClass(byte slot, PlayerClass playerClass);
+
+    int TryFillBots(int targetPerTeam, PlayerClass defaultClass);
+
+    int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass);
+
+    IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots();
+
+    int TryClearAllBots();
 }

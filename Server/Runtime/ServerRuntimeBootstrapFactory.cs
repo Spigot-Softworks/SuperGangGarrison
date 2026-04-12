@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
+using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;
@@ -138,6 +139,10 @@ internal static class ServerRuntimeBootstrapFactory
             mapMetadataResolver,
             outboundMessaging.SendSnapshotPayload);
 
+        // Create the server bot manager with the modern practice bot controller
+        var botController = new ModernPracticeBotController();
+        var botManager = new ServerBotManager(world, config, botController);
+
         return new ServerRuntimeBootstrap(
             lobbyRegistrar,
             world,
@@ -151,6 +156,7 @@ internal static class ServerRuntimeBootstrapFactory
             sessionManager,
             autoBalancer,
             snapshotBroadcaster,
-            mapRotationManager);
+            mapRotationManager,
+            botManager);
     }
 }
