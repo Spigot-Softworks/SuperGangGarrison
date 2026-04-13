@@ -34,6 +34,14 @@ public sealed partial class SimulationWorld
         return Math.Max(1, (int)MathF.Round(Config.TicksPerSecond * ExperimentalGameplaySettings.KillInvincibilityDurationSeconds));
     }
 
+    private int GetExperimentalRageExtensionTicksPerKill()
+    {
+        return Math.Max(
+            1,
+            (int)MathF.Round(
+                Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierRageExtensionSecondsPerKill));
+    }
+
     private float GetExperimentalPassiveHealthRegenerationPerTick()
     {
         return ExperimentalGameplaySettings.PassiveHealthRegenerationPerSecond / Math.Max(1, Config.TicksPerSecond);
@@ -128,6 +136,13 @@ public sealed partial class SimulationWorld
         {
             killer.RefreshUber(GetExperimentalKillInvulnerabilityTicks());
         }
+
+        if (ExperimentalGameplaySettings.EnableSoldierRageExtensionOnKill
+            && killer.ClassId == PlayerClass.Soldier
+            && killer.IsRaging)
+        {
+            killer.ExtendRageDuration(GetExperimentalRageExtensionTicksPerKill());
+        }
     }
 
     private void TryApplyExperimentalSoldierRocketHitReloadReward(PlayerEntity? attacker, RocketProjectileEntity rocket, bool hitEnemyPlayer)
@@ -148,6 +163,41 @@ public sealed partial class SimulationWorld
     private void ApplyExperimentalHealingReward(PlayerEntity player, float healing)
     {
         ApplyHealingWithFeedback(player, healing);
+    }
+
+    private bool TryConvertExperimentalSelfDamageToHealing(PlayerEntity target, PlayerEntity? attacker, float healingAmount)
+    {
+        if (attacker is null
+            || !ReferenceEquals(attacker, target)
+            || !IsExperimentalPracticePowerOwner(target)
+            || !ExperimentalGameplaySettings.EnableSelfDamageHealing
+            || !target.CanConvertExperimentalSelfDamageToHealing()
+            || healingAmount <= 0f)
+        {
+            return false;
+        }
+
+        ApplyExperimentalHealingReward(target, healingAmount);
+        return true;
+    }
+
+    private float ApplyExperimentalSoldierRocketLaunchSpeed(PlayerEntity attacker, float launchSpeed)
+    {
+        var adjustedSpeed = ApplyExperimentalProjectileSpeedMultiplier(attacker, launchSpeed);
+        if (adjustedSpeed <= 0f
+            || !ExperimentalGameplaySettings.EnableSoldierStingerRockets
+            || !IsExperimentalPracticePowerOwner(attacker)
+            || attacker.ClassId != PlayerClass.Soldier)
+        {
+            return adjustedSpeed;
+        }
+
+        return adjustedSpeed * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerRocketSpeedMultiplier;
+    }
+
+    private static float GetExperimentalSoldierStingerTurnRateRadians()
+    {
+        return global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerRocketTurnRateDegrees * (MathF.PI / 180f);
     }
 
     private int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, int damage)

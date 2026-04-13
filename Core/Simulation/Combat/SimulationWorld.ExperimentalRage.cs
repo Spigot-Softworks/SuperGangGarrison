@@ -20,6 +20,7 @@ public sealed partial class SimulationWorld
         bool CanGrantExperimentalInstantReloadOnHit,
         float KnockbackScale,
         bool CanIgniteTargets,
+        bool EnableStingerTracking,
         string? KillFeedWeaponSpriteNameOverride);
 
     private int GetExperimentalRageDurationTicks()
@@ -49,7 +50,7 @@ public sealed partial class SimulationWorld
 
     private static float GetExperimentalGhostDashImpulse()
     {
-        return 12f;
+        return 75f;
     }
 
     private int GetExperimentalFinalRocketBurstDelayTicks()
@@ -68,6 +69,7 @@ public sealed partial class SimulationWorld
         bool canGrantExperimentalInstantReloadOnHit,
         float knockbackScale,
         bool canIgniteTargets,
+        bool enableStingerTracking,
         string? killFeedWeaponSpriteNameOverride)
     {
         if (!ExperimentalGameplaySettings.EnableSoldierFinalClipRocketBurst
@@ -89,6 +91,7 @@ public sealed partial class SimulationWorld
             canGrantExperimentalInstantReloadOnHit,
             knockbackScale,
             canIgniteTargets,
+            enableStingerTracking,
             killFeedWeaponSpriteNameOverride));
     }
 
@@ -197,6 +200,7 @@ public sealed partial class SimulationWorld
                 canGrantExperimentalInstantReloadOnHit: queuedBurst.CanGrantExperimentalInstantReloadOnHit,
                 knockbackScale: queuedBurst.KnockbackScale,
                 canIgniteTargets: queuedBurst.CanIgniteTargets,
+                enableExperimentalStingerTracking: queuedBurst.EnableStingerTracking,
                 killFeedWeaponSpriteNameOverride: queuedBurst.KillFeedWeaponSpriteNameOverride);
         }
     }

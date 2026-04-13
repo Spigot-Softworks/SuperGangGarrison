@@ -131,17 +131,20 @@ internal static class ServerRuntimeBootstrapFactory
             passwordRequired,
             outboundMessaging.SendMessage,
             log);
-        var snapshotBroadcaster = new SnapshotBroadcaster(
-            world,
-            config,
-            clientsBySlot,
-            transientEventReplayTicks,
-            mapMetadataResolver,
-            outboundMessaging.SendSnapshotPayload);
 
         // Create the server bot manager with the modern practice bot controller
         var botController = new ModernPracticeBotController();
         var botManager = new ServerBotManager(world, config, botController);
+
+        // Snapshot broadcaster needs bot manager to include server bots in snapshots
+        var snapshotBroadcaster = new SnapshotBroadcaster(
+            world,
+            config,
+            clientsBySlot,
+            botManager,
+            transientEventReplayTicks,
+            mapMetadataResolver,
+            outboundMessaging.SendSnapshotPayload);
 
         return new ServerRuntimeBootstrap(
             lobbyRegistrar,

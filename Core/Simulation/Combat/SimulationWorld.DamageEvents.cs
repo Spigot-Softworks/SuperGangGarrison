@@ -69,6 +69,11 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (TryConvertExperimentalSelfDamageToHealing(target, attacker, damage))
+        {
+            return false;
+        }
+
         var healthBefore = target.Health;
         var died = target.ApplyDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
@@ -104,6 +109,11 @@ public sealed partial class SimulationWorld
         damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
         damage = ScaleConfiguredDamage(damage);
         if (damage <= 0f)
+        {
+            return false;
+        }
+
+        if (TryConvertExperimentalSelfDamageToHealing(target, attacker, damage))
         {
             return false;
         }

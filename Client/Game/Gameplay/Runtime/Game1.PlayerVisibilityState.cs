@@ -15,6 +15,11 @@ public partial class Game1
         }
 
         var bodyVisibilityScale = GetSpyBackstabBodyVisibilityScale(player);
+        if (player.IsExperimentalGhostDashVisible)
+        {
+            return 0.42f * bodyVisibilityScale;
+        }
+
         if (!GetPlayerIsSpyCloaked(player))
         {
             return bodyVisibilityScale;

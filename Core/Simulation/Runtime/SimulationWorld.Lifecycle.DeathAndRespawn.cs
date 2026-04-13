@@ -64,6 +64,7 @@ public sealed partial class SimulationWorld
         {
             SpawnPlayerGibs(player);
             RegisterWorldSoundEvent("Gibbing", player.X, player.Y);
+            TryTriggerExperimentalDangerCloseExplosion(player, killer);
         }
         else
         {

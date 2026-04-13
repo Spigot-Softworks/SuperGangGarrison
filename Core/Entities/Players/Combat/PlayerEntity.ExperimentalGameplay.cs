@@ -187,9 +187,29 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public void SetExperimentalSelfDamageHealing(bool enabled)
+    {
+        ExperimentalSelfDamageHealingEnabled = enabled;
+    }
+
     public void SetExperimentalSoldierInfiniteAmmoDuringRage(bool enabled)
     {
         ExperimentalSoldierInfiniteAmmoDuringRageEnabled = enabled;
+    }
+
+    public void SetExperimentalReloadSpeedMultiplier(float multiplier)
+    {
+        ExperimentalReloadSpeedMultiplierValue = MathF.Max(0.1f, multiplier);
+    }
+
+    public int GetExperimentalReloadDurationTicks(int ticks)
+    {
+        return ApplyExperimentalReloadMultiplier(ticks);
+    }
+
+    public bool CanConvertExperimentalSelfDamageToHealing()
+    {
+        return ExperimentalSelfDamageHealingEnabled && IsAlive;
     }
 
     public void SetExperimentalDemoknightChargeFullControlEnabled(bool enabled)
@@ -226,8 +246,9 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashTicksRemaining = dashTicks;
         ExperimentalGhostDashVisibilityTicksRemaining = dashTicks;
         ExperimentalGhostDashCooldownTicksRemaining = cooldownTicks;
+        ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, dashImpulse);
+        ExperimentalGhostDashSpeedPerSecondValue = dashImpulse <= 0f ? 0f : dashImpulse / 0.08f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = nextAttackDamageMultiplier;
-        AddImpulse(FacingDirectionX * dashImpulse, 0f);
         return true;
     }
 
@@ -383,6 +404,8 @@ public sealed partial class PlayerEntity
             if (ExperimentalGhostDashTicksRemaining <= 0)
             {
                 ExperimentalGhostDashTicksRemaining = 0;
+                ExperimentalGhostDashDistanceRemaining = 0f;
+                ExperimentalGhostDashSpeedPerSecondValue = 0f;
             }
         }
 
@@ -423,14 +446,18 @@ public sealed partial class PlayerEntity
         ExperimentalMovementSpeedMultiplierValue = 1f;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
         ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled = false;
+        ExperimentalSelfDamageHealingEnabled = false;
         ExperimentalSoldierInfiniteAmmoDuringRageEnabled = false;
         ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
+        ExperimentalReloadSpeedMultiplierValue = 1f;
         ExperimentalDemoknightChargeFullControlEnabled = false;
         ExperimentalDemoknightPostRageRegenTicksRemaining = 0;
         ExperimentalDemoknightPostRageRegenPerTickValue = 0f;
         ExperimentalGhostDashTicksRemaining = 0;
         ExperimentalGhostDashCooldownTicksRemaining = 0;
         ExperimentalGhostDashVisibilityTicksRemaining = 0;
+        ExperimentalGhostDashDistanceRemaining = 0f;
+        ExperimentalGhostDashSpeedPerSecondValue = 0f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
         IsExperimentalDemoknightCharging = false;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
@@ -522,5 +549,11 @@ public sealed partial class PlayerEntity
         }
 
         return Math.Max(1, (int)MathF.Round(clampedCooldown * ExperimentalPrimaryCooldownMultiplierValue));
+    }
+
+    private int ApplyExperimentalReloadMultiplier(int ticks)
+    {
+        var clampedTicks = Math.Max(1, ticks);
+        return Math.Max(1, (int)MathF.Round(clampedTicks / ExperimentalReloadSpeedMultiplierValue));
     }
 }

@@ -59,6 +59,15 @@ public sealed partial class SimulationWorld
             if (world.FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
             {
                 rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);
+                if (rocket.EnableExperimentalStingerTracking
+                    && world.ExperimentalGameplaySettings.EnableSoldierStingerRockets
+                    && rangeAnchorPlayer.ClassId == PlayerClass.Soldier
+                    && world.IsExperimentalPracticePowerOwner(rangeAnchorPlayer))
+                {
+                    rocket.TrackExperimentalStingerTarget(
+                        rangeAnchorPlayer.AimDirectionDegrees * (MathF.PI / 180f),
+                        SimulationWorld.GetExperimentalSoldierStingerTurnRateRadians());
+                }
             }
 
             if (rocket.IsFading)

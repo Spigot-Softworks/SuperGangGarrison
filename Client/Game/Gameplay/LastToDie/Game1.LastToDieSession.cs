@@ -30,6 +30,7 @@ public partial class Game1
     private const int LastToDieFailureFadeTicks = 45;
     private const int LastToDieFailureContinueDelayTicks = 18;
     private const float LastToDieStageIntroDurationSeconds = 2f;
+    private const int LastToDieKillTimerReductionSeconds = 3;
 
     private enum LastToDieSurvivorKind
     {
@@ -50,6 +51,11 @@ public partial class Game1
         InvincibilityOnKill,
         ProjectileSpeedMultiplier,
         AirshotDamageMultiplier,
+        SoldierStingerRockets,
+        SoldierRageExtensionOnKill,
+        SoldierDangerClose,
+        SoldierSelfDamageHealing,
+        SoldierReloadSpeedMultiplier,
         SoldierAmmoRegeneratesWhileSwappedOut,
         SoldierInfiniteAmmoDuringRage,
         SoldierRageCaptureLockout,
@@ -146,6 +152,11 @@ public partial class Game1
         new(LastToDiePerkKind.InvincibilityOnKill, "Untouchable", "Gain 1s of invulnerability after kills."),
         new(LastToDiePerkKind.ProjectileSpeedMultiplier, "Hypersonic", "All spawned projectile weapons fly 60% faster."),
         new(LastToDiePerkKind.AirshotDamageMultiplier, "AA Gun", "Direct projectile airshots deal bonus damage."),
+        new(LastToDiePerkKind.SoldierStingerRockets, "STINGER Rockets", "Rockets are 30% slower, follow the cursor, and detonate on right click for bonus damage."),
+        new(LastToDiePerkKind.SoldierRageExtensionOnKill, "Fury Drive", "Kills scored during rage add 2 seconds to rage duration."),
+        new(LastToDiePerkKind.SoldierDangerClose, "Danger Close", "Gibbed enemies explode where they die and can chain nearby explosives."),
+        new(LastToDiePerkKind.SoldierSelfDamageHealing, "Shrapnel Junkie", "Self damage heals instead of damaging."),
+        new(LastToDiePerkKind.SoldierReloadSpeedMultiplier, "Speed Loader", "All weapons recharge and reload 40% faster."),
         new(LastToDiePerkKind.SoldierAmmoRegeneratesWhileSwappedOut, "Bandolier", "Reload stowed weapons alongside the active weapon."),
         new(LastToDiePerkKind.SoldierInfiniteAmmoDuringRage, "Locked N' Loaded", "Fire rockets without spending ammo while raging."),
         new(LastToDiePerkKind.SoldierRageCaptureLockout, "Area Denial", "Enemies are locked out of captures during rage."),
@@ -180,6 +191,9 @@ public partial class Game1
     private int _lastToDieStageClearOverlayTicks;
     private bool _lastToDieFailureOverlayOpen;
     private int _lastToDieFailureOverlayTicks;
+    private int _lastToDieTimerReductionPopupTicksRemaining;
+    private float _lastToDieTimerReductionPopupRise;
+    private int _lastToDieTimerReductionPopupSeconds;
 
     private bool IsLastToDieSessionActive => _gameplaySessionKind == GameplaySessionKind.LastToDie;
 
@@ -233,6 +247,9 @@ public partial class Game1
         ResetLastToDieCombatFeedbackPresentation();
         _lastToDieFailureOverlayOpen = false;
         _lastToDieFailureOverlayTicks = 0;
+        _lastToDieTimerReductionPopupTicksRemaining = 0;
+        _lastToDieTimerReductionPopupRise = 0f;
+        _lastToDieTimerReductionPopupSeconds = 0;
     }
 
     private void TryStartLastToDieRun()
@@ -631,6 +648,11 @@ public partial class Game1
                 LastToDiePerkKind.InvincibilityOnKill => settings with { EnableInvincibilityOnKill = true, KillInvincibilityDurationSeconds = 1f },
                 LastToDiePerkKind.ProjectileSpeedMultiplier => settings with { EnableProjectileSpeedMultiplier = true, ProjectileSpeedMultiplierValue = 1.6f },
                 LastToDiePerkKind.AirshotDamageMultiplier => settings with { EnableAirshotDamageMultiplier = true, AirshotDamageMultiplierValue = 1.5f },
+                LastToDiePerkKind.SoldierStingerRockets => settings with { EnableSoldierStingerRockets = true },
+                LastToDiePerkKind.SoldierRageExtensionOnKill => settings with { EnableSoldierRageExtensionOnKill = true },
+                LastToDiePerkKind.SoldierDangerClose => settings with { EnableSoldierDangerClose = true },
+                LastToDiePerkKind.SoldierSelfDamageHealing => settings with { EnableSelfDamageHealing = true },
+                LastToDiePerkKind.SoldierReloadSpeedMultiplier => settings with { ReloadSpeedMultiplierValue = 1.4f },
                 LastToDiePerkKind.SoldierAmmoRegeneratesWhileSwappedOut => settings with { EnableSoldierAmmoRegeneratesWhileSwappedOut = true },
                 LastToDiePerkKind.SoldierInfiniteAmmoDuringRage => settings with { EnableSoldierInfiniteAmmoDuringRage = true },
                 LastToDiePerkKind.SoldierRageCaptureLockout => settings with { EnableSoldierRageCaptureLockout = true },
@@ -1050,6 +1072,12 @@ public partial class Game1
             return;
         }
 
+        if (_lastToDieTimerReductionPopupTicksRemaining > 0)
+        {
+            _lastToDieTimerReductionPopupTicksRemaining -= 1;
+            _lastToDieTimerReductionPopupRise += 0.6f;
+        }
+
         var currentKills = Math.Max(0, _world.LocalPlayer.Kills);
         if (currentKills < _lastToDieRun.ObservedStageKills)
         {
@@ -1059,9 +1087,25 @@ public partial class Game1
 
         if (currentKills > _lastToDieRun.ObservedStageKills)
         {
-            _lastToDieRun.TotalKills += currentKills - _lastToDieRun.ObservedStageKills;
+            var killCountDelta = currentKills - _lastToDieRun.ObservedStageKills;
+            _lastToDieRun.TotalKills += killCountDelta;
             _lastToDieRun.ObservedStageKills = currentKills;
+            ReduceLastToDieTimerForKills(killCountDelta);
         }
+    }
+
+    private void ReduceLastToDieTimerForKills(int killCountDelta)
+    {
+        if (_lastToDieRun is null || killCountDelta <= 0)
+        {
+            return;
+        }
+
+        var tickReduction = killCountDelta * LastToDieKillTimerReductionSeconds * _config.TicksPerSecond;
+        _lastToDieRun.StageRemainingTicks = Math.Max(0, _lastToDieRun.StageRemainingTicks - tickReduction);
+        _lastToDieTimerReductionPopupTicksRemaining = Math.Max(_lastToDieTimerReductionPopupTicksRemaining, 42);
+        _lastToDieTimerReductionPopupRise = 0f;
+        _lastToDieTimerReductionPopupSeconds = killCountDelta * LastToDieKillTimerReductionSeconds;
     }
 
     private void RegisterLastToDieLocalDamageDealt(int amount)
@@ -1083,6 +1127,14 @@ public partial class Game1
 
         var timerText = FormatHudTimerText(_lastToDieRun.StageRemainingTicks);
         DrawTimerFontTextRightAligned(timerText, new Vector2(ViewportWidth - 18f, 18f), Color.White, 1f);
+        if (_lastToDieTimerReductionPopupTicksRemaining > 0)
+        {
+            var alpha = Math.Clamp(_lastToDieTimerReductionPopupTicksRemaining / 42f, 0f, 1f);
+            var popupPosition = new Vector2(ViewportWidth - 88f, 20f - _lastToDieTimerReductionPopupRise);
+            var popupText = $"-{_lastToDieTimerReductionPopupSeconds}";
+            DrawBitmapFontText(popupText, popupPosition + new Vector2(2f, 2f), Color.Black * alpha, 1f);
+            DrawBitmapFontText(popupText, popupPosition, new Color(255, 226, 74) * alpha, 1f);
+        }
 
         var stageLabel = $"Stage {_lastToDieRun.StageNumber}/{LastToDieStageCount}";
         var enemiesLabel = $"{_lastToDieRun.EnemyBotCount} Enemies";

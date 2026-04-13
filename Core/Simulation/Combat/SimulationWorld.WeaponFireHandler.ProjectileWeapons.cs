@@ -121,7 +121,7 @@ public sealed partial class SimulationWorld
                 attacker,
                 spawnX,
                 spawnY,
-                _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
+                _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians,
                 weaponDefinition.RocketCombat,
                 weaponDefinition.DirectHitHealAmount ?? 0f,
@@ -132,6 +132,7 @@ public sealed partial class SimulationWorld
                     ? 0.75f
                     : 1f,
                 canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
+                enableExperimentalStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
 
             if (experimentalSoldierPerkOwner
@@ -143,7 +144,7 @@ public sealed partial class SimulationWorld
                     attacker,
                     spawnX,
                     spawnY,
-                    _world.ApplyExperimentalProjectileSpeedMultiplier(attacker, weaponDefinition.MinShotSpeed),
+                    _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                     directionRadians,
                     weaponDefinition.RocketCombat,
                     weaponDefinition.DirectHitHealAmount ?? 0f,
@@ -152,6 +153,7 @@ public sealed partial class SimulationWorld
                         ? 0.75f
                         : 1f,
                     canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
+                    enableStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
                     killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
             }
         }

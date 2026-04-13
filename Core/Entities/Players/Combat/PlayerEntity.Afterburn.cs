@@ -31,7 +31,7 @@ public sealed partial class PlayerEntity
 
     public float NapalmCoveredVisualAlpha => !IsNapalmCovered
         ? 0f
-        : 0.25f + (0.5f * float.Clamp(NapalmCoveredSourceTicks / global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks, 0f, 1f));
+        : 0.45f + (0.4f * float.Clamp(NapalmCoveredSourceTicks / global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierNapalmAfterburnDurationSourceTicks, 0f, 1f));
 
     public int BurnVisualCount
     {

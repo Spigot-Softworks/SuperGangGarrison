@@ -42,6 +42,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         bool canGrantExperimentalInstantReloadOnHit = true,
         float knockbackScale = 1f,
         bool canIgniteTargets = false,
+        bool enableExperimentalStingerTracking = false,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
@@ -66,6 +67,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         CanGrantExperimentalInstantReloadOnHit = canGrantExperimentalInstantReloadOnHit;
         KnockbackScale = MathF.Max(0f, knockbackScale);
         CanIgniteTargets = canIgniteTargets;
+        EnableExperimentalStingerTracking = enableExperimentalStingerTracking;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
@@ -108,6 +110,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool CanIgniteTargets { get; }
 
+    public bool EnableExperimentalStingerTracking { get; private set; }
+
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public bool IsFading { get; private set; }
@@ -133,6 +137,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public float DirectHitHealAmountValue { get; }
 
     public bool ExplodeImmediately { get; private set; }
+
+    public float ExperimentalManualDetonationDamageMultiplier { get; private set; } = 1f;
 
     public bool IsExpired => TicksRemaining <= 0;
 
@@ -212,6 +218,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         PreviousX = X;
         PreviousY = Y;
         ExplodeImmediately = false;
+        EnableExperimentalStingerTracking = false;
+        ExperimentalManualDetonationDamageMultiplier = 1f;
         ReducedKnockbackSourceTicksRemaining = ReflectedReducedKnockbackDelaySourceTicks;
         ZeroKnockbackSourceTicksRemaining = ReflectedZeroKnockbackDelaySourceTicks;
     }
@@ -234,6 +242,24 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public void DelayExplosionUntilNextTick()
     {
         ExplodeImmediately = true;
+    }
+
+    public void ArmExperimentalManualDetonation(float damageMultiplier)
+    {
+        ExperimentalManualDetonationDamageMultiplier = MathF.Max(1f, damageMultiplier);
+        DelayExplosionUntilNextTick();
+    }
+
+    public void TrackExperimentalStingerTarget(float targetDirectionRadians, float maxTurnRadians)
+    {
+        if (!EnableExperimentalStingerTracking || maxTurnRadians <= 0f)
+        {
+            return;
+        }
+
+        var delta = NormalizeRadians(targetDirectionRadians - DirectionRadians);
+        delta = Math.Clamp(delta, -maxTurnRadians, maxTurnRadians);
+        DirectionRadians = NormalizeRadians(DirectionRadians + delta);
     }
 
     public void ClearDelayedExplosion()
@@ -274,6 +300,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
+        ExperimentalManualDetonationDamageMultiplier = 1f;
     }
 
     public void ApplyNetworkState(
@@ -311,6 +338,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
+        ExperimentalManualDetonationDamageMultiplier = 1f;
     }
 
     private void AdvanceKnockbackDecay(float deltaSeconds)
@@ -339,6 +367,21 @@ public sealed class RocketProjectileEntity : SimulationEntity
         {
             _passedFriendlyPlayerIds.Add(passedFriendlyPlayerIds[index]);
         }
+    }
+
+    private static float NormalizeRadians(float radians)
+    {
+        while (radians > MathF.PI)
+        {
+            radians -= MathF.PI * 2f;
+        }
+
+        while (radians < -MathF.PI)
+        {
+            radians += MathF.PI * 2f;
+        }
+
+        return radians;
     }
 }
 

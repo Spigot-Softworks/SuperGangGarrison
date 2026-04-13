@@ -516,7 +516,9 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightSwordCooldownMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
             player.SetExperimentalDemoknightChargeRechargeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightChargeRechargeMultiplier);
             player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(false);
+            player.SetExperimentalSelfDamageHealing(false);
             player.SetExperimentalSoldierInfiniteAmmoDuringRage(false);
+            player.SetExperimentalReloadSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
@@ -537,9 +539,16 @@ public sealed partial class SimulationWorld
         player.SetExperimentalSoldierAmmoRegeneratesWhileSwappedOut(
             ExperimentalGameplaySettings.EnableSoldierAmmoRegeneratesWhileSwappedOut
             && player.ClassId == PlayerClass.Soldier);
+        player.SetExperimentalSelfDamageHealing(
+            ExperimentalGameplaySettings.EnableSelfDamageHealing
+            && player.ClassId == PlayerClass.Soldier);
         player.SetExperimentalSoldierInfiniteAmmoDuringRage(
             ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage
             && player.ClassId == PlayerClass.Soldier);
+        player.SetExperimentalReloadSpeedMultiplier(
+            player.ClassId == PlayerClass.Soldier
+                ? ExperimentalGameplaySettings.ReloadSpeedMultiplierValue
+                : global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultReloadSpeedMultiplier);
         player.SetExperimentalDemoknightChargeFullControlEnabled(
             ExperimentalGameplaySettings.EnableDemoknightFullControlDuringCharge
             && player.ClassId == PlayerClass.Demoman);

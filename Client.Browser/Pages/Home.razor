@@ -4,10 +4,6 @@
 
 <PageTitle>OpenGarrison Browser</PageTitle>
 
-<div class="browser-host-status @(GameHostService.HasFailed ? "failed" : GameHostService.IsStarted ? "started" : "pending")">
-    @GameHostService.StatusMessage
-</div>
-
 @code {
     private bool _startRequested;
 

@@ -43,15 +43,18 @@ public partial class Game1
                 return;
             }
 
-            var blurTint = spriteTint * 0.45f;
-            for (var blurIndex = 0; blurIndex < 2; blurIndex += 1)
+            var blurCount = player.IsExperimentalGhostDashVisible ? 5 : 2;
+            var blurTint = player.IsExperimentalGhostDashVisible
+                ? Color.Lerp(spriteTint, new Color(188, 208, 220), 0.55f)
+                : spriteTint * 0.45f;
+            for (var blurIndex = 0; blurIndex < blurCount; blurIndex += 1)
             {
                 var offsetDistance = player.IsExperimentalGhostDashVisible
-                    ? 8f + (blurIndex * 9f)
+                    ? 6f + (blurIndex * 8f)
                     : 5f + (blurIndex * 6f);
                 var blurPosition = renderPosition - blurDirection * offsetDistance;
                 var blurAlpha = visibilityAlpha * (player.IsExperimentalGhostDashVisible
-                    ? (blurIndex == 0 ? 0.32f : 0.2f)
+                    ? MathF.Max(0.12f, 0.42f - (blurIndex * 0.06f))
                     : (blurIndex == 0 ? 0.18f : 0.1f));
                 var tint = blurTint * blurAlpha;
                 _game.TryDrawPlayerSpriteAtPosition(player, blurPosition, cameraPosition, tint, bodySelection, drawIntelOverlay: false);
@@ -144,8 +147,9 @@ public partial class Game1
             }
 
             var sourceFrame = (int)((_game._world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _game._config.TicksPerSecond);
-            var count = Math.Max(3, player.BurnVisualBaseCount + 1);
-            var color = Color.Black * alpha;
+            var count = Math.Max(8, player.BurnVisualBaseCount + 6);
+            var color = new Color(14, 10, 8) * alpha;
+            var streakColor = new Color(32, 24, 18) * (alpha * 0.75f);
             for (var dripIndex = 0; dripIndex < count; dripIndex += 1)
             {
                 var xSeed = ComputeNapalmVisualHash(player.Id, dripIndex, axis: 0);
@@ -158,13 +162,21 @@ public partial class Game1
                 var fallProgress = PositiveModulo(sourceFrame + speedSeed, fallTicks) / (float)fallTicks;
                 var dripX = renderPosition.X + normalizedX * player.Width * 0.42f;
                 var dripY = renderPosition.Y + startY + (fallProgress * player.Height * 0.7f);
-                var size = 2 + Math.Abs(sizeSeed % 3);
+                var size = 3 + Math.Abs(sizeSeed % 4);
                 var dripRectangle = new Rectangle(
                     (int)(dripX - cameraPosition.X),
                     (int)(dripY - cameraPosition.Y),
                     size,
                     size);
                 _game._spriteBatch.Draw(_game._pixel, dripRectangle, color);
+
+                var streakHeight = 2 + Math.Abs((sizeSeed / 3) % 5);
+                var streakRectangle = new Rectangle(
+                    dripRectangle.X,
+                    dripRectangle.Y + size - 1,
+                    Math.Max(1, size - 1),
+                    streakHeight);
+                _game._spriteBatch.Draw(_game._pixel, streakRectangle, streakColor);
             }
         }
 

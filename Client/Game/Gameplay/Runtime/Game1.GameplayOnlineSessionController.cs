@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.Protocol;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -74,6 +75,10 @@ public partial class Game1
             {
                 _game.RecordRecentConnection(host, port);
                 _game.ResetGameplayRuntimeState();
+                // Online sessions must always start from default server-authoritative gameplay rules.
+                // This prevents offline experimental settings (for example Last To Die perks)
+                // from leaking into client prediction when the world instance is reused.
+                _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
                 _game.SetNetworkStatus($"Connecting to {host}:{port}...");
                 if (addConsoleFeedback)
@@ -116,6 +121,7 @@ public partial class Game1
             }
 
             _game.ReinitializeSimulationForTickRate(welcome.TickRate);
+            _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
             _game._networkClient.SetLocalPlayerSlot(welcome.PlayerSlot);
             _game._networkClient.SetServerDescription(welcome.ServerName);
             _game.ResetSpectatorTracking(enableTracking: _game._networkClient.IsSpectator);

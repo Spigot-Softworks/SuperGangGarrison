@@ -1,5 +1,6 @@
 using System.Net;
 using System.Linq;
+using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
@@ -398,6 +399,152 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void DemoknightVanillaChargeReorientsVelocityFromMouseFacing()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
+        world.ForceRespawnLocalPlayer();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableDemoknightKit: true,
+            EnableDemoknightFullControlDuringCharge: false));
+
+        var player = world.LocalPlayer;
+        Assert.True(player.TryStartExperimentalDemoknightCharge());
+
+        var dt = world.Config.FixedDeltaSeconds;
+        var aimRight = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + 256f,
+            AimWorldY: player.Y,
+            DebugKill: false);
+
+        player.Advance(aimRight, jumpPressed: false, world.Level, world.LocalPlayerTeam, dt);
+        Assert.True(player.HorizontalSpeed > 0f);
+
+        var aimLeft = aimRight with { AimWorldX = player.X - 256f };
+        for (var tick = 0; tick < 30; tick += 1)
+        {
+            player.Advance(aimLeft, jumpPressed: false, world.Level, world.LocalPlayerTeam, dt);
+            if (player.HorizontalSpeed < 0f)
+            {
+                break;
+            }
+        }
+
+        Assert.True(player.FacingDirectionX < 0f);
+        Assert.True(player.HorizontalSpeed < 0f);
+    }
+
+    [Fact]
+    public void DemoknightFullControlChargeAllowsJump()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
+        world.ForceRespawnLocalPlayer();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableDemoknightKit: true,
+            EnableDemoknightFullControlDuringCharge: true));
+
+        var player = world.LocalPlayer;
+        var neutralInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + 256f,
+            AimWorldY: player.Y,
+            DebugKill: false);
+        for (var tick = 0; tick < 60 && !player.IsGrounded; tick += 1)
+        {
+            var preGrounded = player.PrepareMovement(neutralInput, world.Level, world.LocalPlayerTeam, world.Config.FixedDeltaSeconds, out _);
+            player.CompleteMovement(world.Level, world.LocalPlayerTeam, world.Config.FixedDeltaSeconds, preGrounded, jumped: false, allowDropdownFallThrough: false);
+        }
+
+        Assert.True(player.IsGrounded);
+        Assert.True(player.TryStartExperimentalDemoknightCharge());
+
+        var input = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: true,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + 256f,
+            AimWorldY: player.Y,
+            DebugKill: false);
+        var previousInput = input with { Up = false };
+
+        var team = world.LocalPlayerTeam;
+        _ = player.PrepareMovement(input, world.Level, team, world.Config.FixedDeltaSeconds, out var canMove);
+        Assert.True(player.IsAlive);
+        Assert.True(player.IsExperimentalDemoknightCharging);
+        Assert.True(canMove);
+        var jumped = player.TryJumpIfPossible(canMove, jumpPressed: input.Up && !previousInput.Up);
+
+        Assert.True(jumped);
+        Assert.True(player.VerticalSpeed < 0f);
+    }
+
+    [Fact]
+    public void DemoknightFullControlChargeAllowsHeldJumpIntentWhileGrounded()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
+        world.ForceRespawnLocalPlayer();
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableDemoknightKit: true,
+            EnableDemoknightFullControlDuringCharge: true));
+
+        var player = world.LocalPlayer;
+        var neutralInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + 256f,
+            AimWorldY: player.Y,
+            DebugKill: false);
+        for (var tick = 0; tick < 60 && !player.IsGrounded; tick += 1)
+        {
+            var preGrounded = player.PrepareMovement(neutralInput, world.Level, world.LocalPlayerTeam, world.Config.FixedDeltaSeconds, out _);
+            player.CompleteMovement(world.Level, world.LocalPlayerTeam, world.Config.FixedDeltaSeconds, preGrounded, jumped: false, allowDropdownFallThrough: false);
+        }
+
+        Assert.True(player.IsGrounded);
+        Assert.True(player.TryStartExperimentalDemoknightCharge());
+
+        var input = neutralInput with { Up = true };
+
+        _ = player.PrepareMovement(input, world.Level, world.LocalPlayerTeam, world.Config.FixedDeltaSeconds, out var canMove);
+        var jumped = player.TryJumpIfPossible(canMove, jumpPressed: false);
+
+        Assert.True(jumped);
+        Assert.True(player.VerticalSpeed < 0f);
+    }
+
+    [Fact]
     public void LivePlayerScalePreservesCollisionFootprintAnchorWhenSpaceAllows()
     {
         var world = new SimulationWorld();
@@ -721,6 +868,7 @@ public sealed class ServerAdminFoundationTests
             var sessionManager = CreateSessionManager(world, clients);
             var sentMessages = new List<IProtocolMessage>();
             var banService = new ServerBanService(Path.Combine(root, "server-bans.json"), () => new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero));
+            var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
             var operations = new ServerAdminOperations(
                 static _ => { },
                 (_, message) => sentMessages.Add(message),
@@ -729,8 +877,8 @@ public sealed class ServerAdminFoundationTests
                 () => world,
                 static () => null,
                 () => new MapRotationManager(world, requestedMap: null, mapRotationFile: null, stockMapRotation: [], static _ => { }),
-                () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
-                static () => throw new InvalidOperationException("Unexpected bot manager access."),
+                () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, botManager, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
+                () => botManager,
                 banService: banService);
 
             var banResult = operations.TryBanPlayer(client.Slot, TimeSpan.FromMinutes(15), "griefing");

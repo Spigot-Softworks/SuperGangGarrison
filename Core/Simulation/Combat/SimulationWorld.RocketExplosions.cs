@@ -148,7 +148,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var appliedDamage = rocket.ExplosionDamageValue * distanceFactor;
+                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
                 hitEnemyPlayer |= player.Team != rocket.Team;
                 if (world.ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
@@ -237,7 +237,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var damage = rocket.ExplosionDamageValue * (1f - (distance / rocket.BlastRadiusValue));
+                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * (1f - (distance / rocket.BlastRadiusValue));
                 if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
                 {
                     world.DestroySentry(sentry, owner);
@@ -256,7 +256,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var damage = rocket.ExplosionDamageValue * (1f - (distance / rocket.BlastRadiusValue));
+                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * (1f - (distance / rocket.BlastRadiusValue));
                 world.TryDamageGenerator(generator.Team, damage, owner);
             }
         }

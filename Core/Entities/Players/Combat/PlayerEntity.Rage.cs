@@ -52,6 +52,16 @@ public sealed partial class PlayerEntity
         }
     }
 
+    public void ExtendRageDuration(int ticks)
+    {
+        if (!IsAlive || !IsRaging || ticks <= 0)
+        {
+            return;
+        }
+
+        RageTicksRemaining += ticks;
+    }
+
     public void ClearRageState()
     {
         ResetRageState();

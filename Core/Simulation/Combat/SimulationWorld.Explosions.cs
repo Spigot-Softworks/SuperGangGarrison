@@ -348,6 +348,163 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private void TryTriggerExperimentalDangerCloseExplosion(PlayerEntity victim, PlayerEntity? killer)
+    {
+        if (!ExperimentalGameplaySettings.EnableSoldierDangerClose
+            || killer is null
+            || !IsExperimentalPracticePowerOwner(killer)
+            || killer.ClassId != PlayerClass.Soldier
+            || ReferenceEquals(killer, victim)
+            || killer.Team == victim.Team)
+        {
+            return;
+        }
+
+        TriggerExperimentalDangerCloseExplosion(victim.X, victim.Y, killer);
+    }
+
+    private void TriggerExperimentalDangerCloseExplosion(float centerX, float centerY, PlayerEntity owner)
+    {
+        var blastRadius = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseBlastRadius;
+        var blastDamage = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseExplosionDamage;
+        var knockbackPerTick = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseKnockbackPerTick;
+
+        RegisterWorldSoundEvent("ExplosionSnd", centerX, centerY);
+        RegisterVisualEffect("Explosion", centerX, centerY);
+        ApplyDeadBodyExplosionImpulse(centerX, centerY, blastRadius, 10f);
+        ApplyPlayerGibExplosionImpulse(centerX, centerY, blastRadius, 15f);
+        RegisterExplosionTraces(centerX, centerY);
+
+        foreach (var player in EnumerateSimulatedPlayers())
+        {
+            if (!player.IsAlive)
+            {
+                continue;
+            }
+
+            var distance = GetExplosionDistanceToPlayer(player, centerX, centerY);
+            if (distance >= blastRadius)
+            {
+                continue;
+            }
+
+            if (ShouldIgnoreFriendlyGroundedBlast(player, owner.Team, owner.Id))
+            {
+                continue;
+            }
+
+            var distanceFactor = 1f - (distance / blastRadius);
+            if (distanceFactor <= RocketProjectileEntity.SplashThresholdFactor)
+            {
+                continue;
+            }
+
+            var impulse = GetExplosionImpulseMagnitude(
+                player,
+                centerX,
+                centerY,
+                knockbackPerTick,
+                distanceFactor,
+                useMineVectorProfile: false);
+            ApplyExplosionImpulse(player, centerX, centerY, impulse);
+            player.SetMovementState(player.Team == owner.Team
+                ? LegacyMovementState.FriendlyJuggle
+                : LegacyMovementState.RocketJuggle);
+
+            if (!CanTeamDamagePlayer(owner.Team, owner.Id, player))
+            {
+                continue;
+            }
+
+            var appliedDamage = blastDamage * distanceFactor;
+            RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
+            if (ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
+            {
+                KillPlayer(
+                    player,
+                    gibbed: true,
+                    killer: owner,
+                    weaponSpriteName: "ExplodeKL");
+            }
+        }
+
+        for (var sentryIndex = _sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
+        {
+            var sentry = _sentries[sentryIndex];
+            var distance = DistanceBetween(centerX, centerY, sentry.X, sentry.Y);
+            if (distance >= blastRadius || sentry.Team == owner.Team)
+            {
+                continue;
+            }
+
+            var damage = blastDamage * (1f - (distance / blastRadius));
+            if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
+            {
+                DestroySentry(sentry, owner);
+            }
+        }
+
+        for (var generatorIndex = 0; generatorIndex < _generators.Count; generatorIndex += 1)
+        {
+            var generator = _generators[generatorIndex];
+            var distance = DistanceBetween(centerX, centerY, generator.Marker.CenterX, generator.Marker.CenterY);
+            if (distance >= blastRadius || generator.Team == owner.Team || generator.IsDestroyed)
+            {
+                continue;
+            }
+
+            var damage = blastDamage * (1f - (distance / blastRadius));
+            TryDamageGenerator(generator.Team, damage, owner);
+        }
+
+        var rocketIdsToExplode = new List<int>();
+        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        {
+            if (DistanceBetween(centerX, centerY, _rockets[rocketIndex].X, _rockets[rocketIndex].Y) < blastRadius * 0.66f)
+            {
+                rocketIdsToExplode.Add(_rockets[rocketIndex].Id);
+            }
+        }
+
+        for (var index = 0; index < rocketIdsToExplode.Count; index += 1)
+        {
+            for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+            {
+                if (_rockets[rocketIndex].Id == rocketIdsToExplode[index])
+                {
+                    ExplodeRocket(_rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                    break;
+                }
+            }
+        }
+
+        var mineIdsToExplode = new List<int>();
+        for (var mineIndex = 0; mineIndex < _mines.Count; mineIndex += 1)
+        {
+            if (DistanceBetween(centerX, centerY, _mines[mineIndex].X, _mines[mineIndex].Y) < blastRadius)
+            {
+                mineIdsToExplode.Add(_mines[mineIndex].Id);
+            }
+        }
+
+        for (var index = 0; index < mineIdsToExplode.Count; index += 1)
+        {
+            var mine = FindMineById(mineIdsToExplode[index]);
+            if (mine is not null)
+            {
+                ExplodeMine(mine);
+            }
+        }
+
+        for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
+        {
+            if (DistanceBetween(centerX, centerY, _bubbles[bubbleIndex].X, _bubbles[bubbleIndex].Y) < blastRadius)
+            {
+                RemoveBubbleAt(bubbleIndex);
+            }
+        }
+    }
+
     private void DestroyBubblesInMineBlast(MineProjectileEntity mine)
     {
         for (var bubbleIndex = _bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)

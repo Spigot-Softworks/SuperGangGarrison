@@ -4,10 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenGarrison Browser</title>
-    <base href="/" />
+    <base href="/jeremyclarkson/" />
     <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="splash-screen">
+        <img src="clarkson.png" alt="" />
+        <div id="winDialog" class="win-dialog-overlay" role="presentation" aria-hidden="false">
+            <div class="win-dialog" role="alertdialog" aria-modal="true" aria-labelledby="winDialogTitle" aria-describedby="winDialogMessage">
+                <div class="win-dialog-titlebar">
+                    <span class="win-dialog-icon" aria-hidden="true">⚠️</span>
+                    <span id="winDialogTitle" class="win-dialog-title">ALERT</span>
+                </div>
+                <div class="win-dialog-content">
+                    <p id="winDialogMessage" class="win-dialog-message">You're Winner!!!</p>
+                    <div class="win-dialog-buttons">
+                        <button id="winDialogOk">Ok</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <audio id="introAudio" preload="auto" loop></audio>
+    <audio id="scopeAudio" preload="auto"></audio>
+
     <div class="game-shell">
         <canvas id="theCanvas" class="game-canvas" width="800" height="600" tabindex="0"></canvas>
     </div>
@@ -648,15 +669,115 @@
                     cancelAnimationFrame(api.gameLoopHandle);
                     api.gameLoopHandle = 0;
                 }
+            },
+            // Splash Screen Functions
+            splashState: "dialog", // "dialog" | "intro_playing" | "scope_playing" | "done"
+            startIntroAudio: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                if (api.splashState !== "dialog") {
+                    return;
+                }
+                api.splashState = "intro_playing";
+                const introAudio = document.getElementById("introAudio");
+                if (introAudio) {
+                    introAudio.src = "clarkson.ogg";
+                    introAudio.play().catch(function (error) {
+                        console.warn("Failed to play intro audio:", error);
+                        api.splashState = "intro_playing";
+                    });
+                }
+            },
+            dismissDialog: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                if (api.splashState !== "dialog") {
+                    return;
+                }
+                // Hide the dialog
+                const winDialog = document.getElementById("winDialog");
+                if (winDialog) {
+                    winDialog.classList.add("hidden");
+                }
+                // Start the intro audio loop
+                api.startIntroAudio();
+            },
+            handleSplashClick: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                if (api.splashState === "dialog") {
+                    // First click dismisses the dialog
+                    api.dismissDialog();
+                    return;
+                }
+                if (api.splashState !== "intro_playing") {
+                    return; // Ignore clicks during scope or after done
+                }
+                // Stop intro and play scope
+                const introAudio = document.getElementById("introAudio");
+                if (introAudio) {
+                    introAudio.pause();
+                    introAudio.currentTime = 0;
+                }
+                api.splashState = "scope_playing";
+                const scopeAudio = document.getElementById("scopeAudio");
+                if (scopeAudio) {
+                    scopeAudio.src = "scope.ogg";
+                    scopeAudio.onended = function () {
+                        api.onSplashComplete();
+                    };
+                    scopeAudio.play().catch(function (error) {
+                        console.warn("Failed to play scope audio:", error);
+                        api.onSplashComplete();
+                    });
+                } else {
+                    api.onSplashComplete();
+                }
+            },
+            onSplashComplete: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                if (api.splashState === "done") {
+                    return;
+                }
+                api.splashState = "done";
+                const splashScreen = document.getElementById("splashScreen");
+                if (splashScreen) {
+                    splashScreen.classList.add("hidden");
+                }
+                api.focusCanvas();
+                const canvas = document.getElementById("theCanvas");
+                if (canvas) {
+                    canvas.addEventListener("pointerdown", function () {
+                        api.focusCanvas();
+                    });
+                }
             }
         };
 
         window.addEventListener("load", function () {
-            window.OpenGarrisonBrowserHost.focusCanvas();
-            const canvas = document.getElementById("theCanvas");
-            if (canvas) {
-                canvas.addEventListener("pointerdown", function () {
-                    window.OpenGarrisonBrowserHost.focusCanvas();
+            // Set up Ok button handler
+            const okButton = document.getElementById("winDialogOk");
+            const dismissDialogAndFocus = function (e) {
+                if (window.OpenGarrisonBrowserHost.splashState !== "dialog") {
+                    return;
+                }
+                if (e) {
+                    e.stopPropagation();
+                }
+                window.OpenGarrisonBrowserHost.dismissDialog();
+            };
+            if (okButton) {
+                okButton.addEventListener("click", dismissDialogAndFocus);
+            }
+            // Set up dialog to close on any keypress
+            const keydownHandler = function (e) {
+                if (window.OpenGarrisonBrowserHost.splashState === "dialog") {
+                    dismissDialogAndFocus(e);
+                }
+            };
+            document.addEventListener("keydown", keydownHandler);
+            // Set up splash screen click handler
+            const splashScreen = document.getElementById("splashScreen");
+            if (splashScreen) {
+                splashScreen.addEventListener("click", function () {
+                    window.OpenGarrisonBrowserHost.handleSplashClick();
                 });
             }
         });

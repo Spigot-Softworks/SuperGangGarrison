@@ -169,16 +169,19 @@ public sealed partial class PlayerEntity
         }
         else
         {
-            horizontalDirection = FacingDirectionX;
+            // Vanilla charge still tracks facing from aim, but keeps weaker steering
+            // and no jump control (those stay gated by Full Control).
+            horizontalDirection = GetExperimentalDemoknightChargeTurnDirection(input, canMove);
         }
 
-        if ((!isDemoknightChargeDriving || allowChargeFullControl) && horizontalDirection != 0f)
+        if (horizontalDirection != 0f)
         {
             FacingDirectionX = horizontalDirection;
         }
 
         if (isDemoknightChargeDriving)
         {
+            SyncExperimentalDemoknightChargeTurnVelocity(horizontalDirection);
             ExperimentalDemoknightChargeWantsLift = input.Up;
             ApplyExperimentalDemoknightChargeDrive(dt);
         }
@@ -242,7 +245,11 @@ public sealed partial class PlayerEntity
 
     public bool TryJumpIfPossible(bool canMove, bool jumpPressed)
     {
-        if (!IsAlive || !canMove || !jumpPressed)
+        var allowHeldChargeJump = IsExperimentalDemoknightCharging
+            && ExperimentalDemoknightChargeFullControlEnabled
+            && ExperimentalDemoknightChargeWantsLift
+            && IsGrounded;
+        if (!IsAlive || !canMove || (!jumpPressed && !allowHeldChargeJump))
         {
             return false;
         }
@@ -279,6 +286,7 @@ public sealed partial class PlayerEntity
         }
 
         ResolveDropdownPlatformContact(level, allowDropdownFallThrough, previousBottom);
+        ApplyExperimentalGhostDashMovement(level, team, dt, allowDropdownFallThrough);
         if (TryApplySourceStepDown(level, team))
         {
             RefreshGroundSupport(level, team, allowDropdownFallThrough);

@@ -164,6 +164,7 @@ public sealed partial class SimulationWorld
         bool canGrantExperimentalInstantReloadOnHit = true,
         float knockbackScale = 1f,
         bool canIgniteTargets = false,
+        bool enableExperimentalStingerTracking = false,
         string? killFeedWeaponSpriteNameOverride = null)
     {
         var rocket = new RocketProjectileEntity(
@@ -182,6 +183,7 @@ public sealed partial class SimulationWorld
             canGrantExperimentalInstantReloadOnHit: canGrantExperimentalInstantReloadOnHit,
             knockbackScale: knockbackScale,
             canIgniteTargets: canIgniteTargets,
+            enableExperimentalStingerTracking: enableExperimentalStingerTracking,
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {

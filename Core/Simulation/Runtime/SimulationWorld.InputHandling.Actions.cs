@@ -143,6 +143,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (TryHandleExperimentalSoldierStingerDetonation(player))
+        {
+            return;
+        }
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
@@ -258,6 +263,35 @@ public sealed partial class SimulationWorld
         {
             WeaponHandler.FireQuoteBlade(player, input.AimWorldX, input.AimWorldY);
         }
+    }
+
+    private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Soldier
+            || !ExperimentalGameplaySettings.EnableSoldierStingerRockets
+            || !IsExperimentalPracticePowerOwner(player))
+        {
+            return false;
+        }
+
+        var detonatedAnyRocket = false;
+        for (var rocketIndex = 0; rocketIndex < _rockets.Count; rocketIndex += 1)
+        {
+            var rocket = _rockets[rocketIndex];
+            if (rocket.OwnerId != player.Id
+                || rocket.Team != player.Team
+                || rocket.IsFading
+                || !rocket.EnableExperimentalStingerTracking)
+            {
+                continue;
+            }
+
+            rocket.ArmExperimentalManualDetonation(
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerDetonationDamageMultiplier);
+            detonatedAnyRocket = true;
+        }
+
+        return detonatedAnyRocket;
     }
 
     private void TryHandleNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)

@@ -45,6 +45,11 @@ public partial class Game1
 
     private float GetPredictedJumpScale(PlayerEntity player)
     {
+        if (player.IsExperimentalDemoknightCharging)
+        {
+            return player.IsExperimentalDemoknightChargeFullControlEnabled ? 1f : 0f;
+        }
+
         if (player.HasScopedSniperWeaponEquipped && _predictedLocalActionState.IsSniperScoped)
         {
             return PlayerEntity.SniperScopedJumpScale;
@@ -182,7 +187,12 @@ public partial class Game1
             }
         }
 
-        if (canMove && predictedInput.JumpPressed)
+        var allowHeldChargeJump = canMove
+            && player.IsExperimentalDemoknightCharging
+            && player.IsExperimentalDemoknightChargeFullControlEnabled
+            && predictedInput.Input.Up
+            && _predictedLocalPlayerGrounded;
+        if (canMove && (predictedInput.JumpPressed || allowHeldChargeJump))
         {
             TryPredictedJump(player);
         }

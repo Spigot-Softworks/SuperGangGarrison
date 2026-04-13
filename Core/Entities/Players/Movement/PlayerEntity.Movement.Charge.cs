@@ -4,6 +4,31 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    private void SyncExperimentalDemoknightChargeTurnVelocity(float horizontalDirection)
+    {
+        if (!IsExperimentalDemoknightCharging
+            || !ExperimentalDemoknightChargeFullControlEnabled
+            || horizontalDirection == 0f)
+        {
+            return;
+        }
+
+        var desiredDirection = MathF.Sign(horizontalDirection);
+        if (desiredDirection == 0f)
+        {
+            return;
+        }
+
+        var currentDirection = MathF.Sign(HorizontalSpeed);
+        if (currentDirection == 0f || currentDirection == desiredDirection)
+        {
+            return;
+        }
+
+        var minimumChargeSpeed = ExperimentalDemoknightGroundChargeDrivePerTick * LegacyMovementModel.SourceTicksPerSecond;
+        HorizontalSpeed = desiredDirection * MathF.Max(MathF.Abs(HorizontalSpeed), minimumChargeSpeed);
+    }
+
     private void ApplyExperimentalDemoknightChargeDrive(float deltaSeconds)
     {
         if (!IsExperimentalDemoknightCharging || !IsExperimentalDemoknightChargeDashActive || deltaSeconds <= 0f)
@@ -13,6 +38,7 @@ public sealed partial class PlayerEntity
 
         var sourceTicks = LegacyMovementModel.SourceTicksPerSecond * deltaSeconds;
         var drivePerTick = ExperimentalDemoknightGroundChargeDrivePerTick;
+        var isFullControl = ExperimentalDemoknightChargeFullControlEnabled;
         if (IsExperimentalDemoknightChargeFlightActive)
         {
             drivePerTick = ExperimentalDemoknightFlightChargeDrivePerTick
@@ -20,7 +46,50 @@ public sealed partial class PlayerEntity
             MovementState = LegacyMovementState.FriendlyJuggle;
         }
 
-        HorizontalSpeed += FacingDirectionX * drivePerTick * LegacyMovementModel.SourceTicksPerSecond * sourceTicks;
+        // Calculate the base velocity addition in the facing direction
+        var rawVelocityAddition = FacingDirectionX * drivePerTick * LegacyMovementModel.SourceTicksPerSecond * sourceTicks;
+
+        // Re-orient momentum toward the current facing direction for smooth steering
+        // Calculate how much the current velocity opposes the facing direction
+        var currentSpeed = HorizontalSpeed;
+        var speedMagnitude = MathF.Abs(currentSpeed);
+        var currentDirectionMatchesFacing = MathF.Sign(currentSpeed) == FacingDirectionX;
+
+        // Blend factor determines how quickly the charge can curve:
+        // - Vanilla: gentler steering so direction changes preserve more momentum
+        // - Full Control: aggressive steering with vertical control (60% blend per second)
+        var blendFactor = isFullControl ? 0.6f : 0.18f;
+        var blendRate = blendFactor * (float)deltaSeconds;
+        var blendFactorClamped = Math.Clamp(blendRate, 0f, 1f);
+
+        if (currentDirectionMatchesFacing || speedMagnitude < 1f)
+        {
+            // Same direction or stationary - just add velocity
+            HorizontalSpeed += rawVelocityAddition;
+        }
+        else
+        {
+            // Opposing direction - blend velocity toward facing direction
+            // This prevents immediate direction change while allowing curve
+            var targetSpeed = FacingDirectionX * speedMagnitude;
+            HorizontalSpeed = currentSpeed + ((targetSpeed - currentSpeed) * blendFactorClamped);
+            // Still add some forward drive
+            HorizontalSpeed += rawVelocityAddition * (1f - blendFactorClamped);
+        }
+
+        // With Full Control, also apply vertical steering based on aim direction Y component.
+        // This steers toward cursor direction both upward and downward during charge flight.
+        if (isFullControl && IsExperimentalDemoknightChargeFlightActive)
+        {
+            // Calculate facing direction Y from aim angle
+            var aimRadians = AimDirectionDegrees * (MathF.PI / 180f);
+            var facingDirectionY = MathF.Sin(aimRadians);
+            if (MathF.Abs(facingDirectionY) > 0.2f)
+            {
+                var verticalSteer = -facingDirectionY * drivePerTick * LegacyMovementModel.SourceTicksPerSecond * sourceTicks * 0.4f;
+                VerticalSpeed += verticalSteer;
+            }
+        }
     }
 
     private bool TryHandleExperimentalDemoknightChargeHorizontalCollision(
@@ -105,7 +174,11 @@ public sealed partial class PlayerEntity
 
     private bool IsExperimentalDemoknightChargeWantsFlight(SimpleLevel level, bool allowDropdownFallThrough = false)
     {
-        return ExperimentalDemoknightChargeWantsLift
+        // Jump only initiates flight when Full Control is enabled (vanilla charge has no jump control)
+        var jumpCanInitiateFlight = ExperimentalDemoknightChargeFullControlEnabled;
+        var wantsLift = jumpCanInitiateFlight && ExperimentalDemoknightChargeWantsLift;
+
+        return wantsLift
             && ExperimentalDemoknightChargeAcceleration > ExperimentalDemoknightChargeFlightActivationAcceleration
             && IsExperimentalDemoknightChargeAirborne(level, allowDropdownFallThrough);
     }
@@ -114,5 +187,27 @@ public sealed partial class PlayerEntity
     {
         return CanOccupy(level, Team, X, Y + 1f)
             && !IsStandingOnDropdownPlatform(level, allowDropdownFallThrough);
+    }
+
+    private void ApplyExperimentalGhostDashMovement(SimpleLevel level, PlayerTeam team, float deltaSeconds, bool allowDropdownFallThrough)
+    {
+        if (!IsExperimentalGhostDashing
+            || ExperimentalGhostDashDistanceRemaining <= 0f
+            || ExperimentalGhostDashSpeedPerSecondValue <= 0f
+            || deltaSeconds <= 0f)
+        {
+            return;
+        }
+
+        var moveDistance = MathF.Min(
+            ExperimentalGhostDashDistanceRemaining,
+            ExperimentalGhostDashSpeedPerSecondValue * deltaSeconds);
+        if (moveDistance <= 0f)
+        {
+            return;
+        }
+
+        MoveWithCollisions(level, team, FacingDirectionX * moveDistance, 0f, allowDropdownFallThrough);
+        ExperimentalGhostDashDistanceRemaining = MathF.Max(0f, ExperimentalGhostDashDistanceRemaining - moveDistance);
     }
 }

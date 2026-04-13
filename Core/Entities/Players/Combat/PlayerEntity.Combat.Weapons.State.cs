@@ -79,7 +79,7 @@ public sealed partial class PlayerEntity
         CurrentShells += 1;
         if (CurrentShells < PrimaryWeapon.MaxAmmo)
         {
-            ReloadTicksUntilNextShell = PrimaryWeapon.AmmoReloadTicks;
+            ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PrimaryWeapon.AmmoReloadTicks);
         }
 
         AdvanceExperimentalOffhandWeaponState();
@@ -136,7 +136,7 @@ public sealed partial class PlayerEntity
         ExperimentalOffhandCurrentShells += 1;
         if (ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
         {
-            ExperimentalOffhandReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+            ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
         }
     }
 
@@ -212,7 +212,7 @@ public sealed partial class PlayerEntity
         AcquiredWeaponCurrentShells += 1;
         if (AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
         {
-            AcquiredWeaponReloadTicksUntilNextShell = weaponDefinition.AmmoReloadTicks;
+            AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
         }
     }
 
@@ -234,7 +234,7 @@ public sealed partial class PlayerEntity
 
         if (MedicNeedleRefillTicks <= 0)
         {
-            MedicNeedleRefillTicks = MedicNeedleRefillTicksDefault;
+            MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
             return;
         }
 

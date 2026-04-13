@@ -147,6 +147,7 @@ public sealed partial class SimulationWorld
             bool canGrantExperimentalInstantReloadOnHit = true,
             float knockbackScale = 1f,
             bool canIgniteTargets = false,
+            bool enableExperimentalStingerTracking = false,
             string? killFeedWeaponSpriteNameOverride = null)
         {
             _world.SpawnRocket(
@@ -161,6 +162,7 @@ public sealed partial class SimulationWorld
                 canGrantExperimentalInstantReloadOnHit,
                 knockbackScale,
                 canIgniteTargets,
+                enableExperimentalStingerTracking,
                 killFeedWeaponSpriteNameOverride);
         }
 

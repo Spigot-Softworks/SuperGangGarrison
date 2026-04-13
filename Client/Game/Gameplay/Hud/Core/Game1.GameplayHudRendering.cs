@@ -89,6 +89,8 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after persistentselfname");
             DrawHoveredPlayerNameHud(mouse, cameraPosition);
             WriteGameplayRenderTrace("hud after hoveredplayername");
+            DrawDroppedWeaponInteractionHud(cameraPosition);
+            WriteGameplayRenderTrace("hud after droppedweaponhud");
         }
 
         if (CanDrawGameplayBuildHud())

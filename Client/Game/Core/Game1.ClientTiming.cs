@@ -47,6 +47,7 @@ public partial class Game1
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
     {
+        var previousPredictedInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
 
         if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.FireSecondaryWeapon)
@@ -55,7 +56,8 @@ public partial class Game1
         }
 
         var jumpPressed = networkInput.Up
-            && ((keyboard.IsKeyDown(_inputBindings.MoveUp) && !_previousKeyboard.IsKeyDown(_inputBindings.MoveUp))
+            && ((!previousPredictedInput.Up)
+                || (keyboard.IsKeyDown(_inputBindings.MoveUp) && !_previousKeyboard.IsKeyDown(_inputBindings.MoveUp))
                 || (keyboard.IsKeyDown(Keys.Up) && !_previousKeyboard.IsKeyDown(Keys.Up)));
         if (jumpPressed)
         {

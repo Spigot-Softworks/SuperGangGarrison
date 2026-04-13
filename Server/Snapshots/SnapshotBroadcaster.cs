@@ -24,6 +24,7 @@ sealed class SnapshotBroadcaster
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
     private readonly Dictionary<byte, ClientSession> _clientsBySlot;
+    private readonly ServerBotManager _botManager;
     private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
@@ -32,6 +33,7 @@ sealed class SnapshotBroadcaster
         SimulationWorld world,
         SimulationConfig config,
         Dictionary<byte, ClientSession> clientsBySlot,
+        ServerBotManager botManager,
         ulong transientEventReplayTicks,
         OpenGarrison.Server.ServerMapMetadataResolver mapMetadataResolver,
         Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot)
@@ -39,6 +41,7 @@ sealed class SnapshotBroadcaster
         _world = world;
         _config = config;
         _clientsBySlot = clientsBySlot;
+        _botManager = botManager;
         _mapMetadataResolver = mapMetadataResolver;
         _transientEventBuffer = new OpenGarrison.Server.SnapshotTransientEventBuffer(transientEventReplayTicks);
         _sendSnapshot = sendSnapshot;
@@ -264,7 +267,10 @@ sealed class SnapshotBroadcaster
             viewer = viewerPlayer;
         }
 
-        var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length);
+        // Start with capacity for clients + bots
+        var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length + _botManager.BotSlots.Count);
+
+        // Add human client players
         foreach (var entry in sharedSnapshot.OrderedClients)
         {
             if (IsSpectatorSlot(entry.Slot))
@@ -276,6 +282,15 @@ sealed class SnapshotBroadcaster
             if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
             {
                 players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
+            }
+        }
+
+        // Add server bot players
+        foreach (var (botSlot, botState) in _botManager.BotSlots)
+        {
+            if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            {
+                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer));
             }
         }
 

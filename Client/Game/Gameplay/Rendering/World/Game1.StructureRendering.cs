@@ -358,8 +358,14 @@ public partial class Game1
             ? 0f
             : MathF.Atan2(droppedWeapon.VerticalSpeed, droppedWeapon.HorizontalSpeed == 0f ? 1f : droppedWeapon.HorizontalSpeed);
 
-        if (spriteName is not null && TryDrawSprite(spriteName, frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White * alpha, rotation))
+        var outlineColor = new Color(255, 226, 74) * (alpha * 0.35f);
+        if (spriteName is not null && GetResolvedSprite(spriteName) is not null)
         {
+            TryDrawSprite(spriteName, frameIndex, renderPosition.X - 1f, renderPosition.Y, cameraPosition, outlineColor, rotation);
+            TryDrawSprite(spriteName, frameIndex, renderPosition.X + 1f, renderPosition.Y, cameraPosition, outlineColor, rotation);
+            TryDrawSprite(spriteName, frameIndex, renderPosition.X, renderPosition.Y - 1f, cameraPosition, outlineColor, rotation);
+            TryDrawSprite(spriteName, frameIndex, renderPosition.X, renderPosition.Y + 1f, cameraPosition, outlineColor, rotation);
+            TryDrawSprite(spriteName, frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White * alpha, rotation);
             return;
         }
 
@@ -368,7 +374,63 @@ public partial class Game1
             (int)(renderPosition.Y - 3f - cameraPosition.Y),
             20,
             6);
+        var outlineRectangle = new Rectangle(
+            fallbackRectangle.X - 1,
+            fallbackRectangle.Y - 1,
+            fallbackRectangle.Width + 2,
+            fallbackRectangle.Height + 2);
+        _spriteBatch.Draw(_pixel, outlineRectangle, new Color(255, 226, 74) * (0.28f * alpha));
         _spriteBatch.Draw(_pixel, fallbackRectangle, new Color(230, 230, 230) * alpha);
         _spriteBatch.Draw(_pixel, new Rectangle(fallbackRectangle.X, fallbackRectangle.Bottom, fallbackRectangle.Width, 2), Color.Black * (0.55f * alpha));
+    }
+
+    private void DrawDroppedWeaponInteractionHud(Vector2 cameraPosition)
+    {
+        if (!_world.ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
+            || !_world.LocalPlayer.IsAlive
+            || _world.LocalPlayer.ClassId != PlayerClass.Soldier
+            || TryGetNearbyDroppedWeaponForLocalPlayer() is not { } nearbyWeapon)
+        {
+            return;
+        }
+
+        var weaponName = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(nearbyWeapon.WeaponClassId).DisplayName.ToUpperInvariant();
+        var prompt = $"PRESS Q FOR {weaponName}";
+        var renderPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: false);
+        var labelPosition = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y - 42f);
+        DrawBitmapFontTextCentered(prompt, labelPosition + new Vector2(2f, 2f), Color.Black * 0.9f, 0.92f);
+        DrawBitmapFontTextCentered(prompt, labelPosition, new Color(255, 226, 74), 0.92f);
+    }
+
+    private DroppedWeaponEntity? TryGetNearbyDroppedWeaponForLocalPlayer()
+    {
+        var localPlayer = _world.LocalPlayer;
+        var bestDistanceSquared = float.MaxValue;
+        DroppedWeaponEntity? bestWeapon = null;
+        for (var index = 0; index < _world.DroppedWeapons.Count; index += 1)
+        {
+            var candidate = _world.DroppedWeapons[index];
+            if (!localPlayer.IntersectsMarker(
+                    candidate.X,
+                    candidate.Y,
+                    DroppedWeaponEntity.PickupWidth,
+                    DroppedWeaponEntity.PickupHeight))
+            {
+                continue;
+            }
+
+            var deltaX = candidate.X - localPlayer.X;
+            var deltaY = candidate.Y - localPlayer.Y;
+            var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
+            if (distanceSquared >= bestDistanceSquared)
+            {
+                continue;
+            }
+
+            bestDistanceSquared = distanceSquared;
+            bestWeapon = candidate;
+        }
+
+        return bestWeapon;
     }
 }

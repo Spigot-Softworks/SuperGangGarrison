@@ -284,6 +284,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsExperimentalDemoknightCharging { get; private set; }
 
+    public bool IsExperimentalDemoknightChargeFullControlEnabled => ExperimentalDemoknightChargeFullControlEnabled;
+
     public int ExperimentalDemoknightChargeTicksRemaining { get; private set; }
 
     public float ExperimentalDemoknightChargeFraction => ExperimentalDemoknightChargeTicksRemaining / (float)ExperimentalDemoknightChargeMaxTicks;
@@ -300,9 +302,13 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     private bool ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled { get; set; }
 
+    private bool ExperimentalSelfDamageHealingEnabled { get; set; }
+
     private bool ExperimentalSoldierInfiniteAmmoDuringRageEnabled { get; set; }
 
     private float ExperimentalSoldierSwappedOutAmmoRegenAccumulator { get; set; }
+
+    private float ExperimentalReloadSpeedMultiplierValue { get; set; } = 1f;
 
     private bool ExperimentalDemoknightChargeFullControlEnabled { get; set; }
 
@@ -315,6 +321,10 @@ public sealed partial class PlayerEntity : SimulationEntity
     private int ExperimentalGhostDashCooldownTicksRemaining { get; set; }
 
     private int ExperimentalGhostDashVisibilityTicksRemaining { get; set; }
+
+    private float ExperimentalGhostDashDistanceRemaining { get; set; }
+
+    private float ExperimentalGhostDashSpeedPerSecondValue { get; set; }
 
     private float ExperimentalGhostDashNextAttackDamageMultiplierValue { get; set; } = 1f;
 
