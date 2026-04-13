@@ -19,3 +19,14 @@ Client.Browser/wwwroot/Content/
 artifacts/
 Tests/BrowserSmoke/artifacts/
 Tests/BrowserSmoke/node_modules/
+
+# === .NET / NuGet / MonoGame caches - NEVER commit these ===
+.dotnet-home/
+**/.nuget/packages/
+*.nupkg
+**/bin/
+**/obj/
+**/Build/
+**/Content/bin/
+**/Content/obj/
+
