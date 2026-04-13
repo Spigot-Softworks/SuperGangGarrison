@@ -2,9 +2,6 @@
 
 This directory is a preserved import source for legacy GG2 Randomizer weapon and UI art.
 
-Source:
-- Imported from `C:\Users\level\Downloads\randomizer`
-
 Purpose:
 - Keep the original exported per-frame PNGs and XML metadata in-repo.
 - Provide a stable source for future gameplay-asset imports.
