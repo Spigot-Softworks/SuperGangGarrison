@@ -14,4 +14,4 @@ Usage guidance:
 
 Notes:
 - Folder structure is intentionally preserved from the imported dump so class/weapon groupings remain easy to navigate.
-- The current loader does not consume assets from this directory directly.
+- The current loader does not consume assets from this directory. It is purely for reference
