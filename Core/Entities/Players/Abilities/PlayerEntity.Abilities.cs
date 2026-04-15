@@ -227,7 +227,7 @@ public sealed partial class PlayerEntity
         }
 
         CurrentShells -= 1;
-        MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
+        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(MedicNeedleFireCooldownTicks);
         MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
         return true;
     }
@@ -250,7 +250,7 @@ public sealed partial class PlayerEntity
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= 1;
-        MedicNeedleCooldownTicks = MedicNeedleFireCooldownTicks;
+        MedicNeedleCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(MedicNeedleFireCooldownTicks);
         MedicNeedleRefillTicks = ApplyExperimentalReloadMultiplier(MedicNeedleRefillTicksDefault);
         return true;
     }

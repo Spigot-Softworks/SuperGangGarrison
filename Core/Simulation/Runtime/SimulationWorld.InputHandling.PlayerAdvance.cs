@@ -30,6 +30,7 @@ public sealed partial class SimulationWorld
         var destroyPressed = input.DestroySentry && !previousInput.DestroySentry;
         var tauntPressed = input.Taunt && !previousInput.Taunt;
         var killPressed = input.DebugKill && !previousInput.DebugKill;
+        var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
         var secondaryWeaponPressed = input.FireSecondaryWeapon && !previousInput.FireSecondaryWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
@@ -71,7 +72,7 @@ public sealed partial class SimulationWorld
             player.ForceDecloak();
         }
 
-        TryHandleNetworkPrimaryFire(player, input, suppressPyroPrimaryThisTick);
+        TryHandleNetworkPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick);
 
         if (tauntPressed)
         {

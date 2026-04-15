@@ -10,22 +10,25 @@ internal static class SnapshotDeltaBudgeter
     private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
 
     public const int TargetSnapshotPayloadBytes = 1200;
+    public const int ReliableStreamTargetSnapshotPayloadBytes = 8 * 1024;
 
     internal sealed record Contribution(int Priority, float DistanceSquared, int EstimatedBytes, Action<Builder> Apply);
 
     public static (SnapshotMessage Message, byte[] Payload) BuildBudgetedSnapshot(
         SnapshotMessage fullSnapshot,
         ISnapshotBaselineState? baseline,
-        IReadOnlyList<Contribution> contributions)
+        IReadOnlyList<Contribution> contributions,
+        int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
-        var result = BuildBudgetedSnapshotWithMetrics(fullSnapshot, baseline, contributions);
+        var result = BuildBudgetedSnapshotWithMetrics(fullSnapshot, baseline, contributions, targetPayloadBytes);
         return (result.Message, result.Payload);
     }
 
     internal static SnapshotBudgetBuildResult BuildBudgetedSnapshotWithMetrics(
         SnapshotMessage fullSnapshot,
         ISnapshotBaselineState? baseline,
-        IReadOnlyList<Contribution> contributions)
+        IReadOnlyList<Contribution> contributions,
+        int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
         var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: baseline is null);
         var snapshot = builder.Build();
@@ -33,14 +36,14 @@ internal static class SnapshotDeltaBudgeter
         byte[]? payload = null;
         var payloadSize = Measure(snapshot);
 
-        if (payloadSize > TargetSnapshotPayloadBytes)
+        if (payloadSize > targetPayloadBytes)
         {
             TrimAuxiliaryCollections(builder);
             snapshot = builder.Build();
             payloadSize = Measure(snapshot);
         }
 
-        var remainingBudget = TargetSnapshotPayloadBytes - payloadSize;
+        var remainingBudget = targetPayloadBytes - payloadSize;
         foreach (var contribution in contributions.OrderByDescending(static entry => entry.Priority).ThenBy(static entry => entry.DistanceSquared))
         {
             if (contribution.EstimatedBytes > remainingBudget)
@@ -55,16 +58,16 @@ internal static class SnapshotDeltaBudgeter
         snapshot = builder.Build();
         payloadSize = Measure(snapshot);
 
-        if (payloadSize > TargetSnapshotPayloadBytes)
+        if (payloadSize > targetPayloadBytes)
         {
-            if (TryReduceToBudget(builder, ref serializePassCount) is { } reducedBuilderSnapshot)
+            if (TryReduceToBudget(builder, targetPayloadBytes, ref serializePassCount) is { } reducedBuilderSnapshot)
             {
                 snapshot = reducedBuilderSnapshot.Message;
                 payload = reducedBuilderSnapshot.Payload;
             }
             else
             {
-                if (TryReduceSnapshotForBudget(snapshot, ref serializePassCount) is { } reducedSnapshot)
+                if (TryReduceSnapshotForBudget(snapshot, targetPayloadBytes, ref serializePassCount) is { } reducedSnapshot)
                 {
                     snapshot = reducedSnapshot.Message;
                     payload = reducedSnapshot.Payload;
@@ -93,14 +96,14 @@ internal static class SnapshotDeltaBudgeter
         builder.SoundEvents.Clear();
     }
 
-    private static SerializedSnapshot? TryReduceToBudget(Builder builder, ref int serializePassCount)
+    private static SerializedSnapshot? TryReduceToBudget(Builder builder, int targetPayloadBytes, ref int serializePassCount)
     {
         foreach (var dropStep in BudgetDropSteps)
         {
             dropStep(builder);
 
             var snapshot = builder.Build();
-            if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
+            if (Measure(snapshot) <= targetPayloadBytes)
             {
                 return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
             }
@@ -109,7 +112,7 @@ internal static class SnapshotDeltaBudgeter
         return null;
     }
 
-    private static SerializedSnapshot? TryReduceSnapshotForBudget(SnapshotMessage snapshot, ref int serializePassCount)
+    private static SerializedSnapshot? TryReduceSnapshotForBudget(SnapshotMessage snapshot, int targetPayloadBytes, ref int serializePassCount)
     {
         snapshot = snapshot with
         {
@@ -119,7 +122,7 @@ internal static class SnapshotDeltaBudgeter
             LocalDeathCam = null,
         };
 
-        if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
+        if (Measure(snapshot) <= targetPayloadBytes)
         {
             return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
         }
@@ -131,7 +134,7 @@ internal static class SnapshotDeltaBudgeter
                 .ToArray(),
         };
 
-        if (Measure(snapshot) <= TargetSnapshotPayloadBytes)
+        if (Measure(snapshot) <= targetPayloadBytes)
         {
             return new SerializedSnapshot(snapshot, Serialize(snapshot, ref serializePassCount));
         }
@@ -142,7 +145,7 @@ internal static class SnapshotDeltaBudgeter
         };
 
         var payload = Serialize(snapshot, ref serializePassCount);
-        return payload.Length <= TargetSnapshotPayloadBytes
+        return payload.Length <= targetPayloadBytes
             ? new SerializedSnapshot(snapshot, payload)
             : null;
     }

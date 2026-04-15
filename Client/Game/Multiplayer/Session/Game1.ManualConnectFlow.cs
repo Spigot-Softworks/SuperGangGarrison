@@ -13,4 +13,9 @@ public partial class Game1
     {
         return _connectionFlowController.TryParseManualConnectTarget(out host, out port);
     }
+
+    private bool TryParseManualConnectTarget(out NetworkEndpoint endpoint)
+    {
+        return _connectionFlowController.TryParseManualConnectTarget(out endpoint);
+    }
 }

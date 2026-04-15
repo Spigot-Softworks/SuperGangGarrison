@@ -117,13 +117,14 @@ public sealed partial class SimulationWorld
             var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
             var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
                 && attacker.ClassId == PlayerClass.Soldier;
+            var rocketCombat = _world.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);
             SpawnRocket(
                 attacker,
                 spawnX,
                 spawnY,
                 _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians,
-                weaponDefinition.RocketCombat,
+                rocketCombat,
                 weaponDefinition.DirectHitHealAmount ?? 0f,
                 explodeImmediately,
                 canGrantExperimentalInstantReloadOnHit: experimentalSoldierPerkOwner
@@ -146,7 +147,7 @@ public sealed partial class SimulationWorld
                     spawnY,
                     _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                     directionRadians,
-                    weaponDefinition.RocketCombat,
+                    rocketCombat,
                     weaponDefinition.DirectHitHealAmount ?? 0f,
                     canGrantExperimentalInstantReloadOnHit: _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
                     knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets

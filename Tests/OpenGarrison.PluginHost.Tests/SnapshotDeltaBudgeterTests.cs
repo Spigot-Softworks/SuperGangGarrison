@@ -1,3 +1,4 @@
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
@@ -56,6 +57,32 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.Single(merged.Rockets);
     }
 
+    [Fact]
+    public void BuildBudgetedSnapshotWithReliableStreamBudgetPreservesPlayers()
+    {
+        var players = Enumerable.Range(0, 12)
+            .Select(index => CreatePlayerState((byte)(index + 1), 500 + index, $"Bot Player {index:D2}"))
+            .ToArray();
+        var baseline = CreateSnapshot(200) with
+        {
+            Players = players,
+        };
+        var current = CreateSnapshot(201) with
+        {
+            Players = players,
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            [],
+            SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes);
+        Assert.Equal(players.Length, result.Message.Players.Count);
+        Assert.Contains(result.Message.Players, player => player.Name == "Bot Player 00");
+    }
+
     private static SnapshotMessage CreateSnapshot(ulong frame)
     {
         return new SnapshotMessage(
@@ -106,5 +133,54 @@ public sealed class SnapshotDeltaBudgeterTests
         {
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
         };
+    }
+
+    private static SnapshotPlayerState CreatePlayerState(byte slot, int playerId, string name)
+    {
+        return new SnapshotPlayerState(
+            Slot: slot,
+            PlayerId: playerId,
+            Name: name,
+            Team: 1,
+            ClassId: (byte)PlayerClass.Scout,
+            IsAlive: true,
+            IsAwaitingJoin: false,
+            IsSpectator: false,
+            RespawnTicks: 0,
+            X: 64f + slot,
+            Y: 96f + slot,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            Health: 125,
+            MaxHealth: 125,
+            Ammo: 6,
+            MaxAmmo: 6,
+            Kills: 0,
+            Deaths: 0,
+            Caps: 0,
+            Points: 0f,
+            HealPoints: 0,
+            ActiveDominationCount: 0,
+            IsDominatingLocalViewer: false,
+            IsDominatedByLocalViewer: false,
+            Metal: 0f,
+            IsGrounded: true,
+            RemainingAirJumps: 0,
+            IsCarryingIntel: false,
+            IntelRechargeTicks: 0f,
+            IsSpyCloaked: false,
+            SpyCloakAlpha: 1f,
+            IsUbered: false,
+            IsHeavyEating: false,
+            HeavyEatTicksRemaining: 0,
+            IsSniperScoped: false,
+            SniperChargeTicks: 0,
+            FacingDirectionX: 1f,
+            AimDirectionDegrees: 0f,
+            IsTaunting: false,
+            TauntFrameIndex: 0f,
+            IsChatBubbleVisible: false,
+            ChatBubbleFrameIndex: 0,
+            ChatBubbleAlpha: 0f);
     }
 }

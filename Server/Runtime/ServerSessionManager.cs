@@ -19,9 +19,9 @@ sealed class ServerSessionManager
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
-    private readonly Func<IPEndPoint, string?> _getPasswordRateLimitReason;
-    private readonly Action<IPEndPoint> _recordPasswordFailure;
-    private readonly Action<IPEndPoint> _clearPasswordFailures;
+    private readonly Func<IPAddress, string?> _getPasswordRateLimitReason;
+    private readonly Action<IPAddress> _recordPasswordFailure;
+    private readonly Action<IPAddress> _clearPasswordFailures;
     private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
     private readonly Action<string> _log;
     private readonly Action<ClientSession, string> _clientRemoved;
@@ -42,9 +42,9 @@ sealed class ServerSessionManager
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
-        Func<IPEndPoint, string?> getPasswordRateLimitReason,
-        Action<IPEndPoint> recordPasswordFailure,
-        Action<IPEndPoint> clearPasswordFailures,
+        Func<IPAddress, string?> getPasswordRateLimitReason,
+        Action<IPAddress> recordPasswordFailure,
+        Action<IPAddress> clearPasswordFailures,
         Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<string> log,
         Action<ClientSession, string>? clientRemoved = null,
@@ -163,7 +163,7 @@ sealed class ServerSessionManager
         if (!_passwordRequired)
         {
             client.IsAuthorized = true;
-            if (client.UdpEndPoint is { } authorizedEndPoint)
+            if (client.RemoteAddress is { } authorizedEndPoint)
             {
                 _clearPasswordFailures(authorizedEndPoint);
             }
@@ -173,7 +173,7 @@ sealed class ServerSessionManager
             return;
         }
 
-        if (client.UdpEndPoint is { } rateLimitEndPoint && _getPasswordRateLimitReason(rateLimitEndPoint) is { } rateLimitReason)
+        if (client.RemoteAddress is { } rateLimitEndPoint && _getPasswordRateLimitReason(rateLimitEndPoint) is { } rateLimitReason)
         {
             _sendMessage(client.Peer, new PasswordResultMessage(false, rateLimitReason));
             RemoveClient(client.Slot, "password rate limited");
@@ -183,7 +183,7 @@ sealed class ServerSessionManager
         if (string.Equals(passwordSubmit.Password, _serverPassword, StringComparison.Ordinal))
         {
             client.IsAuthorized = true;
-            if (client.UdpEndPoint is { } acceptedEndPoint)
+            if (client.RemoteAddress is { } acceptedEndPoint)
             {
                 _clearPasswordFailures(acceptedEndPoint);
             }
@@ -194,7 +194,7 @@ sealed class ServerSessionManager
             return;
         }
 
-        if (client.UdpEndPoint is { } failedEndPoint)
+        if (client.RemoteAddress is { } failedEndPoint)
         {
             _recordPasswordFailure(failedEndPoint);
         }

@@ -148,7 +148,8 @@ sealed class SnapshotBroadcaster
     {
         var fullSnapshot = CaptureFullSnapshot(client, sharedSnapshot);
         var fullSnapshotPayloadBytes = ProtocolCodec.MeasureSerializedSize(fullSnapshot);
-        if (fullSnapshotPayloadBytes <= OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes)
+        var targetPayloadBytes = GetTargetSnapshotPayloadBytes(client);
+        if (fullSnapshotPayloadBytes <= targetPayloadBytes)
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
@@ -164,7 +165,7 @@ sealed class SnapshotBroadcaster
         }
 
         var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
-        var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline);
+        var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline, targetPayloadBytes);
         _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
         client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
         return new SentSnapshotMetrics(
@@ -431,9 +432,30 @@ sealed class SnapshotBroadcaster
         return ticks * 1000d / Stopwatch.Frequency;
     }
 
+    private static int GetTargetSnapshotPayloadBytes(ClientSession client)
+    {
+        return client.Peer.Kind == ServerTransportKind.WebSocket
+            ? OpenGarrison.Server.SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes
+            : OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes;
+    }
+
     private SnapshotBudgetBuildResult BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotBaselineState? baseline)
     {
         var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(client, fullSnapshot, baseline, _world);
-        return OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(fullSnapshot, baseline, contributions);
+        return BuildBudgetedSnapshot(client, fullSnapshot, baseline, GetTargetSnapshotPayloadBytes(client));
+    }
+
+    private SnapshotBudgetBuildResult BuildBudgetedSnapshot(
+        ClientSession client,
+        SnapshotMessage fullSnapshot,
+        SnapshotBaselineState? baseline,
+        int targetPayloadBytes)
+    {
+        var contributions = OpenGarrison.Server.SnapshotContributionPlanner.BuildContributions(client, fullSnapshot, baseline, _world);
+        return OpenGarrison.Server.SnapshotDeltaBudgeter.BuildBudgetedSnapshotWithMetrics(
+            fullSnapshot,
+            baseline,
+            contributions,
+            targetPayloadBytes);
     }
 }

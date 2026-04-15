@@ -25,6 +25,7 @@ sealed class ClientSession(byte slot, int userId, ServerTransportPeer peer, stri
     public ServerTransportPeer Peer { get; } = peer;
     public IPEndPoint EndPoint => Peer.UdpEndPoint ?? throw new InvalidOperationException($"Client peer {Peer} has no UDP endpoint.");
     public IPEndPoint? UdpEndPoint => Peer.UdpEndPoint;
+    public IPAddress? RemoteAddress => Peer.RemoteAddress;
     public string RemoteDescription => Peer.Description;
     public bool IsLoopbackConnection => Peer.IsLoopback;
     public string Name { get; set; } = name;

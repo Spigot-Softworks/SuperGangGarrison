@@ -249,7 +249,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        for (var sourceIndex = _bloodDrops.Count - 1; sourceIndex >= 0; sourceIndex -= 1)
+        const float bucketSize = (BloodDropEntity.MaxScale * 2f) + 0.5f;
+        var buckets = new Dictionary<long, List<int>>();
+        bool[]? absorbedDrops = null;
+
+        for (var sourceIndex = 0; sourceIndex < _bloodDrops.Count; sourceIndex += 1)
         {
             var source = _bloodDrops[sourceIndex];
             if (!source.IsMergeable)
@@ -257,20 +261,75 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            for (var targetIndex = 0; targetIndex < sourceIndex; targetIndex += 1)
-            {
-                var target = _bloodDrops[targetIndex];
-                if (!target.CanMergeWith(source) || !ShouldMergeBloodDrops(target, source))
-                {
-                    continue;
-                }
+            var sourceCellX = GetBloodDropMergeCell(source.X, bucketSize);
+            var sourceCellY = GetBloodDropMergeCell(source.Y, bucketSize);
+            var absorbed = false;
 
-                target.Absorb(source);
-                _entities.Remove(source.Id);
-                _bloodDrops.RemoveAt(sourceIndex);
-                break;
+            for (var offsetY = -1; offsetY <= 1 && !absorbed; offsetY += 1)
+            {
+                for (var offsetX = -1; offsetX <= 1 && !absorbed; offsetX += 1)
+                {
+                    var bucketKey = GetBloodDropMergeBucketKey(sourceCellX + offsetX, sourceCellY + offsetY);
+                    if (!buckets.TryGetValue(bucketKey, out var targetIndices))
+                    {
+                        continue;
+                    }
+
+                    for (var targetBucketIndex = 0; targetBucketIndex < targetIndices.Count; targetBucketIndex += 1)
+                    {
+                        var target = _bloodDrops[targetIndices[targetBucketIndex]];
+                        if (!target.CanMergeWith(source) || !ShouldMergeBloodDrops(target, source))
+                        {
+                            continue;
+                        }
+
+                        target.Absorb(source);
+                        _entities.Remove(source.Id);
+                        absorbedDrops ??= new bool[_bloodDrops.Count];
+                        absorbedDrops[sourceIndex] = true;
+                        absorbed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (absorbed)
+            {
+                continue;
+            }
+
+            var sourceBucketKey = GetBloodDropMergeBucketKey(sourceCellX, sourceCellY);
+            if (!buckets.TryGetValue(sourceBucketKey, out var sourceBucket))
+            {
+                sourceBucket = new List<int>();
+                buckets.Add(sourceBucketKey, sourceBucket);
+            }
+
+            sourceBucket.Add(sourceIndex);
+        }
+
+        if (absorbedDrops is null)
+        {
+            return;
+        }
+
+        for (var dropIndex = _bloodDrops.Count - 1; dropIndex >= 0; dropIndex -= 1)
+        {
+            if (absorbedDrops[dropIndex])
+            {
+                _bloodDrops.RemoveAt(dropIndex);
             }
         }
+    }
+
+    private static int GetBloodDropMergeCell(float value, float bucketSize)
+    {
+        return (int)MathF.Floor(value / bucketSize);
+    }
+
+    private static long GetBloodDropMergeBucketKey(int cellX, int cellY)
+    {
+        return ((long)cellX << 32) ^ (uint)cellY;
     }
 
     private bool ShouldMergeBloodDrops(BloodDropEntity target, BloodDropEntity source)

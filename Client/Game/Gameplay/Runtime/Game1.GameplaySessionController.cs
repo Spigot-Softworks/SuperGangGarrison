@@ -74,6 +74,11 @@ public partial class Game1
             return _onlineSessionController.TryConnectToServer(host, port, addConsoleFeedback);
         }
 
+        public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
+        {
+            return _onlineSessionController.TryConnectToServer(endpoint, addConsoleFeedback);
+        }
+
         public void HandleWelcomeMessage(OpenGarrison.Protocol.WelcomeMessage welcome)
         {
             _onlineSessionController.HandleWelcomeMessage(welcome);

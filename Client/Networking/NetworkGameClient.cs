@@ -31,8 +31,8 @@ internal sealed class NetworkGameClient : IDisposable
     private const long LocalConnectedTimeoutMilliseconds = 30000;
     private const int MaxTrackedInputRoundTrips = 512;
 
-    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebTransport adapters.")]
-    private INetworkClientDatagramTransport? _transport;
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "The client transport seam must support browser WebSocket adapters.")]
+    private INetworkClientMessageTransport? _transport;
     private uint _nextInputSequence = 1;
     private uint _nextControlSequence = 1;
     private int _pendingChatBubbleFrameIndex = -1;
@@ -67,7 +67,7 @@ internal sealed class NetworkGameClient : IDisposable
 
         try
         {
-            if (!NetworkClientDatagramTransportRegistry.TryConnect(host, port, out var transport, out error) || transport is null)
+            if (!NetworkClientMessageTransportRegistry.TryConnect(host, port, out var transport, out error) || transport is null)
             {
                 return false;
             }
@@ -328,7 +328,7 @@ internal sealed class NetworkGameClient : IDisposable
         var deserializeMilliseconds = 0d;
         var maxDeserializeMilliseconds = 0d;
         var messages = new List<IProtocolMessage>();
-        while (transport.HasPendingDatagrams)
+        while (transport.HasPendingMessages)
         {
             try
             {

@@ -14,6 +14,7 @@ public partial class Game1
     private const long LobbyBrowserQueryTimeoutMilliseconds = 1500;
     private const long LobbyBrowserLobbyConnectTimeoutMilliseconds = 2500;
     private const long LobbyBrowserLobbyReadTimeoutMilliseconds = 6000;
+    private const string DefaultLobbyRegistryPath = "servers.json";
     private const string LobbyProtocolUuidString = "71eb5496-492b-b186-4770-06ccb30d3f8f";
 
     private static readonly byte[] LobbyProtocolUuidBytes = ParseProtocolUuid(LobbyProtocolUuidString);
@@ -22,6 +23,7 @@ public partial class Game1
     private UdpClient? _lobbyBrowserClient;
     private TcpClient? _lobbyBrowserLobbyClient;
     private Task? _lobbyBrowserLobbyConnectTask;
+    private Task<List<LobbyRegistryServerEntry>>? _lobbyBrowserRegistryRequestTask;
     private readonly List<byte> _lobbyBrowserLobbyPending = new();
     private readonly byte[] _lobbyBrowserLobbyScratch = new byte[4096];
     private int _lobbyBrowserLobbyExpectedServers = -1;
@@ -36,6 +38,8 @@ public partial class Game1
     private int LobbyServerPort => _clientSettings.LobbyPort > 0
         ? _clientSettings.LobbyPort
         : OpenGarrisonPreferencesDocument.DefaultLobbyPort;
+
+    private string LobbyRegistryEndpoint => ResolveLobbyRegistryEndpoint(_clientSettings.LobbyHost, _clientSettings.LobbyPort);
 
     private static byte[] ParseProtocolUuid(string uuid)
     {
@@ -66,15 +70,17 @@ public partial class Game1
         return bytes;
     }
 
-    private sealed class LobbyBrowserEntry(string displayName, string host, int port)
+    private sealed class LobbyBrowserEntry(string displayName, NetworkEndpoint endpoint)
     {
         public string DisplayName { get; set; } = displayName;
-        public string Host { get; } = host;
-        public int Port { get; } = port;
-        public string AddressLabel => $"{Host}:{Port}";
+        public NetworkEndpoint Endpoint { get; } = endpoint;
+        public string Host => Endpoint.Host;
+        public int Port => Endpoint.QueryPort;
+        public string AddressLabel => Endpoint.AddressLabel;
         public IPEndPoint? QueryEndPoint { get; set; }
         public long QueryStartedAtMilliseconds { get; set; }
         public bool HasResponse { get; set; }
+        public bool CanJoinDirectly { get; set; }
         public bool HasTimedOut { get; set; }
         public string StatusText { get; set; } = "Querying...";
         public string ServerName { get; set; } = string.Empty;
@@ -89,5 +95,5 @@ public partial class Game1
         public bool IsLobbyEntry { get; set; }
     }
 
-    private readonly record struct LobbyBrowserTarget(string DisplayName, string Host, int Port);
+    private readonly record struct LobbyBrowserTarget(string DisplayName, NetworkEndpoint Endpoint);
 }

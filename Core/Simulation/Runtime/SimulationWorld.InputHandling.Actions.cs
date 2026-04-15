@@ -4,7 +4,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
+    private void TryHandleNetworkPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
         if (player.IsTaunting)
         {
@@ -31,6 +31,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (primaryPressed && TryHandleExperimentalSoldierStingerPrimaryBurst(player))
+        {
+            return;
+        }
+
         var ignorePrimaryAmmoCost = player.ClassId == PlayerClass.Soldier
             && player.IsRaging
             && ExperimentalGameplaySettings.EnableSoldierInfiniteAmmoDuringRage;
@@ -40,6 +45,33 @@ public sealed partial class SimulationWorld
         }
 
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+    }
+
+    private bool TryHandleExperimentalSoldierStingerPrimaryBurst(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Soldier
+            || !ExperimentalGameplaySettings.EnableSoldierStingerRockets
+            || !IsExperimentalPracticePowerOwner(player))
+        {
+            return false;
+        }
+
+        for (var rocketIndex = _rockets.Count - 1; rocketIndex >= 0; rocketIndex -= 1)
+        {
+            var rocket = _rockets[rocketIndex];
+            if (rocket.OwnerId != player.Id
+                || rocket.Team != player.Team
+                || rocket.IsFading
+                || !rocket.EnableExperimentalStingerTracking)
+            {
+                continue;
+            }
+
+            return rocket.TryApplyExperimentalStingerSpeedBurst(
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerBurstSpeedMultiplier);
+        }
+
+        return false;
     }
 
     private bool TryHandleAcquiredPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
@@ -286,8 +318,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            rocket.ArmExperimentalManualDetonation(
-                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerDetonationDamageMultiplier);
+            rocket.ArmExperimentalManualDetonation();
             detonatedAnyRocket = true;
         }
 

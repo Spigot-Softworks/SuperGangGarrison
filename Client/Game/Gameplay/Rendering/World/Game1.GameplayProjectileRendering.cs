@@ -288,13 +288,16 @@ public partial class Game1
             ? new Color(120, 180, 255)
             : new Color(255, 110, 90);
         var rocketFrame = rocket.Team == PlayerTeam.Blue ? 0 : 1;
-        if (!TryDrawSprite("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocketColor, rocket.DirectionRadians))
+        var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
+        if (!TryDrawSprite("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocketColor, rocket.DirectionRadians, scale: rocketScale))
         {
+            var halfWidth = (int)MathF.Round(5f * rocketScale);
+            var halfHeight = (int)MathF.Round(3f * rocketScale);
             var rocketRectangle = new Rectangle(
-                (int)(renderPosition.X - 5f - cameraPosition.X),
-                (int)(renderPosition.Y - 3f - cameraPosition.Y),
-                10,
-                6);
+                (int)(renderPosition.X - halfWidth - cameraPosition.X),
+                (int)(renderPosition.Y - halfHeight - cameraPosition.Y),
+                Math.Max(1, halfWidth * 2),
+                Math.Max(1, halfHeight * 2));
             _spriteBatch.Draw(_pixel, rocketRectangle, rocketColor);
         }
     }

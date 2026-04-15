@@ -106,9 +106,16 @@ public partial class Game1
         var players = new List<PlayerEntity>();
         if (_networkClient.IsConnected)
         {
-            foreach (var (slot, player) in _world.EnumerateReplicatedNetworkPlayers())
+            if (!_networkClient.IsSpectator
+                && !_world.LocalPlayerAwaitingJoin
+                && _world.LocalPlayer.Team == team)
             {
-                if (_world.IsNetworkPlayerAwaitingJoin(slot) || player.Team != team)
+                players.Add(_world.LocalPlayer);
+            }
+
+            foreach (var player in EnumerateRemotePlayersForView())
+            {
+                if (player.Team != team)
                 {
                     continue;
                 }

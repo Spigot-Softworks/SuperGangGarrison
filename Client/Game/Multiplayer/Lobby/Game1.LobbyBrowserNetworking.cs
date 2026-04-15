@@ -25,6 +25,14 @@ public partial class Game1
 
     private void QueryLobbyBrowserEntry(LobbyBrowserEntry entry)
     {
+        if (!entry.Endpoint.HasUdpEndpoint)
+        {
+            entry.CanJoinDirectly = entry.Endpoint.TryResolveForCurrentRuntime(out _, out _, out _);
+            entry.HasTimedOut = false;
+            entry.StatusText = entry.CanJoinDirectly ? "Ready" : "No endpoint";
+            return;
+        }
+
         if (_lobbyBrowserClient is null)
         {
             entry.HasTimedOut = true;
@@ -44,7 +52,7 @@ public partial class Game1
                 return;
             }
 
-            entry.QueryEndPoint = new IPEndPoint(address, entry.Port);
+            entry.QueryEndPoint = new IPEndPoint(address, entry.Endpoint.UdpPort);
             entry.QueryStartedAtMilliseconds = Environment.TickCount64;
             var payload = ProtocolCodec.Serialize(new ServerStatusRequestMessage());
             _lobbyBrowserClient.Send(payload, payload.Length, entry.QueryEndPoint);
@@ -58,6 +66,7 @@ public partial class Game1
 
     private void UpdateLobbyBrowserResponses()
     {
+        UpdateLobbyBrowserRegistryState();
         UpdateLobbyBrowserLobbyState();
 
         if (_lobbyBrowserClient is null)
@@ -125,7 +134,7 @@ public partial class Game1
         for (var index = 0; index < _lobbyBrowserEntries.Count; index += 1)
         {
             var entry = _lobbyBrowserEntries[index];
-            if (entry.HasResponse || entry.HasTimedOut)
+            if (entry.HasResponse || entry.HasTimedOut || entry.CanJoinDirectly)
             {
                 continue;
             }

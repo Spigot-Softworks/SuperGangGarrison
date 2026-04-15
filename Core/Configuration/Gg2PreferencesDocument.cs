@@ -8,8 +8,8 @@ namespace OpenGarrison.Core;
 public sealed class OpenGarrisonPreferencesDocument
 {
     public const string DefaultFileName = "OpenGarrison.ini";
-    public const string DefaultLobbyHost = "OpenGarrison.game-host.org";
-    public const int DefaultLobbyPort = 29942;
+    public const string DefaultLobbyHost = "https://unkind-dev.com/API/og2servers.php";
+    public const int DefaultLobbyPort = 443;
     private const string SettingsSection = "Settings";
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";

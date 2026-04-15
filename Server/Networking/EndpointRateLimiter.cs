@@ -20,9 +20,14 @@ sealed class EndpointRateLimiter
 
     public bool IsLimited(IPEndPoint endPoint, out TimeSpan retryAfter)
     {
+        return IsLimited(endPoint.Address, out retryAfter);
+    }
+
+    public bool IsLimited(IPAddress address, out TimeSpan retryAfter)
+    {
         var now = _nowProvider();
         PruneExpired(now);
-        if (!_states.TryGetValue(GetKey(endPoint), out var state) || state.BlockedUntil <= now)
+        if (!_states.TryGetValue(GetKey(address), out var state) || state.BlockedUntil <= now)
         {
             retryAfter = TimeSpan.Zero;
             return false;
@@ -34,8 +39,13 @@ sealed class EndpointRateLimiter
 
     public bool TryConsume(IPEndPoint endPoint, out TimeSpan retryAfter)
     {
+        return TryConsume(endPoint.Address, out retryAfter);
+    }
+
+    public bool TryConsume(IPAddress address, out TimeSpan retryAfter)
+    {
         var now = _nowProvider();
-        var key = GetKey(endPoint);
+        var key = GetKey(address);
         PruneExpired(now);
 
         if (!_states.TryGetValue(key, out var state))
@@ -75,7 +85,12 @@ sealed class EndpointRateLimiter
 
     public void Reset(IPEndPoint endPoint)
     {
-        _states.Remove(GetKey(endPoint));
+        Reset(endPoint.Address);
+    }
+
+    public void Reset(IPAddress address)
+    {
+        _states.Remove(GetKey(address));
     }
 
     public void Prune()
@@ -110,7 +125,12 @@ sealed class EndpointRateLimiter
 
     private static string GetKey(IPEndPoint endPoint)
     {
-        return endPoint.Address.ToString();
+        return GetKey(endPoint.Address);
+    }
+
+    private static string GetKey(IPAddress address)
+    {
+        return (address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address).ToString();
     }
 
     private sealed class AttemptState(TimeSpan now)

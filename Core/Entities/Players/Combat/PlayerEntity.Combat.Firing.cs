@@ -72,7 +72,7 @@ public sealed partial class PlayerEntity
         SelectedGameplayEquippedSlot = GameplayEquipmentSlot.Secondary;
         RefreshGameplayLoadoutState();
         AcquiredWeaponCurrentShells -= weaponDefinition.AmmoPerShot;
-        AcquiredWeaponCooldownTicks = weaponDefinition.ReloadDelayTicks;
+        AcquiredWeaponCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(weaponDefinition.ReloadDelayTicks);
         if (weaponDefinition.AutoReloads && AcquiredWeaponCurrentShells < weaponDefinition.MaxAmmo)
         {
             AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
@@ -101,7 +101,7 @@ public sealed partial class PlayerEntity
             : SelectedGameplayEquippedSlot;
         RefreshGameplayLoadoutState();
         ExperimentalOffhandCurrentShells -= weaponDefinition.AmmoPerShot;
-        ExperimentalOffhandCooldownTicks = weaponDefinition.ReloadDelayTicks;
+        ExperimentalOffhandCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(weaponDefinition.ReloadDelayTicks);
         if (weaponDefinition.AutoReloads && ExperimentalOffhandCurrentShells < weaponDefinition.MaxAmmo)
         {
             ExperimentalOffhandReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(weaponDefinition.AmmoReloadTicks);
@@ -147,15 +147,19 @@ public sealed partial class PlayerEntity
         }
 
         SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (PyroAirblastCost * PyroPrimaryFuelScale));
-        PyroAirblastCooldownTicks = PyroAirblastReloadTicks;
+        PyroAirblastCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(PyroAirblastReloadTicks);
         if (IsUsingAcquiredPyroWeapon())
         {
-            AcquiredWeaponCooldownTicks = int.Max(AcquiredWeaponCooldownTicks, PyroAirblastNoFlameTicks);
+            AcquiredWeaponCooldownTicks = int.Max(
+                AcquiredWeaponCooldownTicks,
+                ApplyExperimentalWeaponCycleMultiplier(PyroAirblastNoFlameTicks));
             AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroAirblastReloadTicks);
         }
         else
         {
-            PrimaryCooldownTicks = int.Max(PrimaryCooldownTicks, PyroAirblastNoFlameTicks);
+            PrimaryCooldownTicks = int.Max(
+                PrimaryCooldownTicks,
+                ApplyExperimentalWeaponCycleMultiplier(PyroAirblastNoFlameTicks));
             ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroAirblastReloadTicks);
         }
 
@@ -208,15 +212,15 @@ public sealed partial class PlayerEntity
         if (IsUsingAcquiredPyroWeapon())
         {
             AcquiredWeaponCooldownTicks = !PyroPrimaryRequiresReleaseAfterEmpty
-                ? AcquiredWeapon?.ReloadDelayTicks ?? 0
-                : PyroPrimaryEmptyCooldownTicks;
+                ? ApplyExperimentalWeaponCycleMultiplier(AcquiredWeapon?.ReloadDelayTicks ?? 0)
+                : ApplyExperimentalWeaponCycleMultiplier(PyroPrimaryEmptyCooldownTicks);
             AcquiredWeaponReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroPrimaryRefillBufferTicks);
         }
         else
         {
             PrimaryCooldownTicks = !PyroPrimaryRequiresReleaseAfterEmpty
-                ? PrimaryWeapon.ReloadDelayTicks
-                : PyroPrimaryEmptyCooldownTicks;
+                ? ApplyExperimentalWeaponCycleMultiplier(PrimaryWeapon.ReloadDelayTicks)
+                : ApplyExperimentalWeaponCycleMultiplier(PyroPrimaryEmptyCooldownTicks);
             ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PyroPrimaryRefillBufferTicks);
         }
 
@@ -236,7 +240,7 @@ public sealed partial class PlayerEntity
         }
 
         SetPyroPrimaryFuelScaled(GetPyroPrimaryFuelScaledValue() - (PyroFlareCost * PyroPrimaryFuelScale));
-        PyroFlareCooldownTicks = PyroFlareReloadTicks;
+        PyroFlareCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(PyroFlareReloadTicks);
         return true;
     }
 

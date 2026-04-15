@@ -85,12 +85,17 @@ internal sealed class ServerBanService(
 
     public string? GetConnectionDeniedReason(IPEndPoint remoteEndPoint)
     {
+        return GetConnectionDeniedReason(remoteEndPoint.Address);
+    }
+
+    public string? GetConnectionDeniedReason(IPAddress remoteAddress)
+    {
         lock (_gate)
         {
             var now = _utcNowGetter();
             var document = LoadDocument();
             var changed = PruneExpiredEntries(document, now);
-            var normalizedAddress = NormalizeAddress(remoteEndPoint.Address);
+            var normalizedAddress = NormalizeAddress(remoteAddress);
             var entry = document.Entries.FirstOrDefault(candidate =>
                 string.Equals(candidate.Address, normalizedAddress, StringComparison.Ordinal));
             if (changed)

@@ -252,6 +252,17 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public void StartExperimentalGhostPhase(int ticks)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalGhostDashTicksRemaining = Math.Max(ExperimentalGhostDashTicksRemaining, ticks);
+        ExperimentalGhostDashVisibilityTicksRemaining = Math.Max(ExperimentalGhostDashVisibilityTicksRemaining, ticks);
+    }
+
     public float ConsumeExperimentalNextAttackDamageMultiplier()
     {
         var multiplier = ExperimentalGhostDashNextAttackDamageMultiplierValue;
@@ -445,14 +456,8 @@ public sealed partial class PlayerEntity
         ExperimentalPrimaryCooldownBuffTicksRemaining = 0;
         ExperimentalMovementSpeedMultiplierValue = 1f;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
-        ExperimentalSoldierAmmoRegeneratesWhileSwappedOutEnabled = false;
-        ExperimentalSelfDamageHealingEnabled = false;
-        ExperimentalSoldierInfiniteAmmoDuringRageEnabled = false;
         ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
-        ExperimentalReloadSpeedMultiplierValue = 1f;
-        ExperimentalDemoknightChargeFullControlEnabled = false;
         ExperimentalDemoknightPostRageRegenTicksRemaining = 0;
-        ExperimentalDemoknightPostRageRegenPerTickValue = 0f;
         ExperimentalGhostDashTicksRemaining = 0;
         ExperimentalGhostDashCooldownTicksRemaining = 0;
         ExperimentalGhostDashVisibilityTicksRemaining = 0;
@@ -545,15 +550,21 @@ public sealed partial class PlayerEntity
         var clampedCooldown = Math.Max(1, cooldownTicks);
         if (ExperimentalPrimaryCooldownBuffTicksRemaining <= 0)
         {
-            return clampedCooldown;
+            return ApplyExperimentalWeaponCycleMultiplier(clampedCooldown);
         }
 
-        return Math.Max(1, (int)MathF.Round(clampedCooldown * ExperimentalPrimaryCooldownMultiplierValue));
+        return ApplyExperimentalWeaponCycleMultiplier(
+            Math.Max(1, (int)MathF.Round(clampedCooldown * ExperimentalPrimaryCooldownMultiplierValue)));
     }
 
     private int ApplyExperimentalReloadMultiplier(int ticks)
     {
         var clampedTicks = Math.Max(1, ticks);
         return Math.Max(1, (int)MathF.Round(clampedTicks / ExperimentalReloadSpeedMultiplierValue));
+    }
+
+    private int ApplyExperimentalWeaponCycleMultiplier(int ticks)
+    {
+        return ApplyExperimentalReloadMultiplier(ticks);
     }
 }

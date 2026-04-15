@@ -22,12 +22,17 @@ internal sealed class ServerConnectionRateLimiter(
 
     public string? GetHelloRateLimitReason(IPEndPoint remoteEndPoint)
     {
-        if (_passwordRateLimiter.IsLimited(remoteEndPoint, out var passwordRetryAfter))
+        return GetHelloRateLimitReason(remoteEndPoint.Address);
+    }
+
+    public string? GetHelloRateLimitReason(IPAddress remoteAddress)
+    {
+        if (_passwordRateLimiter.IsLimited(remoteAddress, out var passwordRetryAfter))
         {
             return BuildRetryMessage("Too many password attempts", passwordRetryAfter);
         }
 
-        if (!_helloRateLimiter.TryConsume(remoteEndPoint, out var helloRetryAfter))
+        if (!_helloRateLimiter.TryConsume(remoteAddress, out var helloRetryAfter))
         {
             return BuildRetryMessage("Too many connection attempts", helloRetryAfter);
         }
@@ -37,7 +42,12 @@ internal sealed class ServerConnectionRateLimiter(
 
     public string? GetPasswordRateLimitReason(IPEndPoint remoteEndPoint)
     {
-        if (!_passwordRateLimiter.IsLimited(remoteEndPoint, out var retryAfter))
+        return GetPasswordRateLimitReason(remoteEndPoint.Address);
+    }
+
+    public string? GetPasswordRateLimitReason(IPAddress remoteAddress)
+    {
+        if (!_passwordRateLimiter.IsLimited(remoteAddress, out var retryAfter))
         {
             return null;
         }
@@ -47,18 +57,33 @@ internal sealed class ServerConnectionRateLimiter(
 
     public void RecordPasswordFailure(IPEndPoint remoteEndPoint)
     {
-        _passwordRateLimiter.TryConsume(remoteEndPoint, out _);
+        RecordPasswordFailure(remoteEndPoint.Address);
+    }
+
+    public void RecordPasswordFailure(IPAddress remoteAddress)
+    {
+        _passwordRateLimiter.TryConsume(remoteAddress, out _);
     }
 
     public void ClearPasswordFailures(IPEndPoint remoteEndPoint)
     {
-        _passwordRateLimiter.Reset(remoteEndPoint);
+        ClearPasswordFailures(remoteEndPoint.Address);
+    }
+
+    public void ClearPasswordFailures(IPAddress remoteAddress)
+    {
+        _passwordRateLimiter.Reset(remoteAddress);
     }
 
     public void ResetConnectionAttemptLimits(IPEndPoint remoteEndPoint)
     {
-        _helloRateLimiter.Reset(remoteEndPoint);
-        _passwordRateLimiter.Reset(remoteEndPoint);
+        ResetConnectionAttemptLimits(remoteEndPoint.Address);
+    }
+
+    public void ResetConnectionAttemptLimits(IPAddress remoteAddress)
+    {
+        _helloRateLimiter.Reset(remoteAddress);
+        _passwordRateLimiter.Reset(remoteAddress);
     }
 
     private static string BuildRetryMessage(string prefix, TimeSpan retryAfter)

@@ -17,20 +17,21 @@ public sealed partial class SimulationWorld
             GeneratorState? directHitGenerator)
         {
             var owner = world.FindPlayerById(rocket.OwnerId);
+            var blastRadius = rocket.BlastRadiusValue * rocket.ExperimentalStingerBlastRadiusMultiplier;
             RemoveAt(world, rocket.Id);
             var hitEnemyPlayer = ApplyDirectHitDamage(world, rocket, owner, directHitPlayer, directHitSentry, directHitGenerator);
 
             world.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
             world.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
-            world.ApplyDeadBodyExplosionImpulse(rocket.X, rocket.Y, rocket.BlastRadiusValue, 10f);
-            world.ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, rocket.BlastRadiusValue, 15f);
+            world.ApplyDeadBodyExplosionImpulse(rocket.X, rocket.Y, blastRadius, 10f);
+            world.ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, blastRadius, 15f);
             world.RegisterExplosionTraces(rocket.X, rocket.Y);
 
-            hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner);
-            ApplySplashDamageToSentries(world, rocket, owner);
-            ApplySplashDamageToGenerators(world, rocket, owner);
-            TriggerMinesInBlast(world, rocket);
-            DestroyBubblesInBlast(world, rocket);
+            hitEnemyPlayer |= ApplySplashDamageToPlayers(world, rocket, owner, blastRadius);
+            ApplySplashDamageToSentries(world, rocket, owner, blastRadius);
+            ApplySplashDamageToGenerators(world, rocket, owner, blastRadius);
+            TriggerMinesInBlast(world, rocket, blastRadius);
+            DestroyBubblesInBlast(world, rocket, blastRadius);
             world.TryApplyExperimentalSoldierRocketHitReloadReward(owner, rocket, hitEnemyPlayer);
         }
 
@@ -61,7 +62,7 @@ public sealed partial class SimulationWorld
                 var hitDamage = world.ApplyExperimentalAirshotDamageMultiplier(
                     owner,
                     directHitPlayer,
-                    rocket.DirectHitDamageValue,
+                    Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier)),
                     out var damageFlags);
                 if (world.ApplyPlayerDamage(directHitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                 {
@@ -92,7 +93,8 @@ public sealed partial class SimulationWorld
 
             if (directHitSentry is not null)
             {
-                if (world.ApplySentryDamage(directHitSentry, rocket.DirectHitDamageValue, owner))
+                var sentryDamage = Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier));
+                if (world.ApplySentryDamage(directHitSentry, sentryDamage, owner))
                 {
                     world.DestroySentry(directHitSentry, owner);
                 }
@@ -100,13 +102,16 @@ public sealed partial class SimulationWorld
 
             if (directHitGenerator is not null)
             {
-                world.TryDamageGenerator(directHitGenerator.Team, rocket.DirectHitDamageValue, owner);
+                world.TryDamageGenerator(
+                    directHitGenerator.Team,
+                    rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier,
+                    owner);
             }
 
             return hitEnemyPlayer;
         }
 
-        private static bool ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner)
+        private static bool ApplySplashDamageToPlayers(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
         {
             var hitEnemyPlayer = false;
             foreach (var player in world.EnumerateSimulatedPlayers())
@@ -117,7 +122,7 @@ public sealed partial class SimulationWorld
                 }
 
                 var distance = SimulationWorld.GetExplosionDistanceToPlayer(player, rocket.X, rocket.Y);
-                if (distance >= rocket.BlastRadiusValue)
+                if (distance >= blastRadius)
                 {
                     continue;
                 }
@@ -127,7 +132,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distanceFactor = 1f - (distance / rocket.BlastRadiusValue);
+                var distanceFactor = 1f - (distance / blastRadius);
                 if (distanceFactor <= rocket.SplashThresholdFactorValue)
                 {
                     continue;
@@ -148,7 +153,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * distanceFactor;
+                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
                 hitEnemyPlayer |= player.Team != rocket.Team;
                 if (world.ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))
@@ -226,18 +231,18 @@ public sealed partial class SimulationWorld
             return SimulationWorld.NormalizeAngleDegrees(360f - worldDegrees);
         }
 
-        private static void ApplySplashDamageToSentries(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner)
+        private static void ApplySplashDamageToSentries(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
         {
             for (var sentryIndex = world._sentries.Count - 1; sentryIndex >= 0; sentryIndex -= 1)
             {
                 var sentry = world._sentries[sentryIndex];
                 var distance = SimulationWorld.DistanceBetween(rocket.X, rocket.Y, sentry.X, sentry.Y);
-                if (distance >= rocket.BlastRadiusValue || sentry.Team == rocket.Team)
+                if (distance >= blastRadius || sentry.Team == rocket.Team)
                 {
                     continue;
                 }
 
-                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * (1f - (distance / rocket.BlastRadiusValue));
+                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * (1f - (distance / blastRadius));
                 if (world.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
                 {
                     world.DestroySentry(sentry, owner);
@@ -245,29 +250,29 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static void ApplySplashDamageToGenerators(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner)
+        private static void ApplySplashDamageToGenerators(SimulationWorld world, RocketProjectileEntity rocket, PlayerEntity? owner, float blastRadius)
         {
             for (var generatorIndex = 0; generatorIndex < world._generators.Count; generatorIndex += 1)
             {
                 var generator = world._generators[generatorIndex];
                 var distance = SimulationWorld.DistanceBetween(rocket.X, rocket.Y, generator.Marker.CenterX, generator.Marker.CenterY);
-                if (distance >= rocket.BlastRadiusValue || generator.Team == rocket.Team || generator.IsDestroyed)
+                if (distance >= blastRadius || generator.Team == rocket.Team || generator.IsDestroyed)
                 {
                     continue;
                 }
 
-                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalManualDetonationDamageMultiplier * (1f - (distance / rocket.BlastRadiusValue));
+                var damage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * (1f - (distance / blastRadius));
                 world.TryDamageGenerator(generator.Team, damage, owner);
             }
         }
 
-        private static void TriggerMinesInBlast(SimulationWorld world, RocketProjectileEntity rocket)
+        private static void TriggerMinesInBlast(SimulationWorld world, RocketProjectileEntity rocket, float blastRadius)
         {
             var queuedMineIds = new List<int>();
             foreach (var mine in world._mines)
             {
                 if ((mine.Team == rocket.Team && mine.OwnerId != rocket.OwnerId)
-                    || SimulationWorld.DistanceBetween(rocket.X, rocket.Y, mine.X, mine.Y) >= MineProjectileEntity.BlastRadius * 0.66f)
+                    || SimulationWorld.DistanceBetween(rocket.X, rocket.Y, mine.X, mine.Y) >= blastRadius * 0.66f)
                 {
                     continue;
                 }
@@ -285,11 +290,11 @@ public sealed partial class SimulationWorld
             }
         }
 
-        private static void DestroyBubblesInBlast(SimulationWorld world, RocketProjectileEntity rocket)
+        private static void DestroyBubblesInBlast(SimulationWorld world, RocketProjectileEntity rocket, float blastRadius)
         {
             for (var bubbleIndex = world._bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
             {
-                if (SimulationWorld.DistanceBetween(rocket.X, rocket.Y, world._bubbles[bubbleIndex].X, world._bubbles[bubbleIndex].Y) < RocketProjectileEntity.BlastRadius * 0.66f)
+                if (SimulationWorld.DistanceBetween(rocket.X, rocket.Y, world._bubbles[bubbleIndex].X, world._bubbles[bubbleIndex].Y) < blastRadius * 0.66f)
                 {
                     world.RemoveBubbleAt(bubbleIndex);
                 }

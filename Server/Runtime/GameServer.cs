@@ -40,6 +40,9 @@ sealed partial class GameServer
     private readonly string? _serverPassword;
     private string? _rconPassword;
     private readonly bool _useLobbyServer;
+    private readonly Uri? _registryUrl;
+    private readonly string? _registryToken;
+    private readonly string? _publicHost;
     private readonly string _lobbyHost;
     private readonly int _lobbyPort;
     private readonly string _protocolUuidString;
@@ -62,9 +65,10 @@ sealed partial class GameServer
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
-    private readonly int _webTransportPort;
-    private readonly string? _webTransportCertificatePath;
-    private readonly string? _webTransportCertificatePassword;
+    private readonly int _webSocketPort;
+    private readonly string? _webSocketCertificatePath;
+    private readonly string? _webSocketCertificatePassword;
+    private readonly string? _publicWebSocketUrl;
     private readonly double _clientTimeoutSeconds;
     private readonly double _passwordTimeoutSeconds;
     private readonly double _passwordRetrySeconds;
@@ -78,9 +82,10 @@ sealed partial class GameServer
     private int _nextClientUserId = 1;
 
     private UdpClient _udp = null!;
-    private OpenGarrison.Server.IServerDatagramTransport _datagramTransport = null!;
-    private OpenGarrison.Server.WebTransportServerHost? _webTransportHost;
+    private OpenGarrison.Server.IServerMessageTransport _messageTransport = null!;
+    private OpenGarrison.Server.WebSocketServerHost? _webSocketHost;
     private LobbyServerRegistrar? _lobbyRegistrar;
+    private HttpServerRegistryHeartbeat? _httpRegistryHeartbeat;
     private SimulationWorld _world = null!;
     private FixedStepSimulator _simulator = null!;
     private Stopwatch _clock = null!;
@@ -113,6 +118,9 @@ sealed partial class GameServer
         string? serverPassword,
         string? rconPassword,
         bool useLobbyServer,
+        Uri? registryUrl,
+        string? registryToken,
+        string? publicHost,
         string lobbyHost,
         int lobbyPort,
         string protocolUuidString,
@@ -131,9 +139,10 @@ sealed partial class GameServer
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
-        int webTransportPort,
-        string? webTransportCertificatePath,
-        string? webTransportCertificatePassword,
+        int webSocketPort,
+        string? webSocketCertificatePath,
+        string? webSocketCertificatePassword,
+        string? publicWebSocketUrl,
         double clientTimeoutSeconds,
         double passwordTimeoutSeconds,
         double passwordRetrySeconds,
@@ -148,6 +157,9 @@ sealed partial class GameServer
         _serverPassword = serverPassword;
         _rconPassword = rconPassword;
         _useLobbyServer = useLobbyServer;
+        _registryUrl = registryUrl;
+        _registryToken = registryToken;
+        _publicHost = publicHost;
         _lobbyHost = lobbyHost;
         _lobbyPort = lobbyPort;
         _protocolUuidString = protocolUuidString;
@@ -166,9 +178,10 @@ sealed partial class GameServer
         _timeLimitMinutesOverride = timeLimitMinutesOverride;
         _capLimitOverride = capLimitOverride;
         _respawnSecondsOverride = respawnSecondsOverride;
-        _webTransportPort = webTransportPort;
-        _webTransportCertificatePath = webTransportCertificatePath;
-        _webTransportCertificatePassword = webTransportCertificatePassword;
+        _webSocketPort = webSocketPort;
+        _webSocketCertificatePath = webSocketCertificatePath;
+        _webSocketCertificatePassword = webSocketCertificatePassword;
+        _publicWebSocketUrl = publicWebSocketUrl;
         _clientTimeoutSeconds = clientTimeoutSeconds;
         _passwordTimeoutSeconds = passwordTimeoutSeconds;
         _passwordRetrySeconds = passwordRetrySeconds;

@@ -10,7 +10,7 @@
 <body>
     <!-- Splash Screen -->
     <div id="splashScreen" class="splash-screen">
-        <img src="clarkson.png" alt="" />
+        <img src="Content/Browser/Atlases/bootstrap-menu-ui-0.png" alt="" />
         <div id="winDialog" class="win-dialog-overlay" role="presentation" aria-hidden="false">
             <div class="win-dialog" role="alertdialog" aria-modal="true" aria-labelledby="winDialogTitle" aria-describedby="winDialogMessage">
                 <div class="win-dialog-titlebar">
@@ -56,7 +56,7 @@
             gameLoopPending: false,
             gameLoopHost: null,
             preferSynchronousGameLoopPump: false,
-            webTransportClients: {},
+            webSocketClients: {},
             inputBridgeHost: null,
             metrics: {
                 loopStartedAt: 0,
@@ -138,71 +138,38 @@
                 canvas.focus({ preventScroll: true });
                 return document.activeElement === canvas;
             },
-            buildWebTransportUrl: function (host, port) {
+            buildWebSocketUrl: function (host, port) {
                 const normalizedHost = typeof host === "string" ? host.trim() : "";
                 if (!normalizedHost) {
                     throw new Error("Browser multiplayer requires a server host.");
                 }
 
+                if (normalizedHost.startsWith("ws://") || normalizedHost.startsWith("wss://")) {
+                    return normalizedHost;
+                }
+
                 const hostWithBrackets = normalizedHost.includes(":") && !normalizedHost.startsWith("[")
                     ? "[" + normalizedHost + "]"
                     : normalizedHost;
-                return "https://" + hostWithBrackets + ":" + port + "/.well-known/opengarrison/wt";
+                const pageProtocol = window.location && window.location.protocol === "https:" ? "wss://" : "ws://";
+                return pageProtocol + hostWithBrackets + ":" + port + "/opengarrison/ws";
             },
-            buildWebTransportOptions: function () {
-                const configuredHashes = [];
-                const configuredValue = typeof window.localStorage !== "undefined"
-                    ? window.localStorage.getItem("opengarrison.webtransport.cert.sha256")
-                    : null;
-                if (typeof configuredValue === "string" && configuredValue.trim().length > 0) {
-                    const values = configuredValue.split(/[,\s]+/);
-                    for (const rawValue of values) {
-                        const normalizedValue = rawValue.trim().toLowerCase();
-                        if (!normalizedValue) {
-                            continue;
-                        }
-
-                        if (!/^[0-9a-f]{64}$/.test(normalizedValue)) {
-                            console.warn("Ignoring invalid OpenGarrison WebTransport SHA-256 certificate hash.", rawValue);
-                            continue;
-                        }
-
-                        const hashBytes = new Uint8Array(32);
-                        for (let index = 0; index < 32; index += 1) {
-                            hashBytes[index] = parseInt(normalizedValue.substring(index * 2, (index * 2) + 2), 16);
-                        }
-
-                        configuredHashes.push({
-                            algorithm: "sha-256",
-                            value: hashBytes
-                        });
-                    }
-                }
-
-                return configuredHashes.length > 0
-                    ? { serverCertificateHashes: configuredHashes }
-                    : undefined;
-            },
-            openWebTransportDatagramClient: function (clientId, host, port, transportHost) {
+            openWebSocketClient: function (clientId, host, port, transportHost) {
                 const api = window.OpenGarrisonBrowserHost;
-                if (typeof WebTransport === "undefined") {
-                    throw new Error("WebTransport is not available in this browser.");
+                if (typeof WebSocket === "undefined") {
+                    throw new Error("WebSocket is not available in this browser.");
                 }
 
-                const url = api.buildWebTransportUrl(host, port);
+                const url = api.buildWebSocketUrl(host, port);
                 const entry = {
                     id: clientId,
                     url: url,
                     host: transportHost,
-                    session: null,
-                    stream: null,
-                    writer: null,
-                    reader: null,
-                    pendingBytes: new Uint8Array(0),
+                    socket: null,
                     isClosed: false,
                     isReady: false
                 };
-                api.webTransportClients[clientId] = entry;
+                api.webSocketClients[clientId] = entry;
 
                 const notify = function (methodName, ...args) {
                     if (!entry.host || typeof entry.host.invokeMethodAsync !== "function") {
@@ -210,7 +177,7 @@
                     }
 
                     return entry.host.invokeMethodAsync(methodName, ...args).catch(function (error) {
-                        console.error("Browser WebTransport callback failed.", methodName, error);
+                        console.error("Browser WebSocket callback failed.", methodName, error);
                     });
                 };
                 const closeEntry = function (reason) {
@@ -219,158 +186,85 @@
                     }
 
                     entry.isClosed = true;
-                    delete api.webTransportClients[clientId];
+                    delete api.webSocketClients[clientId];
 
-                    if (entry.reader) {
-                        try {
-                            entry.reader.releaseLock();
-                        } catch (error) {
-                            console.warn("Browser WebTransport reader release failed.", error);
-                        }
+                    if (entry.socket && entry.socket.readyState === WebSocket.OPEN) {
+                        entry.socket.close();
                     }
 
-                    if (entry.writer) {
-                        try {
-                            entry.writer.releaseLock();
-                        } catch (error) {
-                            console.warn("Browser WebTransport writer release failed.", error);
-                        }
-                    }
-
-                    notify("HandleWebTransportDisconnect", reason || "WebTransport connection closed.");
-                };
-                const appendBytes = function (left, right) {
-                    if (!left || left.length === 0) {
-                        return right;
-                    }
-
-                    if (!right || right.length === 0) {
-                        return left;
-                    }
-
-                    const combined = new Uint8Array(left.length + right.length);
-                    combined.set(left, 0);
-                    combined.set(right, left.length);
-                    return combined;
-                };
-                const pumpFrames = async function (chunk) {
-                    entry.pendingBytes = appendBytes(entry.pendingBytes, chunk);
-                    while (entry.pendingBytes.length >= 4) {
-                        const payloadLength =
-                            entry.pendingBytes[0]
-                            | (entry.pendingBytes[1] << 8)
-                            | (entry.pendingBytes[2] << 16)
-                            | (entry.pendingBytes[3] << 24);
-                        if (payloadLength <= 0) {
-                            closeEntry("WebTransport payload frame was invalid.");
-                            return false;
-                        }
-
-                        if (entry.pendingBytes.length < 4 + payloadLength) {
-                            return true;
-                        }
-
-                        const payload = entry.pendingBytes.slice(4, 4 + payloadLength);
-                        entry.pendingBytes = entry.pendingBytes.slice(4 + payloadLength);
-                        await notify("HandleWebTransportDatagram", payload);
-                    }
-
-                    return true;
-                };
-                const readLoop = async function () {
-                    while (!entry.isClosed && entry.reader) {
-                        let result;
-                        try {
-                            result = await entry.reader.read();
-                        } catch (error) {
-                            closeEntry(error && error.message ? error.message : "WebTransport datagram read failed.");
-                            return;
-                        }
-
-                        if (!result || result.done) {
-                            closeEntry("WebTransport datagram stream closed.");
-                            return;
-                        }
-
-                        if (result.value && result.value.length > 0) {
-                            if (!await pumpFrames(result.value)) {
-                                return;
-                            }
-                        }
-                    }
+                    notify("HandleWebSocketDisconnect", reason || "WebSocket connection closed.");
                 };
 
-                (async function () {
-                    try {
-                        const transportOptions = api.buildWebTransportOptions();
-                        entry.session = transportOptions
-                            ? new WebTransport(url, transportOptions)
-                            : new WebTransport(url);
-                        await entry.session.ready;
-                        if (entry.isClosed) {
-                            return;
-                        }
-
-                        entry.stream = await entry.session.createBidirectionalStream();
-                        entry.writer = entry.stream.writable.getWriter();
-                        entry.reader = entry.stream.readable.getReader();
+                const socket = new WebSocket(url);
+                entry.socket = socket;
+                socket.binaryType = "arraybuffer";
+                socket.onopen = async function () {
+                    if (!entry.isClosed) {
                         entry.isReady = true;
-                        await notify("HandleWebTransportReady");
-                        await readLoop();
-                        await entry.session.closed;
-                        closeEntry("WebTransport connection closed.");
-                    } catch (error) {
-                        closeEntry(error && error.message ? error.message : "WebTransport connection failed.");
+                        await notify("HandleWebSocketReady");
                     }
-                })();
+                };
+                socket.onmessage = async function (event) {
+                    if (entry.isClosed || !event.data) {
+                        return;
+                    }
+
+                    let payload;
+                    if (event.data instanceof ArrayBuffer) {
+                        payload = new Uint8Array(event.data);
+                    } else if (event.data instanceof Blob) {
+                        payload = new Uint8Array(await event.data.arrayBuffer());
+                    } else {
+                        closeEntry("WebSocket payload was not binary.");
+                        return;
+                    }
+
+                    await notify("HandleWebSocketMessage", payload);
+                };
+                socket.onerror = function () {
+                    closeEntry("WebSocket connection failed.");
+                };
+                socket.onclose = function (event) {
+                    const reason = event && event.reason
+                        ? event.reason
+                        : "WebSocket connection closed.";
+                    closeEntry(reason);
+                };
             },
-            sendWebTransportDatagram: function (clientId, payload) {
-                const entry = window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+            sendWebSocketMessage: function (clientId, payload) {
+                const entry = window.OpenGarrisonBrowserHost.webSocketClients[clientId];
                 if (!entry || entry.isClosed) {
-                    throw new Error("WebTransport client is not available.");
+                    throw new Error("WebSocket client is not available.");
                 }
 
-                if (!entry.isReady || !entry.writer) {
+                if (!entry.isReady || !entry.socket || entry.socket.readyState !== WebSocket.OPEN) {
                     return false;
                 }
 
-                const frame = new Uint8Array(payload.length + 4);
-                frame[0] = payload.length & 0xff;
-                frame[1] = (payload.length >> 8) & 0xff;
-                frame[2] = (payload.length >> 16) & 0xff;
-                frame[3] = (payload.length >> 24) & 0xff;
-                frame.set(payload, 4);
-
-                entry.writer.write(frame).catch(function (error) {
+                try {
+                    entry.socket.send(payload);
+                } catch (error) {
                     if (entry.host && typeof entry.host.invokeMethodAsync === "function") {
                         entry.host.invokeMethodAsync(
-                            "HandleWebTransportDisconnect",
-                            error && error.message ? error.message : "WebTransport datagram send failed.")
+                            "HandleWebSocketDisconnect",
+                            error && error.message ? error.message : "WebSocket send failed.")
                             .catch(function (callbackError) {
-                                console.error("Browser WebTransport disconnect callback failed.", callbackError);
+                                console.error("Browser WebSocket disconnect callback failed.", callbackError);
                             });
                     }
-                });
+                }
                 return true;
             },
-            closeWebTransportDatagramClient: function (clientId) {
-                const entry = window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+            closeWebSocketClient: function (clientId) {
+                const entry = window.OpenGarrisonBrowserHost.webSocketClients[clientId];
                 if (!entry) {
                     return;
                 }
 
-                delete window.OpenGarrisonBrowserHost.webTransportClients[clientId];
+                delete window.OpenGarrisonBrowserHost.webSocketClients[clientId];
                 entry.isClosed = true;
-                if (entry.reader) {
-                    entry.reader.cancel().catch(function () { });
-                }
-
-                if (entry.writer) {
-                    entry.writer.close().catch(function () { });
-                }
-
-                if (entry.session) {
-                    entry.session.close();
+                if (entry.socket) {
+                    entry.socket.close();
                 }
             },
             getCanvasInputPoint: function (event) {
@@ -672,15 +566,21 @@
             },
             // Splash Screen Functions
             splashState: "dialog", // "dialog" | "intro_playing" | "scope_playing" | "done"
+            introAudioSource: "",
+            scopeAudioSource: "",
             startIntroAudio: function () {
                 const api = window.OpenGarrisonBrowserHost;
                 if (api.splashState !== "dialog") {
                     return;
                 }
                 api.splashState = "intro_playing";
+                if (!api.introAudioSource) {
+                    return;
+                }
+
                 const introAudio = document.getElementById("introAudio");
                 if (introAudio) {
-                    introAudio.src = "clarkson.ogg";
+                    introAudio.src = api.introAudioSource;
                     introAudio.play().catch(function (error) {
                         console.warn("Failed to play intro audio:", error);
                         api.splashState = "intro_playing";
@@ -717,9 +617,14 @@
                     introAudio.currentTime = 0;
                 }
                 api.splashState = "scope_playing";
+                if (!api.scopeAudioSource) {
+                    api.onSplashComplete();
+                    return;
+                }
+
                 const scopeAudio = document.getElementById("scopeAudio");
                 if (scopeAudio) {
-                    scopeAudio.src = "scope.ogg";
+                    scopeAudio.src = api.scopeAudioSource;
                     scopeAudio.onended = function () {
                         api.onSplashComplete();
                     };

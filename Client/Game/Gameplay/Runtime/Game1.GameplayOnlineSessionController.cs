@@ -65,9 +65,25 @@ public partial class Game1
 
         public bool TryConnectToServer(string host, int port, bool addConsoleFeedback)
         {
+            return TryConnectToServer(NetworkEndpoint.ForCurrentRuntimeSinglePort(host, port), addConsoleFeedback);
+        }
+
+        public bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
+        {
             if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
             {
                 _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
+                return false;
+            }
+
+            if (!endpoint.TryResolveForCurrentRuntime(out var host, out var port, out var transport))
+            {
+                _game.SetNetworkStatus("Connect failed: endpoint does not support this runtime.");
+                if (addConsoleFeedback)
+                {
+                    _game.AddNetworkConsoleLine("connect failed: endpoint does not support this runtime.");
+                }
+
                 return false;
             }
 
@@ -80,10 +96,11 @@ public partial class Game1
                 // from leaking into client prediction when the world instance is reused.
                 _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
                 _game.CloseLobbyBrowser(clearStatus: false);
-                _game.SetNetworkStatus($"Connecting to {host}:{port}...");
+                var transportLabel = transport == NetworkEndpointTransport.WebSocket ? "WebSocket" : "UDP";
+                _game.SetNetworkStatus($"Connecting to {host}:{port} over {transportLabel}...");
                 if (addConsoleFeedback)
                 {
-                    _game.AddNetworkConsoleLine($"connecting to {host}:{port} over udp");
+                    _game.AddNetworkConsoleLine($"connecting to {host}:{port} over {transportLabel}");
                 }
 
                 return true;

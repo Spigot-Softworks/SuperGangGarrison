@@ -138,9 +138,19 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool ExplodeImmediately { get; private set; }
 
-    public float ExperimentalManualDetonationDamageMultiplier { get; private set; } = 1f;
+    private bool ExperimentalStingerSpeedBurstConsumed { get; set; }
 
     public bool IsExpired => TicksRemaining <= 0;
+
+    public bool IsExperimentalStingerPhaseOneActive => EnableExperimentalStingerTracking && !ExperimentalStingerSpeedBurstConsumed;
+
+    public float ExperimentalStingerDamageMultiplier => IsExperimentalStingerPhaseOneActive
+        ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerDamageMultiplier
+        : 1f;
+
+    public float ExperimentalStingerBlastRadiusMultiplier => IsExperimentalStingerPhaseOneActive
+        ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerBlastRadiusMultiplier
+        : 1f;
 
     public void AdvanceOneTick(float deltaSeconds)
     {
@@ -219,7 +229,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         PreviousY = Y;
         ExplodeImmediately = false;
         EnableExperimentalStingerTracking = false;
-        ExperimentalManualDetonationDamageMultiplier = 1f;
+        ExperimentalStingerSpeedBurstConsumed = false;
         ReducedKnockbackSourceTicksRemaining = ReflectedReducedKnockbackDelaySourceTicks;
         ZeroKnockbackSourceTicksRemaining = ReflectedZeroKnockbackDelaySourceTicks;
     }
@@ -244,9 +254,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ExplodeImmediately = true;
     }
 
-    public void ArmExperimentalManualDetonation(float damageMultiplier)
+    public void ArmExperimentalManualDetonation()
     {
-        ExperimentalManualDetonationDamageMultiplier = MathF.Max(1f, damageMultiplier);
         DelayExplosionUntilNextTick();
     }
 
@@ -260,6 +269,22 @@ public sealed class RocketProjectileEntity : SimulationEntity
         var delta = NormalizeRadians(targetDirectionRadians - DirectionRadians);
         delta = Math.Clamp(delta, -maxTurnRadians, maxTurnRadians);
         DirectionRadians = NormalizeRadians(DirectionRadians + delta);
+    }
+
+    public bool TryApplyExperimentalStingerSpeedBurst(float speedMultiplier)
+    {
+        if (!EnableExperimentalStingerTracking
+            || ExperimentalStingerSpeedBurstConsumed
+            || speedMultiplier <= 1f
+            || IsFading
+            || IsExpired)
+        {
+            return false;
+        }
+
+        Speed *= speedMultiplier;
+        ExperimentalStingerSpeedBurstConsumed = true;
+        return true;
     }
 
     public void ClearDelayedExplosion()
@@ -300,7 +325,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
-        ExperimentalManualDetonationDamageMultiplier = 1f;
+        ExperimentalStingerSpeedBurstConsumed = false;
     }
 
     public void ApplyNetworkState(
@@ -338,7 +363,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
-        ExperimentalManualDetonationDamageMultiplier = 1f;
+        ExperimentalStingerSpeedBurstConsumed = false;
     }
 
     private void AdvanceKnockbackDecay(float deltaSeconds)

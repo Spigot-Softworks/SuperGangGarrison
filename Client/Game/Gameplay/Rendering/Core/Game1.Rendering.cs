@@ -86,6 +86,16 @@ public partial class Game1
 
     private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation = 0f)
     {
+        return TryDrawSprite(spriteName, frameIndex, worldX, worldY, cameraPosition, tint, rotation, Vector2.One);
+    }
+
+    private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation, float scale)
+    {
+        return TryDrawSprite(spriteName, frameIndex, worldX, worldY, cameraPosition, tint, rotation, new Vector2(scale, scale));
+    }
+
+    private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation, Vector2 scale)
+    {
         var sprite = GetResolvedSprite(spriteName);
         if (sprite is null || sprite.Frames.Count == 0)
         {
@@ -99,7 +109,7 @@ public partial class Game1
             tint,
             rotation,
             sprite.Origin.ToVector2(),
-            Vector2.One);
+            scale);
         return true;
     }
 

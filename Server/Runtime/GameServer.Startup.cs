@@ -18,9 +18,10 @@ partial class GameServer
         using var eventLog = new PersistentServerEventLog(_eventLogPath, Console.WriteLine);
         InitializeUdpTransport(udp);
         ApplyRuntimeBootstrap(CreateRuntimeBootstrap(eventLog));
-        InitializeWebTransportHost();
+        InitializeWebSocketHost();
         InitializeGameplayOwnershipService();
         InitializePluginRuntime();
+        InitializeHttpRegistryHeartbeat();
         InitializeIncomingPacketPump();
         StartAndAnnounceServer(timerResolution.IsActive, eventLog);
         RunMainLoop(cancellationToken);
@@ -45,37 +46,31 @@ partial class GameServer
         _udp = udp;
         _udp.Client.Blocking = false;
         TryDisableUdpConnectionReset(_udp.Client);
-        _datagramTransport = new OpenGarrison.Server.CompositeServerDatagramTransport(_udp);
+        _messageTransport = new OpenGarrison.Server.CompositeServerMessageTransport(_udp);
     }
 
-    private void InitializeWebTransportHost()
+    private void InitializeWebSocketHost()
     {
-        if (_webTransportPort <= 0)
+        if (_webSocketPort <= 0)
         {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_webTransportCertificatePath))
-        {
-            Console.WriteLine("[server] WebTransport disabled: --webtransport-port requires --webtransport-cert.");
             return;
         }
 
         try
         {
-            _webTransportHost = new OpenGarrison.Server.WebTransportServerHost(
-                _webTransportPort,
-                _webTransportCertificatePath,
-                _webTransportCertificatePassword,
-                (OpenGarrison.Server.CompositeServerDatagramTransport)_datagramTransport,
+            _webSocketHost = new OpenGarrison.Server.WebSocketServerHost(
+                _webSocketPort,
+                _webSocketCertificatePath,
+                _webSocketCertificatePassword,
+                (OpenGarrison.Server.CompositeServerMessageTransport)_messageTransport,
                 Console.WriteLine);
-            _webTransportHost.Start();
+            _webSocketHost.Start();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[server] failed to start WebTransport listener: {ex.Message}");
-            _webTransportHost?.Dispose();
-            _webTransportHost = null;
+            Console.WriteLine($"[server] failed to start WebSocket listener: {ex.Message}");
+            _webSocketHost?.Dispose();
+            _webSocketHost = null;
         }
     }
 
@@ -84,7 +79,7 @@ partial class GameServer
         return OpenGarrison.Server.ServerRuntimeBootstrapFactory.Create(
             _config,
             _udp,
-            _datagramTransport,
+            _messageTransport,
             _port,
             _protocolUuidBytes,
             _useLobbyServer,
@@ -149,9 +144,9 @@ partial class GameServer
         Console.WriteLine($"OG2.Server booting at {_config.TicksPerSecond} ticks/sec.");
         Console.WriteLine($"Protocol version: {ProtocolVersion.Current}");
         Console.WriteLine($"UDP bind: 0.0.0.0:{_port}");
-        Console.WriteLine(_webTransportHost is null
-            ? "[server] WebTransport: disabled"
-            : $"[server] WebTransport: https://0.0.0.0:{_webTransportPort}/.well-known/opengarrison/wt");
+        Console.WriteLine(_webSocketHost is null
+            ? "[server] WebSocket: disabled"
+            : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
         Console.WriteLine($"Name: {_serverName}");
         Console.WriteLine($"Max players: {_maxPlayableClients}");
         if (highResolutionTimerEnabled)
@@ -182,6 +177,11 @@ partial class GameServer
         if (_useLobbyServer)
         {
             Console.WriteLine($"[server] lobby registration enabled host={_lobbyHost}:{_lobbyPort}");
+        }
+
+        if (_httpRegistryHeartbeat is not null)
+        {
+            Console.WriteLine($"[server] HTTP registry enabled url={_registryUrl}");
         }
 
         Console.WriteLine("[server] type \"help\" for commands. Type \"shutdown\" to stop.");
@@ -252,6 +252,7 @@ partial class GameServer
                     },
                     _snapshotBroadcaster.BroadcastSnapshot);
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
+                _httpRegistryHeartbeat?.Tick(now);
                 if (ticks > 0)
                 {
                     _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
@@ -299,8 +300,11 @@ partial class GameServer
                 ("frame", _world?.Frame ?? 0L));
             _pluginHost?.NotifyServerStopping();
             _outboundMessaging.NotifyClientsOfShutdown();
-            _webTransportHost?.Dispose();
-            _webTransportHost = null;
+            _httpRegistryHeartbeat?.Remove();
+            _httpRegistryHeartbeat?.Dispose();
+            _httpRegistryHeartbeat = null;
+            _webSocketHost?.Dispose();
+            _webSocketHost = null;
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
             Console.WriteLine("[server] shutdown complete.");
@@ -355,6 +359,38 @@ partial class GameServer
             _adminSessionManager,
             () => _pluginHost,
             (slot, text) => _adminOperations.SendSystemMessage(slot, text));
+    }
+
+    private void InitializeHttpRegistryHeartbeat()
+    {
+        if (_registryUrl is null)
+        {
+            return;
+        }
+
+        _httpRegistryHeartbeat = new HttpServerRegistryHeartbeat(
+            _registryUrl,
+            _registryToken,
+            CreateServerRegistrySnapshot,
+            Console.WriteLine);
+    }
+
+    private ServerRegistrySnapshot CreateServerRegistrySnapshot()
+    {
+        var players = _world.EnumerateActiveNetworkPlayers().Count();
+        var spectators = _clientsBySlot.Keys.Count(IsSpectatorSlot);
+        return new ServerRegistrySnapshot(
+            _serverName,
+            _publicHost,
+            _port,
+            _webSocketHost is null ? 0 : _webSocketPort,
+            _publicWebSocketUrl,
+            _passwordRequired,
+            _world.Level.Name,
+            _world.MatchRules.Mode.ToString(),
+            players,
+            _maxPlayableClients,
+            spectators);
     }
 
     private ServerCvarRegistry CreateServerCvarRegistry()
@@ -555,7 +591,7 @@ partial class GameServer
             Console.WriteLine,
             _banService);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
-            _datagramTransport,
+            _messageTransport,
             messageDispatcher,
             WsaConnReset,
             Console.WriteLine);

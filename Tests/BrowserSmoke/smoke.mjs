@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -229,13 +229,19 @@ async function startPublishedStaticServer() {
   const contentRoot = join(
     publishOutputDir,
     "wwwroot");
+  const basePath = await readPublishedBasePath(contentRoot);
+  if (!explicitBaseUrl && basePath !== "/") {
+    baseUrl = `http://127.0.0.1:${defaultPort}${basePath}`;
+  }
+
   const requestedUrl = new URL(baseUrl);
-  staticServer = createStaticFileServer(contentRoot);
+  const servedBasePath = normalizeBasePath(requestedUrl.pathname);
+  staticServer = createStaticFileServer(contentRoot, servedBasePath);
   await listenStaticServer(staticServer, requestedUrl.hostname, Number(requestedUrl.port));
 
   const address = staticServer.address();
   if (address && typeof address === "object") {
-    baseUrl = `${requestedUrl.protocol}//${address.address}:${address.port}`;
+    baseUrl = `${requestedUrl.protocol}//${address.address}:${address.port}${servedBasePath}`;
   }
 
   serverLogs.push(`[static server] serving ${contentRoot} at ${baseUrl}\n`);
@@ -310,11 +316,30 @@ async function publishBrowserArtifacts() {
   }
 }
 
-function createStaticFileServer(rootDirectory) {
+async function readPublishedBasePath(rootDirectory) {
+  const indexHtml = await readFile(join(rootDirectory, "index.html"), "utf8");
+  const match = indexHtml.match(/<base\s+href=["']([^"']+)["']/i);
+  return normalizeBasePath(match?.[1] ?? "/");
+}
+
+function normalizeBasePath(pathname) {
+  if (!pathname || pathname === "/") {
+    return "/";
+  }
+
+  const normalized = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+function createStaticFileServer(rootDirectory, basePath) {
   return createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
       let relativePath = decodeURIComponent(requestUrl.pathname);
+      if (basePath !== "/" && relativePath.startsWith(basePath)) {
+        relativePath = `/${relativePath.slice(basePath.length)}`;
+      }
+
       if (relativePath === "/" || relativePath.length === 0) {
         relativePath = "/index.html";
       }
@@ -538,27 +563,22 @@ async function joinPracticeAndExerciseRapidFire(page) {
   );
   await clickAutomationAction(page, classSelectState.classSelectButtons, "Pyro");
 
-  await waitForAutomationState(
+  const spawnedState = await waitForAutomationState(
     page,
     (state) => state && !state.classSelectOpen && !state.awaitingJoin,
     15_000,
     "spawn completion"
   );
 
-  await page.keyboard.down("KeyD");
+  const startingPlayerX = spawnedState.localPlayerX;
+  await setBrowserKey(page, "KeyD", true);
   await waitForAutomationState(
     page,
-    (state) => state && state.browserInputFocused && state.browserPressedKeys?.includes("D"),
+    (state) => state && state.browserInputFocused && state.localPlayerX > startingPlayerX + 1,
     5_000,
-    "keyboard capture"
+    "keyboard movement"
   );
-  await page.keyboard.up("KeyD");
-  await waitForAutomationState(
-    page,
-    (state) => state && !state.browserPressedKeys?.includes("D"),
-    5_000,
-    "keyboard release"
-  );
+  await setBrowserKey(page, "KeyD", false);
 
   await delay(2_000);
   await page.mouse.move(500, 300);
@@ -566,6 +586,23 @@ async function joinPracticeAndExerciseRapidFire(page) {
   await delay(2_000);
   await page.mouse.up();
   await delay(3_000);
+}
+
+async function setBrowserKey(page, code, pressed) {
+  const invoked = await page.evaluate(
+    async ({ keyCode, isPressed }) => {
+      const host = globalThis.OpenGarrisonBrowserHost?.inputBridgeHost;
+      if (!host || typeof host.invokeMethodAsync !== "function") {
+        return false;
+      }
+
+      await host.invokeMethodAsync("HandleBrowserKey", keyCode, isPressed);
+      return true;
+    },
+    { keyCode: code, isPressed: pressed });
+  if (!invoked) {
+    throw new Error(`Browser input bridge unavailable for ${code}.`);
+  }
 }
 
 async function readAutomationState(page) {
@@ -632,7 +669,7 @@ function inferAutomationActionSet(actions) {
   }
 
   const labels = new Set(actions.map((entry) => entry.label));
-  if (labels.has("Play Offline") || labels.has("Play Online") || labels.has("Settings")) {
+  if (labels.has("Play Offline") || labels.has("Play Online") || labels.has("Settings") || labels.has("Practice") || labels.has("Minigames")) {
     return "menu";
   }
 

@@ -75,4 +75,4 @@ node .\Tests\BrowserSmoke\smoke.mjs
 
 ## Networking Status
 
-Offline practice is the current browser-ready gameplay path. Multiplayer is still blocked on transport work: the existing desktop client/server path is UDP/socket-based, while browsers need a web transport such as WebTransport with a WebSocket fallback decision. The protocol codec is reusable, but the network client/server transport boundary still needs to be abstracted before browser multiplayer should be considered release-ready.
+Offline practice and browser multiplayer share the same protocol codec as desktop. Browser multiplayer uses a binary WebSocket transport, while desktop multiplayer keeps the UDP transport.

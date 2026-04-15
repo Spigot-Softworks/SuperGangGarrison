@@ -1,0 +1,12 @@
+{
+  "servers": [
+    {
+      "name": "Local WebSocket",
+      "host": "127.0.0.1",
+      "udpPort": 0,
+      "webSocketPort": 8191,
+      "webSocketUrl": "",
+      "private": false
+    }
+  ]
+}

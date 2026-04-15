@@ -51,6 +51,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
+    private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
     private readonly List<ScoreboardSpectatorEntry> _spectators = new();
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
@@ -114,6 +115,7 @@ public sealed partial class SimulationWorld
     private int _arenaUnlockTicksRemaining;
     private int _arenaRedConsecutiveWins;
     private int _arenaBlueConsecutiveWins;
+    private bool _processingDangerCloseExplosions;
     private readonly List<ControlPointState> _controlPoints = new();
     private readonly List<ControlPointZone> _controlPointZones = new();
     private bool _controlPointSetupMode;

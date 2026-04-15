@@ -30,6 +30,6 @@ public partial class Game1
         }
 
         CancelPendingHostedLocalConnect();
-        TryConnectToServer("127.0.0.1", _pendingHostedConnectPort, addConsoleFeedback: false);
+        TryConnectToServer(NetworkEndpoint.ForUdp("127.0.0.1", _pendingHostedConnectPort), addConsoleFeedback: false);
     }
 }

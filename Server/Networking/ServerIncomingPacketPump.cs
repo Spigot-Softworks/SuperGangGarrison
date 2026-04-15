@@ -4,24 +4,24 @@ using OpenGarrison.Protocol;
 namespace OpenGarrison.Server;
 
 internal sealed class ServerIncomingPacketPump(
-    IServerDatagramTransport transport,
+    IServerMessageTransport transport,
     ServerIncomingMessageDispatcher messageDispatcher,
     int wsaConnReset,
     Action<string> log)
 {
     public void PumpAvailablePackets()
     {
-        while (transport.HasPendingDatagrams)
+        while (transport.HasPendingMessages)
         {
             try
             {
-                var datagram = transport.Receive();
-                if (!ProtocolCodec.TryDeserialize(datagram.Payload, out var message) || message is null)
+                var packet = transport.Receive();
+                if (!ProtocolCodec.TryDeserialize(packet.Payload, out var message) || message is null)
                 {
                     continue;
                 }
 
-                messageDispatcher.Dispatch(message, datagram.RemotePeer);
+                messageDispatcher.Dispatch(message, packet.RemotePeer);
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset || ex.ErrorCode == wsaConnReset)
             {

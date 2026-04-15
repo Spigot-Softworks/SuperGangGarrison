@@ -7,7 +7,7 @@ using OpenGarrison.Server.Plugins;
 namespace OpenGarrison.Server;
 
 internal sealed class ServerOutboundMessaging(
-    IServerDatagramTransport transport,
+    IServerMessageTransport transport,
     string serverName,
     SimulationWorld world,
     Dictionary<byte, ClientSession> clientsBySlot,

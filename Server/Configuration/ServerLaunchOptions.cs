@@ -18,8 +18,12 @@ sealed class ServerLaunchOptions
     public string? ServerPassword { get; private init; }
     public string? RconPassword { get; private init; }
     public bool UseLobbyServer { get; private init; }
+    public bool UseLegacyLobbyServer { get; private init; }
     public string LobbyHost { get; private init; } = DefaultLobbyHost;
     public int LobbyPort { get; private init; } = DefaultLobbyPort;
+    public Uri? RegistryUrl { get; private init; }
+    public string? RegistryToken { get; private init; }
+    public string? PublicHost { get; private init; }
     public string? RequestedMap { get; private init; }
     public string? MapRotationFile { get; private init; }
     public string EventLogPath { get; private init; } = string.Empty;
@@ -32,9 +36,10 @@ sealed class ServerLaunchOptions
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
-    public int WebTransportPort { get; private init; }
-    public string? WebTransportCertificatePath { get; private init; }
-    public string? WebTransportCertificatePassword { get; private init; }
+    public int WebSocketPort { get; private init; }
+    public string? WebSocketCertificatePath { get; private init; }
+    public string? WebSocketCertificatePassword { get; private init; }
+    public string? PublicWebSocketUrl { get; private init; }
 
     public static ServerLaunchOptions Load(string[] args)
     {
@@ -75,6 +80,9 @@ sealed class ServerLaunchOptions
         var useLobbyServer = settings.UseLobbyServer;
         var lobbyHost = string.IsNullOrWhiteSpace(settings.LobbyHost) ? DefaultLobbyHost : settings.LobbyHost;
         var lobbyPort = settings.LobbyPort > 0 ? settings.LobbyPort : DefaultLobbyPort;
+        string? registryUrlOverride = null;
+        string? registryToken = Environment.GetEnvironmentVariable("OPENGARRISON_REGISTRY_TOKEN");
+        string? publicHost = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_HOST");
         string? requestedMap = string.IsNullOrWhiteSpace(settings.RequestedMap) ? null : settings.RequestedMap;
         string? mapRotationFile = string.IsNullOrWhiteSpace(settings.MapRotationFile) ? null : settings.MapRotationFile;
         var eventLogPath = PersistentServerEventLog.GetDefaultPath(now);
@@ -84,9 +92,10 @@ sealed class ServerLaunchOptions
         int? capLimitOverride = settings.CapLimit > 0 ? Math.Clamp(settings.CapLimit, 1, 255) : null;
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
-        var webTransportPort = 0;
-        string? webTransportCertificatePath = null;
-        string? webTransportCertificatePassword = null;
+        var webSocketPort = 0;
+        string? webSocketCertificatePath = null;
+        string? webSocketCertificatePassword = null;
+        string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
 
         for (var index = 0; index < args.Length; index += 1)
         {
@@ -261,31 +270,67 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
-            if (string.Equals(arg, "--webtransport-port", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+            if (string.Equals(arg, "--registry-url", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
             {
-                if (int.TryParse(args[index + 1], out var parsedWebTransportPort) && parsedWebTransportPort > 0 && parsedWebTransportPort <= 65535)
+                registryUrlOverride = args[index + 1];
+                useLobbyServer = true;
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--registry-token", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+            {
+                registryToken = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if (string.Equals(arg, "--public-host", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+            {
+                publicHost = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--websocket-port", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--ws-port", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                if (int.TryParse(args[index + 1], out var parsedWebSocketPort) && parsedWebSocketPort > 0 && parsedWebSocketPort <= 65535)
                 {
-                    webTransportPort = parsedWebTransportPort;
+                    webSocketPort = parsedWebSocketPort;
                 }
 
                 index += 1;
                 continue;
             }
 
-            if ((string.Equals(arg, "--webtransport-cert", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(arg, "--webtransport-certificate", StringComparison.OrdinalIgnoreCase))
+            if ((string.Equals(arg, "--websocket-cert", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--websocket-certificate", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--ws-cert", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
             {
-                webTransportCertificatePath = Path.GetFullPath(args[index + 1]);
+                webSocketCertificatePath = Path.GetFullPath(args[index + 1]);
                 index += 1;
                 continue;
             }
 
-            if ((string.Equals(arg, "--webtransport-cert-password", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(arg, "--webtransport-certificate-password", StringComparison.OrdinalIgnoreCase))
+            if ((string.Equals(arg, "--websocket-cert-password", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--websocket-certificate-password", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--ws-cert-password", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
             {
-                webTransportCertificatePassword = args[index + 1];
+                webSocketCertificatePassword = args[index + 1];
+                index += 1;
+                continue;
+            }
+
+            if ((string.Equals(arg, "--public-websocket-url", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--websocket-url", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(arg, "--ws-url", StringComparison.OrdinalIgnoreCase))
+                && index + 1 < args.Length)
+            {
+                publicWebSocketUrl = NormalizePublicWebSocketUrl(args[index + 1]);
                 index += 1;
                 continue;
             }
@@ -296,6 +341,11 @@ sealed class ServerLaunchOptions
             }
         }
 
+        var registryUrl = ResolveRegistryUrl(registryUrlOverride, lobbyHost, lobbyPort);
+        var useLegacyLobbyServer = useLobbyServer
+            && registryUrlOverride is null
+            && !LooksLikeHttpRegistryEndpoint(lobbyHost);
+
         return new ServerLaunchOptions
         {
             ResolvedConfigPath = resolvedConfigPath,
@@ -305,8 +355,12 @@ sealed class ServerLaunchOptions
             ServerPassword = serverPassword,
             RconPassword = rconPassword,
             UseLobbyServer = useLobbyServer,
+            UseLegacyLobbyServer = useLegacyLobbyServer,
             LobbyHost = lobbyHost,
             LobbyPort = lobbyPort,
+            RegistryUrl = registryUrl,
+            RegistryToken = string.IsNullOrWhiteSpace(registryToken) ? null : registryToken.Trim(),
+            PublicHost = string.IsNullOrWhiteSpace(publicHost) ? null : publicHost.Trim(),
             RequestedMap = requestedMap,
             MapRotationFile = mapRotationFile,
             EventLogPath = eventLogPath,
@@ -319,9 +373,63 @@ sealed class ServerLaunchOptions
             TimeLimitMinutesOverride = timeLimitMinutesOverride,
             CapLimitOverride = capLimitOverride,
             RespawnSecondsOverride = respawnSecondsOverride,
-            WebTransportPort = webTransportPort,
-            WebTransportCertificatePath = webTransportCertificatePath,
-            WebTransportCertificatePassword = webTransportCertificatePassword,
+            WebSocketPort = webSocketPort,
+            WebSocketCertificatePath = webSocketCertificatePath,
+            WebSocketCertificatePassword = webSocketCertificatePassword,
+            PublicWebSocketUrl = NormalizePublicWebSocketUrl(publicWebSocketUrl),
         };
+    }
+
+    private static string? NormalizePublicWebSocketUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            || (uri.Scheme != "ws" && uri.Scheme != "wss")
+            || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return null;
+        }
+
+        return uri.ToString();
+    }
+
+    private static Uri? ResolveRegistryUrl(string? overrideUrl, string lobbyHost, int lobbyPort)
+    {
+        var candidate = string.IsNullOrWhiteSpace(overrideUrl) ? lobbyHost : overrideUrl.Trim();
+        if (Uri.TryCreate(candidate, UriKind.Absolute, out var absoluteUri)
+            && (absoluteUri.Scheme == Uri.UriSchemeHttps || absoluteUri.Scheme == Uri.UriSchemeHttp))
+        {
+            return absoluteUri;
+        }
+
+        if (string.IsNullOrWhiteSpace(overrideUrl) && !LooksLikeHttpRegistryEndpoint(lobbyHost))
+        {
+            return null;
+        }
+
+        var builder = new UriBuilder(Uri.UriSchemeHttps, lobbyHost)
+        {
+            Path = "/API/og2servers.php",
+        };
+        if (lobbyPort is > 0 and not 443)
+        {
+            builder.Port = lobbyPort;
+        }
+
+        return builder.Uri;
+    }
+
+    private static bool LooksLikeHttpRegistryEndpoint(string lobbyHost)
+    {
+        if (Uri.TryCreate(lobbyHost, UriKind.Absolute, out var uri))
+        {
+            return uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp;
+        }
+
+        return lobbyHost.Contains('/', StringComparison.Ordinal);
     }
 }

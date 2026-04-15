@@ -25,6 +25,7 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableSpeedOnKill = false,
     bool EnablePassiveHealthRegeneration = false,
     bool EnableInvincibilityOnKill = false,
+    bool EnableGhostPhaseOnKill = false,
     bool EnableProjectileSpeedMultiplier = false,
     bool EnableAirshotDamageMultiplier = false,
     bool EnableComboTracking = false,
@@ -75,9 +76,11 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultProjectileSpeedMultiplier = 1.2f;
     public const float DefaultAirshotDamageMultiplier = 1.25f;
     public const float DefaultReloadSpeedMultiplier = 1f;
-    public const float DefaultSoldierStingerRocketSpeedMultiplier = 0.7f;
-    public const float DefaultSoldierStingerRocketTurnRateDegrees = 6f;
-    public const float DefaultSoldierStingerDetonationDamageMultiplier = 1.4f;
+    public const float DefaultSoldierStingerRocketSpeedMultiplier = 0.3f;
+    public const float DefaultSoldierStingerRocketTurnRateDegrees = 7.5f;
+    public const float DefaultSoldierStingerDamageMultiplier = 2f;
+    public const float DefaultSoldierStingerBlastRadiusMultiplier = 1.6f;
+    public const float DefaultSoldierStingerBurstSpeedMultiplier = 2f;
     public const float DefaultSoldierRageExtensionSecondsPerKill = 2f;
     public const float DefaultDangerCloseBlastRadius = 72f;
     public const float DefaultDangerCloseExplosionDamage = 34f;

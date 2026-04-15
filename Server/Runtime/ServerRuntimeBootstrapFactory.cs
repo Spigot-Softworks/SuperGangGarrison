@@ -11,7 +11,7 @@ internal static class ServerRuntimeBootstrapFactory
     public static ServerRuntimeBootstrap Create(
         SimulationConfig config,
         UdpClient udp,
-        IServerDatagramTransport transport,
+        IServerMessageTransport transport,
         int port,
         byte[] protocolUuidBytes,
         bool useLobbyServer,

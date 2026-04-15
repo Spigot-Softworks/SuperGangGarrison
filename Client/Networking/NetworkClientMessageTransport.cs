@@ -7,9 +7,9 @@ using System.Net.Sockets;
 
 namespace OpenGarrison.Client;
 
-public interface INetworkClientDatagramTransport : IDisposable
+public interface INetworkClientMessageTransport : IDisposable
 {
-    bool HasPendingDatagrams { get; }
+    bool HasPendingMessages { get; }
     bool IsLoopbackConnection { get; }
     string RemoteDescription { get; }
 
@@ -18,20 +18,20 @@ public interface INetworkClientDatagramTransport : IDisposable
     void Send(byte[] payload);
 }
 
-internal sealed class UdpNetworkClientDatagramTransport : INetworkClientDatagramTransport
+internal sealed class UdpNetworkClientMessageTransport : INetworkClientMessageTransport
 {
     private const int SioUdpConnReset = -1744830452;
 
     private readonly UdpClient _udpClient;
     private readonly IPEndPoint _serverEndPoint;
 
-    private UdpNetworkClientDatagramTransport(UdpClient udpClient, IPEndPoint serverEndPoint)
+    private UdpNetworkClientMessageTransport(UdpClient udpClient, IPEndPoint serverEndPoint)
     {
         _udpClient = udpClient;
         _serverEndPoint = serverEndPoint;
     }
 
-    public bool HasPendingDatagrams => _udpClient.Available > 0;
+    public bool HasPendingMessages => _udpClient.Available > 0;
 
     public bool IsLoopbackConnection
     {
@@ -49,7 +49,7 @@ internal sealed class UdpNetworkClientDatagramTransport : INetworkClientDatagram
 
     public string RemoteDescription => $"{_serverEndPoint.Address}:{_serverEndPoint.Port}";
 
-    public static bool TryConnect(string host, int port, out INetworkClientDatagramTransport? transport, out string error)
+    public static bool TryConnect(string host, int port, out INetworkClientMessageTransport? transport, out string error)
     {
         transport = null;
         error = string.Empty;
@@ -69,7 +69,7 @@ internal sealed class UdpNetworkClientDatagramTransport : INetworkClientDatagram
             var udpClient = new UdpClient(0);
             udpClient.Client.Blocking = false;
             TryDisableUdpConnectionReset(udpClient.Client);
-            transport = new UdpNetworkClientDatagramTransport(udpClient, serverEndPoint);
+            transport = new UdpNetworkClientMessageTransport(udpClient, serverEndPoint);
             return true;
         }
         catch (SocketException ex)

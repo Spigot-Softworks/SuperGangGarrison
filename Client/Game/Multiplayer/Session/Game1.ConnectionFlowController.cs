@@ -34,6 +34,7 @@ public partial class Game1
         {
             _game._lobbyBrowserOpen = false;
             _game._lobbyBrowserHoverIndex = -1;
+            _game._lobbyBrowserRegistryRequestTask = null;
             _game.CloseLobbyBrowserLobbyClient();
             if (clearStatus)
             {
@@ -43,21 +44,25 @@ public partial class Game1
 
         public void RefreshLobbyBrowser()
         {
-            _game.EnsureLobbyBrowserClient();
+            _game._lobbyBrowserRegistryRequestTask = null;
+            _game.CloseLobbyBrowserLobbyClient();
+            if (!OperatingSystem.IsBrowser())
+            {
+                _game.EnsureLobbyBrowserClient();
+            }
+
             _game._lobbyBrowserEntries.Clear();
-            _game.StartLobbyBrowserLobbyRequest();
+            _game.StartLobbyBrowserRegistryRequest();
 
             foreach (var target in BuildLobbyBrowserTargets())
             {
-                _game.AddLobbyBrowserEntry(target.DisplayName, target.Host, target.Port, isPrivate: false, isLobbyEntry: false);
+                _game.AddLobbyBrowserEntry(target.DisplayName, target.Endpoint, isPrivate: false, isLobbyEntry: false);
             }
 
             _game._lobbyBrowserSelectedIndex = _game._lobbyBrowserEntries.Count > 0 ? 0 : -1;
             _game._menuStatusMessage = _game._lobbyBrowserEntries.Count > 0
                 ? "Refreshing server list..."
-                : _game._lobbyBrowserLobbyClient is not null
-                    ? "Contacting lobby server..."
-                    : "No browser targets yet. Use Join (manual) once to seed one.";
+                : "Contacting server registry...";
         }
 
         public void OpenManualConnectMenuFromLobbyBrowser()
@@ -97,12 +102,24 @@ public partial class Game1
 
         public void TryConnectFromMenu()
         {
-            if (!TryParseManualConnectTarget(out var host, out var port))
+            if (!TryParseManualConnectTarget(out var endpoint))
             {
                 return;
             }
 
-            _game.TryConnectToServer(host, port, addConsoleFeedback: false);
+            _game.TryConnectToServer(endpoint, addConsoleFeedback: false);
+        }
+
+        public bool TryParseManualConnectTarget(out NetworkEndpoint endpoint)
+        {
+            endpoint = default;
+            if (!TryParseManualConnectTarget(out var host, out var port))
+            {
+                return false;
+            }
+
+            endpoint = NetworkEndpoint.ForCurrentRuntimeSinglePort(host, port);
+            return true;
         }
 
         public bool TryParseManualConnectTarget(out string host, out int port)
@@ -134,14 +151,15 @@ public partial class Game1
             }
 
             var entry = _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex];
-            _game.TryConnectToServer(entry.Host, entry.Port, addConsoleFeedback: false);
+            _game.TryConnectToServer(entry.Endpoint, addConsoleFeedback: false);
         }
 
         public bool CanJoinSelectedLobbyEntry()
         {
             return _game._lobbyBrowserSelectedIndex >= 0
                 && _game._lobbyBrowserSelectedIndex < _game._lobbyBrowserEntries.Count
-                && _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].HasResponse;
+                && (_game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].HasResponse
+                    || _game._lobbyBrowserEntries[_game._lobbyBrowserSelectedIndex].CanJoinDirectly);
         }
 
         public IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()
@@ -149,17 +167,18 @@ public partial class Game1
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var target in new[]
                      {
-                         new LobbyBrowserTarget("Localhost", "127.0.0.1", 8190),
-                         new LobbyBrowserTarget("Manual target", _game._connectHostBuffer.Trim(), TryParseBrowserPort(_game._connectPortBuffer)),
-                         new LobbyBrowserTarget("Recent", _game._recentConnectHost ?? string.Empty, _game._recentConnectPort),
+                         new LobbyBrowserTarget("Localhost", NetworkEndpoint.ForCurrentRuntimeSinglePort("127.0.0.1", 8190)),
+                         new LobbyBrowserTarget("Manual target", NetworkEndpoint.ForCurrentRuntimeSinglePort(_game._connectHostBuffer.Trim(), TryParseBrowserPort(_game._connectPortBuffer))),
+                         new LobbyBrowserTarget("Recent", NetworkEndpoint.ForCurrentRuntimeSinglePort(_game._recentConnectHost ?? string.Empty, _game._recentConnectPort)),
                      })
             {
-                if (string.IsNullOrWhiteSpace(target.Host) || target.Port <= 0)
+                if (string.IsNullOrWhiteSpace(target.Endpoint.Host)
+                    || (!target.Endpoint.HasUdpEndpoint && !target.Endpoint.HasWebSocketEndpoint))
                 {
                     continue;
                 }
 
-                var key = $"{target.Host}:{target.Port}";
+                var key = $"{target.Endpoint.Host}:{target.Endpoint.UdpPort}:{target.Endpoint.WebSocketPort}:{target.Endpoint.WebSocketUrl}";
                 if (seen.Add(key))
                 {
                     yield return target;

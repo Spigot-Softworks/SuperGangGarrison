@@ -156,7 +156,8 @@ public sealed partial class SimulationWorld
 
     private void PushLooseBodies(float sourceX, float sourceY, float aimRadians, float poofX, float poofY)
     {
-        foreach (var body in _deadBodies)
+        var deadBodiesSnapshot = _deadBodies.ToArray();
+        foreach (var body in deadBodiesSnapshot)
         {
             if (!IsWithinAirblastMask(poofX, poofY, aimRadians, body.X, body.Y, PyroAirblastTargetRadius))
             {
@@ -174,7 +175,8 @@ public sealed partial class SimulationWorld
                 MathF.Sin(aimRadians) * PyroAirblastLooseBodyImpulse * scale);
         }
 
-        foreach (var gib in _playerGibs)
+        var playerGibsSnapshot = _playerGibs.ToArray();
+        foreach (var gib in playerGibsSnapshot)
         {
             if (!IsWithinAirblastMask(poofX, poofY, aimRadians, gib.X, gib.Y, PyroAirblastTargetRadius))
             {

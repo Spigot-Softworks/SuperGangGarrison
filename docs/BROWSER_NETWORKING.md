@@ -1,30 +1,41 @@
-# Browser Networking Gap
+# Browser Networking
 
-The browser build currently supports offline practice. Multiplayer still needs a browser-safe transport.
+The browser client uses WebSocket for multiplayer. Desktop clients continue to use UDP.
 
 ## Current Shape
 
-- `Protocol/ProtocolCodec.cs` is reusable: gameplay messages already serialize to and from byte arrays.
-- The desktop client transport is UDP-specific in `Client/Networking/NetworkGameClient.cs`.
-- The dedicated server binds UDP directly in `Server/Runtime/GameServer.Startup.cs`.
-- Server packet ingress/egress is UDP and `IPEndPoint` based through `Server/Networking/ServerIncomingPacketPump.cs`, `Server/Networking/ServerOutboundMessaging.cs`, and `Server/Networking/ClientSession.cs`.
-- Lobby browsing also has native socket paths that will need a browser-specific strategy.
+- `Protocol/ProtocolCodec.cs` is shared by desktop, browser, and server networking.
+- Desktop clients use UDP through the shared message transport boundary.
+- Browser clients use one binary WebSocket message per protocol payload.
+- The server accepts both UDP peers and WebSocket peers through a composite message transport.
+- Reliable stream transports coalesce snapshots so stale snapshots do not build up behind slow browser clients.
 
-## Preferred Direction
+## Browser Server Setup
 
-WebTransport is the best fit for browser gameplay because it supports client/server communication over HTTP/3 and can expose unreliable datagrams plus reliable streams. That is closer to the current UDP gameplay model than WebSockets.
+Enable the WebSocket listener with:
 
-Do not bolt WebTransport directly into the existing UDP classes. First extract a transport boundary that can carry protocol byte payloads and identify peers without assuming `IPEndPoint`.
+```bash
+sh run-server.sh --websocket-port 8191
+```
 
-Recommended sequence:
+For HTTPS-hosted browser builds, expose the game socket as `wss://`. Either terminate TLS at a reverse proxy or start the built-in listener with a PKCS#12 certificate:
 
-1. Introduce a small transport abstraction for datagram send/receive, peer identity, disconnect, and diagnostics.
-2. Move the current UDP client/server code behind that abstraction without changing gameplay behavior.
-3. Add a browser WebTransport client adapter that forwards `Uint8Array` datagrams into the same protocol codec path.
-4. Add a server WebTransport adapter that maps WebTransport sessions to stable peer identities.
-5. Decide whether WebSockets are a fallback-only path for networks or browsers without WebTransport support.
-6. Add multiplayer smoke/soak tests for connect, join, input, snapshots, reconnect, timeout, and map transitions.
+```bash
+sh run-server.sh --websocket-port 8191 --websocket-cert cert.pfx
+```
 
-## Release Risk
+Browser registry entries can publish either `webSocketUrl` or `webSocketPort`. Browser clients prefer `webSocketUrl` when present. Use `webSocketPort` only when the browser can directly reach `ws://host:port/opengarrison/ws` or `wss://host:port/opengarrison/ws`.
 
-WebTransport requires deployment work beyond game code: HTTPS, HTTP/3, certificate handling, hosting/proxy support, and fallback behavior. Treat browser multiplayer as a separate release track from offline browser practice until this transport work is complete.
+For reverse-proxy production hosting, publish the external browser URL:
+
+```bash
+sh run-server.sh --websocket-port 8191 --public-websocket-url wss://server.example.com/opengarrison/ws
+```
+
+Desktop clients continue to use `udpPort`.
+
+## Transport Policy
+
+WebSocket is reliable and ordered, so it must not be treated as UDP. The server keeps reliable control messages bounded and keeps only the newest pending snapshot for each WebSocket peer. This avoids replaying stale world state after a browser client stalls.
+
+Messages that must remain reliable include connection setup, password flow, chat, control acknowledgements, session changes, and plugin messages. Snapshots are latest-wins on WebSocket peers.

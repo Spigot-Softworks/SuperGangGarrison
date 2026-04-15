@@ -137,6 +137,11 @@ public sealed partial class SimulationWorld
             killer.RefreshUber(GetExperimentalKillInvulnerabilityTicks());
         }
 
+        if (ExperimentalGameplaySettings.EnableGhostPhaseOnKill)
+        {
+            killer.StartExperimentalGhostPhase(GetExperimentalKillInvulnerabilityTicks());
+        }
+
         if (ExperimentalGameplaySettings.EnableSoldierRageExtensionOnKill
             && killer.ClassId == PlayerClass.Soldier
             && killer.IsRaging)
@@ -168,8 +173,7 @@ public sealed partial class SimulationWorld
     private bool TryConvertExperimentalSelfDamageToHealing(PlayerEntity target, PlayerEntity? attacker, float healingAmount)
     {
         if (attacker is null
-            || !ReferenceEquals(attacker, target)
-            || !IsExperimentalPracticePowerOwner(target)
+            || attacker.Id != target.Id
             || !ExperimentalGameplaySettings.EnableSelfDamageHealing
             || !target.CanConvertExperimentalSelfDamageToHealing()
             || healingAmount <= 0f)
@@ -193,6 +197,12 @@ public sealed partial class SimulationWorld
         }
 
         return adjustedSpeed * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerRocketSpeedMultiplier;
+    }
+
+    private RocketCombatDefinition ApplyExperimentalSoldierRocketCombat(PlayerEntity attacker, RocketCombatDefinition? rocketCombat)
+    {
+        _ = attacker;
+        return rocketCombat ?? new RocketCombatDefinition();
     }
 
     private static float GetExperimentalSoldierStingerTurnRateRadians()

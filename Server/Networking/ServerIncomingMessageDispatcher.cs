@@ -19,8 +19,8 @@ internal sealed class ServerIncomingMessageDispatcher(
     Func<TimeSpan> elapsedGetter,
     Func<PluginHost?> pluginHostGetter,
     Func<int> allocateUserId,
-    Func<IPEndPoint, string?> getHelloRateLimitReason,
-    Action<IPEndPoint> resetConnectionAttemptLimits,
+    Func<IPAddress, string?> getHelloRateLimitReason,
+    Action<IPAddress> resetConnectionAttemptLimits,
     Func<(bool IsCustomMap, string MapDownloadUrl, string MapContentHash)> getCurrentMapMetadata,
     Action<ServerTransportPeer, IProtocolMessage> sendMessage,
     Action<ServerTransportPeer> sendServerStatus,
@@ -156,15 +156,15 @@ internal sealed class ServerIncomingMessageDispatcher(
             return;
         }
 
-        var remoteEndPoint = remotePeer.UdpEndPoint;
-        if (remoteEndPoint is not null && getHelloRateLimitReason(remoteEndPoint) is { } rateLimitReason)
+        var remoteAddress = remotePeer.RemoteAddress;
+        if (remoteAddress is not null && getHelloRateLimitReason(remoteAddress) is { } rateLimitReason)
         {
             log($"[server] rejected client {remoteDescription}; {rateLimitReason}");
             sendMessage(remotePeer, new ConnectionDeniedMessage(rateLimitReason));
             return;
         }
 
-        if (remoteEndPoint is not null && banService?.GetConnectionDeniedReason(remoteEndPoint) is { } banReason)
+        if (remoteAddress is not null && banService?.GetConnectionDeniedReason(remoteAddress) is { } banReason)
         {
             log($"[server] rejected client {remoteDescription}; banned");
             sendMessage(remotePeer, new ConnectionDeniedMessage(banReason));
@@ -215,9 +215,9 @@ internal sealed class ServerIncomingMessageDispatcher(
             client.LastPasswordRequestSentAt = elapsedGetter();
         }
 
-        if (remoteEndPoint is not null)
+        if (remoteAddress is not null)
         {
-            resetConnectionAttemptLimits(remoteEndPoint);
+            resetConnectionAttemptLimits(remoteAddress);
         }
 
         log($"[server] client connected {remoteDescription} slot={assignedSlot} name=\"{hello.Name}\" version={hello.Version}");

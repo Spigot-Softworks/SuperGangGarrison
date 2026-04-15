@@ -1,8 +1,9 @@
-﻿namespace OpenGarrison.Core;
+namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
     private const float SourceExplosionKnockbackCap = 15f;
+    private readonly record struct DangerCloseExplosionRequest(float CenterX, float CenterY, int OwnerPlayerId);
 
     private static void ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse)
     {
@@ -84,7 +85,8 @@ public sealed partial class SimulationWorld
         ApplyPlayerGibExplosionImpulse(mine.X, mine.Y, MineProjectileEntity.AffectRadius * 0.75f, 15f, MineProjectileEntity.AffectRadius);
         RegisterExplosionTraces(mine.X, mine.Y);
 
-        foreach (var player in EnumerateSimulatedPlayers())
+        var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
+        foreach (var player in playersSnapshot)
         {
             if (!player.IsAlive)
             {
@@ -233,7 +235,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var deadBody in _deadBodies)
+        var deadBodiesSnapshot = _deadBodies.ToArray();
+        foreach (var deadBody in deadBodiesSnapshot)
         {
             var distance = DistanceBetween(originX, originY, deadBody.X, deadBody.Y);
             if (distance >= blastRadius)
@@ -255,7 +258,8 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        foreach (var gib in _playerGibs)
+        var playerGibsSnapshot = _playerGibs.ToArray();
+        foreach (var gib in playerGibsSnapshot)
         {
             var distance = DistanceBetween(originX, originY, gib.X, gib.Y);
             if (distance >= blastRadius)
@@ -360,7 +364,36 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        TriggerExperimentalDangerCloseExplosion(victim.X, victim.Y, killer);
+        _pendingDangerCloseExplosions.Enqueue(new DangerCloseExplosionRequest(victim.X, victim.Y, killer.Id));
+        ProcessPendingDangerCloseExplosions();
+    }
+
+    private void ProcessPendingDangerCloseExplosions()
+    {
+        if (_processingDangerCloseExplosions)
+        {
+            return;
+        }
+
+        _processingDangerCloseExplosions = true;
+        try
+        {
+            while (_pendingDangerCloseExplosions.Count > 0)
+            {
+                var request = _pendingDangerCloseExplosions.Dequeue();
+                var owner = FindPlayerById(request.OwnerPlayerId);
+                if (owner is null)
+                {
+                    continue;
+                }
+
+                TriggerExperimentalDangerCloseExplosion(request.CenterX, request.CenterY, owner);
+            }
+        }
+        finally
+        {
+            _processingDangerCloseExplosions = false;
+        }
     }
 
     private void TriggerExperimentalDangerCloseExplosion(float centerX, float centerY, PlayerEntity owner)
@@ -368,6 +401,7 @@ public sealed partial class SimulationWorld
         var blastRadius = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseBlastRadius;
         var blastDamage = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseExplosionDamage;
         var knockbackPerTick = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDangerCloseKnockbackPerTick;
+        var playersSnapshot = EnumerateSimulatedPlayers().ToArray();
 
         RegisterWorldSoundEvent("ExplosionSnd", centerX, centerY);
         RegisterVisualEffect("Explosion", centerX, centerY);
@@ -375,7 +409,7 @@ public sealed partial class SimulationWorld
         ApplyPlayerGibExplosionImpulse(centerX, centerY, blastRadius, 15f);
         RegisterExplosionTraces(centerX, centerY);
 
-        foreach (var player in EnumerateSimulatedPlayers())
+        foreach (var player in playersSnapshot)
         {
             if (!player.IsAlive)
             {
@@ -592,4 +626,3 @@ public sealed partial class SimulationWorld
     }
 
 }
-

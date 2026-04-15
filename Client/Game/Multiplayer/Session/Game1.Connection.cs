@@ -41,6 +41,11 @@ public partial class Game1
         return _gameplaySessionController.TryConnectToServer(host, port, addConsoleFeedback);
     }
 
+    private bool TryConnectToServer(NetworkEndpoint endpoint, bool addConsoleFeedback)
+    {
+        return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback);
+    }
+
     private void ShowAutoBalanceNotice(string text, int seconds)
     {
         _connectionFlowController.ShowAutoBalanceNotice(text, seconds);

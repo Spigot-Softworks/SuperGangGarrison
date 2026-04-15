@@ -35,8 +35,8 @@ ClientRuntimeBootstrap.InitializeBrowserBaseAddress(builder.HostEnvironment.Base
 
 var host = builder.Build();
 var jsRuntime = host.Services.GetRequiredService<IJSRuntime>();
-NetworkClientDatagramTransportRegistry.SetBrowserTransportFactory(
-    (string targetHost, int targetPort, out INetworkClientDatagramTransport? transport, out string error) =>
-        BrowserWebTransportDatagramTransport.TryConnect(jsRuntime, targetHost, targetPort, out transport, out error));
+NetworkClientMessageTransportRegistry.SetBrowserTransportFactory(
+    (string targetHost, int targetPort, out INetworkClientMessageTransport? transport, out string error) =>
+        BrowserWebSocketMessageTransport.TryConnect(jsRuntime, targetHost, targetPort, out transport, out error));
 
 await host.RunAsync();

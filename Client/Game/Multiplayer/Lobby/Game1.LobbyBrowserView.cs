@@ -139,7 +139,7 @@ public partial class Game1
                     : new Color(44, 46, 52);
             _spriteBatch.Draw(_pixel, bounds, background);
 
-            var statusColor = entry.HasResponse
+            var statusColor = entry.HasResponse || entry.CanJoinDirectly
                 ? Color.White
                 : entry.HasTimedOut
                     ? new Color(220, 160, 120)

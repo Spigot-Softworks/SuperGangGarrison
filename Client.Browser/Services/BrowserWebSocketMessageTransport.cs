@@ -4,12 +4,12 @@ using OpenGarrison.Client;
 
 namespace OpenGarrison.Client.Browser.Services;
 
-internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatagramTransport
+internal sealed class BrowserWebSocketMessageTransport : INetworkClientMessageTransport
 {
     private readonly IJSInProcessRuntime _jsRuntime;
-    private readonly DotNetObjectReference<BrowserWebTransportDatagramTransport> _callbackReference;
-    private readonly ConcurrentQueue<byte[]> _inboundDatagrams = new();
-    private readonly ConcurrentQueue<byte[]> _pendingOutboundDatagrams = new();
+    private readonly DotNetObjectReference<BrowserWebSocketMessageTransport> _callbackReference;
+    private readonly ConcurrentQueue<byte[]> _inboundMessages = new();
+    private readonly ConcurrentQueue<byte[]> _pendingOutboundMessages = new();
 
     private readonly object _stateGate = new();
     private readonly string _clientId;
@@ -19,7 +19,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
     private bool _isReady;
     private bool _isDisposed;
 
-    private BrowserWebTransportDatagramTransport(IJSInProcessRuntime jsRuntime, string remoteDescription, string clientId)
+    private BrowserWebSocketMessageTransport(IJSInProcessRuntime jsRuntime, string remoteDescription, string clientId)
     {
         _jsRuntime = jsRuntime;
         _remoteDescription = remoteDescription;
@@ -27,7 +27,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
         _callbackReference = DotNetObjectReference.Create(this);
     }
 
-    public bool HasPendingDatagrams => !_inboundDatagrams.IsEmpty;
+    public bool HasPendingMessages => !_inboundMessages.IsEmpty;
     public bool IsLoopbackConnection => false;
     public string RemoteDescription => _remoteDescription;
 
@@ -35,7 +35,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
         IJSRuntime jsRuntime,
         string host,
         int port,
-        out INetworkClientDatagramTransport? transport,
+        out INetworkClientMessageTransport? transport,
         out string error)
     {
         transport = null;
@@ -47,8 +47,8 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
             return false;
         }
 
-        var remoteDescription = $"{host}:{port}";
-        var pendingTransport = new BrowserWebTransportDatagramTransport(inProcessRuntime, remoteDescription, Guid.NewGuid().ToString("N"));
+        var remoteDescription = port > 0 ? $"{host}:{port}" : host;
+        var pendingTransport = new BrowserWebSocketMessageTransport(inProcessRuntime, remoteDescription, Guid.NewGuid().ToString("N"));
         try
         {
             pendingTransport.Initialize(host, port);
@@ -71,7 +71,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
 
     public bool TryReceive(out byte[] payload)
     {
-        return _inboundDatagrams.TryDequeue(out payload!);
+        return _inboundMessages.TryDequeue(out payload!);
     }
 
     public bool TryConsumeDisconnectReason(out string reason)
@@ -106,7 +106,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
 
             if (!_isReady)
             {
-                _pendingOutboundDatagrams.Enqueue(payload);
+                _pendingOutboundMessages.Enqueue(payload);
                 return;
             }
         }
@@ -128,7 +128,7 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
 
         try
         {
-            _jsRuntime.InvokeVoid("OpenGarrisonBrowserHost.closeWebTransportDatagramClient", _clientId);
+            _jsRuntime.InvokeVoid("OpenGarrisonBrowserHost.closeWebSocketClient", _clientId);
         }
         catch
         {
@@ -137,8 +137,8 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
         _callbackReference.Dispose();
     }
 
-    [JSInvokable("HandleWebTransportReady")]
-    public void HandleWebTransportReady()
+    [JSInvokable("HandleWebSocketReady")]
+    public void HandleWebSocketReady()
     {
         lock (_stateGate)
         {
@@ -150,25 +150,25 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
             _isReady = true;
         }
 
-        FlushPendingOutboundDatagrams();
+        FlushPendingOutboundMessages();
     }
 
-    [JSInvokable("HandleWebTransportDatagram")]
-    public void HandleWebTransportDatagram(byte[] payload)
+    [JSInvokable("HandleWebSocketMessage")]
+    public void HandleWebSocketMessage(byte[] payload)
     {
         if (payload.Length > 0)
         {
-            _inboundDatagrams.Enqueue(payload);
+            _inboundMessages.Enqueue(payload);
         }
     }
 
-    [JSInvokable("HandleWebTransportDisconnect")]
-    public void HandleWebTransportDisconnect(string? reason)
+    [JSInvokable("HandleWebSocketDisconnect")]
+    public void HandleWebSocketDisconnect(string? reason)
     {
         lock (_stateGate)
         {
             _disconnectReason ??= string.IsNullOrWhiteSpace(reason)
-                ? "WebTransport connection closed."
+                ? "WebSocket connection closed."
                 : reason.Trim();
         }
     }
@@ -176,16 +176,16 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
     private void Initialize(string host, int port)
     {
         _jsRuntime.InvokeVoid(
-            "OpenGarrisonBrowserHost.openWebTransportDatagramClient",
+            "OpenGarrisonBrowserHost.openWebSocketClient",
             _clientId,
             host,
             port,
             _callbackReference);
     }
 
-    private void FlushPendingOutboundDatagrams()
+    private void FlushPendingOutboundMessages()
     {
-        while (_pendingOutboundDatagrams.TryDequeue(out var payload))
+        while (_pendingOutboundMessages.TryDequeue(out var payload))
         {
             SendNow(payload);
         }
@@ -195,11 +195,11 @@ internal sealed class BrowserWebTransportDatagramTransport : INetworkClientDatag
     {
         try
         {
-            _jsRuntime.InvokeVoid("OpenGarrisonBrowserHost.sendWebTransportDatagram", _clientId, payload);
+            _jsRuntime.InvokeVoid("OpenGarrisonBrowserHost.sendWebSocketMessage", _clientId, payload);
         }
         catch (JSException ex)
         {
-            HandleWebTransportDisconnect(ex.Message);
+            HandleWebSocketDisconnect(ex.Message);
         }
     }
 }

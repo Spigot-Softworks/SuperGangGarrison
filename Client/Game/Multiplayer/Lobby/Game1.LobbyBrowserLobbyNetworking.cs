@@ -192,7 +192,7 @@ public partial class Game1
             }
 
             var host = $"{ip0}.{ip1}.{ip2}.{ip3}";
-            AddLobbyBrowserEntry(FormatLobbyDisplayName(name, isPrivate), host, port, isPrivate, isLobbyEntry: true);
+            AddLobbyBrowserEntry(FormatLobbyDisplayName(name, isPrivate), NetworkEndpoint.ForUdp(host, port), isPrivate, isLobbyEntry: true);
 
             _lobbyBrowserLobbyServersRead += 1;
         }
@@ -235,15 +235,18 @@ public partial class Game1
         }
     }
 
-    private void AddLobbyBrowserEntry(string displayName, string host, int port, bool isPrivate, bool isLobbyEntry)
+    private LobbyBrowserEntry? AddLobbyBrowserEntry(string displayName, NetworkEndpoint endpoint, bool isPrivate, bool isLobbyEntry)
     {
-        if (string.IsNullOrWhiteSpace(host) || port <= 0)
+        if (string.IsNullOrWhiteSpace(endpoint.Host) || (!endpoint.HasUdpEndpoint && !endpoint.HasWebSocketEndpoint))
         {
-            return;
+            return null;
         }
 
         var existing = _lobbyBrowserEntries.FirstOrDefault(entry =>
-            entry.Host.Equals(host, StringComparison.OrdinalIgnoreCase) && entry.Port == port);
+            entry.Endpoint.Host.Equals(endpoint.Host, StringComparison.OrdinalIgnoreCase)
+            && entry.Endpoint.UdpPort == endpoint.UdpPort
+            && entry.Endpoint.WebSocketPort == endpoint.WebSocketPort
+            && entry.Endpoint.WebSocketUrl.Equals(endpoint.WebSocketUrl, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
             if (isLobbyEntry)
@@ -256,10 +259,10 @@ public partial class Game1
                 }
             }
 
-            return;
+            return existing;
         }
 
-        var entry = new LobbyBrowserEntry(displayName, host, port)
+        var entry = new LobbyBrowserEntry(displayName, endpoint)
         {
             IsPrivate = isPrivate,
             IsLobbyEntry = isLobbyEntry,
@@ -271,6 +274,7 @@ public partial class Game1
         }
 
         QueryLobbyBrowserEntry(entry);
+        return entry;
     }
 
     private static string FormatLobbyDisplayName(string name, bool isPrivate)
