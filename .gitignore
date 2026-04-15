@@ -9,6 +9,7 @@ Gang-Garrison-2/
 /.tmp*/
 %TEMP%/
 Tests/**/TestResults/
+test-results/
 *.log
 tmp_*.cs
 .DS_Store
@@ -22,6 +23,7 @@ Tests/BrowserSmoke/node_modules/
 
 # === .NET / NuGet / MonoGame caches - NEVER commit these ===
 .dotnet-home/
+.tools/
 **/.nuget/packages/
 *.nupkg
 **/bin/
