@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 
@@ -17,15 +18,19 @@ internal sealed class ServerBotManager
     private readonly SimulationConfig _config;
     private readonly IPracticeBotController _botController;
     private readonly BotReactionController _reactionController;
+    private readonly Func<byte, bool> _isSlotAvailableForBot;
     
     private readonly Dictionary<byte, ServerBotSlotState> _botSlots = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
+    private readonly HashSet<string> _navigationBuildAttemptedKeys = new(StringComparer.Ordinal);
     
     private IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? _navigationAssets;
     private string? _currentLevelName;
     private int _currentMapAreaIndex;
+    private Task<BotNavigationLoadResult>? _navigationBuildTask;
+    private string? _navigationBuildKey;
     
     private int _thinkTick;
     private int _perfSamples;
@@ -41,12 +46,14 @@ internal sealed class ServerBotManager
     public ServerBotManager(
         SimulationWorld world,
         SimulationConfig config,
-        IPracticeBotController botController)
+        IPracticeBotController botController,
+        Func<byte, bool>? isSlotAvailableForBot = null)
     {
         _world = world;
         _config = config;
         _botController = botController;
         _reactionController = new BotReactionController(config.TicksPerSecond);
+        _isSlotAvailableForBot = isSlotAvailableForBot ?? (_ => true);
     }
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
@@ -56,7 +63,7 @@ internal sealed class ServerBotManager
     /// </summary>
     public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!IsValidServerBotSlot(slot) || !_isSlotAvailableForBot(slot))
         {
             return false;
         }
@@ -72,6 +79,7 @@ internal sealed class ServerBotManager
         _world.TryApplyNetworkPlayerClassSelection(slot, classId);
 
         _botSlots[slot] = new ServerBotSlotState(slot, team, classId, displayName);
+        _inputCache.Remove(slot);
         return true;
     }
 
@@ -199,7 +207,7 @@ internal sealed class ServerBotManager
     /// </summary>
     public void ClearAllBots()
     {
-        foreach (var slot in _botSlots.Keys)
+        foreach (var slot in _botSlots.Keys.ToArray())
         {
             _world.TryReleaseNetworkPlayerSlot(slot);
         }
@@ -350,15 +358,21 @@ internal sealed class ServerBotManager
         }
 
         // Get navigation assets for current level
+        CompletePendingNavigationBuildIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
+
         var navigationResult = BotNavigationAssetStore.LoadForLevel(
             _world.Level,
             classes: null,
             useModernRuntimeGeneration: true,
-            allowSynchronousGeneration: true);
+            allowSynchronousGeneration: false);
 
         _currentLevelName = _world.Level.Name;
         _currentMapAreaIndex = _world.Level.MapAreaIndex;
         _navigationAssets = navigationResult.Assets;
+        if (!navigationResult.HasAnyAssets)
+        {
+            StartNavigationBuildIfNeeded(_world.Level, navigationResult.LevelFingerprint);
+        }
 
         // Build inputs using the bot controller
         var refreshedInputs = _botController.BuildInputs(
@@ -452,15 +466,76 @@ internal sealed class ServerBotManager
 
     private byte? FindNextAvailableSlot()
     {
-        for (byte slot = (byte)(SimulationWorld.LocalPlayerSlot + 1); slot <= SimulationWorld.MaxPlayableNetworkPlayers; slot++)
+        for (var slotNumber = SimulationWorld.LocalPlayerSlot + 1; slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers; slotNumber++)
         {
-            if (!_botSlots.ContainsKey(slot))
+            var slot = (byte)slotNumber;
+            if (!_botSlots.ContainsKey(slot) && _isSlotAvailableForBot(slot))
             {
-                // Check if slot is not occupied by a client
                 return slot;
             }
         }
         return null;
+    }
+
+    private static bool IsValidServerBotSlot(byte slot)
+    {
+        return slot != SimulationWorld.LocalPlayerSlot
+            && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+    }
+
+    private void CompletePendingNavigationBuildIfReady(string levelName, int mapAreaIndex)
+    {
+        var task = _navigationBuildTask;
+        if (task is null || !task.IsCompleted)
+        {
+            return;
+        }
+
+        if (task.IsCompletedSuccessfully)
+        {
+            var result = task.Result;
+            var resultKey = GetNavigationBuildKey(result.LevelName, result.MapAreaIndex, result.LevelFingerprint);
+            if (string.Equals(resultKey, _navigationBuildKey, StringComparison.Ordinal)
+                && string.Equals(result.LevelName, levelName, StringComparison.OrdinalIgnoreCase)
+                && result.MapAreaIndex == mapAreaIndex
+                && result.HasAnyAssets)
+            {
+                _navigationAssets = result.Assets;
+                _currentLevelName = result.LevelName;
+                _currentMapAreaIndex = result.MapAreaIndex;
+                Console.WriteLine($"[server] bot navigation ready: {result.BuildSummary()}");
+            }
+        }
+        else if (task.Exception is not null)
+        {
+            Console.WriteLine($"[server] bot navigation build failed: {task.Exception.GetBaseException().Message}");
+        }
+
+        _navigationBuildTask = null;
+        _navigationBuildKey = null;
+    }
+
+    private void StartNavigationBuildIfNeeded(SimpleLevel level, string fingerprint)
+    {
+        var buildKey = GetNavigationBuildKey(level.Name, level.MapAreaIndex, fingerprint);
+        if (_navigationBuildTask is { IsCompleted: false }
+            || !_navigationBuildAttemptedKeys.Add(buildKey))
+        {
+            return;
+        }
+
+        _navigationBuildKey = buildKey;
+        _navigationBuildTask = Task.Run(() => BotNavigationAssetStore.LoadForLevel(
+            level,
+            classes: null,
+            useModernRuntimeGeneration: true,
+            allowSynchronousGeneration: true));
+        Console.WriteLine($"[server] bot navigation unavailable for {level.Name} area {level.MapAreaIndex}; building in background.");
+    }
+
+    private static string GetNavigationBuildKey(string levelName, int mapAreaIndex, string fingerprint)
+    {
+        return $"{levelName}|{mapAreaIndex}|{fingerprint}";
     }
 
     private static string GenerateBotDisplayName(PlayerTeam team, int number)

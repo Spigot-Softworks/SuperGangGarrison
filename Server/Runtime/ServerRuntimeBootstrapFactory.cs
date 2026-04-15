@@ -138,7 +138,11 @@ internal static class ServerRuntimeBootstrapFactory
 
         // Create the server bot manager with the modern practice bot controller
         var botController = new ModernPracticeBotController();
-        var botManager = new ServerBotManager(world, config, botController);
+        var botManager = new ServerBotManager(
+            world,
+            config,
+            botController,
+            slot => !clientsBySlot.ContainsKey(slot));
 
         // Snapshot broadcaster needs bot manager to include server bots in snapshots
         var snapshotBroadcaster = new SnapshotBroadcaster(

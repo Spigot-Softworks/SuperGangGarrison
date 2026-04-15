@@ -945,6 +945,44 @@ public sealed class ServerAdminFoundationTests
         }
     }
 
+    [Fact]
+    public void ServerBotManagerRejectsLocalAndReservedSlots()
+    {
+        var world = new SimulationWorld();
+        var reservedSlots = new HashSet<byte> { 2 };
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            slot => !reservedSlots.Contains(slot));
+
+        Assert.False(botManager.TryAddBot(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, PlayerClass.Soldier, "Local Bot"));
+        Assert.False(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Reserved Bot"));
+
+        Assert.True(botManager.TryAddBot(3, PlayerTeam.Red, PlayerClass.Soldier, "Open Bot"));
+        var slot = Assert.Single(botManager.BotSlots);
+        Assert.Equal(3, slot.Key);
+    }
+
+    [Fact]
+    public void ServerBotManagerFillSkipsReservedClientSlots()
+    {
+        var world = new SimulationWorld();
+        var reservedSlots = new HashSet<byte> { 2, 3 };
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            slot => !reservedSlots.Contains(slot));
+
+        var added = botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 2, PlayerClass.Soldier);
+
+        Assert.Equal(2, added);
+        Assert.DoesNotContain((byte)2, botManager.BotSlots.Keys);
+        Assert.DoesNotContain((byte)3, botManager.BotSlots.Keys);
+        Assert.Equal(new byte[] { 4, 5 }, botManager.BotSlots.Keys.OrderBy(static slot => slot).ToArray());
+    }
+
     private static OpenGarrisonServerCommandContext CreateCommandContext(OpenGarrisonServerAdminIdentity identity)
     {
         return new OpenGarrisonServerCommandContext(
