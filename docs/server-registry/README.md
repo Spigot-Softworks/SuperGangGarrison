@@ -3,7 +3,7 @@
 Deploy `og2servers.php` to:
 
 ```text
-https://unkind-dev.com/API/og2servers.php
+https://your-website.com/API/og2servers.php
 ```
 
 Optional: edit admin token before upload if you want manual remove/admin override:
@@ -17,7 +17,7 @@ Use long random value. Clients do not need token. Dedicated servers do not need 
 ## Client GET
 
 ```bash
-curl https://unkind-dev.com/API/og2servers.php
+curl https://your-website.com/API/og2servers.php
 ```
 
 Response shape:
@@ -58,13 +58,13 @@ sh run-server.sh --public-host server.example.com
 Optional overrides:
 
 ```bash
-sh run-server.sh --registry-url https://unkind-dev.com/API/og2servers.php --public-host server.example.com --websocket-port 8191
+sh run-server.sh --registry-url https://your-website.com/API/og2servers.php --public-host server.example.com --websocket-port 8191
 ```
 
 When the browser page is served over HTTPS, the game socket must be reachable as `wss://`. If the public browser URL is not `wss://server.example.com:8191/opengarrison/ws`, publish the external URL explicitly:
 
 ```bash
-sh run-server.sh --registry-url https://unkind-dev.com/API/og2servers.php --public-host server.example.com --websocket-port 8191 --public-websocket-url wss://server.example.com/opengarrison/ws
+sh run-server.sh --registry-url https://your-website.com/API/og2servers.php --public-host server.example.com --websocket-port 8191 --public-websocket-url wss://server.example.com/opengarrison/ws
 ```
 
 Terminate TLS at a reverse proxy or pass `--websocket-cert cert.pfx` to the built-in listener.
@@ -79,7 +79,7 @@ Registry accepts public writes with guardrails:
 - Entries expire after 120 seconds.
 
 ```bash
-curl -X POST https://unkind-dev.com/API/og2servers.php \
+curl -X POST https://your-website.com/API/og2servers.php \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"Test Server\",\"host\":\"server.example.com\",\"udpPort\":8190,\"webSocketPort\":8191,\"webSocketUrl\":\"wss://server.example.com/opengarrison/ws\",\"map\":\"ctf_orange\",\"mode\":\"CTF\",\"players\":2,\"maxPlayers\":16,\"spectators\":0,\"protocolVersion\":38}"
 ```
@@ -87,7 +87,7 @@ curl -X POST https://unkind-dev.com/API/og2servers.php \
 Admin remove needs `REGISTRY_WRITE_TOKEN` configured:
 
 ```bash
-curl -X POST https://unkind-dev.com/API/og2servers.php \
+curl -X POST https://your-website.com/API/og2servers.php \
   -H "Content-Type: application/json" \
   -d "{\"token\":\"YOUR_TOKEN\",\"action\":\"remove\",\"serverId\":\"test-1\"}"
 ```
