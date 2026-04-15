@@ -118,14 +118,17 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void RegisterVisualEffect(string effectName, float x, float y, float directionDegrees = 0f, int count = 1)
+    private void RegisterVisualEffect(string effectName, float x, float y, float directionDegrees = 0f, int count = 1, bool normalizeDirection = true)
     {
         if (string.IsNullOrWhiteSpace(effectName))
         {
             return;
         }
 
-        _pendingVisualEvents.Add(new WorldVisualEvent(effectName, x, y, NormalizeAngleDegrees(directionDegrees), Math.Max(1, count)));
+        var directionValue = normalizeDirection
+            ? NormalizeAngleDegrees(directionDegrees)
+            : directionDegrees;
+        _pendingVisualEvents.Add(new WorldVisualEvent(effectName, x, y, directionValue, Math.Max(1, count)));
     }
 
     private void RegisterImpactEffect(float x, float y, float directionDegrees)
@@ -144,7 +147,7 @@ public sealed partial class SimulationWorld
 
     private void RegisterIntelTrailEffect(float x, float y, float horizontalSpeed)
     {
-        RegisterVisualEffect("LooseSheet", x, y, horizontalSpeed);
+        RegisterVisualEffect("LooseSheet", x, y, horizontalSpeed, normalizeDirection: false);
     }
 
     private bool ShouldEmitSourceTickChance(float sourceTickChance)

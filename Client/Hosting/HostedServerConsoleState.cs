@@ -88,6 +88,7 @@ internal sealed class HostedServerConsoleState
         int respawnSeconds,
         bool lobbyAnnounce,
         bool autoBalance,
+        bool secondaryAbilitiesEnabled,
         string? selectedMapDisplayName)
     {
         lock (_sync)
@@ -98,7 +99,7 @@ internal sealed class HostedServerConsoleState
             _statusPlayers = $"0/{maxPlayers}";
             _statusLobby = lobbyAnnounce ? "Enabled" : "Disabled";
             _statusMap = selectedMapDisplayName ?? "Waiting for map bootstrap";
-            _statusRules = $"{timeLimitMinutes} min | cap {capLimit} | respawn {respawnSeconds}s | auto-balance {(autoBalance ? "on" : "off")}";
+            _statusRules = $"{timeLimitMinutes} min | cap {capLimit} | respawn {respawnSeconds}s | auto-balance {(autoBalance ? "on" : "off")} | secondary abilities {(secondaryAbilitiesEnabled ? "on" : "off")}";
             _statusRuntime = "Launching dedicated server...";
             _statusWorld = "Waiting for world bootstrap";
         }

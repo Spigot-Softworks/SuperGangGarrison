@@ -44,6 +44,7 @@ public static class SnapshotDelta
             BloodDrops = MergeEntities(baseline?.BloodDrops, snapshot.BloodDrops, snapshot.RemovedBloodDropIds, static state => state.Id),
             DeadBodies = MergeEntities(baseline?.DeadBodies, snapshot.DeadBodies, snapshot.RemovedDeadBodyIds, static state => state.Id),
             SentryGibs = MergeEntities(baseline?.SentryGibs, snapshot.SentryGibs, snapshot.RemovedSentryGibIds, static state => state.Id),
+            JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
             RemovedBubbleIds = Array.Empty<int>(),
@@ -58,6 +59,7 @@ public static class SnapshotDelta
             RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
+            RemovedJumpPadIds = Array.Empty<int>(),
         };
     }
 
@@ -81,6 +83,7 @@ public static class SnapshotDelta
             RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
+            RemovedJumpPadIds = Array.Empty<int>(),
         };
     }
 

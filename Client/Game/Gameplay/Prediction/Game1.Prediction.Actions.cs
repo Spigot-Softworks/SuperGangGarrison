@@ -2,11 +2,19 @@
 
 using System;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float PredictedPyroSelfAirblastBaseImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
+    private const float PredictedPyroSelfAirblastBaseLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
+    private const float PredictedPyroSelfAirblastHorizontalStrengthScale = 1f / 3f;
+    private const float PredictedPyroSelfAirblastVerticalStrengthScale = 1f / 3f;
+    private const float PredictedPyroSelfAirblastImpulse = PredictedPyroSelfAirblastBaseImpulse * PredictedPyroSelfAirblastHorizontalStrengthScale;
+    private const float PredictedPyroSelfAirblastLift = PredictedPyroSelfAirblastBaseLift * PredictedPyroSelfAirblastVerticalStrengthScale;
+
     private void AdvancePredictedActionState(PlayerEntity player)
     {
         AdvancePredictedWeaponState(player);
@@ -209,6 +217,12 @@ public partial class Game1
             return;
         }
 
+        if (IsPredictedPyroSelfAirblastInput(player, predictedInput)
+            && player.CanFirePyroAirblast())
+        {
+            return;
+        }
+
         if (player.HasExperimentalOffhandWeapon)
         {
             player.StowExperimentalOffhandWeapon();
@@ -320,18 +334,80 @@ public partial class Game1
         }
     }
 
+    private static bool IsPredictedPyroSelfAirblastInput(PlayerEntity player, PredictedLocalInput predictedInput)
+    {
+        return player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
+            && predictedInput.SecondaryWeaponPressed;
+    }
+
+    private bool TryPredictedPyroSelfAirblast(PlayerEntity player, bool fireFlare)
+    {
+        if (!player.TryFirePyroAirblast())
+        {
+            return false;
+        }
+
+        if (fireFlare)
+        {
+            player.TryFirePyroFlare();
+        }
+
+        var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
+        player.AddImpulse(
+            -MathF.Cos(aimRadians) * PredictedPyroSelfAirblastImpulse,
+            -MathF.Sin(aimRadians) * PredictedPyroSelfAirblastImpulse + PredictedPyroSelfAirblastLift);
+        player.SetMovementState(LegacyMovementState.Airblast);
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
     private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (player.IsTaunting
-            || !predictedInput.SecondaryWeaponPressed
-            || predictedInput.Input.FirePrimary
-            || player.ClassId != PlayerClass.Soldier
+            || !predictedInput.SecondaryWeaponPressed)
+        {
+            return;
+        }
+
+        if (IsPredictedPyroSelfAirblastInput(player, predictedInput))
+        {
+            TryPredictedPyroSelfAirblast(player, predictedInput.Input.FirePrimary);
+            return;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
+        {
+            if (player.TryStartTaunt())
+            {
+                SyncPredictedLocalPlayerState(player);
+            }
+
+            return;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        {
+            if (_predictedLocalActionState.IsMedicUberReady)
+            {
+                TryPredictedStartMedicUber(player);
+            }
+
+            return;
+        }
+
+        if (player.ClassId != PlayerClass.Soldier
             || !player.HasExperimentalOffhandWeapon)
         {
             return;
         }
 
-        if (!player.IsAcquiredWeaponEquipped)
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (!player.IsExperimentalOffhandEquipped)
         {
             player.EquipExperimentalOffhandWeapon();
         }

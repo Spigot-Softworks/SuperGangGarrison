@@ -9,6 +9,13 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const string CoreReplicatedOwnerId = "core.player";
+    private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
+    private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
+    private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
+    private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
+    private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
+
     private enum WeaponAnimationMode
     {
         Idle,
@@ -188,6 +195,10 @@ public partial class Game1
                     else if (shellReloaded || reloadRestarted)
                     {
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
+                    }
+                    else if (renderState.WeaponAnimationTimeRemainingSeconds <= 0f)
+                    {
+                        StopWeaponAnimation(renderState);
                     }
                     break;
                 case WeaponAnimationMode.Idle:
@@ -402,6 +413,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedAmmo))
+            {
+                return Math.Max(0, replicatedAmmo);
+            }
+
             return player.ExperimentalOffhandCurrentShells;
         }
 
@@ -421,6 +437,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunCooldownTicksKey, out var replicatedCooldownTicks))
+            {
+                return Math.Max(0, replicatedCooldownTicks);
+            }
+
             return player.ExperimentalOffhandCooldownTicks;
         }
 
@@ -452,6 +473,11 @@ public partial class Game1
 
         if (ShouldPresentExperimentalSoldierShotgun(player))
         {
+            if (player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedReloadTicks))
+            {
+                return Math.Max(0, replicatedReloadTicks);
+            }
+
             return player.ExperimentalOffhandReloadTicksUntilNextShell;
         }
 
@@ -482,7 +508,9 @@ public partial class Game1
         }
 
         return ShouldPresentExperimentalSoldierShotgun(player)
-            ? player.ExperimentalOffhandMaxShells
+            ? player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedMaxAmmo)
+                ? Math.Max(1, replicatedMaxAmmo)
+                : player.ExperimentalOffhandMaxShells
             : player.MaxShells;
     }
 
@@ -522,8 +550,10 @@ public partial class Game1
 
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
     {
+        var isReplicatedEquipped = player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunEquippedKey, out var equipped)
+            && equipped;
         return player.ClassId == PlayerClass.Soldier
-            && player.IsExperimentalOffhandPresented;
+            && (player.IsExperimentalOffhandPresented || isReplicatedEquipped);
     }
 
     private static float WrapAnimationImage(float animationImage, float length)

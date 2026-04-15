@@ -19,6 +19,7 @@ public sealed partial class SimulationWorld
                 PlayerClass.Engineer,
                 aimWorldX,
                 aimWorldY,
+                pelletSpawnDistance: 20f,
                 killFeedWeaponSpriteNameOverride: "ShotgunKL");
         }
 
@@ -39,7 +40,7 @@ public sealed partial class SimulationWorld
                 weaponClassId.Value,
                 aimWorldX,
                 aimWorldY,
-                killFeedWeaponSpriteNameOverride);
+                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
 
         private void DispatchPrimaryWeaponFire(
@@ -49,6 +50,7 @@ public sealed partial class SimulationWorld
             PlayerClass weaponClassId,
             float aimWorldX,
             float aimWorldY,
+            float pelletSpawnDistance = 15f,
             string? killFeedWeaponSpriteNameOverride = null)
         {
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
@@ -61,6 +63,7 @@ public sealed partial class SimulationWorld
                 weaponClassId,
                 aimWorldX,
                 aimWorldY,
+                pelletSpawnDistance,
                 killFeedWeaponSpriteNameOverride,
                 resolvedKillFeedWeaponSpriteName);
         }
@@ -91,6 +94,7 @@ public sealed partial class SimulationWorld
             PlayerClass weaponClassId,
             float aimWorldX,
             float aimWorldY,
+            float pelletSpawnDistance,
             string? killFeedWeaponSpriteNameOverride,
             string resolvedKillFeedWeaponSpriteName)
         {
@@ -118,7 +122,7 @@ public sealed partial class SimulationWorld
                     FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;
                 default:
-                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride);
+                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride, pelletSpawnDistance);
                     return;
             }
         }

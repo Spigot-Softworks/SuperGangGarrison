@@ -13,6 +13,23 @@ public sealed partial class SimulationWorld
     private const float PyroAirblastLooseBodyImpulse = 28f;
     private const float PyroAirblastPlayerImpulse = 15f * LegacyMovementModel.SourceTicksPerSecond;
     private const float PyroAirblastPlayerLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
+    private const float PyroSelfAirblastHorizontalStrengthScale = 1f / 3f;
+    private const float PyroSelfAirblastVerticalStrengthScale = 1f / 3f;
+
+    private void TriggerPyroSelfAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
+    {
+        var (sourceX, sourceY) = WeaponHandler.GetPyroSecondaryOrigin(player);
+        var aimDegrees = PointDirectionDegrees(sourceX, sourceY, aimWorldX, aimWorldY);
+        var aimRadians = DegreesToRadians(aimDegrees);
+        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
+        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
+
+        TryFirePyroFlare(player, aimRadians, sourceX, sourceY, fireFlare);
+        RegisterSoundEvent(player, "CompressionBlastSnd");
+        RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
+        PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
+    }
 
     private void TriggerPyroAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
     {
@@ -31,6 +48,20 @@ public sealed partial class SimulationWorld
         PushEnemyMines(player.Team, aimRadians, poofX, poofY);
         ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
+    }
+
+    private static void ApplyAirblastToSelf(PlayerEntity player, float sourceX, float sourceY, float aimRadians)
+    {
+        var scale = GetAirblastScale(sourceX, sourceY, player.X, player.Y);
+        if (scale <= 0f)
+        {
+            return;
+        }
+
+        player.AddImpulse(
+            -MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastHorizontalStrengthScale,
+            -MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastVerticalStrengthScale + (PyroAirblastPlayerLift * PyroSelfAirblastVerticalStrengthScale));
+        player.SetMovementState(LegacyMovementState.Airblast);
     }
 
     private void TryFirePyroFlare(PlayerEntity player, float aimRadians, float sourceX, float sourceY, bool fireFlare)

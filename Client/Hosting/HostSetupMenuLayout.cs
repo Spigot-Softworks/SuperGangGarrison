@@ -22,6 +22,7 @@ internal readonly record struct HostSetupMenuLayout(
     Rectangle RespawnBounds,
     Rectangle LobbyBounds,
     Rectangle AutoBalanceBounds,
+    Rectangle SecondaryAbilitiesBounds,
     Rectangle HostBounds,
     Rectangle BackBounds,
     bool CompactLayout)
@@ -143,6 +144,7 @@ internal static class HostSetupMenuLayoutCalculator
             var listButtonScaleHeight = 28;
             var lobbyBounds = new Rectangle(fieldX, capLimitBounds.Bottom + 18, fieldWidth, listButtonScaleHeight);
             var autoBalanceBounds = new Rectangle(fieldX, lobbyBounds.Bottom + 6, fieldWidth, listButtonScaleHeight);
+            var secondaryAbilitiesBounds = new Rectangle(fieldX, autoBalanceBounds.Bottom + 6, fieldWidth, listButtonScaleHeight);
 
             var actionButtonHeight = 36;
             var actionButtonWidth = 120;
@@ -176,6 +178,7 @@ internal static class HostSetupMenuLayoutCalculator
                 respawnBounds,
                 lobbyBounds,
                 autoBalanceBounds,
+                secondaryAbilitiesBounds,
                 hostBounds,
                 backBounds,
                 compactLayout);
@@ -224,8 +227,9 @@ internal static class HostSetupMenuLayoutCalculator
 
         var roomyBackBounds = new Rectangle(panel.Right - roomyPadding - 140, panel.Bottom - 20 - 42, 140, 42);
         var roomyHostBounds = new Rectangle(roomyBackBounds.X - 20 - 140, roomyBackBounds.Y, 140, 42);
-        var roomyLobbyBounds = new Rectangle(roomyFieldX, roomyHostBounds.Y - 96, roomyFieldWidth, 34);
+        var roomyLobbyBounds = new Rectangle(roomyFieldX, roomyHostBounds.Y - 124, roomyFieldWidth, 34);
         var roomyAutoBalanceBounds = new Rectangle(roomyFieldX, roomyLobbyBounds.Bottom + 6, roomyFieldWidth, 34);
+        var roomySecondaryAbilitiesBounds = new Rectangle(roomyFieldX, roomyAutoBalanceBounds.Bottom + 6, roomyFieldWidth, 34);
 
         return new HostSetupMenuLayout(
             panel,
@@ -244,6 +248,7 @@ internal static class HostSetupMenuLayoutCalculator
             roomyRespawnBounds,
             roomyLobbyBounds,
             roomyAutoBalanceBounds,
+            roomySecondaryAbilitiesBounds,
             roomyHostBounds,
             roomyBackBounds,
             compactLayout);

@@ -128,6 +128,7 @@ public partial class Game1
             int respawnSeconds,
             bool lobbyAnnounce,
             bool autoBalance,
+            bool secondaryAbilitiesEnabled,
             string? requestedMap,
             string? mapRotationFile)
         {
@@ -141,6 +142,7 @@ public partial class Game1
                 respawnSeconds,
                 lobbyAnnounce,
                 autoBalance,
+                secondaryAbilitiesEnabled,
                 resetConsole: true,
                 launcherLogMessage: $"Start Server pressed for UDP port {port}.");
 
@@ -155,6 +157,7 @@ public partial class Game1
                     respawnSeconds,
                     lobbyAnnounce,
                     autoBalance,
+                    secondaryAbilitiesEnabled,
                     requestedMap,
                     mapRotationFile,
                     resetConsole: false,
@@ -182,6 +185,7 @@ public partial class Game1
             int respawnSeconds,
             bool lobbyAnnounce,
             bool autoBalance,
+            bool secondaryAbilitiesEnabled,
             string? requestedMap,
             string? mapRotationFile)
         {
@@ -195,6 +199,7 @@ public partial class Game1
                 respawnSeconds,
                 lobbyAnnounce,
                 autoBalance,
+                secondaryAbilitiesEnabled,
                 resetConsole: true);
 
             if (!_game.TryStartHostedServerInTerminal(
@@ -208,6 +213,7 @@ public partial class Game1
                     respawnSeconds,
                     lobbyAnnounce,
                     autoBalance,
+                    secondaryAbilitiesEnabled,
                     requestedMap,
                     mapRotationFile,
                     out var error))
@@ -523,6 +529,12 @@ public partial class Game1
             if (layout.AutoBalanceBounds.Contains(mouse.Position))
             {
                 _game._hostAutoBalanceEnabled = !_game._hostAutoBalanceEnabled;
+                return;
+            }
+
+            if (layout.SecondaryAbilitiesBounds.Contains(mouse.Position))
+            {
+                _game._hostSecondaryAbilitiesEnabled = !_game._hostSecondaryAbilitiesEnabled;
                 return;
             }
 

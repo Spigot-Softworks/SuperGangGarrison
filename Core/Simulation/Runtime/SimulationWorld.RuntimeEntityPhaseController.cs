@@ -57,6 +57,7 @@ public sealed partial class SimulationWorld
             _world.AdvanceDroppedWeapons();
             _world.AdvanceAfterburnAlertBubbles();
             _world.AdvanceSentries();
+            _world.AdvanceJumpPads();
         }
     }
 }

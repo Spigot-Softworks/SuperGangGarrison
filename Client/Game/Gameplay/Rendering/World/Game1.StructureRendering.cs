@@ -285,6 +285,36 @@ public partial class Game1
         return true;
     }
 
+    private bool TryDrawJumpPad(JumpPadEntity jumpPad, Vector2 cameraPosition)
+    {
+        var spriteName = jumpPad.Team == PlayerTeam.Blue ? "JumpPadBlue" : "JumpPadRed";
+        var sprite = _runtimeAssets.GetSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        var animatedFrameCount = Math.Min(6, sprite.Frames.Count);
+        const long millisecondsPerFrame = 100;
+        var frameIndex = animatedFrameCount > 0
+            ? (int)((Environment.TickCount64 / millisecondsPerFrame) % animatedFrameCount)
+            : 0;
+
+        var renderPosition = RoundToSourcePixels(GetRenderPosition(jumpPad.Id, jumpPad.X, jumpPad.Y));
+        var jumpPadRenderYOffset = jumpPad.HasLanded ? 10f : 0f;
+        DrawLoadedSpriteFrame(
+            sprite.Frames[frameIndex],
+            new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y + jumpPadRenderYOffset - cameraPosition.Y),
+            null,
+            Color.White,
+            0f,
+            sprite.Origin.ToVector2(),
+            Vector2.One,
+            SpriteEffects.None,
+            0f);
+        return true;
+    }
+
     private void DrawHealthPack(HealthPackEntity healthPack, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(healthPack.Id, healthPack.X, healthPack.Y);

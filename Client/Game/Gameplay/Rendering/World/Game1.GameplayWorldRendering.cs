@@ -102,6 +102,22 @@ public partial class Game1
             DrawHealthPack(healthPack, cameraPosition);
         }
 
+        foreach (var jumpPad in _world.JumpPads)
+        {
+            if (!TryDrawJumpPad(jumpPad, cameraPosition))
+            {
+                var padRectangle = new Rectangle(
+                    (int)(jumpPad.X - JumpPadEntity.Width / 2f - cameraPosition.X),
+                    (int)(jumpPad.Y - JumpPadEntity.Height / 2f - cameraPosition.Y),
+                    (int)JumpPadEntity.Width,
+                    (int)JumpPadEntity.Height);
+                var padColor = jumpPad.Team == PlayerTeam.Blue
+                    ? new Color(100, 160, 235)
+                    : new Color(220, 110, 90);
+                _spriteBatch.Draw(_pixel, padRectangle, padColor);
+            }
+        }
+
         foreach (var droppedWeapon in _world.DroppedWeapons)
         {
             DrawDroppedWeapon(droppedWeapon, cameraPosition);

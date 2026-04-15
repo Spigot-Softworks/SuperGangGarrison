@@ -1,6 +1,7 @@
 namespace OpenGarrison.Core;
 
 public sealed record ExperimentalGameplaySettings(
+    bool EnableSecondaryAbilities = true,
     bool EnableSoldierFastCapture = false,
     bool EnableDemoknightFastCapture = false,
     bool EnableDemoknightKit = false,

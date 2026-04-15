@@ -5,6 +5,14 @@ using OpenGarrison.Protocol;
 
 internal static partial class ServerHelpers
 {
+    private const string CoreReplicatedOwnerId = "core.player";
+    private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
+    private const string SoldierShotgunEquippedKey = "soldier_shotgun_equipped";
+    private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
+    private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
+    private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
+    private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
+
     internal static SnapshotPlayerState ToSnapshotPlayerState(SimulationWorld world, byte slot, PlayerEntity player, PlayerEntity? viewer)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
@@ -18,6 +26,67 @@ internal static partial class ServerHelpers
         var isDominatedByLocalViewer = viewer is not null
             && !ReferenceEquals(player, viewer)
             && viewer.GetDominationKillCount(player.Id) > 3;
+        var replicatedStates = player.GetReplicatedStateEntries()
+            .Select(static entry => new SnapshotReplicatedStateEntry(
+                entry.OwnerId,
+                entry.Key,
+                entry.Kind switch
+                {
+                    GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
+                    GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
+                    _ => SnapshotReplicatedStateValueKind.Toggle,
+                },
+                entry.IntValue,
+                entry.FloatValue,
+                entry.BoolValue))
+            .ToList();
+
+        if (player.ClassId == PlayerClass.Soldier)
+        {
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunAvailableKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.HasExperimentalOffhandWeapon));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunEquippedKey,
+                SnapshotReplicatedStateValueKind.Toggle,
+                0,
+                0f,
+                player.IsExperimentalOffhandPresented));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCurrentShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunMaxAmmoKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandMaxShells,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunReloadTicksKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandReloadTicksUntilNextShell,
+                0f,
+                false));
+            replicatedStates.Add(new SnapshotReplicatedStateEntry(
+                CoreReplicatedOwnerId,
+                SoldierShotgunCooldownTicksKey,
+                SnapshotReplicatedStateValueKind.Whole,
+                player.ExperimentalOffhandCooldownTicks,
+                0f,
+                false));
+        }
+
         return new SnapshotPlayerState(
             slot,
             player.Id,
@@ -91,20 +160,7 @@ internal static partial class ServerHelpers
             player.GameplayLoadoutState.EquippedItemId,
             player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
             ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
-            player.GetReplicatedStateEntries()
-                .Select(static entry => new SnapshotReplicatedStateEntry(
-                    entry.OwnerId,
-                    entry.Key,
-                    entry.Kind switch
-                    {
-                        GameplayReplicatedStateValueKind.Whole => SnapshotReplicatedStateValueKind.Whole,
-                        GameplayReplicatedStateValueKind.Scalar => SnapshotReplicatedStateValueKind.Scalar,
-                        _ => SnapshotReplicatedStateValueKind.Toggle,
-                    },
-                    entry.IntValue,
-                    entry.FloatValue,
-                    entry.BoolValue))
-                .ToArray(),
+            replicatedStates.ToArray(),
             player.PlayerScale);
     }
 
@@ -140,6 +196,18 @@ internal static partial class ServerHelpers
             sentry.CurrentTargetPlayerId ?? -1,
             sentry.LastShotTargetX,
             sentry.LastShotTargetY);
+    }
+
+    internal static SnapshotJumpPadState ToSnapshotJumpPadState(JumpPadEntity pad)
+    {
+        return new SnapshotJumpPadState(
+            pad.Id,
+            pad.OwnerPlayerId,
+            (byte)pad.Team,
+            pad.X,
+            pad.Y,
+            pad.Health,
+            pad.HasLanded);
     }
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)

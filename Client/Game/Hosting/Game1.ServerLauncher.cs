@@ -60,6 +60,7 @@ public partial class Game1
         int respawnSeconds,
         bool lobbyAnnounce,
         bool autoBalance,
+        bool secondaryAbilitiesEnabled,
         string? requestedMap,
         string? mapRotationFile)
     {
@@ -74,6 +75,7 @@ public partial class Game1
             respawnSeconds,
             lobbyAnnounce,
             autoBalance,
+            secondaryAbilitiesEnabled,
             requestedMap,
             mapRotationFile);
     }
@@ -89,6 +91,7 @@ public partial class Game1
         int respawnSeconds,
         bool lobbyAnnounce,
         bool autoBalance,
+        bool secondaryAbilitiesEnabled,
         string? requestedMap,
         string? mapRotationFile)
     {
@@ -103,6 +106,7 @@ public partial class Game1
             respawnSeconds,
             lobbyAnnounce,
             autoBalance,
+            secondaryAbilitiesEnabled,
             requestedMap,
             mapRotationFile);
     }

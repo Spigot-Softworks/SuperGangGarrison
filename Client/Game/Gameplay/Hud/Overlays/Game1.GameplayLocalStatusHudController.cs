@@ -10,6 +10,12 @@ public partial class Game1
 {
     private sealed class GameplayLocalStatusHudController
     {
+        private const string CoreReplicatedOwnerId = "core.player";
+        private const string SoldierShotgunAvailableKey = "soldier_shotgun_available";
+        private const string SoldierShotgunAmmoKey = "soldier_shotgun_ammo";
+        private const string SoldierShotgunMaxAmmoKey = "soldier_shotgun_max_ammo";
+        private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
+
         private static readonly Color AmmoHudBarColor = new(217, 217, 183);
         private static readonly Color AmmoHudTextColor = new(245, 235, 210);
         private static readonly Color LowAmmoHudColor = new(255, 0, 0);
@@ -254,7 +260,14 @@ public partial class Game1
 
         private void DrawExperimentalOffhandHudCore()
         {
-            if (_game._world.LocalPlayer.ClassId != PlayerClass.Soldier || !_game._world.LocalPlayer.HasExperimentalOffhandWeapon)
+            if (_game._world.LocalPlayer.ClassId != PlayerClass.Soldier)
+            {
+                return;
+            }
+
+            var hasReplicatedShotgun = _game._world.LocalPlayer.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunAvailableKey, out var replicatedShotgunAvailable)
+                && replicatedShotgunAvailable;
+            if (!_game._world.LocalPlayer.HasExperimentalOffhandWeapon && !hasReplicatedShotgun)
             {
                 return;
             }
@@ -267,26 +280,49 @@ public partial class Game1
 
             var presentation = CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(secondaryItemId).Presentation;
             var frameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? presentation.BlueTeamHudFrameOffset : 0;
-            var iconPosition = GetSourceHudPoint(688f, 507f);
-            var iconDrawn = presentation.HudSpriteName is not null && _game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, iconPosition, Color.White, new Vector2(1.5f, 1.5f));
-            if (!iconDrawn)
+            const float panelScale = 2.4f;
+            const float panelGapPixels = 4f;
+            const float fallbackPanelHeight = 38f;
+            var mainPanelSourceX = 728f;
+            var mainPanelSourceY = SourceAmmoHudBaseY + 86f;
+            var panelHeightPixels = fallbackPanelHeight;
+            if (presentation.HudSpriteName is not null)
             {
-                _game.DrawBitmapFontText("SHOTGUN", GetSourceHudPoint(664f, 510f), Color.White, 0.72f);
+                var panelSprite = _game._runtimeAssets.GetSprite(presentation.HudSpriteName);
+                if (panelSprite is not null && panelSprite.Frames.Count > 0)
+                {
+                    panelHeightPixels = panelSprite.Frames[0].Height * panelScale;
+                }
             }
 
-            var currentShells = _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
-            var maxShells = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
+            var shotgunPanelSourceX = mainPanelSourceX;
+            var shotgunPanelSourceY = mainPanelSourceY - panelHeightPixels - panelGapPixels;
+            var iconPosition = GetSourceHudPoint(shotgunPanelSourceX, shotgunPanelSourceY);
+            var iconDrawn = presentation.HudSpriteName is not null && _game.TryDrawScreenSprite(presentation.HudSpriteName, frameIndex, iconPosition, Color.White, new Vector2(panelScale, panelScale));
+            if (!iconDrawn)
+            {
+                _game.DrawBitmapFontText("SHOTGUN", GetSourceHudPoint(shotgunPanelSourceX - 24f, shotgunPanelSourceY + 3f), Color.White, 0.72f);
+            }
+
+            var currentShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunAmmoKey, out var replicatedOffhandAmmo)
+                ? replicatedOffhandAmmo
+                : _game._world.LocalPlayer.ExperimentalOffhandCurrentShells;
+            var maxShells = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunMaxAmmoKey, out var replicatedOffhandMaxAmmo)
+                ? Math.Max(1, replicatedOffhandMaxAmmo)
+                : Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandMaxShells);
+            var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedOffhandReloadTicks)
+                ? Math.Max(0, replicatedOffhandReloadTicks)
+                : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
+            var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.Shotgun.AmmoReloadTicks);
             var reloadProgress = currentShells >= maxShells
                 ? 1f
-                : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell <= 0
+                : reloadTicksRemaining <= 0
                     ? 1f
-                    : Math.Clamp(1f - (_game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell / (float)Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? 1)), 0f, 1f);
+                    : Math.Clamp(1f - (reloadTicksRemaining / (float)reloadTicksPerShell), 0f, 1f);
             var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
 
-            _game.DrawBitmapFontText("SPACE", GetSourceHudPoint(684f, 500f), new Color(210, 210, 210), 0.68f);
-            _game.DrawHudTextLeftAligned(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(719f, 515f), ammoColor, 0.9f);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(684f, 531f, 55f, 5f), currentShells, maxShells, false, AmmoHudBarColor, Color.Black);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(684f, 538f, 55f, 4f), reloadProgress, 1f, false, new Color(188, 188, 188), Color.Black);
+            _game.DrawHudTextLeftAligned(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(shotgunPanelSourceX + 31f, shotgunPanelSourceY + 8f), ammoColor, 1f);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(shotgunPanelSourceX - 39f, shotgunPanelSourceY + 9f, 50f, 5f), reloadProgress, 1f, false, new Color(188, 188, 188), Color.Black);
         }
 
         private void DrawAcquiredMedigunPromptCore()

@@ -31,6 +31,19 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedSentryIds.Add(id));
         AddEntityDelta(
             contributions,
+            fullSnapshot.JumpPads,
+            baseline?.JumpPads,
+            priority: 1195,
+            estimateUpdatedBytes: static state => 22,
+            estimatedRemovedBytes: 4,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.JumpPads.Add(state),
+            static (builder, id) => builder.RemovedJumpPadIds.Add(id));
+        AddEntityDelta(
+            contributions,
             fullSnapshot.Rockets,
             baseline?.Rockets,
             priority: 1120,

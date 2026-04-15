@@ -52,6 +52,7 @@ public partial class Game1
                     request.RespawnSeconds,
                     request.LobbyAnnounce,
                     request.AutoBalance,
+                    request.SecondaryAbilitiesEnabled,
                     request.RequestedMap,
                     request.MapRotationFile);
             }
@@ -68,6 +69,7 @@ public partial class Game1
                     request.RespawnSeconds,
                     request.LobbyAnnounce,
                     request.AutoBalance,
+                    request.SecondaryAbilitiesEnabled,
                     request.RequestedMap,
                     request.MapRotationFile);
             }
@@ -85,6 +87,7 @@ public partial class Game1
             request.RespawnSeconds,
             request.LobbyAnnounce,
             request.AutoBalance,
+            request.SecondaryAbilitiesEnabled,
             request.RequestedMap,
             request.MapRotationFile);
     }

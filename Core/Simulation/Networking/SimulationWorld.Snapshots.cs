@@ -132,6 +132,7 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
     {
         ApplySnapshotSentries(snapshot.Sentries);
+        ApplySnapshotJumpPads(snapshot.JumpPads);
         ApplySnapshotShots(
             snapshot.Shots,
             _shots,
@@ -193,6 +194,26 @@ public sealed partial class SimulationWorld
         ApplySnapshotBloodDrops(snapshot.BloodDrops);
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
+    }
+
+    private void ApplySnapshotJumpPads(IReadOnlyList<SnapshotJumpPadState> jumpPads)
+    {
+        SyncSnapshotEntities(
+            jumpPads,
+            _jumpPads,
+            static state => state.Id,
+            static (entity, state) => entity.OwnerPlayerId == state.OwnerPlayerId && entity.Team == (PlayerTeam)state.Team,
+            state => new JumpPadEntity(
+                state.Id,
+                state.OwnerPlayerId,
+                (PlayerTeam)state.Team,
+                state.X,
+                state.Y),
+            static (entity, state) => entity.ApplyNetworkState(
+                state.X,
+                state.Y,
+                state.Health,
+                state.HasLanded));
     }
 
     private void ApplySnapshotSentries(IReadOnlyList<SnapshotSentryState> sentries)

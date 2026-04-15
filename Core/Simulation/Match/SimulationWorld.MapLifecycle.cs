@@ -249,11 +249,13 @@ public sealed partial class SimulationWorld
         RemoveEntities(_rockets);
         RemoveEntities(_mines);
         RemoveEntities(_sentries);
+        RemoveEntities(_jumpPads);
         RemoveEntities(_playerGibs);
         RemoveEntities(_bloodDrops);
         RemoveEntities(_healthPacks);
         RemoveEntities(_deadBodies);
         RemoveEntities(_sentryGibs);
+        _jumpPadTriggerContacts.Clear();
     }
 
     private void RemoveEntities<T>(List<T> entities) where T : SimulationEntity

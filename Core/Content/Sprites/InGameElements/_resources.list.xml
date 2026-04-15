@@ -27,4 +27,6 @@
   <resource name="SpectatorHealthCross" type="RESOURCE"/>
   <resource name="SpeedBoostS" type="RESOURCE"/>
   <resource name="SpectatorHealthFill" type="RESOURCE"/>
+  <resource name="JumpPadBlue" type="RESOURCE"/>
+  <resource name="JumpPadRed" type="RESOURCE"/>
 </resources>

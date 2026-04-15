@@ -412,6 +412,15 @@ public sealed record SnapshotSentryGibState(
     float Y,
     int TicksRemaining);
 
+public sealed record SnapshotJumpPadState(
+    int Id,
+    int OwnerPlayerId,
+    byte Team,
+    float X,
+    float Y,
+    int Health,
+    bool HasLanded);
+
 public sealed record SnapshotPlayerGibState(
     int Id,
     string SpriteName,
@@ -576,6 +585,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedDeadBodyIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
+    public IReadOnlyList<SnapshotJumpPadState> JumpPads { get; init; } = Array.Empty<SnapshotJumpPadState>();
+    public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
 
     public MessageType Type => MessageType.Snapshot;
 }

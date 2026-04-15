@@ -33,6 +33,7 @@ sealed class ServerLaunchOptions
     public int MaxTotalClients { get; private init; }
     public int MaxSpectatorClients { get; private init; }
     public bool AutoBalanceEnabled { get; private init; }
+    public bool SecondaryAbilitiesEnabled { get; private init; }
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
@@ -92,6 +93,7 @@ sealed class ServerLaunchOptions
         int? capLimitOverride = settings.CapLimit > 0 ? Math.Clamp(settings.CapLimit, 1, 255) : null;
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
+        var secondaryAbilitiesEnabled = settings.SecondaryAbilitiesEnabled;
         var webSocketPort = 0;
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
@@ -239,6 +241,20 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--secondary-abilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--secondaryabilities", StringComparison.OrdinalIgnoreCase))
+            {
+                secondaryAbilitiesEnabled = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-secondary-abilities", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-secondaryabilities", StringComparison.OrdinalIgnoreCase))
+            {
+                secondaryAbilitiesEnabled = false;
+                continue;
+            }
+
             if (string.Equals(arg, "--lobby", StringComparison.OrdinalIgnoreCase))
             {
                 useLobbyServer = true;
@@ -370,6 +386,7 @@ sealed class ServerLaunchOptions
             MaxTotalClients = maxTotalClients,
             MaxSpectatorClients = maxSpectatorClients,
             AutoBalanceEnabled = autoBalanceEnabled,
+            SecondaryAbilitiesEnabled = secondaryAbilitiesEnabled,
             TimeLimitMinutesOverride = timeLimitMinutesOverride,
             CapLimitOverride = capLimitOverride,
             RespawnSecondsOverride = respawnSecondsOverride,

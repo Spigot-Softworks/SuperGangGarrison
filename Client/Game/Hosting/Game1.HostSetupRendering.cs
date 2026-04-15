@@ -162,6 +162,7 @@ public partial class Game1
 
         DrawMenuButtonScaled(layout.LobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled, buttonScale);
         DrawMenuButtonScaled(layout.AutoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled, buttonScale);
+        DrawMenuButtonScaled(layout.SecondaryAbilitiesBounds, _hostSecondaryAbilitiesEnabled ? "Secondary Abilities: On" : "Secondary Abilities: Off", _hostSecondaryAbilitiesEnabled, buttonScale);
 
         DrawMenuButtonScaled(layout.HostBounds, GetHostSetupPrimaryButtonLabel(), false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, GetHostSetupSecondaryButtonLabel(), IsServerLauncherMode && IsHostedServerRunning, buttonScale);

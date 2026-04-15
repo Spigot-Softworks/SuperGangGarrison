@@ -332,13 +332,94 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (!ExperimentalGameplaySettings.EnableSecondaryAbilities)
+        {
+            return;
+        }
+
+        if (TryHandleNetworkUtilityAbility(player, input))
+        {
+            return;
+        }
+
+        // Backward-compatible fallback for sessions where Soldier offhand is enabled
+        // but utility loadout behaviors are unavailable.
+        TryHandleLegacyNetworkSecondaryWeaponFire(player, input);
+    }
+
+    private bool TryHandleNetworkUtilityAbility(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.ScoutUtility))
+        {
+            player.TryStartTaunt();
+            return true;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SoldierSecondaryWeapon))
+        {
+            TryHandleLegacyNetworkSecondaryWeaponFire(player, input);
+            return true;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
+        {
+            if (player.IsMedicUberReady && player.TryStartMedicUber())
+            {
+                AwardMedicUberActivationPoints(player);
+            }
+
+            return true;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility))
+        {
+            if (player.TryFirePyroAirblast())
+            {
+                TriggerPyroSelfAirblast(player, input.AimWorldX, input.AimWorldY, input.FirePrimary);
+            }
+
+            return true;
+        }
+
+        if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.EngineerUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.DemomanUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.HeavyUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility)
+            || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.QuoteUtility))
+        {
+            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.EngineerUtility))
+            {
+                if (!TryDestroyJumpPad(player))
+                {
+                    TryBuildJumpPad(player);
+                }
+
+                return true;
+            }
+
+            TryHandleNetworkSecondaryAbility(player, input, player.X, player.Y);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    {
         if (player.ClassId != PlayerClass.Soldier
             || !player.HasExperimentalOffhandWeapon)
         {
             return;
         }
 
-        if (!player.IsAcquiredWeaponEquipped)
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (!player.IsExperimentalOffhandEquipped)
         {
             player.EquipExperimentalOffhandWeapon();
         }

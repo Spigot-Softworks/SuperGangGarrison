@@ -267,4 +267,39 @@ public static partial class ProtocolCodec
 
         return visualEvents;
     }
+
+    private static void WriteJumpPadStates(BinaryWriter writer, IReadOnlyList<SnapshotJumpPadState> jumpPads)
+    {
+        writer.Write((ushort)jumpPads.Count);
+        for (var index = 0; index < jumpPads.Count; index += 1)
+        {
+            var pad = jumpPads[index];
+            writer.Write(pad.Id);
+            writer.Write(pad.OwnerPlayerId);
+            writer.Write(pad.Team);
+            writer.Write(pad.X);
+            writer.Write(pad.Y);
+            writer.Write(pad.Health);
+            writer.Write(pad.HasLanded);
+        }
+    }
+
+    private static List<SnapshotJumpPadState> ReadJumpPadStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var jumpPads = new List<SnapshotJumpPadState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            jumpPads.Add(new SnapshotJumpPadState(
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadByte(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
+        }
+
+        return jumpPads;
+    }
 }

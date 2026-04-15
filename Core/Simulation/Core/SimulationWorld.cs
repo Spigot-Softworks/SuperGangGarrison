@@ -40,6 +40,8 @@ public sealed partial class SimulationWorld
     private readonly List<int> _pendingNewRocketIds = new();
     private readonly List<MineProjectileEntity> _mines = new();
     private readonly List<SentryEntity> _sentries = new();
+    private readonly List<JumpPadEntity> _jumpPads = new();
+    private readonly HashSet<long> _jumpPadTriggerContacts = new();
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
     private readonly List<HealthPackEntity> _healthPacks = new();
@@ -220,6 +222,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<MineProjectileEntity> Mines => _mines;
 
     public IReadOnlyList<SentryEntity> Sentries => _sentries;
+
+    public IReadOnlyList<JumpPadEntity> JumpPads => _jumpPads;
 
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
 

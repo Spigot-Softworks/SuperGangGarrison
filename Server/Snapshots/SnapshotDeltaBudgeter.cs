@@ -422,6 +422,8 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlareIds = new List<int>(other.RemovedFlareIds);
             RemovedMineIds = new List<int>(other.RemovedMineIds);
             RemovedSentryGibIds = new List<int>(other.RemovedSentryGibIds);
+            JumpPads = new List<SnapshotJumpPadState>(other.JumpPads);
+            RemovedJumpPadIds = new List<int>(other.RemovedJumpPadIds);
             RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
             RemovedBloodDropIds = new List<int>(other.RemovedBloodDropIds);
             RemovedDeadBodyIds = new List<int>(other.RemovedDeadBodyIds);
@@ -444,6 +446,7 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotShotState> Flares { get; } = new();
         public List<SnapshotMineState> Mines { get; } = new();
         public List<SnapshotSentryGibState> SentryGibs { get; } = new();
+        public List<SnapshotJumpPadState> JumpPads { get; } = new();
         public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
         public List<SnapshotBloodDropState> BloodDrops { get; } = new();
         public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
@@ -458,6 +461,7 @@ internal static class SnapshotDeltaBudgeter
         public List<int> RemovedFlareIds { get; } = new();
         public List<int> RemovedMineIds { get; } = new();
         public List<int> RemovedSentryGibIds { get; } = new();
+        public List<int> RemovedJumpPadIds { get; } = new();
         public List<int> RemovedPlayerGibIds { get; } = new();
         public List<int> RemovedBloodDropIds { get; } = new();
         public List<int> RemovedDeadBodyIds { get; } = new();
@@ -485,6 +489,7 @@ internal static class SnapshotDeltaBudgeter
                 Flares = Flares.ToArray(),
                 Mines = Mines.ToArray(),
                 SentryGibs = SentryGibs.ToArray(),
+                JumpPads = JumpPads.ToArray(),
                 PlayerGibs = PlayerGibs.ToArray(),
                 BloodDrops = BloodDrops.ToArray(),
                 DeadBodies = DeadBodies.ToArray(),
@@ -503,6 +508,7 @@ internal static class SnapshotDeltaBudgeter
                 RemovedFlareIds = RemovedFlareIds.ToArray(),
                 RemovedMineIds = RemovedMineIds.ToArray(),
                 RemovedSentryGibIds = RemovedSentryGibIds.ToArray(),
+                RemovedJumpPadIds = RemovedJumpPadIds.ToArray(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
                 RemovedBloodDropIds = RemovedBloodDropIds.ToArray(),
                 RemovedDeadBodyIds = RemovedDeadBodyIds.ToArray(),

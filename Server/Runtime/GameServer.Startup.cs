@@ -102,6 +102,7 @@ partial class GameServer
             _autoBalanceDelaySeconds,
             _autoBalanceNewPlayerGraceSeconds,
             _autoBalanceEnabled,
+            _secondaryAbilitiesEnabled,
             _timeLimitMinutesOverride,
             _capLimitOverride,
             _respawnSecondsOverride,
@@ -170,6 +171,7 @@ partial class GameServer
         }
 
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
         Console.WriteLine($"Event log: {eventLog.FilePath}");

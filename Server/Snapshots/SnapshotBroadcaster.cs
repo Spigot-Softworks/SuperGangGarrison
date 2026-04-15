@@ -253,6 +253,7 @@ sealed class SnapshotBroadcaster
             _world.Level.MapScale)
         {
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
+            JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
         };
 
         return new SharedSnapshotData(orderedClients, template);

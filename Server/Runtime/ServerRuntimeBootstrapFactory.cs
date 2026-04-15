@@ -34,6 +34,7 @@ internal static class ServerRuntimeBootstrapFactory
         int autoBalanceDelaySeconds,
         int autoBalanceNewPlayerGraceSeconds,
         bool autoBalanceEnabled,
+        bool secondaryAbilitiesEnabled,
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
@@ -63,6 +64,9 @@ internal static class ServerRuntimeBootstrapFactory
         }
 
         var world = new SimulationWorld(config);
+        world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
+            EnableSecondaryAbilities: secondaryAbilitiesEnabled,
+            EnableSoldierShotgunSecondaryWeapon: secondaryAbilitiesEnabled));
         if (timeLimitMinutesOverride.HasValue || capLimitOverride.HasValue || respawnSecondsOverride.HasValue)
         {
             world.ConfigureMatchDefaults(

@@ -21,4 +21,15 @@ public static class BuiltInGameplayBehaviorIds
     public const string MedicUber = "builtin.ability.medic_uber";
     public const string SpyCloak = "builtin.ability.spy_cloak";
     public const string QuoteBladeThrow = "builtin.ability.quote_blade_throw";
+
+    public const string ScoutUtility = "builtin.utility.scout";
+    public const string EngineerUtility = "builtin.utility.engineer";
+    public const string PyroUtility = "builtin.utility.pyro";
+    public const string SoldierSecondaryWeapon = "builtin.utility.soldier_secondary_weapon";
+    public const string DemomanUtility = "builtin.utility.demoman";
+    public const string HeavyUtility = "builtin.utility.heavy";
+    public const string SniperUtility = "builtin.utility.sniper";
+    public const string MedicUtility = "builtin.utility.medic";
+    public const string SpyUtility = "builtin.utility.spy";
+    public const string QuoteUtility = "builtin.utility.quote";
 }
