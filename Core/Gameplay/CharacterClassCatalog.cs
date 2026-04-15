@@ -12,6 +12,8 @@ public static class CharacterClassCatalog
 
     public static PrimaryWeaponDefinition Shotgun { get; } = RuntimeRegistry.CreatePrimaryWeaponDefinition(StockGameplayModCatalog.Definition.Items["weapon.shotgun"]);
 
+    public static PrimaryWeaponDefinition SoldierShotgun { get; } = RuntimeRegistry.CreatePrimaryWeaponDefinition(StockGameplayModCatalog.Definition.Items["weapon.soldier-shotgun"]);
+
     public static PrimaryWeaponDefinition Flamethrower { get; } = RuntimeRegistry.CreatePrimaryWeaponDefinition(StockGameplayModCatalog.Definition.Items["weapon.flamethrower"]);
 
     public static PrimaryWeaponDefinition RocketLauncher { get; } = RuntimeRegistry.CreatePrimaryWeaponDefinition(StockGameplayModCatalog.Definition.Items["weapon.rocketlauncher"]);

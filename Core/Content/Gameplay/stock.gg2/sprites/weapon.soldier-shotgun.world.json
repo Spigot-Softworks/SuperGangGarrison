@@ -1,0 +1,9 @@
+{
+  "id": "stock.gg2.weapon.soldier-shotgun.world",
+  "framePaths": [
+    "assets/soldier-shotgun/SoldierShotgunS.images/image 0.png",
+    "assets/soldier-shotgun/SoldierShotgunS.images/image 1.png"
+  ],
+  "originX": 8,
+  "originY": -1
+}

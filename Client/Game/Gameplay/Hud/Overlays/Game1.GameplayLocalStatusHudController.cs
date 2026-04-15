@@ -313,7 +313,7 @@ public partial class Game1
             var reloadTicksRemaining = _game._world.LocalPlayer.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SoldierShotgunReloadTicksKey, out var replicatedOffhandReloadTicks)
                 ? Math.Max(0, replicatedOffhandReloadTicks)
                 : _game._world.LocalPlayer.ExperimentalOffhandReloadTicksUntilNextShell;
-            var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.Shotgun.AmmoReloadTicks);
+            var reloadTicksPerShell = Math.Max(1, _game._world.LocalPlayer.ExperimentalOffhandWeapon?.AmmoReloadTicks ?? CharacterClassCatalog.SoldierShotgun.AmmoReloadTicks);
             var reloadProgress = currentShells >= maxShells
                 ? 1f
                 : reloadTicksRemaining <= 0

@@ -60,8 +60,8 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal(PlayerClass.Soldier, player.ClassId);
         Assert.Equal("soldier.stock", player.SelectedGameplayLoadoutId);
         Assert.Equal("soldier.stock", player.GameplayLoadoutState.LoadoutId);
-        Assert.Equal(GameplayEquipmentSlot.Primary, player.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal("weapon.rocketlauncher", player.GameplayLoadoutState.EquippedItemId);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, player.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal("weapon.soldier-shotgun", player.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]

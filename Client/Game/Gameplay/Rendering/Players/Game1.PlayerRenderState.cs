@@ -527,7 +527,7 @@ public partial class Game1
         }
 
         return ShouldPresentExperimentalSoldierShotgun(player)
-            ? player.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Shotgun
+            ? player.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun
             : player.PrimaryWeapon;
     }
 

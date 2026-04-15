@@ -572,7 +572,7 @@ public sealed partial class SimulationWorld
         player.SetExperimentalOffhandWeapon(
             ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon
                 && player.ClassId == PlayerClass.Soldier
-                    ? CharacterClassCatalog.Shotgun
+                    ? CharacterClassCatalog.SoldierShotgun
                     : null);
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
             || player.ClassId != PlayerClass.Soldier)

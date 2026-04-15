@@ -29,18 +29,21 @@
       "id": "soldier.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.rocketlauncher",
+      "secondaryItemId": "weapon.soldier-shotgun",
       "utilityItemId": "ability.soldier-utility"
     },
     "soldier.direct-hit": {
       "id": "soldier.direct-hit",
       "displayName": "Direct Hit",
       "primaryItemId": "weapon.directhit",
+      "secondaryItemId": "weapon.soldier-shotgun",
       "utilityItemId": "ability.soldier-utility"
     },
     "soldier.black-box": {
       "id": "soldier.black-box",
       "displayName": "Black Box",
       "primaryItemId": "weapon.blackbox",
+      "secondaryItemId": "weapon.soldier-shotgun",
       "utilityItemId": "ability.soldier-utility"
     }
   },

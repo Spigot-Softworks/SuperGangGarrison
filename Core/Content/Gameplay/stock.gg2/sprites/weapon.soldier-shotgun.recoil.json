@@ -1,0 +1,31 @@
+{
+  "id": "stock.gg2.weapon.soldier-shotgun.recoil",
+  "framePaths": [
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 0.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 1.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 2.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 3.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 4.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 5.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 6.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 7.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 8.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 9.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 10.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 11.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 12.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 13.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 14.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 15.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 16.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 17.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 18.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 19.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 20.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 21.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 22.png",
+    "assets/soldier-shotgun/SoldierShotgunFS.images/image 23.png"
+  ],
+  "originX": 20,
+  "originY": 23
+}

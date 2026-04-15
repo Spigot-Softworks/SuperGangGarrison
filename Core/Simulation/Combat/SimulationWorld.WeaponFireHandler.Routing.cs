@@ -11,7 +11,7 @@ public sealed partial class SimulationWorld
 
         public void FireExperimentalSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
-            var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.Shotgun;
+            var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
             DispatchPrimaryWeaponFire(
                 attacker,
                 weaponDefinition,

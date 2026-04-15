@@ -1,0 +1,36 @@
+{
+  "id": "weapon.soldier-shotgun",
+  "displayName": "12 Gauge",
+  "slot": "Secondary",
+  "behaviorId": "builtin.weapon.pellet_gun",
+  "ammo": {
+    "maxAmmo": 8,
+    "ammoPerUse": 1,
+    "projectilesPerUse": 4,
+    "useDelaySourceTicks": 20,
+    "reloadSourceTicks": 15,
+    "spreadDegrees": 5.0,
+    "minProjectileSpeed": 11.0,
+    "additionalProjectileSpeed": 4.0,
+    "autoReloads": true,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "stock.gg2.weapon.soldier-shotgun.world",
+    "recoilSpriteName": "stock.gg2.weapon.soldier-shotgun.recoil",
+    "reloadSpriteName": "stock.gg2.weapon.soldier-shotgun.reload",
+    "hudSpriteName": "ShotgunAmmoS",
+    "weaponOffsetX": -5.0,
+    "weaponOffsetY": -2.0,
+    "recoilDurationSourceTicks": 20,
+    "reloadDurationSourceTicks": 15,
+    "blueTeamHudFrameOffset": 1
+  },
+  "description": {
+    "summary": "Secondary shotgun for Soldier.",
+    "positiveAttributes": [
+      "fires with Secondary Weapon"
+    ]
+  }
+}

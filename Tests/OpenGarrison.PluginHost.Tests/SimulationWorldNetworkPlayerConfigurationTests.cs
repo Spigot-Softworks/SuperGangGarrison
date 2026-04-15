@@ -55,16 +55,17 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     }
 
     [Fact]
-    public void TrySetNetworkPlayerGameplayEquippedSlotRejectsUnavailableSoldierSecondary()
+    public void TrySetNetworkPlayerGameplayEquippedSlotSelectsSoldierShotgunWhenAvailable()
     {
         var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
 
         var changed = world.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary);
 
-        Assert.False(changed);
-        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.SelectedGameplayEquippedSlot);
-        Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
-        Assert.Equal("weapon.rocketlauncher", world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
+        Assert.True(changed);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
+        Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
+        Assert.Equal("weapon.soldier-shotgun", world.LocalPlayer.GameplayLoadoutState.SecondaryItemId);
+        Assert.Equal("weapon.soldier-shotgun", world.LocalPlayer.GameplayLoadoutState.EquippedItemId);
     }
 
     [Fact]
