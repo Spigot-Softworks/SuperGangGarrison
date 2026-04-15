@@ -28,17 +28,20 @@
     "soldier.stock": {
       "id": "soldier.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.rocketlauncher"
+      "primaryItemId": "weapon.rocketlauncher",
+      "utilityItemId": "ability.soldier-utility"
     },
     "soldier.direct-hit": {
       "id": "soldier.direct-hit",
       "displayName": "Direct Hit",
-      "primaryItemId": "weapon.directhit"
+      "primaryItemId": "weapon.directhit",
+      "utilityItemId": "ability.soldier-utility"
     },
     "soldier.black-box": {
       "id": "soldier.black-box",
       "displayName": "Black Box",
-      "primaryItemId": "weapon.blackbox"
+      "primaryItemId": "weapon.blackbox",
+      "utilityItemId": "ability.soldier-utility"
     }
   },
   "defaultLoadoutId": "soldier.stock"

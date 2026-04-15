@@ -24,7 +24,8 @@
       "id": "quote.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.blade",
-      "secondaryItemId": "ability.quote-blade-throw"
+      "secondaryItemId": "ability.quote-blade-throw",
+      "utilityItemId": "ability.quote-utility"
     }
   },
   "defaultLoadoutId": "quote.stock"

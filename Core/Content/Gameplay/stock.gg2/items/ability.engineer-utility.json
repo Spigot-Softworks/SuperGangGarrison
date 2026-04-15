@@ -1,0 +1,8 @@
+{
+  "id": "ability.engineer-utility",
+  "displayName": "Engineer Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.engineer",
+  "ammo": {},
+  "presentation": {}
+}

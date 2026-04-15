@@ -29,13 +29,15 @@
       "id": "spy.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.revolver",
-      "secondaryItemId": "ability.spy-cloak"
+      "secondaryItemId": "ability.spy-cloak",
+      "utilityItemId": "ability.spy-utility"
     },
     "spy.diamondback": {
       "id": "spy.diamondback",
       "displayName": "Diamondback",
       "primaryItemId": "weapon.diamondback",
-      "secondaryItemId": "ability.spy-cloak"
+      "secondaryItemId": "ability.spy-cloak",
+      "utilityItemId": "ability.spy-utility"
     }
   },
   "defaultLoadoutId": "spy.stock"

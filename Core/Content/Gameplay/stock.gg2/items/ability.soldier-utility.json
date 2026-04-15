@@ -1,0 +1,8 @@
+{
+  "id": "ability.soldier-utility",
+  "displayName": "Soldier Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.soldier_secondary_weapon",
+  "ammo": {},
+  "presentation": {}
+}

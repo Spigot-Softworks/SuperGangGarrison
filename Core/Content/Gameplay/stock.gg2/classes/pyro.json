@@ -29,7 +29,8 @@
       "id": "pyro.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.flamethrower",
-      "secondaryItemId": "ability.pyro-airblast"
+      "secondaryItemId": "ability.pyro-airblast",
+      "utilityItemId": "ability.pyro-utility"
     }
   },
   "defaultLoadoutId": "pyro.stock"

@@ -29,7 +29,8 @@
       "id": "engineer.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.shotgun",
-      "secondaryItemId": "ability.engineer-pda"
+      "secondaryItemId": "ability.engineer-pda",
+      "utilityItemId": "ability.engineer-utility"
     }
   },
   "defaultLoadoutId": "engineer.stock"

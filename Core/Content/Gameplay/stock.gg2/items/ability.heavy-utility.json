@@ -1,0 +1,8 @@
+{
+  "id": "ability.heavy-utility",
+  "displayName": "Heavy Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.heavy",
+  "ammo": {},
+  "presentation": {}
+}

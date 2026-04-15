@@ -1,0 +1,8 @@
+{
+  "id": "ability.demoman-utility",
+  "displayName": "Demoman Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.demoman",
+  "ammo": {},
+  "presentation": {}
+}

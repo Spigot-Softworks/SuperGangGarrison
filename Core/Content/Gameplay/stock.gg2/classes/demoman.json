@@ -29,7 +29,8 @@
       "id": "demoman.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.minelauncher",
-      "secondaryItemId": "ability.demoman-detonate"
+      "secondaryItemId": "ability.demoman-detonate",
+      "utilityItemId": "ability.demoman-utility"
     }
   },
   "defaultLoadoutId": "demoman.stock"

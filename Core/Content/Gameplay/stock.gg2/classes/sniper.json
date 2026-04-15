@@ -30,7 +30,8 @@
       "id": "sniper.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.rifle",
-      "secondaryItemId": "ability.sniper-scope"
+      "secondaryItemId": "ability.sniper-scope",
+      "utilityItemId": "ability.sniper-utility"
     }
   },
   "defaultLoadoutId": "sniper.stock"

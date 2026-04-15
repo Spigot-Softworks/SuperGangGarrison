@@ -28,7 +28,8 @@
     "scout.stock": {
       "id": "scout.stock",
       "displayName": "Stock",
-      "primaryItemId": "weapon.scattergun"
+      "primaryItemId": "weapon.scattergun",
+      "utilityItemId": "ability.scout-utility"
     }
   },
   "defaultLoadoutId": "scout.stock"

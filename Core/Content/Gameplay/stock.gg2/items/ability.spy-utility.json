@@ -1,0 +1,8 @@
+{
+  "id": "ability.spy-utility",
+  "displayName": "Spy Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.spy",
+  "ammo": {},
+  "presentation": {}
+}

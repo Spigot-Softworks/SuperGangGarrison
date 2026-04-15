@@ -1,0 +1,8 @@
+{
+  "id": "ability.scout-utility",
+  "displayName": "Scout Utility",
+  "slot": "Utility",
+  "behaviorId": "builtin.utility.scout",
+  "ammo": {},
+  "presentation": {}
+}

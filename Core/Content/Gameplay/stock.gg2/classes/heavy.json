@@ -31,19 +31,22 @@
       "id": "heavy.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.minigun",
-      "secondaryItemId": "ability.heavy-sandvich"
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility"
     },
     "heavy.tomislav": {
       "id": "heavy.tomislav",
       "displayName": "Tomislav",
       "primaryItemId": "weapon.tomislav",
-      "secondaryItemId": "ability.heavy-sandvich"
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility"
     },
     "heavy.brass-beast": {
       "id": "heavy.brass-beast",
       "displayName": "Brass Beast",
       "primaryItemId": "weapon.brassbeast",
-      "secondaryItemId": "ability.heavy-sandvich"
+      "secondaryItemId": "ability.heavy-sandvich",
+      "utilityItemId": "ability.heavy-utility"
     }
   },
   "defaultLoadoutId": "heavy.stock"
