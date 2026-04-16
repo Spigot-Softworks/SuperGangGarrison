@@ -77,7 +77,13 @@ public sealed partial class SimulationWorld
             player.ForceDecloak();
         }
 
+        var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
         TryHandleNetworkPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick);
+        if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
+        {
+            input = ResetMovementInput(input);
+            jumpPressed = false;
+        }
 
         if (tauntPressed)
         {
@@ -159,5 +165,16 @@ public sealed partial class SimulationWorld
         {
             KillPlayer(player);
         }
+    }
+
+    private static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)
+    {
+        return input with
+        {
+            Left = false,
+            Right = false,
+            Up = false,
+            Down = false,
+        };
     }
 }

@@ -228,7 +228,9 @@ public partial class Game1
             player.StowExperimentalOffhandWeapon();
         }
 
-        if (player.ClassId == PlayerClass.Spy && TryPredictedStartSpyBackstab(player))
+        if (player.ClassId == PlayerClass.Spy
+            && predictedInput.PrimaryPressed
+            && TryPredictedStartSpyBackstab(player))
         {
             return;
         }
@@ -490,7 +492,10 @@ public partial class Game1
             return false;
         }
 
-        SpawnBackstabVisual(player.Id, player.Team, player.X, player.Y, player.AimDirectionDegrees);
+        var backstabOwnerId = ReferenceEquals(player, _world.LocalPlayer)
+            ? GetResolvedLocalPlayerId()
+            : player.Id;
+        SpawnBackstabVisual(backstabOwnerId, player.Team, player.X, player.Y, player.AimDirectionDegrees);
         SyncPredictedLocalPlayerState(player);
         return true;
     }

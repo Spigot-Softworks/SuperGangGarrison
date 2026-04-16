@@ -15,6 +15,7 @@ public partial class Game1
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
     private bool _pendingPredictedJumpPress;
+    private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
     private bool _pendingPredictedSecondaryWeaponPress;
     private uint _latchedJumpPressSequence;
@@ -40,6 +41,7 @@ public partial class Game1
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
         _pendingPredictedJumpPress = false;
+        _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
         _pendingPredictedSecondaryWeaponPress = false;
         _latchedJumpPressSequence = 0;
@@ -62,6 +64,15 @@ public partial class Game1
         if (jumpPressed)
         {
             _pendingPredictedJumpPress = true;
+        }
+
+        var primaryPressed = networkInput.FirePrimary
+            && (mouse.LeftButton == ButtonState.Pressed
+                && _previousMouse.LeftButton != ButtonState.Pressed
+                || !previousPredictedInput.FirePrimary);
+        if (primaryPressed)
+        {
+            _pendingPredictedPrimaryPress = true;
         }
 
         var secondaryAbilityPressed = networkInput.FireSecondary
@@ -105,9 +116,11 @@ public partial class Game1
                 sentInputSequence,
                 outboundNetworkInput,
                 _pendingPredictedJumpPress,
+                _pendingPredictedPrimaryPress,
                 _pendingPredictedSecondaryAbilityPress,
                 _pendingPredictedSecondaryWeaponPress);
             _pendingPredictedJumpPress = false;
+            _pendingPredictedPrimaryPress = false;
             _pendingPredictedSecondaryAbilityPress = false;
             _pendingPredictedSecondaryWeaponPress = false;
         }
@@ -154,6 +167,7 @@ public partial class Game1
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
+            AdvanceMedigunBeamHelixPhase();
 
             if (_autoBalanceNoticeTicks > 0)
             {

@@ -59,25 +59,44 @@ public partial class Game1
             return 1f;
         }
 
+        if (TryGetActiveBackstabVisual(player, out var animation))
+        {
+            if (!ReferenceEquals(player, _world.LocalPlayer) && !GetPlayerIsSpyBackstabAnimating(player))
+            {
+                return 1f;
+            }
+
+            return Math.Clamp(1f - animation.Alpha, 0f, 1f);
+        }
+
+        if (!ReferenceEquals(player, _world.LocalPlayer) || !GetPlayerIsSpyBackstabAnimating(player))
+        {
+            return 1f;
+        }
+
         var visualTicksRemaining = GetPlayerSpyBackstabVisualTicksRemaining(player);
         if (visualTicksRemaining <= 0)
         {
             return 1f;
         }
 
-        const int bodyFadeTicks = 4;
-        var elapsedTicks = StabAnimEntity.TotalLifetimeTicks - visualTicksRemaining;
-        if (elapsedTicks < bodyFadeTicks)
+        var elapsedTicks = StabAnimEntity.TotalLifetimeTicks - Math.Clamp(visualTicksRemaining, 0, StabAnimEntity.TotalLifetimeTicks);
+        if (elapsedTicks <= StabAnimEntity.WarmupTicks)
         {
-            return Math.Clamp(1f - (elapsedTicks / (float)bodyFadeTicks), 0f, 1f);
+            var warmupProgress = elapsedTicks / (float)StabAnimEntity.WarmupTicks;
+            return Math.Clamp(1f - (warmupProgress * 0.99f), 0.01f, 1f);
         }
 
-        if (visualTicksRemaining <= StabAnimEntity.FadeOutTicks)
+        var fullyVisibleBackstabTicks = StabAnimEntity.WarmupTicks + StabAnimEntity.SwingTicks;
+        if (elapsedTicks <= fullyVisibleBackstabTicks)
         {
-            return Math.Clamp(1f - (visualTicksRemaining / (float)StabAnimEntity.FadeOutTicks), 0f, 1f);
+            return 0.01f;
         }
 
-        return 0f;
+        var fadeTicks = Math.Clamp(elapsedTicks - fullyVisibleBackstabTicks, 0, StabAnimEntity.FadeOutTicks);
+        var fadeProgress = fadeTicks / (float)StabAnimEntity.FadeOutTicks;
+        var estimatedBackstabAlpha = Math.Clamp(0.99f * (1f - fadeProgress), 0f, 0.99f);
+        return Math.Clamp(1f - estimatedBackstabAlpha, 0f, 1f);
     }
 
     private bool IsSpyHiddenFromLocalViewer(PlayerEntity player)
@@ -107,5 +126,63 @@ public partial class Game1
 
         var viewerFacingSign = IsFacingLeftByAim(_world.LocalPlayer) ? -1 : 1;
         return Math.Sign(spyX - _world.LocalPlayer.X) == -viewerFacingSign;
+    }
+
+    private bool IsBackstabReplacementRenderActive(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Spy)
+        {
+            return false;
+        }
+
+        var hasActiveVisual = TryGetActiveBackstabVisual(player, out _);
+        if (ReferenceEquals(player, _world.LocalPlayer))
+        {
+            return hasActiveVisual || GetPlayerIsSpyBackstabAnimating(player);
+        }
+
+        return hasActiveVisual && GetPlayerIsSpyBackstabAnimating(player);
+    }
+
+    private float GetBackstabReplacementDirectionDegrees(PlayerEntity player)
+    {
+        if (TryGetActiveBackstabVisual(player, out var animation))
+        {
+            if (!ReferenceEquals(player, _world.LocalPlayer) && !GetPlayerIsSpyBackstabAnimating(player))
+            {
+                return player.AimDirectionDegrees;
+            }
+
+            return animation.DirectionDegrees;
+        }
+
+        if (ReferenceEquals(player, _world.LocalPlayer) && GetPlayerIsSpyBackstabAnimating(player))
+        {
+            return player.SpyBackstabDirectionDegrees;
+        }
+
+        return player.AimDirectionDegrees;
+    }
+
+    private bool TryGetActiveBackstabVisual(PlayerEntity player, out StabAnimEntity animation)
+    {
+        var targetPlayerId = ReferenceEquals(player, _world.LocalPlayer)
+            ? GetResolvedLocalPlayerId()
+            : player.Id;
+
+        for (var index = 0; index < _backstabVisuals.Count; index += 1)
+        {
+            var backstabVisual = _backstabVisuals[index].Animation;
+            if (backstabVisual.OwnerId != targetPlayerId || backstabVisual.IsExpired)
+            {
+                continue;
+            }
+
+            animation = backstabVisual;
+            return true;
+        }
+
+        animation = null!;
+        return false;
     }
 }
