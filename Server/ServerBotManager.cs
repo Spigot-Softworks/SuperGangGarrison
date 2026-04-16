@@ -14,11 +14,26 @@ namespace OpenGarrison.Server;
 /// </summary>
 internal sealed class ServerBotManager
 {
+    private static readonly PlayerClass[] DefaultFillClassCycle =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Soldier,
+        PlayerClass.Heavy,
+        PlayerClass.Demoman,
+        PlayerClass.Medic,
+        PlayerClass.Engineer,
+        PlayerClass.Spy,
+        PlayerClass.Sniper,
+        PlayerClass.Quote,
+    ];
+
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
     private readonly IPracticeBotController _botController;
     private readonly BotReactionController _reactionController;
     private readonly Func<byte, bool> _isSlotAvailableForBot;
+    private readonly PracticeBotDisplayNamePool _botDisplayNamePool;
     
     private readonly Dictionary<byte, ServerBotSlotState> _botSlots = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
@@ -34,28 +49,25 @@ internal sealed class ServerBotManager
     private Task<BotNavigationLoadResult>? _navigationBuildTask;
     private string? _navigationBuildKey;
     
-    private int _thinkTick;
     private int _perfSamples;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
     private double _perfApplyInputTotalMs;
     private double _perfApplyInputMaxMs;
-    
-    private const int ThinkIntervalTicksSmallRoster = 2;
-    private const int ThinkIntervalTicksMediumRoster = 3;
-    private const int ThinkIntervalTicksLargeRoster = 4;
 
     public ServerBotManager(
         SimulationWorld world,
         SimulationConfig config,
         IPracticeBotController botController,
-        Func<byte, bool>? isSlotAvailableForBot = null)
+        Func<byte, bool>? isSlotAvailableForBot = null,
+        PracticeBotDisplayNamePool? botDisplayNamePool = null)
     {
         _world = world;
         _config = config;
         _botController = botController;
         _reactionController = new BotReactionController(config.TicksPerSecond);
         _isSlotAvailableForBot = isSlotAvailableForBot ?? (_ => true);
+        _botDisplayNamePool = botDisplayNamePool ?? new PracticeBotDisplayNamePool();
     }
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
@@ -75,12 +87,24 @@ internal sealed class ServerBotManager
             return false;
         }
 
-        _world.TryPrepareNetworkPlayerJoin(slot);
-        _world.TrySetNetworkPlayerName(slot, displayName);
-        _world.TrySetNetworkPlayerTeam(slot, team);
-        _world.TryApplyNetworkPlayerClassSelection(slot, classId);
+        var resolvedDisplayName = ResolveBotDisplayName(slot, team, displayName);
+        if (!_world.TryPrepareNetworkPlayerJoin(slot)
+            || !_world.TrySetNetworkPlayerName(slot, resolvedDisplayName)
+            || !_world.TrySetNetworkPlayerTeam(slot, team)
+            || !_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+        {
+            _world.TryReleaseNetworkPlayerSlot(slot);
+            _botDisplayNamePool.ReleaseSlot(slot);
+            return false;
+        }
 
-        _botSlots[slot] = new ServerBotSlotState(slot, team, classId, displayName);
+        if (_world.TryGetNetworkPlayer(slot, out var player))
+        {
+            resolvedDisplayName = player.DisplayName;
+        }
+
+        _botDisplayNamePool.Reserve(resolvedDisplayName);
+        _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName);
         _inputCache.Remove(slot);
         StartNavigationPreloadIfNeeded(_world.Level);
         return true;
@@ -97,6 +121,7 @@ internal sealed class ServerBotManager
         }
 
         _world.TryReleaseNetworkPlayerSlot(slot);
+        _botDisplayNamePool.ReleaseSlot(slot);
         _inputCache.Remove(slot);
         return true;
     }
@@ -111,7 +136,11 @@ internal sealed class ServerBotManager
             return false;
         }
 
-        _world.TrySetNetworkPlayerTeam(slot, team);
+        if (!_world.TrySetNetworkPlayerTeam(slot, team))
+        {
+            return false;
+        }
+
         _botSlots[slot] = state.WithTeam(team);
         return true;
     }
@@ -126,7 +155,17 @@ internal sealed class ServerBotManager
             return false;
         }
 
-        _world.TryApplyNetworkPlayerClassSelection(slot, classId);
+        if (_world.TryGetNetworkPlayer(slot, out var player) && player.ClassId == classId)
+        {
+            _botSlots[slot] = state.WithClassId(classId);
+            return true;
+        }
+
+        if (!_world.TryApplyNetworkPlayerClassSelection(slot, classId))
+        {
+            return false;
+        }
+
         _botSlots[slot] = state.WithClassId(classId);
         return true;
     }
@@ -135,7 +174,7 @@ internal sealed class ServerBotManager
     /// Fills empty slots with bots to reach the target count per team.
     /// Returns the number of bots actually added.
     /// </summary>
-    public int FillBots(int targetPerTeam, PlayerClass defaultClass)
+    public int FillBots(int targetPerTeam, PlayerClass? requestedClass)
     {
         var addedCount = 0;
         
@@ -152,8 +191,8 @@ internal sealed class ServerBotManager
         {
             if (blueCount < targetPerTeam)
             {
-                var displayName = GenerateBotDisplayName(PlayerTeam.Blue, blueCount + 1);
-                if (TryAddBot(slot, PlayerTeam.Blue, defaultClass, displayName))
+                var playerClass = ResolveFillClass(PlayerTeam.Blue, blueCount, requestedClass);
+                if (TryAddBot(slot, PlayerTeam.Blue, playerClass, string.Empty))
                 {
                     blueCount++;
                     addedCount++;
@@ -164,8 +203,8 @@ internal sealed class ServerBotManager
 
             if (redCount < targetPerTeam)
             {
-                var displayName = GenerateBotDisplayName(PlayerTeam.Red, redCount + 1);
-                if (TryAddBot(slot, PlayerTeam.Red, defaultClass, displayName))
+                var playerClass = ResolveFillClass(PlayerTeam.Red, redCount, requestedClass);
+                if (TryAddBot(slot, PlayerTeam.Red, playerClass, string.Empty))
                 {
                     redCount++;
                     addedCount++;
@@ -185,7 +224,7 @@ internal sealed class ServerBotManager
     /// Fills a specific team with bots to reach the target count.
     /// Returns the number of bots actually added.
     /// </summary>
-    public int TryFillTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass)
+    public int TryFillTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass)
     {
         if (team != PlayerTeam.Red && team != PlayerTeam.Blue)
         {
@@ -201,8 +240,8 @@ internal sealed class ServerBotManager
                 break;
             }
 
-            var displayName = GenerateBotDisplayName(team, currentCount + addedCount + 1);
-            if (TryAddBot(slot, team, defaultClass, displayName))
+            var playerClass = ResolveFillClass(team, currentCount + addedCount, requestedClass);
+            if (TryAddBot(slot, team, playerClass, string.Empty))
             {
                 addedCount++;
             }
@@ -223,6 +262,7 @@ internal sealed class ServerBotManager
         _botSlots.Clear();
         _inputCache.Clear();
         _reactionController.Reset();
+        _botDisplayNamePool.Reset();
     }
 
     /// <summary>
@@ -314,7 +354,7 @@ internal sealed class ServerBotManager
             return;
         }
 
-        // Get inputs (with browser-style throttling)
+        // Build fresh authoritative inputs every simulation tick.
         var inputs = GetBotInputs();
         
         var buildMs = GetElapsedMilliseconds(buildStartTimestamp);
@@ -343,29 +383,20 @@ internal sealed class ServerBotManager
                 continue;
             }
 
+            if (!_world.TryGetNetworkPlayer(entry.Key, out var player))
+            {
+                continue;
+            }
+
             _controlledSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
-                entry.Value.Team,
-                entry.Value.ClassId);
+                player.Team,
+                player.ClassId);
         }
     }
 
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
     {
-        // Browser-style throttling for performance
-        _thinkTick++;
-        var thinkInterval = GetThinkIntervalTicks(_controlledSlotsBuffer.Count);
-        var shouldRefresh = _inputCache.Count == 0
-            || (_thinkTick % thinkInterval) == 0
-            || !DoInputsCoverRoster()
-            || _currentLevelName != _world.Level.Name
-            || _currentMapAreaIndex != _world.Level.MapAreaIndex;
-
-        if (!shouldRefresh)
-        {
-            return _inputCache;
-        }
-
         // Get navigation assets for current level
         StartNavigationPreloadIfNeeded(_world.Level);
         CompletePendingNavigationPreloadIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
@@ -438,34 +469,6 @@ internal sealed class ServerBotManager
         }
     }
 
-    private bool DoInputsCoverRoster()
-    {
-        if (_inputCache.Count != _controlledSlotsBuffer.Count)
-        {
-            return false;
-        }
-
-        foreach (var slot in _controlledSlotsBuffer.Keys)
-        {
-            if (!_inputCache.ContainsKey(slot))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static int GetThinkIntervalTicks(int botCount)
-    {
-        return botCount switch
-        {
-            >= 8 => ThinkIntervalTicksLargeRoster,
-            >= 4 => ThinkIntervalTicksMediumRoster,
-            _ => ThinkIntervalTicksSmallRoster,
-        };
-    }
-
     private static double GetElapsedMilliseconds(long startTimestamp)
     {
         return (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
@@ -524,6 +527,17 @@ internal sealed class ServerBotManager
     {
         return slot != SimulationWorld.LocalPlayerSlot
             && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+    }
+
+    private static PlayerClass ResolveFillClass(PlayerTeam team, int teamClassIndex, PlayerClass? requestedClass)
+    {
+        if (requestedClass.HasValue)
+        {
+            return requestedClass.Value;
+        }
+
+        var classOffset = team == PlayerTeam.Red ? 3 : 0;
+        return DefaultFillClassCycle[(teamClassIndex + classOffset) % DefaultFillClassCycle.Length];
     }
 
     private void StartNavigationPreloadIfNeeded(SimpleLevel level)
@@ -647,10 +661,16 @@ internal sealed class ServerBotManager
         return $"{levelName}|{mapAreaIndex}";
     }
 
-    private static string GenerateBotDisplayName(PlayerTeam team, int number)
+    private string ResolveBotDisplayName(byte slot, PlayerTeam team, string displayName)
     {
-        var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
-        return $"{teamLabel} Bot {number}";
+        var trimmed = displayName.Trim();
+        if (trimmed.Length > 0)
+        {
+            return trimmed;
+        }
+
+        var teamBotNumber = _botSlots.Values.Count(state => state.Team == team) + 1;
+        return _botDisplayNamePool.GetOrAssign(slot, team, teamBotNumber);
     }
 }
 

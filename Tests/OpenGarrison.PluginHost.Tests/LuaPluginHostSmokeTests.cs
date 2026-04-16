@@ -1828,6 +1828,67 @@ public sealed class LuaPluginHostSmokeTests
 
         Assert.True(chatHooks.TryHandleChatMessage(
             context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots fill 2 blue medic", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.FillBotTeamRequests, request =>
+            request.Team == PlayerTeam.Blue && request.TargetCount == 2 && request.RequestedClass == PlayerClass.Medic);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("filled 2 bot slots on Blue team.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+        loadedPlugin.Context.AdminImpl.FillBotTeamRequests.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots fill 2 blue", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.FillBotTeamRequests, request =>
+            request.Team == PlayerTeam.Blue && request.TargetCount == 2 && request.RequestedClass is null);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("filled 2 bot slots on Blue team.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots fill 1 spy", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.FillBotRequests, request =>
+            request.TargetPerTeam == 1 && request.RequestedClass == PlayerClass.Spy);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("filled 2 bot slots total (1 per team).", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots add 4 red scout ScoutBot", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.AddBotRequests, request =>
+            request.Slot == 4
+            && request.Team == PlayerTeam.Red
+            && request.PlayerClass == PlayerClass.Scout
+            && request.DisplayName == "ScoutBot");
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("bot added at slot 4.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots add 5 blue soldier", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.AddBotRequests, request =>
+            request.Slot == 5
+            && request.Team == PlayerTeam.Blue
+            && request.PlayerClass == PlayerClass.Soldier
+            && request.DisplayName == string.Empty);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("bot added at slot 5.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots remove 4", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains((byte)4, loadedPlugin.Context.AdminImpl.RemoveBotRequests);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("bot removed from slot 4.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_bots clear", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Equal(1, loadedPlugin.Context.AdminImpl.ClearBotsCallCount);
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Slot == 1 && message.Text.Contains("removed 0 bots.", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
             new ChatReceivedEvent(1, "Admin", "!gt_kick @me regroup", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
         Assert.Contains(loadedPlugin.Context.AdminImpl.DisconnectRequests, request => request.Slot == 1 && request.Reason == "regroup");
         loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
@@ -2949,6 +3010,16 @@ public sealed class LuaPluginHostSmokeTests
 
         public readonly List<(string LevelName, int AreaIndex)> NextRoundMapRequests = [];
 
+        public readonly List<(byte Slot, PlayerTeam Team, PlayerClass PlayerClass, string DisplayName)> AddBotRequests = [];
+
+        public readonly List<byte> RemoveBotRequests = [];
+
+        public readonly List<(int TargetPerTeam, PlayerClass? RequestedClass)> FillBotRequests = [];
+
+        public readonly List<(PlayerTeam Team, int TargetCount, PlayerClass? RequestedClass)> FillBotTeamRequests = [];
+
+        public int ClearBotsCallCount { get; private set; }
+
         public void BroadcastSystemMessage(string text)
         {
             BroadcastSystemMessages.Add(text);
@@ -3101,21 +3172,41 @@ public sealed class LuaPluginHostSmokeTests
 
         public bool TrySetTeam(byte slot, PlayerTeam team) => true;
 
-        public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName) => true;
+        public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName)
+        {
+            AddBotRequests.Add((slot, team, playerClass, displayName));
+            return true;
+        }
 
-        public bool TryRemoveBot(byte slot) => true;
+        public bool TryRemoveBot(byte slot)
+        {
+            RemoveBotRequests.Add(slot);
+            return true;
+        }
 
         public bool TrySetBotTeam(byte slot, PlayerTeam team) => true;
 
         public bool TrySetBotClass(byte slot, PlayerClass playerClass) => true;
 
-        public int TryFillBots(int targetPerTeam, PlayerClass defaultClass) => 0;
+        public int TryFillBots(int targetPerTeam, PlayerClass? requestedClass)
+        {
+            FillBotRequests.Add((targetPerTeam, requestedClass));
+            return targetPerTeam * 2;
+        }
 
-        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass) => 0;
+        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass)
+        {
+            FillBotTeamRequests.Add((team, targetCount, requestedClass));
+            return targetCount;
+        }
 
         public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
 
-        public int TryClearAllBots() => 0;
+        public int TryClearAllBots()
+        {
+            ClearBotsCallCount += 1;
+            return 0;
+        }
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

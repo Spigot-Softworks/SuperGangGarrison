@@ -46,14 +46,15 @@ internal static partial class ServerHelpers
         IReadOnlyDictionary<byte, ClientSession> clientsBySlot,
         int maxTotalClients,
         int maxSpectatorClients,
-        int maxPlayableClients)
+        int maxPlayableClients,
+        Func<byte, bool>? isPlayableSlotAvailable = null)
     {
         if (clientsBySlot.Count >= maxTotalClients)
         {
             return 0;
         }
 
-        var playableSlot = FindAvailablePlayableSlot(clientsBySlot, maxPlayableClients);
+        var playableSlot = FindAvailablePlayableSlot(clientsBySlot, maxPlayableClients, isPlayableSlotAvailable: isPlayableSlotAvailable);
         if (playableSlot != 0)
         {
             return playableSlot;
@@ -65,7 +66,8 @@ internal static partial class ServerHelpers
     internal static byte FindAvailablePlayableSlot(
         IReadOnlyDictionary<byte, ClientSession> clientsBySlot,
         int maxPlayableClients,
-        byte? excludingSlot = null)
+        byte? excludingSlot = null,
+        Func<byte, bool>? isPlayableSlotAvailable = null)
     {
         for (var slotValue = 1; slotValue <= maxPlayableClients; slotValue += 1)
         {
@@ -75,7 +77,8 @@ internal static partial class ServerHelpers
                 return slot;
             }
 
-            if (!clientsBySlot.ContainsKey(slot))
+            if (!clientsBySlot.ContainsKey(slot)
+                && (isPlayableSlotAvailable?.Invoke(slot) ?? true))
             {
                 return slot;
             }

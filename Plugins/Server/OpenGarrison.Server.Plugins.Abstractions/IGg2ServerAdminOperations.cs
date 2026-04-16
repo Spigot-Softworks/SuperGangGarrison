@@ -80,9 +80,9 @@ public interface IOpenGarrisonServerAdminOperations
 
     bool TrySetBotClass(byte slot, PlayerClass playerClass);
 
-    int TryFillBots(int targetPerTeam, PlayerClass defaultClass);
+    int TryFillBots(int targetPerTeam, PlayerClass? requestedClass);
 
-    int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass);
+    int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass);
 
     IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots();
 

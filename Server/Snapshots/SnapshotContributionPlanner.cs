@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -7,6 +8,14 @@ namespace OpenGarrison.Server;
 
 internal static class SnapshotContributionPlanner
 {
+    private const int PlayerUpdatePriority = 1500;
+    private const int PlayerDetailUpdatePriority = 900;
+    private const int AddedPlayerUpdatePriorityBonus = 200;
+    private const int LocalPlayerUpdatePriorityBonus = 300;
+    private const int RemovedPlayerEstimatedBytes = 6;
+    private const int SnapshotPlayerFixedBytes = 220;
+    private const int SnapshotPlayerMovementBytes = 32;
+
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
         SnapshotMessage fullSnapshot,
@@ -15,6 +24,14 @@ internal static class SnapshotContributionPlanner
     {
         var focus = GetClientFocusPoint(client, world);
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
+
+        AddPlayerDelta(
+            contributions,
+            fullSnapshot.Players,
+            baseline?.Players ?? Array.Empty<SnapshotPlayerState>(),
+            PlayerUpdatePriority,
+            client.Slot,
+            focus);
 
         AddEntityDelta(
             contributions,
@@ -266,6 +283,162 @@ internal static class SnapshotContributionPlanner
         return (world.Bounds.Width / 2f, world.Bounds.Height / 2f);
     }
 
+    private static void AddPlayerDelta(
+        List<SnapshotDeltaBudgeter.Contribution> contributions,
+        IReadOnlyList<SnapshotPlayerState> currentPlayers,
+        IReadOnlyList<SnapshotPlayerState> baselinePlayers,
+        int priority,
+        byte viewerSlot,
+        (float X, float Y) focus)
+    {
+        var currentBySlot = new Dictionary<int, SnapshotPlayerState>(currentPlayers.Count);
+        for (var index = 0; index < currentPlayers.Count; index += 1)
+        {
+            var player = currentPlayers[index];
+            currentBySlot[player.Slot] = player;
+        }
+
+        var baselineBySlot = new Dictionary<int, SnapshotPlayerState>(baselinePlayers.Count);
+        for (var index = 0; index < baselinePlayers.Count; index += 1)
+        {
+            var player = baselinePlayers[index];
+            baselineBySlot[player.Slot] = player;
+            if (currentBySlot.ContainsKey(player.Slot))
+            {
+                continue;
+            }
+
+            var removedSlot = player.Slot;
+            contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                priority + AddedPlayerUpdatePriorityBonus,
+                0f,
+                RemovedPlayerEstimatedBytes,
+                builder => builder.RemovedPlayerIds.Add(removedSlot),
+                SnapshotDeltaBudgeter.ContributionKind.PlayerRemoval));
+        }
+
+        for (var index = 0; index < currentPlayers.Count; index += 1)
+        {
+            var player = currentPlayers[index];
+            var isAddedPlayer = !baselineBySlot.TryGetValue(player.Slot, out var baselinePlayer);
+            if (!isAddedPlayer && EqualityComparer<SnapshotPlayerState>.Default.Equals(player, baselinePlayer))
+            {
+                continue;
+            }
+
+            var playerPriority = player.Slot == viewerSlot
+                ? priority + LocalPlayerUpdatePriorityBonus
+                : priority;
+            if (isAddedPlayer)
+            {
+                playerPriority += AddedPlayerUpdatePriorityBonus;
+
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    playerPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    EstimatePlayerBytes(player),
+                    builder => builder.Players.Add(player),
+                    SnapshotDeltaBudgeter.ContributionKind.PlayerFirstAppearance));
+                continue;
+            }
+
+            if (IsPlayerRosterCriticalChange(player, baselinePlayer!))
+            {
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    playerPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    EstimatePlayerBytes(player),
+                    builder => builder.Players.Add(player),
+                    SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate));
+                continue;
+            }
+
+            if (HasPlayerMovementChanged(player, baselinePlayer!))
+            {
+                var movementState = ToPlayerMovementState(player);
+                var movementKind = player.Slot == viewerSlot
+                    ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate
+                    : SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate;
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    playerPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    SnapshotPlayerMovementBytes,
+                    builder => builder.PlayerMovementStates.Add(movementState),
+                    movementKind));
+            }
+
+            if (HasPlayerNonMovementDetailChanged(player, baselinePlayer!))
+            {
+                var detailPriority = player.Slot == viewerSlot
+                    ? PlayerDetailUpdatePriority + 50
+                    : PlayerDetailUpdatePriority;
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    detailPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    EstimatePlayerBytes(player),
+                    builder => builder.Players.Add(player)));
+            }
+        }
+    }
+
+    private static SnapshotPlayerMovementState ToPlayerMovementState(SnapshotPlayerState player)
+    {
+        return new SnapshotPlayerMovementState(
+            player.Slot,
+            player.X,
+            player.Y,
+            player.HorizontalSpeed,
+            player.VerticalSpeed,
+            player.IsGrounded,
+            player.RemainingAirJumps,
+            player.FacingDirectionX,
+            player.AimDirectionDegrees,
+            player.MovementState);
+    }
+
+    private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        return player.X != baselinePlayer.X
+            || player.Y != baselinePlayer.Y
+            || player.HorizontalSpeed != baselinePlayer.HorizontalSpeed
+            || player.VerticalSpeed != baselinePlayer.VerticalSpeed
+            || player.IsGrounded != baselinePlayer.IsGrounded
+            || player.RemainingAirJumps != baselinePlayer.RemainingAirJumps
+            || player.FacingDirectionX != baselinePlayer.FacingDirectionX
+            || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
+            || player.MovementState != baselinePlayer.MovementState;
+    }
+
+    private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        var playerWithBaselineMovement = player with
+        {
+            X = baselinePlayer.X,
+            Y = baselinePlayer.Y,
+            HorizontalSpeed = baselinePlayer.HorizontalSpeed,
+            VerticalSpeed = baselinePlayer.VerticalSpeed,
+            IsGrounded = baselinePlayer.IsGrounded,
+            RemainingAirJumps = baselinePlayer.RemainingAirJumps,
+            FacingDirectionX = baselinePlayer.FacingDirectionX,
+            AimDirectionDegrees = baselinePlayer.AimDirectionDegrees,
+            MovementState = baselinePlayer.MovementState,
+        };
+
+        return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);
+    }
+
+    private static bool IsPlayerRosterCriticalChange(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        return player.PlayerId != baselinePlayer.PlayerId
+            || !string.Equals(player.Name, baselinePlayer.Name, StringComparison.Ordinal)
+            || player.Team != baselinePlayer.Team
+            || player.ClassId != baselinePlayer.ClassId
+            || player.IsAlive != baselinePlayer.IsAlive
+            || player.IsAwaitingJoin != baselinePlayer.IsAwaitingJoin
+            || player.IsSpectator != baselinePlayer.IsSpectator
+            || player.PlayerScale != baselinePlayer.PlayerScale;
+    }
+
     private static void AddEntityDelta<T>(
         List<SnapshotDeltaBudgeter.Contribution> contributions,
         IReadOnlyList<T> currentStates,
@@ -358,6 +531,61 @@ internal static class SnapshotContributionPlanner
             + entry.WeaponSpriteName.Length
             + entry.VictimName.Length
             + entry.MessageText.Length;
+    }
+
+    private static int EstimatePlayerBytes(SnapshotPlayerState player)
+    {
+        return SnapshotPlayerFixedBytes
+            + EstimateStringBytes(player.Name)
+            + EstimateStringBytes(player.GameplayModPackId)
+            + EstimateStringBytes(player.GameplayLoadoutId)
+            + EstimateStringBytes(player.GameplayPrimaryItemId)
+            + EstimateStringBytes(player.GameplaySecondaryItemId)
+            + EstimateStringBytes(player.GameplayUtilityItemId)
+            + EstimateStringBytes(player.GameplayEquippedItemId)
+            + EstimateStringBytes(player.GameplayAcquiredItemId)
+            + EstimateGameplayIdListBytes(player.OwnedGameplayItemIds)
+            + EstimateReplicatedStateEntryBytes(player.ReplicatedStates);
+    }
+
+    private static int EstimateGameplayIdListBytes(IReadOnlyList<string>? ids)
+    {
+        if (ids is null || ids.Count == 0)
+        {
+            return 1;
+        }
+
+        var bytes = 1;
+        for (var index = 0; index < ids.Count; index += 1)
+        {
+            bytes += EstimateStringBytes(ids[index]);
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateReplicatedStateEntryBytes(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)
+    {
+        if (entries is null || entries.Count == 0)
+        {
+            return 1;
+        }
+
+        var bytes = 1;
+        for (var index = 0; index < entries.Count; index += 1)
+        {
+            var entry = entries[index];
+            bytes += EstimateStringBytes(entry.OwnerId)
+                + EstimateStringBytes(entry.Key)
+                + 10;
+        }
+
+        return bytes;
+    }
+
+    private static int EstimateStringBytes(string value)
+    {
+        return 2 + Encoding.UTF8.GetByteCount(value);
     }
 
     private static int EstimatePlayerGibBytes(SnapshotPlayerGibState state)

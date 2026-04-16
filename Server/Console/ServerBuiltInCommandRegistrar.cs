@@ -387,41 +387,56 @@ internal sealed class ServerBuiltInCommandRegistrar(
         commandRegistry.RegisterBuiltIn(
             "bots fill",
             "Fill team slots with bots.",
-            "bots fill <count> [red|blue]",
+            "bots fill <count> [red|blue] [class]",
             (context, arguments, _) =>
             {
                 var parts = arguments.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 0 || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count < 1)
                 {
-                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue]"]);
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue] [class]"]);
                 }
 
-                // Default to filling both teams if no team specified
                 PlayerTeam? targetTeam = null;
+                PlayerClass? requestedClass = null;
                 if (parts.Length > 1)
                 {
-                    if (!TryParseTeam(parts[1], out var team))
+                    if (TryParseTeam(parts[1], out var team))
                     {
-                        return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue]"]);
+                        targetTeam = team;
                     }
-
-                    targetTeam = team;
+                    else if (Enum.TryParse<PlayerClass>(parts[1], ignoreCase: true, out var classFromSecondToken))
+                    {
+                        requestedClass = classFromSecondToken;
+                    }
+                    else
+                    {
+                        return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue] [class]"]);
+                    }
                 }
 
-                // For simplicity, use soldier as the default class for filled bots
-                var defaultClass = PlayerClass.Soldier;
+                PlayerClass classFromThirdToken = default;
+                if (parts.Length > 2
+                    && (!Enum.TryParse<PlayerClass>(parts[2], ignoreCase: true, out classFromThirdToken)
+                        || requestedClass.HasValue))
+                {
+                    return Task.FromResult<IReadOnlyList<string>>(["[server] usage: bots fill <count> [red|blue] [class]"]);
+                }
+
+                if (parts.Length > 2)
+                {
+                    requestedClass = classFromThirdToken;
+                }
+
                 var addedCount = 0;
 
                 if (targetTeam.HasValue)
                 {
-                    // Fill one team
-                    addedCount = context.AdminOperations.TryFillBotTeam(targetTeam.Value, count, defaultClass);
+                    addedCount = context.AdminOperations.TryFillBotTeam(targetTeam.Value, count, requestedClass);
                     return Task.FromResult<IReadOnlyList<string>>([$"[server] filled {addedCount} bot slots on {targetTeam.Value} team."]);
                 }
                 else
                 {
-                    // Fill both teams (count bots per team)
-                    var totalAdded = context.AdminOperations.TryFillBots(count, defaultClass);
+                    var totalAdded = context.AdminOperations.TryFillBots(count, requestedClass);
                     return Task.FromResult<IReadOnlyList<string>>([$"[server] filled {totalAdded} bot slots total ({count} per team)."]);
                 }
             },
@@ -666,14 +681,14 @@ internal sealed class ServerBuiltInCommandRegistrar(
             return false;
         }
 
-        // Display name is optional (parts[3]), if not provided, use a default
+        // Display name is optional; an empty value lets the bot manager assign from the practice name pool.
         if (parts.Length > 3)
         {
             displayName = parts[3].Trim();
         }
         else
         {
-            displayName = $"{team} Bot {slot}";
+            displayName = string.Empty;
         }
 
         return true;

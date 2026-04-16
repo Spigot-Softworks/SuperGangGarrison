@@ -30,6 +30,8 @@ public static partial class ProtocolCodec
         WriteIntelState(writer, snapshot.RedIntel);
         WriteIntelState(writer, snapshot.BlueIntel);
         WriteSnapshotPlayers(writer, snapshot.Players);
+        WriteSnapshotPlayerMovementStates(writer, snapshot.PlayerMovementStates);
+        WriteEntityIdList(writer, snapshot.RemovedPlayerIds);
         WriteCombatTraces(writer, snapshot.CombatTraces);
         WriteSentryStates(writer, snapshot.Sentries);
         WriteEntityIdList(writer, snapshot.RemovedSentryIds);
@@ -99,6 +101,8 @@ public static partial class ProtocolCodec
         var redIntel = ReadIntelState(reader);
         var blueIntel = ReadIntelState(reader);
         var players = ReadSnapshotPlayers(reader);
+        var playerMovementStates = ReadSnapshotPlayerMovementStates(reader);
+        var removedPlayerIds = ReadEntityIdList(reader);
         var combatTraces = ReadCombatTraces(reader);
         var sentries = ReadSentryStates(reader);
         var removedSentryIds = ReadEntityIdList(reader);
@@ -192,6 +196,8 @@ public static partial class ProtocolCodec
             TimeLimitTicks = timeLimitTicks,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
+            PlayerMovementStates = playerMovementStates,
+            RemovedPlayerIds = removedPlayerIds,
             RemovedSentryIds = removedSentryIds,
             RemovedShotIds = removedShotIds,
             RemovedBubbleIds = removedBubbleIds,
@@ -400,6 +406,49 @@ public static partial class ProtocolCodec
         }
 
         return players;
+    }
+
+    private static void WriteSnapshotPlayerMovementStates(
+        BinaryWriter writer,
+        IReadOnlyList<SnapshotPlayerMovementState> states)
+    {
+        writer.Write((byte)states.Count);
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            var state = states[index];
+            writer.Write(state.Slot);
+            writer.Write(state.X);
+            writer.Write(state.Y);
+            writer.Write(state.HorizontalSpeed);
+            writer.Write(state.VerticalSpeed);
+            writer.Write(state.IsGrounded);
+            writer.Write(state.RemainingAirJumps);
+            writer.Write(state.FacingDirectionX);
+            writer.Write(state.AimDirectionDegrees);
+            writer.Write(state.MovementState);
+        }
+    }
+
+    private static List<SnapshotPlayerMovementState> ReadSnapshotPlayerMovementStates(BinaryReader reader)
+    {
+        var stateCount = reader.ReadByte();
+        var states = new List<SnapshotPlayerMovementState>(stateCount);
+        for (var index = 0; index < stateCount; index += 1)
+        {
+            states.Add(new SnapshotPlayerMovementState(
+                reader.ReadByte(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadBoolean(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadByte()));
+        }
+
+        return states;
     }
 
     private static void WriteReplicatedStateEntries(BinaryWriter writer, IReadOnlyList<SnapshotReplicatedStateEntry>? entries)

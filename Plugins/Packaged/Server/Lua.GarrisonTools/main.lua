@@ -2051,10 +2051,6 @@ local function handle_bots(event, arguments)
             return true
         end
 
-        if trimmed_display_name == "" then
-            trimmed_display_name = team .. " Bot " .. tostring(slot)
-        end
-
         if plugin.host.try_add_bot(slot, team, class_name, trimmed_display_name) then
             send_private(event.slot, "[GT] bot added at slot " .. tostring(slot) .. ".")
         else
@@ -2099,10 +2095,10 @@ local function handle_bots(event, arguments)
 
         local added_count
         if maybe_team ~= nil then
-            added_count = plugin.host.try_fill_bot_team(maybe_team, count, maybe_class or "Soldier")
+            added_count = plugin.host.try_fill_bot_team(maybe_team, count, maybe_class)
             send_private(event.slot, "[GT] filled " .. tostring(added_count) .. " bot slots on " .. maybe_team .. " team.")
         else
-            added_count = plugin.host.try_fill_bots(count, maybe_class or "Soldier")
+            added_count = plugin.host.try_fill_bots(count, maybe_class)
             send_private(event.slot, "[GT] filled " .. tostring(added_count) .. " bot slots total (" .. tostring(count) .. " per team).")
         end
         return true

@@ -27,6 +27,7 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<ClientSession, string, bool> broadcastChat,
     Action<string, (string Key, object? Value)[]> logServerEvent,
     Action<string> log,
+    Func<byte, bool>? isPlayableSlotAvailable = null,
     ServerBanService? banService = null)
 {
     public void Dispatch(IProtocolMessage message, ServerTransportPeer remotePeer)
@@ -177,7 +178,12 @@ internal sealed class ServerIncomingMessageDispatcher(
             return;
         }
 
-        var assignedSlot = FindAvailableSlot(clientsBySlot, maxTotalClients, maxSpectatorClients, maxPlayableClients);
+        var assignedSlot = FindAvailableSlot(
+            clientsBySlot,
+            maxTotalClients,
+            maxSpectatorClients,
+            maxPlayableClients,
+            isPlayableSlotAvailable);
         if (assignedSlot == 0)
         {
             log($"[server] rejected client {remoteDescription}; server is full");
