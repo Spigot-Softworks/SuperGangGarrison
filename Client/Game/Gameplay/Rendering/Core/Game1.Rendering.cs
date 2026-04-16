@@ -84,6 +84,114 @@ public partial class Game1
             0f);
     }
 
+    private void DrawCurvedWorldLine(float startX, float startY, float endX, float endY, Vector2 cameraPosition, Color color, float thickness, Vector2 aimDirection)
+    {
+        var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
+        var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
+        var toTarget = end - start;
+        var distToTarget = toTarget.Length();
+        
+        if (distToTarget <= 0.01f)
+        {
+            return;
+        }
+
+        // Normalize directions
+        var aimDir = aimDirection;
+        aimDir.Normalize();
+        
+        var targetDir = toTarget;
+        targetDir.Normalize();
+        
+        // Calculate alignment between aim direction and target direction
+        var alignment = Vector2.Dot(aimDir, targetDir);
+        
+        // If already pointing at target, draw straight line
+        if (alignment > 0.98f)
+        {
+            DrawWorldLine(startX, startY, endX, endY, cameraPosition, color, thickness);
+            return;
+        }
+
+        // Calculate control point:
+        // The beam should start in the weapon's aim direction and curve toward the target,
+        // leveling out around the halfway point
+        var controlDist = distToTarget * 0.5f;
+        var controlPoint = start + aimDir * controlDist;
+        
+        // Calculate perpendicular offset to curve from aim direction to target direction
+        // perpendicular to aim direction
+        var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
+        
+        // Check which direction to offset based on target location
+        if (Vector2.Dot(perpToAim, targetDir) < 0)
+        {
+            perpToAim = -perpToAim;
+        }
+        
+        // Offset strength: how much curvature we need based on angle difference
+        var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
+        var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
+        controlPoint += perpToAim * offsetAmount;
+
+        // Draw pixellated quadratic Bezier curve with 4-pixel width
+        const float pixelSize = 2f;
+        const float beamWidth = 4f; // 4 pixels wide (2 blocks)
+        const int segments = 32;
+        var pixelatedCells = new System.Collections.Generic.HashSet<(int, int)>();
+        
+        var curvePoints = new System.Collections.Generic.List<Vector2>(segments + 1);
+        for (int i = 0; i <= segments; i++)
+        {
+            var t = (float)i / segments;
+            var oneMinusT = 1f - t;
+            var point = oneMinusT * oneMinusT * start 
+                      + 2f * oneMinusT * t * controlPoint 
+                      + t * t * end;
+            curvePoints.Add(point);
+        }
+        
+        // For each segment of the curve, fill all grid cells that the thick line passes through
+        for (int i = 0; i < curvePoints.Count - 1; i++)
+        {
+            var segStart = curvePoints[i];
+            var segEnd = curvePoints[i + 1];
+            var segDir = segEnd - segStart;
+            var segLength = segDir.Length();
+            
+            if (segLength < 0.01f) continue;
+            
+            segDir /= segLength;
+            var perpDir = new Vector2(-segDir.Y, segDir.X);
+            
+            // Fill cells perpendicular to the line at each sample point
+            for (int j = 0; j <= (int)MathF.Ceiling(segLength); j++)
+            {
+                var samplePoint = segStart + segDir * j;
+                
+                // Draw perpendicular thickness around the point
+                for (float offset = -beamWidth / 2f; offset <= beamWidth / 2f; offset += pixelSize)
+                {
+                    var thickPoint = samplePoint + perpDir * offset;
+                    var gridX = (int)MathF.Floor(thickPoint.X / pixelSize);
+                    var gridY = (int)MathF.Floor(thickPoint.Y / pixelSize);
+                    pixelatedCells.Add((gridX, gridY));
+                }
+            }
+        }
+        
+        // Draw all pixelated cells as 2x2 rectangles
+        foreach (var (gridX, gridY) in pixelatedCells)
+        {
+            var pixelRect = new Rectangle(
+                (int)(gridX * pixelSize),
+                (int)(gridY * pixelSize),
+                (int)pixelSize,
+                (int)pixelSize);
+            _spriteBatch.Draw(_pixel, pixelRect, color);
+        }
+    }
+
     private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation = 0f)
     {
         return TryDrawSprite(spriteName, frameIndex, worldX, worldY, cameraPosition, tint, rotation, Vector2.One);

@@ -33,18 +33,20 @@ public partial class Game1
         }
 
         var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
+        var aimDirection = new Vector2(MathF.Cos(aimRadians), MathF.Sin(aimRadians));
         var beamOrigin = GetMedicBeamOrigin(medic);
         var beamColor = healTarget.Team == PlayerTeam.Blue
             ? Color.Blue * 0.3f
             : Color.Red * 0.3f;
-        DrawWorldLine(
-            beamOrigin.X + MathF.Cos(aimRadians) * 24f,
-            beamOrigin.Y + MathF.Sin(aimRadians) * 24f,
+        DrawCurvedWorldLine(
+            beamOrigin.X + aimDirection.X * 24f,
+            beamOrigin.Y + aimDirection.Y * 24f,
             healTarget.X,
             healTarget.Y,
             cameraPosition,
             beamColor,
-            5f);
+            5f,
+            aimDirection);
     }
 
     private Vector2 GetMedicBeamOrigin(PlayerEntity medic)
