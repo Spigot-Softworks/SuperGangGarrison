@@ -18,17 +18,6 @@ public partial class Game1
         private static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         private static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
         private static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        private static readonly HashSet<string> AllowedMapNames = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Valley",
-            "Montane",
-            "Harvest",
-            "Conflict",
-            "Eiger",
-            "Gallery",
-            "Waterway",
-        };
-
         public int MapIndex { get; set; }
         public List<PracticeMapEntry> MapEntries { get; set; } = new();
         public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
@@ -134,7 +123,6 @@ public partial class Game1
                 .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
 
             return SimpleLevelFactory.GetAvailableSourceLevels()
-                .Where(level => AllowedMapNames.Contains(level.Name))
                 .Select(level =>
                 {
                     var isCustomMap = Path.GetExtension(level.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase);

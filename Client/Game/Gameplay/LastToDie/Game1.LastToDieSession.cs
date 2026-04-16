@@ -13,7 +13,6 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string LastToDieExcludedRotationMapName = "Conflict";
     private const int LastToDieStartingEnemyBotCount = 2;
     private const int LastToDieFinalEnemyBotCount = 10;
     private const int LastToDieStartingStageMinutes = 3;
@@ -607,8 +606,7 @@ public partial class Game1
 
     private static bool IsEligibleLastToDieRotationMap(PracticeMapEntry entry)
     {
-        return entry.Mode == GameModeKind.KingOfTheHill
-            && !string.Equals(entry.LevelName, LastToDieExcludedRotationMapName, StringComparison.OrdinalIgnoreCase);
+        return entry.Mode == GameModeKind.KingOfTheHill;
     }
 
     private static void ShuffleLastToDiePerks(List<LastToDiePerkDefinition> definitions)

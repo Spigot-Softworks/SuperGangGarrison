@@ -156,6 +156,41 @@ public static class BotNavigationAssetStore
             .ToArray();
     }
 
+    public static bool TryLoadModernShippedAsset(
+        SimpleLevel level,
+        out BotNavigationAsset? asset,
+        out string path,
+        out string message,
+        out BotNavigationValidationResult validation)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+
+        asset = null;
+        path = ResolveModernShippedPath(level.Name, level.MapAreaIndex) ?? string.Empty;
+        message = string.Empty;
+        validation = BotNavigationValidationResult.Valid;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            message = "no shipped modern nav asset found";
+            return false;
+        }
+
+        var fingerprint = BotNavigationLevelFingerprint.Compute(level);
+        if (TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: false, out asset, out message, out validation))
+        {
+            return true;
+        }
+
+        if (message == "modern nav asset fingerprint mismatch"
+            && TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: true, out asset, out message, out validation))
+        {
+            message = "modern nav asset shipped compat-fingerprint";
+            return true;
+        }
+
+        return false;
+    }
+
     private static BotNavigationLoadResult LoadModernAssets(
         SimpleLevel level,
         PlayerClass[] requestedClasses,
