@@ -57,15 +57,17 @@ public partial class Game1
 
         DrawCountFontTextCentered(redTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(xcenter - 161f, yoffset + 23f), Color.White * alpha, 1f);
         DrawCountFontTextCentered(blueTeam.Count.ToString(CultureInfo.InvariantCulture), new Vector2(xcenter + 83f, yoffset + 23f), Color.White * alpha, 1f);
+        const float scoreboardRedScoreOutwardOffset = 4f;
+        const float scoreboardBlueScoreOutwardOffset = 8f;
         if (isKothMode)
         {
-            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f, yoffset + 6f), Color.White * alpha, 1.3f);
-            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f, yoffset + 6f), Color.White * alpha, 1.3f);
+            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f - scoreboardRedScoreOutwardOffset, yoffset + 6f), Color.White * alpha, 1.3f);
+            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f + scoreboardBlueScoreOutwardOffset, yoffset + 6f), Color.White * alpha, 1.3f);
         }
         else
         {
-            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f, yoffset), Color.White * alpha, 4f);
-            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f, yoffset), Color.White * alpha, 4f);
+            DrawBitmapFontTextCentered(redCenterText, new Vector2(xcenter - 16f - scoreboardRedScoreOutwardOffset, yoffset), Color.White * alpha, 4f);
+            DrawBitmapFontTextCentered(blueCenterText, new Vector2(xcenter + 12f + scoreboardBlueScoreOutwardOffset, yoffset), Color.White * alpha, 4f);
         }
 
         DrawBitmapFontText($"Server: {serverMetaLabel}", new Vector2(xoffset + 8f, yoffset + 48f), Color.White * alpha, 1f);

@@ -27,6 +27,22 @@ internal readonly record struct HostSetupMenuLayout(
     Rectangle BackBounds,
     bool CompactLayout)
 {
+    public int ContentTop => Math.Max(Panel.Y + (CompactLayout ? 58 : 64), ListBounds.Y - 30);
+
+    public int FooterTop => HostBounds.Y - (CompactLayout ? 16 : 20);
+
+    public Rectangle ContentViewportBounds => new(
+        Panel.X + (CompactLayout ? 12 : 20),
+        ContentTop,
+        Panel.Width - (CompactLayout ? 28 : 44),
+        Math.Max(1, FooterTop - ContentTop));
+
+    public Rectangle ContentScrollbarTrackBounds => new(
+        Panel.Right - (CompactLayout ? 16 : 20),
+        ContentViewportBounds.Y,
+        8,
+        ContentViewportBounds.Height);
+
     public int ListHeaderHeight => CompactLayout ? 18 : 20;
 
     public int RowHeight => CompactLayout ? 20 : 28;
@@ -109,9 +125,9 @@ internal static class HostSetupMenuLayoutCalculator
             var listWidth = Math.Min(288, Math.Max(248, (panel.Width - (padding * 2) - 20) / 2));
             var listX = panel.X + padding;
             var contentTop = panel.Y + (isServerLauncherMode ? 92 : 58);
-            var availableListHeight = Math.Max(170, panel.Bottom - 156 - contentTop);
+            var availableListHeight = Math.Max(156, panel.Bottom - 170 - contentTop);
             var maxListHeight = listHeaderHeight + (Math.Max(1, mapCount) * rowHeight);
-            var listHeight = Math.Min(Math.Min(236, maxListHeight), availableListHeight);
+            var listHeight = Math.Min(Math.Min(220, maxListHeight), availableListHeight);
             var listBounds = new Rectangle(listX, contentTop, listWidth, listHeight);
 
             var listButtonGap = 8;
@@ -125,26 +141,30 @@ internal static class HostSetupMenuLayoutCalculator
             var fieldWidth = panel.Right - fieldX - padding;
             var fieldHeight = 26;
             var smallGap = 8;
-            var smallRowSpacing = 44;
+            var fullFieldRowSpacing = 48;
+            var numericRowSpacing = 48;
+            var toggleSectionGap = 18;
+            var toggleRowSpacing = 36;
+            var firstFieldY = contentTop + 18;
 
-            var serverNameBounds = new Rectangle(fieldX, contentTop, fieldWidth, fieldHeight);
-            var passwordBounds = new Rectangle(fieldX, serverNameBounds.Bottom + 10, fieldWidth, fieldHeight);
-            var rconPasswordBounds = new Rectangle(fieldX, passwordBounds.Bottom + 10, fieldWidth, fieldHeight);
-            var rotationFileBounds = new Rectangle(fieldX, rconPasswordBounds.Bottom + 10, fieldWidth, fieldHeight);
+            var serverNameBounds = new Rectangle(fieldX, firstFieldY, fieldWidth, fieldHeight);
+            var passwordBounds = new Rectangle(fieldX, serverNameBounds.Y + fullFieldRowSpacing, fieldWidth, fieldHeight);
+            var rconPasswordBounds = new Rectangle(fieldX, passwordBounds.Y + fullFieldRowSpacing, fieldWidth, fieldHeight);
+            var rotationFileBounds = new Rectangle(fieldX, rconPasswordBounds.Y + fullFieldRowSpacing, fieldWidth, fieldHeight);
 
             var tripleFieldWidth = Math.Max(70, (fieldWidth - (smallGap * 2)) / 3);
-            var portBounds = new Rectangle(fieldX, rotationFileBounds.Bottom + 18, tripleFieldWidth, fieldHeight);
+            var portBounds = new Rectangle(fieldX, rotationFileBounds.Y + numericRowSpacing, tripleFieldWidth, fieldHeight);
             var slotsBounds = new Rectangle(portBounds.Right + smallGap, portBounds.Y, tripleFieldWidth, fieldHeight);
             var timeLimitBounds = new Rectangle(slotsBounds.Right + smallGap, portBounds.Y, fieldWidth - (tripleFieldWidth * 2) - (smallGap * 2), fieldHeight);
 
             var doubleFieldWidth = Math.Max(100, (fieldWidth - smallGap) / 2);
-            var capLimitBounds = new Rectangle(fieldX, portBounds.Y + smallRowSpacing, doubleFieldWidth, fieldHeight);
+            var capLimitBounds = new Rectangle(fieldX, portBounds.Y + numericRowSpacing, doubleFieldWidth, fieldHeight);
             var respawnBounds = new Rectangle(capLimitBounds.Right + smallGap, capLimitBounds.Y, fieldWidth - doubleFieldWidth - smallGap, fieldHeight);
 
             var listButtonScaleHeight = 28;
-            var lobbyBounds = new Rectangle(fieldX, capLimitBounds.Bottom + 18, fieldWidth, listButtonScaleHeight);
-            var autoBalanceBounds = new Rectangle(fieldX, lobbyBounds.Bottom + 6, fieldWidth, listButtonScaleHeight);
-            var secondaryAbilitiesBounds = new Rectangle(fieldX, autoBalanceBounds.Bottom + 6, fieldWidth, listButtonScaleHeight);
+            var lobbyBounds = new Rectangle(fieldX, capLimitBounds.Bottom + toggleSectionGap, fieldWidth, listButtonScaleHeight);
+            var autoBalanceBounds = new Rectangle(fieldX, lobbyBounds.Y + toggleRowSpacing, fieldWidth, listButtonScaleHeight);
+            var secondaryAbilitiesBounds = new Rectangle(fieldX, autoBalanceBounds.Y + toggleRowSpacing, fieldWidth, listButtonScaleHeight);
 
             var actionButtonHeight = 36;
             var actionButtonWidth = 120;
@@ -202,14 +222,17 @@ internal static class HostSetupMenuLayoutCalculator
 
         var roomyFieldX = roomyListBounds.Right + roomyInterColumnGap;
         var roomyFieldWidth = panel.Right - roomyFieldX - roomyPadding;
-        var roomyServerNameBounds = new Rectangle(roomyFieldX, roomyContentTop + 4, roomyFieldWidth, 32);
-        var roomyPasswordBounds = new Rectangle(roomyFieldX, roomyContentTop + 54, roomyFieldWidth, 32);
-        var roomyRconPasswordBounds = new Rectangle(roomyFieldX, roomyContentTop + 104, roomyFieldWidth, 32);
-        var roomyRotationFileBounds = new Rectangle(roomyFieldX, roomyContentTop + 154, roomyFieldWidth, 32);
+        var roomyFirstFieldY = roomyContentTop + 18;
+        var roomyFullFieldRowSpacing = 58;
+        var roomyNumericRowSpacing = 66;
+        var roomyServerNameBounds = new Rectangle(roomyFieldX, roomyFirstFieldY, roomyFieldWidth, 32);
+        var roomyPasswordBounds = new Rectangle(roomyFieldX, roomyServerNameBounds.Y + roomyFullFieldRowSpacing, roomyFieldWidth, 32);
+        var roomyRconPasswordBounds = new Rectangle(roomyFieldX, roomyPasswordBounds.Y + roomyFullFieldRowSpacing, roomyFieldWidth, 32);
+        var roomyRotationFileBounds = new Rectangle(roomyFieldX, roomyRconPasswordBounds.Y + roomyFullFieldRowSpacing, roomyFieldWidth, 32);
 
         var roomyFieldGap = 12;
         var roomyTripleFieldWidth = Math.Max(90, (roomyFieldWidth - (roomyFieldGap * 2)) / 3);
-        var roomyPortBounds = new Rectangle(roomyFieldX, roomyContentTop + 216, roomyTripleFieldWidth, 32);
+        var roomyPortBounds = new Rectangle(roomyFieldX, roomyRotationFileBounds.Y + roomyNumericRowSpacing, roomyTripleFieldWidth, 32);
         var roomySlotsBounds = new Rectangle(roomyPortBounds.Right + roomyFieldGap, roomyPortBounds.Y, roomyTripleFieldWidth, 32);
         var roomyTimeLimitBounds = new Rectangle(
             roomySlotsBounds.Right + roomyFieldGap,
@@ -218,7 +241,7 @@ internal static class HostSetupMenuLayoutCalculator
             32);
 
         var roomyDoubleFieldWidth = Math.Max(120, (roomyFieldWidth - roomyFieldGap) / 2);
-        var roomyCapLimitBounds = new Rectangle(roomyFieldX, roomyContentTop + 278, roomyDoubleFieldWidth, 32);
+        var roomyCapLimitBounds = new Rectangle(roomyFieldX, roomyPortBounds.Y + roomyFullFieldRowSpacing, roomyDoubleFieldWidth, 32);
         var roomyRespawnBounds = new Rectangle(
             roomyCapLimitBounds.Right + roomyFieldGap,
             roomyCapLimitBounds.Y,

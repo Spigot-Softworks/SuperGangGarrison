@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float JumpPadBuildNoticeCost = 50f;
+
     private void DrawBuildMenuHud()
     {
         if (!_buildMenuOpen)
@@ -45,6 +47,16 @@ public partial class Game1
     {
         if (GetLocalOwnedSentry() is not null)
         {
+            if (HasLocalOwnedJumpPad())
+            {
+                return;
+            }
+
+            if (GetPlayerMetal(player) < JumpPadBuildNoticeCost)
+            {
+                ShowNotice(NoticeKind.NutsNBolts);
+            }
+
             return;
         }
 
@@ -66,6 +78,45 @@ public partial class Game1
         if (player.IsInSpawnRoom)
         {
             return;
+        }
+    }
+
+    private bool HasLocalOwnedJumpPad()
+    {
+        var localPlayerId = GetPlayerStateKey(_world.LocalPlayer);
+        foreach (var jumpPad in _world.JumpPads)
+        {
+            if (jumpPad.OwnerPlayerId == localPlayerId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void TryShowEngineerJumpPadBuildNoticeOnUtilityPress(PlayerInputSnapshot input)
+    {
+        if (!input.FireSecondaryWeapon || _latestPredictedLocalInput.FireSecondaryWeapon)
+        {
+            return;
+        }
+
+        var player = _world.LocalPlayer;
+        if (_networkClient.IsSpectator
+            || player.ClassId != PlayerClass.Engineer
+            || !player.IsAlive
+            || player.IsInSpawnRoom
+            || _world.LocalPlayerAwaitingJoin
+            || _world.IsPlayerHumiliated(player)
+            || HasLocalOwnedJumpPad())
+        {
+            return;
+        }
+
+        if (GetPlayerMetal(player) < JumpPadBuildNoticeCost)
+        {
+            ShowNotice(NoticeKind.NutsNBolts);
         }
     }
 

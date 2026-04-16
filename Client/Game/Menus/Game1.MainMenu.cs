@@ -102,13 +102,10 @@ public partial class Game1
         }
 
         var position = new Vector2(ViewportWidth * 0.5f, ViewportHeight - 104f);
-        var shadowPosition = position + Vector2.One * 2f;
-        var scale = ViewportHeight < 540 ? 0.75f : 0.9f;
+        var scale = ViewportHeight < 540 ? 0.92f : 1f;
         var text = _menuStatusMessage;
-        var shadowSize = _menuFont.MeasureString(text) * scale;
-        var textSize = shadowSize;
-        _spriteBatch.DrawString(_menuFont, text, shadowPosition - new Vector2(shadowSize.X * 0.5f, 0f), Color.Black * 0.6f, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-        _spriteBatch.DrawString(_menuFont, text, position - new Vector2(textSize.X * 0.5f, 0f), new Color(235, 225, 180), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        DrawBitmapFontTextCentered(text, position + Vector2.One * 2f, Color.Black * 0.6f, scale);
+        DrawBitmapFontTextCentered(text, position, new Color(235, 225, 180), scale);
     }
 
     private void OpenManualConnectMenu()

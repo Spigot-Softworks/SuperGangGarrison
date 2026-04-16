@@ -568,6 +568,8 @@ public sealed record SnapshotMessage(
     string MapContentHash = "",
     float MapScale = 1f) : IProtocolMessage, ISnapshotBaselineState
 {
+    public int TimeLimitTicks { get; init; }
+
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();
