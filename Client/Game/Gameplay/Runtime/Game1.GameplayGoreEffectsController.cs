@@ -225,6 +225,11 @@ public partial class Game1
                     return;
                 }
 
+                if (ownerId != 0)
+                {
+                    continue;
+                }
+
                 if (animation.Team != team)
                 {
                     continue;

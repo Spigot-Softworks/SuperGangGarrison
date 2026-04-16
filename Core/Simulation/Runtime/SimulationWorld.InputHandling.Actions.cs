@@ -21,7 +21,7 @@ public sealed partial class SimulationWorld
             player.StowExperimentalOffhandWeapon();
         }
 
-        if (TryHandleEquippedPrimaryFire(player, input, suppressPyroPrimaryThisTick))
+        if (TryHandleEquippedPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick))
         {
             return;
         }
@@ -113,7 +113,7 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private bool TryHandleEquippedPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool suppressPyroPrimaryThisTick)
+    private bool TryHandleEquippedPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
@@ -140,7 +140,7 @@ public sealed partial class SimulationWorld
             return true;
         }
 
-        if (input.FirePrimary && TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY))
+        if (primaryPressed && TryStartSpyBackstab(player, input.AimWorldX, input.AimWorldY))
         {
             return true;
         }

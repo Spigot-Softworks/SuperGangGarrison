@@ -57,10 +57,10 @@ public partial class Game1
                 return false;
             }
 
-            var facingScale = GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
+            var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
-            var rotation = GetWeaponRotation(player);
+            var rotation = GetRenderWeaponRotation(player);
             var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
             var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
             var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
@@ -88,6 +88,28 @@ public partial class Game1
         {
             var radians = System.MathF.PI * player.AimDirectionDegrees / 180f;
             return GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player) ? radians + System.MathF.PI : radians;
+        }
+
+        private float GetRenderFacingScale(PlayerEntity player)
+        {
+            if (_game.IsBackstabReplacementRenderActive(player))
+            {
+                var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
+                return System.MathF.Cos(radians) < 0f ? -1f : 1f;
+            }
+
+            return GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
+        }
+
+        private float GetRenderWeaponRotation(PlayerEntity player)
+        {
+            if (_game.IsBackstabReplacementRenderActive(player))
+            {
+                var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
+                return GetRenderFacingScale(player) < 0f ? radians + System.MathF.PI : radians;
+            }
+
+            return GetWeaponRotation(player);
         }
 
         public Vector2 GetWeaponAnchorOrigin(WeaponRenderDefinition weaponDefinition, LoadedGameMakerSprite currentSprite)
@@ -235,7 +257,7 @@ public partial class Game1
             }
 
             var overlayFrameIndex = GetWeaponAnimationOverlayFrameIndex(player, overlaySprite.Frames.Count);
-            var overlayRotation = GetWeaponRotation(player) + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
+            var overlayRotation = GetRenderWeaponRotation(player) + MathHelper.ToRadians(overlayDefinition.RotationDegrees * facingScale);
             var playerScale = player.PlayerScale;
             var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + overlayDefinition.OffsetX + overlaySprite.Origin.X) * facingScale * playerScale);
             var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + overlayDefinition.OffsetY + bodySelection.EquipmentOffset + overlaySprite.Origin.Y) * playerScale);
