@@ -30,6 +30,7 @@ public partial class Game1
         public int HoverIndex { get; set; } = -1;
         public int MapIndex { get; set; }
         public int MapScrollOffset { get; set; }
+        public int ContentScrollOffset { get; set; }
         public HostSetupEditField EditField { get; set; }
         public HostSetupTab Tab { get; set; }
         public string ServerNameBuffer { get; set; } = "My Server";
@@ -51,6 +52,7 @@ public partial class Game1
             ArgumentNullException.ThrowIfNull(hostDefaults);
 
             MapScrollOffset = 0;
+            ContentScrollOffset = 0;
             ServerNameBuffer = SanitizeServerName(hostDefaults.ServerName);
             PortBuffer = SanitizePort(hostDefaults.Port);
             SlotsBuffer = Math.Clamp(hostDefaults.Slots, 1, SimulationWorld.MaxPlayableNetworkPlayers)
@@ -84,6 +86,7 @@ public partial class Game1
 
             HoverIndex = -1;
             MapScrollOffset = 0;
+            ContentScrollOffset = 0;
             Tab = HostSetupTab.Settings;
             EditField = HostSetupEditField.ServerName;
 

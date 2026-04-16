@@ -22,6 +22,7 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.MatchPhase);
         writer.Write(snapshot.WinnerTeam);
         writer.Write(snapshot.TimeRemainingTicks);
+        writer.Write(snapshot.TimeLimitTicks);
         writer.Write(snapshot.RedCaps);
         writer.Write(snapshot.BlueCaps);
         writer.Write(snapshot.SpectatorCount);
@@ -90,6 +91,7 @@ public static partial class ProtocolCodec
         var matchPhase = reader.ReadByte();
         var winnerTeam = reader.ReadByte();
         var timeRemainingTicks = reader.ReadInt32();
+        var timeLimitTicks = reader.ReadInt32();
         var redCaps = reader.ReadInt32();
         var blueCaps = reader.ReadInt32();
         var spectatorCount = reader.ReadInt32();
@@ -187,6 +189,7 @@ public static partial class ProtocolCodec
             mapContentHash,
             mapScale)
         {
+            TimeLimitTicks = timeLimitTicks,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             RemovedSentryIds = removedSentryIds,

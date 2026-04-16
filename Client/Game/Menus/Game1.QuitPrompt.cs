@@ -79,20 +79,20 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.76f);
 
         GetQuitPromptLayout(out var panel, out var confirmBounds, out var cancelBounds, out var compactLayout);
-        const float titleScale = 1f;
-        const float buttonScale = 1f;
+        const float titleScale = 1.75f;
+        const float buttonScale = 1.75f;
         _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 242));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
         DrawBitmapFontTextCentered(
             "Are you sure you want to quit?",
-            new Vector2(panel.Center.X, panel.Y + (compactLayout ? 32f : 38f)),
+            new Vector2(panel.Center.X, panel.Y + (compactLayout ? 34f : 42f)),
             Color.White,
             titleScale);
 
-        DrawMenuButtonScaled(confirmBounds, "Quit", _quitPromptHoverIndex == 0, buttonScale);
-        DrawMenuButtonScaled(cancelBounds, "Cancel", _quitPromptHoverIndex == 1, buttonScale);
+        DrawQuitPromptButton(confirmBounds, "Quit", _quitPromptHoverIndex == 0, buttonScale);
+        DrawQuitPromptButton(cancelBounds, "Cancel", _quitPromptHoverIndex == 1, buttonScale);
     }
 
     private void GetQuitPromptLayout(
@@ -112,10 +112,21 @@ public partial class Game1
         compactLayout = panel.Width < 440 || panel.Height < 182;
         var padding = compactLayout ? 20 : 24;
         var gap = compactLayout ? 12 : 16;
-        var buttonHeight = compactLayout ? 36 : 42;
+        var buttonHeight = compactLayout ? 44 : 50;
         var buttonWidth = (panel.Width - (padding * 2) - gap) / 2;
         var buttonY = panel.Bottom - padding - buttonHeight;
         confirmBounds = new Rectangle(panel.X + padding, buttonY, buttonWidth, buttonHeight);
         cancelBounds = new Rectangle(confirmBounds.Right + gap, buttonY, buttonWidth, buttonHeight);
+    }
+
+    private void DrawQuitPromptButton(Rectangle bounds, string label, bool highlighted, float textScale)
+    {
+        _spriteBatch.Draw(_pixel, bounds, highlighted ? new Color(120, 50, 50) : new Color(56, 58, 64));
+        var trimmedLabel = TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
+        DrawBitmapFontTextCentered(
+            trimmedLabel,
+            new Vector2(bounds.Center.X, bounds.Y + ((bounds.Height - MeasureBitmapFontHeight(textScale)) * 0.5f) - 1f),
+            Color.White,
+            textScale);
     }
 }

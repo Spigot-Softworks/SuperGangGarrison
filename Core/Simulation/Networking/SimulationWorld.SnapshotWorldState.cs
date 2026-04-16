@@ -17,7 +17,9 @@ public sealed partial class SimulationWorld
         MatchRules = MatchRules with
         {
             Mode = (GameModeKind)snapshot.GameMode,
-            TimeLimitTicks = Math.Max(snapshot.TimeRemainingTicks, MatchRules.TimeLimitTicks),
+            TimeLimitTicks = snapshot.TimeLimitTicks > 0
+                ? Math.Max(snapshot.TimeRemainingTicks, snapshot.TimeLimitTicks)
+                : Math.Max(snapshot.TimeRemainingTicks, MatchRules.TimeLimitTicks),
         };
         MatchState = new MatchState(
             (MatchPhase)snapshot.MatchPhase,

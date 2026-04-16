@@ -31,6 +31,8 @@ public partial class Game1
             return;
         }
 
+        var objectiveHudY = ToObjectiveHudY(560f);
+        var objectiveHudCounterY = ToObjectiveHudY(563f);
         var drawX = centerX - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f;
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
@@ -49,17 +51,17 @@ public partial class Game1
                 progressFrame = teamOffset + Math.Clamp((int)MathF.Floor(progress * 30f), 0, 30);
             }
 
-            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
+            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
 
             if (point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
+                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
             }
 
             if (point.Cappers > 0 && !point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
-                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, 563f), Color.Black, 1.5f);
+                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, objectiveHudCounterY), Color.Black, 1.5f);
             }
 
             drawX += 60f;

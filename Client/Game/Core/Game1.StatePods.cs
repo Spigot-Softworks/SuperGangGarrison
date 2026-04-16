@@ -541,6 +541,12 @@ public partial class Game1
         set => _uiShellState.OptionsPageIndex = value;
     }
 
+    private int _optionsScrollOffset
+    {
+        get => _uiShellState.OptionsScrollOffset;
+        set => _uiShellState.OptionsScrollOffset = value;
+    }
+
     private int _pluginOptionsHoverIndex
     {
         get => _uiShellState.PluginOptionsHoverIndex;
@@ -563,6 +569,12 @@ public partial class Game1
     {
         get => _uiShellState.ControlsHoverIndex;
         set => _uiShellState.ControlsHoverIndex = value;
+    }
+
+    private int _controlsScrollOffset
+    {
+        get => _uiShellState.ControlsScrollOffset;
+        set => _uiShellState.ControlsScrollOffset = value;
     }
 
     private int _lobbyBrowserHoverIndex
@@ -702,10 +714,12 @@ public partial class Game1
         public bool MainMenuBottomBarHover;
         public int OptionsHoverIndex = -1;
         public int OptionsPageIndex;
+        public int OptionsScrollOffset;
         public int PluginOptionsHoverIndex = -1;
         public int PluginOptionsScrollOffset;
         public ClientPluginKeyOptionItem? PendingPluginOptionsKeyItem;
         public int ControlsHoverIndex = -1;
+        public int ControlsScrollOffset;
         public int LobbyBrowserHoverIndex = -1;
         public int LobbyBrowserSelectedIndex = -1;
         public int ClientPowersScrollOffset;

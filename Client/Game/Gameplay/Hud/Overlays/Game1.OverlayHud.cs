@@ -8,6 +8,20 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private static readonly Color CtfBuildScoreTextColor = new(217, 217, 183);
+
+    private void DrawBuildHudTextCentered(string text, Vector2 position, Color color, float scale)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var width = MeasureMenuBitmapFontWidth(text, scale);
+        var height = MeasureMenuBitmapFontHeight(scale);
+        DrawMenuBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y - (height / 2f)), color, scale);
+    }
+
     private void DrawScorePanelHud()
     {
         if (_world.MatchRules.Mode == GameModeKind.Arena)
@@ -44,8 +58,17 @@ public partial class Game1
             DrawFallbackScorePanelHud(centerX, viewportHeight);
         }
 
-        DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), Color.Black, 2f);
-        DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), Color.Black, 2f);
+        if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
+        {
+            DrawBuildHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), CtfBuildScoreTextColor, 2f);
+            DrawBuildHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), CtfBuildScoreTextColor, 2f);
+        }
+        else
+        {
+            DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX - 135f, viewportHeight - 30f), Color.Black, 2f);
+            DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 130f, viewportHeight - 30f), Color.Black, 2f);
+        }
+
         DrawScorePanelCapLimit(centerX, viewportHeight);
 
         DrawIntelPanelElement(_world.RedIntel, new Vector2(centerX - 65f, viewportHeight - 50f));

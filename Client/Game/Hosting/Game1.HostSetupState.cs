@@ -25,6 +25,12 @@ public partial class Game1
         set => _hostSetupState.MapScrollOffset = value;
     }
 
+    private int _hostSetupContentScrollOffset
+    {
+        get => _hostSetupState.ContentScrollOffset;
+        set => _hostSetupState.ContentScrollOffset = value;
+    }
+
     private List<OpenGarrisonMapRotationEntry> _hostMapEntries
     {
         get => _hostSetupState.MapEntries;
