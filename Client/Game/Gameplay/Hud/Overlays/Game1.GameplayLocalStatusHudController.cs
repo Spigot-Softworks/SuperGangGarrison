@@ -21,6 +21,7 @@ public partial class Game1
         private static readonly Color LowAmmoHudColor = new(255, 0, 0);
         private static readonly Color DisabledAmmoHudColor = new(128, 128, 128);
         private static readonly Color HeavyCooldownHudColor = new(50, 50, 50);
+        private const float AmmoCountBuildScale = 0.75f;
         private const float SourceHudWidth = 800f;
         private const float SourceHudHeight = 600f;
         private const float SourceAmmoHudBaseY = SourceHudHeight / 1.26f;
@@ -84,7 +85,11 @@ public partial class Game1
                     {
                         if (!string.Equals(GetLocalDisplayedMainWeaponPresentationItemId(), "weapon.rocketlauncher", StringComparison.Ordinal))
                         {
-                            _game.DrawHudTextLeftAligned(GetLocalDisplayedMainWeaponCurrentShells().ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(765f, SourceAmmoHudBaseY + 95f), AmmoHudTextColor, 1f);
+                            var currentShells = GetLocalDisplayedMainWeaponCurrentShells();
+                            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
+                            var reloadBarBottomSourceY = SourceAmmoHudBaseY + 98f;
+                            var ammoTextSourceY = reloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+                            _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(755f, ammoTextSourceY), AmmoHudTextColor, ammoCountScale);
                         }
 
                         DrawAmmoReloadBar(GetReloadAmmoHudBarRectangle());
@@ -320,9 +325,12 @@ public partial class Game1
                     ? 1f
                     : Math.Clamp(1f - (reloadTicksRemaining / (float)reloadTicksPerShell), 0f, 1f);
             var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
 
-            _game.DrawHudTextLeftAligned(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(shotgunPanelSourceX + 31f, shotgunPanelSourceY + 8f), ammoColor, 1f);
-            _game.DrawScreenHealthBar(GetSourceHudRectangle(shotgunPanelSourceX - 39f, shotgunPanelSourceY + 9f, 50f, 5f), reloadProgress, 1f, false, new Color(188, 188, 188), Color.Black);
+            var shotgunReloadBarBottomSourceY = shotgunPanelSourceY + 12f;
+            var shotgunAmmoTextSourceY = shotgunReloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+            _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(shotgunPanelSourceX + 27f, shotgunAmmoTextSourceY), ammoColor, ammoCountScale);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(shotgunPanelSourceX - 28f, shotgunPanelSourceY + 4f, 50f, 8f), reloadProgress, 1f, false, AmmoHudBarColor, Color.Black);
         }
 
         private void DrawAcquiredMedigunPromptCore()
@@ -361,10 +369,18 @@ public partial class Game1
             var maxShells = Math.Max(1, GetLocalAlternatePrimaryWeaponMaxShells());
             var reloadProgress = GetLocalAlternatePrimaryWeaponReloadProgress();
             var ammoColor = currentShells <= Math.Max(1, maxShells / 4) ? LowAmmoHudColor : AmmoHudTextColor;
+            var ammoCountScale = GetAmmoCountBuildScaleForValue(currentShells);
             _game.DrawBitmapFontText("Q", GetSourceHudPoint(610f, 500f), new Color(210, 210, 210), 0.72f);
-            _game.DrawHudTextLeftAligned(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(646f, 515f), ammoColor, 0.9f);
+            var acquiredReloadBarBottomSourceY = 542f;
+            var acquiredAmmoTextSourceY = acquiredReloadBarBottomSourceY - _game.MeasureMenuBitmapFontHeight(ammoCountScale);
+            _game.DrawMenuBitmapFontText(currentShells.ToString(CultureInfo.InvariantCulture), GetSourceHudPoint(640f, acquiredAmmoTextSourceY), ammoColor, ammoCountScale);
             _game.DrawScreenHealthBar(GetSourceHudRectangle(610f, 531f, 55f, 5f), currentShells, maxShells, false, AmmoHudBarColor, Color.Black);
             _game.DrawScreenHealthBar(GetSourceHudRectangle(610f, 538f, 55f, 4f), reloadProgress, 1f, false, new Color(188, 188, 188), Color.Black);
+        }
+
+        private static float GetAmmoCountBuildScaleForValue(int ammoCount)
+        {
+            return Math.Abs(ammoCount) < 10 ? 1f : AmmoCountBuildScale;
         }
 
         private void DrawPyroFlareHudCore(int frameIndex)

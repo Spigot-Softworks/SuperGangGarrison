@@ -42,11 +42,8 @@ public partial class Game1
 
         public void UpdateInGameMenu(KeyboardState keyboard, MouseState mouse)
         {
-            const float xbegin = 40f;
-            const float ybegin = 300f;
-            const float spacing = 30f;
-            const float width = 220f;
             var items = GetInGameMenuActions();
+            GetInGameMenuLayout(items.Count, out _, out var itemBounds, out _, out _);
 
             if (_game._inGameMenuAwaitingEscapeRelease)
             {
@@ -61,17 +58,14 @@ public partial class Game1
                 return;
             }
 
-            if (mouse.X > xbegin && mouse.X < xbegin + width)
+            _game._inGameMenuHoverIndex = -1;
+            for (var index = 0; index < itemBounds.Length; index += 1)
             {
-                _game._inGameMenuHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
-                if (_game._inGameMenuHoverIndex < 0 || _game._inGameMenuHoverIndex >= items.Count)
+                if (itemBounds[index].Contains(mouse.Position))
                 {
-                    _game._inGameMenuHoverIndex = -1;
+                    _game._inGameMenuHoverIndex = index;
+                    break;
                 }
-            }
-            else
-            {
-                _game._inGameMenuHoverIndex = -1;
             }
 
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
@@ -87,22 +81,86 @@ public partial class Game1
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.7f);
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.66f);
 
             var items = GetInGameMenuActions();
-            const float xbegin = 40f;
-            const float ybegin = 300f;
-            const float spacing = 30f;
-            const float width = 220f;
-            _game.DrawMenuPanelBackdrop(new Rectangle((int)xbegin - 12, (int)ybegin - 24, (int)width + 28, items.Count * (int)spacing + 24), 0.82f);
-            _game.DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), items.Count, spacing, width, 0.72f);
+            GetInGameMenuLayout(items.Count, out var plaqueBounds, out var itemBounds, out var plaqueTexture, out var plaqueScale);
+            if (plaqueTexture is not null)
+            {
+                _game.DrawLoadedSpriteFrame(plaqueTexture, plaqueBounds, Color.White);
+            }
+            else
+            {
+                _game.DrawMenuPanelBackdrop(plaqueBounds, 0.84f);
+            }
 
-            var position = new Vector2(xbegin, ybegin);
             for (var index = 0; index < items.Count; index += 1)
             {
-                var color = index == _game._inGameMenuHoverIndex ? Color.Red : Color.White;
-                _game.DrawBitmapFontText(items[index].Label, position, color, 1f);
-                position.Y += spacing;
+                var buttonTexture = _game.GetMenuStackedButtonTexture(index, items.Count);
+                _game.DrawPlaqueMenuButton(
+                    buttonTexture,
+                    itemBounds[index],
+                    items[index].Label,
+                    index == _game._inGameMenuHoverIndex,
+                    plaqueScale,
+                    1f);
+            }
+        }
+
+        private void GetInGameMenuLayout(int itemCount, out Rectangle plaqueBounds, out Rectangle[] itemBounds, out LoadedSpriteFrame? plaqueTexture, out float plaqueScale)
+        {
+            itemCount = Math.Max(1, itemCount);
+            var useTallPlaque = itemCount >= 5;
+            plaqueTexture = useTallPlaque ? _game._menuPlaqueTallTexture : _game._menuPlaqueTexture;
+
+            var availableHeight = _game.ViewportHeight - 84f;
+            var maxScale = _game.ViewportHeight < 540 ? 0.52f : 0.58f;
+            plaqueScale = plaqueTexture is null
+                ? maxScale
+                : MathF.Max(0.42f, MathF.Min(maxScale, availableHeight / Math.Max(1f, plaqueTexture.Height)));
+
+            var sideInset = (int)MathF.Round(10f * plaqueScale);
+            var topInset = (int)MathF.Round(20f * plaqueScale);
+            var bottomInset = (int)MathF.Round(14f * plaqueScale);
+            var itemGap = Math.Max(4, (int)MathF.Round(10f * plaqueScale));
+
+            var plaqueWidth = plaqueTexture is null
+                ? (int)MathF.Round((_game.ViewportHeight < 540 ? 190f : 210f) * plaqueScale)
+                : (int)MathF.Round(plaqueTexture.Width * plaqueScale);
+            var fallbackHeight = Math.Max(20, (int)MathF.Round(48f * plaqueScale));
+            var contentHeight = topInset + bottomInset;
+            for (var index = 0; index < itemCount; index += 1)
+            {
+                var buttonTexture = _game.GetMenuStackedButtonTexture(index, itemCount);
+                var buttonHeight = buttonTexture is null ? fallbackHeight : (int)MathF.Round(buttonTexture.Height * plaqueScale);
+                contentHeight += buttonHeight;
+                if (index < itemCount - 1)
+                {
+                    contentHeight += itemGap;
+                }
+            }
+
+            var minimumTextureHeight = plaqueTexture is null
+                ? 0
+                : (int)MathF.Round(plaqueTexture.Height * plaqueScale * 0.68f);
+            var plaqueHeight = Math.Max(contentHeight, minimumTextureHeight);
+
+            var plaqueX = (int)MathF.Round(MathF.Max(18f, _game.ViewportWidth * 0.035f));
+            var plaqueY = Math.Max(24, ((_game.ViewportHeight - plaqueHeight) / 2) + 18);
+            plaqueBounds = new Rectangle(plaqueX, plaqueY, Math.Max(1, plaqueWidth), Math.Max(1, plaqueHeight));
+
+            itemBounds = new Rectangle[itemCount];
+            var currentY = plaqueBounds.Y + topInset;
+            var fallbackWidth = Math.Max(120, plaqueBounds.Width - sideInset * 2);
+
+            for (var index = 0; index < itemCount; index += 1)
+            {
+                var buttonTexture = _game.GetMenuStackedButtonTexture(index, itemCount);
+                var buttonWidth = buttonTexture is null ? fallbackWidth : (int)MathF.Round(buttonTexture.Width * plaqueScale);
+                var buttonHeight = buttonTexture is null ? fallbackHeight : (int)MathF.Round(buttonTexture.Height * plaqueScale);
+                var buttonX = plaqueBounds.X + sideInset;
+                itemBounds[index] = new Rectangle(buttonX, currentY, Math.Max(1, buttonWidth), Math.Max(1, buttonHeight));
+                currentY += buttonHeight + itemGap;
             }
         }
 
@@ -112,12 +170,12 @@ public partial class Game1
             {
                 var lastToDieActions = new List<MenuPageAction>
                 {
+                    new("Resume", CloseInGameMenu),
                     new("Options", () =>
                     {
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
-                    new("Return to Game", CloseInGameMenu),
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
@@ -129,6 +187,7 @@ public partial class Game1
             {
                 var practiceActions = new List<MenuPageAction>
                 {
+                    new("Resume", CloseInGameMenu),
                     new("Options", () =>
                     {
                         _game.OpenOptionsMenu(fromGameplay: true);
@@ -141,13 +200,12 @@ public partial class Game1
                         CloseInGameMenu();
                         _game.RestartPracticeSession();
                     }),
-                    new("Return to Game", CloseInGameMenu),
                     new("Leave Practice", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
                 if (_game.CanOpenGameplayLoadoutMenu())
                 {
-                    practiceActions.Insert(0, new MenuPageAction("Loadout", () =>
+                    practiceActions.Insert(1, new MenuPageAction("Loadout", () =>
                     {
                         _game.OpenGameplayLoadoutMenu();
                         CloseInGameMenu();
@@ -160,18 +218,18 @@ public partial class Game1
 
             var defaultActions = new List<MenuPageAction>
             {
+                new("Resume", CloseInGameMenu),
                 new("Options", () =>
                 {
                     _game.OpenOptionsMenu(fromGameplay: true);
                     CloseInGameMenu();
                 }),
-                new("Return to Game", CloseInGameMenu),
                 new("Disconnect", () => _game.ReturnToMainMenu(_game.GetGameplayExitStatusMessage())),
                 new("Quit Game", _game.OpenQuitPrompt),
             };
             if (_game.CanOpenGameplayLoadoutMenu())
             {
-                defaultActions.Insert(0, new MenuPageAction("Loadout", () =>
+                defaultActions.Insert(1, new MenuPageAction("Loadout", () =>
                 {
                     _game.OpenGameplayLoadoutMenu();
                     CloseInGameMenu();

@@ -22,17 +22,10 @@ public partial class Game1
         public void UpdatePluginOptionsMenu(KeyboardState keyboard, MouseState mouse)
         {
             var rows = BuildPluginOptionsMenuRows();
-            var visibleRowCount = Math.Min(rows.Count, GetPluginOptionsVisibleRowCapacity());
+            GetPluginOptionsPanelLayout(out _, out var listBounds, out var backBounds, out _, out var rowHeight);
+            var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
-            _game.GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out var width, out _);
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
-            var menuTop = ybegin - spacing;
-            var menuHeight = Math.Max(spacing, visibleRowCount * spacing);
-            var menuBounds = new Rectangle(
-                (int)MathF.Floor(xbegin),
-                (int)MathF.Floor(menuTop),
-                (int)MathF.Ceiling(width),
-                (int)MathF.Ceiling(menuHeight));
 
             if (_game._pendingPluginOptionsKeyItem is not null)
             {
@@ -77,7 +70,7 @@ public partial class Game1
                 return;
             }
 
-            if (wheelDelta != 0 && menuBounds.Contains(mouse.Position))
+            if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
             {
                 var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
                 _game._pluginOptionsScrollOffset = Math.Clamp(
@@ -86,9 +79,13 @@ public partial class Game1
                     Math.Max(0, rows.Count - visibleRowCount));
             }
 
-            if (mouse.X > xbegin && mouse.X < xbegin + width)
+            if (backBounds.Contains(mouse.Position))
             {
-                var visibleHoverIndex = (int)MathF.Round((mouse.Y - ybegin) / spacing);
+                _game._pluginOptionsHoverIndex = rows.Count;
+            }
+            else if (listBounds.Contains(mouse.Position))
+            {
+                var visibleHoverIndex = (mouse.Y - listBounds.Y) / rowHeight;
                 var hoverIndex = _game._pluginOptionsScrollOffset + visibleHoverIndex;
                 var visibleStart = _game._pluginOptionsScrollOffset;
                 var visibleEndExclusive = visibleStart + visibleRowCount;
@@ -111,6 +108,20 @@ public partial class Game1
                 return;
             }
 
+            if (_game._pluginOptionsHoverIndex == rows.Count)
+            {
+                if (_game._selectedPluginOptionsPluginId is not null)
+                {
+                    CloseSelectedPluginOptionsDetail();
+                }
+                else
+                {
+                    _game.ClosePluginOptionsMenu();
+                }
+
+                return;
+            }
+
             rows[_game._pluginOptionsHoverIndex].Activate?.Invoke();
         }
 
@@ -118,38 +129,25 @@ public partial class Game1
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.82f);
-            var compactLayout = _game.ViewportHeight < 540;
-            var textScale = compactLayout ? 0.92f : 1f;
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.78f);
+
             var rows = BuildPluginOptionsMenuRows();
-            var visibleRowCount = Math.Min(rows.Count, GetPluginOptionsVisibleRowCapacity());
+            GetPluginOptionsPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
+            var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
-            _game.GetOptionsMenuLayout(visibleRowCount, out var xbegin, out var ybegin, out var spacing, out var width, out var valueX);
-            _game.DrawMenuPanelBackdrop(
-                new Rectangle(
-                    (int)xbegin - 12,
-                    (int)(ybegin - spacing),
-                    (int)(width + 132f),
-                    Math.Max((int)spacing, (int)(visibleRowCount * spacing + spacing * 0.5f))),
-                0.82f);
-            _game.DrawMenuPlaqueRows(new Vector2(xbegin, ybegin), visibleRowCount, spacing, width + 116f, 0.7f);
 
-            var position = new Vector2(xbegin, ybegin);
-            var endIndex = Math.Min(rows.Count, _game._pluginOptionsScrollOffset + visibleRowCount);
-            for (var index = _game._pluginOptionsScrollOffset; index < endIndex; index += 1)
-            {
-                var row = rows[index];
-                var color = row.IsHeader
-                    ? new Color(240, 200, 120)
-                    : index == _game._pluginOptionsHoverIndex ? Color.Red : Color.White;
-                _game.DrawBitmapFontText(row.Label, position, color, textScale);
-                if (!string.IsNullOrWhiteSpace(row.Value))
-                {
-                    _game.DrawBitmapFontText(row.Value, new Vector2(valueX, position.Y), color, textScale);
-                }
+            _game._spriteBatch.Draw(_game._pixel, panel, new Color(34, 35, 39, 235));
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
+            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
 
-                position.Y += spacing;
-            }
+            const float headerScale = 1.15f;
+            const float rowTextScale = 1.39f;
+            const float compactRowTextScale = 1.24f;
+            const float rowHorizontalPadding = 14f;
+            const float rowColumnGap = 20f;
+
+            var title = _game._selectedPluginOptionsPluginId is null ? "Plugin Options" : "Plugin Options Detail";
+            _game.DrawBitmapFontText(title, new Vector2(listBounds.X, panel.Y + 14f), Color.White, headerScale);
 
             if (rows.Count > visibleRowCount)
             {
@@ -157,19 +155,63 @@ public partial class Game1
                 var visibleEnd = Math.Min(rows.Count, _game._pluginOptionsScrollOffset + visibleRowCount);
                 _game.DrawBitmapFontText(
                     $"{visibleStart}-{visibleEnd}/{rows.Count}",
-                    new Vector2(valueX + (compactLayout ? 32f : 56f), ybegin - spacing),
+                    new Vector2(listBounds.Right - (compactLayout ? 78f : 96f), panel.Y + 14f),
                     new Color(186, 186, 186),
-                    compactLayout ? 0.72f : 0.8f);
+                    compactLayout ? 0.92f : 1f);
+            }
+
+            var endIndex = Math.Min(rows.Count, _game._pluginOptionsScrollOffset + visibleRowCount);
+            for (var index = _game._pluginOptionsScrollOffset; index < endIndex; index += 1)
+            {
+                var row = rows[index];
+                var visibleRow = index - _game._pluginOptionsScrollOffset;
+                var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeight - 2);
+                var isHovered = index == _game._pluginOptionsHoverIndex;
+                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(60, 60, 70) : new Color(44, 46, 52, 170));
+
+                var textScale = compactLayout ? compactRowTextScale : rowTextScale;
+                var textY = rowBounds.Y + ((rowBounds.Height - _game.MeasureBitmapFontHeight(textScale)) * 0.5f);
+                var labelX = rowBounds.X + rowHorizontalPadding;
+                var valueRightX = rowBounds.Right - rowHorizontalPadding;
+
+                var trimmedValue = _game.TrimBitmapMenuText(row.Value, rowBounds.Width * 0.42f, textScale);
+                var valueWidth = _game.MeasureBitmapFontWidth(trimmedValue, textScale);
+                var valueX = valueRightX - valueWidth;
+                var labelMaxWidth = Math.Max(40f, valueX - labelX - rowColumnGap);
+                var trimmedLabel = _game.TrimBitmapMenuText(row.Label, labelMaxWidth, textScale);
+                var color = row.IsHeader ? new Color(240, 200, 120) : Color.White;
+
+                _game.DrawBitmapFontText(trimmedLabel, new Vector2(labelX, textY), color, textScale);
+                if (!string.IsNullOrWhiteSpace(trimmedValue))
+                {
+                    _game.DrawBitmapFontText(trimmedValue, new Vector2(valueX, textY), color, textScale);
+                }
+            }
+
+            if (rows.Count > visibleRowCount)
+            {
+                var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
+                _game._spriteBatch.Draw(_game._pixel, trackBounds, new Color(30, 32, 38));
+
+                var maxOffset = Math.Max(1, rows.Count - visibleRowCount);
+                var thumbHeight = Math.Max(24, (int)MathF.Round(trackBounds.Height * (visibleRowCount / (float)rows.Count)));
+                var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
+                var thumbY = trackBounds.Y + (int)MathF.Round((_game._pluginOptionsScrollOffset / (float)maxOffset) * thumbTravel);
+                var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
+                _game._spriteBatch.Draw(_game._pixel, thumbBounds, new Color(125, 125, 125));
             }
 
             if (_game._pendingPluginOptionsKeyItem is not null)
             {
                 _game.DrawBitmapFontText(
                     $"Press a key for {_game._pendingPluginOptionsKeyItem.Label} (Esc to cancel)",
-                    new Vector2(xbegin, Math.Max(18f, ybegin - spacing * 1.5f)),
+                    new Vector2(listBounds.X, panel.Y + 36f),
                     Color.Orange,
-                    compactLayout ? 0.82f : 0.9f);
+                    compactLayout ? 0.92f : 1f);
             }
+
+            var backHovered = _game._pluginOptionsHoverIndex == rows.Count;
+            _game.DrawMenuButtonScaled(backBounds, "Back", backHovered, 1f);
         }
 
         public bool HasClientPluginOptions()
@@ -200,7 +242,6 @@ public partial class Game1
                     rows.Add(new PluginOptionsMenuRow("No plugin options available.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
                 }
 
-                rows.Add(new PluginOptionsMenuRow("Back", string.Empty, Selectable: true, IsHeader: false, Activate: _game.ClosePluginOptionsMenu));
                 return rows;
             }
 
@@ -262,8 +303,35 @@ public partial class Game1
                 rows.Add(new PluginOptionsMenuRow("No options available.", string.Empty, Selectable: false, IsHeader: false, Activate: null));
             }
 
-            rows.Add(new PluginOptionsMenuRow("Back", string.Empty, Selectable: true, IsHeader: false, Activate: CloseSelectedPluginOptionsDetail));
             return rows;
+        }
+
+        private void GetPluginOptionsPanelLayout(out Rectangle panel, out Rectangle listBounds, out Rectangle backBounds, out bool compactLayout, out int rowHeight)
+        {
+            var panelWidth = Math.Min(_game.ViewportWidth - 32, 760);
+            var panelHeight = Math.Min(_game.ViewportHeight - 32, _game.ViewportHeight < 540 ? _game.ViewportHeight - 36 : 620);
+            panel = new Rectangle(
+                (_game.ViewportWidth - panelWidth) / 2,
+                (_game.ViewportHeight - panelHeight) / 2,
+                panelWidth,
+                panelHeight);
+
+            compactLayout = panel.Height < 540 || panel.Width < 700;
+            var padding = compactLayout ? 20 : 28;
+            rowHeight = compactLayout ? 46 : 52;
+            var headerHeight = compactLayout ? 48 : 56;
+            var footerHeight = compactLayout ? 56 : 64;
+            var scrollbarPadding = 18;
+
+            listBounds = new Rectangle(
+                panel.X + padding,
+                panel.Y + headerHeight,
+                panel.Width - (padding * 2) - scrollbarPadding,
+                Math.Max(rowHeight, panel.Height - headerHeight - footerHeight - 10));
+
+            var backWidth = compactLayout ? 150 : 180;
+            var backHeight = compactLayout ? 36 : 42;
+            backBounds = new Rectangle(panel.Right - padding - backWidth, panel.Bottom - padding - backHeight, backWidth, backHeight);
         }
 
         private IReadOnlyList<ClientPluginOptionsEntry> GetClientPluginOptionsEntries()

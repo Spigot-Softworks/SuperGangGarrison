@@ -252,6 +252,7 @@ sealed class SnapshotBroadcaster
             mapMetadata.MapContentHash,
             _world.Level.MapScale)
         {
+            TimeLimitTicks = _world.MatchRules.TimeLimitTicks,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
         };

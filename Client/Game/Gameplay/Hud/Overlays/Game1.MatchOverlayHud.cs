@@ -9,11 +9,24 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private const float ObjectiveHudSourceHeight = 600f;
+    private static readonly Color HudTimerTextColor = new(217, 217, 183);
+    private const float HudTimerCircleScale = 3f;
+    private const float HudTimerHudScale = 3f;
+    private const float HudTimerCircleCenterXOffset = 39f;
+    private const float HudTimerCenterY = 30f;
+    private const float HudTimerLeftPadding = 6f;
+    private const float HudTimerVerticalCenterOffset = 2f;
+    private const float HudSetupLabelBottomPadding = 10f;
+    private const float HudSetupLabelScale = 1f;
+    private const float HudSetupLabelShadowAlpha = 0.55f;
+
     private void DrawControlPointHud()
     {
         var viewportWidth = ViewportWidth;
-        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
+        var objectiveHudY = ToObjectiveHudY(560f);
+        var objectiveHudCounterY = ToObjectiveHudY(563f);
 
         DrawControlPointTimer(centerX);
 
@@ -40,17 +53,17 @@ public partial class Game1
                 progressFrame = teamOffset + Math.Clamp((int)MathF.Floor(progress * 30f), 0, 30);
             }
 
-            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
+            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
 
             if (point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
+                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
             }
 
             if (point.Cappers > 0 && !point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, 560f), Color.White, new Vector2(3f, 3f));
-                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, 563f), Color.Black, 1.5f);
+                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + 13f, objectiveHudCounterY), Color.Black, 1.5f);
             }
 
             drawX += 60f;
@@ -75,8 +88,12 @@ public partial class Game1
             var setupFrame = Math.Clamp((int)MathF.Floor((_world.ControlPointSetupTicksRemaining / 1800f) * 12f), 0, 12);
             TryDrawScreenSprite("TimerS", setupFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
-            DrawHudTimerText(centerX, FormatHudTimerText(_world.ControlPointSetupTicksRemaining), 20f);
-            DrawHudTextCentered("Setup", new Vector2(centerX - 3f, 40f), Color.White, 1f);
+            DrawHudTimerText(centerX, FormatHudTimerText(_world.ControlPointSetupTicksRemaining));
+            var setupLabelExtraDrop = MathF.Max(1f, MeasureMenuBitmapFontHeight(HudSetupLabelScale) * 0.5f);
+            var setupLabelY = HudTimerCenterY + (GetHudTimerHudHeight() * 0.5f) + HudSetupLabelBottomPadding + setupLabelExtraDrop;
+            var setupLabelPosition = new Vector2(centerX - 3f, setupLabelY);
+            DrawBuildHudTextCentered("Setup", setupLabelPosition + Vector2.One, Color.Black * HudSetupLabelShadowAlpha, HudSetupLabelScale);
+            DrawBuildHudTextCentered("Setup", setupLabelPosition, HudTimerTextColor, HudSetupLabelScale);
             return;
         }
 
@@ -91,8 +108,9 @@ public partial class Game1
     private void DrawArenaHud()
     {
         var viewportWidth = ViewportWidth;
-        var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
+        var objectiveHudY = ToObjectiveHudY(560f);
+        var objectiveHudCounterY = ToObjectiveHudY(563f);
         DrawMatchTimerHud(centerX);
 
         var statusBaseFrame = _world.ArenaPointTeam switch
@@ -105,17 +123,17 @@ public partial class Game1
             ? statusBaseFrame + Math.Clamp((int)MathF.Floor((_world.ArenaCappingTicks / Math.Max(1f, _world.ArenaPointCapTimeTicks)) * 30f), 0, 30)
             : statusBaseFrame;
 
-        TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(centerX, 560f), Color.White, new Vector2(3f, 3f));
+        TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(centerX, objectiveHudY), Color.White, new Vector2(3f, 3f));
 
         if (_world.ArenaPointLocked)
         {
             var unlockSeconds = Math.Max(1, (int)MathF.Ceiling(_world.ArenaUnlockTicksRemaining / (float)_config.TicksPerSecond));
-            DrawHudTextCentered(unlockSeconds.ToString(CultureInfo.InvariantCulture), new Vector2(centerX, 562f), Color.White, 1f);
+            DrawHudTextCentered(unlockSeconds.ToString(CultureInfo.InvariantCulture), new Vector2(centerX, ToObjectiveHudY(562f)), Color.White, 1f);
         }
         else if (_world.ArenaCappers > 0)
         {
-            TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(centerX, 560f), Color.White, new Vector2(3f, 3f));
-            DrawHudTextCentered(_world.ArenaCappers.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 13f, 563f), Color.Black, 1f);
+            TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(centerX, objectiveHudY), Color.White, new Vector2(3f, 3f));
+            DrawHudTextCentered(_world.ArenaCappers.ToString(CultureInfo.InvariantCulture), new Vector2(centerX + 13f, objectiveHudCounterY), Color.Black, 1f);
         }
 
         TryDrawScreenSprite("ArenaPlayerCountS", 0, new Vector2(centerX, 71f), Color.White, new Vector2(2f, 2f));
@@ -224,9 +242,77 @@ public partial class Game1
         return minutes.ToString(CultureInfo.InvariantCulture) + ":" + seconds.ToString("00", CultureInfo.InvariantCulture);
     }
 
-    private void DrawHudTimerText(float centerX, string timeText, float timerTextY = 20f)
+    private void DrawHudTimerText(float centerX, string timeText)
     {
-        DrawTimerFontTextRightAligned(timeText, new Vector2(centerX + 20f, timerTextY), Color.White, 1f);
+        if (string.IsNullOrEmpty(timeText))
+        {
+            return;
+        }
+
+        var textWidthAtOne = MeasureSpriteFontWidth(TimerFontDefinition, timeText, 1f);
+        var textHeightAtOne = MeasureSpriteFontHeight(TimerFontDefinition, 1f);
+        if (textWidthAtOne <= 0f || textHeightAtOne <= 0f)
+        {
+            DrawTimerFontTextRightAlignedCenteredY(timeText, new Vector2(centerX + 16f, HudTimerCenterY), HudTimerTextColor, 1f);
+            return;
+        }
+
+        var timerHudSprite = GetResolvedSprite("TimerHudS");
+        var timerCircleSprite = GetResolvedSprite("TimerS");
+        if (timerHudSprite is null
+            || timerHudSprite.Frames.Count == 0
+            || timerCircleSprite is null
+            || timerCircleSprite.Frames.Count == 0)
+        {
+            DrawTimerFontTextRightAlignedCenteredY(timeText, new Vector2(centerX + 16f, HudTimerCenterY), HudTimerTextColor, 1f);
+            return;
+        }
+
+        var timerHudFrame = timerHudSprite.Frames[0];
+        var timerCircleFrame = timerCircleSprite.Frames[0];
+        var timerHudLeft = centerX - (timerHudSprite.Origin.X * HudTimerHudScale);
+        var innerLeft = timerHudLeft + (HudTimerHudScale * 1.5f) + HudTimerLeftPadding;
+        var circleCenterX = centerX + HudTimerCircleCenterXOffset;
+        var circleHalfWidth = (timerCircleFrame.Width * HudTimerCircleScale) * 0.5f;
+        var innerRight = circleCenterX - circleHalfWidth - (HudTimerHudScale * 1f);
+        var availableWidth = Math.Max(1f, innerRight - innerLeft);
+        var availableHeight = Math.Max(1f, (timerCircleFrame.Height * HudTimerCircleScale) - (HudTimerHudScale * 2f));
+
+        var scale = MathF.Min(availableWidth / textWidthAtOne, availableHeight / textHeightAtOne);
+        scale = MathF.Max(0.55f, MathF.Min(scale, 2f));
+
+        var textWidth = textWidthAtOne * scale;
+        var textHeight = textHeightAtOne * scale;
+        var textX = innerLeft + ((availableWidth - textWidth) * 0.5f);
+        var textY = (HudTimerCenterY + HudTimerVerticalCenterOffset) - (textHeight * 0.5f);
+        DrawTimerFontText(timeText, new Vector2(textX, textY), HudTimerTextColor, scale);
+    }
+
+    private float GetHudTimerCircleHeight()
+    {
+        var timerSprite = GetResolvedSprite("TimerS");
+        if (timerSprite is null || timerSprite.Frames.Count == 0)
+        {
+            return 30f;
+        }
+
+        return timerSprite.Frames[0].Height * HudTimerCircleScale;
+    }
+
+    private float GetHudTimerHudHeight()
+    {
+        var timerHudSprite = GetResolvedSprite("TimerHudS");
+        if (timerHudSprite is null || timerHudSprite.Frames.Count == 0)
+        {
+            return 30f;
+        }
+
+        return timerHudSprite.Frames[0].Height * HudTimerHudScale;
+    }
+
+    private float ToObjectiveHudY(float sourceY)
+    {
+        return ViewportHeight - ObjectiveHudSourceHeight + sourceY;
     }
 
     private void DrawKillFeedHud()

@@ -67,43 +67,49 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * MathF.Min(0.8f, alpha));
         TryDrawScreenSprite("TeamSelectS", 0, new Vector2(viewportWidth / 2f, _teamSelectPanelY), Color.White * alpha, Vector2.One);
 
-        if (_teamSelectHoverIndex < 0 || _teamSelectPanelY < 120f)
+        if (_teamSelectHoverIndex >= 0 && _teamSelectPanelY >= 120f)
         {
-            return;
-        }
+            var drawX = GetTeamSelectDrawX(_teamSelectHoverIndex);
+            var lines = GetTeamSelectDescription(_teamSelectHoverIndex);
+            var balance = GetTeamBalance();
+            if (_teamSelectHoverIndex != 1 && _teamSelectHoverIndex != 4)
+            {
+                var doorFrame = _teamSelectHoverIndex switch
+                {
+                    0 => 2,
+                    2 => balance == PlayerTeam.Red ? 3 : 0,
+                    3 => balance == PlayerTeam.Blue ? 4 : 1,
+                    _ => -1,
+                };
+                if (doorFrame >= 0 && doorFrame != 3 && doorFrame != 4)
+                {
+                    TryDrawScreenSprite("TeamDoorS", doorFrame, new Vector2(panelLeft + drawX, 48f), Color.White, Vector2.One);
+                    TryDrawScreenSprite("DoorTopLightUpS", doorFrame, new Vector2(panelLeft + drawX + 16f, 0f), Color.White, Vector2.One);
+                }
+            }
 
-        var drawX = GetTeamSelectDrawX(_teamSelectHoverIndex);
-        var lines = GetTeamSelectDescription(_teamSelectHoverIndex);
-        var balance = GetTeamBalance();
-        if (_teamSelectHoverIndex != 1 && _teamSelectHoverIndex != 4)
-        {
-            var doorFrame = _teamSelectHoverIndex switch
+            if (_teamSelectHoverIndex == 1)
             {
-                0 => 2,
-                2 => balance == PlayerTeam.Red ? 3 : 0,
-                3 => balance == PlayerTeam.Blue ? 4 : 1,
-                _ => -1,
-            };
-            if (doorFrame >= 0 && doorFrame != 3 && doorFrame != 4)
+                TryDrawScreenSprite("TVLightUpS", 0, new Vector2(panelLeft + drawX, 118f), Color.White, Vector2.One);
+            }
+
+            float[] lineY = [80f, 100f, 120f, 130f, 140f];
+            for (var index = 0; index < lines.Length; index += 1)
             {
-                TryDrawScreenSprite("TeamDoorS", doorFrame, new Vector2(panelLeft + drawX, 48f), Color.White, Vector2.One);
-                TryDrawScreenSprite("DoorTopLightUpS", doorFrame, new Vector2(panelLeft + drawX + 16f, 0f), Color.White, Vector2.One);
+                DrawBitmapFontText(lines[index], new Vector2(panelLeft + 495f, lineY[index]), Color.White * alpha, 1f);
             }
         }
 
-        if (_teamSelectHoverIndex == 1)
-        {
-            TryDrawScreenSprite("TVLightUpS", 0, new Vector2(panelLeft + drawX, 118f), Color.White, Vector2.One);
-        }
-
-        float[] lineY = [80f, 100f, 120f, 130f, 140f];
-        for (var index = 0; index < lines.Length; index += 1)
-        {
-            DrawBitmapFontText(lines[index], new Vector2(panelLeft + 495f, lineY[index]), Color.White * alpha, 1f);
-        }
-
-        DrawBitmapFontText(GetTeamCount(PlayerTeam.Red).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 284f, 26f), Color.Black * alpha, 1f);
-        DrawBitmapFontText(GetTeamCount(PlayerTeam.Blue).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 396f, 26f), Color.Black * alpha, 1f);
+        const float teamCountBaseY = 26f;
+        const float teamCountOffsetX = -3f;
+        const float teamCountOffsetY = -2f;
+        const float teamCountScale = 1.5f;
+        const float teamCountExtraDrop = -1f;
+        var panelYOffset = _teamSelectPanelY - 120f;
+        var teamCountBottomY = (teamCountBaseY + teamCountOffsetY + panelYOffset) + MeasureBitmapFontHeight(1f);
+        var teamCountDrawY = (teamCountBottomY - MeasureBitmapFontHeight(teamCountScale)) + teamCountExtraDrop;
+        DrawBitmapFontText(GetTeamCount(PlayerTeam.Red).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 284f + teamCountOffsetX, teamCountDrawY), Color.Black * alpha, teamCountScale);
+        DrawBitmapFontText(GetTeamCount(PlayerTeam.Blue).ToString(CultureInfo.InvariantCulture), new Vector2(panelLeft + 396f + teamCountOffsetX, teamCountDrawY), Color.Black * alpha, teamCountScale);
     }
 
     private static int GetTeamSelectHoverIndex(int mouseX, int mouseY, float panelLeft)

@@ -228,6 +228,7 @@ public partial class Game1
         public void UpdateHostSetupMenu(MouseState mouse)
         {
             var layout = HostSetupMenuLayoutCalculator.CreateMenuLayout(_game.ViewportWidth, _game.ViewportHeight, _game._hostMapEntries.Count, _game.IsServerLauncherMode);
+            _game.ClampHostSetupContentScrollOffset(layout);
             var clickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
 
             if (TryHandleHostSetupTabClick(mouse, clickPressed, layout))
@@ -414,12 +415,13 @@ public partial class Game1
         private void UpdateHostSetupHoverIndex(MouseState mouse, HostSetupMenuLayout layout)
         {
             _game._hostSetupHoverIndex = -1;
-            if (!layout.ListRowsBounds.Contains(mouse.Position))
+            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
+            if (!HostSetupContentContains(layout, listRowsBounds, mouse.Position))
             {
                 return;
             }
 
-            var row = (mouse.Y - layout.ListRowsBounds.Y) / layout.RowHeight;
+            var row = (mouse.Y - listRowsBounds.Y) / layout.RowHeight;
             var mapIndex = _game._hostMapScrollOffset + row;
             if (mapIndex >= 0 && mapIndex < _game._hostMapEntries.Count)
             {
@@ -430,109 +432,139 @@ public partial class Game1
         private void HandleHostSetupListScroll(MouseState mouse, HostSetupMenuLayout layout)
         {
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
-            if (wheelDelta == 0 || !layout.ListRowsBounds.Contains(mouse.Position))
+            if (wheelDelta == 0)
             {
                 return;
             }
 
             var stepCount = Math.Max(1, Math.Abs(wheelDelta) / 120);
-            _game._hostSetupState.ScrollMapList(wheelDelta > 0 ? -stepCount : stepCount, layout.VisibleRowCapacity);
+            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
+            if (HostSetupContentContains(layout, listRowsBounds, mouse.Position))
+            {
+                _game._hostSetupState.ScrollMapList(wheelDelta > 0 ? -stepCount : stepCount, layout.VisibleRowCapacity);
+                return;
+            }
+
+            if (layout.ContentViewportBounds.Contains(mouse.Position))
+            {
+                _game._hostSetupContentScrollOffset = Math.Clamp(
+                    _game._hostSetupContentScrollOffset + (wheelDelta > 0 ? -(stepCount * 28) : (stepCount * 28)),
+                    0,
+                    Math.Max(0, _game.GetHostSetupContentHeight(layout) - layout.ContentViewportBounds.Height));
+            }
         }
 
         private void HandleHostSetupSettingsMenuClick(MouseState mouse, HostSetupMenuLayout layout)
         {
-            if (layout.ServerNameBounds.Contains(mouse.Position))
+            var serverNameBounds = _game.GetHostSetupScrolledContentBounds(layout.ServerNameBounds);
+            var portBounds = _game.GetHostSetupScrolledContentBounds(layout.PortBounds);
+            var slotsBounds = _game.GetHostSetupScrolledContentBounds(layout.SlotsBounds);
+            var passwordBounds = _game.GetHostSetupScrolledContentBounds(layout.PasswordBounds);
+            var rconPasswordBounds = _game.GetHostSetupScrolledContentBounds(layout.RconPasswordBounds);
+            var rotationFileBounds = _game.GetHostSetupScrolledContentBounds(layout.RotationFileBounds);
+            var timeLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.TimeLimitBounds);
+            var capLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.CapLimitBounds);
+            var respawnBounds = _game.GetHostSetupScrolledContentBounds(layout.RespawnBounds);
+            var listRowsBounds = _game.GetHostSetupScrolledContentBounds(layout.ListRowsBounds);
+            var toggleBounds = _game.GetHostSetupScrolledContentBounds(layout.ToggleBounds);
+            var moveUpBounds = _game.GetHostSetupScrolledContentBounds(layout.MoveUpBounds);
+            var moveDownBounds = _game.GetHostSetupScrolledContentBounds(layout.MoveDownBounds);
+            var lobbyBounds = _game.GetHostSetupScrolledContentBounds(layout.LobbyBounds);
+            var autoBalanceBounds = _game.GetHostSetupScrolledContentBounds(layout.AutoBalanceBounds);
+            var secondaryAbilitiesBounds = _game.GetHostSetupScrolledContentBounds(layout.SecondaryAbilitiesBounds);
+
+            if (HostSetupContentContains(layout, serverNameBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.ServerName);
                 return;
             }
 
-            if (layout.PortBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, portBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.Port);
                 return;
             }
 
-            if (layout.SlotsBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, slotsBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.Slots);
                 return;
             }
 
-            if (layout.PasswordBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, passwordBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.Password);
                 return;
             }
 
-            if (layout.RconPasswordBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, rconPasswordBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.RconPassword);
                 return;
             }
 
-            if (layout.RotationFileBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, rotationFileBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.MapRotationFile);
                 return;
             }
 
-            if (layout.TimeLimitBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, timeLimitBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.TimeLimit);
                 return;
             }
 
-            if (layout.CapLimitBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, capLimitBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.CapLimit);
                 return;
             }
 
-            if (layout.RespawnBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, respawnBounds, mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.RespawnSeconds);
                 return;
             }
 
-            if (_game._hostSetupHoverIndex >= 0 && layout.ListRowsBounds.Contains(mouse.Position))
+            if (_game._hostSetupHoverIndex >= 0 && HostSetupContentContains(layout, listRowsBounds, mouse.Position))
             {
                 _game._hostMapIndex = _game._hostSetupHoverIndex;
                 ClearHostSetupFocus();
                 return;
             }
 
-            if (layout.ToggleBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, toggleBounds, mouse.Position))
             {
                 _game.ToggleSelectedHostMap();
                 return;
             }
 
-            if (layout.MoveUpBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, moveUpBounds, mouse.Position))
             {
                 _game.MoveSelectedHostMap(-1);
                 return;
             }
 
-            if (layout.MoveDownBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, moveDownBounds, mouse.Position))
             {
                 _game.MoveSelectedHostMap(1);
                 return;
             }
 
-            if (layout.LobbyBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, lobbyBounds, mouse.Position))
             {
                 _game._hostLobbyAnnounceEnabled = !_game._hostLobbyAnnounceEnabled;
                 return;
             }
 
-            if (layout.AutoBalanceBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, autoBalanceBounds, mouse.Position))
             {
                 _game._hostAutoBalanceEnabled = !_game._hostAutoBalanceEnabled;
                 return;
             }
 
-            if (layout.SecondaryAbilitiesBounds.Contains(mouse.Position))
+            if (HostSetupContentContains(layout, secondaryAbilitiesBounds, mouse.Position))
             {
                 _game._hostSecondaryAbilitiesEnabled = !_game._hostSecondaryAbilitiesEnabled;
                 return;
@@ -554,6 +586,11 @@ public partial class Game1
             {
                 CloseHostSetupMenuFromBackAction();
             }
+        }
+
+        private static bool HostSetupContentContains(HostSetupMenuLayout layout, Rectangle bounds, Point point)
+        {
+            return layout.ContentViewportBounds.Contains(point) && bounds.Contains(point);
         }
 
         private bool HandleHostedServerConsoleTextInput(TextInputEventArgs e)
