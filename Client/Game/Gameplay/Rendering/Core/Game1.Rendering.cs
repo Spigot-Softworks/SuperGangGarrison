@@ -192,6 +192,110 @@ public partial class Game1
         }
     }
 
+    // nozzleThickness : width at t=0 (gun end)
+    // maxThickness    : peak width reached after rampDistancePixels world-pixels
+    // tailThickness   : width at t=1 (target end)
+    // rampDistPixels  : world-pixel distance over which the beam widens from nozzle to max
+    private void DrawCurvedWorldLine(
+        float startX, float startY, float endX, float endY,
+        Vector2 cameraPosition,
+        Color startColor, Color endColor,
+        float nozzleThickness, float maxThickness, float tailThickness, float rampDistPixels,
+        Vector2 aimDirection)
+    {
+        var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
+        var end   = new Vector2(endX   - cameraPosition.X, endY   - cameraPosition.Y);
+        var toTarget = end - start;
+        var distToTarget = toTarget.Length();
+        if (distToTarget <= 0.01f) return;
+
+        var aimDir = aimDirection;
+        aimDir.Normalize();
+        var targetDir = toTarget / distToTarget;
+        var alignment = Vector2.Dot(aimDir, targetDir);
+
+        Vector2 controlPoint;
+        if (alignment > 0.98f)
+        {
+            controlPoint = (start + end) * 0.5f;
+        }
+        else
+        {
+            var controlDist = distToTarget * 0.5f;
+            controlPoint = start + aimDir * controlDist;
+            var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
+            if (Vector2.Dot(perpToAim, targetDir) < 0)
+                perpToAim = -perpToAim;
+            var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
+            controlPoint += perpToAim * (distToTarget * 0.12f * (turnAngle / MathF.PI));
+        }
+
+        const float pixelSize = 2f;
+        const int segments = 32;
+
+        // First-write-wins: cell colour corresponds to its earliest-t segment
+        var pixelatedCells = new System.Collections.Generic.Dictionary<(int, int), Color>();
+
+        var curvePoints = new System.Collections.Generic.List<(Vector2 pos, float t)>(segments + 1);
+        for (int i = 0; i <= segments; i++)
+        {
+            var t = (float)i / segments;
+            var oneMinusT = 1f - t;
+            var point = oneMinusT * oneMinusT * start
+                      + 2f * oneMinusT * t * controlPoint
+                      + t * t * end;
+            curvePoints.Add((point, t));
+        }
+
+        var safeRamp = MathF.Max(rampDistPixels, 0.01f);
+        var safeTail = MathF.Max(distToTarget - safeRamp, 0.01f);
+
+        for (int i = 0; i < curvePoints.Count - 1; i++)
+        {
+            var (segStart, tStart) = curvePoints[i];
+            var (segEnd,   _)      = curvePoints[i + 1];
+            var segDir = segEnd - segStart;
+            var segLength = segDir.Length();
+            if (segLength < 0.01f) continue;
+            segDir /= segLength;
+            var perpDir = new Vector2(-segDir.Y, segDir.X);
+
+            // Envelope: nozzle → ramp up to max → taper to tail
+            var dist = tStart * distToTarget;
+            float beamWidth;
+            if (dist < safeRamp)
+                beamWidth = nozzleThickness + (maxThickness - nozzleThickness) * (dist / safeRamp);
+            else
+                beamWidth = maxThickness + (tailThickness - maxThickness) * ((dist - safeRamp) / safeTail);
+
+            var color = Color.Lerp(startColor, endColor, tStart);
+
+            for (int j = 0; j <= (int)MathF.Ceiling(segLength); j++)
+            {
+                var samplePoint = segStart + segDir * j;
+                for (float offset = -beamWidth / 2f; offset <= beamWidth / 2f; offset += pixelSize)
+                {
+                    var thickPoint = samplePoint + perpDir * offset;
+                    var gridX = (int)MathF.Floor(thickPoint.X / pixelSize);
+                    var gridY = (int)MathF.Floor(thickPoint.Y / pixelSize);
+                    var key = (gridX, gridY);
+                    if (!pixelatedCells.ContainsKey(key))
+                        pixelatedCells[key] = color;
+                }
+            }
+        }
+
+        foreach (var ((gridX, gridY), cellColor) in pixelatedCells)
+        {
+            var pixelRect = new Rectangle(
+                (int)(gridX * pixelSize),
+                (int)(gridY * pixelSize),
+                (int)pixelSize,
+                (int)pixelSize);
+            _spriteBatch.Draw(_pixel, pixelRect, cellColor);
+        }
+    }
+
     private bool TryDrawSprite(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, Color tint, float rotation = 0f)
     {
         return TryDrawSprite(spriteName, frameIndex, worldX, worldY, cameraPosition, tint, rotation, Vector2.One);
