@@ -6,14 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private const string PracticeBotNamesRelativePath = "Client/practice-bot-names.txt";
     private const int BrowserPracticeBotThinkIntervalTicksSmallRoster = 2;
     private const int BrowserPracticeBotThinkIntervalTicksMediumRoster = 3;
     private const int BrowserPracticeBotThinkIntervalTicksLargeRoster = 4;
@@ -32,11 +30,9 @@ public partial class Game1
     ];
 
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
-    private readonly Dictionary<byte, string> _practiceBotDisplayNamesBySlot = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
-    private readonly HashSet<string> _practiceUsedBotDisplayNames = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Queue<string> _practiceAvailableBotDisplayNames = new();
+    private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can depend on the dedicated Modern bot controller without leaking implementation details into the client plumbing.")]
     private readonly IPracticeBotController _practiceBotController = new ModernPracticeBotController();
     private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
@@ -85,9 +81,6 @@ public partial class Game1
         }
 
         _practiceBotSlots.Clear();
-        _practiceBotDisplayNamesBySlot.Clear();
-        _practiceUsedBotDisplayNames.Clear();
-        _practiceAvailableBotDisplayNames.Clear();
         _browserPracticeBotInputCache.Clear();
         _browserPracticeBotThinkTick = 0;
         _browserPracticeBotPerfSamples = 0;
@@ -121,7 +114,7 @@ public partial class Game1
             var slot = staleSlots[index];
             _world.TryReleaseNetworkPlayerSlot(slot);
             _practiceBotSlots.Remove(slot);
-            _practiceBotDisplayNamesBySlot.Remove(slot);
+            _practiceBotDisplayNamePool.ReleaseSlot(slot);
         }
 
         foreach (var desired in desiredSlots.Values)
@@ -188,7 +181,6 @@ public partial class Game1
         int classOffset)
     {
         var nextSlot = startSlot;
-        var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
         if (count <= 0 || classCycle.Length == 0)
         {
             return nextSlot;
@@ -201,7 +193,7 @@ public partial class Game1
                 nextSlot,
                 team,
                 classId,
-                GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
+                _practiceBotDisplayNamePool.GetOrAssign(nextSlot, team, index + 1));
             nextSlot += 1;
         }
 
@@ -222,14 +214,13 @@ public partial class Game1
 
         var enemyClasses = BuildLastToDieEnemyBotClassList(GetOfflineEnemyBotCount());
         var enemyTeam = GetOpposingTeam(localTeam);
-        var teamLabel = enemyTeam == PlayerTeam.Blue ? "BLU" : "RED";
         for (var index = 0; index < enemyClasses.Count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
             desiredSlots[nextSlot] = new PracticeBotSlotState(
                 nextSlot,
                 enemyTeam,
                 enemyClasses[index],
-                GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
+                _practiceBotDisplayNamePool.GetOrAssign(nextSlot, enemyTeam, index + 1));
             nextSlot += 1;
         }
 
@@ -243,7 +234,6 @@ public partial class Game1
         int count)
     {
         var nextSlot = startSlot;
-        var teamLabel = team == PlayerTeam.Blue ? "BLU" : "RED";
         if (count <= 0)
         {
             return nextSlot;
@@ -268,7 +258,7 @@ public partial class Game1
                 nextSlot,
                 team,
                 classId,
-                GetOrAssignPracticeBotDisplayName(nextSlot, teamLabel, index + 1));
+                _practiceBotDisplayNamePool.GetOrAssign(nextSlot, team, index + 1));
             nextSlot += 1;
         }
 
@@ -404,100 +394,7 @@ public partial class Game1
 
     private void InitializePracticeBotNamePoolForMatch()
     {
-        _practiceBotDisplayNamesBySlot.Clear();
-        _practiceUsedBotDisplayNames.Clear();
-        _practiceAvailableBotDisplayNames.Clear();
-
-        var availableNames = LoadPracticeBotDisplayNames();
-        ShufflePracticeBotNames(availableNames);
-        for (var index = 0; index < availableNames.Count; index += 1)
-        {
-            _practiceAvailableBotDisplayNames.Enqueue(availableNames[index]);
-        }
-    }
-
-    private static List<string> LoadPracticeBotDisplayNames()
-    {
-        var path = ResolvePracticeBotNamesPath();
-        var names = new List<string>();
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        {
-            return names;
-        }
-
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var line in File.ReadAllLines(path))
-        {
-            var trimmed = line.Trim();
-            if (trimmed.Length == 0 || trimmed.StartsWith('#'))
-            {
-                continue;
-            }
-
-            if (!seenNames.Add(trimmed))
-            {
-                continue;
-            }
-
-            names.Add(trimmed);
-        }
-
-        return names;
-    }
-
-    private static string? ResolvePracticeBotNamesPath()
-    {
-        var projectFilePath = ProjectSourceLocator.FindFile(PracticeBotNamesRelativePath);
-        if (!string.IsNullOrWhiteSpace(projectFilePath))
-        {
-            return projectFilePath;
-        }
-
-        var configPath = RuntimePaths.GetConfigPath("practice-bot-names.txt");
-        return File.Exists(configPath) ? configPath : null;
-    }
-
-    private static void ShufflePracticeBotNames(List<string> names)
-    {
-        for (var index = names.Count - 1; index > 0; index -= 1)
-        {
-            var swapIndex = System.Security.Cryptography.RandomNumberGenerator.GetInt32(index + 1);
-            (names[index], names[swapIndex]) = (names[swapIndex], names[index]);
-        }
-    }
-
-    private string GetOrAssignPracticeBotDisplayName(byte slot, string teamLabel, int teamBotNumber)
-    {
-        if (_practiceBotDisplayNamesBySlot.TryGetValue(slot, out var existing))
-        {
-            return existing;
-        }
-
-        while (_practiceAvailableBotDisplayNames.Count > 0)
-        {
-            var candidate = _practiceAvailableBotDisplayNames.Dequeue();
-            if (!_practiceUsedBotDisplayNames.Add(candidate))
-            {
-                continue;
-            }
-
-            _practiceBotDisplayNamesBySlot[slot] = candidate;
-            return candidate;
-        }
-
-        var fallbackNumber = Math.Max(1, teamBotNumber);
-        while (true)
-        {
-            var fallback = $"{teamLabel} Bot {fallbackNumber}";
-            fallbackNumber += 1;
-            if (!_practiceUsedBotDisplayNames.Add(fallback))
-            {
-                continue;
-            }
-
-            _practiceBotDisplayNamesBySlot[slot] = fallback;
-            return fallback;
-        }
+        _practiceBotDisplayNamePool.Reset();
     }
 
     private void UpdatePracticeBots()

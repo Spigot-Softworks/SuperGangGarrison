@@ -1,3 +1,4 @@
+using System.Net;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
@@ -79,8 +80,471 @@ public sealed class SnapshotDeltaBudgeterTests
             SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes);
 
         Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes);
-        Assert.Equal(players.Length, result.Message.Players.Count);
-        Assert.Contains(result.Message.Players, player => player.Name == "Bot Player 00");
+        Assert.Empty(result.Message.Players);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+        Assert.Equal(players.Length, merged.Players.Count);
+        Assert.Contains(merged.Players, player => player.Name == "Bot Player 00");
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotReplicatesKnownPlayerMovementAsCompactDeltas()
+    {
+        var baselinePlayers = Enumerable.Range(0, 20)
+            .Select(index => CreatePlayerState((byte)(index + 1), 500 + index, $"Roster Player {index:D2}"))
+            .ToArray();
+        var currentPlayers = baselinePlayers
+            .Select(player => player with { X = player.X + 8f, AimDirectionDegrees = player.AimDirectionDegrees + 15f })
+            .ToArray();
+        var baseline = CreateSnapshot(300) with
+        {
+            Players = baselinePlayers,
+        };
+        var current = CreateSnapshot(301) with
+        {
+            Players = currentPlayers,
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Empty(result.Message.Players);
+        Assert.Equal(currentPlayers.Length, result.Message.PlayerMovementStates.Count);
+        Assert.Equal(currentPlayers.Length, merged.Players.Count);
+        var localPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Equal(currentPlayers[0].X, localPlayer.X);
+        Assert.Equal(currentPlayers[0].AimDirectionDegrees, localPlayer.AimDirectionDegrees);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotKeepsBotMovementFromStarvingProjectiles()
+    {
+        var baselinePlayers = Enumerable.Range(0, 12)
+            .Select(index => CreatePlayerState((byte)(index + 1), 900 + index, $"Moving Player {index:D2}"))
+            .ToArray();
+        var currentPlayers = baselinePlayers
+            .Select(player => player with
+            {
+                X = player.X + 12f,
+                HorizontalSpeed = 6f,
+                AimDirectionDegrees = player.AimDirectionDegrees + 20f,
+            })
+            .ToArray();
+        var baseline = CreateSnapshot(320) with
+        {
+            Players = baselinePlayers,
+        };
+        var current = CreateSnapshot(321) with
+        {
+            Players = currentPlayers,
+            Shots = Enumerable.Range(0, 8)
+                .Select(index => new SnapshotShotState(
+                    Id: 1000 + index,
+                    Team: 1,
+                    OwnerId: 900 + index,
+                    X: 128f + index,
+                    Y: 64f + index,
+                    VelocityX: 16f,
+                    VelocityY: 0f,
+                    TicksRemaining: 24))
+                .ToArray(),
+            Rockets = Enumerable.Range(0, 3)
+                .Select(index => new SnapshotRocketState(
+                    Id: 2000 + index,
+                    Team: 1,
+                    OwnerId: 900 + index,
+                    X: 200f + index,
+                    Y: 90f + index,
+                    PreviousX: 196f + index,
+                    PreviousY: 90f + index,
+                    DirectionRadians: 0f,
+                    Speed: 240f,
+                    TicksRemaining: 30))
+                .ToArray(),
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Equal(currentPlayers.Length, result.Message.PlayerMovementStates.Count);
+        Assert.Equal(current.Shots.Count, result.Message.Shots.Count);
+        Assert.Equal(current.Rockets.Count, result.Message.Rockets.Count);
+        Assert.All(currentPlayers, expected =>
+        {
+            var actual = Assert.Single(merged.Players, player => player.Slot == expected.Slot);
+            Assert.Equal(expected.X, actual.X);
+            Assert.Equal(expected.HorizontalSpeed, actual.HorizontalSpeed);
+        });
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotForcesNewPlayerRosterEntryBeforeKnownMovement()
+    {
+        var knownPlayer = CreatePlayerState(1, 601, "Known Player");
+        var movedKnownPlayer = knownPlayer with
+        {
+            X = knownPlayer.X + 24f,
+            AimDirectionDegrees = knownPlayer.AimDirectionDegrees + 10f,
+        };
+        var addedPlayer = CreatePlayerState(2, 602, "Added Bot");
+        var baseline = CreateSnapshot(600) with
+        {
+            Players = [knownPlayer],
+        };
+        var current = CreateSnapshot(601) with
+        {
+            Players = [movedKnownPlayer, addedPlayer],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 2000,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(movedKnownPlayer)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate),
+            new(
+                Priority: 1900,
+                DistanceSquared: 1f,
+                EstimatedBytes: 4096,
+                Apply: builder => builder.Players.Add(addedPlayer),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerFirstAppearance),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Contains(result.Message.Players, player => player.Slot == addedPlayer.Slot);
+        Assert.Contains(merged.Players, player => player.Slot == knownPlayer.Slot);
+        Assert.Contains(merged.Players, player => player.Slot == addedPlayer.Slot);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotForcesRosterCorrectionWhenKnownSlotChangesClass()
+    {
+        var staleBot = CreatePlayerState(2, 701, "Old Occupant") with
+        {
+            ClassId = (byte)PlayerClass.Heavy,
+        };
+        var correctedBot = staleBot with
+        {
+            PlayerId = 702,
+            Name = "Soldier Bot",
+            ClassId = (byte)PlayerClass.Soldier,
+            X = staleBot.X + 64f,
+        };
+        var baseline = CreateSnapshot(700) with
+        {
+            Players = [staleBot],
+        };
+        var current = CreateSnapshot(701) with
+        {
+            Players = [correctedBot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+        var inflatedContributions = contributions
+            .Select(contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate
+                ? contribution with { EstimatedBytes = 4096 }
+                : contribution)
+            .ToArray();
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, inflatedContributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        var deltaPlayer = Assert.Single(result.Message.Players);
+        Assert.Equal((byte)PlayerClass.Soldier, deltaPlayer.ClassId);
+        var mergedPlayer = Assert.Single(merged.Players);
+        Assert.Equal(correctedBot.PlayerId, mergedPlayer.PlayerId);
+        Assert.Equal(correctedBot.Name, mergedPlayer.Name);
+        Assert.Equal((byte)PlayerClass.Soldier, mergedPlayer.ClassId);
+        Assert.Equal(correctedBot.X, mergedPlayer.X);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotForcesRemotePlayerMovementWhenLocalCorrectionWouldCrowdItOut()
+    {
+        var localPlayer = CreatePlayerState(1, 801, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var remoteBot = CreatePlayerState(2, 802, "Remote Bot") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var movedLocalPlayer = localPlayer with
+        {
+            X = localPlayer.X + 4f,
+        };
+        var movedRemoteBot = remoteBot with
+        {
+            X = remoteBot.X + 96f,
+            HorizontalSpeed = 8f,
+        };
+        var baseline = CreateSnapshot(800) with
+        {
+            Players = [localPlayer, remoteBot],
+        };
+        var current = CreateSnapshot(801) with
+        {
+            Players = [movedLocalPlayer, movedRemoteBot],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 2000,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(movedLocalPlayer)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+            new(
+                Priority: 1500,
+                DistanceSquared: 1f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(movedRemoteBot)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Contains(result.Message.PlayerMovementStates, player => player.Slot == remoteBot.Slot);
+        var mergedBot = Assert.Single(merged.Players, player => player.Slot == remoteBot.Slot);
+        Assert.Equal(movedRemoteBot.X, mergedBot.X);
+        Assert.Equal(movedRemoteBot.HorizontalSpeed, mergedBot.HorizontalSpeed);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotForcesLocalPlayerCorrectionWhenRemoteUpdatesWouldCrowdItOut()
+    {
+        var localPlayer = CreatePlayerState(1, 851, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var remoteBot = CreatePlayerState(2, 852, "Remote Bot") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var correctedLocalPlayer = localPlayer with
+        {
+            X = localPlayer.X + 128f,
+            HorizontalSpeed = 12f,
+        };
+        var movedRemoteBot = remoteBot with
+        {
+            X = remoteBot.X + 24f,
+        };
+        var baseline = CreateSnapshot(850) with
+        {
+            Players = [localPlayer, remoteBot],
+        };
+        var current = CreateSnapshot(851) with
+        {
+            Players = [correctedLocalPlayer, movedRemoteBot],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 2500,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(movedRemoteBot)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate),
+            new(
+                Priority: 1000,
+                DistanceSquared: 1f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(correctedLocalPlayer)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Contains(result.Message.PlayerMovementStates, player => player.Slot == localPlayer.Slot);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == localPlayer.Slot);
+        Assert.Equal(correctedLocalPlayer.X, mergedLocalPlayer.X);
+        Assert.Equal(correctedLocalPlayer.HorizontalSpeed, mergedLocalPlayer.HorizontalSpeed);
+    }
+
+    [Fact]
+    public void BuildBudgetedFirstSnapshotKeepsPlayableLocalPlayerWithinUdpBudget()
+    {
+        var currentPlayers = Enumerable.Range(0, 20)
+            .Select(index => CreatePlayerState((byte)(index + 1), 700 + index, $"Initial Player {index:D2}"))
+            .ToArray();
+        var current = CreateSnapshot(350) with
+        {
+            Players = currentPlayers,
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline: null, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline: null, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.True(result.Message.IsDelta);
+        Assert.Equal((ulong)0, result.Message.BaselineFrame);
+        Assert.Contains(merged.Players, player => player.Slot == 1);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPrioritizesUndeliveredPlayersOverKnownMovementUpdates()
+    {
+        var knownPlayers = Enumerable.Range(0, 4)
+            .Select(index => CreatePlayerState((byte)(index + 1), 800 + index, $"Known Player {index:D2}") with
+            {
+                X = 16f + index,
+                Y = 16f + index,
+            })
+            .ToArray();
+        var newPlayers = Enumerable.Range(0, 8)
+            .Select(index => CreatePlayerState((byte)(index + 5), 900 + index, $"New Player {index:D2}") with
+            {
+                X = 4000f + index,
+                Y = 4000f + index,
+            })
+            .ToArray();
+        var baseline = SnapshotBaselineState.FromSnapshot(CreateSnapshot(500) with
+        {
+            Players = knownPlayers,
+        });
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+
+        for (var frameOffset = 1; frameOffset <= 8; frameOffset += 1)
+        {
+            var movedKnownPlayers = knownPlayers
+                .Select(player => player with
+                {
+                    X = player.X + frameOffset,
+                    AimDirectionDegrees = player.AimDirectionDegrees + frameOffset,
+                })
+                .ToArray();
+            var currentPlayers = movedKnownPlayers.Concat(newPlayers).ToArray();
+            var current = CreateSnapshot((ulong)(500 + frameOffset)) with
+            {
+                Players = currentPlayers,
+            };
+            var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+            var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+                current,
+                baseline,
+                contributions,
+                targetPayloadBytes: 900);
+            var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+            baseline = SnapshotBaselineState.FromSnapshot(merged);
+        }
+
+        var deliveredSlots = baseline.Players.Select(player => player.Slot).ToHashSet();
+        for (var slot = 1; slot <= 12; slot += 1)
+        {
+            Assert.Contains((byte)slot, deliveredSlots);
+        }
+    }
+
+    [Fact]
+    public void SnapshotDeltaMergesPlayerUpdatesAndRemovals()
+    {
+        var baselinePlayers = new[]
+        {
+            CreatePlayerState(1, 501, "Alpha"),
+            CreatePlayerState(2, 502, "Bravo"),
+        };
+        var current = CreateSnapshot(401) with
+        {
+            IsDelta = true,
+            BaselineFrame = 400,
+            Players = [baselinePlayers[0] with { X = baselinePlayers[0].X + 32f }],
+            RemovedPlayerIds = [2],
+        };
+        var baseline = CreateSnapshot(400) with
+        {
+            Players = baselinePlayers,
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(current, baseline);
+
+        var player = Assert.Single(merged.Players);
+        Assert.Equal(1, player.Slot);
+        Assert.Equal(baselinePlayers[0].X + 32f, player.X);
+        Assert.Empty(merged.RemovedPlayerIds);
+    }
+
+    [Fact]
+    public void SnapshotDeltaMergesPlayerMovementDeltasIntoBaselinePlayers()
+    {
+        var baselinePlayers = new[]
+        {
+            CreatePlayerState(1, 551, "Alpha"),
+            CreatePlayerState(2, 552, "Bravo"),
+        };
+        var movedPlayer = baselinePlayers[1] with
+        {
+            X = baselinePlayers[1].X + 48f,
+            HorizontalSpeed = 10f,
+            AimDirectionDegrees = 35f,
+        };
+        var current = CreateSnapshot(451) with
+        {
+            IsDelta = true,
+            BaselineFrame = 450,
+            PlayerMovementStates = [CreateMovementState(movedPlayer)],
+        };
+        var baseline = CreateSnapshot(450) with
+        {
+            Players = baselinePlayers,
+        };
+
+        var merged = SnapshotDelta.ToFullSnapshot(current, baseline);
+
+        Assert.Empty(merged.PlayerMovementStates);
+        var unchanged = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Equal(baselinePlayers[0].X, unchanged.X);
+        var moved = Assert.Single(merged.Players, player => player.Slot == 2);
+        Assert.Equal(movedPlayer.X, moved.X);
+        Assert.Equal(movedPlayer.HorizontalSpeed, moved.HorizontalSpeed);
+        Assert.Equal(movedPlayer.AimDirectionDegrees, moved.AimDirectionDegrees);
     }
 
     private static SnapshotMessage CreateSnapshot(ulong frame)
@@ -182,5 +646,20 @@ public sealed class SnapshotDeltaBudgeterTests
             IsChatBubbleVisible: false,
             ChatBubbleFrameIndex: 0,
             ChatBubbleAlpha: 0f);
+    }
+
+    private static SnapshotPlayerMovementState CreateMovementState(SnapshotPlayerState player)
+    {
+        return new SnapshotPlayerMovementState(
+            player.Slot,
+            player.X,
+            player.Y,
+            player.HorizontalSpeed,
+            player.VerticalSpeed,
+            player.IsGrounded,
+            player.RemainingAirJumps,
+            player.FacingDirectionX,
+            player.AimDirectionDegrees,
+            player.MovementState);
     }
 }

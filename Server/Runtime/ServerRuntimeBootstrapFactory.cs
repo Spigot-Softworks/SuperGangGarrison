@@ -95,6 +95,8 @@ internal static class ServerRuntimeBootstrapFactory
         var mapMetadataResolver = new ServerMapMetadataResolver(world);
         var eventReporter = new ServerRuntimeEventReporter(world, pluginHostGetter, writeEvent, mapMetadataResolver);
         eventReporter.ResetObservedGameplayState();
+        ServerBotManager? botManager = null;
+        bool IsPlayableSlotAvailableForClient(byte slot) => botManager is null || !botManager.BotSlots.ContainsKey(slot);
         var outboundMessaging = new ServerOutboundMessaging(
             transport,
             serverName,
@@ -125,7 +127,8 @@ internal static class ServerRuntimeBootstrapFactory
             eventReporter.NotifyClientDisconnected,
             eventReporter.NotifyPasswordAccepted,
             eventReporter.NotifyPlayerTeamChanged,
-            eventReporter.NotifyPlayerClassChanged);
+            eventReporter.NotifyPlayerClassChanged,
+            IsPlayableSlotAvailableForClient);
         var autoBalancer = new AutoBalancer(
             world,
             config,
@@ -138,7 +141,7 @@ internal static class ServerRuntimeBootstrapFactory
 
         // Create the server bot manager with the modern practice bot controller
         var botController = new ModernPracticeBotController();
-        var botManager = new ServerBotManager(
+        botManager = new ServerBotManager(
             world,
             config,
             botController,

@@ -290,6 +290,18 @@ public sealed record SnapshotPlayerState(
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
     float PlayerScale = 1f);
 
+public sealed record SnapshotPlayerMovementState(
+    byte Slot,
+    float X,
+    float Y,
+    float HorizontalSpeed,
+    float VerticalSpeed,
+    bool IsGrounded,
+    int RemainingAirJumps,
+    float FacingDirectionX,
+    float AimDirectionDegrees,
+    byte MovementState);
+
 public sealed record SnapshotIntelState(
     byte Team,
     float X,
@@ -572,6 +584,8 @@ public sealed record SnapshotMessage(
 
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }
+    public IReadOnlyList<SnapshotPlayerMovementState> PlayerMovementStates { get; init; } = Array.Empty<SnapshotPlayerMovementState>();
+    public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedShotIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedBubbleIds { get; init; } = Array.Empty<int>();

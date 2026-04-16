@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenGarrison.Protocol;
 
@@ -30,6 +31,7 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
+            Players = MergePlayers(baseline?.Players, snapshot.Players, snapshot.PlayerMovementStates, snapshot.RemovedPlayerIds),
             Sentries = MergeEntities(baseline?.Sentries, snapshot.Sentries, snapshot.RemovedSentryIds, static state => state.Id),
             Shots = MergeEntities(baseline?.Shots, snapshot.Shots, snapshot.RemovedShotIds, static state => state.Id),
             Bubbles = MergeEntities(baseline?.Bubbles, snapshot.Bubbles, snapshot.RemovedBubbleIds, static state => state.Id),
@@ -45,6 +47,8 @@ public static class SnapshotDelta
             DeadBodies = MergeEntities(baseline?.DeadBodies, snapshot.DeadBodies, snapshot.RemovedDeadBodyIds, static state => state.Id),
             SentryGibs = MergeEntities(baseline?.SentryGibs, snapshot.SentryGibs, snapshot.RemovedSentryGibIds, static state => state.Id),
             JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
+            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
             RemovedBubbleIds = Array.Empty<int>(),
@@ -69,6 +73,8 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
+            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
             RemovedBubbleIds = Array.Empty<int>(),
@@ -85,6 +91,69 @@ public static class SnapshotDelta
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
         };
+    }
+
+    private static List<SnapshotPlayerState> MergePlayers(
+        IReadOnlyList<SnapshotPlayerState>? baseline,
+        IReadOnlyList<SnapshotPlayerState> updates,
+        IReadOnlyList<SnapshotPlayerMovementState> movementUpdates,
+        IReadOnlyList<int> removedIds)
+    {
+        var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
+        var mergedBySlot = new Dictionary<int, SnapshotPlayerState>((baseline?.Count ?? 0) + updates.Count);
+
+        if (baseline is not null)
+        {
+            for (var index = 0; index < baseline.Count; index += 1)
+            {
+                var player = baseline[index];
+                if (removed?.Contains(player.Slot) == true)
+                {
+                    continue;
+                }
+
+                mergedBySlot[player.Slot] = player;
+            }
+        }
+
+        for (var index = 0; index < updates.Count; index += 1)
+        {
+            var player = updates[index];
+            if (removed?.Contains(player.Slot) == true)
+            {
+                continue;
+            }
+
+            mergedBySlot[player.Slot] = player;
+        }
+
+        for (var index = 0; index < movementUpdates.Count; index += 1)
+        {
+            var movement = movementUpdates[index];
+            if (removed?.Contains(movement.Slot) == true
+                || !mergedBySlot.TryGetValue(movement.Slot, out var player))
+            {
+                continue;
+            }
+
+            mergedBySlot[movement.Slot] = player with
+            {
+                X = movement.X,
+                Y = movement.Y,
+                HorizontalSpeed = movement.HorizontalSpeed,
+                VerticalSpeed = movement.VerticalSpeed,
+                IsGrounded = movement.IsGrounded,
+                RemainingAirJumps = movement.RemainingAirJumps,
+                FacingDirectionX = movement.FacingDirectionX,
+                AimDirectionDegrees = movement.AimDirectionDegrees,
+                MovementState = movement.MovementState,
+            };
+        }
+
+        return mergedBySlot
+            .OrderBy(static entry => entry.Key)
+            .Select(static entry => entry.Value)
+            .ToList();
     }
 
     private static List<T> MergeEntities<T>(

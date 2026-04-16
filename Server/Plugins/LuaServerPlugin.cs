@@ -728,10 +728,10 @@ internal sealed class LuaServerPlugin(
                 return DynValue.NewNumber(0);
             }
 
-            var defaultClass = TryParseOptionalEnumArgument(args, 1, out PlayerClass playerClass)
+            PlayerClass? requestedClass = TryParseOptionalEnumArgument(args, 1, out PlayerClass playerClass)
                 ? playerClass
-                : PlayerClass.Soldier;
-            return DynValue.NewNumber(context.AdminOperations.TryFillBots(ReadIntArgument(args, 0), defaultClass));
+                : null;
+            return DynValue.NewNumber(context.AdminOperations.TryFillBots(ReadIntArgument(args, 0), requestedClass));
         });
         host["try_fill_bot_team"] = DynValue.NewCallback((_, args) =>
         {
@@ -740,12 +740,12 @@ internal sealed class LuaServerPlugin(
                 return DynValue.NewNumber(0);
             }
 
-            var defaultClass = TryParseOptionalEnumArgument(args, 2, out PlayerClass playerClass)
+            PlayerClass? requestedClass = TryParseOptionalEnumArgument(args, 2, out PlayerClass playerClass)
                 ? playerClass
-                : PlayerClass.Soldier;
+                : null;
             return DynValue.NewNumber(
                 TryParseEnumArgument<PlayerTeam>(args, 0, out var team)
-                    ? context.AdminOperations.TryFillBotTeam(team, ReadIntArgument(args, 1), defaultClass)
+                    ? context.AdminOperations.TryFillBotTeam(team, ReadIntArgument(args, 1), requestedClass)
                     : 0);
         });
         host["try_clear_all_bots"] = DynValue.NewCallback((_, _) =>

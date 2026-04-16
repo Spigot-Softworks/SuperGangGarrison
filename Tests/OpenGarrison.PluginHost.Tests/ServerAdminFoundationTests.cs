@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Linq;
 using System.Diagnostics;
 using OpenGarrison.BotAI;
@@ -931,7 +932,7 @@ public sealed class ServerAdminFoundationTests
                 static (_, _, _) => { },
                 static (_, _) => { },
                 static _ => { },
-                banService);
+                banService: banService);
 
             dispatcher.Dispatch(new HelloMessage("Banned", ProtocolVersion.Current, 0), new IPEndPoint(IPAddress.Parse("127.0.0.66"), 8190));
 
@@ -944,6 +945,53 @@ public sealed class ServerAdminFoundationTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void ServerIncomingPacketPumpReturnsAfterBudgetWhenTransportStaysBacklogged()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sessionManager = CreateSessionManager(world, clients);
+        var transport = new AlwaysBackloggedServerTransport(new ServerStatusRequestMessage());
+        var dispatcher = new ServerIncomingMessageDispatcher(
+            new SimulationConfig(),
+            "Test Server",
+            passwordRequired: false,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            clients,
+            sessionManager,
+            world,
+            () => TimeSpan.Zero,
+            static () => null,
+            static () => 999,
+            static _ => null,
+            static _ => { },
+            static () => (false, string.Empty, string.Empty),
+            static (_, _) => { },
+            static _ => { },
+            static (_, _, _) => { },
+            static (_, _) => { },
+            static _ => { });
+        var pump = new ServerIncomingPacketPump(transport, dispatcher, wsaConnReset: 10054, static _ => { });
+
+        pump.PumpAvailablePackets();
+
+        Assert.Equal(ServerIncomingPacketPump.MaxPacketsPerPump, transport.ReceiveCount);
+    }
+
+    [Fact]
+    public void ServerIncomingPacketPumpReturnsAfterBudgetWhenBackloggedTransportKeepsResetting()
+    {
+        var transport = new AlwaysResettingServerTransport(wsaConnReset: 10054);
+        var dispatcher = CreateNoOpMessageDispatcher();
+        var pump = new ServerIncomingPacketPump(transport, dispatcher, wsaConnReset: 10054, static _ => { });
+
+        pump.PumpAvailablePackets();
+
+        Assert.Equal(ServerIncomingPacketPump.MaxPacketsPerPump, transport.ReceiveCount);
     }
 
     [Fact]
@@ -966,6 +1014,27 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void ServerBotManagerAppliesRequestedTeamAndClassToWorldPlayer()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Pyro, "Pyro Bot"));
+        Assert.True(world.TryGetNetworkPlayer(2, out var bot));
+        Assert.Equal(PlayerTeam.Red, bot.Team);
+        Assert.Equal(PlayerClass.Pyro, bot.ClassId);
+        Assert.Equal(PlayerClass.Pyro, botManager.BotSlots[2].ClassId);
+
+        Assert.True(botManager.TrySetBotClass(2, PlayerClass.Demoman));
+        Assert.Equal(PlayerClass.Demoman, bot.ClassId);
+        Assert.Equal(PlayerClass.Demoman, botManager.BotSlots[2].ClassId);
+
+        Assert.True(botManager.TrySetBotTeam(2, PlayerTeam.Blue));
+        Assert.Equal(PlayerTeam.Blue, bot.Team);
+        Assert.Equal(PlayerTeam.Blue, botManager.BotSlots[2].Team);
+    }
+
+    [Fact]
     public void ServerBotManagerFillSkipsReservedClientSlots()
     {
         var world = new SimulationWorld();
@@ -982,6 +1051,82 @@ public sealed class ServerAdminFoundationTests
         Assert.DoesNotContain((byte)2, botManager.BotSlots.Keys);
         Assert.DoesNotContain((byte)3, botManager.BotSlots.Keys);
         Assert.Equal(new byte[] { 4, 5 }, botManager.BotSlots.Keys.OrderBy(static slot => slot).ToArray());
+    }
+
+    [Fact]
+    public void ServerBotManagerFillCyclesClassesWhenClassIsNotSpecified()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        var added = botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 4, requestedClass: null);
+
+        Assert.Equal(4, added);
+        var classes = botManager.BotSlots
+            .OrderBy(static entry => entry.Key)
+            .Select(static entry => entry.Value.ClassId)
+            .ToArray();
+        Assert.Equal(
+            new[] { PlayerClass.Scout, PlayerClass.Pyro, PlayerClass.Soldier, PlayerClass.Heavy },
+            classes);
+    }
+
+    [Fact]
+    public void ServerBotManagerFillUsesExplicitClassWhenSpecified()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        var added = botManager.FillBots(targetPerTeam: 2, PlayerClass.Medic);
+
+        Assert.Equal(4, added);
+        Assert.All(botManager.BotSlots.Values, state => Assert.Equal(PlayerClass.Medic, state.ClassId));
+    }
+
+    [Fact]
+    public void ServerSlotAllocatorSkipsServerBotSlots()
+    {
+        var clients = new Dictionary<byte, ClientSession>();
+        var botSlots = new HashSet<byte> { 1, 2 };
+
+        var slot = global::ServerHelpers.FindAvailableSlot(
+            clients,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            maxPlayableClients: 24,
+            isPlayableSlotAvailable: candidate => !botSlots.Contains(candidate));
+
+        Assert.Equal(3, slot);
+    }
+
+    [Fact]
+    public void ServerSessionManagerDoesNotMoveSpectatorIntoServerBotSlot()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sentMessages = new List<IProtocolMessage>();
+        var spectator = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 1,
+            ServerTransportPeer.FromUdpEndPoint(new IPEndPoint(IPAddress.Loopback, 9001)),
+            "Spectator",
+            TimeSpan.Zero)
+        {
+            IsAuthorized = true,
+        };
+        clients[spectator.Slot] = spectator;
+        var botSlots = new HashSet<byte> { 1 };
+        var sessionManager = CreateSessionManager(
+            world,
+            clients,
+            (_, message) => sentMessages.Add(message),
+            slot => !botSlots.Contains(slot));
+
+        Assert.True(sessionManager.TrySetClientTeam(spectator.Slot, PlayerTeam.Blue));
+
+        Assert.Equal(2, spectator.Slot);
+        Assert.False(clients.ContainsKey(1));
+        Assert.True(clients.ContainsKey(2));
     }
 
     [Fact]
@@ -1039,6 +1184,26 @@ public sealed class ServerAdminFoundationTests
 
         Assert.Same(thinkTask, completedTask);
         await thinkTask;
+    }
+
+    [Fact]
+    public void ServerBotManagerAutoNamesBotsFromPracticeNamePool()
+    {
+        var practiceNames = PracticeBotDisplayNamePool.LoadDefaultNames();
+        Assert.True(practiceNames.Count >= 2);
+
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            botDisplayNamePool: new PracticeBotDisplayNamePool(practiceNames, shuffleNames: false));
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, string.Empty));
+        Assert.Equal(TrimExpectedPlayerDisplayName(practiceNames[0]), botManager.BotSlots[2].DisplayName);
+
+        Assert.True(botManager.TryAddBot(3, PlayerTeam.Red, PlayerClass.Soldier, string.Empty));
+        Assert.Equal(TrimExpectedPlayerDisplayName(practiceNames[1]), botManager.BotSlots[3].DisplayName);
     }
 
     [Fact]
@@ -1216,6 +1381,139 @@ public sealed class ServerAdminFoundationTests
             $"Shipped-nav feed spike too high: tick={maxFeedTick} feed={maxFeedMilliseconds:0.0}ms advance={maxAdvanceMilliseconds:0.0}ms reactions={maxReactionMilliseconds:0.0}ms.");
     }
 
+    [Fact]
+    public void SnapshotBroadcasterSpreadsServerBotRosterAcrossBudgetedDeltas()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+        var baseline = Assert.Single(sentSnapshots).Message;
+        client.AcknowledgeSnapshot(baseline.Frame);
+        sentSnapshots.Clear();
+
+        Assert.Equal(19, botManager.FillBots(targetPerTeam: 10, PlayerClass.Soldier));
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var sent = Assert.Single(sentSnapshots);
+        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.True(sent.Message.IsDelta);
+        Assert.InRange(sent.Message.Players.Count, 1, 18);
+        var merged = SnapshotDelta.ToFullSnapshot(sent.Message, baseline);
+        Assert.InRange(merged.Players.Count, 2, 19);
+        client.AcknowledgeSnapshot(sent.Message.Frame);
+        sentSnapshots.Clear();
+
+        SnapshotBaselineState? latestBaseline = null;
+        for (var index = 0; index < 40; index += 1)
+        {
+            world.AdvanceOneTick();
+            broadcaster.BroadcastSnapshot();
+            var next = Assert.Single(sentSnapshots);
+            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+            client.AcknowledgeSnapshot(next.Message.Frame);
+            Assert.True(client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out latestBaseline));
+            sentSnapshots.Clear();
+
+            if (latestBaseline.Players.Count >= 20)
+            {
+                break;
+            }
+        }
+
+        Assert.NotNull(latestBaseline);
+        Assert.Equal(20, latestBaseline.Players.Count);
+        Assert.Contains(latestBaseline.Players, player => player.Slot == SimulationWorld.FirstSpectatorSlot);
+        for (var slot = 2; slot <= 20; slot += 1)
+        {
+            Assert.Contains(latestBaseline.Players, player => player.Slot == slot);
+        }
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterSerializesServerBotClassIndependentOfLocalPlayerClass()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
+        var client = new ClientSession(
+            SimulationWorld.LocalPlayerSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            slot => !clients.ContainsKey(slot));
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Soldier Bot"));
+        SnapshotBaselineState? baseline = null;
+        for (var index = 0; index < 8; index += 1)
+        {
+            world.AdvanceOneTick();
+            broadcaster.BroadcastSnapshot();
+
+            var sent = Assert.Single(sentSnapshots);
+            var resolved = SnapshotDelta.ToFullSnapshot(sent.Message, baseline);
+            var localPlayer = Assert.Single(resolved.Players, player => player.Slot == SimulationWorld.LocalPlayerSlot);
+            Assert.Equal((byte)PlayerClass.Demoman, localPlayer.ClassId);
+
+            var botPlayer = resolved.Players.FirstOrDefault(player => player.Slot == 2);
+            if (botPlayer is not null)
+            {
+                Assert.Equal((byte)PlayerClass.Soldier, botPlayer.ClassId);
+                Assert.Equal("Soldier Bot", botPlayer.Name);
+                return;
+            }
+
+            baseline = SnapshotBaselineState.FromSnapshot(resolved);
+            client.AcknowledgeSnapshot(sent.Message.Frame);
+            sentSnapshots.Clear();
+        }
+
+        Assert.Fail("Server bot did not enter the client snapshot baseline.");
+    }
+
+    private static string TrimExpectedPlayerDisplayName(string displayName)
+    {
+        return displayName.Length <= 20 ? displayName : displayName[..20];
+    }
+
     private static OpenGarrisonServerCommandContext CreateCommandContext(OpenGarrisonServerAdminIdentity identity)
     {
         return new OpenGarrisonServerCommandContext(
@@ -1250,7 +1548,11 @@ public sealed class ServerAdminFoundationTests
         throw new DirectoryNotFoundException("Failed to locate repository root from test output directory.");
     }
 
-    private static ServerSessionManager CreateSessionManager(SimulationWorld world, Dictionary<byte, ClientSession> clients)
+    private static ServerSessionManager CreateSessionManager(
+        SimulationWorld world,
+        Dictionary<byte, ClientSession> clients,
+        Action<ServerTransportPeer, IProtocolMessage>? sendMessage = null,
+        Func<byte, bool>? isPlayableSlotAvailable = null)
     {
         return new ServerSessionManager(
             world,
@@ -1267,8 +1569,37 @@ public sealed class ServerAdminFoundationTests
             getPasswordRateLimitReason: static _ => null,
             recordPasswordFailure: static _ => { },
             clearPasswordFailures: static _ => { },
-            sendMessage: static (_, _) => { },
-            log: static _ => { });
+            sendMessage: sendMessage ?? ((_, _) => { }),
+            log: static _ => { },
+            isPlayableSlotAvailable: isPlayableSlotAvailable);
+    }
+
+    private static ServerIncomingMessageDispatcher CreateNoOpMessageDispatcher()
+    {
+        var world = new SimulationWorld();
+        var clients = new Dictionary<byte, ClientSession>();
+        var sessionManager = CreateSessionManager(world, clients);
+        return new ServerIncomingMessageDispatcher(
+            new SimulationConfig(),
+            "Test Server",
+            passwordRequired: false,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            clients,
+            sessionManager,
+            world,
+            () => TimeSpan.Zero,
+            static () => null,
+            static () => 999,
+            static _ => null,
+            static _ => { },
+            static () => (false, string.Empty, string.Empty),
+            static (_, _) => { },
+            static _ => { },
+            static (_, _, _) => { },
+            static (_, _) => { },
+            static _ => { });
     }
 
     private static OpenGarrisonServerPlayerInfo CreatePlayerInfo(
@@ -1351,6 +1682,44 @@ public sealed class ServerAdminFoundationTests
         }
     }
 
+    private sealed class AlwaysResettingServerTransport(int wsaConnReset) : IServerMessageTransport
+    {
+        public int ReceiveCount { get; private set; }
+
+        public bool HasPendingMessages => true;
+
+        public ServerMessagePacket Receive()
+        {
+            ReceiveCount += 1;
+            throw new SocketException(wsaConnReset);
+        }
+
+        public void Send(ServerTransportPeer remotePeer, byte[] payload)
+        {
+        }
+    }
+
+    private sealed class AlwaysBackloggedServerTransport(IProtocolMessage message) : IServerMessageTransport
+    {
+        private readonly byte[] _payload = ProtocolCodec.Serialize(message);
+
+        public int ReceiveCount { get; private set; }
+
+        public bool HasPendingMessages => true;
+
+        public ServerMessagePacket Receive()
+        {
+            ReceiveCount += 1;
+            return new ServerMessagePacket(
+                ServerTransportPeer.FromUdpEndPoint(new IPEndPoint(IPAddress.Loopback, 8190 + ReceiveCount)),
+                _payload);
+        }
+
+        public void Send(ServerTransportPeer remotePeer, byte[] payload)
+        {
+        }
+    }
+
     private sealed class FakeServerAdminOperations : IOpenGarrisonServerAdminOperations
     {
         public List<(byte Slot, string Text)> SystemMessages { get; } = [];
@@ -1426,9 +1795,9 @@ public sealed class ServerAdminFoundationTests
 
         public bool TrySetBotClass(byte slot, PlayerClass playerClass) => true;
 
-        public int TryFillBots(int targetPerTeam, PlayerClass defaultClass) => 0;
+        public int TryFillBots(int targetPerTeam, PlayerClass? requestedClass) => 0;
 
-        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass) => 0;
+        public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass) => 0;
 
         public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
 

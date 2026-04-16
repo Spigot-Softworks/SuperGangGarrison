@@ -233,14 +233,14 @@ partial class GameServer
                 _scheduler.RunDueTasks();
                 _pluginHost?.NotifyServerHeartbeat(now);
 
-                // Feed client inputs first, then server bot inputs, before simulation advances
-                _sessionManager.PreparePlayableClientInputsForNextTick();
-                _botManager.FeedBotInputsBeforeSimulationAdvance();
-
                 var ticks = ServerSimulationBatch.Advance(
                     _simulator,
                     elapsedSeconds,
-                    () => { }, // Client/bot inputs already fed above
+                    () =>
+                    {
+                        _sessionManager.PreparePlayableClientInputsForNextTick();
+                        _botManager.FeedBotInputsBeforeSimulationAdvance();
+                    },
                     () =>
                     {
                         _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
@@ -278,8 +278,8 @@ partial class GameServer
                         if (needed > 0)
                         {
                             var perTeam = needed / 2 + (needed % 2);
-                            var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, Math.Min(perTeam, _botAutofillPerTeam), PlayerClass.Soldier);
-                            var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, Math.Min(perTeam + (needed % 2), _botAutofillPerTeam), PlayerClass.Soldier);
+                            var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, Math.Min(perTeam, _botAutofillPerTeam), requestedClass: null);
+                            var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, Math.Min(perTeam + (needed % 2), _botAutofillPerTeam), requestedClass: null);
                             var totalAdded = addedRed + addedBlue;
                             if (totalAdded > 0)
                             {
@@ -591,6 +591,7 @@ partial class GameServer
             _outboundMessaging.BroadcastChat,
             _eventReporter.WriteEvent,
             Console.WriteLine,
+            slot => !_botManager.BotSlots.ContainsKey(slot),
             _banService);
         _incomingPacketPump = new OpenGarrison.Server.ServerIncomingPacketPump(
             _messageTransport,

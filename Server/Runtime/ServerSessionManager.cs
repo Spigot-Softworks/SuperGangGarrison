@@ -28,6 +28,7 @@ sealed class ServerSessionManager
     private readonly Action<ClientSession> _passwordAccepted;
     private readonly Action<ClientSession, PlayerTeam> _playerTeamChanged;
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
+    private readonly Func<byte, bool> _isPlayableSlotAvailable;
     private GameplayOwnershipService? _gameplayOwnershipService;
 
     public ServerSessionManager(
@@ -50,7 +51,8 @@ sealed class ServerSessionManager
         Action<ClientSession, string>? clientRemoved = null,
         Action<ClientSession>? passwordAccepted = null,
         Action<ClientSession, PlayerTeam>? playerTeamChanged = null,
-        Action<ClientSession, PlayerClass>? playerClassChanged = null)
+        Action<ClientSession, PlayerClass>? playerClassChanged = null,
+        Func<byte, bool>? isPlayableSlotAvailable = null)
     {
         _world = world;
         _clientsBySlot = clientsBySlot;
@@ -72,6 +74,7 @@ sealed class ServerSessionManager
         _passwordAccepted = passwordAccepted ?? (_ => { });
         _playerTeamChanged = playerTeamChanged ?? ((_, _) => { });
         _playerClassChanged = playerClassChanged ?? ((_, _) => { });
+        _isPlayableSlotAvailable = isPlayableSlotAvailable ?? (_ => true);
     }
 
     public void SetGameplayOwnershipService(GameplayOwnershipService gameplayOwnershipService)
@@ -353,7 +356,8 @@ sealed class ServerSessionManager
             return true;
         }
 
-        if (_clientsBySlot.ContainsKey(newSlot))
+        if (_clientsBySlot.ContainsKey(newSlot)
+            || SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot) && !_isPlayableSlotAvailable(newSlot))
         {
             return false;
         }
@@ -388,7 +392,10 @@ sealed class ServerSessionManager
 
         if (IsSpectatorSlot(client.Slot))
         {
-            var playableSlot = FindAvailablePlayableSlot(_clientsBySlot, _maxPlayableClients);
+            var playableSlot = FindAvailablePlayableSlot(
+                _clientsBySlot,
+                _maxPlayableClients,
+                isPlayableSlotAvailable: _isPlayableSlotAvailable);
             if (playableSlot == 0 || !TryMoveClientToSlot(client, playableSlot))
             {
                 return false;

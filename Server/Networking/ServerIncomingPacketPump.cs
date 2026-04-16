@@ -9,10 +9,14 @@ internal sealed class ServerIncomingPacketPump(
     int wsaConnReset,
     Action<string> log)
 {
+    internal const int MaxPacketsPerPump = 256;
+
     public void PumpAvailablePackets()
     {
-        while (transport.HasPendingMessages)
+        var processedPackets = 0;
+        while (processedPackets < MaxPacketsPerPump && transport.HasPendingMessages)
         {
+            processedPackets += 1;
             try
             {
                 var packet = transport.Receive();

@@ -438,10 +438,14 @@ internal sealed class ServerAdminOperations(
     // Bot management
     public bool TryAddBot(byte slot, PlayerTeam team, PlayerClass playerClass, string displayName)
     {
-        var result = botManagerGetter().TryAddBot(slot, team, playerClass, displayName);
+        var botManager = botManagerGetter();
+        var result = botManager.TryAddBot(slot, team, playerClass, displayName);
         if (result)
         {
-            log($"[server] added bot slot={slot} team={team} class={playerClass} name=\"{displayName}\"");
+            var resolvedDisplayName = botManager.BotSlots.TryGetValue(slot, out var state)
+                ? state.DisplayName
+                : displayName;
+            log($"[server] added bot slot={slot} team={team} class={playerClass} name=\"{resolvedDisplayName}\"");
         }
         else
         {
@@ -484,16 +488,16 @@ internal sealed class ServerAdminOperations(
         return result;
     }
 
-    public int TryFillBots(int targetPerTeam, PlayerClass defaultClass)
+    public int TryFillBots(int targetPerTeam, PlayerClass? requestedClass)
     {
-        var addedCount = botManagerGetter().FillBots(targetPerTeam, defaultClass);
+        var addedCount = botManagerGetter().FillBots(targetPerTeam, requestedClass);
         log($"[server] fillbots target={targetPerTeam} per team, added {addedCount} bots");
         return addedCount;
     }
 
-    public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass defaultClass)
+    public int TryFillBotTeam(PlayerTeam team, int targetCount, PlayerClass? requestedClass)
     {
-        var addedCount = botManagerGetter().TryFillTeam(team, targetCount, defaultClass);
+        var addedCount = botManagerGetter().TryFillTeam(team, targetCount, requestedClass);
         log($"[server] fillbots target={targetCount} team={team}, added {addedCount} bots");
         return addedCount;
     }

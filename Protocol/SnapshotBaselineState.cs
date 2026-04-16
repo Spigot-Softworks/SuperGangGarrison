@@ -10,6 +10,7 @@ public interface ISnapshotBaselineState
     byte MapAreaIndex { get; }
     byte MapAreaCount { get; }
     float MapScale { get; }
+    IReadOnlyList<SnapshotPlayerState> Players { get; }
     IReadOnlyList<SnapshotSentryState> Sentries { get; }
     IReadOnlyList<SnapshotShotState> Shots { get; }
     IReadOnlyList<SnapshotShotState> Bubbles { get; }
@@ -33,6 +34,7 @@ public sealed record SnapshotBaselineState(
     byte MapAreaIndex,
     byte MapAreaCount,
     float MapScale,
+    IReadOnlyList<SnapshotPlayerState> Players,
     IReadOnlyList<SnapshotSentryState> Sentries,
     IReadOnlyList<SnapshotShotState> Shots,
     IReadOnlyList<SnapshotShotState> Bubbles,
@@ -58,6 +60,7 @@ public sealed record SnapshotBaselineState(
             snapshot.MapAreaIndex,
             snapshot.MapAreaCount,
             snapshot.MapScale,
+            snapshot.Players,
             snapshot.Sentries,
             snapshot.Shots,
             snapshot.Bubbles,

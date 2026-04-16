@@ -12,7 +12,22 @@ internal static class SnapshotDeltaBudgeter
     public const int TargetSnapshotPayloadBytes = 1200;
     public const int ReliableStreamTargetSnapshotPayloadBytes = 8 * 1024;
 
-    internal sealed record Contribution(int Priority, float DistanceSquared, int EstimatedBytes, Action<Builder> Apply);
+    internal enum ContributionKind
+    {
+        Optional,
+        LocalPlayerUpdate,
+        PlayerMovementUpdate,
+        PlayerFirstAppearance,
+        PlayerRosterUpdate,
+        PlayerRemoval,
+    }
+
+    internal sealed record Contribution(
+        int Priority,
+        float DistanceSquared,
+        int EstimatedBytes,
+        Action<Builder> Apply,
+        ContributionKind Kind = ContributionKind.Optional);
 
     public static (SnapshotMessage Message, byte[] Payload) BuildBudgetedSnapshot(
         SnapshotMessage fullSnapshot,
@@ -30,7 +45,7 @@ internal static class SnapshotDeltaBudgeter
         IReadOnlyList<Contribution> contributions,
         int targetPayloadBytes = TargetSnapshotPayloadBytes)
     {
-        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: baseline is null);
+        var builder = new Builder(fullSnapshot, baseline?.Frame ?? 0, seedFromTemplateCollections: false);
         var snapshot = builder.Build();
         var serializePassCount = 0;
         byte[]? payload = null;
@@ -43,15 +58,59 @@ internal static class SnapshotDeltaBudgeter
             payloadSize = Measure(snapshot);
         }
 
+        var orderedContributions = contributions
+            .OrderByDescending(static entry => entry.Priority)
+            .ThenBy(static entry => entry.DistanceSquared)
+            .ToArray();
+        var appliedContributions = new bool[orderedContributions.Length];
         var remainingBudget = targetPayloadBytes - payloadSize;
-        foreach (var contribution in contributions.OrderByDescending(static entry => entry.Priority).ThenBy(static entry => entry.DistanceSquared))
+
+        ApplyRequiredRosterContribution(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerFirstAppearance,
+            ref remainingBudget);
+        ApplyRequiredRosterContribution(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate,
+            ref remainingBudget);
+        ApplyRequiredRosterContribution(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerRemoval,
+            ref remainingBudget);
+        ApplyRequiredRosterContribution(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate,
+            ref remainingBudget);
+
+        for (var index = 0; index < orderedContributions.Length; index += 1)
         {
+            if (appliedContributions[index])
+            {
+                continue;
+            }
+
+            var contribution = orderedContributions[index];
             if (contribution.EstimatedBytes > remainingBudget)
             {
                 continue;
             }
 
             contribution.Apply(builder);
+            appliedContributions[index] = true;
             remainingBudget -= contribution.EstimatedBytes;
         }
 
@@ -85,6 +144,49 @@ internal static class SnapshotDeltaBudgeter
         }
 
         return new SnapshotBudgetBuildResult(snapshot, payload!, serializePassCount);
+    }
+
+    private static void ApplyRequiredRosterContribution(
+        Builder builder,
+        Contribution[] orderedContributions,
+        bool[] appliedContributions,
+        ContributionKind kind,
+        ref int remainingBudget)
+    {
+        for (var index = 0; index < orderedContributions.Length; index += 1)
+        {
+            if (appliedContributions[index] || orderedContributions[index].Kind != kind)
+            {
+                continue;
+            }
+
+            var contribution = orderedContributions[index];
+            contribution.Apply(builder);
+            appliedContributions[index] = true;
+            remainingBudget -= contribution.EstimatedBytes;
+            return;
+        }
+    }
+
+    private static void ApplyRequiredContributions(
+        Builder builder,
+        Contribution[] orderedContributions,
+        bool[] appliedContributions,
+        ContributionKind kind,
+        ref int remainingBudget)
+    {
+        for (var index = 0; index < orderedContributions.Length; index += 1)
+        {
+            if (appliedContributions[index] || orderedContributions[index].Kind != kind)
+            {
+                continue;
+            }
+
+            var contribution = orderedContributions[index];
+            contribution.Apply(builder);
+            appliedContributions[index] = true;
+            remainingBudget -= contribution.EstimatedBytes;
+        }
     }
 
     private static void TrimAuxiliaryCollections(Builder builder)
@@ -142,6 +244,7 @@ internal static class SnapshotDeltaBudgeter
         snapshot = snapshot with
         {
             Players = Array.Empty<SnapshotPlayerState>(),
+            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
         };
 
         var payload = Serialize(snapshot, ref serializePassCount);
@@ -248,6 +351,7 @@ internal static class SnapshotDeltaBudgeter
             MapDownloadUrl = string.Empty,
             MapContentHash = string.Empty,
             Players = Array.Empty<SnapshotPlayerState>(),
+            PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
             CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
             Sentries = Array.Empty<SnapshotSentryState>(),
             Shots = Array.Empty<SnapshotShotState>(),
@@ -270,6 +374,8 @@ internal static class SnapshotDeltaBudgeter
             DamageEvents = Array.Empty<SnapshotDamageEvent>(),
             SoundEvents = Array.Empty<SnapshotSoundEvent>(),
             SentryGibs = Array.Empty<SnapshotSentryGibState>(),
+            JumpPads = Array.Empty<SnapshotJumpPadState>(),
+            RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
             RemovedBubbleIds = Array.Empty<int>(),
@@ -284,6 +390,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
+            RemovedJumpPadIds = Array.Empty<int>(),
         };
     }
 
@@ -319,12 +426,15 @@ internal static class SnapshotDeltaBudgeter
             builder.Flames.Clear();
             builder.Rockets.Clear();
             builder.Sentries.Clear();
+            builder.JumpPads.Clear();
         },
         static builder =>
         {
+            builder.RemovedPlayerIds.Clear();
             builder.RemovedBloodDropIds.Clear();
             builder.RemovedPlayerGibIds.Clear();
             builder.RemovedSentryGibIds.Clear();
+            builder.RemovedJumpPadIds.Clear();
             builder.RemovedDeadBodyIds.Clear();
         },
         static builder =>
@@ -358,6 +468,8 @@ internal static class SnapshotDeltaBudgeter
             VisualEvents = seedFromTemplateCollections ? new List<SnapshotVisualEvent>(template.VisualEvents) : [];
             DamageEvents = seedFromTemplateCollections ? new List<SnapshotDamageEvent>(template.DamageEvents) : [];
             SoundEvents = seedFromTemplateCollections ? new List<SnapshotSoundEvent>(template.SoundEvents) : [];
+            Players = seedFromTemplateCollections ? new List<SnapshotPlayerState>(template.Players) : [];
+            PlayerMovementStates = seedFromTemplateCollections ? new List<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
             Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
             Shots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Shots) : [];
             Bubbles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Bubbles) : [];
@@ -369,9 +481,11 @@ internal static class SnapshotDeltaBudgeter
             Flares = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Flares) : [];
             Mines = seedFromTemplateCollections ? new List<SnapshotMineState>(template.Mines) : [];
             SentryGibs = seedFromTemplateCollections ? new List<SnapshotSentryGibState>(template.SentryGibs) : [];
+            JumpPads = seedFromTemplateCollections ? new List<SnapshotJumpPadState>(template.JumpPads) : [];
             PlayerGibs = seedFromTemplateCollections ? new List<SnapshotPlayerGibState>(template.PlayerGibs) : [];
             BloodDrops = seedFromTemplateCollections ? new List<SnapshotBloodDropState>(template.BloodDrops) : [];
             DeadBodies = seedFromTemplateCollections ? new List<SnapshotDeadBodyState>(template.DeadBodies) : [];
+            RemovedPlayerIds = seedFromTemplateCollections ? new List<int>(template.RemovedPlayerIds) : [];
             RemovedSentryIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryIds) : [];
             RemovedShotIds = seedFromTemplateCollections ? new List<int>(template.RemovedShotIds) : [];
             RemovedBubbleIds = seedFromTemplateCollections ? new List<int>(template.RemovedBubbleIds) : [];
@@ -383,6 +497,7 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlareIds = seedFromTemplateCollections ? new List<int>(template.RemovedFlareIds) : [];
             RemovedMineIds = seedFromTemplateCollections ? new List<int>(template.RemovedMineIds) : [];
             RemovedSentryGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryGibIds) : [];
+            RemovedJumpPadIds = seedFromTemplateCollections ? new List<int>(template.RemovedJumpPadIds) : [];
             RemovedPlayerGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedPlayerGibIds) : [];
             RemovedBloodDropIds = seedFromTemplateCollections ? new List<int>(template.RemovedBloodDropIds) : [];
             RemovedDeadBodyIds = seedFromTemplateCollections ? new List<int>(template.RemovedDeadBodyIds) : [];
@@ -397,6 +512,8 @@ internal static class SnapshotDeltaBudgeter
             VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
             DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
             SoundEvents = new List<SnapshotSoundEvent>(other.SoundEvents);
+            Players = new List<SnapshotPlayerState>(other.Players);
+            PlayerMovementStates = new List<SnapshotPlayerMovementState>(other.PlayerMovementStates);
             Sentries = new List<SnapshotSentryState>(other.Sentries);
             Shots = new List<SnapshotShotState>(other.Shots);
             Bubbles = new List<SnapshotShotState>(other.Bubbles);
@@ -411,6 +528,7 @@ internal static class SnapshotDeltaBudgeter
             PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
             BloodDrops = new List<SnapshotBloodDropState>(other.BloodDrops);
             DeadBodies = new List<SnapshotDeadBodyState>(other.DeadBodies);
+            RemovedPlayerIds = new List<int>(other.RemovedPlayerIds);
             RemovedSentryIds = new List<int>(other.RemovedSentryIds);
             RemovedShotIds = new List<int>(other.RemovedShotIds);
             RemovedBubbleIds = new List<int>(other.RemovedBubbleIds);
@@ -435,6 +553,8 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotVisualEvent> VisualEvents { get; }
         public List<SnapshotDamageEvent> DamageEvents { get; }
         public List<SnapshotSoundEvent> SoundEvents { get; }
+        public List<SnapshotPlayerState> Players { get; }
+        public List<SnapshotPlayerMovementState> PlayerMovementStates { get; }
         public List<SnapshotSentryState> Sentries { get; } = new();
         public List<SnapshotShotState> Shots { get; } = new();
         public List<SnapshotShotState> Bubbles { get; } = new();
@@ -450,6 +570,7 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
         public List<SnapshotBloodDropState> BloodDrops { get; } = new();
         public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
+        public List<int> RemovedPlayerIds { get; } = new();
         public List<int> RemovedSentryIds { get; } = new();
         public List<int> RemovedShotIds { get; } = new();
         public List<int> RemovedBubbleIds { get; } = new();
@@ -477,6 +598,8 @@ internal static class SnapshotDeltaBudgeter
             {
                 BaselineFrame = BaselineFrame,
                 IsDelta = true,
+                Players = Players.ToArray(),
+                PlayerMovementStates = PlayerMovementStates.ToArray(),
                 CombatTraces = CombatTraces.ToArray(),
                 Sentries = Sentries.ToArray(),
                 Shots = Shots.ToArray(),
@@ -497,6 +620,7 @@ internal static class SnapshotDeltaBudgeter
                 VisualEvents = VisualEvents.ToArray(),
                 DamageEvents = DamageEvents.ToArray(),
                 SoundEvents = SoundEvents.ToArray(),
+                RemovedPlayerIds = RemovedPlayerIds.ToArray(),
                 RemovedSentryIds = RemovedSentryIds.ToArray(),
                 RemovedShotIds = RemovedShotIds.ToArray(),
                 RemovedBubbleIds = RemovedBubbleIds.ToArray(),
