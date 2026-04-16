@@ -27,6 +27,7 @@ public partial class Game1
         uint sequence,
         PlayerInputSnapshot input,
         bool jumpPressed,
+        bool primaryPressed,
         bool secondaryAbilityPressed,
         bool secondaryWeaponPressed)
     {
@@ -37,7 +38,7 @@ public partial class Game1
             return;
         }
 
-        _pendingPredictedInputs.Add(new PredictedLocalInput(sequence, input, jumpPressed, secondaryAbilityPressed, secondaryWeaponPressed));
+        _pendingPredictedInputs.Add(new PredictedLocalInput(sequence, input, jumpPressed, primaryPressed, secondaryAbilityPressed, secondaryWeaponPressed));
         RebuildLocalPrediction(preserveRenderContinuity: false);
     }
 
@@ -182,13 +183,34 @@ public partial class Game1
             return;
         }
 
+        var movementInput = predictedInput.Input;
+        var jumpPressed = predictedInput.JumpPressed;
+        var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
         ApplyPredictedPrimaryFire(player, predictedInput);
+        if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
+        {
+            movementInput = ResetMovementInput(movementInput);
+            jumpPressed = false;
+            _latestPredictedLocalInput = ResetMovementInput(_latestPredictedLocalInput);
+        }
+
         ApplyPredictedRoomForces(player);
-        var startedGrounded = player.PrepareMovement(predictedInput.Input, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
-        var jumped = player.TryJumpIfPossible(canMove, predictedInput.JumpPressed);
+        var startedGrounded = player.PrepareMovement(movementInput, _world.Level, player.Team, _config.FixedDeltaSeconds, out var canMove);
+        var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         ApplyPredictedSecondaryFire(player, predictedInput);
-        player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, predictedInput.Input.Down);
+        player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, movementInput.Down);
         SyncPredictedLocalPlayerState(player);
+    }
+
+    private static PlayerInputSnapshot ResetMovementInput(PlayerInputSnapshot input)
+    {
+        return input with
+        {
+            Left = false,
+            Right = false,
+            Up = false,
+            Down = false,
+        };
     }
 
     private void ApplyPredictedRoomForces(PlayerEntity player)
@@ -250,6 +272,7 @@ public partial class Game1
         uint Sequence,
         PlayerInputSnapshot Input,
         bool JumpPressed,
+        bool PrimaryPressed,
         bool SecondaryAbilityPressed,
         bool SecondaryWeaponPressed);
 }

@@ -147,7 +147,6 @@ public sealed partial class PlayerEntity
         canMove = !IsHeavyEating
             && (!IsTaunting || IsRaging)
             && !IsSpyBackstabAnimating;
-        var preserveHorizontalMomentum = ClassId == PlayerClass.Spy && IsSpyBackstabAnimating;
 
         var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
         var allowChargeFullControl = isDemoknightChargeDriving && ExperimentalDemoknightChargeFullControlEnabled;
@@ -186,29 +185,26 @@ public sealed partial class PlayerEntity
             ApplyExperimentalDemoknightChargeDrive(dt);
         }
 
-        if (!preserveHorizontalMomentum)
+        var hasHorizontalInput = canMove && (input.Left || input.Right);
+        if (isDemoknightChargeDriving)
         {
-            var hasHorizontalInput = canMove && (input.Left || input.Right);
-            if (isDemoknightChargeDriving)
+            hasHorizontalInput = allowChargeFullControl ? hasHorizontalInput : false;
+            if (!allowChargeFullControl)
             {
-                hasHorizontalInput = allowChargeFullControl ? hasHorizontalInput : false;
-                if (!allowChargeFullControl)
-                {
-                    horizontalDirection = 0f;
-                }
+                horizontalDirection = 0f;
             }
-
-            HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
-                HorizontalSpeed,
-                RunPower,
-                GetMovementScale(input),
-                hasHorizontalInput,
-                horizontalDirection,
-                MovementState,
-                IsCarryingIntel,
-                dt,
-                isHumiliated);
         }
+
+        HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+            HorizontalSpeed,
+            RunPower,
+            GetMovementScale(input),
+            hasHorizontalInput,
+            horizontalDirection,
+            MovementState,
+            IsCarryingIntel,
+            dt,
+            isHumiliated);
 
         ClampMovementSpeedsToMovementMaximum();
 
