@@ -29,6 +29,8 @@ internal sealed class ServerBotManager
     private IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? _navigationAssets;
     private string? _currentLevelName;
     private int _currentMapAreaIndex;
+    private Task<BotNavigationLoadResult>? _navigationPreloadTask;
+    private string? _navigationPreloadKey;
     private Task<BotNavigationLoadResult>? _navigationBuildTask;
     private string? _navigationBuildKey;
     
@@ -80,6 +82,7 @@ internal sealed class ServerBotManager
 
         _botSlots[slot] = new ServerBotSlotState(slot, team, classId, displayName);
         _inputCache.Remove(slot);
+        StartNavigationPreloadIfNeeded(_world.Level);
         return true;
     }
 
@@ -145,30 +148,34 @@ internal sealed class ServerBotManager
             else if (state.Team == PlayerTeam.Red) redCount++;
         }
 
-        // Add blue bots
-        var nextSlot = FindNextAvailableSlot();
-        while (blueCount < targetPerTeam && nextSlot.HasValue)
+        foreach (var slot in EnumerateAvailableSlots())
         {
-            var displayName = GenerateBotDisplayName(PlayerTeam.Blue, blueCount + 1);
-            if (TryAddBot(nextSlot.Value, PlayerTeam.Blue, defaultClass, displayName))
+            if (blueCount < targetPerTeam)
             {
-                blueCount++;
-                addedCount++;
-            }
-            nextSlot = FindNextAvailableSlot();
-        }
+                var displayName = GenerateBotDisplayName(PlayerTeam.Blue, blueCount + 1);
+                if (TryAddBot(slot, PlayerTeam.Blue, defaultClass, displayName))
+                {
+                    blueCount++;
+                    addedCount++;
+                }
 
-        // Add red bots
-        nextSlot = FindNextAvailableSlot();
-        while (redCount < targetPerTeam && nextSlot.HasValue)
-        {
-            var displayName = GenerateBotDisplayName(PlayerTeam.Red, redCount + 1);
-            if (TryAddBot(nextSlot.Value, PlayerTeam.Red, defaultClass, displayName))
-            {
-                redCount++;
-                addedCount++;
+                continue;
             }
-            nextSlot = FindNextAvailableSlot();
+
+            if (redCount < targetPerTeam)
+            {
+                var displayName = GenerateBotDisplayName(PlayerTeam.Red, redCount + 1);
+                if (TryAddBot(slot, PlayerTeam.Red, defaultClass, displayName))
+                {
+                    redCount++;
+                    addedCount++;
+                }
+            }
+
+            if (blueCount >= targetPerTeam && redCount >= targetPerTeam)
+            {
+                break;
+            }
         }
 
         return addedCount;
@@ -187,16 +194,18 @@ internal sealed class ServerBotManager
 
         var currentCount = _botSlots.Values.Count(s => s.Team == team);
         var addedCount = 0;
-        var slot = FindNextAvailableSlot();
-
-        while (currentCount + addedCount < targetCount && slot.HasValue)
+        foreach (var slot in EnumerateAvailableSlots())
         {
+            if (currentCount + addedCount >= targetCount)
+            {
+                break;
+            }
+
             var displayName = GenerateBotDisplayName(team, currentCount + addedCount + 1);
-            if (TryAddBot(slot.Value, team, defaultClass, displayName))
+            if (TryAddBot(slot, team, defaultClass, displayName))
             {
                 addedCount++;
             }
-            slot = FindNextAvailableSlot();
         }
 
         return addedCount;
@@ -358,20 +367,42 @@ internal sealed class ServerBotManager
         }
 
         // Get navigation assets for current level
+        StartNavigationPreloadIfNeeded(_world.Level);
+        CompletePendingNavigationPreloadIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
         CompletePendingNavigationBuildIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
 
-        var navigationResult = BotNavigationAssetStore.LoadForLevel(
-            _world.Level,
-            classes: null,
-            useModernRuntimeGeneration: true,
-            allowSynchronousGeneration: false);
+        var hasCurrentNavigationAssets = _navigationAssets is not null
+            && _navigationAssets.Count > 0
+            && string.Equals(_currentLevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
+            && _currentMapAreaIndex == _world.Level.MapAreaIndex;
 
-        _currentLevelName = _world.Level.Name;
-        _currentMapAreaIndex = _world.Level.MapAreaIndex;
-        _navigationAssets = navigationResult.Assets;
-        if (!navigationResult.HasAnyAssets)
+        if (!hasCurrentNavigationAssets
+            && _navigationPreloadTask is { IsCompleted: false }
+            && string.Equals(_navigationPreloadKey, GetNavigationPreloadKey(_world.Level.Name, _world.Level.MapAreaIndex), StringComparison.Ordinal))
         {
-            StartNavigationBuildIfNeeded(_world.Level, navigationResult.LevelFingerprint);
+            SyncInputCache(new Dictionary<byte, PlayerInputSnapshot>());
+            return _inputCache;
+        }
+
+        if (!hasCurrentNavigationAssets)
+        {
+            var navigationResult = BotNavigationAssetStore.LoadForLevel(
+                _world.Level,
+                classes: null,
+                useModernRuntimeGeneration: true,
+                allowSynchronousGeneration: false);
+
+            _currentLevelName = _world.Level.Name;
+            _currentMapAreaIndex = _world.Level.MapAreaIndex;
+            _navigationAssets = navigationResult.Assets;
+            if (navigationResult.HasAnyAssets)
+            {
+                _botController.WarmNavigationGraphs(_navigationAssets);
+            }
+            else
+            {
+                StartNavigationBuildIfNeeded(_world.Level, navigationResult.LevelFingerprint);
+            }
         }
 
         // Build inputs using the bot controller
@@ -477,10 +508,83 @@ internal sealed class ServerBotManager
         return null;
     }
 
+    private IEnumerable<byte> EnumerateAvailableSlots()
+    {
+        for (var slotNumber = SimulationWorld.LocalPlayerSlot + 1; slotNumber <= SimulationWorld.MaxPlayableNetworkPlayers; slotNumber++)
+        {
+            var slot = (byte)slotNumber;
+            if (!_botSlots.ContainsKey(slot) && _isSlotAvailableForBot(slot))
+            {
+                yield return slot;
+            }
+        }
+    }
+
     private static bool IsValidServerBotSlot(byte slot)
     {
         return slot != SimulationWorld.LocalPlayerSlot
             && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+    }
+
+    private void StartNavigationPreloadIfNeeded(SimpleLevel level)
+    {
+        var preloadKey = GetNavigationPreloadKey(level.Name, level.MapAreaIndex);
+        if (_navigationPreloadTask is { IsCompleted: false }
+            || string.Equals(_navigationPreloadKey, preloadKey, StringComparison.Ordinal)
+            || _navigationAssets is not null
+                && _navigationAssets.Count > 0
+                && string.Equals(_currentLevelName, level.Name, StringComparison.OrdinalIgnoreCase)
+                && _currentMapAreaIndex == level.MapAreaIndex)
+        {
+            return;
+        }
+
+        _navigationPreloadKey = preloadKey;
+        _navigationPreloadTask = Task.Run(() =>
+        {
+            var result = BotNavigationAssetStore.LoadForLevel(
+                level,
+                classes: null,
+                useModernRuntimeGeneration: true,
+                allowSynchronousGeneration: false);
+            if (result.HasAnyAssets)
+            {
+                _botController.WarmNavigationGraphs(result.Assets);
+            }
+
+            return result;
+        });
+    }
+
+    private void CompletePendingNavigationPreloadIfReady(string levelName, int mapAreaIndex)
+    {
+        var task = _navigationPreloadTask;
+        if (task is null || !task.IsCompleted)
+        {
+            return;
+        }
+
+        if (task.IsCompletedSuccessfully)
+        {
+            var result = task.Result;
+            var resultKey = GetNavigationPreloadKey(result.LevelName, result.MapAreaIndex);
+            if (string.Equals(resultKey, _navigationPreloadKey, StringComparison.Ordinal)
+                && string.Equals(result.LevelName, levelName, StringComparison.OrdinalIgnoreCase)
+                && result.MapAreaIndex == mapAreaIndex
+                && result.HasAnyAssets)
+            {
+                _navigationAssets = result.Assets;
+                _currentLevelName = result.LevelName;
+                _currentMapAreaIndex = result.MapAreaIndex;
+            }
+        }
+        else if (task.Exception is not null)
+        {
+            Console.WriteLine($"[server] bot navigation preload failed: {task.Exception.GetBaseException().Message}");
+        }
+
+        _navigationPreloadTask = null;
+        _navigationPreloadKey = null;
     }
 
     private void CompletePendingNavigationBuildIfReady(string levelName, int mapAreaIndex)
@@ -536,6 +640,11 @@ internal sealed class ServerBotManager
     private static string GetNavigationBuildKey(string levelName, int mapAreaIndex, string fingerprint)
     {
         return $"{levelName}|{mapAreaIndex}|{fingerprint}";
+    }
+
+    private static string GetNavigationPreloadKey(string levelName, int mapAreaIndex)
+    {
+        return $"{levelName}|{mapAreaIndex}";
     }
 
     private static string GenerateBotDisplayName(PlayerTeam team, int number)

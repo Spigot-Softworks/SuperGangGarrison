@@ -27,7 +27,7 @@ public sealed record BotNavigationValidationResult(
 public static class BotNavigationAssetValidator
 {
     // Keep in sync with the runtime bot controller's node lookup envelope.
-    private const float StartNodeSearchDistance = 144f;
+    private const float StartNodeSearchDistance = 220f;
     private const float GoalNodeSearchDistance = 220f;
 
     public static bool SupportsAttackReachabilityAudit(GameModeKind mode)
@@ -162,7 +162,7 @@ public static class BotNavigationAssetValidator
             {
                 var objective = objectives[objectiveIndex];
                 if (useModernGoalSelection
-                    ? CanReachModernGoalNode(graph, startNode.Id, objective.X, objective.Y)
+                    ? CanReachModernGoalNode(graph, spawn.X, spawn.Y, startNode.Id, objective.X, objective.Y, objective.RequireExactGoal)
                     : graph.TryFindRouteToGoalRadius(
                         startNode.Id,
                         objective.X,
@@ -318,16 +318,16 @@ public static class BotNavigationAssetValidator
 
     private static ObjectivePoint[] GetControlPointObjectives(SimpleLevel level)
     {
-        var controlPoints = level.GetRoomObjects(RoomObjectType.ControlPoint)
-            .Select(point => new ObjectivePoint(point.CenterX, point.CenterY, "control point"))
+        var captureZones = level.GetRoomObjects(RoomObjectType.CaptureZone)
+            .Select(point => new ObjectivePoint(point.CenterX, point.CenterY, "capture zone", RequireExactGoal: true))
             .ToArray();
-        if (controlPoints.Length > 0)
+        if (captureZones.Length > 0)
         {
-            return controlPoints;
+            return captureZones;
         }
 
-        return level.GetRoomObjects(RoomObjectType.CaptureZone)
-            .Select(point => new ObjectivePoint(point.CenterX, point.CenterY, "capture zone"))
+        return level.GetRoomObjects(RoomObjectType.ControlPoint)
+            .Select(point => new ObjectivePoint(point.CenterX, point.CenterY, "control point"))
             .ToArray();
     }
 
@@ -373,9 +373,12 @@ public static class BotNavigationAssetValidator
 
     private static bool CanReachModernGoalNode(
         BotNavigationRuntimeGraph graph,
+        float startX,
+        float startY,
         int startNodeId,
         float goalX,
-        float goalY)
+        float goalY,
+        bool requireExactGoal)
     {
         if (!graph.TryGetNode(startNodeId, out _)
             || !graph.TryFindNearestNode(goalX, goalY, maxDistance: 0f, requireGroundSupport: false, out var goalNode))
@@ -383,14 +386,51 @@ public static class BotNavigationAssetValidator
             return false;
         }
 
-        var goalWeights = graph.GetGoalWeights(goalNode.Id, maximumDepth: 130);
-        return goalWeights is not null
-            && startNodeId >= 0
-            && startNodeId < goalWeights.Length
-            && goalWeights[startNodeId] > 0;
+        if (graph.FindRoute(startNodeId, goalNode.Id) is not null)
+        {
+            return true;
+        }
+
+        if (!requireExactGoal && graph.TryFindRouteToGoalRadius(
+                startNodeId,
+                goalX,
+                goalY,
+                GoalNodeSearchDistance,
+                out _,
+                out _))
+        {
+            return true;
+        }
+
+        var startDistanceSquared = StartNodeSearchDistance * StartNodeSearchDistance;
+        for (var index = 0; index < graph.Nodes.Count; index += 1)
+        {
+            var candidate = graph.Nodes[index];
+            var deltaX = candidate.X - startX;
+            var deltaY = candidate.Y - startY;
+            if ((deltaX * deltaX) + (deltaY * deltaY) > startDistanceSquared)
+            {
+                continue;
+            }
+
+            if (graph.FindRoute(candidate.Id, goalNode.Id) is not null
+                || (!requireExactGoal
+                    && graph.TryFindRouteToGoalRadius(
+                        candidate.Id,
+                        goalX,
+                        goalY,
+                        GoalNodeSearchDistance,
+                        out _,
+                        out _)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private readonly record struct NavMarkerPoint(float X, float Y, string Label);
 
-    private readonly record struct ObjectivePoint(float X, float Y, string Label);
+    private readonly record struct ObjectivePoint(float X, float Y, string Label, bool RequireExactGoal = false);
 }

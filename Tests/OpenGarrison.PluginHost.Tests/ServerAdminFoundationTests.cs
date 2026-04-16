@@ -1,5 +1,6 @@
 using System.Net;
 using System.Linq;
+using System.Diagnostics;
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
@@ -981,6 +982,238 @@ public sealed class ServerAdminFoundationTests
         Assert.DoesNotContain((byte)2, botManager.BotSlots.Keys);
         Assert.DoesNotContain((byte)3, botManager.BotSlots.Keys);
         Assert.Equal(new byte[] { 4, 5 }, botManager.BotSlots.Keys.OrderBy(static slot => slot).ToArray());
+    }
+
+    [Fact]
+    public async Task ServerBotManagerFillDoesNotLoopForeverWhenAvailabilityChangesBetweenChecks()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            _ =>
+            {
+                return false;
+            });
+
+        var fillTask = Task.Run(() => botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 1, PlayerClass.Soldier));
+        var completedTask = await Task.WhenAny(fillTask, Task.Delay(TimeSpan.FromSeconds(1)));
+
+        Assert.Same(fillTask, completedTask);
+        Assert.Equal(0, await fillTask);
+        Assert.Empty(botManager.BotSlots);
+    }
+
+    [Fact]
+    public async Task ServerBotManagerFillBothTeamsDoesNotLoopForeverWhenAvailabilityChangesBetweenChecks()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(
+            world,
+            new SimulationConfig(),
+            new ModernPracticeBotController(),
+            _ =>
+            {
+                return false;
+            });
+
+        var fillTask = Task.Run(() => botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+        var completedTask = await Task.WhenAny(fillTask, Task.Delay(TimeSpan.FromSeconds(1)));
+
+        Assert.Same(fillTask, completedTask);
+        Assert.Equal(0, await fillTask);
+        Assert.Empty(botManager.BotSlots);
+    }
+
+    [Fact]
+    public async Task ServerBotManagerFirstBotThinkCompletesPromptlyAfterAdd()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Blue Bot"));
+
+        var thinkTask = Task.Run(() => botManager.FeedBotInputsBeforeSimulationAdvance());
+        var completedTask = await Task.WhenAny(thinkTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        Assert.Same(thinkTask, completedTask);
+        await thinkTask;
+    }
+
+    [Fact]
+    public async Task ServerBotManagerSecondBotThinkCompletesPromptlyAfterFirstSimulationTick()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        world.AdvanceOneTick();
+        botManager.AdvanceBotReactions();
+
+        var thinkTask = Task.Run(() =>
+        {
+            botManager.FeedBotInputsBeforeSimulationAdvance();
+        });
+        var completedTask = await Task.WhenAny(thinkTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        Assert.Same(thinkTask, completedTask);
+        await thinkTask;
+    }
+
+    [Fact]
+    public async Task ServerBotManagerSecondSimulationTickCompletesPromptlyAfterFilledRosterThink()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+        world.AdvanceOneTick();
+        botManager.AdvanceBotReactions();
+        botManager.FeedBotInputsBeforeSimulationAdvance();
+
+        var tickTask = Task.Run(() =>
+        {
+            world.AdvanceOneTick();
+            botManager.AdvanceBotReactions();
+        });
+        var completedTask = await Task.WhenAny(tickTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        Assert.Same(tickTask, completedTask);
+        await tickTask;
+    }
+
+    [Fact]
+    public async Task ServerBotManagerFilledRosterTickSequenceCompletesPromptly()
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+
+        const int tickCount = 8;
+        var currentTick = -1;
+        var currentPhase = "starting";
+        var tickTask = Task.Run(() =>
+        {
+            for (var index = 0; index < tickCount; index += 1)
+            {
+                currentTick = index;
+                currentPhase = "feed";
+                botManager.FeedBotInputsBeforeSimulationAdvance();
+                currentPhase = "advance";
+                world.AdvanceOneTick();
+                currentPhase = "reactions";
+                botManager.AdvanceBotReactions();
+            }
+
+            currentPhase = "done";
+        });
+        var completedTask = await Task.WhenAny(tickTask, Task.Delay(TimeSpan.FromSeconds(3)));
+
+        Assert.True(
+            ReferenceEquals(tickTask, completedTask),
+            $"Timed out during tick={currentTick} phase={currentPhase}.");
+        await tickTask;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServerBotManagerSingleTeamTickSequenceCompletesPromptly(bool fillViaHelper)
+    {
+        var world = new SimulationWorld();
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+
+        if (fillViaHelper)
+        {
+            Assert.Equal(1, botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 1, PlayerClass.Soldier));
+        }
+        else
+        {
+            Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Blue Bot"));
+        }
+
+        const int tickCount = 8;
+        var currentTick = -1;
+        var currentPhase = "starting";
+        var tickTask = Task.Run(() =>
+        {
+            for (var index = 0; index < tickCount; index += 1)
+            {
+                currentTick = index;
+                currentPhase = "feed";
+                botManager.FeedBotInputsBeforeSimulationAdvance();
+                currentPhase = "advance";
+                world.AdvanceOneTick();
+                currentPhase = "reactions";
+                botManager.AdvanceBotReactions();
+            }
+
+            currentPhase = "done";
+        });
+        var completedTask = await Task.WhenAny(tickTask, Task.Delay(TimeSpan.FromSeconds(3)));
+
+        Assert.True(
+            ReferenceEquals(tickTask, completedTask),
+            $"Timed out during tick={currentTick} phase={currentPhase} fillViaHelper={fillViaHelper}.");
+        await tickTask;
+    }
+
+    [Fact]
+    public async Task ServerBotManagerShippedNavigationTickSequenceCompletesPromptly()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Truefort"));
+
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
+
+        const int tickCount = 8;
+        var currentTick = -1;
+        var currentPhase = "starting";
+        var maxFeedMilliseconds = 0d;
+        var maxFeedTick = -1;
+        var maxAdvanceMilliseconds = 0d;
+        var maxReactionMilliseconds = 0d;
+        var tickTask = Task.Run(() =>
+        {
+            for (var index = 0; index < tickCount; index += 1)
+            {
+                currentTick = index;
+                currentPhase = "feed";
+                var stepStopwatch = Stopwatch.StartNew();
+                botManager.FeedBotInputsBeforeSimulationAdvance();
+                if (stepStopwatch.Elapsed.TotalMilliseconds > maxFeedMilliseconds)
+                {
+                    maxFeedMilliseconds = stepStopwatch.Elapsed.TotalMilliseconds;
+                    maxFeedTick = index;
+                }
+                currentPhase = "advance";
+                stepStopwatch.Restart();
+                world.AdvanceOneTick();
+                maxAdvanceMilliseconds = Math.Max(maxAdvanceMilliseconds, stepStopwatch.Elapsed.TotalMilliseconds);
+                currentPhase = "reactions";
+                stepStopwatch.Restart();
+                botManager.AdvanceBotReactions();
+                maxReactionMilliseconds = Math.Max(maxReactionMilliseconds, stepStopwatch.Elapsed.TotalMilliseconds);
+            }
+
+            currentPhase = "done";
+        });
+        var completedTask = await Task.WhenAny(tickTask, Task.Delay(TimeSpan.FromSeconds(15)));
+
+        Assert.True(
+            ReferenceEquals(tickTask, completedTask),
+            $"Timed out during tick={currentTick} phase={currentPhase} on shipped nav map.");
+        await tickTask;
+        Assert.True(
+            maxFeedMilliseconds < 500d,
+            $"Shipped-nav feed spike too high: tick={maxFeedTick} feed={maxFeedMilliseconds:0.0}ms advance={maxAdvanceMilliseconds:0.0}ms reactions={maxReactionMilliseconds:0.0}ms.");
     }
 
     private static OpenGarrisonServerCommandContext CreateCommandContext(OpenGarrisonServerAdminIdentity identity)

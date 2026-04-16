@@ -528,7 +528,7 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(null);
+            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowExperimentalSoldierFallback: false));
             player.SetAcquiredWeapon(null);
             return;
         }
@@ -569,16 +569,34 @@ public sealed partial class SimulationWorld
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
         }
-        player.SetExperimentalOffhandWeapon(
-            ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon
-                && player.ClassId == PlayerClass.Soldier
-                    ? CharacterClassCatalog.SoldierShotgun
-                    : null);
+        player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(
+            player,
+            allowExperimentalSoldierFallback: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon));
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
             || player.ClassId != PlayerClass.Soldier)
         {
             player.SetAcquiredWeapon(null);
         }
+    }
+
+    private static PrimaryWeaponDefinition? ResolveGameplaySecondaryWeapon(
+        PlayerEntity player,
+        bool allowExperimentalSoldierFallback)
+    {
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
+        if (!string.IsNullOrWhiteSpace(secondaryItemId))
+        {
+            var secondaryItem = runtimeRegistry.GetRequiredItem(secondaryItemId);
+            if (runtimeRegistry.TryGetPrimaryWeaponBinding(secondaryItem.BehaviorId, out _))
+            {
+                return runtimeRegistry.CreatePrimaryWeaponDefinition(secondaryItem);
+            }
+        }
+
+        return allowExperimentalSoldierFallback && player.ClassId == PlayerClass.Soldier
+            ? CharacterClassCatalog.SoldierShotgun
+            : null;
     }
 
 }
