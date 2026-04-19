@@ -38,7 +38,7 @@ public partial class Game1
                 return false;
             }
 
-            var facingScale = GetPlayerFacingScale(player);
+            var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var scale = new Vector2(facingScale * playerScale, playerScale);
             var frameIndex = isHeavyEating
@@ -73,6 +73,17 @@ public partial class Game1
 
         public PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
         {
+            if (_game.IsBackstabReplacementRenderActive(player))
+            {
+                return new PlayerBodySpriteSelection(
+                    GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS"),
+                    0f,
+                    0f,
+                    0f,
+                    player.IsCarryingIntel,
+                    false);
+            }
+
             var renderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
             var animationImage = WrapAnimationImage(renderState?.BodyAnimationImage ?? 0f, _game.GetPlayerBodyAnimationLength(player));
             var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
@@ -186,6 +197,17 @@ public partial class Game1
         public bool IsPointBlockedForPlayer(PlayerEntity player, float x, float y) => IsPointBlockedForPlayerCore(player, x, y);
         public static string? GetTeamSpriteNameProxy(PlayerClass classId, PlayerTeam team, string suffix) => GetTeamSpriteName(classId, team, suffix);
         public static string? GetPlayerSpritePrefixProxy(PlayerClass classId) => GetPlayerSpritePrefix(classId);
+
+        private float GetRenderFacingScale(PlayerEntity player)
+        {
+            if (_game.IsBackstabReplacementRenderActive(player))
+            {
+                var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
+                return System.MathF.Cos(radians) < 0f ? -1f : 1f;
+            }
+
+            return GetPlayerFacingScale(player);
+        }
 
         private void DrawIntelUnderlaySpriteCore(PlayerEntity player, Vector2 cameraPosition, Color tint, Vector2 scale, PlayerBodySpriteSelection bodySelection, Vector2 roundedOrigin)
         {

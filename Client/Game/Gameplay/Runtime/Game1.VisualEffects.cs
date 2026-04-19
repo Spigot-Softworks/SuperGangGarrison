@@ -25,6 +25,14 @@ public partial class Game1
     private readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
     private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
+    private float _medigunBeamHelixPhase;
+
+    private void AdvanceMedigunBeamHelixPhase()
+    {
+        _medigunBeamHelixPhase -= 0.08f;
+        if (_medigunBeamHelixPhase < 0f)
+            _medigunBeamHelixPhase += MathF.PI * 2f;
+    }
     private readonly List<MineTrailVisual> _mineTrailVisuals = new();
     private readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
     private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
