@@ -85,7 +85,7 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!_world.CanPlayerDamagePlayer(attacker, player) || player.Id == attacker.Id) { continue; }
-                var distance = GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, player, hitState.NearestDistance);
+                var distance = GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, _world, player, hitState.NearestDistance);
                 if (distance.HasValue) { UpdateNearestRiflePlayerHit(ref hitState, distance.Value, player); }
             }
         }

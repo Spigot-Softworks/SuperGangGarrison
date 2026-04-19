@@ -17,17 +17,31 @@ public static class GameMakerAssetManifestImporter
         }
 
         var sourceRootFile = ContentRoot.GetPath("Constants.xml");
-        // var sourceRootFile = ProjectSourceLocator.FindFile("Core/Content/Constants.xml");
+        if (!File.Exists(sourceRootFile))
+        {
+            sourceRootFile = ProjectSourceLocator.FindFile("Core/Content/Constants.xml");
+        }
+
         if (sourceRootFile is null)
         {
             return CreateEmptyManifest();
         }
 
         var sourceRootPath = Path.GetDirectoryName(sourceRootFile)!;
-        var sprites = ImportSprites(ContentRoot.GetPath("Sprites"));
-        // var sprites = ImportSprites(Path.Combine(sourceRootPath, "Sprites"));
+        var spritesRootPath = ContentRoot.GetPath("Sprites");
+        if (!Directory.Exists(spritesRootPath))
+        {
+            spritesRootPath = Path.Combine(sourceRootPath, "Sprites");
+        }
+
+        var sprites = ImportSprites(spritesRootPath);
         var modernAssetSpriteMetadata = ContentRoot.GetPath("Sprites", "gg2FontS.xml");
-        if (modernAssetSpriteMetadata is not null)
+        if (!File.Exists(modernAssetSpriteMetadata))
+        {
+            modernAssetSpriteMetadata = Path.Combine(sourceRootPath, "Sprites", "gg2FontS.xml");
+        }
+
+        if (File.Exists(modernAssetSpriteMetadata))
         {
             ImportSprite(modernAssetSpriteMetadata, sprites);
         }
@@ -118,10 +132,10 @@ public static class GameMakerAssetManifestImporter
                 Separate: ReadBoolElement(maskElement, "separate"),
                 Shape: ReadStringElement(maskElement, "shape"),
                 BoundsMode: ReadStringAttribute(boundsElement, "mode"),
-                Left: ReadNullableIntAttribute(boundsElement, "left"),
-                Top: ReadNullableIntAttribute(boundsElement, "top"),
-                Right: ReadNullableIntAttribute(boundsElement, "right"),
-                Bottom: ReadNullableIntAttribute(boundsElement, "bottom")));
+                Left: ReadNullableIntValue(boundsElement, "left"),
+                Top: ReadNullableIntValue(boundsElement, "top"),
+                Right: ReadNullableIntValue(boundsElement, "right"),
+                Bottom: ReadNullableIntValue(boundsElement, "bottom")));
         return true;
     }
 
@@ -264,10 +278,15 @@ public static class GameMakerAssetManifestImporter
             : 0;
     }
 
-    private static int? ReadNullableIntAttribute(XElement? element, string attributeName)
+    private static int? ReadNullableIntValue(XElement? element, string name)
     {
-        return int.TryParse(element?.Attribute(attributeName)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
+        if (int.TryParse(element?.Attribute(name)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var attributeValue))
+        {
+            return attributeValue;
+        }
+
+        return int.TryParse(element?.Element(name)?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var elementValue)
+            ? elementValue
             : null;
     }
 }

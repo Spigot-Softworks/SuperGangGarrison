@@ -121,7 +121,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distance = SimulationWorld.GetExplosionDistanceToPlayer(player, rocket.X, rocket.Y);
+                var distance = GetExplosionDistanceToPlayer(world, player, rocket.X, rocket.Y);
                 if (distance >= blastRadius)
                 {
                     continue;

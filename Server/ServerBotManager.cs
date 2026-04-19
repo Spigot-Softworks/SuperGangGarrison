@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 
@@ -39,21 +38,13 @@ internal sealed class ServerBotManager
     private readonly Dictionary<byte, ControlledBotSlot> _controlledSlotsBuffer = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
-    private readonly HashSet<string> _navigationBuildAttemptedKeys = new(StringComparer.Ordinal);
-    
-    private IReadOnlyDictionary<PlayerClass, BotNavigationAsset>? _navigationAssets;
-    private string? _currentLevelName;
-    private int _currentMapAreaIndex;
-    private Task<BotNavigationLoadResult>? _navigationPreloadTask;
-    private string? _navigationPreloadKey;
-    private Task<BotNavigationLoadResult>? _navigationBuildTask;
-    private string? _navigationBuildKey;
-    
     private int _perfSamples;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
     private double _perfApplyInputTotalMs;
     private double _perfApplyInputMaxMs;
+
+    public BotPathMode BotPathMode { get; set; } = BotPathMode.ClientBot2020Compat;
 
     public ServerBotManager(
         SimulationWorld world,
@@ -106,7 +97,6 @@ internal sealed class ServerBotManager
         _botDisplayNamePool.Reserve(resolvedDisplayName);
         _botSlots[slot] = new ServerBotSlotState(slot, team, classId, resolvedDisplayName);
         _inputCache.Remove(slot);
-        StartNavigationPreloadIfNeeded(_world.Level);
         return true;
     }
 
@@ -391,56 +381,16 @@ internal sealed class ServerBotManager
             _controlledSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 player.Team,
-                player.ClassId);
+                player.ClassId,
+                BotPathMode);
         }
     }
 
     private Dictionary<byte, PlayerInputSnapshot> GetBotInputs()
     {
-        // Get navigation assets for current level
-        StartNavigationPreloadIfNeeded(_world.Level);
-        CompletePendingNavigationPreloadIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
-        CompletePendingNavigationBuildIfReady(_world.Level.Name, _world.Level.MapAreaIndex);
-
-        var hasCurrentNavigationAssets = _navigationAssets is not null
-            && _navigationAssets.Count > 0
-            && string.Equals(_currentLevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
-            && _currentMapAreaIndex == _world.Level.MapAreaIndex;
-
-        if (!hasCurrentNavigationAssets
-            && _navigationPreloadTask is { IsCompleted: false }
-            && string.Equals(_navigationPreloadKey, GetNavigationPreloadKey(_world.Level.Name, _world.Level.MapAreaIndex), StringComparison.Ordinal))
-        {
-            SyncInputCache(new Dictionary<byte, PlayerInputSnapshot>());
-            return _inputCache;
-        }
-
-        if (!hasCurrentNavigationAssets)
-        {
-            var navigationResult = BotNavigationAssetStore.LoadForLevel(
-                _world.Level,
-                classes: null,
-                useModernRuntimeGeneration: true,
-                allowSynchronousGeneration: false);
-
-            _currentLevelName = _world.Level.Name;
-            _currentMapAreaIndex = _world.Level.MapAreaIndex;
-            _navigationAssets = navigationResult.Assets;
-            if (navigationResult.HasAnyAssets)
-            {
-                _botController.WarmNavigationGraphs(_navigationAssets);
-            }
-            else
-            {
-                StartNavigationBuildIfNeeded(_world.Level, navigationResult.LevelFingerprint);
-            }
-        }
-
-        // Build inputs using the bot controller
         var refreshedInputs = _botController.BuildInputs(
             _world,
-            _controlledSlotsBuffer,
-            _navigationAssets);
+            _controlledSlotsBuffer);
 
         SyncInputCache(refreshedInputs);
         return _inputCache;
@@ -538,127 +488,6 @@ internal sealed class ServerBotManager
 
         var classOffset = team == PlayerTeam.Red ? 3 : 0;
         return DefaultFillClassCycle[(teamClassIndex + classOffset) % DefaultFillClassCycle.Length];
-    }
-
-    private void StartNavigationPreloadIfNeeded(SimpleLevel level)
-    {
-        var preloadKey = GetNavigationPreloadKey(level.Name, level.MapAreaIndex);
-        if (_navigationPreloadTask is { IsCompleted: false }
-            || string.Equals(_navigationPreloadKey, preloadKey, StringComparison.Ordinal)
-            || _navigationAssets is not null
-                && _navigationAssets.Count > 0
-                && string.Equals(_currentLevelName, level.Name, StringComparison.OrdinalIgnoreCase)
-                && _currentMapAreaIndex == level.MapAreaIndex)
-        {
-            return;
-        }
-
-        _navigationPreloadKey = preloadKey;
-        _navigationPreloadTask = Task.Run(() =>
-        {
-            var result = BotNavigationAssetStore.LoadForLevel(
-                level,
-                classes: null,
-                useModernRuntimeGeneration: true,
-                allowSynchronousGeneration: false);
-            if (result.HasAnyAssets)
-            {
-                _botController.WarmNavigationGraphs(result.Assets);
-            }
-
-            return result;
-        });
-    }
-
-    private void CompletePendingNavigationPreloadIfReady(string levelName, int mapAreaIndex)
-    {
-        var task = _navigationPreloadTask;
-        if (task is null || !task.IsCompleted)
-        {
-            return;
-        }
-
-        if (task.IsCompletedSuccessfully)
-        {
-            var result = task.Result;
-            var resultKey = GetNavigationPreloadKey(result.LevelName, result.MapAreaIndex);
-            if (string.Equals(resultKey, _navigationPreloadKey, StringComparison.Ordinal)
-                && string.Equals(result.LevelName, levelName, StringComparison.OrdinalIgnoreCase)
-                && result.MapAreaIndex == mapAreaIndex
-                && result.HasAnyAssets)
-            {
-                _navigationAssets = result.Assets;
-                _currentLevelName = result.LevelName;
-                _currentMapAreaIndex = result.MapAreaIndex;
-            }
-        }
-        else if (task.Exception is not null)
-        {
-            Console.WriteLine($"[server] bot navigation preload failed: {task.Exception.GetBaseException().Message}");
-        }
-
-        _navigationPreloadTask = null;
-        _navigationPreloadKey = null;
-    }
-
-    private void CompletePendingNavigationBuildIfReady(string levelName, int mapAreaIndex)
-    {
-        var task = _navigationBuildTask;
-        if (task is null || !task.IsCompleted)
-        {
-            return;
-        }
-
-        if (task.IsCompletedSuccessfully)
-        {
-            var result = task.Result;
-            var resultKey = GetNavigationBuildKey(result.LevelName, result.MapAreaIndex, result.LevelFingerprint);
-            if (string.Equals(resultKey, _navigationBuildKey, StringComparison.Ordinal)
-                && string.Equals(result.LevelName, levelName, StringComparison.OrdinalIgnoreCase)
-                && result.MapAreaIndex == mapAreaIndex
-                && result.HasAnyAssets)
-            {
-                _navigationAssets = result.Assets;
-                _currentLevelName = result.LevelName;
-                _currentMapAreaIndex = result.MapAreaIndex;
-                Console.WriteLine($"[server] bot navigation ready: {result.BuildSummary()}");
-            }
-        }
-        else if (task.Exception is not null)
-        {
-            Console.WriteLine($"[server] bot navigation build failed: {task.Exception.GetBaseException().Message}");
-        }
-
-        _navigationBuildTask = null;
-        _navigationBuildKey = null;
-    }
-
-    private void StartNavigationBuildIfNeeded(SimpleLevel level, string fingerprint)
-    {
-        var buildKey = GetNavigationBuildKey(level.Name, level.MapAreaIndex, fingerprint);
-        if (_navigationBuildTask is { IsCompleted: false }
-            || !_navigationBuildAttemptedKeys.Add(buildKey))
-        {
-            return;
-        }
-
-        _navigationBuildKey = buildKey;
-        _navigationBuildTask = Task.Run(() => BotNavigationAssetStore.LoadForLevel(
-            level,
-            classes: null,
-            useModernRuntimeGeneration: true,
-            allowSynchronousGeneration: true));
-        Console.WriteLine($"[server] bot navigation unavailable for {level.Name} area {level.MapAreaIndex}; building in background.");
-    }
-
-    private static string GetNavigationBuildKey(string levelName, int mapAreaIndex, string fingerprint)
-    {
-        return $"{levelName}|{mapAreaIndex}|{fingerprint}";
-    }
-
-    private static string GetNavigationPreloadKey(string levelName, int mapAreaIndex)
-    {
-        return $"{levelName}|{mapAreaIndex}";
     }
 
     private string ResolveBotDisplayName(byte slot, PlayerTeam team, string displayName)

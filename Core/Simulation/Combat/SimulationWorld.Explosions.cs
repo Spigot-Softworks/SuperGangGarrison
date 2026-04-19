@@ -93,7 +93,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var distance = GetExplosionDistanceToPlayer(player, mine.X, mine.Y);
+            var distance = GetExplosionDistanceToPlayer(this, player, mine.X, mine.Y);
             if (distance >= MineProjectileEntity.BlastRadius)
             {
                 continue;
@@ -416,7 +416,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var distance = GetExplosionDistanceToPlayer(player, centerX, centerY);
+            var distance = GetExplosionDistanceToPlayer(this, player, centerX, centerY);
             if (distance >= blastRadius)
             {
                 continue;
@@ -590,9 +590,9 @@ public sealed partial class SimulationWorld
         return MathF.Min(SourceExplosionKnockbackCap, knockbackPerTick * distanceFactor) * vectorFactor * LegacyMovementModel.SourceTicksPerSecond;
     }
 
-    private static float GetExplosionDistanceToPlayer(PlayerEntity player, float originX, float originY)
+    private static float GetExplosionDistanceToPlayer(SimulationWorld world, PlayerEntity player, float originX, float originY)
     {
-        player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+        GetPlayerPresentationHitBounds(world, player, out var left, out var top, out var right, out var bottom);
         var deltaX = 0f;
         if (originX < left)
         {

@@ -113,6 +113,11 @@ public partial class Game1
         public bool TryParseManualConnectTarget(out NetworkEndpoint endpoint)
         {
             endpoint = default;
+            if (TryParseManualConnectWebSocketEndpoint(out endpoint))
+            {
+                return true;
+            }
+
             if (!TryParseManualConnectTarget(out var host, out var port))
             {
                 return false;
@@ -131,6 +136,13 @@ public partial class Game1
             {
                 _game._menuStatusMessage = "Host is required.";
                 return false;
+            }
+
+            if (OperatingSystem.IsBrowser()
+                && TryParseExplicitWebSocketUri(host, out var explicitWebSocketUri))
+            {
+                host = explicitWebSocketUri.ToString();
+                return true;
             }
 
             if (!int.TryParse(_game._connectPortBuffer.Trim(), out port) || port is <= 0 or > 65535)
@@ -165,12 +177,7 @@ public partial class Game1
         public IEnumerable<LobbyBrowserTarget> BuildLobbyBrowserTargets()
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var target in new[]
-                     {
-                         new LobbyBrowserTarget("Localhost", NetworkEndpoint.ForCurrentRuntimeSinglePort("127.0.0.1", 8190)),
-                         new LobbyBrowserTarget("Manual target", NetworkEndpoint.ForCurrentRuntimeSinglePort(_game._connectHostBuffer.Trim(), TryParseBrowserPort(_game._connectPortBuffer))),
-                         new LobbyBrowserTarget("Recent", NetworkEndpoint.ForCurrentRuntimeSinglePort(_game._recentConnectHost ?? string.Empty, _game._recentConnectPort)),
-                     })
+            foreach (var target in BuildDefaultLobbyTargets())
             {
                 if (string.IsNullOrWhiteSpace(target.Endpoint.Host)
                     || (!target.Endpoint.HasUdpEndpoint && !target.Endpoint.HasWebSocketEndpoint))
@@ -247,6 +254,67 @@ public partial class Game1
         private static int TryParseBrowserPort(string text)
         {
             return int.TryParse(text.Trim(), out var port) && port is > 0 and <= 65535 ? port : 0;
+        }
+
+        private IEnumerable<LobbyBrowserTarget> BuildDefaultLobbyTargets()
+        {
+            if (TryCreateManualConnectEndpoint("127.0.0.1", 8190, out var localhostEndpoint))
+            {
+                yield return new LobbyBrowserTarget("Localhost", localhostEndpoint);
+            }
+
+            if (TryCreateManualConnectEndpoint(_game._connectHostBuffer, TryParseBrowserPort(_game._connectPortBuffer), out var manualEndpoint))
+            {
+                yield return new LobbyBrowserTarget("Manual target", manualEndpoint);
+            }
+
+            if (TryCreateManualConnectEndpoint(_game._recentConnectHost ?? string.Empty, _game._recentConnectPort, out var recentEndpoint))
+            {
+                yield return new LobbyBrowserTarget("Recent", recentEndpoint);
+            }
+        }
+
+        private bool TryParseManualConnectWebSocketEndpoint(out NetworkEndpoint endpoint)
+        {
+            return TryCreateManualConnectEndpoint(_game._connectHostBuffer, TryParseBrowserPort(_game._connectPortBuffer), out endpoint);
+        }
+
+        private bool TryCreateManualConnectEndpoint(string? hostText, int port, out NetworkEndpoint endpoint)
+        {
+            endpoint = default;
+            var host = hostText?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                return false;
+            }
+
+            if (OperatingSystem.IsBrowser()
+                && TryParseExplicitWebSocketUri(host, out var explicitWebSocketUri))
+            {
+                endpoint = new NetworkEndpoint(explicitWebSocketUri.Host, 0, 0, explicitWebSocketUri.ToString());
+                return true;
+            }
+
+            if (port is <= 0 or > 65535)
+            {
+                return false;
+            }
+
+            endpoint = NetworkEndpoint.ForCurrentRuntimeSinglePort(host, port);
+            return true;
+        }
+
+        private static bool TryParseExplicitWebSocketUri(string value, out Uri uri)
+        {
+            if (Uri.TryCreate(value, UriKind.Absolute, out uri!)
+                && (uri.Scheme == "ws" || uri.Scheme == "wss")
+                && !string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return true;
+            }
+
+            uri = null!;
+            return false;
         }
     }
 }

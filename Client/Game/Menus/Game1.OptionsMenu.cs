@@ -31,6 +31,11 @@ public partial class Game1
 
     private void ToggleFullscreenSetting()
     {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
         _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
         ApplyGraphicsSettings();
     }

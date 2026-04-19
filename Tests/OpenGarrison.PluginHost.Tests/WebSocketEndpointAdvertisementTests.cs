@@ -36,6 +36,34 @@ public sealed class WebSocketEndpointAdvertisementTests
     }
 
     [Fact]
+    public void ServerLaunchOptionsDefaultsWebSocketPortToServerPort()
+    {
+        var options = ServerLaunchOptions.Load(
+            [
+                "--port",
+                "9000",
+            ],
+            _ => new ServerSettings());
+
+        Assert.Equal(9000, options.Port);
+        Assert.Equal(9000, options.WebSocketPort);
+    }
+
+    [Fact]
+    public void ServerLaunchOptionsCanDisableWebSocketListener()
+    {
+        var options = ServerLaunchOptions.Load(
+            [
+                "--port",
+                "9000",
+                "--no-websocket",
+            ],
+            _ => new ServerSettings());
+
+        Assert.Equal(0, options.WebSocketPort);
+    }
+
+    [Fact]
     public void ServerLaunchOptionsRejectsNonWebSocketPublicUrl()
     {
         var options = ServerLaunchOptions.Load(

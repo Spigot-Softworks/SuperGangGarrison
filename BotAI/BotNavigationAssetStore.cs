@@ -2,6 +2,7 @@ using OpenGarrison.Core;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace OpenGarrison.BotAI;
 
@@ -10,6 +11,7 @@ public static class BotNavigationAssetStore
     public const int CurrentFormatVersion = 3;
     private const string ShippedRelativeDirectory = "Core/Content/BotNav";
     private const string RuntimeCacheDirectoryName = "bot-nav";
+    private static readonly ConditionalWeakTable<SimpleLevel, ModernShippedAssetCacheEntry> ModernShippedAssetCache = new();
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         AllowTrailingCommas = true,
@@ -27,7 +29,7 @@ public static class BotNavigationAssetStore
         IReadOnlyList<PlayerClass>? classes = null,
         bool useModernRuntimeGeneration = true,
         bool allowSynchronousGeneration = true,
-        bool preferFreshModernGeneration = false)
+        bool preferFreshModernGeneration = true)
     {
         ArgumentNullException.ThrowIfNull(level);
 
@@ -164,31 +166,12 @@ public static class BotNavigationAssetStore
         out BotNavigationValidationResult validation)
     {
         ArgumentNullException.ThrowIfNull(level);
-
-        asset = null;
-        path = ResolveModernShippedPath(level.Name, level.MapAreaIndex) ?? string.Empty;
-        message = string.Empty;
-        validation = BotNavigationValidationResult.Valid;
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            message = "no shipped modern nav asset found";
-            return false;
-        }
-
-        var fingerprint = BotNavigationLevelFingerprint.Compute(level);
-        if (TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: false, out asset, out message, out validation))
-        {
-            return true;
-        }
-
-        if (message == "modern nav asset fingerprint mismatch"
-            && TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: true, out asset, out message, out validation))
-        {
-            message = "modern nav asset shipped compat-fingerprint";
-            return true;
-        }
-
-        return false;
+        var cacheEntry = ModernShippedAssetCache.GetValue(level, static currentLevel => LoadModernShippedAssetCacheEntry(currentLevel));
+        asset = cacheEntry.Asset;
+        path = cacheEntry.Path;
+        message = cacheEntry.Message;
+        validation = cacheEntry.Validation;
+        return cacheEntry.Success;
     }
 
     private static BotNavigationLoadResult LoadModernAssets(
@@ -438,12 +421,6 @@ public static class BotNavigationAssetStore
         }
 
         var shippedPath = ResolveModernShippedPath(level.Name, level.MapAreaIndex);
-        if (!preferFreshModernGeneration
-            && TryLoadModernCandidate(shippedPath, level, fingerprint, BotNavigationAssetSource.ShippedContent, out var shippedCandidate, out shippedFailure))
-        {
-            return new ModernAssetLoadResult(shippedCandidate, string.Empty);
-        }
-
         var buildFailure = string.Empty;
         if (allowSynchronousGeneration)
         {
@@ -471,8 +448,7 @@ public static class BotNavigationAssetStore
             }
         }
 
-        if (preferFreshModernGeneration
-            && TryLoadModernCandidate(cachePath, level, fingerprint, BotNavigationAssetSource.RuntimeCache, out var fallbackCachedCandidate, out cacheFailure))
+        if (TryLoadModernCandidate(cachePath, level, fingerprint, BotNavigationAssetSource.RuntimeCache, out var fallbackCachedCandidate, out cacheFailure))
         {
             return new ModernAssetLoadResult(fallbackCachedCandidate, string.Empty);
         }
@@ -631,6 +607,49 @@ public static class BotNavigationAssetStore
         }
 
         return true;
+    }
+
+    private static ModernShippedAssetCacheEntry LoadModernShippedAssetCacheEntry(SimpleLevel level)
+    {
+        var path = ResolveModernShippedPath(level.Name, level.MapAreaIndex) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return new ModernShippedAssetCacheEntry(
+                Success: false,
+                Asset: null,
+                Path: string.Empty,
+                Message: "no shipped modern nav asset found",
+                Validation: BotNavigationValidationResult.Valid);
+        }
+
+        var fingerprint = BotNavigationLevelFingerprint.Compute(level);
+        if (TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: false, out var asset, out var message, out var validation))
+        {
+            return new ModernShippedAssetCacheEntry(
+                Success: true,
+                Asset: asset,
+                Path: path,
+                Message: message,
+                Validation: validation);
+        }
+
+        if (message == "modern nav asset fingerprint mismatch"
+            && TryReadAndValidateModernAsset(path, level, fingerprint, allowFingerprintMismatch: true, out asset, out message, out validation))
+        {
+            return new ModernShippedAssetCacheEntry(
+                Success: true,
+                Asset: asset,
+                Path: path,
+                Message: "modern nav asset shipped compat-fingerprint",
+                Validation: validation);
+        }
+
+        return new ModernShippedAssetCacheEntry(
+            Success: false,
+            Asset: null,
+            Path: path,
+            Message: message,
+            Validation: validation);
     }
 
     private static void TryWriteRuntimeCache(BotNavigationAsset asset)
@@ -944,6 +963,13 @@ public static class BotNavigationAssetStore
     private sealed record LoadedAssetCandidate(
         BotNavigationAsset Asset,
         BotNavigationAssetSource Source,
+        string Path,
+        string Message,
+        BotNavigationValidationResult Validation);
+
+    private sealed record ModernShippedAssetCacheEntry(
+        bool Success,
+        BotNavigationAsset? Asset,
         string Path,
         string Message,
         BotNavigationValidationResult Validation);

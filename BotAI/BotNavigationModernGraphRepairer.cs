@@ -17,6 +17,161 @@ public static class BotNavigationModernGraphRepairer
     private const float DropTraversalMinimumDistance = 18f;
     private const float StartNodeSearchDistance = 220f;
     private const float GoalNodeSearchDistance = 220f;
+    private const float GapSupportProbeDepth = 54f;
+
+    public static BotNavigationAsset AddReverseOnlyTraversalBlocks(SimpleLevel level, BotNavigationAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        if (asset.BuildStrategy != BotNavigationBuildStrategy.ModernClientBotPointGraph
+            || asset.Nodes.Count == 0
+            || asset.Edges.Count == 0)
+        {
+            return asset;
+        }
+
+        var blockedFromNodeIdsByNodeId = new Dictionary<int, HashSet<int>>();
+        for (var nodeIndex = 0; nodeIndex < asset.Nodes.Count; nodeIndex += 1)
+        {
+            var node = asset.Nodes[nodeIndex];
+            if (node.ReverseOnlyBlockedFromNodeIds.Count == 0)
+            {
+                continue;
+            }
+
+            blockedFromNodeIdsByNodeId[node.Id] = new HashSet<int>(node.ReverseOnlyBlockedFromNodeIds);
+        }
+
+        var addedBlock = false;
+        for (var edgeIndex = 0; edgeIndex < asset.Edges.Count; edgeIndex += 1)
+        {
+            var edge = asset.Edges[edgeIndex];
+            if (!TryGetNode(asset.Nodes, edge.FromNodeId, out var from)
+                || !TryGetNode(asset.Nodes, edge.ToNodeId, out var to)
+                || !IsReverseOnlyDirectedConnection(level, from, to))
+            {
+                continue;
+            }
+
+            if (!blockedFromNodeIdsByNodeId.TryGetValue(to.Id, out var blockedFromNodeIds))
+            {
+                blockedFromNodeIds = new HashSet<int>();
+                blockedFromNodeIdsByNodeId[to.Id] = blockedFromNodeIds;
+            }
+
+            addedBlock |= blockedFromNodeIds.Add(from.Id);
+        }
+
+        if (!addedBlock)
+        {
+            return asset;
+        }
+
+        var nodes = asset.Nodes
+            .Select(node => new BotNavigationNode
+            {
+                Id = node.Id,
+                X = node.X,
+                Y = node.Y,
+                SurfaceId = node.SurfaceId,
+                Kind = node.Kind,
+                Team = node.Team,
+                Label = node.Label,
+                RequiresGroundSupport = node.RequiresGroundSupport,
+                ReverseOnlyBlockedFromNodeIds = blockedFromNodeIdsByNodeId.TryGetValue(node.Id, out var blockedFromNodeIds)
+                    ? blockedFromNodeIds.Order().ToArray()
+                    : Array.Empty<int>(),
+            })
+            .ToArray();
+
+        return new BotNavigationAsset
+        {
+            FormatVersion = asset.FormatVersion,
+            LevelName = asset.LevelName,
+            MapAreaIndex = asset.MapAreaIndex,
+            ClassId = asset.ClassId,
+            Profile = asset.Profile,
+            LevelFingerprint = asset.LevelFingerprint,
+            BuildStrategy = asset.BuildStrategy,
+            BuiltUtc = asset.BuiltUtc,
+            Stats = asset.Stats,
+            Nodes = nodes,
+            Edges = asset.Edges,
+        };
+    }
+
+    public static BotNavigationAsset RemoveRedundantClientBotEdges(SimpleLevel level, BotNavigationAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        if (asset.BuildStrategy != BotNavigationBuildStrategy.ModernClientBotPointGraph
+            || asset.Nodes.Count == 0
+            || asset.Edges.Count == 0)
+        {
+            return asset;
+        }
+
+        var nodesById = asset.Nodes.ToDictionary(static node => node.Id);
+        var nodesByX = asset.Nodes.OrderBy(static node => node.X).ToArray();
+        var prunedEdges = new List<BotNavigationEdge>(asset.Edges.Count);
+        var removedEdges = 0;
+        for (var edgeIndex = 0; edgeIndex < asset.Edges.Count; edgeIndex += 1)
+        {
+            var edge = asset.Edges[edgeIndex];
+            if (!nodesById.TryGetValue(edge.FromNodeId, out var from)
+                || !nodesById.TryGetValue(edge.ToNodeId, out var to)
+                || IsRedundantClientBotConnection(level, nodesByX, from, to))
+            {
+                removedEdges += 1;
+                continue;
+            }
+
+            prunedEdges.Add(edge);
+        }
+
+        if (removedEdges == 0)
+        {
+            return asset;
+        }
+
+        var stats = asset.Stats;
+        return new BotNavigationAsset
+        {
+            FormatVersion = asset.FormatVersion,
+            LevelName = asset.LevelName,
+            MapAreaIndex = asset.MapAreaIndex,
+            ClassId = asset.ClassId,
+            Profile = asset.Profile,
+            LevelFingerprint = asset.LevelFingerprint,
+            BuildStrategy = asset.BuildStrategy,
+            BuiltUtc = asset.BuiltUtc,
+            Stats = new BotNavigationBuildStats
+            {
+                SurfaceCount = stats.SurfaceCount,
+                CandidateNodeCount = stats.CandidateNodeCount,
+                SurfaceSampleNodeCount = stats.SurfaceSampleNodeCount,
+                AutoAnchorNodeCount = stats.AutoAnchorNodeCount,
+                HintNodeCount = stats.HintNodeCount,
+                NodeCount = asset.Nodes.Count,
+                EdgeCount = prunedEdges.Count,
+                WalkEdgeCount = prunedEdges.Count(static edge => edge.Kind == BotNavigationTraversalKind.Walk),
+                JumpEdgeCount = prunedEdges.Count(static edge => edge.Kind == BotNavigationTraversalKind.Jump),
+                DropEdgeCount = prunedEdges.Count(static edge => edge.Kind == BotNavigationTraversalKind.Drop),
+                HintEdgeCount = stats.HintEdgeCount,
+                BuildMilliseconds = stats.BuildMilliseconds,
+                SurfaceSamplingMilliseconds = stats.SurfaceSamplingMilliseconds,
+                AutoAnchorMilliseconds = stats.AutoAnchorMilliseconds,
+                HintNodeMilliseconds = stats.HintNodeMilliseconds,
+                AutomaticEdgeMilliseconds = stats.AutomaticEdgeMilliseconds,
+                HintEdgeMilliseconds = stats.HintEdgeMilliseconds,
+                DropEdgeMilliseconds = stats.DropEdgeMilliseconds,
+            },
+            Nodes = asset.Nodes,
+            Edges = prunedEdges,
+        };
+    }
 
     public static BotNavigationModernGraphRepairResult AddMissingClientBotEdges(SimpleLevel level, BotNavigationAsset asset)
     {
@@ -70,8 +225,6 @@ public static class BotNavigationModernGraphRepairer
                 addedEdges += 1;
             }
         }
-
-        addedEdges += AddReachabilityBridgeEdges(level, asset.Nodes, edges, edgeKeys);
 
         if (addedEdges == 0)
         {
@@ -314,6 +467,95 @@ public static class BotNavigationModernGraphRepairer
 
         var slope = (from.Y - to.Y) / (to.X - from.X);
         return slope <= MaximumSlope && slope >= -MaximumSlope;
+    }
+
+    private static bool IsReverseOnlyDirectedConnection(SimpleLevel level, BotNavigationNode from, BotNavigationNode to)
+    {
+        if (ComputeDirectedTraversalCost(from.X, from.Y, to.X, to.Y) <= MaximumDirectedTraversalCost
+            || ComputeDirectedTraversalCost(to.X, to.Y, from.X, from.Y) > MaximumDirectedTraversalCost)
+        {
+            return false;
+        }
+
+        var deltaX = to.X - from.X;
+        if (MathF.Abs(deltaX) < GridStep)
+        {
+            return false;
+        }
+
+        var direction = MathF.Sign(deltaX);
+        var slope = (from.Y - to.Y) / deltaX;
+        for (var offset = 0f; MathF.Abs((from.X + (offset * direction)) - to.X) >= GridStep; offset += GridStep)
+        {
+            var sampleX = from.X + (offset * direction);
+            var sampleY = from.Y - (slope * (offset * direction));
+            if (!LineHitsSolid(level, sampleX, sampleY, sampleX, sampleY + GapSupportProbeDepth))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsRedundantClientBotConnection(
+        SimpleLevel level,
+        BotNavigationNode[] nodesByX,
+        BotNavigationNode from,
+        BotNavigationNode to)
+    {
+        var minimumX = MathF.Min(from.X, to.X);
+        var maximumX = MathF.Max(from.X, to.X);
+        var minimumY = MathF.Min(from.Y, to.Y);
+        var maximumY = MathF.Max(from.Y, to.Y);
+        var firstCandidateIndex = FindFirstNodeAtOrAfterX(nodesByX, minimumX);
+
+        for (var nodeIndex = firstCandidateIndex; nodeIndex < nodesByX.Length; nodeIndex += 1)
+        {
+            var candidate = nodesByX[nodeIndex];
+            if (candidate.X >= maximumX)
+            {
+                break;
+            }
+
+            if (candidate.Id == from.Id || candidate.Id == to.Id)
+            {
+                continue;
+            }
+
+            if (candidate.X <= minimumX)
+            {
+                continue;
+            }
+
+            if (candidate.Y < minimumY || candidate.Y > maximumY)
+            {
+                continue;
+            }
+
+            if (!LineHitsSolid(level, from.X, from.Y - ConnectionClearanceHeight, candidate.X, candidate.Y - ConnectionClearanceHeight)
+                && !LineHitsSolid(level, to.X, to.Y - ConnectionClearanceHeight, candidate.X, candidate.Y - ConnectionClearanceHeight))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetNode(IReadOnlyList<BotNavigationNode> nodes, int nodeId, out BotNavigationNode node)
+    {
+        for (var index = 0; index < nodes.Count; index += 1)
+        {
+            if (nodes[index].Id == nodeId)
+            {
+                node = nodes[index];
+                return true;
+            }
+        }
+
+        node = default!;
+        return false;
     }
 
     private static float ComputeDirectedTraversalCost(float fromX, float fromY, float toX, float toY)

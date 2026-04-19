@@ -406,7 +406,7 @@ public partial class Game1
 
     private bool CanOccupyPredicted(PlayerEntity player, float x, float y)
     {
-        player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+        player.GetRoundedCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
 
         foreach (var solid in _world.Level.Solids)
         {
@@ -467,7 +467,7 @@ public partial class Game1
 
     private float? FindPredictedBlockingObstacleTop(PlayerEntity player, float x, float y)
     {
-        player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+        player.GetRoundedCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
         float? obstacleTop = null;
 
         foreach (var solid in _world.Level.Solids)

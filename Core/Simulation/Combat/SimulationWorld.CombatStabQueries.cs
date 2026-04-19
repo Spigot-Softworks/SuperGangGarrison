@@ -61,7 +61,7 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!_world.CanTeamDamagePlayer(mask.Team, mask.OwnerId, player) || player.Id == mask.OwnerId) { continue; }
-                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
                 var distance = GetThickRayIntersectionDistanceWithRectangle(originX, originY, directionX, directionY, left, top, right, bottom, StabMaskEntity.ReachLength, thicknessRadius);
                 if (distance.HasValue) { UpdateNearestStabHit(ref nearestHit, originX, originY, directionX, directionY, distance.Value, player); }
             }

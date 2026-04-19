@@ -247,7 +247,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var distance = GetExplosionDistanceToPlayer(candidate, player.X, player.Y);
+            var distance = GetExplosionDistanceToPlayer(this, candidate, player.X, player.Y);
             if (distance >= AcquiredMedigunHealsplosionRadius)
             {
                 continue;

@@ -369,3 +369,7 @@ foreach ($output in $builtOutputs) {
     Write-Host "    folder:  $($output.Directory)"
     Write-Host "    archive: $($output.Archive)"
 }
+
+if (Test-Path $stagingRoot) {
+    Remove-Item $stagingRoot -Recurse -Force
+}

@@ -132,13 +132,17 @@ public static class SimpleLevelFactory
         var entries = new List<LevelCatalogEntry>();
         foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
         {
-            var stockMapPath = FindStockMapSourcePath(definition);
-            if (stockMapPath is null)
+            var stockMapSource = FindStockMapSource(definition);
+            if (stockMapSource.RoomSourcePath is null)
             {
                 continue;
             }
 
-            entries.Add(new LevelCatalogEntry(definition.LevelName, definition.Mode, stockMapPath, null));
+            entries.Add(new LevelCatalogEntry(
+                definition.LevelName,
+                definition.Mode,
+                stockMapSource.RoomSourcePath,
+                stockMapSource.CollisionMaskSourcePath));
         }
 
         AppendCustomMapEntries(entries);
@@ -314,7 +318,41 @@ public static class SimpleLevelFactory
         return false;
     }
 
-    private static string? FindStockMapSourcePath(OpenGarrisonStockMapDefinition definition)
+    private static (string? RoomSourcePath, string? CollisionMaskSourcePath) FindStockMapSource(OpenGarrisonStockMapDefinition definition)
+    {
+        var roomFileName = $"{definition.LevelName}.xml";
+        var collisionSpriteName = $"{definition.LevelName}S.images";
+        var runtimeRoomPath = ContentRoot.GetPath("Rooms", "Maps", roomFileName);
+        var runtimeCollisionPath = ContentRoot.GetPath("Sprites", "Collision Maps", collisionSpriteName, "image 0.png");
+        if (File.Exists(runtimeRoomPath) && File.Exists(runtimeCollisionPath))
+        {
+            return (runtimeRoomPath, runtimeCollisionPath);
+        }
+
+        var projectRoomPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "Rooms", "Maps", roomFileName));
+        var projectCollisionPath = ProjectSourceLocator.FindFile(Path.Combine("Core", "Content", "Sprites", "Collision Maps", collisionSpriteName, "image 0.png"));
+        if (!string.IsNullOrWhiteSpace(projectRoomPath)
+            && !string.IsNullOrWhiteSpace(projectCollisionPath)
+            && File.Exists(projectRoomPath)
+            && File.Exists(projectCollisionPath))
+        {
+            return (projectRoomPath, projectCollisionPath);
+        }
+
+        var sourceRoomPath = ProjectSourceLocator.FindFile(Path.Combine(ContentRoot.Path, "Rooms", "Maps", roomFileName));
+        var sourceCollisionPath = ProjectSourceLocator.FindFile(Path.Combine(ContentRoot.Path, "Sprites", "Collision Maps", collisionSpriteName, "image 0.png"));
+        if (!string.IsNullOrWhiteSpace(sourceRoomPath)
+            && !string.IsNullOrWhiteSpace(sourceCollisionPath)
+            && File.Exists(sourceRoomPath)
+            && File.Exists(sourceCollisionPath))
+        {
+            return (sourceRoomPath, sourceCollisionPath);
+        }
+
+        return (FindStockMapPngSourcePath(definition), null);
+    }
+
+    private static string? FindStockMapPngSourcePath(OpenGarrisonStockMapDefinition definition)
     {
         var fileName = $"{definition.IniKey}.png";
         var runtimePath = ContentRoot.GetPath("StockMaps", fileName);

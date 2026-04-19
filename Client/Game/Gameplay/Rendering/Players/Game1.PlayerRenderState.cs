@@ -73,6 +73,13 @@ public partial class Game1
         var animationImage = renderState.BodyAnimationImage;
 
         var appearsAirborne = !GetPlayerRenderIsGrounded(player);
+        if (appearsAirborne
+            && player.IsGrounded
+            && verticalSourceStepSpeed <= 0.35f)
+        {
+            appearsAirborne = false;
+        }
+
         if (appearsAirborne && isHumiliated)
         {
             appearsAirborne = verticalSourceStepSpeed > 0.35f;

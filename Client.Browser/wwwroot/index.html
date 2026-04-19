@@ -54,6 +54,8 @@
             gameLoopHandle: 0,
             gameLoopActive: false,
             gameLoopPending: false,
+            gameLoopPendingStartedAt: 0,
+            maxPendingPumpMs: 5000,
             gameLoopHost: null,
             preferSynchronousGameLoopPump: false,
             webSocketClients: {},
@@ -487,6 +489,26 @@
                     pumpCompletions: []
                 };
             },
+            clearPendingPump: function () {
+                const api = window.OpenGarrisonBrowserHost;
+                api.gameLoopPending = false;
+                api.gameLoopPendingStartedAt = 0;
+            },
+            recoverStalledPumpIfNeeded: function (reason) {
+                const api = window.OpenGarrisonBrowserHost;
+                if (!api.gameLoopPending || !api.gameLoopPendingStartedAt) {
+                    return false;
+                }
+
+                const pendingDurationMs = performance.now() - api.gameLoopPendingStartedAt;
+                if (pendingDurationMs < api.maxPendingPumpMs) {
+                    return false;
+                }
+
+                console.warn("Browser host recovered a stalled frame pump.", reason, pendingDurationMs);
+                api.clearPendingPump();
+                return true;
+            },
             startGameLoop: function (host) {
                 const api = window.OpenGarrisonBrowserHost;
                 api.stopGameLoop();
@@ -500,11 +522,13 @@
                     }
 
                     api.gameLoopHandle = requestAnimationFrame(pump);
+                    api.recoverStalledPumpIfNeeded("animation-frame");
                     if (api.gameLoopPending || !api.gameLoopHost) {
                         return;
                     }
 
                     api.gameLoopPending = true;
+                    api.gameLoopPendingStartedAt = performance.now();
                     const pumpStartedAt = performance.now();
                     if (!api.metrics.firstPumpStartedAt) {
                         api.metrics.firstPumpStartedAt = pumpStartedAt;
@@ -526,7 +550,7 @@
                             api.metrics.pumpCompletions.shift();
                         }
 
-                        api.gameLoopPending = false;
+                        api.clearPendingPump();
                     };
 
                     if (api.preferSynchronousGameLoopPump
@@ -556,7 +580,7 @@
             stopGameLoop: function () {
                 const api = window.OpenGarrisonBrowserHost;
                 api.gameLoopActive = false;
-                api.gameLoopPending = false;
+                api.clearPendingPump();
                 api.gameLoopHost = null;
 
                 if (api.gameLoopHandle) {
@@ -685,6 +709,24 @@
                     window.OpenGarrisonBrowserHost.handleSplashClick();
                 });
             }
+
+            document.addEventListener("visibilitychange", function () {
+                if (!document.hidden) {
+                    window.OpenGarrisonBrowserHost.recoverStalledPumpIfNeeded("visibilitychange");
+                }
+            });
+
+            window.addEventListener("pageshow", function () {
+                window.OpenGarrisonBrowserHost.recoverStalledPumpIfNeeded("pageshow");
+            });
+
+            window.addEventListener("focus", function () {
+                window.OpenGarrisonBrowserHost.recoverStalledPumpIfNeeded("focus");
+            });
+
+            window.addEventListener("resize", function () {
+                window.OpenGarrisonBrowserHost.recoverStalledPumpIfNeeded("resize");
+            });
         });
     </script>
     <script src="_framework/blazor.webassembly.js"></script>

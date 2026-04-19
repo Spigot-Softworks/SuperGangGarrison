@@ -114,6 +114,7 @@ public sealed partial class SimulationWorld
             float originY,
             float directionX,
             float directionY,
+            SimulationWorld world,
             PlayerEntity player,
             float maxDistance)
         {
@@ -122,7 +123,7 @@ public sealed partial class SimulationWorld
                 return null;
             }
 
-            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+            GetPlayerPresentationHitBounds(world, player, out var left, out var top, out var right, out var bottom);
             return GetRayIntersectionDistanceWithRectangle(
                 originX,
                 originY,
@@ -197,7 +198,7 @@ public sealed partial class SimulationWorld
                 thicknessRadius);
         }
 
-        public static float? GetLineIntersectionDistanceToPlayer(
+        public float? GetLineIntersectionDistanceToPlayer(
             float originX,
             float originY,
             float endX,
@@ -218,10 +219,10 @@ public sealed partial class SimulationWorld
 
             var directionX = (endX - originX) / distance;
             var directionY = (endY - originY) / distance;
-            return GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, player, distance);
+            return GetRayIntersectionDistanceWithPlayer(originX, originY, directionX, directionY, _world, player, distance);
         }
 
-        public static float? GetThickLineIntersectionDistanceToPlayer(
+        public float? GetThickLineIntersectionDistanceToPlayer(
             float originX,
             float originY,
             float endX,
@@ -243,7 +244,7 @@ public sealed partial class SimulationWorld
 
             var directionX = (endX - originX) / distance;
             var directionY = (endY - originY) / distance;
-            player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+            GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
             return GetThickRayIntersectionDistanceWithRectangle(
                 originX,
                 originY,

@@ -131,6 +131,8 @@ try {
 
   await runPostJoinCommands(page);
   await runPostJoinMovement(page);
+  await verifyChatInput(page);
+  await verifyResizeRecovery(page);
 
   const finalSummary = await waitForStableHost(page, practiceSpawnSettleTimeoutMs);
   if (finalSummary.hostFailed) {
@@ -715,6 +717,59 @@ async function runPostJoinMovement(page) {
   await page.keyboard.down(postJoinMoveKey);
   await delay(postJoinMoveDurationMs);
   await page.keyboard.up(postJoinMoveKey);
+}
+
+async function verifyChatInput(page) {
+  await page.click("#theCanvas");
+  await page.keyboard.press("y");
+  await waitForAutomationState(
+    page,
+    (state) => state && state.chatOpen,
+    5_000,
+    "chat prompt open");
+
+  await page.keyboard.type("browser");
+  const chatState = await waitForAutomationState(
+    page,
+    (state) => state && state.chatOpen && state.chatInput === "browser",
+    5_000,
+    "browser chat text");
+
+  if (chatState.chatInput !== "browser") {
+    throw new Error(`Browser chat text duplicated or diverged. State: ${JSON.stringify(chatState)}`);
+  }
+
+  await page.keyboard.press("Escape");
+  await waitForAutomationState(
+    page,
+    (state) => state && !state.chatOpen,
+    5_000,
+    "chat prompt close");
+}
+
+async function verifyResizeRecovery(page) {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await delay(750);
+  await page.setViewportSize({ width: 960, height: 720 });
+
+  const resizeState = await waitForAutomationState(
+    page,
+    (state) => state && state.shell === "Gameplay" && state.viewportWidth > 0 && state.viewportHeight > 0,
+    10_000,
+    "post-resize gameplay shell");
+  if (!resizeState.practiceSessionActive) {
+    throw new Error(`Browser gameplay session was lost after resize. State: ${JSON.stringify(resizeState)}`);
+  }
+
+  const resizeSummary = await waitForStableHost(page, 10_000);
+  if (resizeSummary.hostFailed) {
+    throw new Error(`Browser host failed after resize. Status: ${resizeSummary.hostStatus}`);
+  }
+
+  const resizeMetrics = await sampleBrowserMetrics(page, 2_000);
+  if (!resizeMetrics || resizeMetrics.recentCompletedPumps <= 0) {
+    throw new Error(`Browser frame pump did not recover after resize. Metrics: ${JSON.stringify(resizeMetrics)}`);
+  }
 }
 
 async function readSummary(page) {
