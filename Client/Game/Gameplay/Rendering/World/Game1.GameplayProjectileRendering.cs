@@ -33,18 +33,168 @@ public partial class Game1
         }
 
         var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
+        var aimDirection = new Vector2(MathF.Cos(aimRadians), MathF.Sin(aimRadians));
         var beamOrigin = GetMedicBeamOrigin(medic);
         var beamColor = healTarget.Team == PlayerTeam.Blue
-            ? Color.Blue * 0.3f
-            : Color.Red * 0.3f;
-        DrawWorldLine(
-            beamOrigin.X + MathF.Cos(aimRadians) * 24f,
-            beamOrigin.Y + MathF.Sin(aimRadians) * 24f,
+            ? new Color(0, 20, 180, 90)
+            : new Color(120, 5, 5, 90);
+        var beamStartColor = healTarget.Team == PlayerTeam.Blue
+            ? new Color(80, 160, 255, 240)
+            : new Color(255, 95, 95, 245);
+        // Helix uses an even lighter start to distinguish it from the main beam
+        var helixStartColor = healTarget.Team == PlayerTeam.Blue
+            ? new Color(140, 195, 255, 190)
+            : new Color(255, 175, 175, 200);
+        var beamStartX = beamOrigin.X + aimDirection.X * 24f;
+        var beamStartY = beamOrigin.Y + aimDirection.Y * 24f;
+        DrawCurvedWorldLine(
+            beamStartX,
+            beamStartY,
             healTarget.X,
             healTarget.Y,
             cameraPosition,
+            beamStartColor,
             beamColor,
-            5f);
+            nozzleThickness: 4f,
+            maxThickness: 8f,
+            tailThickness: 2f,
+            rampDistPixels: 8f,
+            aimDirection);
+        DrawMedicBeamHelix(
+            beamStartX,
+            beamStartY,
+            healTarget.X,
+            healTarget.Y,
+            cameraPosition,
+            aimDirection,
+            helixStartColor,
+            beamColor);
+    }
+
+    private void DrawMedicBeamHelix(
+        float startX, float startY,
+        float endX, float endY,
+        Vector2 cameraPosition,
+        Vector2 aimDirection,
+        Color helixStartColor,
+        Color helixEndColor)
+    {
+        const int steps = 64;
+        const float maxRadius = 6f;
+        const float helixTurns = 2.5f;
+        const float helixFrequency = helixTurns * MathF.PI * 2f;
+        const float pixelSize = 2f;
+
+        var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
+        var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
+        var toTarget = end - start;
+        var distToTarget = toTarget.Length();
+        if (distToTarget <= 0.01f) return;
+
+        var aimDir = aimDirection;
+        aimDir.Normalize();
+        var targetDir = toTarget / distToTarget;
+        var alignment = Vector2.Dot(aimDir, targetDir);
+
+        Vector2 controlPoint;
+        if (alignment > 0.98f)
+        {
+            controlPoint = (start + end) * 0.5f;
+        }
+        else
+        {
+            var controlDist = distToTarget * 0.5f;
+            controlPoint = start + aimDir * controlDist;
+            var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
+            if (Vector2.Dot(perpToAim, targetDir) < 0)
+                perpToAim = -perpToAim;
+            var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
+            var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
+            controlPoint += perpToAim * offsetAmount;
+        }
+
+        var phaseAtOrigin = _medigunBeamHelixPhase;
+        // cell → (alpha, color): keep entry with highest alpha
+        var pixelatedCells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, Color color)>();
+
+        // Two strands, 180° apart
+        for (int strand = 0; strand < 2; strand++)
+        {
+            var strandOffset = strand * MathF.PI;
+            Vector2? prevPos = null;
+            float prevAlpha = 0f;
+            float prevT = 0f;
+
+            for (int i = 0; i <= steps; i++)
+            {
+                var t = (float)i / steps;
+                var oneMinusT = 1f - t;
+
+                var bezierPos = oneMinusT * oneMinusT * start
+                              + 2f * oneMinusT * t * controlPoint
+                              + t * t * end;
+
+                var tangent = 2f * oneMinusT * (controlPoint - start) + 2f * t * (end - controlPoint);
+                var tangentLen = tangent.Length();
+                if (tangentLen < 0.01f) { prevPos = null; continue; }
+                tangent /= tangentLen;
+                var perp = new Vector2(-tangent.Y, tangent.X);
+
+                var radius = maxRadius * oneMinusT;
+                var alpha = oneMinusT;
+
+                // Pin to beam centre at origin via sin difference
+                var angle = phaseAtOrigin + t * helixFrequency + strandOffset;
+                var angleAtOrigin = phaseAtOrigin + strandOffset;
+                var sineOffset = MathF.Sin(angle) - MathF.Sin(angleAtOrigin);
+
+                var pos = bezierPos + perp * (sineOffset * radius);
+
+                // Interpolate from previous sample to fill any skipped grid cells
+                if (prevPos.HasValue)
+                {
+                    var delta = pos - prevPos.Value;
+                    var segLen = delta.Length();
+                    int substeps = Math.Max(1, (int)MathF.Ceiling(segLen / pixelSize));
+                    for (int s = 0; s <= substeps; s++)
+                    {
+                        var frac = (float)s / substeps;
+                        var interp = prevPos.Value + delta * frac;
+                        var interpT = prevT + (t - prevT) * frac;
+                        var interpAlpha = prevAlpha + (alpha - prevAlpha) * frac;
+                        var cellColor = Color.Lerp(helixStartColor, helixEndColor, interpT) * interpAlpha;
+                        var gx = (int)MathF.Floor(interp.X / pixelSize);
+                        var gy = (int)MathF.Floor(interp.Y / pixelSize);
+                        var key = (gx, gy);
+                        if (!pixelatedCells.TryGetValue(key, out var existing) || interpAlpha > existing.alpha)
+                            pixelatedCells[key] = (interpAlpha, cellColor);
+                    }
+                }
+                else
+                {
+                    var cellColor = Color.Lerp(helixStartColor, helixEndColor, t) * alpha;
+                    var gx = (int)MathF.Floor(pos.X / pixelSize);
+                    var gy = (int)MathF.Floor(pos.Y / pixelSize);
+                    var key = (gx, gy);
+                    if (!pixelatedCells.TryGetValue(key, out var existing) || alpha > existing.alpha)
+                        pixelatedCells[key] = (alpha, cellColor);
+                }
+
+                prevPos = pos;
+                prevAlpha = alpha;
+                prevT = t;
+            }
+        }
+
+        foreach (var ((gridX, gridY), (_, cellColor)) in pixelatedCells)
+        {
+            var pixelRect = new Rectangle(
+                gridX * (int)pixelSize,
+                gridY * (int)pixelSize,
+                (int)pixelSize,
+                (int)pixelSize);
+            _spriteBatch.Draw(_pixel, pixelRect, cellColor);
+        }
     }
 
     private Vector2 GetMedicBeamOrigin(PlayerEntity medic)
@@ -93,7 +243,6 @@ public partial class Game1
         }
 
         DrawSniperTracers(cameraPosition);
-        DrawMedicBeams(cameraPosition);
 
         foreach (var shot in _world.Shots)
         {

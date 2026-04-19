@@ -34,7 +34,10 @@ public partial class Game1
         DrawGameplayStructures(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
-        DrawGameplayPlayers(cameraPosition, playerRectangle);
+        var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();
+        DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
+        DrawMedicBeams(cameraPosition);
+        DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamPlayerIds);
         DrawBackstabVisuals(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
     }
@@ -228,10 +231,36 @@ public partial class Game1
         }
     }
 
-    private void DrawGameplayPlayers(Vector2 cameraPosition, Rectangle playerRectangle)
+    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamPlayerIds()
+    {
+        var ids = new System.Collections.Generic.HashSet<int>();
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (player.ClassId == PlayerClass.Medic
+                && player.IsMedicHealing
+                && player.MedicHealTargetId.HasValue)
+            {
+                ids.Add(player.Id);
+                var target = FindPlayerById(player.MedicHealTargetId.Value);
+                if (target is not null && target.IsAlive)
+                    ids.Add(target.Id);
+            }
+        }
+        return ids;
+    }
+
+    private void DrawGameplayPlayers(
+        Vector2 cameraPosition,
+        Rectangle playerRectangle,
+        System.Collections.Generic.HashSet<int>? skipPlayerIds = null,
+        System.Collections.Generic.HashSet<int>? onlyPlayerIds = null)
     {
         foreach (var renderPlayer in EnumerateRenderablePlayers())
         {
+            var playerId = renderPlayer.Id;
+            if (skipPlayerIds is not null && skipPlayerIds.Contains(playerId)) continue;
+            if (onlyPlayerIds is not null && !onlyPlayerIds.Contains(playerId)) continue;
+
             if (ReferenceEquals(renderPlayer, _world.LocalPlayer))
             {
                 DrawLocalPlayer(cameraPosition, playerRectangle);

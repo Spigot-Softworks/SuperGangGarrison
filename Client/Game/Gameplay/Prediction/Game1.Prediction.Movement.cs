@@ -153,7 +153,6 @@ public partial class Game1
         var canMove = !_predictedLocalActionState.IsHeavyEating
             && !player.IsTaunting
             && !isSpyBackstabAnimating;
-        var preserveHorizontalMomentum = player.ClassId == PlayerClass.Spy && isSpyBackstabAnimating;
 
         var horizontalDirection = 0f;
         if (canMove && predictedInput.Input.Left)
@@ -166,24 +165,21 @@ public partial class Game1
             horizontalDirection += 1f;
         }
 
-        if (!preserveHorizontalMomentum)
+        if (horizontalDirection != 0f)
         {
-            if (horizontalDirection != 0f)
+            _predictedLocalPlayerVelocity.X += horizontalDirection * groundAcceleration * dt;
+            _predictedLocalPlayerVelocity.X = float.Clamp(_predictedLocalPlayerVelocity.X, -maxRunSpeed, maxRunSpeed);
+        }
+        else
+        {
+            var deceleration = groundDeceleration * dt;
+            if (_predictedLocalPlayerVelocity.X > 0f)
             {
-                _predictedLocalPlayerVelocity.X += horizontalDirection * groundAcceleration * dt;
-                _predictedLocalPlayerVelocity.X = float.Clamp(_predictedLocalPlayerVelocity.X, -maxRunSpeed, maxRunSpeed);
+                _predictedLocalPlayerVelocity.X = float.Max(0f, _predictedLocalPlayerVelocity.X - deceleration);
             }
-            else
+            else if (_predictedLocalPlayerVelocity.X < 0f)
             {
-                var deceleration = groundDeceleration * dt;
-                if (_predictedLocalPlayerVelocity.X > 0f)
-                {
-                    _predictedLocalPlayerVelocity.X = float.Max(0f, _predictedLocalPlayerVelocity.X - deceleration);
-                }
-                else if (_predictedLocalPlayerVelocity.X < 0f)
-                {
-                    _predictedLocalPlayerVelocity.X = float.Min(0f, _predictedLocalPlayerVelocity.X + deceleration);
-                }
+                _predictedLocalPlayerVelocity.X = float.Min(0f, _predictedLocalPlayerVelocity.X + deceleration);
             }
         }
 
