@@ -16,6 +16,7 @@ tmp_*.cs
 Thumbs.db
 *.user
 *.suo
+ReferenceAssets/GG2Randomizer/
 Client.Browser/wwwroot/Content/
 artifacts/
 Tests/BrowserSmoke/artifacts/
