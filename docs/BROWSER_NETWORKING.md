@@ -12,10 +12,18 @@ The browser client uses WebSocket for multiplayer. Desktop clients continue to u
 
 ## Browser Server Setup
 
-Enable the WebSocket listener with:
+The dedicated server now enables the WebSocket listener on the same numeric port as the UDP server by default. A stock server on `8190` will therefore also listen on `ws://host:8190/opengarrison/ws`.
+
+Override the WebSocket listener port with:
 
 ```bash
 sh run-server.sh --websocket-port 8191
+```
+
+Disable the listener explicitly with:
+
+```bash
+sh run-server.sh --no-websocket
 ```
 
 For HTTPS-hosted browser builds, expose the game socket as `wss://`. Either terminate TLS at a reverse proxy or start the built-in listener with a PKCS#12 certificate:

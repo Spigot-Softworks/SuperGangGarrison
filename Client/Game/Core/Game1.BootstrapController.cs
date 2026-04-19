@@ -102,7 +102,10 @@ public partial class Game1
             }
 
             _initialized = true;
-            _game.Window.TextInput += _game.OnWindowTextInput;
+            if (!OperatingSystem.IsBrowser())
+            {
+                _game.Window.TextInput += _game.OnWindowTextInput;
+            }
             _game.Window.Title = _game._startupMode == GameStartupMode.ServerLauncher
                 ? $"OG2.ServerLauncher - Proto (Protocol v{ProtocolVersion.Current})"
                 : $"OG2 - Proto (Protocol v{ProtocolVersion.Current})";

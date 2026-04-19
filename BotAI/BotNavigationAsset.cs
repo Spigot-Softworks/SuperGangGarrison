@@ -65,6 +65,8 @@ public sealed class BotNavigationNode
     public string Label { get; init; } = string.Empty;
 
     public bool RequiresGroundSupport { get; init; } = true;
+
+    public IReadOnlyList<int> ReverseOnlyBlockedFromNodeIds { get; init; } = Array.Empty<int>();
 }
 
 public sealed class BotNavigationEdge

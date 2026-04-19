@@ -207,14 +207,14 @@ public sealed partial class SimulationWorld
     internal bool CombatTestIsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
 
-    internal static float? CombatTestGetLineIntersectionDistanceToPlayer(
+    internal float? CombatTestGetLineIntersectionDistanceToPlayer(
         float originX,
         float originY,
         float endX,
         float endY,
         PlayerEntity player,
         float maxDistance)
-        => CombatResolver.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
+        => Combat.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
     internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestShotHit(
         ShotProjectileEntity shot,
@@ -226,6 +226,12 @@ public sealed partial class SimulationWorld
         return hit.HasValue
             ? (hit.Value.Distance, hit.Value.HitX, hit.Value.HitY, hit.Value.HitPlayer, hit.Value.HitSentry, hit.Value.HitGenerator)
             : null;
+    }
+
+    internal (float Left, float Top, float Right, float Bottom) CombatTestGetPlayerPresentationHitBounds(PlayerEntity player)
+    {
+        GetPlayerPresentationHitBounds(this, player, out var left, out var top, out var right, out var bottom);
+        return (left, top, right, bottom);
     }
 
     internal (float Distance, float HitX, float HitY, PlayerEntity? HitPlayer, SentryEntity? HitSentry, GeneratorState? HitGenerator)? CombatTestGetNearestNeedleHit(
@@ -339,16 +345,16 @@ public sealed partial class SimulationWorld
     private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY)
         => Combat.IsProjectileSpawnBlocked(originX, originY, targetX, targetY);
 
-    private static float? GetLineIntersectionDistanceToPlayer(
+    private float? GetLineIntersectionDistanceToPlayer(
         float originX,
         float originY,
         float endX,
         float endY,
         PlayerEntity player,
         float maxDistance)
-        => CombatResolver.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
+        => Combat.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
-    private static float? GetThickLineIntersectionDistanceToPlayer(
+    private float? GetThickLineIntersectionDistanceToPlayer(
         float originX,
         float originY,
         float endX,
@@ -356,7 +362,7 @@ public sealed partial class SimulationWorld
         PlayerEntity player,
         float maxDistance,
         float thicknessRadius)
-        => CombatResolver.GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
+        => Combat.GetThickLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance, thicknessRadius);
 
     private ShotHitResult? GetNearestShotHit(ShotProjectileEntity shot, float directionX, float directionY, float maxDistance)
         => Combat.GetNearestShotHit(shot, directionX, directionY, maxDistance);

@@ -50,6 +50,8 @@ public partial class Game1
     private double _browserPracticeBotPerfSetInputTotalMilliseconds;
     private double _browserPracticeBotPerfSetInputMaxMilliseconds;
 
+    public BotPathMode PracticeBotPathMode { get; set; } = BotPathMode.ClientBot2020Compat;
+
     private sealed class PracticeBotSlotState
     {
         public PracticeBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
@@ -279,25 +281,7 @@ public partial class Game1
 
     private PlayerClass[] GetEligiblePracticeBotClassCycle()
     {
-        if (_practiceNavigationAssets.Statuses.Count == 0)
-        {
-            return PracticeBotClassCycle;
-        }
-
-        return PracticeBotClassCycle
-            .Where(IsPracticeBotClassNavigationReady)
-            .ToArray();
-    }
-
-    private bool IsPracticeBotClassNavigationReady(PlayerClass classId)
-    {
-        var status = _practiceNavigationAssets.Statuses.FirstOrDefault(candidate => candidate.ClassId == classId);
-        if (status is null)
-        {
-            return true;
-        }
-
-        return status.IsLoaded && status.IsStructurallyValid;
+        return PracticeBotClassCycle;
     }
 
     private List<PlayerClass> BuildLastToDieEnemyBotClassList(int count)
@@ -441,7 +425,7 @@ public partial class Game1
     {
         if (!OperatingSystem.IsBrowser())
         {
-            return _practiceBotController.BuildInputs(_world, controlledSlots, _practiceNavigationAssets.Assets);
+            return _practiceBotController.BuildInputs(_world, controlledSlots);
         }
 
         _browserPracticeBotThinkTick += 1;
@@ -454,7 +438,7 @@ public partial class Game1
             return _browserPracticeBotInputCache;
         }
 
-        var refreshedInputs = _practiceBotController.BuildInputs(_world, controlledSlots, _practiceNavigationAssets.Assets);
+        var refreshedInputs = _practiceBotController.BuildInputs(_world, controlledSlots);
         SyncBrowserPracticeBotInputCache(controlledSlots, refreshedInputs);
         return _browserPracticeBotInputCache;
     }
@@ -544,7 +528,8 @@ public partial class Game1
             _controlledPracticeBotSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 entry.Value.Team,
-                entry.Value.ClassId);
+                entry.Value.ClassId,
+                PracticeBotPathMode);
         }
 
         return _controlledPracticeBotSlotsBuffer;

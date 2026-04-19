@@ -22,6 +22,7 @@ public static class BotNavigationModernPointGraphBuilder
     private const float MaximumSlope = 4f;
     private const float DropTraversalHorizontalTolerance = 18f;
     private const float DropTraversalMinimumDistance = 18f;
+    private const float MaximumUniversalJumpRise = 120f;
 
     public static BotNavigationAsset Build(SimpleLevel level, string? levelFingerprint = null)
     {
@@ -32,7 +33,6 @@ public static class BotNavigationModernPointGraphBuilder
         var grid = ObstacleGrid.Build(level.Bounds, obstacleSurfaces);
         var rawPoints = BuildRawPoints(obstacleSurfaces, grid);
         var mutableNodes = new Dictionary<string, MutableNode>(StringComparer.Ordinal);
-        var nodesBySurface = new Dictionary<int, List<MutableNode>>();
         var candidateNodeCount = 0;
 
         for (var index = 0; index < rawPoints.Count; index += 1)
@@ -41,7 +41,6 @@ public static class BotNavigationModernPointGraphBuilder
             candidateNodeCount += 1;
             _ = TryAddNode(
                 mutableNodes,
-                nodesBySurface,
                 rawPoint.SurfaceId,
                 rawPoint.X,
                 rawPoint.Y,
@@ -52,11 +51,18 @@ public static class BotNavigationModernPointGraphBuilder
                 rawPoint.Y);
         }
 
-        var orderedNodes = mutableNodes.Values
-            .OrderBy(static node => node.SurfaceId)
-            .ThenBy(static node => node.RawX)
-            .ThenBy(static node => node.RawY)
-            .ToList();
+        // Preserve the original scan-order point IDs from clientbot_2020_update.
+        var orderedNodes = new List<MutableNode>(rawPoints.Count);
+        for (var index = 0; index < rawPoints.Count; index += 1)
+        {
+            var rawPoint = rawPoints[index];
+            var key = BuildNodeKey(rawPoint.SurfaceId, rawPoint.X, rawPoint.Y);
+            if (mutableNodes.TryGetValue(key, out var node))
+            {
+                orderedNodes.Add(node);
+            }
+        }
+
         for (var index = 0; index < orderedNodes.Count; index += 1)
         {
             orderedNodes[index].Id = index;
@@ -79,10 +85,15 @@ public static class BotNavigationModernPointGraphBuilder
                     continue;
                 }
 
-                if (!CanConnectDirected(grid, from, to)
+                if (!TryEvaluateDirectedConnection(grid, from, to, out var reverseOnlyBlocked)
                     || IsConnectionRedundant(grid, from, to, orderedNodes))
                 {
                     continue;
+                }
+
+                if (reverseOnlyBlocked)
+                {
+                    to.AddReverseOnlyBlockedFromNodeId(from.Id);
                 }
 
                 var traversalKind = ResolveTraversalKind(from, to);
@@ -118,8 +129,6 @@ public static class BotNavigationModernPointGraphBuilder
             }
         }
 
-        (orderedNodes, edges) = PruneIsolatedNodes(orderedNodes, edges);
-
         stopwatch.Stop();
 
         var builtNodes = orderedNodes
@@ -133,6 +142,7 @@ public static class BotNavigationModernPointGraphBuilder
                 Team = node.Team,
                 Label = node.Label,
                 RequiresGroundSupport = node.RequiresGroundSupport,
+                ReverseOnlyBlockedFromNodeIds = node.ReverseOnlyBlockedFromNodeIds.ToArray(),
             })
             .ToArray();
 
@@ -292,9 +302,17 @@ public static class BotNavigationModernPointGraphBuilder
             && !grid.LineHitsObstacle(x, y - HeadroomStart, x, y - HeadroomEnd);
     }
 
-    private static bool CanConnectDirected(ObstacleGrid grid, MutableNode from, MutableNode to)
+    private static bool TryEvaluateDirectedConnection(ObstacleGrid grid, MutableNode from, MutableNode to, out bool reverseOnlyBlocked)
     {
+        reverseOnlyBlocked = false;
         if (MathF.Abs(to.RawX - from.RawX) < GridStep)
+        {
+            return false;
+        }
+
+        // clientBot_2020_update never accepts rises above scout's total jump height,
+        // so emitting those edges guarantees unusable routes for every class.
+        if ((from.RawY - to.RawY) > MaximumUniversalJumpRise)
         {
             return false;
         }
@@ -321,7 +339,13 @@ public static class BotNavigationModernPointGraphBuilder
                 var sampleY = from.RawY - (slope * (offset * direction));
                 if (!grid.LineHitsObstacle(sampleX, sampleY, sampleX, sampleY + GapSupportProbeDepth))
                 {
-                    return false;
+                    if (ComputeDirectedTraversalCost(to.RawX, to.RawY, from.RawX, from.RawY) > MaximumDirectedTraversalCost)
+                    {
+                        return false;
+                    }
+
+                    reverseOnlyBlocked = true;
+                    break;
                 }
             }
         }
@@ -441,7 +465,6 @@ public static class BotNavigationModernPointGraphBuilder
 
     private static bool TryAddNode(
         IDictionary<string, MutableNode> mutableNodes,
-        IDictionary<int, List<MutableNode>> nodesBySurface,
         int surfaceId,
         float x,
         float y,
@@ -454,7 +477,7 @@ public static class BotNavigationModernPointGraphBuilder
     {
         _ = requiresGroundSupport;
 
-        var key = $"{surfaceId}:{MathF.Round(x, 2):F2}:{MathF.Round(y, 2):F2}";
+        var key = BuildNodeKey(surfaceId, x, y);
         if (mutableNodes.TryGetValue(key, out var existing))
         {
             existing.TryPromote(kind, team, label, requiresGroundSupport, rawY, preferLabel);
@@ -463,14 +486,12 @@ public static class BotNavigationModernPointGraphBuilder
 
         var node = new MutableNode(surfaceId, x, y, rawY, kind, team, label, requiresGroundSupport);
         mutableNodes[key] = node;
-        if (!nodesBySurface.TryGetValue(surfaceId, out var surfaceNodes))
-        {
-            surfaceNodes = new List<MutableNode>();
-            nodesBySurface[surfaceId] = surfaceNodes;
-        }
-
-        surfaceNodes.Add(node);
         return true;
+    }
+
+    private static string BuildNodeKey(int surfaceId, float x, float y)
+    {
+        return $"{surfaceId}:{MathF.Round(x, 2):F2}:{MathF.Round(y, 2):F2}";
     }
 
     private static bool TryAddEdge(HashSet<long> edgeKeys, List<BotNavigationEdge> edges, BotNavigationEdge edge)
@@ -495,78 +516,6 @@ public static class BotNavigationModernPointGraphBuilder
         var dx = bx - ax;
         var dy = by - ay;
         return MathF.Sqrt((dx * dx) + (dy * dy));
-    }
-
-    private static (List<MutableNode> Nodes, List<BotNavigationEdge> Edges) PruneIsolatedNodes(
-        List<MutableNode> orderedNodes,
-        List<BotNavigationEdge> edges)
-    {
-        if (orderedNodes.Count == 0 || edges.Count == 0)
-        {
-            return (orderedNodes, edges);
-        }
-
-        var connectedNodeIds = new bool[orderedNodes.Count];
-        for (var edgeIndex = 0; edgeIndex < edges.Count; edgeIndex += 1)
-        {
-            var edge = edges[edgeIndex];
-            if (edge.FromNodeId >= 0 && edge.FromNodeId < connectedNodeIds.Length)
-            {
-                connectedNodeIds[edge.FromNodeId] = true;
-            }
-
-            if (edge.ToNodeId >= 0 && edge.ToNodeId < connectedNodeIds.Length)
-            {
-                connectedNodeIds[edge.ToNodeId] = true;
-            }
-        }
-
-        if (connectedNodeIds.All(static isConnected => isConnected))
-        {
-            return (orderedNodes, edges);
-        }
-
-        var remappedNodeIds = Enumerable.Repeat(-1, orderedNodes.Count).ToArray();
-        var prunedNodes = new List<MutableNode>(orderedNodes.Count);
-        for (var nodeIndex = 0; nodeIndex < orderedNodes.Count; nodeIndex += 1)
-        {
-            if (!connectedNodeIds[nodeIndex])
-            {
-                continue;
-            }
-
-            var node = orderedNodes[nodeIndex];
-            remappedNodeIds[node.Id] = prunedNodes.Count;
-            node.Id = prunedNodes.Count;
-            prunedNodes.Add(node);
-        }
-
-        var prunedEdges = new List<BotNavigationEdge>(edges.Count);
-        for (var edgeIndex = 0; edgeIndex < edges.Count; edgeIndex += 1)
-        {
-            var edge = edges[edgeIndex];
-            var remappedFromId = edge.FromNodeId >= 0 && edge.FromNodeId < remappedNodeIds.Length
-                ? remappedNodeIds[edge.FromNodeId]
-                : -1;
-            var remappedToId = edge.ToNodeId >= 0 && edge.ToNodeId < remappedNodeIds.Length
-                ? remappedNodeIds[edge.ToNodeId]
-                : -1;
-            if (remappedFromId < 0 || remappedToId < 0)
-            {
-                continue;
-            }
-
-            prunedEdges.Add(new BotNavigationEdge
-            {
-                FromNodeId = remappedFromId,
-                ToNodeId = remappedToId,
-                Kind = edge.Kind,
-                Cost = edge.Cost,
-                InputTape = edge.InputTape,
-            });
-        }
-
-        return (prunedNodes, prunedEdges);
     }
 
     private sealed class MutableNode
@@ -604,6 +553,8 @@ public static class BotNavigationModernPointGraphBuilder
 
         public bool RequiresGroundSupport { get; private set; }
 
+        public HashSet<int> ReverseOnlyBlockedFromNodeIds { get; } = new();
+
         public void TryPromote(BotNavigationNodeKind kind, PlayerTeam? team, string label, bool requiresGroundSupport, float rawY, bool preferLabel = false)
         {
             if (kind > Kind)
@@ -630,6 +581,14 @@ public static class BotNavigationModernPointGraphBuilder
             else if (label.Length > Label.Length)
             {
                 Label = label;
+            }
+        }
+
+        public void AddReverseOnlyBlockedFromNodeId(int fromNodeId)
+        {
+            if (fromNodeId >= 0)
+            {
+                ReverseOnlyBlockedFromNodeIds.Add(fromNodeId);
             }
         }
     }

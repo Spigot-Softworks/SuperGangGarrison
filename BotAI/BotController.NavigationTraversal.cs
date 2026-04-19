@@ -233,6 +233,12 @@ public sealed partial class ModernPracticeBotController
         memory.ModernStuckTicks = 0;
         memory.ModernDropGapTicks = 0;
         memory.ModernPreviousTargetDistance = float.PositiveInfinity;
+        memory.HasModernClosestPointTarget = false;
+        memory.ModernClosestPointTargetX = 0f;
+        memory.ModernClosestPointTargetY = 0f;
+        memory.HasModernClosestPointTarget = false;
+        memory.ModernClosestPointTargetX = 0f;
+        memory.ModernClosestPointTargetY = 0f;
         memory.ReanchorTicksRemaining = 0;
         memory.SecondAnchorCooldownTicksRemaining = 0;
         memory.SecondAnchorBlockPointId = -1;

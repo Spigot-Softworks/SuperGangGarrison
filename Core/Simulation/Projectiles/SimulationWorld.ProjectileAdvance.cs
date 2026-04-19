@@ -138,9 +138,9 @@ public sealed partial class SimulationWorld
         return count;
     }
 
-    private static bool CircleIntersectsPlayer(float circleX, float circleY, float radius, PlayerEntity player)
+    private static bool CircleIntersectsPlayer(SimulationWorld world, float circleX, float circleY, float radius, PlayerEntity player)
     {
-        player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+        GetPlayerPresentationHitBounds(world, player, out var left, out var top, out var right, out var bottom);
         return CircleIntersectsRectangle(
             circleX,
             circleY,

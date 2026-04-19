@@ -23,9 +23,20 @@ public partial class Game1
 
     private void ApplyGraphicsSettings()
     {
-        _graphics.IsFullScreen = _clientSettings.Fullscreen;
-        _graphics.SynchronizeWithVerticalRetrace = !OperatingSystem.IsBrowser() && _clientSettings.VSync;
         ApplyIngameResolution(_clientSettings.IngameResolution);
+
+        if (OperatingSystem.IsBrowser())
+        {
+            // Browser rendering stays on the host canvas size; only the logical viewport changes.
+            _graphics.IsFullScreen = false;
+            _graphics.SynchronizeWithVerticalRetrace = false;
+            _clientSettings.Fullscreen = false;
+            PersistClientSettings();
+            return;
+        }
+
+        _graphics.IsFullScreen = _clientSettings.Fullscreen;
+        _graphics.SynchronizeWithVerticalRetrace = _clientSettings.VSync;
         ApplyPreferredBackBufferSize(_graphics.IsFullScreen, _ingameResolution);
         _graphics.ApplyChanges();
         PersistClientSettings();
@@ -281,7 +292,7 @@ public partial class Game1
 
     private static Point GetPreferredBackBufferDimensions(bool fullscreen, IngameResolutionKind ingameResolution)
     {
-        if (fullscreen)
+        if (fullscreen && !OperatingSystem.IsBrowser())
         {
             var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
             return new Point(displayMode.Width, displayMode.Height);

@@ -6,6 +6,9 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public const int DirectHitDamage = 25;
     public const float ExplosionDamage = 30f;
     public const float BlastRadius = 65f;
+    public const float MaskRearOffset = -1f;
+    public const float MaskFrontOffset = 7f;
+    public const float MaskHalfThickness = 1f;
     public const float MaxDistanceToTravel = 800f;
     public const float FriendlyPassThroughDistancePenalty = 100f;
     public const float FadeLifetimeSourceTicks = 8f;

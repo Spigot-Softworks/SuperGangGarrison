@@ -6,6 +6,7 @@ internal sealed class BotNavigationRuntimeGraph
     private readonly Dictionary<int, List<BotNavigationEdge>> _edgesByFromNodeId = new();
     private readonly Dictionary<int, List<BotNavigationEdge>> _edgesByToNodeId = new();
     private readonly Dictionary<long, BotNavigationEdge> _edgeByNodePair = new();
+    private readonly HashSet<long> _reverseOnlyTraversalBlocks = new();
     private readonly Dictionary<int, (float MinX, float MaxX)> _surfaceExtentsBySurfaceId = new();
     private readonly Dictionary<long, int[]?> _routeCache = new();
     private readonly Dictionary<long, int[]?> _goalWeightCache = new();
@@ -34,6 +35,12 @@ internal sealed class BotNavigationRuntimeGraph
             else
             {
                 _surfaceExtentsBySurfaceId[node.SurfaceId] = (node.X, node.X);
+            }
+
+            for (var blockedIndex = 0; blockedIndex < node.ReverseOnlyBlockedFromNodeIds.Count; blockedIndex += 1)
+            {
+                var blockedFromNodeId = node.ReverseOnlyBlockedFromNodeIds[blockedIndex];
+                _reverseOnlyTraversalBlocks.Add(GetPairKey(blockedFromNodeId, node.Id));
             }
         }
 
@@ -132,6 +139,11 @@ internal sealed class BotNavigationRuntimeGraph
         return false;
     }
 
+    public bool IsReverseOnlyTraversalBlocked(int fromNodeId, int toNodeId)
+    {
+        return _reverseOnlyTraversalBlocks.Contains(GetPairKey(fromNodeId, toNodeId));
+    }
+
     public int[]? GetGoalWeights(int goalNodeId, int maximumDepth = 130)
     {
         var cacheKey = GetPairKey(goalNodeId, maximumDepth);
@@ -160,23 +172,28 @@ internal sealed class BotNavigationRuntimeGraph
                 continue;
             }
 
-            if (!_edgesByToNodeId.TryGetValue(currentNodeId, out var incomingEdges))
+            if (!_edgesByFromNodeId.TryGetValue(currentNodeId, out var outgoingEdges))
             {
                 continue;
             }
 
-            for (var edgeIndex = 0; edgeIndex < incomingEdges.Count; edgeIndex += 1)
+            for (var edgeIndex = 0; edgeIndex < outgoingEdges.Count; edgeIndex += 1)
             {
-                var incomingEdge = incomingEdges[edgeIndex];
-                var predecessorNodeId = incomingEdge.FromNodeId;
-                var predecessorWeight = currentWeight + 1;
-                if (weights[predecessorNodeId] > 0 && weights[predecessorNodeId] <= predecessorWeight)
+                var outgoingEdge = outgoingEdges[edgeIndex];
+                var successorNodeId = outgoingEdge.ToNodeId;
+                if (IsReverseOnlyTraversalBlocked(successorNodeId, currentNodeId))
                 {
                     continue;
                 }
 
-                weights[predecessorNodeId] = predecessorWeight;
-                pendingNodeIds.Enqueue(predecessorNodeId);
+                var successorWeight = currentWeight + 1;
+                if (weights[successorNodeId] > 0 && weights[successorNodeId] <= successorWeight)
+                {
+                    continue;
+                }
+
+                weights[successorNodeId] = successorWeight;
+                pendingNodeIds.Enqueue(successorNodeId);
             }
         }
 

@@ -78,6 +78,11 @@ public partial class Game1
             var renderHorizontalSpeed = renderState?.RenderHorizontalSpeed ?? player.HorizontalSpeed;
             var horizontalSourceStepSpeed = GetPlayerAnimationSourceStepSpeed(renderHorizontalSpeed);
             var appearsAirborne = renderState?.AppearsAirborne ?? !player.IsGrounded;
+            if (appearsAirborne && HasGroundSupportForPresentation(player))
+            {
+                appearsAirborne = false;
+            }
+
             if (_game._world.IsPlayerHumiliated(player))
             {
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);
@@ -346,6 +351,23 @@ public partial class Game1
             }
 
             return leanDirection;
+        }
+
+        private bool HasGroundSupportForPresentation(PlayerEntity player)
+        {
+            if (player.VerticalSpeed < 0f)
+            {
+                return false;
+            }
+
+            var playerScale = player.PlayerScale;
+            var probeY = player.Bottom + playerScale;
+            var leftProbeX = player.Left + MathF.Max(1f, 2f * playerScale);
+            var centerProbeX = player.X;
+            var rightProbeX = player.Right - MathF.Max(1f, 2f * playerScale);
+            return IsPointBlockedForPlayerCore(player, leftProbeX, probeY)
+                || IsPointBlockedForPlayerCore(player, centerProbeX, probeY)
+                || IsPointBlockedForPlayerCore(player, rightProbeX, probeY);
         }
 
         private bool IsPointBlockedForPlayerCore(PlayerEntity player, float x, float y)

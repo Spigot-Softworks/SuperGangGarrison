@@ -294,7 +294,7 @@ public partial class Game1 : Game
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
         IsMouseVisible = false;
         ApplyIngameResolution(_clientSettings.IngameResolution);
-        ApplyPreferredBackBufferSize(_clientSettings.Fullscreen, _ingameResolution);
+        ApplyPreferredBackBufferSize(!OperatingSystem.IsBrowser() && _clientSettings.Fullscreen, _ingameResolution);
 
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()

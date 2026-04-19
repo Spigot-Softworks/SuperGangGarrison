@@ -39,7 +39,24 @@ public readonly record struct BotControllerDiagnosticsEntry(
     int Health,
     int MaxHealth,
     int StuckTicks,
-    int UnstickTicks);
+    int ModernStuckTicks,
+    int UnstickTicks,
+    int CurrentPointId,
+    int NextPointId,
+    int NextPoint2Id,
+    float MovementTargetX,
+    float MovementTargetY,
+    int RequestedHorizontal,
+    string MoveDebug,
+    bool RequestedJump,
+    string JumpDebug,
+    int RouteGoalNodeId,
+    int PreviousCurrentPointId,
+    int PreviousNextPointId,
+    bool IsGrounded,
+    bool ProbeGrounded,
+    int SecondAnchorBlockPointId,
+    int SecondAnchorBlockTicksRemaining);
 
 public sealed record BotControllerDiagnosticsSnapshot(
     IReadOnlyList<BotControllerDiagnosticsEntry> Entries,

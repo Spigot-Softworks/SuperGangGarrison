@@ -153,7 +153,7 @@ public sealed partial class SimulationWorld
             foreach (var player in EnumerateSimulatedPlayers())
             {
                 if (!_world.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
-                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(
                     rayBounds,
                     left,
@@ -164,7 +164,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, player, maxDistance);
+                var distance = GetRayIntersectionDistanceWithPlayer(previousX, previousY, directionX, directionY, _world, player, maxDistance);
                 if (distance.HasValue) { updateHit(ref nearestHit, projectile, directionX, directionY, distance.Value, player, null, null); }
             }
         }
@@ -187,7 +187,7 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                player.GetCollisionBounds(out var left, out var top, out var right, out var bottom);
+                GetPlayerPresentationHitBounds(_world, player, out var left, out var top, out var right, out var bottom);
                 if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
                 {
                     continue;
@@ -198,6 +198,7 @@ public sealed partial class SimulationWorld
                     flame.PreviousY,
                     directionX,
                     directionY,
+                    _world,
                     player,
                     maxDistance);
                 if (distance.HasValue)

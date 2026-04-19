@@ -94,7 +94,8 @@ sealed class ServerLaunchOptions
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
         var secondaryAbilitiesEnabled = settings.SecondaryAbilitiesEnabled;
-        var webSocketPort = 0;
+        var webSocketPort = port;
+        var webSocketPortExplicitlySet = false;
         string? webSocketCertificatePath = null;
         string? webSocketCertificatePassword = null;
         string? publicWebSocketUrl = Environment.GetEnvironmentVariable("OPENGARRISON_PUBLIC_WEBSOCKET_URL");
@@ -121,6 +122,10 @@ sealed class ServerLaunchOptions
                 if (int.TryParse(args[index + 1], out var parsedPort))
                 {
                     port = parsedPort;
+                    if (!webSocketPortExplicitlySet)
+                    {
+                        webSocketPort = port;
+                    }
                 }
                 index += 1;
                 continue;
@@ -308,6 +313,14 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--no-websocket", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--disable-websocket", StringComparison.OrdinalIgnoreCase))
+            {
+                webSocketPort = 0;
+                webSocketPortExplicitlySet = true;
+                continue;
+            }
+
             if ((string.Equals(arg, "--websocket-port", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(arg, "--ws-port", StringComparison.OrdinalIgnoreCase))
                 && index + 1 < args.Length)
@@ -315,6 +328,7 @@ sealed class ServerLaunchOptions
                 if (int.TryParse(args[index + 1], out var parsedWebSocketPort) && parsedWebSocketPort > 0 && parsedWebSocketPort <= 65535)
                 {
                     webSocketPort = parsedWebSocketPort;
+                    webSocketPortExplicitlySet = true;
                 }
 
                 index += 1;
@@ -354,6 +368,10 @@ sealed class ServerLaunchOptions
             if (index == 0 && int.TryParse(arg, out var firstPort))
             {
                 port = firstPort;
+                if (!webSocketPortExplicitlySet)
+                {
+                    webSocketPort = port;
+                }
             }
         }
 

@@ -698,6 +698,15 @@ public sealed partial class PlayerEntity : SimulationEntity
         bottom = y + CollisionBottomOffset;
     }
 
+    internal void GetRoundedCollisionBoundsAt(float x, float y, out float left, out float top, out float right, out float bottom)
+    {
+        // Legacy GameMaker solid checks round collision bounds to integer coordinates.
+        left = MathF.Round(x + CollisionLeftOffset);
+        top = MathF.Round(y + CollisionTopOffset);
+        right = MathF.Round(x + CollisionRightOffset);
+        bottom = MathF.Round(y + CollisionBottomOffset);
+    }
+
     private void ResetExperimentalOffhandRuntimeState(bool refillAmmo)
     {
         if (ExperimentalOffhandWeapon is null)
