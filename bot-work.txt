@@ -457,3 +457,15 @@ CTF carry gates: TeamGate should not become universally blocking when carrying i
 - Targeted Conflict+Waterway Score matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement).
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
 - Action: revert (only keep changes that strictly increase passes).
+
+Waterway reverse-only blocks: allow reverse-blocked Jump traversals (2026-04-20)
+- New evidence: Waterway's stuck `no_next_direct` loop is at currentPoint=80 with goalPoint=29. In the shipped graph, 80 has an outgoing Jump edge to node 48, but node 48 lists `ReverseOnlyBlockedFromNodeIds=[80]` which causes `IsReverseBlocked(to=48, from=80)` to reject 80->48 traversal. Node 48 is also directly connected to goal 29.
+- Hypothesis: Some reverse-only blocks on Jump edges are overly conservative for compat (or represent a different semantics than our current check). Allowing reverse-blocked Jump traversals (while still enforcing class jump-rise checks and solid-line feasibility) may unblock Waterway's final approach to intel without disturbing Walk/Drop one-way semantics.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs:
+  - In `TrySelectCompatNextPoint` and `TryForceCompatNeighborStep`, enforce `IsReverseBlocked(...)` for Walk/Drop edges only; allow Jump edges even if reverse-blocked.
+- Next: run targeted Conflict+Waterway Score matrix then full stock matrix; revert immediately on any regression vs 33/84 baseline.
+
+Waterway reverse-only blocks: allow reverse-blocked Jump traversals result (2026-04-20)
+- Targeted Conflict+Waterway Score matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement; Waterway objective approach worsened).
+- Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
