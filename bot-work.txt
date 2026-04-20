@@ -305,3 +305,14 @@ Compat goal weights: class-filter for Heavy/Pyro result (2026-04-19)
 - Action: revert this patch immediately and re-run matrix to confirm recovery to >=33/84.
 Compat goal weights: class-filter for Heavy/Pyro revert verification (2026-04-19)
 - After reverting the patch, full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (baseline restored)
+
+Compat goal point selection: prefer reachable goal with descending neighbor (2026-04-19)
+- Hypothesis: some failures (Conflict/Waterway/Eiger Heavy/Pyro) arise when the nearest goal point (by Euclidean distance to destination) yields a weight field where the current node has no usable descending-weight neighbor, causing 
+o_next_direct and stalls.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: when destination changes and we (re)compute goal weights, search a small set of nearby candidate goal points and pick one whose weight map gives the current point a usable descending neighbor (or currentWeight<=1). Fall back to the original nearest-goal behavior if none found.
+- Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below the current best baseline (33/84).
+Compat goal point selection: prefer reachable goal with descending neighbor result (2026-04-19)
+- Targeted 4-map matrix (Conflict/Gallery/Eiger/Waterway): total=24 passed=1 failed=23 (REGRESSION; Gallery cases largely broke vs prior 8/24)
+- Action: revert this patch immediately and re-run full matrix to confirm recovery to >=33/84.
+Compat goal point selection: prefer reachable goal with descending neighbor revert verification (2026-04-19)
+- After reverting the patch, full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (baseline restored)
