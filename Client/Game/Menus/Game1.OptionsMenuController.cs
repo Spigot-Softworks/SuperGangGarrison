@@ -261,6 +261,7 @@ public partial class Game1
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting),
+                new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting),
                 new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting),
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting),
                 new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting),
@@ -336,6 +337,11 @@ public partial class Game1
                 2 => "Alternative (faster)",
                 _ => "Disabled",
             };
+        }
+
+        private static string GetFlameRenderModeLabel(int flameRenderMode)
+        {
+            return flameRenderMode == 0 ? "Particle" : "Sprite";
         }
 
         private static string GetMusicModeLabel(MusicMode musicMode)

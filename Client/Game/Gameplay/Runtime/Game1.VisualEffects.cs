@@ -592,10 +592,12 @@ public partial class Game1
 
     private sealed class BlastJumpFlameVisual
     {
-        public BlastJumpFlameVisual(float x, float y, int initialTicks, int frameSeed)
+        public BlastJumpFlameVisual(float x, float y, float motionX, float motionY, int initialTicks, int frameSeed)
         {
             X = x;
             Y = y;
+            MotionX = motionX;
+            MotionY = motionY;
             InitialTicks = Math.Max(1, initialTicks);
             TicksRemaining = InitialTicks;
             FrameSeed = frameSeed;
@@ -604,6 +606,10 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public float MotionX { get; }
+
+        public float MotionY { get; }
 
         public int InitialTicks { get; }
 

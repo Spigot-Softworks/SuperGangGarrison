@@ -200,6 +200,8 @@ public sealed partial class SimulationWorld
 
         private readonly record struct SourceWeaponOrigin(float BaseX, float BaseY, float WeaponYOffset, float EquipmentOffset);
 
+        private readonly record struct WeaponPivotRay(float PivotX, float PivotY, float DirectionX, float DirectionY, float AngleRadians);
+
         private SourceWeaponOrigin GetSourceWeaponOrigin(PlayerEntity attacker)
         {
             return GetSourceWeaponOrigin(attacker, attacker.ClassId);
@@ -217,6 +219,50 @@ public sealed partial class SimulationWorld
         private static float GetPyroOriginY(SourceWeaponOrigin weaponOrigin)
         {
             return weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
+        }
+
+        private static WeaponPivotRay GetWeaponPivotRay(
+            float originX,
+            float originY,
+            float aimWorldX,
+            float aimWorldY,
+            float fallbackFacingDirectionX,
+            float pivotOffsetX,
+            float pivotOffsetY)
+        {
+            var aimDeltaX = aimWorldX - originX;
+            var aimDeltaY = aimWorldY - originY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = fallbackFacingDirectionX == 0f ? 1f : fallbackFacingDirectionX;
+            }
+
+            var initialAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            var facingScale = MathF.Cos(initialAngle) < 0f ? -1f : 1f;
+            var pivotX = originX + (pivotOffsetX * facingScale);
+            var pivotY = originY + pivotOffsetY;
+
+            var pivotAimDeltaX = aimWorldX - pivotX;
+            var pivotAimDeltaY = aimWorldY - pivotY;
+            if (pivotAimDeltaX == 0f && pivotAimDeltaY == 0f)
+            {
+                pivotAimDeltaX = facingScale;
+            }
+
+            var angleRadians = MathF.Atan2(pivotAimDeltaY, pivotAimDeltaX);
+            return new WeaponPivotRay(
+                pivotX,
+                pivotY,
+                MathF.Cos(angleRadians),
+                MathF.Sin(angleRadians),
+                angleRadians);
+        }
+
+        private static (float X, float Y) GetPointAlongWeaponPivotRay(WeaponPivotRay pivotRay, float distance)
+        {
+            return (
+                pivotRay.PivotX + (pivotRay.DirectionX * distance),
+                pivotRay.PivotY + (pivotRay.DirectionY * distance));
         }
 
         public (float X, float Y) GetPyroSecondaryOrigin(PlayerEntity attacker)
