@@ -295,3 +295,13 @@ TrySelectCompatNextPoint no-candidate fallback result (2026-04-19)
   - Eiger: Scout (Blue+Red) now PASS (Heavy/Pyro still FAIL)
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (IMPROVEMENT vs prior best=24)
 - Commit: 2e61f58
+
+Compat goal weights: class-filter for Heavy/Pyro (2026-04-19)
+- Hypothesis: Pyro/Heavy no-next dead-ends (e.g., Eiger climb) occur because unfiltered goal weights route through edges only Scout can traverse; class-filtered weights should restore a descending-weight neighbor for Heavy/Pyro.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: compute GoalWeights with classId for Heavy/Pyro only (Scout remains unfiltered).
+- Next: re-run full stock CTF+KOTH Score matrix; revert immediately if full-matrix passes drop below the current best baseline (33/84).
+Compat goal weights: class-filter for Heavy/Pyro result (2026-04-19)
+- Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs best baseline=33)
+- Action: revert this patch immediately and re-run matrix to confirm recovery to >=33/84.
+Compat goal weights: class-filter for Heavy/Pyro revert verification (2026-04-19)
+- After reverting the patch, full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (baseline restored)
