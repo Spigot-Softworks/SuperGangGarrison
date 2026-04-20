@@ -469,3 +469,101 @@ Waterway reverse-only blocks: allow reverse-blocked Jump traversals result (2026
 - Targeted Conflict+Waterway Score matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement; Waterway objective approach worsened).
 - Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs baseline=33).
 - Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+Compat shortest-path planning: A* fallback when no descending GoalWeight neighbor (2026-04-20)
+- Observation: On Conflict/Waterway, compat frequently reaches a state where `CurrentPoint` has a nonzero GoalWeight but `TrySelectCompatNextPoint` finds no descending-weight outgoing neighbor, causing `no_next_direct` oscillation and stalls.
+- Hypothesis: The descending-weight heuristic is brittle on directed / reverse-only graphs and can get stuck even when a valid path exists. If we plan an actual shortest path over the directed nav graph (A*/Dijkstra), we can select a real next hop and avoid the `no_next_direct` fallback without needing perfect GoalWeight directionality.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs:
+  - In `TrySelectCompatNextPoint`, when no descending-weight candidate is found, attempt an A* plan from `CurrentPoint` to one of the N nearest goal candidates to `destination` (e.g., N=6).
+  - Edge traversal constraints stay the same as compat selection (reverse-block check, class jump-rise limits, and solid-line feasibility check for long jumps).
+  - If an A* path is found, set `NextPoint` to the first hop (`nav_step_astar`) instead of `no_next_direct`.
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Compat shortest-path planning: A* fallback when no descending GoalWeight neighbor result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+Compat shortest-path planning: A* fallback when no descending GoalWeight neighbor revert verification (2026-04-20)
+- Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
+
+Oscillation breaker: penalize revisiting recently committed nav points (2026-04-20)
+- Observation: Even when descending-weight neighbors exist, compat can oscillate between a small set of points near obstacles/objectives (especially after `no_next_*` events), repeatedly picking previously-visited nodes and making no progress.
+- Hypothesis: A lightweight, non-map-specific oscillation breaker can reduce these stalls by temporarily penalizing candidate next points that were recently committed (last ~6-8 commits), encouraging the selector to try alternate descending edges.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs (+ state in BotAI/BotController.cs):
+  - Track a small ring buffer of recently committed `CurrentPoint` ids in `ClientBot2020CompatState`.
+  - In `TrySelectCompatNextPoint` (and `TryForceCompatNeighborStep`), when `NoNextPointTicks` or `StuckTicks` is elevated, add a penalty to candidates that appear in the recent-visited buffer (stronger penalty for repeated appearances).
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Oscillation breaker: penalize revisiting recently committed nav points result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
+- Action: revert (only keep changes that strictly increase passes).
+
+No-next recovery: rank forced-neighbor by 2-hop potential + reduce decay (2026-04-20)
+- Observation: `TryForceCompatNeighborStep` currently triggers after `NoNextPointTicks > 8` and picks a forced neighbor primarily by distance-to-destination plus a weight penalty, then decays `NoNextPointTicks` by -6. On problematic maps, this can keep selecting locally-attractive neighbors that still lead to dead-ends, while the decay prevents the system from ever accumulating sustained no-next evidence.
+- Hypothesis: Forced-neighbor should prefer neighbors that can plausibly continue toward the goal (i.e., have a feasible lower-weight continuation within 1 more hop), and the decay should be smaller so the bot can “commit” to a recovery path or eventually trigger the existing reacquire fallback.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs:
+  - In `TryForceCompatNeighborStep`, add a 2-hop lookahead: prefer candidates that have at least one feasible outgoing neighbor with a lower GoalWeight than the candidate (and not reverse-blocked).
+  - Reduce the `NoNextPointTicks` decay when forced-neighbor is selected (e.g., from -6 to -2).
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+No-next recovery: rank forced-neighbor by 2-hop potential + reduce decay result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=23 failed=61 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+No-next recovery: rank forced-neighbor by 2-hop potential + reduce decay revert verification (2026-04-20)
+- Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
+
+Direct fallback gating: require LOS + progress for `no_next_direct`, otherwise reacquire (2026-04-20)
+- Observation: `no_next_direct` is a major stall mode on Conflict/Waterway: when no descending GoalWeight neighbor is found, compat targets the raw destination even if line-of-sight is blocked, which can produce wall-hug oscillation and prevent `CurrentPoint` from shifting to a node that has a usable route.
+- Hypothesis: If we strictly gate `no_next_direct` to cases where destination LOS is clear and the bot is making monotonic progress, and otherwise force a current-point reacquire, we can reduce long stalls without changing the nav graph or GoalWeight expansion logic.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs (+ small state in BotAI/BotController.cs):
+  - In `TrySelectCompatNextPoint`, when no descending neighbor exists:
+    - If destination LOS is blocked, clear `CurrentPoint` and return a `no_next_reacquire_blocked` decision (still targeting destination so movement continues).
+    - If LOS is clear but distance-to-destination is not improving for N ticks, clear `CurrentPoint` and return `no_next_reacquire_stalled`.
+    - Otherwise allow `no_next_direct` as before.
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Direct fallback gating: require LOS + progress for `no_next_direct`, otherwise reacquire result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+Direct fallback gating: require LOS + progress for `no_next_direct`, otherwise reacquire revert verification (2026-04-20)
+- Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
+
+Parameter sweep: forced-neighbor trigger/decay tuning (2026-04-20)
+- Goal: try a small sweep of `TryForceCompatNeighborStep` parameters (trigger threshold + `NoNextPointTicks` decay) to see if any general improvement emerges without deeper algorithmic changes.
+- Constraints: keep changes minimal and reversible; full stock matrix is the only verdict; revert immediately on <33/84; commit immediately on any strict improvement.
+- Sweep plan:
+  - Variant A: reduce forced-neighbor `NoNextPointTicks` decay from -6 to -4.
+  - Variant B: reduce forced-neighbor `NoNextPointTicks` decay from -6 to -2.
+  - Variant C: change forced-neighbor trigger threshold from `NoNextPointTicks > 8` to `> 6` (keep decay at -6).
+
+Parameter sweep Variant A: forced-neighbor decay -4 (2026-04-20)
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: in `TryForceCompatNeighborStep`, change `state.NoNextPointTicks` decay on forced neighbor from -6 to -4.
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Parameter sweep Variant A: forced-neighbor decay -4 result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
+- Action: revert (only keep changes that strictly increase passes).
+
+Parameter sweep Variant B: forced-neighbor decay -2 (2026-04-20)
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: in `TryForceCompatNeighborStep`, change `state.NoNextPointTicks` decay on forced neighbor from -6 to -2.
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Parameter sweep Variant B: forced-neighbor decay -2 result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=23 failed=61 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+Parameter sweep Variant B: forced-neighbor decay -2 revert verification (2026-04-20)
+- Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
+
+Parameter sweep Variant C: forced-neighbor trigger threshold >6 (2026-04-20)
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: in `TryForceCompatNeighborStep`, change the trigger from `NoNextPointTicks > 8` to `> 6` (keep decay at -6).
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.
+
+Parameter sweep Variant C: forced-neighbor trigger threshold >6 result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+
+Parameter sweep Variant C: forced-neighbor trigger threshold >6 revert verification (2026-04-20)
+- Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
