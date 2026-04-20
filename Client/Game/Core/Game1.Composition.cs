@@ -81,6 +81,7 @@ public partial class Game1
         PluginOptionsMenuController PluginOptionsMenuController,
         ControlsMenuController ControlsMenuController,
         InGameMenuController InGameMenuController,
+        DebugMenuController DebugMenuController,
         GameplayOverlayController GameplayOverlayController)
         CreateShellControllerBundle(Game1 game)
     {
@@ -105,6 +106,7 @@ public partial class Game1
             new PluginOptionsMenuController(game),
             new ControlsMenuController(game),
             new InGameMenuController(game),
+            new DebugMenuController(game),
             new GameplayOverlayController(game));
     }
 

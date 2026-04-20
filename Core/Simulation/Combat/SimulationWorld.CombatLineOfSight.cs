@@ -262,6 +262,7 @@ public sealed partial class SimulationWorld
                     solid.Bottom,
                     distance).HasValue)
                 {
+                    _world.SetProjectileSpawnBlockedDebug(solid.Left, solid.Top, solid.Width, solid.Height, "LevelSolid");
                     return true;
                 }
             }
@@ -284,6 +285,7 @@ public sealed partial class SimulationWorld
                     roomObject.Bottom,
                     distance).HasValue)
                 {
+                    _world.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
                     return true;
                 }
             }

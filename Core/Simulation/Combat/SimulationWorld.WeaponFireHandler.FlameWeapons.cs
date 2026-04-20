@@ -16,9 +16,10 @@ public sealed partial class SimulationWorld
             float aimWorldX,
             float aimWorldY)
         {
+            const float flamethrowerSpawnYOffset = 2f;
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var sourceX = weaponOrigin.BaseX;
-            var sourceY = GetPyroOriginY(weaponOrigin);
+            var sourceY = GetPyroOriginY(weaponOrigin) + flamethrowerSpawnYOffset;
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
             var aimDeltaY = aimWorldY - sourceY;
             if (aimDeltaX == 0f && aimDeltaY == 0f)

@@ -17,6 +17,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public const float ReflectedReducedKnockbackDelaySourceTicks = 40f;
     public const float ReflectedZeroKnockbackDelaySourceTicks = 80f;
     public const float SplashThresholdFactor = 0.25f;
+    public const string DelayedExplosionReasonSpawnBlocked = "SpawnBlockedByIsProjectileSpawnBlocked";
+    public const string DelayedExplosionReasonManualDetonation = "ManualDetonation";
 
     private readonly HashSet<int> _passedFriendlyPlayerIds = [];
 
@@ -138,6 +140,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool ExplodeImmediately { get; private set; }
 
+    public string DelayedExplosionReason { get; private set; } = string.Empty;
+
     private bool ExperimentalStingerSpeedBurstConsumed { get; set; }
 
     public bool IsExpired => TicksRemaining <= 0;
@@ -228,6 +232,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         PreviousX = X;
         PreviousY = Y;
         ExplodeImmediately = false;
+        DelayedExplosionReason = string.Empty;
         EnableExperimentalStingerTracking = false;
         ExperimentalStingerSpeedBurstConsumed = false;
         ReducedKnockbackSourceTicksRemaining = ReflectedReducedKnockbackDelaySourceTicks;
@@ -249,14 +254,15 @@ public sealed class RocketProjectileEntity : SimulationEntity
         Speed = nextSpeed;
     }
 
-    public void DelayExplosionUntilNextTick()
+    public void DelayExplosionUntilNextTick(string reason = "Unknown")
     {
         ExplodeImmediately = true;
+        DelayedExplosionReason = reason;
     }
 
     public void ArmExperimentalManualDetonation()
     {
-        DelayExplosionUntilNextTick();
+        DelayExplosionUntilNextTick(DelayedExplosionReasonManualDetonation);
     }
 
     public void TrackExperimentalStingerTarget(float targetDirectionRadians, float maxTurnRadians)
@@ -290,6 +296,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
     public void ClearDelayedExplosion()
     {
         ExplodeImmediately = false;
+        DelayedExplosionReason = string.Empty;
     }
 
     public void ApplyNetworkState(
@@ -325,6 +332,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
+        DelayedExplosionReason = string.Empty;
         ExperimentalStingerSpeedBurstConsumed = false;
     }
 
@@ -363,6 +371,7 @@ public sealed class RocketProjectileEntity : SimulationEntity
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
         SetPassedFriendlyPlayerIds(passedFriendlyPlayerIds);
         ExplodeImmediately = false;
+        DelayedExplosionReason = string.Empty;
         ExperimentalStingerSpeedBurstConsumed = false;
     }
 

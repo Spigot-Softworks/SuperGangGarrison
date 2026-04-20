@@ -39,7 +39,52 @@ public partial class Game1
         DrawMedicBeams(cameraPosition);
         DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamPlayerIds);
         DrawBackstabVisuals(cameraPosition);
+        DrawRocketCollisionDebug(cameraPosition);
+        DrawProjectileSpawnBlockedDebug(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
+    }
+
+    private void DrawRocketCollisionDebug(Vector2 cameraPosition)
+    {
+        if (!_debugRocketCollisionsEnabled || !_world.DebugHasLastRocketCollision)
+        {
+            return;
+        }
+
+        var x = _world.DebugLastRocketCollisionX;
+        var y = _world.DebugLastRocketCollisionY;
+        var markerColor = new Color(255, 255, 255, 240);
+        DrawWorldLine(x - 5f, y, x + 5f, y, cameraPosition, markerColor, 2f);
+        DrawWorldLine(x, y - 5f, x, y + 5f, cameraPosition, markerColor, 2f);
+
+        var label = $"Rocket hit: {_world.DebugLastRocketCollisionObjectName}";
+        var textPosition = new Vector2(x + 8f - cameraPosition.X, y - 18f - cameraPosition.Y);
+        _spriteBatch.DrawString(_consoleFont, label, textPosition, new Color(255, 255, 255, 245));
+        var reasonLabel = $"Reason: {_world.DebugLastRocketCollisionReason}";
+        _spriteBatch.DrawString(_consoleFont, reasonLabel, textPosition + new Vector2(0f, 12f), new Color(220, 255, 220, 245));
+    }
+
+    private void DrawProjectileSpawnBlockedDebug(Vector2 cameraPosition)
+    {
+        if (!_debugRocketCollisionsEnabled || !_world.DebugHasProjectileSpawnBlocked)
+        {
+            return;
+        }
+
+        var blockingRectangle = new Rectangle(
+            (int)(_world.DebugProjectileSpawnBlockedX - cameraPosition.X),
+            (int)(_world.DebugProjectileSpawnBlockedY - cameraPosition.Y),
+            (int)_world.DebugProjectileSpawnBlockedWidth,
+            (int)_world.DebugProjectileSpawnBlockedHeight);
+
+        var redColor = new Color(255, 0, 0, 100);
+        _spriteBatch.Draw(_pixel, blockingRectangle, redColor);
+
+        var label = $"Spawn blocked: {_world.DebugProjectileSpawnBlockedObjectName}";
+        var textPosition = new Vector2(
+            _world.DebugProjectileSpawnBlockedX + 4f - cameraPosition.X,
+            _world.DebugProjectileSpawnBlockedY + 4f - cameraPosition.Y);
+        _spriteBatch.DrawString(_consoleFont, label, textPosition, new Color(255, 100, 100, 245));
     }
 
     private void DrawFallbackLevelSolids(Vector2 cameraPosition, bool hasLevelBackground)
