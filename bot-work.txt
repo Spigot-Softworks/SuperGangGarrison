@@ -444,3 +444,16 @@ No-next recovery: trigger forced-neighbor earlier when destination is blocked re
 - Full stock CTF+KOTH Score matrix: total=84 passed=25 failed=59 timedOut=0 (REGRESSION vs baseline=33).
 - Action: revert immediately and re-run full matrix to verify baseline restoration.
 - Revert verification: full stock CTF+KOTH Score matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
+
+CTF carry gates: TeamGate should not become universally blocking when carrying intel (2026-04-20)
+- New evidence: For Conflict/Waterway, `Arrival` and `ReturnCap` scenarios pass quickly, but `Score` fails. This pattern is consistent with "can reach/pick intel, but cannot legally traverse back into own-base area to score" rather than pure nav failure.
+- Observation: `SimpleLevel.GetBlockingTeamGates(team, carryingIntel)` currently treats *all* `RoomObjectType.TeamGate` objects as blocking when `carryingIntel == true` (even gates for the player's own team). This can prevent a carrier from entering their own base/spawn region (and therefore from intersecting the intel-base marker to score) on maps that place the intel base behind a TeamGate.
+- Hypothesis: TeamGates should remain team-based (block only the opposing team) regardless of whether the player is carrying intel; only IntelGates should be carry-sensitive.
+- Patch plan: Core/Level/Layout/SimpleLevel.cs:
+  - In the `RoomObjectType.TeamGate` case of `GetBlockingTeamGates(...)`, remove the `carryingIntel` clause so TeamGates block only when `roomObject.Team != team` (plus forced lock behavior).
+- Next: run targeted Conflict+Waterway Score matrix then full stock matrix; revert immediately on any regression vs 33/84 baseline.
+
+CTF carry gates: TeamGate should not become universally blocking when carrying intel result (2026-04-20)
+- Targeted Conflict+Waterway Score matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement).
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
+- Action: revert (only keep changes that strictly increase passes).
