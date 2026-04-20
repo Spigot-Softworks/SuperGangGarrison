@@ -15,7 +15,7 @@ Rules of engagement (DO NOT SKIP)
 - Keep commits clean:
   - Do NOT commit `.codex-temp/`, `bin/`, `obj/`, or runtime output artifacts.
   - Prefer commits that contain only the bot source changes + `bot-work.txt`.
-- Windows note: `bot-work.txt` uses a non-UTF8, non-BOM encoding; prefer appending via PowerShell `Add-Content -Encoding Default` if you must edit outside of git.
+- Encoding note: `bot-work.txt` is UTF-8 (no BOM). Prefer editing via git/apply_patch so we don't reintroduce invalid bytes.
 
 Test rig (full matrix)
 - CWD: `C:\\Users\\level\\Desktop\\OpenGarrison Active\\OpenGarrison-Fork`
@@ -113,7 +113,7 @@ Compat stair-step detection correction (2026-04-19)
 
 Full stock CTF+KOTH matrix baseline (2026-04-19)
 - Command: dotnet run --project "BotAI.Tools\OpenGarrison.BotAI.Tools.csproj" -- --stock-ctf-koth-matrix --scenario-kind Score --path-mode ClientBot2020Compat --no-bot-diagnostics
-- Result summary: total=84 passed=23 failed=61 timedOut=0 (elapsedMs˜232247)
+- Result summary: total=84 passed=23 failed=61 timedOut=0 (elapsedMs~232247)
 Capture objective destination fix (2026-04-19)
 - Hypothesis: our capture objective selection navigates to the capture-zone group bbox center, which can be outside every CaptureZone square; botStep_v2 targets a concrete zone instance. This can prevent ever entering a capture zone (notably Gallery KOTH).
 - Patch: BotAI/BotController.cs: for capture objectives, set ModernPathSelection.Destination to CaptureObjective.TargetZone (nearest included zone point) instead of TargetPoint (group center). Also update route-aware capture selection to route to TargetZone.
@@ -285,9 +285,9 @@ Full stock CTF+KOTH Score matrix reconfirmation (2026-04-19)
 - Test (full stock CTF+KOTH Score matrix): total=84 passed=24 failed=60 timedOut=0 elapsedMs=216366
 
 TrySelectCompatNextPoint no-candidate fallback (2026-04-19)
-- Observation: several hard maps (Waterway/Gallery) hit TrySelectCompatNextPoint with estNextPoint < 0, leaving stale ClosestPointX/Y; the horizontal mover then hits 
+- Observation: several hard maps (Waterway/Gallery) hit TrySelectCompatNextPoint with bestNextPoint < 0, leaving stale ClosestPointX/Y; the horizontal mover then hits 
 o_next_stop, which clears CurrentPoint and can create a permanent reacquire/stop loop.
-- Patch: BotAI/BotController.ClientBot2020Compat.cs: when estNextPoint < 0, set ClosestPointX/Y = destination and DebugDecisionReason = no_next_direct instead of returning with stale target.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: when bestNextPoint < 0, set ClosestPointX/Y = destination and DebugDecisionReason = no_next_direct instead of returning with stale target.
 - Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below the current best-known baseline (24/84).
 TrySelectCompatNextPoint no-candidate fallback result (2026-04-19)
 - Targeted 4-map matrix (Conflict/Gallery/Eiger/Waterway): total=24 passed=8 failed=16 timedOut=0
@@ -328,8 +328,7 @@ Compat goal weight depth increase result (2026-04-19)
 Compat current-point acquisition correctness (2026-04-19)
 - Hypothesis: TryAcquireCompatCurrentPoint incorrectly treats CurrentPoint as a dense index (< navPoints.Points.Count) and compares SecondAnchorBlockPoint against loop indices rather than node ids; this can prevent reacquisition / misapply second-anchor blocks.
 - Patch: BotAI/BotController.ClientBot2020Compat.cs:
-  - Validate current point via 
-avPoints.TryGetPoint(CurrentPoint, ...) instead of CurrentPoint < Points.Count.
+  - Validate current point via navPoints.TryGetPoint(CurrentPoint, ...) instead of CurrentPoint < Points.Count.
   - Compare second-anchor block against candidate.Id (not index) in current-point acquisition helpers.
 - Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below best baseline (33/84).
 Compat current-point acquisition correctness result (2026-04-19)
@@ -342,13 +341,14 @@ Compat no-next: keep queued next-point instead of no_next_direct (2026-04-20)
 - Hypothesis: On maps like Conflict/Waterway, `TrySelectCompatNextPoint` often returns bestNextPoint<0, causing `no_next_direct` which overwrites the previous tick's `force_neighbor_step` and creates oscillation (destination vs neighbor) with no progress.
 - Patch: BotAI/BotController.ClientBot2020Compat.cs: if bestNextPoint<0 but we already have a connected `state.NextPoint`, keep it as the movement target (`no_next_keep`) instead of clearing NextPoint and switching to direct destination.
 - Next: run targeted `--stock-ctf-koth-matrix --map Conflict --map Waterway` then full matrix; revert immediately on any regression vs best baseline (33/84).
-\nCompat no-next: keep queued next-point result (2026-04-20)
+
+Compat no-next: keep queued next-point result (2026-04-20)
 - Targeted Conflict+Waterway matrix (12 cases): 0/12 passed (no improvement).
 - Full stock CTF+KOTH Score matrix: total=84 passed=25 failed=59 timedOut=0 (REGRESSION vs best baseline=33).
 - Action: reverted the code change immediately.
 - Note: running `BotAI.Tools -- --help` actually builds/writes `Core/Content/BotNav/*.botnav.json` (we restored these to HEAD; do not commit).
 - Next: re-run full matrix to verify baseline restored to 33/84.
-- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).\n
+- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
 
 Reverse-only block direction audit (2026-04-20)
 - Observation: Shipped `Waterway.a1.modern.botnav.json` contains nodes like Id=48 with `ReverseOnlyBlockedFromNodeIds={80}`.
@@ -356,7 +356,8 @@ Reverse-only block direction audit (2026-04-20)
   - Current compat routing checks `IsReverseBlocked(candidate, current)` (e.g., IsReverseBlocked(48,80)) which incorrectly blocks 80->48 instead.
 - Hypothesis: reversed reverse-block checks are preventing valid descending-weight traversals on Waterway/Conflict, producing `no_next_direct` loops.
 - Patch plan: change reverse-block checks to always test `IsReverseBlocked(current, candidate)` in both weight expansion and compat next-point selection.
-\nReverse-only block direction audit result (2026-04-20)
+
+Reverse-only block direction audit result (2026-04-20)
 - Patch attempted: swap IsReverseBlocked(...) argument order in:
   - BotAI/ClientBotNavPoints.cs ProcessPoints(...)
   - BotAI/BotController.ClientBot2020Compat.cs (next-point + force-neighbor)
@@ -364,41 +365,56 @@ Reverse-only block direction audit (2026-04-20)
 - Full stock CTF+KOTH Score matrix: total=84 passed=31 failed=53 timedOut=0 (REGRESSION vs best baseline=33).
 - Action: reverted immediately.
 - Next: re-run full matrix to verify baseline restored to 33/84.
-- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).\n
+- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
 
 GoalWeights directionality fix attempt (2026-04-20)
 - Observation (Waterway Blue Scout baseline): `no_next_direct` at cp=80 with goal=29 suggests current point has a weight but no outgoing descending-weight neighbor (often caused by weights being computed in the wrong direction for directed / reverse-blocked edges).
 - Hypothesis: `ClientBotNavPoints.GetGoalWeights` currently expands from the goal along outgoing edges (ProcessPoints recursion), which can assign weights to nodes that cannot actually reach the goal via outgoing edges, producing `no_next_direct` stalls on maps with one-way / reverse-only edges.
 - Patch plan: rebuild GoalWeights via reverse-BFS over incoming edges (i.e., compute distances-to-goal in the directed graph), honoring reverse-only blocks and optional class traversal.
 - Next: targeted Waterway/Conflict checks, then full matrix; revert immediately on any regression vs best baseline (33/84).
-\nGoalWeights directionality fix attempt result (2026-04-20)
+
+GoalWeights directionality fix attempt result (2026-04-20)
 - Patch attempted: rewrite ClientBotNavPoints.GetGoalWeights(...) as reverse-BFS over incoming edges.
 - Full stock CTF+KOTH Score matrix: total=84 passed=15 failed=69 timedOut=0 (REGRESSION vs best baseline=33).
 - Action: reverted immediately.
 - Next: re-run full matrix to verify baseline restored to 33/84.
-- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).\n
+- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
 
 No-next recovery escalation attempt (2026-04-20)
 - Hypothesis: Conflict/Waterway stalls persist because `TryForceCompatNeighborStep` keeps selecting a forced neighbor and decrementing `NoNextPointTicks`, preventing the existing "reacquire current point" logic from ever firing while we remain in an unrecoverable `no_next_direct` loop.
 - Patch plan: if `NoNextPointTicks` grows large (sustained no-next), force `CurrentPoint=-1` (reacquire) even if a forced neighbor exists.
 - Next: targeted Conflict+Waterway matrix, then full matrix.
-\nNo-next recovery escalation refinement (2026-04-20)
+
+No-next recovery escalation refinement (2026-04-20)
 - Change: reduce `TryForceCompatNeighborStep`'s `NoNextPointTicks` decay when selecting a forced neighbor (was -6, now -2) so sustained `no_next_direct` loops can actually accumulate and trigger the new `NoNextPointTicks > 60` forced reacquire.
-\nNo-next recovery escalation attempt result (2026-04-20)
+
+No-next recovery escalation attempt result (2026-04-20)
 - Patch attempted:
   - In `TryForceCompatNeighborStep`, force `CurrentPoint=-1` when `NoNextPointTicks > 60`.
   - Reduce `NoNextPointTicks` decay on forced neighbor from -6 to -2.
 - Full stock CTF+KOTH Score matrix: total=84 passed=23 failed=61 timedOut=0 (REGRESSION vs best baseline=33).
 - Action: reverted immediately.
 - Next: re-run full matrix to verify baseline restored to 33/84.
-- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).\n
+- Revert verification: full matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
 
 TrySelectCompatNextPoint plateau fallback (2026-04-20)
 - Observation: Waterway/Conflict often hit `no_next_direct` even though they have outgoing edges (force-neighbor picks something), implying there may be no strictly-descending-weight neighbor from the current point.
 - Hypothesis: allowing a "flat" step (neighbor with equal GoalWeight) as a fallback can move the bot onto a node that has a descending neighbor next tick, avoiding `no_next_direct` oscillation.
 - Patch plan: in `TrySelectCompatNextPoint`, if no descending neighbor exists, search for an equal-weight neighbor (still honoring reverse blocks + traversal checks) and pick the best by distance/penalties.
-\nTrySelectCompatNextPoint plateau fallback result (2026-04-20)
+
+TrySelectCompatNextPoint plateau fallback result (2026-04-20)
 - Patch attempted: allow a fallback `nav_step_flat` (equal-weight neighbor) when no descending-weight neighbor exists.
 - Targeted Conflict+Waterway matrix: 0/12 passed (and Waterway best distances worsened from ~100 to ~1200).
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
 - Action: revert (only keep changes that strictly increase passes).
+
+CurrentPoint acquisition: use player.Bottom for distance (2026-04-20)
+- New evidence: shipped Waterway.a1.modern.botnav.json node Id=80 has Y=1194 (feet Y), matching the bot's Bottom=1194 in Waterway traces.
+- Hypothesis: compat current-point acquisition currently computes distance using player.Y (top), but nav node Y is feet; using player.Bottom should select more correct nearby nodes and reduce no_next_direct stalls.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: use player.Bottom for Y distance computations in:
+  - TryAcquireCompatCurrentPoint
+  - TryAcquireNearestCompatCurrentPointIgnoringSight
+  - collision reacquire (o_next_stop path)
+- Test (Conflict+Waterway matrix): total=12 passed=0 failed=12 timedOut=0 (no change).
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
+- Action: reverted (only keep changes that strictly increase passes).
