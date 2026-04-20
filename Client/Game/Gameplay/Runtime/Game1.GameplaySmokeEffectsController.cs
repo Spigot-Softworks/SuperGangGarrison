@@ -169,6 +169,8 @@ public partial class Game1
                     continue;
                 }
 
+                var flameSmokeOrigin = _game.GetFlameScaledCenterOfMassWorldPosition(flame);
+
                 var proximityFactor = GetFlameWeaponProximityFactor(flame);
                 var mainSmokeProbability = GetFlameSmokeEmissionProbability(_game._particleMode, proximityFactor, secondary: false);
                 if (_game._visualRandom.NextSingle() >= mainSmokeProbability)
@@ -179,8 +181,8 @@ public partial class Game1
                 if (CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
                 {
                     _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
-                        flame.X,
-                        flame.Y - 8f,
+                        flameSmokeOrigin.X,
+                        flameSmokeOrigin.Y,
                         (_game._visualRandom.NextSingle() * 2.4f) - 1.2f,
                         (_game._visualRandom.NextSingle() * 3f) - 1.5f,
                         (_game._visualRandom.NextSingle() * 5f) - 2.5f,
@@ -200,8 +202,8 @@ public partial class Game1
                     }
 
                     _game._flameSmokeSecondaryVisuals.Add(new FlameSmokeVisual(
-                        flame.X,
-                        flame.Y - 8f,
+                        flameSmokeOrigin.X,
+                        flameSmokeOrigin.Y,
                         ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlameSecondarySmokeSizeScale,
                         ((_game._visualRandom.NextSingle() * 7f) - 3.5f) * FlameSecondarySmokeSizeScale,
                         ((_game._visualRandom.NextSingle() * 12f) - 6f) * FlameSecondarySmokeSizeScale,
