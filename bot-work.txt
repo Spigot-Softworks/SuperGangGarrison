@@ -1,3 +1,52 @@
+BOT WORK LOG - ClientBot2020Compat (modern/clientbot_2020_update, botstep_v2 port)
+Last updated: 2026-04-19
+
+Rules of engagement (DO NOT SKIP)
+- Do not change the nav asset loader. The runtime generator is confirmed fine; the issue is elsewhere.
+- Non-regression rule: never reduce the full matrix pass count. Hard floor is 20/84, but treat the best-known pass count as the active baseline. If any change reduces passes, revert immediately and verify baseline restoration.
+- Before making any change: search this file for the same idea/patch (keywords + symbol names). If it was already tried and failed/regressed, do not retry it unless there is a new concrete reason (e.g., a newly discovered root-cause bug that changes the evaluation).
+- For every change (even tiny):
+  - Document: hypothesis -> patch -> exact test command(s) -> before/after pass counts -> revert/keep decision.
+  - Always re-run the full stock CTF+KOTH matrix (Score scenario) for the final verdict.
+- If a change strictly increases the full matrix passes:
+  - Commit immediately (same session) so we can always roll back to the highest-scoring baseline.
+  - Include the pass count in the commit message.
+  - Record the commit hash in this log next to the result.
+- Keep commits clean:
+  - Do NOT commit `.codex-temp/`, `bin/`, `obj/`, or runtime output artifacts.
+  - Prefer commits that contain only the bot source changes + `bot-work.txt`.
+- Windows note: `bot-work.txt` uses a non-UTF8, non-BOM encoding; prefer appending via PowerShell `Add-Content -Encoding Default` if you must edit outside of git.
+
+Test rig (full matrix)
+- CWD: `C:\\Users\\level\\Desktop\\OpenGarrison Active\\OpenGarrison-Fork`
+- Command:
+  - dotnet run --project "BotAI.Tools\\OpenGarrison.BotAI.Tools.csproj" -- --stock-ctf-koth-matrix --scenario-kind Score --path-mode ClientBot2020Compat --no-bot-diagnostics
+
+Current baseline(s)
+- Hard floor (must never go below): 20/84 passed (user-stated baseline)
+- Best known full-matrix result so far (2026-04-19): 24/84 passed
+
+What has worked (kept)
+- Correctness fixes in goal-weight expansion:
+  - Reverse-only block direction fix in `ClientBotNavPoints.ProcessPoints(...)` produced a +1 gain to 24/84.
+  - Traversal usability argument order fix (`IsClassTraversalUsable(sourcePointId, branch, classId)`) is a correctness fix (kept even when class-filtered weights were reverted).
+- Compat movement parity fixes (source-backed):
+  - Stationary-direction stair-step scan fallback (`CompatIsStairStepAhead` when `horizontalSpeed == 0`) removed false-negatives for waist/platform jump assists.
+  - Allow `compat:waist` stuck-rise jump assist even when `Sign(horizontalSpeed) == 0` (stationary stalls).
+- Capture behavior:
+  - Capture hold square uses `feetY = player.Bottom` in `ResolveModernCaptureHoldState(...)` (kept because reverting dropped 24 -> 23).
+
+What has NOT worked (reverted / guardrailed)
+- KOTH/CP-only class-filtered goal weights:
+  - Produced regressions as low as 18/84 even though it made Gallery Scout pass in one run; reverted.
+- "Make stationary obstacles jump" changes (e.g. `stuck_pulse` gating / wall-scan attempts):
+  - Produced regressions (e.g. 19/84) and were reverted.
+- Compat nav-source switching:
+  - Guardrailed as diagnostic-only; do not pursue as a "fix" path right now.
+
+Opinion: non-source fixes vs port inconsistencies
+- Most net gains to date came from port correctness (argument order, directionality, and parity with botStep logic) rather than heuristic tuning.
+- So: prioritize source/port inconsistencies first, but allow small, reversible "non-source" behavior tweaks ONLY if they are general (not map-hacks), measurable (full matrix), and do not touch the nav loader/generator.
 Immediate guardrail added on 2026-04-19 after revert verification
 - Do not pursue compat nav-source switching as the current fix.
 - It was tested directly and reverted because it regressed Corinth while not fixing Conflict.
@@ -216,3 +265,17 @@ Fix goal weight reverse-block direction (2026-04-19)
 - Patch: BotAI/ClientBotNavPoints.cs:
   - In ProcessPoints(...), change reverse-block check to IsReverseBlocked(branch, sourcePointId) so weight expansion respects reverse-only blocks in the correct direction.
 - Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+Fix goal weight reverse-block direction result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=24 failed=60 timedOut=0 (IMPROVEMENT vs prior ~23)
+
+Revert capture hold feet-Y alignment (2026-04-19)
+- Reason: changing ResolveModernCaptureHoldState to use player.Bottom did not produce any matrix gain and likely diverges from botStep_v2 (which checks player.object.y).
+- Patch: BotAI/BotController.cs: revert hold-square Y comparisons back to player.Y.
+- Next: re-run full stock CTF+KOTH Score matrix to confirm non-regression (>=20 passed).
+Revert capture hold feet-Y alignment result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix) after reverting to player.Y: total=84 passed=23 failed=61 (REGRESSION vs the prior 24-pass run)
+- Action: restored the feetY=player.Bottom capture hold comparisons.
+- Next: re-run matrix to confirm we recover the 24-pass result.
+Revert capture hold feet-Y alignment recovery check (2026-04-19)
+- Retest (full stock CTF+KOTH Score matrix) after restoring feetY comparisons: total=84 passed=24 failed=60 timedOut=0
+
