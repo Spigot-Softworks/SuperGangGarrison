@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "5ad7de5cb968f3664ce556e8a5eb6fd399186dc77d250abe79afacfc689b2cb0",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-19T04:00:33.6663491Z",
+  "BuiltUtc": "2026-04-20T04:06:56.5344028Z",
   "Stats": {
     "SurfaceCount": 798,
     "CandidateNodeCount": 254,
@@ -14,12 +14,12 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 254,
-    "EdgeCount": 608,
+    "EdgeCount": 595,
     "WalkEdgeCount": 278,
-    "JumpEdgeCount": 324,
+    "JumpEdgeCount": 311,
     "DropEdgeCount": 6,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 517.3114,
+    "BuildMilliseconds": 327.5773,
     "SurfaceSamplingMilliseconds": 0,
     "AutoAnchorMilliseconds": 0,
     "HintNodeMilliseconds": 0,
@@ -93,8 +93,7 @@
       "Label": "",
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
-        51,
-        109
+        51
       ]
     },
     {
@@ -107,8 +106,7 @@
       "Label": "",
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
-        50,
-        108
+        50
       ]
     },
     {
@@ -253,8 +251,7 @@
       "Label": "",
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
-        53,
-        113
+        53
       ]
     },
     {
@@ -290,9 +287,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        59
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 23,
@@ -325,9 +320,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        72
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 26,
@@ -1096,8 +1089,7 @@
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
         140,
-        142,
-        185
+        142
       ]
     },
     {
@@ -1111,8 +1103,7 @@
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
         141,
-        143,
-        188
+        143
       ]
     },
     {
@@ -3922,13 +3913,6 @@
     },
     {
       "FromNodeId": 59,
-      "ToNodeId": 22,
-      "Kind": "Jump",
-      "Cost": 148.18907,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 59,
       "ToNodeId": 34,
       "Kind": "Jump",
       "Cost": 112.36102,
@@ -4198,13 +4182,6 @@
       "ToNodeId": 100,
       "Kind": "Jump",
       "Cost": 64.44377,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 72,
-      "ToNodeId": 25,
-      "Kind": "Jump",
-      "Cost": 148.18907,
       "InputTape": []
     },
     {
@@ -4825,13 +4802,6 @@
     },
     {
       "FromNodeId": 108,
-      "ToNodeId": 6,
-      "Kind": "Jump",
-      "Cost": 208.71033,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 108,
       "ToNodeId": 51,
       "Kind": "Jump",
       "Cost": 116.498924,
@@ -4856,20 +4826,6 @@
       "ToNodeId": 169,
       "Kind": "Jump",
       "Cost": 208.62646,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 109,
-      "ToNodeId": 5,
-      "Kind": "Jump",
-      "Cost": 225.53935,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 109,
-      "ToNodeId": 8,
-      "Kind": "Jump",
-      "Cost": 276.50134,
       "InputTape": []
     },
     {
@@ -4909,23 +4865,9 @@
     },
     {
       "FromNodeId": 112,
-      "ToNodeId": 17,
-      "Kind": "Jump",
-      "Cost": 276.50134,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 112,
       "ToNodeId": 113,
       "Kind": "Walk",
       "Cost": 95,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 113,
-      "ToNodeId": 19,
-      "Kind": "Jump",
-      "Cost": 208.71033,
       "InputTape": []
     },
     {
@@ -5763,23 +5705,9 @@
     },
     {
       "FromNodeId": 169,
-      "ToNodeId": 108,
-      "Kind": "Jump",
-      "Cost": 208.62646,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 169,
       "ToNodeId": 168,
       "Kind": "Walk",
       "Cost": 41,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 170,
-      "ToNodeId": 113,
-      "Kind": "Jump",
-      "Cost": 208.62646,
       "InputTape": []
     },
     {
@@ -6008,13 +5936,6 @@
     },
     {
       "FromNodeId": 185,
-      "ToNodeId": 94,
-      "Kind": "Jump",
-      "Cost": 224.01785,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 185,
       "ToNodeId": 142,
       "Kind": "Jump",
       "Cost": 132.00378,
@@ -6074,13 +5995,6 @@
       "ToNodeId": 204,
       "Kind": "Jump",
       "Cost": 65,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 188,
-      "ToNodeId": 95,
-      "Kind": "Jump",
-      "Cost": 224.01785,
       "InputTape": []
     },
     {
@@ -6827,13 +6741,6 @@
     },
     {
       "FromNodeId": 232,
-      "ToNodeId": 167,
-      "Kind": "Jump",
-      "Cost": 234.07904,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 232,
       "ToNodeId": 233,
       "Kind": "Walk",
       "Cost": 53,
@@ -6935,13 +6842,6 @@
       "ToNodeId": 247,
       "Kind": "Drop",
       "Cost": 19.313208,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 239,
-      "ToNodeId": 172,
-      "Kind": "Jump",
-      "Cost": 234.07904,
       "InputTape": []
     },
     {

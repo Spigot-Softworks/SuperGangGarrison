@@ -948,7 +948,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (currentWeight == 1)
             {
                 var directTarget = objectiveSelection.CaptureObjective is ModernCaptureObjective captureObjective
-                    ? captureObjective.TargetPoint
+                    ? captureObjective.TargetZone
                     : destination;
                 SetModernClosestPointTarget(memory, directTarget.X, directTarget.Y);
                 return new NavigationDecision(directTarget, HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "m1:direct");
@@ -2912,7 +2912,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             {
                 state.PathPointIsZone = true;
                 return new ModernPathSelection(
-                    captureObjective.TargetPoint,
+                    captureObjective.TargetZone,
                     AllowDirectPath: false,
                     IsCaptureObjective: true,
                     CaptureObjective: captureObjective);
@@ -2933,7 +2933,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             {
                 state.PathPointIsZone = true;
                 return new ModernPathSelection(
-                    captureObjective.TargetPoint,
+                    captureObjective.TargetZone,
                     AllowDirectPath: false,
                     IsCaptureObjective: true,
                     CaptureObjective: captureObjective);
@@ -3011,7 +3011,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 {
                     state.PathPointIsZone = true;
                     return new ModernPathSelection(
-                        captureObjective.TargetPoint,
+                        captureObjective.TargetZone,
                         AllowDirectPath: false,
                         IsCaptureObjective: true,
                         CaptureObjective: captureObjective);
@@ -3102,7 +3102,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (TryResolveModernCaptureObjective(world, player, bestPoint.Marker, out var captureObjective))
             {
                 return new ModernPathSelection(
-                    captureObjective.TargetPoint,
+                    captureObjective.TargetZone,
                     AllowDirectPath: false,
                     IsCaptureObjective: true,
                     CaptureObjective: captureObjective);
@@ -3137,7 +3137,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (TryResolveModernCaptureObjective(world, player, bestPoint, out var captureObjective))
             {
                 return new ModernPathSelection(
-                    captureObjective.TargetPoint,
+                    captureObjective.TargetZone,
                     AllowDirectPath: false,
                     IsCaptureObjective: true,
                     CaptureObjective: captureObjective);
@@ -3162,7 +3162,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (TryResolveModernCaptureObjective(world, player, bestPoint.Marker, out var captureObjective))
             {
                 return new ModernPathSelection(
-                    captureObjective.TargetPoint,
+                    captureObjective.TargetZone,
                     AllowDirectPath: false,
                     IsCaptureObjective: true,
                     CaptureObjective: captureObjective);
@@ -3585,7 +3585,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         };
         routeAwareSelection = selection with
         {
-            Destination = adjustedObjective.TargetPoint,
+            Destination = adjustedObjective.TargetZone,
             CaptureObjective = adjustedObjective,
         };
         return true;
@@ -3614,16 +3614,17 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         var insideZoneSquare = false;
         var activeGroupId = -1;
+        var feetY = player.Bottom;
         if (player.X >= captureObjective.MinX - ModernCaptureZoneSquareHalfSize
             && player.X <= captureObjective.MaxX + ModernCaptureZoneSquareHalfSize
-            && player.Y >= captureObjective.MinY - ModernCaptureZoneSquareHalfSize
-            && player.Y <= captureObjective.MaxY + ModernCaptureZoneSquareHalfSize)
+            && feetY >= captureObjective.MinY - ModernCaptureZoneSquareHalfSize
+            && feetY <= captureObjective.MaxY + ModernCaptureZoneSquareHalfSize)
         {
             for (var pointIndex = 0; pointIndex < captureObjective.Points.Length; pointIndex += 1)
             {
                 var point = captureObjective.Points[pointIndex];
                 if (MathF.Abs(player.X - point.X) > ModernCaptureZoneSquareHalfSize
-                    || MathF.Abs(player.Y - point.Y) > ModernCaptureZoneSquareHalfSize)
+                    || MathF.Abs(feetY - point.Y) > ModernCaptureZoneSquareHalfSize)
                 {
                     continue;
                 }

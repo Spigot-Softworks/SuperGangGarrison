@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "51dc7db01af9626947a3ffa1e294078326d75eeb66f1dfd52fd01ec350176783",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-19T01:39:27.6812443Z",
+  "BuiltUtc": "2026-04-20T04:06:56.6227981Z",
   "Stats": {
     "SurfaceCount": 387,
     "CandidateNodeCount": 109,
@@ -14,12 +14,12 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 109,
-    "EdgeCount": 230,
+    "EdgeCount": 220,
     "WalkEdgeCount": 76,
-    "JumpEdgeCount": 154,
+    "JumpEdgeCount": 144,
     "DropEdgeCount": 0,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 127.4907,
+    "BuildMilliseconds": 73.1166,
     "SurfaceSamplingMilliseconds": 0,
     "AutoAnchorMilliseconds": 0,
     "HintNodeMilliseconds": 0,
@@ -81,9 +81,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        17
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 5,
@@ -416,8 +414,7 @@
       "Label": "",
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
-        50,
-        78
+        50
       ]
     },
     {
@@ -627,9 +624,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        85
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 54,
@@ -640,9 +635,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        86
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 55,
@@ -653,9 +646,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        87
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 56,
@@ -666,9 +657,7 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": [
-        88
-      ]
+      "ReverseOnlyBlockedFromNodeIds": []
     },
     {
       "Id": 57,
@@ -1421,13 +1410,6 @@
       "ToNodeId": 15,
       "Kind": "Walk",
       "Cost": 53,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 17,
-      "ToNodeId": 4,
-      "Kind": "Jump",
-      "Cost": 458.65128,
       "InputTape": []
     },
     {
@@ -2356,30 +2338,9 @@
     },
     {
       "FromNodeId": 77,
-      "ToNodeId": 60,
-      "Kind": "Jump",
-      "Cost": 212.13203,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 77,
       "ToNodeId": 84,
       "Kind": "Jump",
       "Cost": 55.97321,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 78,
-      "ToNodeId": 34,
-      "Kind": "Jump",
-      "Cost": 306.64636,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 78,
-      "ToNodeId": 61,
-      "Kind": "Jump",
-      "Cost": 212.13203,
       "InputTape": []
     },
     {
@@ -2475,13 +2436,6 @@
     },
     {
       "FromNodeId": 85,
-      "ToNodeId": 53,
-      "Kind": "Jump",
-      "Cost": 209.0287,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 85,
       "ToNodeId": 86,
       "Kind": "Walk",
       "Cost": 41,
@@ -2492,13 +2446,6 @@
       "ToNodeId": 93,
       "Kind": "Jump",
       "Cost": 434.03687,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 86,
-      "ToNodeId": 54,
-      "Kind": "Jump",
-      "Cost": 215.47389,
       "InputTape": []
     },
     {
@@ -2517,13 +2464,6 @@
     },
     {
       "FromNodeId": 87,
-      "ToNodeId": 55,
-      "Kind": "Jump",
-      "Cost": 217.91054,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 87,
       "ToNodeId": 86,
       "Kind": "Walk",
       "Cost": 583,
@@ -2534,13 +2474,6 @@
       "ToNodeId": 88,
       "Kind": "Walk",
       "Cost": 41,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 88,
-      "ToNodeId": 56,
-      "Kind": "Jump",
-      "Cost": 209.0287,
       "InputTape": []
     },
     {
@@ -2748,13 +2681,6 @@
     },
     {
       "FromNodeId": 101,
-      "ToNodeId": 92,
-      "Kind": "Jump",
-      "Cost": 217.11057,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 101,
       "ToNodeId": 97,
       "Kind": "Jump",
       "Cost": 243.6473,
@@ -2786,13 +2712,6 @@
       "ToNodeId": 106,
       "Kind": "Jump",
       "Cost": 55.31727,
-      "InputTape": []
-    },
-    {
-      "FromNodeId": 104,
-      "ToNodeId": 95,
-      "Kind": "Jump",
-      "Cost": 217.11057,
       "InputTape": []
     },
     {
