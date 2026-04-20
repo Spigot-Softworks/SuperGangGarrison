@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
+
     private void DrawMedicBeams(Vector2 cameraPosition)
     {
         foreach (var player in EnumerateRenderablePlayers())
@@ -382,15 +384,11 @@ public partial class Game1
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
         var flameColor = Color.White;
         var flameSprite = GetResolvedSprite("FlameS");
+        var flameScale = GetFlameProjectileScale(flame);
+
         if (flameSprite is not null && flameSprite.Frames.Count > 0)
         {
-            var flameAgeTicks = flame.IsAttached
-                ? FlameProjectileEntity.AttachedLifetimeTicks - flame.TicksRemaining
-                : FlameProjectileEntity.AirLifetimeTicks - flame.TicksRemaining;
-            var frameIndex = Math.Clamp(
-                Math.Abs(flameAgeTicks) % flameSprite.Frames.Count,
-                0,
-                flameSprite.Frames.Count - 1);
+            var frameIndex = GetFlameProjectileFrameIndex(flame, flameSprite.Frames.Count);
             DrawLoadedSpriteFrame(
                 flameSprite.Frames[frameIndex],
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
@@ -398,13 +396,14 @@ public partial class Game1
                 flameColor,
                 0f,
                 flameSprite.Origin.ToVector2(),
-                Vector2.One,
+                new Vector2(flameScale, flameScale),
                 SpriteEffects.None,
                 0f);
             return;
         }
 
-        var flameSize = flame.IsAttached ? 8 : 6;
+        var baseFlameSize = flame.IsAttached ? 8f : 6f;
+        var flameSize = Math.Max(2, (int)MathF.Round(baseFlameSize * flameScale));
         var fallbackColor = flame.IsAttached
             ? new Color(255, 120, 60)
             : new Color(255, 170, 90);
@@ -414,6 +413,110 @@ public partial class Game1
             flameSize,
             flameSize);
         _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
+    }
+
+    private float GetFlameProjectileScale(FlameProjectileEntity flame)
+    {
+        var flameLifetimeTicks = flame.IsAttached
+            ? FlameProjectileEntity.AttachedLifetimeTicks
+            : FlameProjectileEntity.AirLifetimeTicks;
+        var flameAgeTicks = flameLifetimeTicks - flame.TicksRemaining;
+        var lifeProgress = float.Clamp(flameAgeTicks / (float)Math.Max(1, flameLifetimeTicks), 0f, 1f);
+
+        // Deterministic per-flame variation avoids flicker while giving each flame a unique growth profile.
+        var randomGrowthRate = MathHelper.Lerp(0.72f, 1.28f, GetDeterministicUnitFloat(flame.Id, salt: 11));
+        var randomMaxScale = MathHelper.Lerp(1.18f, 1.4f, GetDeterministicUnitFloat(flame.Id, salt: 29));
+        var startScale = MathHelper.Lerp(0.42f, 0.58f, GetDeterministicUnitFloat(flame.Id, salt: 47));
+        var growthProgress = MathF.Pow(lifeProgress, randomGrowthRate);
+        return MathHelper.Lerp(startScale, randomMaxScale, growthProgress);
+    }
+
+    private static int GetFlameProjectileFrameIndex(FlameProjectileEntity flame, int frameCount)
+    {
+        if (frameCount <= 0)
+        {
+            return 0;
+        }
+
+        var flameLifetimeTicks = flame.IsAttached
+            ? FlameProjectileEntity.AttachedLifetimeTicks
+            : FlameProjectileEntity.AirLifetimeTicks;
+        var flameAgeTicks = flameLifetimeTicks - flame.TicksRemaining;
+        return Math.Clamp(Math.Abs(flameAgeTicks) % frameCount, 0, frameCount - 1);
+    }
+
+    private Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
+    {
+        var flameSprite = GetResolvedSprite("FlameS");
+        if (flameSprite is null || flameSprite.Frames.Count == 0)
+        {
+            return new Vector2(flame.X, flame.Y);
+        }
+
+        var flameScale = GetFlameProjectileScale(flame);
+        var frameIndex = GetFlameProjectileFrameIndex(flame, flameSprite.Frames.Count);
+        var frameCenterOfMass = GetSpriteFrameCenterOfMass(flameSprite.Frames[frameIndex]);
+        var offset = (frameCenterOfMass - flameSprite.Origin.ToVector2()) * flameScale;
+        return new Vector2(flame.X + offset.X, flame.Y + offset.Y);
+    }
+
+    private Vector2 GetSpriteFrameCenterOfMass(LoadedSpriteFrame frame)
+    {
+        if (_spriteFrameCenterOfMassCache.TryGetValue(frame, out var cachedCenterOfMass))
+        {
+            return cachedCenterOfMass;
+        }
+
+        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+        if (sourceRectangle.Width <= 0 || sourceRectangle.Height <= 0)
+        {
+            var emptyCenter = Vector2.Zero;
+            _spriteFrameCenterOfMassCache[frame] = emptyCenter;
+            return emptyCenter;
+        }
+
+        var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+
+        double weightedX = 0d;
+        double weightedY = 0d;
+        double totalWeight = 0d;
+        for (var y = 0; y < sourceRectangle.Height; y += 1)
+        {
+            for (var x = 0; x < sourceRectangle.Width; x += 1)
+            {
+                var alpha = pixels[(y * sourceRectangle.Width) + x].A;
+                if (alpha <= 0)
+                {
+                    continue;
+                }
+
+                var weight = alpha / 255d;
+                weightedX += (x + 0.5d) * weight;
+                weightedY += (y + 0.5d) * weight;
+                totalWeight += weight;
+            }
+        }
+
+        var centerOfMass = totalWeight > 0d
+            ? new Vector2((float)(weightedX / totalWeight), (float)(weightedY / totalWeight))
+            : new Vector2(sourceRectangle.Width * 0.5f, sourceRectangle.Height * 0.5f);
+        _spriteFrameCenterOfMassCache[frame] = centerOfMass;
+        return centerOfMass;
+    }
+
+    private static float GetDeterministicUnitFloat(int seed, int salt)
+    {
+        unchecked
+        {
+            uint value = (uint)(seed * 73856093) ^ (uint)(salt * 19349663);
+            value ^= value >> 16;
+            value *= 2246822519u;
+            value ^= value >> 13;
+            value *= 3266489917u;
+            value ^= value >> 16;
+            return (value & 0x00FFFFFFu) / 16777215f;
+        }
     }
 
     private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)

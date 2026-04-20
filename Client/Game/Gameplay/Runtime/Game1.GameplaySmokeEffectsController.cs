@@ -13,9 +13,12 @@ public partial class Game1
     {
         private const int BrowserRocketSmokeVisualLimit = 48;
         private const int BrowserFlameSmokeVisualLimit = 40;
+        private const int BrowserFlameSmokeSecondaryVisualLimit = 40;
         private const int BrowserBlastJumpFlameVisualLimit = 20;
         private const int BrowserMineTrailVisualLimit = 24;
         private const int BrowserWallspinDustVisualLimit = 24;
+        private const float FlareSmokeSizeScale = 0.4f;
+        private const float FlameSecondarySmokeSizeScale = 0.32f;
         private readonly Game1 _game;
 
         public GameplaySmokeEffectsController(Game1 game)
@@ -52,13 +55,29 @@ public partial class Game1
 
                 _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
                     rocket.X - (velocityX * 1.3f),
-                    rocket.Y - (velocityY * 1.3f)));
+                    rocket.Y - (velocityY * 1.3f),
+                    (_game._visualRandom.NextSingle() * 3f) - 1.5f,
+                    (_game._visualRandom.NextSingle() * 4f) - 2f,
+                    (_game._visualRandom.NextSingle() * 6f) - 3f,
+                    (_game._visualRandom.NextSingle() * 8f) - 4f,
+                    3f + (_game._visualRandom.NextSingle() * 2.8f),
+                    8f + (_game._visualRandom.NextSingle() * 8f),
+                    0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                    22 + _game._visualRandom.Next(12)));
                 if (_game._particleMode == 0
                     && CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {
                     _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
                         rocket.X - (velocityX * 0.75f),
-                        rocket.Y - (velocityY * 0.75f)));
+                        rocket.Y - (velocityY * 0.75f),
+                        (_game._visualRandom.NextSingle() * 3f) - 1.5f,
+                        (_game._visualRandom.NextSingle() * 4f) - 2f,
+                        (_game._visualRandom.NextSingle() * 6f) - 3f,
+                        (_game._visualRandom.NextSingle() * 8f) - 4f,
+                        3f + (_game._visualRandom.NextSingle() * 2.8f),
+                        8f + (_game._visualRandom.NextSingle() * 8f),
+                        0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                        22 + _game._visualRandom.Next(12)));
                 }
 
                 if (rocket.CanIgniteTargets
@@ -91,20 +110,108 @@ public partial class Game1
                 _game._wallspinDustVisuals.Clear();
                 _game._blastJumpFlameVisuals.Clear();
                 _game._flameSmokeVisuals.Clear();
+                _game._flameSmokeSecondaryVisuals.Clear();
                 return;
+            }
+
+            foreach (var flare in _game._world.Flares)
+            {
+                if (_game._particleMode == 2 && ((_game._world.Frame + flare.Id) & 1) != 0)
+                {
+                    continue;
+                }
+
+                var velocityX = flare.X - flare.PreviousX;
+                var velocityY = flare.Y - flare.PreviousY;
+                if (MathF.Abs(velocityX) <= 0.001f && MathF.Abs(velocityY) <= 0.001f)
+                {
+                    continue;
+                }
+
+                if (!CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    continue;
+                }
+
+                _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                    flare.X - (velocityX * 1.3f),
+                    flare.Y - (velocityY * 1.3f),
+                    ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
+                    ((_game._visualRandom.NextSingle() * 8f) - 4f) * FlareSmokeSizeScale,
+                    (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
+                    (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
+                    0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                    22 + _game._visualRandom.Next(12)));
+
+                if (_game._particleMode == 0
+                    && CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
+                {
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                        flare.X - (velocityX * 0.75f),
+                        flare.Y - (velocityY * 0.75f),
+                        ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 8f) - 4f) * FlareSmokeSizeScale,
+                        (3f + (_game._visualRandom.NextSingle() * 2.8f)) * FlareSmokeSizeScale,
+                        (8f + (_game._visualRandom.NextSingle() * 8f)) * FlareSmokeSizeScale,
+                        0.75f + (_game._visualRandom.NextSingle() * 0.15f),
+                        22 + _game._visualRandom.Next(12)));
+                }
             }
 
             foreach (var flame in _game._world.Flames)
             {
-                var smokeChance = _game._particleMode == 2 ? 4 : 2;
-                if (flame.IsAttached || _game._visualRandom.Next(smokeChance) != 0)
+                if (flame.IsAttached)
+                {
+                    continue;
+                }
+
+                var flameSmokeOrigin = _game.GetFlameScaledCenterOfMassWorldPosition(flame);
+
+                var proximityFactor = GetFlameWeaponProximityFactor(flame);
+                var mainSmokeProbability = GetFlameSmokeEmissionProbability(_game._particleMode, proximityFactor, secondary: false);
+                if (_game._visualRandom.NextSingle() >= mainSmokeProbability)
                 {
                     continue;
                 }
 
                 if (CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
                 {
-                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(flame.X, flame.Y - 8f));
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                        flameSmokeOrigin.X,
+                        flameSmokeOrigin.Y,
+                        (_game._visualRandom.NextSingle() * 2.4f) - 1.2f,
+                        (_game._visualRandom.NextSingle() * 3f) - 1.5f,
+                        (_game._visualRandom.NextSingle() * 5f) - 2.5f,
+                        (_game._visualRandom.NextSingle() * 7f) - 3.5f,
+                        1.2f + (_game._visualRandom.NextSingle() * 2f),
+                        5f + (_game._visualRandom.NextSingle() * 6.2f),
+                        0.70f + (_game._visualRandom.NextSingle() * 0.2f),
+                        14 + _game._visualRandom.Next(10)));
+                }
+
+                if (CanEmitBrowserVisual(_game._flameSmokeSecondaryVisuals.Count, BrowserFlameSmokeSecondaryVisualLimit))
+                {
+                    var secondarySmokeProbability = GetFlameSmokeEmissionProbability(_game._particleMode, proximityFactor, secondary: true);
+                    if (_game._visualRandom.NextSingle() >= secondarySmokeProbability)
+                    {
+                        continue;
+                    }
+
+                    _game._flameSmokeSecondaryVisuals.Add(new FlameSmokeVisual(
+                        flameSmokeOrigin.X,
+                        flameSmokeOrigin.Y,
+                        ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlameSecondarySmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 7f) - 3.5f) * FlameSecondarySmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 12f) - 6f) * FlameSecondarySmokeSizeScale,
+                        ((_game._visualRandom.NextSingle() * 14f) - 7f) * FlameSecondarySmokeSizeScale,
+                        (2.4f + (_game._visualRandom.NextSingle() * 2.2f)) * FlameSecondarySmokeSizeScale,
+                        (7.5f + (_game._visualRandom.NextSingle() * 10.5f)) * FlameSecondarySmokeSizeScale,
+                        0.68f + (_game._visualRandom.NextSingle() * 0.2f),
+                        26 + _game._visualRandom.Next(16)));
                 }
             }
 
@@ -141,7 +248,17 @@ public partial class Game1
                 var smokeY = renderPosition.Y - (player.VerticalSpeed * (float)_game._config.FixedDeltaSeconds * 1.2f) + (player.Height * 0.5f) + 2f;
                 if (CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
                 {
-                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(smokeX, smokeY));
+                    _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                        smokeX,
+                        smokeY,
+                        (_game._visualRandom.NextSingle() * 2.4f) - 1.2f,
+                        (_game._visualRandom.NextSingle() * 3f) - 1.5f,
+                        (_game._visualRandom.NextSingle() * 5f) - 2.5f,
+                        (_game._visualRandom.NextSingle() * 7f) - 3.5f,
+                        1.2f + (_game._visualRandom.NextSingle() * 2f),
+                        5f + (_game._visualRandom.NextSingle() * 6.2f),
+                        0.70f + (_game._visualRandom.NextSingle() * 0.2f),
+                        14 + _game._visualRandom.Next(10)));
                 }
             }
 
@@ -162,6 +279,15 @@ public partial class Game1
                 if (_game._flameSmokeVisuals[index].TicksRemaining <= 0)
                 {
                     _game._flameSmokeVisuals.RemoveAt(index);
+                }
+            }
+
+            for (var index = _game._flameSmokeSecondaryVisuals.Count - 1; index >= 0; index -= 1)
+            {
+                _game._flameSmokeSecondaryVisuals[index].TicksRemaining -= 1;
+                if (_game._flameSmokeSecondaryVisuals[index].TicksRemaining <= 0)
+                {
+                    _game._flameSmokeSecondaryVisuals.RemoveAt(index);
                 }
             }
         }
@@ -269,37 +395,159 @@ public partial class Game1
 
         public void DrawRocketSmokeVisuals(Vector2 cameraPosition)
         {
+            var cells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)>();
+            var driftTicks = MathF.Max(1f, 0.2f / (float)_game._config.FixedDeltaSeconds);
             for (var index = 0; index < _game._rocketSmokeVisuals.Count; index += 1)
             {
                 var smoke = _game._rocketSmokeVisuals[index];
-                var progress = 1f - (smoke.TicksRemaining / (float)RocketSmokeVisual.LifetimeTicks);
-                var alpha = 0.7f * (1f - progress);
-                var radius = 4f + (progress * 8f);
-                var color = new Color(176, 176, 176) * alpha;
-                var smokeRectangle = new Rectangle(
-                    (int)(smoke.X - radius - cameraPosition.X),
-                    (int)(smoke.Y - radius - cameraPosition.Y),
-                    (int)(radius * 2f),
-                    (int)(radius * 2f));
-                _game._spriteBatch.Draw(_game._pixel, smokeRectangle, color);
+                var progress = 1f - (smoke.TicksRemaining / (float)smoke.LifetimeTicks);
+                var alpha = smoke.InitialAlpha * MathF.Pow(1f - progress, 0.45f);
+                if (alpha <= 0.5f)
+                {
+                    continue;
+                }
+
+                var radius = MathHelper.Lerp(smoke.InitialRadius, smoke.FinalRadius, progress);
+                var colorProgress = MathF.Min(1f, progress * 1.9f);
+                var shade = MathHelper.Lerp(0.98f, 0.62f, colorProgress);
+                var ageTicks = smoke.LifetimeTicks - smoke.TicksRemaining;
+                var driftProgress = Math.Clamp(ageTicks / driftTicks, 0f, 1f);
+                var worldX = smoke.X + smoke.OffsetX + (smoke.DriftX * driftProgress);
+                var worldY = smoke.Y + smoke.OffsetY + (smoke.DriftY * driftProgress);
+                var smokeSeed = (int)(smoke.X * 17f) ^ (int)(smoke.Y * 31f) ^ smoke.LifetimeTicks;
+                AccumulateSmokeCircle(cells, worldX, worldY, radius, alpha, shade, progress, smokeSeed);
             }
+
+            DrawSmokeCells(cells, cameraPosition);
         }
 
         public void DrawFlameSmokeVisuals(Vector2 cameraPosition)
         {
-            for (var index = 0; index < _game._flameSmokeVisuals.Count; index += 1)
+            DrawFlameSmokePass(_game._flameSmokeVisuals, cameraPosition, brightnessScale: 0.5f);
+            DrawFlameSmokePass(_game._flameSmokeSecondaryVisuals, cameraPosition, brightnessScale: 0.2f);
+        }
+
+        private void DrawFlameSmokePass(
+            System.Collections.Generic.IReadOnlyList<FlameSmokeVisual> smokeVisuals,
+            Vector2 cameraPosition,
+            float brightnessScale)
+        {
+            var cells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)>();
+            var driftTicks = MathF.Max(1f, 0.2f / (float)_game._config.FixedDeltaSeconds);
+            for (var index = 0; index < smokeVisuals.Count; index += 1)
             {
-                var smoke = _game._flameSmokeVisuals[index];
-                var progress = 1f - (smoke.TicksRemaining / (float)FlameSmokeVisual.LifetimeTicks);
-                var alpha = 0.55f * (1f - progress);
-                var radius = 3f + (progress * 6f);
-                var color = new Color(160, 160, 160) * alpha;
-                var smokeRectangle = new Rectangle(
-                    (int)(smoke.X - radius - cameraPosition.X),
-                    (int)(smoke.Y - radius - (progress * 9f) - cameraPosition.Y),
-                    (int)(radius * 2f),
-                    (int)(radius * 2f));
-                _game._spriteBatch.Draw(_game._pixel, smokeRectangle, color);
+                var smoke = smokeVisuals[index];
+                var progress = 1f - (smoke.TicksRemaining / (float)smoke.LifetimeTicks);
+                var alpha = smoke.InitialAlpha * MathF.Pow(1f - progress, 0.55f);
+                if (alpha <= 0.5f)
+                {
+                    continue;
+                }
+
+                var radius = MathHelper.Lerp(smoke.InitialRadius, smoke.FinalRadius, progress);
+                var colorProgress = MathF.Min(1f, progress * 2f);
+                var shade = MathHelper.Lerp(0.96f, 0.60f, colorProgress);
+                var ageTicks = smoke.LifetimeTicks - smoke.TicksRemaining;
+                var driftProgress = Math.Clamp(ageTicks / driftTicks, 0f, 1f);
+                var worldX = smoke.X + smoke.OffsetX + (smoke.DriftX * driftProgress);
+                var worldY = smoke.Y + smoke.OffsetY + (smoke.DriftY * driftProgress);
+                var smokeSeed = (int)(smoke.X * 29f) ^ (int)(smoke.Y * 13f) ^ smoke.LifetimeTicks;
+                AccumulateSmokeCircle(cells, worldX, worldY, radius, alpha, shade, progress, smokeSeed);
+            }
+
+            DrawSmokeCells(cells, cameraPosition, brightnessScale);
+        }
+
+        private static void AccumulateSmokeCircle(
+            System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)> cells,
+            float worldCX, float worldCY, float radius, float alpha, float shade, float progress, int seed)
+        {
+            const float cellSize = 2f;
+            var minGX = (int)MathF.Floor((worldCX - radius) / cellSize);
+            var maxGX = (int)MathF.Floor((worldCX + radius) / cellSize);
+            var minGY = (int)MathF.Floor((worldCY - radius) / cellSize);
+            var maxGY = (int)MathF.Floor((worldCY + radius) / cellSize);
+            var radiusSquared = radius * radius;
+            var diameter = MathF.Max(0.0001f, radius * 2f);
+            for (var gy = minGY; gy <= maxGY; gy += 1)
+            {
+                var cellCY = (gy * cellSize) + (cellSize * 0.5f);
+                var dy = cellCY - worldCY;
+                for (var gx = minGX; gx <= maxGX; gx += 1)
+                {
+                    var cellCX = (gx * cellSize) + (cellSize * 0.5f);
+                    var dx = cellCX - worldCX;
+                    var distanceSquared = (dx * dx) + (dy * dy);
+                    if (distanceSquared > radiusSquared)
+                    {
+                        continue;
+                    }
+
+                    var radial = 1f - (MathF.Sqrt(distanceSquared) / radius);
+                    var outsideFactor = 1f - radial;
+                    var vertical01 = Math.Clamp((cellCY - (worldCY - radius)) / diameter, 0f, 1f);
+                    var random = GetSmokeNoise01(gx, gy, seed);
+                    var randomFadeBoost = (random - 0.5f) * 0.6f;
+                    var pixelFadeSpeed = 0.5f + (outsideFactor * 1.35f) + (vertical01 * 0.9f) + randomFadeBoost;
+                    var pixelProgress = Math.Clamp(progress * pixelFadeSpeed, 0f, 1f);
+                    var pixelFade = 1f - pixelProgress;
+                    if (pixelFade <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var pixelValueJitter = 0.75f + (random * 0.5f);
+                    var cellAlpha = alpha * radial * pixelFade * pixelValueJitter;
+                    if (cellAlpha < 0.02f)
+                    {
+                        continue;
+                    }
+
+                    var key = (gx, gy);
+                    if (cells.TryGetValue(key, out var existing))
+                    {
+                        var combined = MathF.Min(0.85f, existing.alpha + cellAlpha);
+                        var blendedShade = ((existing.shade * existing.alpha) + (shade * cellAlpha)) / MathF.Max(0.0001f, existing.alpha + cellAlpha);
+                        cells[key] = (combined, blendedShade);
+                    }
+                    else
+                    {
+                        cells[key] = (cellAlpha, shade);
+                    }
+                }
+            }
+        }
+
+        private static float GetSmokeNoise01(int gx, int gy, int seed)
+        {
+            unchecked
+            {
+                var hash = (uint)seed;
+                hash ^= (uint)(gx * 374761393);
+                hash ^= (uint)(gy * 668265263);
+                hash = (hash ^ (hash >> 13)) * 1274126177u;
+                hash ^= hash >> 16;
+                return (hash & 1023u) / 1023f;
+            }
+        }
+
+        private void DrawSmokeCells(
+            System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)> cells,
+            Vector2 cameraPosition,
+            float brightnessScale = 1f)
+        {
+            const float cellSize = 2f;
+            var clampedBrightnessScale = Math.Clamp(brightnessScale, 0f, 1f);
+            foreach (var ((gx, gy), (_, shade)) in cells)
+            {
+                var intensity = (102f + (shade * 153f)) * clampedBrightnessScale;
+                var gray = (byte)Math.Clamp((int)MathF.Round(intensity), 0, 255);
+                var rect = new Rectangle(
+                    (int)MathF.Round((gx * cellSize) - cameraPosition.X),
+                    (int)MathF.Round((gy * cellSize) - cameraPosition.Y),
+                    (int)cellSize,
+                    (int)cellSize);
+                _game._spriteBatch.Draw(_game._pixel, rect, new Color(gray, gray, gray));
             }
         }
 
@@ -399,6 +647,23 @@ public partial class Game1
         private static int GetWallspinDustMaximumLifetimeTicks()
         {
             return (int)MathF.Ceiling(Game1.GetSourceTicksAsSeconds(30f) * ClientUpdateTicksPerSecond);
+        }
+
+        private static float GetFlameWeaponProximityFactor(FlameProjectileEntity flame)
+        {
+            return float.Clamp(flame.TicksRemaining / (float)FlameProjectileEntity.AirLifetimeTicks, 0f, 1f);
+        }
+
+        private static float GetFlameSmokeEmissionProbability(int particleMode, float proximityFactor, bool secondary)
+        {
+            var baseProbability = secondary
+                ? (particleMode == 2 ? 0.125f : 0.25f)
+                : (particleMode == 2 ? 0.25f : 0.5f);
+            var proximityCurve = proximityFactor * proximityFactor;
+            var distanceScale = secondary
+                ? (0.12f + (2.1f * proximityCurve))
+                : (0.18f + (1.9f * proximityCurve));
+            return float.Clamp(baseProbability * distanceScale, 0f, 1f);
         }
 
         private static bool CanEmitBrowserVisual(int currentCount, int browserLimit)
