@@ -294,3 +294,4 @@ TrySelectCompatNextPoint no-candidate fallback result (2026-04-19)
   - Gallery: all Scout/Heavy/Pyro (Blue+Red) now PASS
   - Eiger: Scout (Blue+Red) now PASS (Heavy/Pyro still FAIL)
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (IMPROVEMENT vs prior best=24)
+- Commit: 2e61f58
