@@ -224,6 +224,7 @@ public partial class Game1 : Game
     private bool _killCamEnabled = true;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
+    private int _flameRenderMode;
     private int _gibLevel = 3;
     private int _corpseDurationMode;
     private bool _healerRadarEnabled = true;

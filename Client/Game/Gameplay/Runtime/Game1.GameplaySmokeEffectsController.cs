@@ -48,18 +48,36 @@ public partial class Game1
                     continue;
                 }
 
+                var forwardX = MathF.Cos(rocket.DirectionRadians);
+                var forwardY = MathF.Sin(rocket.DirectionRadians);
+                var rightX = -forwardY;
+                var rightY = forwardX;
+                var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
+                var tailDistance = 5f * rocketScale;
+                var rocketRenderPosition = _game.GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
+                var anchorX = rocketRenderPosition.X;
+                var anchorY = rocketRenderPosition.Y;
+
                 if (!CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {
                     continue;
                 }
 
+                var primaryBackJitter = 0.8f + (_game._visualRandom.NextSingle() * 0.8f);
+                var primaryLateralJitter = (_game._visualRandom.NextSingle() * 2f - 1f) * (1.1f * rocketScale);
+                var primaryX = anchorX - (forwardX * (tailDistance + primaryBackJitter)) + (rightX * primaryLateralJitter);
+                var primaryY = anchorY - (forwardY * (tailDistance + primaryBackJitter)) + (rightY * primaryLateralJitter);
+                var primaryOffsetBack = _game._visualRandom.NextSingle() * 1.0f;
+                var primaryOffsetLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 1.1f;
+                var primaryDriftBack = 1.4f + (_game._visualRandom.NextSingle() * 2.2f);
+                var primaryDriftLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 2.3f;
                 _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
-                    rocket.X - (velocityX * 1.3f),
-                    rocket.Y - (velocityY * 1.3f),
-                    (_game._visualRandom.NextSingle() * 3f) - 1.5f,
-                    (_game._visualRandom.NextSingle() * 4f) - 2f,
-                    (_game._visualRandom.NextSingle() * 6f) - 3f,
-                    (_game._visualRandom.NextSingle() * 8f) - 4f,
+                    primaryX,
+                    primaryY,
+                    -(forwardX * primaryOffsetBack) + (rightX * primaryOffsetLateral),
+                    -(forwardY * primaryOffsetBack) + (rightY * primaryOffsetLateral),
+                    -(forwardX * primaryDriftBack) + (rightX * primaryDriftLateral),
+                    -(forwardY * primaryDriftBack) + (rightY * primaryDriftLateral),
                     3f + (_game._visualRandom.NextSingle() * 2.8f),
                     8f + (_game._visualRandom.NextSingle() * 8f),
                     0.75f + (_game._visualRandom.NextSingle() * 0.15f),
@@ -67,13 +85,21 @@ public partial class Game1
                 if (_game._particleMode == 0
                     && CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {
+                    var secondaryBackJitter = 0.35f + (_game._visualRandom.NextSingle() * 0.8f);
+                    var secondaryLateralJitter = (_game._visualRandom.NextSingle() * 2f - 1f) * (1.0f * rocketScale);
+                    var secondaryX = anchorX - (forwardX * (tailDistance + secondaryBackJitter)) + (rightX * secondaryLateralJitter);
+                    var secondaryY = anchorY - (forwardY * (tailDistance + secondaryBackJitter)) + (rightY * secondaryLateralJitter);
+                    var secondaryOffsetBack = _game._visualRandom.NextSingle() * 0.9f;
+                    var secondaryOffsetLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 1.0f;
+                    var secondaryDriftBack = 1.1f + (_game._visualRandom.NextSingle() * 2.0f);
+                    var secondaryDriftLateral = (_game._visualRandom.NextSingle() * 2f - 1f) * 2.0f;
                     _game._rocketSmokeVisuals.Add(new RocketSmokeVisual(
-                        rocket.X - (velocityX * 0.75f),
-                        rocket.Y - (velocityY * 0.75f),
-                        (_game._visualRandom.NextSingle() * 3f) - 1.5f,
-                        (_game._visualRandom.NextSingle() * 4f) - 2f,
-                        (_game._visualRandom.NextSingle() * 6f) - 3f,
-                        (_game._visualRandom.NextSingle() * 8f) - 4f,
+                        secondaryX,
+                        secondaryY,
+                        -(forwardX * secondaryOffsetBack) + (rightX * secondaryOffsetLateral),
+                        -(forwardY * secondaryOffsetBack) + (rightY * secondaryOffsetLateral),
+                        -(forwardX * secondaryDriftBack) + (rightX * secondaryDriftLateral),
+                        -(forwardY * secondaryDriftBack) + (rightY * secondaryDriftLateral),
                         3f + (_game._visualRandom.NextSingle() * 2.8f),
                         8f + (_game._visualRandom.NextSingle() * 8f),
                         0.75f + (_game._visualRandom.NextSingle() * 0.15f),
@@ -87,6 +113,8 @@ public partial class Game1
                     _game._blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
                         rocket.X - (velocityX * flameOffset),
                         rocket.Y - (velocityY * flameOffset),
+                        velocityX,
+                        velocityY,
                         _game._visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
                         _game._visualRandom.Next()));
                 }
@@ -228,7 +256,9 @@ public partial class Game1
                 {
                     _game._blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
                         renderPosition.X,
-                        renderPosition.Y + (player.Height * 0.5f) + 1f,
+                        renderPosition.Y + (player.Height * 0.5f) + 11f,
+                        player.HorizontalSpeed,
+                        player.VerticalSpeed,
                         _game._visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
                         _game._visualRandom.Next()));
                 }
@@ -360,6 +390,22 @@ public partial class Game1
 
         public void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
         {
+            if (_game._flameRenderMode == 0)
+            {
+                var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
+                for (var index = 0; index < _game._blastJumpFlameVisuals.Count; index += 1)
+                {
+                    var flame = _game._blastJumpFlameVisuals[index];
+                    var progress = 1f - (flame.TicksRemaining / (float)flame.InitialTicks);
+                    var alpha = 1f - (progress * 0.7f);
+                    var scale = MathF.Max(0.25f, 0.7f - (progress * 0.35f)) * 1.1f;
+                    _game.AccumulateProceduralFlameParticle(cells, flame.FrameSeed, flame.X, flame.Y, scale, alpha, flame.MotionX, flame.MotionY);
+                }
+
+                _game.DrawProceduralFlameParticles(cells, cameraPosition);
+                return;
+            }
+
             var sprite = _game.GetResolvedSprite("FlameS");
             for (var index = 0; index < _game._blastJumpFlameVisuals.Count; index += 1)
             {
@@ -418,7 +464,7 @@ public partial class Game1
                 AccumulateSmokeCircle(cells, worldX, worldY, radius, alpha, shade, progress, smokeSeed);
             }
 
-            DrawSmokeCells(cells, cameraPosition);
+            DrawSmokeCells(cells, cameraPosition, quantizeToFourShades: true, drawDarkOutline: true);
         }
 
         public void DrawFlameSmokeVisuals(Vector2 cameraPosition)
@@ -534,13 +580,71 @@ public partial class Game1
         private void DrawSmokeCells(
             System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)> cells,
             Vector2 cameraPosition,
-            float brightnessScale = 1f)
+            float brightnessScale = 1f,
+            bool quantizeToFourShades = false,
+            bool drawDarkOutline = false)
         {
             const float cellSize = 2f;
             var clampedBrightnessScale = Math.Clamp(brightnessScale, 0f, 1f);
+
+            var quantizedShadeIndices = quantizeToFourShades
+                ? new System.Collections.Generic.Dictionary<(int, int), int>(cells.Count)
+                : null;
+            if (quantizedShadeIndices is not null)
+            {
+                foreach (var ((gx, gy), (_, shade)) in cells)
+                {
+                    var jitteredShade = shade + ((GetShadeQuantizationJitter01(gx, gy) - 0.5f) * 0.08f);
+                    quantizedShadeIndices[(gx, gy)] = QuantizeShadeToFourLevelIndex(jitteredShade);
+                }
+            }
+
             foreach (var ((gx, gy), (_, shade)) in cells)
             {
-                var intensity = (102f + (shade * 153f)) * clampedBrightnessScale;
+                var renderedShade = shade;
+                if (quantizedShadeIndices is not null)
+                {
+                    var quantizedShadeIndex = quantizedShadeIndices[(gx, gy)];
+                    if (drawDarkOutline && IsSmokeBoundaryCell(cells, gx, gy))
+                    {
+                        var interiorShadeIndex = quantizedShadeIndex;
+                        var hasInteriorNeighbor = false;
+                        for (var offsetY = -1; offsetY <= 1; offsetY += 1)
+                        {
+                            for (var offsetX = -1; offsetX <= 1; offsetX += 1)
+                            {
+                                if (offsetX == 0 && offsetY == 0)
+                                {
+                                    continue;
+                                }
+
+                                var neighborGX = gx + offsetX;
+                                var neighborGY = gy + offsetY;
+                                if (!cells.ContainsKey((neighborGX, neighborGY))
+                                    || IsSmokeBoundaryCell(cells, neighborGX, neighborGY)
+                                    || quantizedShadeIndices is null
+                                    || !quantizedShadeIndices.TryGetValue((neighborGX, neighborGY), out var neighborShadeIndex))
+                                {
+                                    continue;
+                                }
+
+                                if (!hasInteriorNeighbor || neighborShadeIndex > interiorShadeIndex)
+                                {
+                                    interiorShadeIndex = neighborShadeIndex;
+                                    hasInteriorNeighbor = true;
+                                }
+                            }
+                        }
+
+                        var outlineShadeIndex = Math.Max(0, interiorShadeIndex - 2);
+                        renderedShade = GetQuantizedShadeByIndex(outlineShadeIndex);
+                    }
+                    else
+                    {
+                        renderedShade = GetQuantizedShadeByIndex(quantizedShadeIndex);
+                    }
+                }
+                var intensity = (102f + (renderedShade * 153f)) * clampedBrightnessScale;
                 var gray = (byte)Math.Clamp((int)MathF.Round(intensity), 0, 255);
                 var rect = new Rectangle(
                     (int)MathF.Round((gx * cellSize) - cameraPosition.X),
@@ -548,6 +652,64 @@ public partial class Game1
                     (int)cellSize,
                     (int)cellSize);
                 _game._spriteBatch.Draw(_game._pixel, rect, new Color(gray, gray, gray));
+            }
+        }
+
+        private static bool IsSmokeBoundaryCell(System.Collections.Generic.Dictionary<(int, int), (float alpha, float shade)> cells, int gx, int gy)
+        {
+            for (var offsetY = -1; offsetY <= 1; offsetY += 1)
+            {
+                for (var offsetX = -1; offsetX <= 1; offsetX += 1)
+                {
+                    if (offsetX == 0 && offsetY == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!cells.ContainsKey((gx + offsetX, gy + offsetY)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static int QuantizeShadeToFourLevelIndex(float shade)
+        {
+            // Keep existing smoke brightness range but force a 4-step grayscale palette.
+            ReadOnlySpan<float> levels = [0.58f, 0.74f, 0.86f, 0.98f];
+            var clampedShade = Math.Clamp(shade, levels[0], levels[^1]);
+            var closestIndex = 0;
+            var closestDistance = MathF.Abs(clampedShade - levels[closestIndex]);
+            for (var index = 1; index < levels.Length; index += 1)
+            {
+                var distance = MathF.Abs(clampedShade - levels[index]);
+                if (distance < closestDistance)
+                {
+                    closestIndex = index;
+                    closestDistance = distance;
+                }
+            }
+
+            return closestIndex;
+        }
+
+        private static float GetQuantizedShadeByIndex(int index)
+        {
+            ReadOnlySpan<float> levels = [0.58f, 0.74f, 0.86f, 0.98f];
+            return levels[Math.Clamp(index, 0, levels.Length - 1)];
+        }
+
+        private static float GetShadeQuantizationJitter01(int gx, int gy)
+        {
+            unchecked
+            {
+                var hash = (uint)(gx * 2246822519u) ^ (uint)(gy * 3266489917u) ^ 0x9E3779B9u;
+                hash = (hash ^ (hash >> 15)) * 2246822519u;
+                hash ^= hash >> 13;
+                return (hash & 1023u) / 1023f;
             }
         }
 
@@ -621,12 +783,16 @@ public partial class Game1
                 LegacyMovementState.FriendlyJuggle => float.Clamp(1f - ((player.RunPower + 1f) * 0.5f), 0f, 1f),
                 _ => 0f,
             };
-            return sourceTickProbability * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond);
+            const float blastJumpSmokeBoost = 1.15f;
+            return float.Clamp(
+                sourceTickProbability * blastJumpSmokeBoost * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond),
+                0f,
+                1f);
         }
 
         private static float GetBlastJumpFlameProbability()
         {
-            return (5f / 8f) * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond);
+            return (3f / 4f) * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond);
         }
 
         private static int GetBlastJumpFlameMinimumLifetimeTicks()
