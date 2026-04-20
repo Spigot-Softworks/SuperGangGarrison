@@ -567,3 +567,49 @@ Parameter sweep Variant C: forced-neighbor trigger threshold >6 result (2026-04-
 
 Parameter sweep Variant C: forced-neighbor trigger threshold >6 revert verification (2026-04-20)
 - Full stock CTF+KOTH Score matrix after revert: total=84 passed=33 failed=51 timedOut=0 (baseline restored).
+`nComprehensive GML parity audit and navigation fix (2026-04-20)`n- Hypothesis: Multiple subtle discrepancies between the C# port and original GML are causing the navigation stalls. Specifically: inverted stair-jumping logic, incorrect BFS expansion direction (should be Goal -> Neighbors via incoming edges), and overly restrictive next-point selection that ignores reverse-blocked fallbacks.`n- Patch details:`n  - BotAI/ClientBotNavPoints.cs:`n    - Implemented _incomingByPointId and TryGetIncomingConnections to support a true reverse-BFS.`n    - Corrected IsReverseBlocked(to, from) directionality to match GML navPoints[source_node][3] semantics.`n    - Removed class-based filtering during BFS expansion to match GML processPoints.gml (ensuring weights propagate globally).`n  - BotAI/BotController.ClientBot2020Compat.cs:`n    - Fixed logic inversion in IsModernStairStepAhead: bots now jump when NOT on stairs (matching GML).`n    - Modified TrySelectCompatNextPoint to include reverse-blocked neighbors with a heavy penalty (100000f), providing a valid fallback instead of no_next_direct loops.`n    - Implemented stuck_jump_pulse from GML to help bots recover from stationary stalls.`n- Full stock CTF+KOTH Score matrix results:`n  - Run 1 (Partial): REGRESSION to 20/84.`n  - Run 2 (Complete parity): REGRESSION to 29/84.`n  - Run 3 (Removing class filters): REGRESSION to 17/84.`n- Action: Immediately reverted to 33/84 baseline. Decision: Keep baseline as-is and re-evaluate the physics/timing differences that may make direct GML logic ports unstable in C#.
+
+
+
+  Final Analysis: Why direct GML logic ports are regressing
+
+  Despite achieving near-perfect algorithmic parity with the original GML (clientBot_2020_update) for weight expansion
+  and jump selection, the test suite regressed significantly. I believe this is due to several fundamental differences
+  between the GML environment and the C# port:
+
+   1. Physics Timing & Order of Operations: In GML, sign(hspeed) is often checked in the same Step event before
+      collision resolution zeroes it. In the C# port, the AI frequently observes a horizontalSpeed of exactly 0.0 when
+      pressed against a wall. My "stair jump" and "stuck jump" fixes attempted to account for this, but the exact
+      pixel-perfect timing of when a bot "hits" a wall vs. when it "jumps" is different in SimulationWorld.
+   2. Heuristic Dependency on "Incorrect" BFS: The existing movement controller (TrySelectCompatNextPoint) contains
+      numerous heuristics (like second_anchor_block, no_next_direct, and sticky points) that appear to have been "tuned"
+      to the C# port's original (mathematically inverted) BFS behavior. By implementing a "correct" reverse-BFS, I
+      steered the bots into paths that the movement controller wasn't tuned to handle, causing new oscillations.
+   3. Graph Generation Nuances: The GML bot generates ReverseOnlyBlocked lists based on its own specific gap-detection
+      logic. If the C# generator's gap detection differs by even a few pixels, a "correct" BFS expansion becomes a
+      liability because it relies on those one-way edges being perfectly defined.
+   4. Class Filtering Paradox: The GML original does not filter weight expansion by class, yet removing this filter in
+      C# caused a massive regression. This suggests the C# nav mesh generation produces many "Scout-only" edges that,
+      without filtering, lead Heavy and Pyro bots into inescapable local minima that they cannot jump out of.
+   5. The "Final Mile" Problem: The GML bot's direct_target logic (weight <= 1) is extremely sensitive. My changes to
+      next-point selection often penalized these transitions or tried to find "better" nav nodes, which ironically
+      prevented the bots from actually touching the objective markers.
+
+  Recommendation: Future efforts should move away from GML parity and instead focus on C#-native pathfinding (like the
+  A* fallback already attempted) or refining the stuckTicks recovery system to be more aggressive without relying on the
+  brittle nav graph weights.
+
+Remember: Run test suite with cd "C:\Users\level\Desktop\OpenGarrison Active\OpenGarrison-Fork"; dotnet run --project "BotAI.Tools\OpenGarrison.BotAI.Tools.csproj" -- --stock-ctf-koth-matrix --scenario-kind Score --path-mode ClientBot2020Compat --no-bot-diagnostics
+
+If passes are below 33/84, we must revert changes immediately. \
+C#-Native Recovery and Final Mile Override (2026-04-20)
+- Hypothesis: Bots are getting stuck due to C# zeroing horizontalSpeed on wall impact, and final-mile direct_target is too brittle. By adding an aggressive stuck-tick jump recovery and a robust LOS-based raycast override for the final approach, we can bypass the brittle nav graph when near the objective or fully stuck.
+- Patch plan:
+  - BotAI/BotController.ClientBot2020Compat.cs:
+    - In ResolveClientBot2020CompatNavigationDecision: enhance useRoute to check distance (< 200h, < 80v) and CompatLineHitsSolid. If clear, force direct_target and clear nav state.
+    - In ApplyClientBot2020CompatFrameState: add hard_stuck_jump when state.StuckTicks > 30 and horizontalSpeed == 0. Clear CurrentPoint and NextPoint to force re-anchor.
+- Next: run full stock CTF+KOTH Score matrix; revert immediately on any regression vs 33/84 baseline; commit immediately on any strict improvement.\
+\
+C#-Native Recovery and Final Mile Override result (2026-04-20)
+- Full stock CTF+KOTH Score matrix: total=84 passed=34 failed=50 timedOut=0 (IMPROVEMENT vs baseline=33)
+- Action: Commit immediately.\

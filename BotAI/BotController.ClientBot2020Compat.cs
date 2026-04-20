@@ -43,8 +43,8 @@ public sealed partial class ModernPracticeBotController
         }
 
         var useRoute = !objectiveSelection.AllowDirectPath
-            || MathF.Abs(player.X - destination.X) > 350f
-            || MathF.Abs(player.Y - destination.Y) > 100f
+            || MathF.Abs(player.X - destination.X) > 200f
+            || MathF.Abs(player.Y - destination.Y) > 80f
             || CompatLineHitsSolid(world, player, destination.X, destination.Y, player.X, player.Y);
         if (!useRoute)
         {
@@ -52,6 +52,7 @@ public sealed partial class ModernPracticeBotController
             state.ClosestPointX = destination.X;
             state.ClosestPointY = destination.Y;
             state.DebugDecisionReason = "direct_target";
+            state.CurrentPoint = -1;
             state.NextPoint = -1;
             state.NextPoint2 = -1;
             state.NextPoint3 = -1;
@@ -1154,6 +1155,17 @@ public sealed partial class ModernPracticeBotController
 
         if (hasGroundContact)
         {
+            if (horizontal != 0
+                && state.StuckTicks > 30
+                && MathF.Abs(horizontalSpeed) <= 0.1f
+                && CompatHasJumpHeadClear(world, player, jumpHeight))
+            {
+                state.CurrentPoint = -1;
+                state.NextPoint = -1;
+                memory.ModernJumpDebug = "compat:hard_stuck_jump";
+                return TriggerModernBotJump(memory, timing);
+            }
+
             if (horizontal != 0
                 && state.StuckTicks > 6
                 && hasPreviousPosition
