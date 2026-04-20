@@ -804,6 +804,12 @@ public sealed partial class ModernPracticeBotController
 
         if (bestNextPoint < 0)
         {
+            state.NextPoint = -1;
+            state.NextPoint2 = -1;
+            state.NextPoint3 = -1;
+            state.ClosestPointX = destination.X;
+            state.ClosestPointY = destination.Y;
+            state.DebugDecisionReason = "no_next_direct";
             return;
         }
 
