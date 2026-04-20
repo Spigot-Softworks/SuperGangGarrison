@@ -77,6 +77,11 @@ public partial class Game1
                 return GameplayOverlayKind.InGameMenu;
             }
 
+            if (_game._debugMenuOpen)
+            {
+                return GameplayOverlayKind.DebugMenu;
+            }
+
             if (_game._gameplayLoadoutMenuOpen)
             {
                 return GameplayOverlayKind.LoadoutMenu;
@@ -124,6 +129,9 @@ public partial class Game1
                     return;
                 case GameplayOverlayKind.InGameMenu:
                     _game.UpdateInGameMenu(keyboard, mouse);
+                    return;
+                case GameplayOverlayKind.DebugMenu:
+                    _game.UpdateDebugMenu(keyboard, mouse);
                     return;
                 case GameplayOverlayKind.LoadoutMenu:
                     _game.UpdateGameplayLoadoutMenu(keyboard, mouse);

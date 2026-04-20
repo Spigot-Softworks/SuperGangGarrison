@@ -31,16 +31,39 @@ public sealed partial class SimulationWorld
             float maxDistance)
         {
             const float epsilon = 0.0001f;
-            var inverseX = MathF.Abs(directionX) < epsilon ? float.PositiveInfinity : 1f / directionX;
-            var inverseY = MathF.Abs(directionY) < epsilon ? float.PositiveInfinity : 1f / directionY;
+            var tMin = float.NegativeInfinity;
+            var tMax = float.PositiveInfinity;
 
-            var t1 = (left - originX) * inverseX;
-            var t2 = (right - originX) * inverseX;
-            var t3 = (top - originY) * inverseY;
-            var t4 = (bottom - originY) * inverseY;
+            if (MathF.Abs(directionX) < epsilon)
+            {
+                if (originX < left || originX > right)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                var t1 = (left - originX) / directionX;
+                var t2 = (right - originX) / directionX;
+                tMin = MathF.Max(tMin, MathF.Min(t1, t2));
+                tMax = MathF.Min(tMax, MathF.Max(t1, t2));
+            }
 
-            var tMin = MathF.Max(MathF.Min(t1, t2), MathF.Min(t3, t4));
-            var tMax = MathF.Min(MathF.Max(t1, t2), MathF.Max(t3, t4));
+            if (MathF.Abs(directionY) < epsilon)
+            {
+                if (originY < top || originY > bottom)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                var t3 = (top - originY) / directionY;
+                var t4 = (bottom - originY) / directionY;
+                tMin = MathF.Max(tMin, MathF.Min(t3, t4));
+                tMax = MathF.Min(tMax, MathF.Max(t3, t4));
+            }
+
             if (tMax < 0f || tMin > tMax)
             {
                 return null;

@@ -179,6 +179,14 @@ public partial class Game1
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };
+                if (_game._debugMenuEnabled)
+                {
+                    lastToDieActions.Insert(3, new MenuPageAction("Debug", () =>
+                    {
+                        _game.OpenDebugMenu();
+                        CloseInGameMenu();
+                    }));
+                }
                 _game.AddPluginMenuActions(lastToDieActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
                 return lastToDieActions;
             }
@@ -212,6 +220,16 @@ public partial class Game1
                     }));
                 }
 
+                if (_game._debugMenuEnabled)
+                {
+                    var insertIndex = _game.CanOpenGameplayLoadoutMenu() ? 6 : 5;
+                    practiceActions.Insert(insertIndex, new MenuPageAction("Debug", () =>
+                    {
+                        _game.OpenDebugMenu();
+                        CloseInGameMenu();
+                    }));
+                }
+
                 _game.AddPluginMenuActions(practiceActions, ClientPluginMenuLocation.InGameMenu, insertIndex: 1);
                 return practiceActions;
             }
@@ -232,6 +250,16 @@ public partial class Game1
                 defaultActions.Insert(1, new MenuPageAction("Loadout", () =>
                 {
                     _game.OpenGameplayLoadoutMenu();
+                    CloseInGameMenu();
+                }));
+            }
+
+            if (_game._debugMenuEnabled)
+            {
+                var insertIndex = _game.CanOpenGameplayLoadoutMenu() ? 2 : 1;
+                defaultActions.Insert(insertIndex, new MenuPageAction("Debug", () =>
+                {
+                    _game.OpenDebugMenu();
                     CloseInGameMenu();
                 }));
             }

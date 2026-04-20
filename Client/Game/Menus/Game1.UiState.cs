@@ -37,6 +37,7 @@ public partial class Game1
         OptionsMenu,
         InGameMenu,
         LoadoutMenu,
+        DebugMenu,
     }
 
     private bool HasOpenGameplayOverlay()

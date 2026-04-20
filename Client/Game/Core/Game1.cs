@@ -147,6 +147,12 @@ public partial class Game1 : Game
     private readonly PluginOptionsMenuController _pluginOptionsMenuController;
     private readonly ControlsMenuController _controlsMenuController;
     private readonly InGameMenuController _inGameMenuController;
+    private readonly DebugMenuController _debugMenuController;
+    private bool _debugMenuEnabled;
+    private bool _debugMenuOpen;
+    private bool _debugMenuAwaitingEscapeRelease;
+    private int _debugMenuHoverIndex;
+    private bool _debugRocketCollisionsEnabled;
     private readonly GameplayOverlayController _gameplayOverlayController;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D? _gameRenderTarget;
@@ -284,6 +290,7 @@ public partial class Game1 : Game
             _pluginOptionsMenuController,
             _controlsMenuController,
             _inGameMenuController,
+            _debugMenuController,
             _gameplayOverlayController) = CreateShellControllerBundle(this);
         (_clientSettings,
             _inputBindings,
