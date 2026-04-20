@@ -418,3 +418,16 @@ CurrentPoint acquisition: use player.Bottom for distance (2026-04-20)
 - Test (Conflict+Waterway matrix): total=12 passed=0 failed=12 timedOut=0 (no change).
 - Test (full stock CTF+KOTH Score matrix): total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
 - Action: reverted (only keep changes that strictly increase passes).
+
+Compat GoalWeights: treat weight=0 as unreachable (2026-04-20)
+- Observation: compat routing sometimes enters `no_next_direct` loops even when `goalWeights` exists. In our weight arrays, `0` means "unreached/unreachable" (the goal itself is depth=1), but compat next-point selection currently treats weight=0 as "best/closest", which can prevent finding a descending neighbor (and can also bias toward unreachable nodes in score formulas).
+- Hypothesis: make compat next-point selection mirror modern behavior by treating `goalWeight <= 0` as "unreachable" (skip as a candidate, and treat current weight<=0 as effectively infinite). This should reduce `no_next_direct` oscillations and improve Conflict/Waterway without affecting already-good routes.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs:
+  - In `TrySelectCompatNextPoint`, treat `pointWeight1 <= 0` as `int.MaxValue/4`, and skip any outgoing candidate with `pointWeight2 <= 0`.
+  - In `TryPopulateCompatLookahead`, ignore `<=0` weights when choosing NextPoint2/3.
+- Next: run targeted Conflict+Waterway matrix then full stock matrix; revert immediately on any regression vs 33/84 baseline.
+
+Compat GoalWeights: treat weight=0 as unreachable result (2026-04-20)
+- Targeted Conflict+Waterway matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement).
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
+- Action: revert (only keep changes that strictly increase passes).
