@@ -316,3 +316,11 @@ Compat goal point selection: prefer reachable goal with descending neighbor resu
 - Action: revert this patch immediately and re-run full matrix to confirm recovery to >=33/84.
 Compat goal point selection: prefer reachable goal with descending neighbor revert verification (2026-04-19)
 - After reverting the patch, full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (baseline restored)
+
+Compat goal weight depth increase (2026-04-19)
+- Hypothesis: ModernMaximumWeightDepth=130 truncates weights on larger/longer-route maps, yielding currentWeight==0 / direct_target fallbacks and stalls (notably Waterway/Atalia/Sixties/Orange).
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: compute compat GoalWeights with depth=max(130,260).
+- Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below best baseline (33/84).
+Compat goal weight depth increase result (2026-04-19)
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline)
+- Action: revert (keep only changes that strictly increase passes).
