@@ -324,3 +324,14 @@ Compat goal weight depth increase (2026-04-19)
 Compat goal weight depth increase result (2026-04-19)
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline)
 - Action: revert (keep only changes that strictly increase passes).
+
+Compat current-point acquisition correctness (2026-04-19)
+- Hypothesis: TryAcquireCompatCurrentPoint incorrectly treats CurrentPoint as a dense index (< navPoints.Points.Count) and compares SecondAnchorBlockPoint against loop indices rather than node ids; this can prevent reacquisition / misapply second-anchor blocks.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - Validate current point via 
+avPoints.TryGetPoint(CurrentPoint, ...) instead of CurrentPoint < Points.Count.
+  - Compare second-anchor block against candidate.Id (not index) in current-point acquisition helpers.
+- Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below best baseline (33/84).
+Compat current-point acquisition correctness result (2026-04-19)
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline)
+- Action: revert (only keep changes that strictly increase passes).
