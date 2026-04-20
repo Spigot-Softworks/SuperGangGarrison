@@ -279,3 +279,18 @@ Revert capture hold feet-Y alignment result (2026-04-19)
 Revert capture hold feet-Y alignment recovery check (2026-04-19)
 - Retest (full stock CTF+KOTH Score matrix) after restoring feetY comparisons: total=84 passed=24 failed=60 timedOut=0
 
+
+Full stock CTF+KOTH Score matrix reconfirmation (2026-04-19)
+- Commit: c304a34 (doc-only); code baseline unchanged from prior 24-pass state
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=24 failed=60 timedOut=0 elapsedMs=216366
+
+TrySelectCompatNextPoint no-candidate fallback (2026-04-19)
+- Observation: several hard maps (Waterway/Gallery) hit TrySelectCompatNextPoint with estNextPoint < 0, leaving stale ClosestPointX/Y; the horizontal mover then hits 
+o_next_stop, which clears CurrentPoint and can create a permanent reacquire/stop loop.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: when estNextPoint < 0, set ClosestPointX/Y = destination and DebugDecisionReason = no_next_direct instead of returning with stale target.
+- Next: re-run full stock CTF+KOTH Score matrix; revert immediately if passes drop below the current best-known baseline (24/84).
+TrySelectCompatNextPoint no-candidate fallback result (2026-04-19)
+- Targeted 4-map matrix (Conflict/Gallery/Eiger/Waterway): total=24 passed=8 failed=16 timedOut=0
+  - Gallery: all Scout/Heavy/Pyro (Blue+Red) now PASS
+  - Eiger: Scout (Blue+Red) now PASS (Heavy/Pyro still FAIL)
+- Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (IMPROVEMENT vs prior best=24)
