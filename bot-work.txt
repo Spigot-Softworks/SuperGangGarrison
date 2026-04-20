@@ -1,0 +1,218 @@
+Immediate guardrail added on 2026-04-19 after revert verification
+- Do not pursue compat nav-source switching as the current fix.
+- It was tested directly and reverted because it regressed Corinth while not fixing Conflict.
+- Treat compat nav-source as a diagnostic axis only until a source-backed correction exists that preserves the current passing Corinth/baseline cases.
+- Source code verification:
+  - original clientbot does not require a preexisting `.pts` file to function.
+  - `clientBot_2020_update.gml` first attempts to read `MapNavMeshes/<map>.pts` if it exists, but otherwise it generates `navPoints` at runtime and then writes the `.pts` file as a cache for later loads.
+  - the correct takeaway remains unchanged: do not change compat nav source as the attempted fix path right now.
+
+Corinth baseline recheck on 2026-04-19 after revert
+- Current baseline compat code still passes the previously protected Corinth score cases:
+  - Blue Scout: pass in about 3.5s
+  - Red Scout: pass in about 4.3s
+  - Blue Heavy: pass in about 4.1s
+  - Red Heavy: pass in about 4.0s
+- Use these as immediate non-regression sentinels while investigating other maps.
+
+Focused recheck on 2026-04-19 after nav-source cleanup
+- Removed the leftover explicit `CompatNavPointSource.Auto` switch arm that I had added while chasing the wrong `.pts` detour.
+- Current spot checks on the preserved baseline:
+  - Corinth / Blue / Scout / Score: pass in about 3.9s
+  - Harvest / Blue / Scout / Score: pass in about 4.1s
+  - Conflict / Blue / Scout / Score: fail in about 6.6s with progress only 37.8
+  - Gallery / Blue / Scout / Score: fail in about 6.7s after useful partial progress
+- Conflict hard-block probe at the live late-route stall pose `(2700,690)`:
+  - target `(2687,654)`, grounded=True, headClear=True, waist=True, groundAhead=True
+  - `left1=False`, `leftStepUp=False`, `leftStepDown=False`
+  - five consecutive raw left-input ticks leave position and horizontal speed unchanged at zero
+  - takeaway: at that exact pose, compat is pressed into fully blocking geometry; this is not explained by a missing jump assist branch alone
+- Gallery current live failure remains a route oscillation near the objective:
+  - repeated `compat:nav_step`, `compat:force_neighbor_step`, and `compat:acquire_point`
+  - late trace repeatedly cycles around cp=68 / np=95 near positions around `(2440,969)` to `(2391,984)`
+  - no `capture_zone_hold` behavior appears in the failing late trace, so the current failure is still route/arrival side rather than a confirmed capture-hold suppression bug
+
+Four-map target matrix baseline (2026-04-19)
+- Command:
+  - dotnet run --project "BotAI.Tools/OpenGarrison.BotAI.Tools.csproj" -- --stock-ctf-koth-matrix --scenario-kind Score --path-mode ClientBot2020Compat --map Corinth --map Harvest --map Gallery --map Classicwell --no-bot-diagnostics
+- Result summary: 13/24 pass, 11/24 fail
+- Failing cases (all are Score no_progress stalls):
+  - ClassicWell / Blue / Scout
+  - Corinth / Blue / Pyro
+  - Corinth / Red / Pyro
+  - Harvest / Blue / Pyro
+  - Harvest / Red / Pyro
+  - Gallery / Blue / Scout
+  - Gallery / Red / Scout
+  - Gallery / Blue / Heavy
+  - Gallery / Red / Heavy
+  - Gallery / Blue / Pyro
+  - Gallery / Red / Pyro
+
+Compat jump assist fix attempt (2026-04-19)
+- Hypothesis: compat waist/stair jump assist incorrectly requires nonzero horizontal speed, so fully stationary waist-block stalls never jump.
+  - Evidence: Harvest / Blue / Pyro / Score stalls at `(2593,804)` with `hs0.0`, `wTrue`, `rise42`, and repeated `second_anchor_block_return` ticks with no jump.
+- Patch (source-backed against Modern bot waist jump predicate):
+  - BotAI/BotController.ClientBot2020Compat.cs: allow `compat:waist` to trigger when `Sign(horizontalSpeed) == 0` (stationary), matching BotController.cs modern logic.
+
+Compat stair-step detection correction (2026-04-19)
+- Observation: even after allowing the waist predicate to consider stationary movement, `IsModernStairStepAhead(...)` always returns false when `horizontalSpeed == 0`.
+- Source reference: clientBot_2020_update `botStep.gml` detects "stairs vs wall" by scanning forward from `player.object.x` until a collidable point, using `sign(player.object.hspeed)` as the scan direction.
+  - In the original Step ordering, this can still be nonzero at the moment the AI decides to jump, even if collision resolution later zeroes it.
+- Patch:
+  - BotAI/BotController.ClientBot2020Compat.cs: add `CompatIsStairStepAhead(...)` which falls back to the requested `horizontal` direction when `horizontalSpeed == 0`, and use it for `compat:waist`, `compat:platform`, and the `s=` debug probe.
+
+Full stock CTF+KOTH matrix baseline (2026-04-19)
+- Command: dotnet run --project "BotAI.Tools\OpenGarrison.BotAI.Tools.csproj" -- --stock-ctf-koth-matrix --scenario-kind Score --path-mode ClientBot2020Compat --no-bot-diagnostics
+- Result summary: total=84 passed=23 failed=61 timedOut=0 (elapsedMs˜232247)
+Capture objective destination fix (2026-04-19)
+- Hypothesis: our capture objective selection navigates to the capture-zone group bbox center, which can be outside every CaptureZone square; botStep_v2 targets a concrete zone instance. This can prevent ever entering a capture zone (notably Gallery KOTH).
+- Patch: BotAI/BotController.cs: for capture objectives, set ModernPathSelection.Destination to CaptureObjective.TargetZone (nearest included zone point) instead of TargetPoint (group center). Also update route-aware capture selection to route to TargetZone.
+- Test (full stock CTF+KOTH matrix): total=84 passed=23 failed=61 timedOut=0 (no net change vs baseline)
+Stuck pulse jump fix (2026-04-19)
+- Evidence: `--probe-conflict-jump` shows a fully blocked pose at vel=0 with forwardFootBlocked=True, headClear=True, target rise=60, but no jump trigger fires.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: remove the `Abs(horizontalSpeed) > 0.6f` gate from `compat:stuck_pulse` so stationary wall-stalls can jump.
+- Test (full stock CTF+KOTH matrix) after stuck_pulse jump: REGRESSION to passed=19/84 (reverted immediately)
+- Revert: restored `Abs(horizontalSpeed) > 0.6f` gate; retest back to passed=23/84
+CurrentPoint distance alignment (2026-04-19)
+- Hypothesis: compat `currentPoint` / reacquire selects nearest node using player feet Y (`Bottom`), but botStep_v2 uses `player.object.(x,y)` (origin). With nav nodes stored at feet Y, this can bias node selection to the wrong platform and cause route oscillation (seen on Gallery/Conflict).
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: use `DistanceBetween(candidate.X, candidate.Y, player.X, player.Y)` (origin) for currentPoint acquisition and collision-based reacquire, matching botStep_v2.
+- Test (full stock CTF+KOTH matrix): total=84 passed=23 failed=61 timedOut=0 (no net change vs baseline)
+Missing nextPoint reacquire (2026-04-19)
+- Source behavior: botStep_v2 sets `currentPoint = noone` when `nextPoint` is missing after reaching the current closest point (unless capture nav is suppressed), forcing reacquisition next frame.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: when `NextPoint < 0` at the end of compat horizontal movement, clear `CurrentPoint/NextPoint*` and sync to memory (unless `DebugDecisionReason == capture_zone_hold`).
+- Test (full stock CTF+KOTH matrix): total=84 passed=23 failed=61 timedOut=0 (no net change vs baseline)
+Carry-intel edge blocking (2026-04-19)
+- Evidence: Truefort Blue Scout picks up intel (carry=True) but then loops near points 232/233 without routing home; intel gates become blocking when carrying (`SimpleLevel.IsIntelGateBlocking`).
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: when `player.IsCarryingIntel`, skip candidate next points whose segment from the current nav node to the candidate node is blocked by `CompatLineHitsSolid` (carry-aware obstacle grid).
+- Test (full stock CTF+KOTH matrix): total=84 passed=23 failed=61 timedOut=0 (no net change vs baseline)
+Class-aware goal weights (2026-04-19)
+- Evidence: On Truefort returning with intel, points 232/233/240 have weights 58/59/60 toward goal 247, but the only lower-weight escape from 232 is via an impossible upward jump (232?167 rise=168 > scout total jump=120). Weight propagation included 167?232 even though the return direction is infeasible, creating a local minimum.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: compute goal weights with `classId` via `navPoints.GetGoalWeights(goalId, depth, player.ClassId)` so weights only propagate along edges that are usable for that class toward the goal.
+- Test (full stock CTF+KOTH matrix) with class-aware weights: REGRESSION to passed=15/84 (reverted immediately)
+- Revert: restore non-class weights; retest back to passed=23/84
+Carry dead-end escape (2026-04-19)
+- Target: CTF return routing traps where the best lower-weight neighbor is a dead-end for the class (e.g., Truefort: 233?232 is chosen because w232<w233, but from 232 the only lower-weight exit is an impossible upward jump).
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - When carrying intel, skip lower-weight candidates that have no feasible lower-weight continuation for this class.
+  - If that yields no candidate, choose a feasible neighbor using a forced-score fallback (`nav_step_carry_forced`).
+- Test (full stock CTF+KOTH matrix): total=84 passed=23 failed=61 timedOut=0 (no net change vs baseline)
+KOTH-only class-aware weights (2026-04-19)
+- Rationale: global class-aware weights regressed overall, likely due to CTF return pathing changes; however, it helped Gallery Scouts.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: use class-filtered `GetGoalWeights` only when `world.MatchRules.Mode != CaptureTheFlag` (KOTH/CP/Arena). Keep CTF weights unchanged.
+
+Re-sync to user baseline and restore compat waist/stair behavior (2026-04-19)
+- Repo HEAD full stock CTF+KOTH Score matrix (after restoring all tracked changes) came back as:
+  - total=84 passed=20 failed=64 timedOut=0 (elapsedMs~217678)
+  - This is below the user''s recorded baseline of 23 passed, so HEAD is not the correct starting point for "no-regress below 23" work.
+- Patch (restore compat waist/stair stationary jump assist):
+  - BotAI/BotController.ClientBot2020Compat.cs:
+    - Allow `compat:waist` to consider jumps even when `horizontalSpeed == 0` (stationary wall/waist stalls).
+    - Add `CompatIsStairStepAhead(...)` which uses the requested `horizontal` direction when `horizontalSpeed == 0` and use it for `compat:waist`, `compat:platform`, and the `s=` debug probe.
+- Next: re-run full matrix and confirm passes are back to >=23 before attempting any further improvements.
+
+Compat waist/stair restore attempt result (2026-04-19)
+- Test (full stock CTF+KOTH matrix) after compat waist/stair changes: total=84 passed=19 failed=65 timedOut=0 (REGRESSION vs HEAD=20)
+- Action: reverted BotAI/BotController.ClientBot2020Compat.cs immediately
+- Retest after revert: total=84 passed=20 failed=64 timedOut=0 (back to HEAD baseline)
+
+Capture objective destination fix (retry on HEAD baseline=20) (2026-04-19)
+- Hypothesis: routing to captureObjective.TargetPoint (group bbox center) can fail to enter any CaptureZone square; routing to captureObjective.TargetZone (a concrete included point) should improve KOTH/CP capture arrivals (notably Gallery).
+- Patch: BotAI/BotController.cs:
+  - Use captureObjective.TargetZone for ModernPathSelection.Destination (Arena CP and KOTH paths, and direct weight==1 navigation).
+  - Route-aware capture selection now sets Destination = adjustedObjective.TargetZone.
+- Next: re-run full stock CTF+KOTH Score matrix.
+Capture objective destination fix result (2026-04-19)
+- Test (full stock CTF+KOTH matrix): total=84 passed=20 failed=64 timedOut=0 (no net change vs baseline=20)
+
+NextPoint arrival distance alignment (2026-04-19)
+- Hypothesis: our `promote_np*` logic measures arrival using feet Y (GetModernNodeFeetY), but botStep_v2 measures from player.object.(x,y) to point.(x,y); mismatch can prevent promotion and cause oscillation near objectives.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: in TryPromoteClientBot2020CompatQueuedPoint(...), measure arrival distance to `nextNode.Y` instead of GetModernNodeFeetY(...).
+- Next: re-run full stock CTF+KOTH Score matrix.
+NextPoint arrival distance alignment result (2026-04-19)
+- Test (full stock CTF+KOTH matrix): total=84 passed=20 failed=64 timedOut=0 (no net change vs baseline=20)
+
+Missing nextPoint reacquire (2026-04-19)
+- Hypothesis: when compat loses `nextPoint` it can keep a stale `currentPoint` and never reacquire, leading to oscillations/no_progress near objectives.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: at end of ApplyClientBot2020CompatFrameState(...), if `CurrentPoint >= 0` but `NextPoint < 0` (and not in capture_zone_hold), clear `CurrentPoint` and nav queued points so the next frame forces a reacquire.
+- Next: re-run full stock CTF+KOTH Score matrix.
+Missing nextPoint reacquire result (2026-04-19)
+- Test (full stock CTF+KOTH matrix): total=84 passed=20 failed=64 timedOut=0 (no net change vs baseline=20)
+
+Carry-intel edge blocking (2026-04-19)
+- Hypothesis: when carrying intel, intel gates become blocking; compat nav selection may still choose edges whose segment is blocked under carry-aware obstacles, causing loops/no_progress after pickup.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs: during `nav_step` candidate selection, if `player.IsCarryingIntel` and the segment from current->candidate (feetY-12) hits solid via `CompatLineHitsSolid`, skip that candidate.
+- Next: re-run full stock CTF+KOTH Score matrix.
+Carry-intel edge blocking result (2026-04-19)
+- Test (full stock CTF+KOTH matrix): total=84 passed=20 failed=64 timedOut=0 (no net change vs baseline=20)
+
+Compat stationary waist wall-scan jump assist (2026-04-19)
+- Hypothesis: some stalls (notably Conflict) hit a waist obstacle with hspeed==0 due to step ordering; botStep_v2 only runs the wall-vs-stairs scan when hspeed!=0, so our port can miss the waist-jump and hard-stall.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - When compat:waist sees a waist obstacle but horizontalSpeed is ~0, allow a conservative stationary fallback:
+    - requires stuckTicks>6, no displacement vs previous frame (<=0.2 px), head clear, then performs the wall-scan using the requested direction.
+    - if a wall-step is detected, trigger jump with debug label compat:waist_stationary.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+Compat stationary waist wall-scan jump assist result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=19 failed=65 timedOut=0 (REGRESSION vs baseline=20)
+- Action: reverted BotAI/BotController.ClientBot2020Compat.cs immediately; re-run matrix to confirm baseline restored.
+Compat stationary waist wall-scan jump assist revert verification (2026-04-19)
+- Retest (full stock CTF+KOTH Score matrix) after revert: total=84 passed=20 failed=64 timedOut=0 (baseline restored)
+
+Compat waist wall-scan using previous-frame motion (2026-04-19)
+- Hypothesis: waist-jump depends on a nonzero hspeed in botStep_v2; our port can observe horizontalSpeed==0 at the decision point even though the bot was moving into the obstacle the previous frame, preventing the wall-vs-stairs scan and missing the jump.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - In compat:waist, when horizontalSpeed is ~0 but we have a previous position, derive scan direction from deltaX (player.X - previousX) when |deltaX|>0.05 and aligned with requested horizontal.
+  - If head is clear and the wall-step probe hits (CompatIsWallStepAhead), trigger jump with debug label compat:waist_prevstep.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+
+Compat waist stuck-rise jump assist (2026-04-19)
+- Hypothesis: Conflict hard-stall shows waist obstacle True, groundAhead True, rise-to-target ~60, but horizontalSpeed==0 so the bot never enters the botStep_v2 waist wall-scan path.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - Replace the no-op prev-deltaX fallback with a tighter stuck-rise fallback:
+    - when waist obstacle ahead AND horizontalSpeed is ~0, if stuckTicks>10, groundAhead, rise-to-target >=24, |dx|<=36, head clear, and wall-step probe hits in the requested direction, then jump.
+    - debug label: compat:waist_stuckrise.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+Compat waist stuck-rise jump assist result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=22 failed=62 timedOut=0 (IMPROVEMENT vs baseline=20)
+- Next: identify which cases flipped to pass (expecting Conflict-related), then iterate on Gallery/Eiger/Waterway.
+Compat waist stuck-rise jump assist rerun (2026-04-19)
+- Retest (full stock CTF+KOTH Score matrix): total=84 passed=23 failed=61 timedOut=0
+- Notable passes observed in this run: Eiger Scout (Blue+Red) now pass.
+
+KOTH/CP-only class-filtered goal weights (2026-04-19)
+- Hypothesis: KOTH/CP maps like Gallery can loop on edges that are not feasible for the class; filtering goal weights by class (but only outside CTF) should steer routing away from impossible jumps without affecting CTF return behavior.
+- Patch: BotAI/BotController.ClientBot2020Compat.cs:
+  - When building GoalWeights for compat routing, pass classId to navPoints.GetGoalWeights(...) for non-CTF modes; keep CTF unfiltered.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed, ideally >=23).
+KOTH/CP-only class-filtered goal weights result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=18 failed=66 timedOut=0 (REGRESSION vs baseline=20)
+- Note: Gallery Scout (Blue+Red) passed in this run, but overall regression is unacceptable.
+- Action: reverted BotAI/BotController.ClientBot2020Compat.cs weight filtering immediately; re-run matrix to confirm baseline restored.
+KOTH/CP-only class-filtered goal weights revert verification (2026-04-19)
+- Retest (full stock CTF+KOTH Score matrix) after revert: total=84 passed=22 failed=62 timedOut=0 (>= baseline restored)
+
+Retry: class-filtered goal weights after fixing traversal direction bug (2026-04-19)
+- Observation: ClientBotNavPoints.ProcessPoints(...) class filter checked IsClassTraversalUsable(branch, sourcePointId, classId), which is reversed (should be sourcePointId -> branch). This likely caused the large regression in the prior class-filtered goal weights attempt.
+- Patch:
+  - BotAI/ClientBotNavPoints.cs: fix ProcessPoints(...) to call IsClassTraversalUsable(sourcePointId, branch, classId).
+  - BotAI/BotController.ClientBot2020Compat.cs: re-enable class-filtered GetGoalWeights(...) for non-CTF modes (CTF remains unfiltered).
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+Retry: class-filtered goal weights after fixing traversal direction bug result (2026-04-19)
+- Test (full stock CTF+KOTH Score matrix): total=84 passed=22 failed=62 timedOut=0 (no net gain vs current ~22-23)
+- Action: reverted the compat class-filtered GetGoalWeights call (kept ProcessPoints traversal-direction fix since it is a correctness bugfix and now unused).
+- Next: re-run full matrix to confirm non-regression and see if we recover the higher pass run.
+Compat class-filtered GetGoalWeights revert verification (2026-04-19)
+- Retest (full stock CTF+KOTH Score matrix) after reverting class-filtered call: total=84 passed=23 failed=61 timedOut=0
+
+Capture hold feet-Y alignment (2026-04-19)
+- Hypothesis: capture_zone_hold never triggers on Gallery because ResolveModernCaptureHoldState compares capture square Y against player.Y (top), while capture objective points/targets are in feet coordinates (player.Bottom). This prevents accumulating inside-ms and suppressing navigation.
+- Patch: BotAI/BotController.cs:
+  - In ResolveModernCaptureHoldState(...), use feetY=player.Bottom for the Y bounds check and square inclusion test.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).
+
+Fix goal weight reverse-block direction (2026-04-19)
+- Observation: ClientBotNavPoints reverse-only blocks are stored as (toPointId, fromPointId) pairs (see comment in BuildConnections). ProcessPoints(...) was checking IsReverseBlocked(sourcePointId, branch), which is reversed.
+- Patch: BotAI/ClientBotNavPoints.cs:
+  - In ProcessPoints(...), change reverse-block check to IsReverseBlocked(branch, sourcePointId) so weight expansion respects reverse-only blocks in the correct direction.
+- Next: re-run full stock CTF+KOTH Score matrix (must be >=20 passed).

@@ -184,14 +184,14 @@ internal sealed class ClientBotNavPoints
                 continue;
             }
 
-            if (sourcePointId >= 0 && IsReverseBlocked(sourcePointId, branch))
+            if (sourcePointId >= 0 && IsReverseBlocked(branch, sourcePointId))
             {
                 continue;
             }
 
             if (sourcePointId >= 0
                 && classId.HasValue
-                && !IsClassTraversalUsable(branch, sourcePointId, classId.Value))
+                && !IsClassTraversalUsable(sourcePointId, branch, classId.Value))
             {
                 continue;
             }

@@ -1211,6 +1211,16 @@ public sealed partial class ModernPracticeBotController
                         return TriggerModernBotJump(memory, timing);
                     }
                 }
+                else if (state.StuckTicks > 10
+                    && CompatHasGroundAhead(world, player, horizontal, 15f)
+                    && (feetY - targetY) >= 24f
+                    && MathF.Abs(targetX - player.X) <= 36f
+                    && CompatHasJumpHeadClear(world, player, jumpHeight)
+                    && CompatIsWallStepAhead(world, player, horizontal))
+                {
+                    memory.ModernJumpDebug = "compat:waist_stuckrise";
+                    return TriggerModernBotJump(memory, timing);
+                }
             }
 
         if (horizontal != 0 && !CompatHasGroundAhead(world, player, horizontal, 15f))
@@ -1273,6 +1283,23 @@ public sealed partial class ModernPracticeBotController
         var groundAheadProbe = horizontal != 0 && CompatHasGroundAhead(world, player, horizontal, 15f);
         memory.ModernJumpDebug = $"compat:nojump:g{hasGroundContact}:h{horizontal}:dx{targetX - player.X:0}:rise{feetY - targetY:0}:hs{horizontalSpeed:0.0}:st{state.StuckTicks}:w{waistProbe}:s{stairProbe}:ga{groundAheadProbe}";
         return false;
+    }
+
+    private static bool CompatIsWallStepAhead(SimulationWorld world, PlayerEntity player, int stepDirection)
+    {
+        if (stepDirection == 0)
+        {
+            return false;
+        }
+
+        var x = player.X;
+        while (!CompatPointHitsSolid(world, player, x, player.Bottom - 1f) && MathF.Abs(player.X - x) < 60f)
+        {
+            x += stepDirection;
+        }
+
+        return CompatPointHitsSolid(world, player, x + (5f * stepDirection), player.Bottom - 7f)
+            || CompatPointHitsSolid(world, player, x + (11f * stepDirection), player.Bottom - 13f);
     }
 
     private ModernCombatTarget? ResolveClientBot2020CompatCombatTarget(
