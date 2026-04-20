@@ -120,8 +120,115 @@ public partial class Game1
                 return;
             }
 
-            var sprite = _game.GetResolvedSprite("FlameS");
             var sourceFrame = (int)((_game._world.Frame * LegacyMovementModel.SourceTicksPerSecond) / _game._config.TicksPerSecond);
+            if (_game._flameRenderMode == 0)
+            {
+                var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
+                var baseCount = player.BurnVisualBaseCount;
+                var burnRatio = baseCount > 0 ? (float)count / baseCount : 0f;
+                var lowBurnScaleBoost = MathHelper.Lerp(1.45f, 1f, Math.Clamp(burnRatio, 0f, 1f));
+                var basePrimaryScale = lowBurnScaleBoost;
+                var minOutlineScale = 0.65f * lowBurnScaleBoost;
+                var outlineScaleRange = 0.25f * lowBurnScaleBoost;
+                var facingScale = MathF.Cos(MathF.PI * player.AimDirectionDegrees / 180f) < 0f ? -1f : 1f;
+                var targetBackTopT = facingScale > 0f ? 0.25f : 0.75f;
+                var outlineHalfW = player.Width * 0.5f;
+                var outlineHalfH = player.Height * 0.5f;
+
+                for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
+                {
+                    var uniformT = (flameIndex + 0.5f) / count;
+                    var clusterT = targetBackTopT + ((_game._visualRandom.NextSingle() * 2f - 1f) * 0.30f);
+                    var t = Math.Clamp(MathHelper.Lerp(uniformT, clusterT, 0.45f), 0.01f, 0.99f);
+                    var angle = MathF.PI + (t * MathF.PI);
+                    var offsetX = MathF.Cos(angle) * outlineHalfW;
+                    var offsetY = MathF.Sin(angle) * outlineHalfH;
+                    var seed = ComputeNapalmVisualHash(player.Id, flameIndex, axis: 11);
+                    _game.AccumulateProceduralFlameParticle(
+                        cells,
+                        seed,
+                        renderPosition.X + offsetX,
+                        renderPosition.Y + offsetY,
+                        scale: basePrimaryScale,
+                        alphaScale: alpha,
+                        motionX: player.HorizontalSpeed,
+                        motionY: player.VerticalSpeed);
+                }
+
+                // Primary outline flames distributed around the sprite silhouette ellipse,
+                // scaling in count with burn intensity.
+                var effectiveAreaRatio = burnRatio <= 0f ? 0f : MathF.Max(burnRatio, 0.4f);
+                var outlineCount = (int)MathF.Round(effectiveAreaRatio * baseCount * 3f);
+                if (outlineCount > 0)
+                {
+                    outlineCount = Math.Max(outlineCount, 6);
+                }
+                for (var outlineIndex = 0; outlineIndex < outlineCount; outlineIndex += 1)
+                {
+                    // Keep upper-half coverage, but bias toward the upper back corner.
+                    var uniformT = (outlineIndex + 0.5f) / outlineCount;
+                    var clusterT = targetBackTopT + ((_game._visualRandom.NextSingle() * 2f - 1f) * 0.34f);
+                    var t = Math.Clamp(MathHelper.Lerp(uniformT, clusterT, 0.35f), 0.01f, 0.99f);
+                    var angle = MathF.PI + (t * MathF.PI);
+                    var outlineX = renderPosition.X + MathF.Cos(angle) * outlineHalfW;
+                    var outlineY = renderPosition.Y + MathF.Sin(angle) * outlineHalfH;
+                    var outlineSeed = ComputeNapalmVisualHash(player.Id, outlineIndex, axis: 23);
+                    _game.AccumulateProceduralFlameParticle(
+                        cells,
+                        outlineSeed,
+                        outlineX,
+                        outlineY,
+                        scale: minOutlineScale + _game._visualRandom.NextSingle() * outlineScaleRange,
+                        alphaScale: alpha * 0.75f,
+                        motionX: player.HorizontalSpeed,
+                        motionY: player.VerticalSpeed);
+                }
+
+                // Secondary rising flame embers sourced from existing flame cells.
+                // Accumulated into the same dict so they combine with primary flames during coloring.
+                const float flameCellSize = 2f;
+                var cellKeys = new System.Collections.Generic.List<(int, int)>(cells.Keys);
+                foreach (var (gx, gy) in cellKeys)
+                {
+                    if (_game._visualRandom.NextSingle() >= 0.3f)
+                    {
+                        continue;
+                    }
+                    var emitX = gx * flameCellSize + flameCellSize * 0.5f;
+                    var emitY = gy * flameCellSize + flameCellSize * 0.5f;
+                    var emitSeed = ComputeNapalmVisualHash(player.Id, unchecked(gx * 1234 + gy * 5678), axis: 17);
+                    var emitScale = 0.35f + _game._visualRandom.NextSingle() * 0.25f;
+                    _game.AccumulateProceduralFlameParticle(
+                        cells,
+                        emitSeed,
+                        emitX,
+                        emitY,
+                        scale: emitScale,
+                        alphaScale: alpha * 0.65f,
+                        motionX: 0f,
+                        motionY: -3f - _game._visualRandom.NextSingle() * 2f);
+
+                    if (_game._visualRandom.NextSingle() < 0.25f)
+                    {
+                        _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
+                            emitX,
+                            emitY,
+                            (_game._visualRandom.NextSingle() * 4f - 2f),
+                            (_game._visualRandom.NextSingle() * 4f - 2f),
+                            (_game._visualRandom.NextSingle() * 4f - 2f),
+                            -2f - _game._visualRandom.NextSingle() * 3f,
+                            2f + _game._visualRandom.NextSingle() * 2f,
+                            6f + _game._visualRandom.NextSingle() * 6f,
+                            0.35f + _game._visualRandom.NextSingle() * 0.2f,
+                            18 + _game._visualRandom.Next(14)));
+                    }
+                }
+
+                _game.DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly: true);
+                return;
+            }
+
+            var sprite = _game.GetResolvedSprite("FlameS");
             var flameColor = Color.White * alpha;
             for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
             {

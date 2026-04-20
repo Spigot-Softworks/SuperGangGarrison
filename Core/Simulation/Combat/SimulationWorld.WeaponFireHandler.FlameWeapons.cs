@@ -16,22 +16,23 @@ public sealed partial class SimulationWorld
             float aimWorldX,
             float aimWorldY)
         {
-            const float flamethrowerSpawnYOffset = 2f;
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
-            var sourceX = weaponOrigin.BaseX;
-            var sourceY = GetPyroOriginY(weaponOrigin) + flamethrowerSpawnYOffset;
-            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - sourceY;
-            if (aimDeltaX == 0f && aimDeltaY == 0f)
-            {
-                aimDeltaX = attacker.FacingDirectionX;
-            }
+            const float flamethrowerPivotOffsetX = -3f;
+            const float flamethrowerPivotAdditionalYOffset = 2f;
+            var pivotRay = GetWeaponPivotRay(
+                weaponOrigin.BaseX,
+                GetPyroOriginY(weaponOrigin),
+                aimWorldX,
+                aimWorldY,
+                attacker.FacingDirectionX,
+                flamethrowerPivotOffsetX,
+                flamethrowerPivotAdditionalYOffset);
 
-            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var directionX = MathF.Cos(baseAngle);
-            var directionY = MathF.Sin(baseAngle);
-            var spawnX = sourceX + directionX * 25f;
-            var spawnY = sourceY + directionY * 25f;
+            // Firing sprite visible tip is 35 px from its rotation origin.
+            const float flameSpawnDistanceFromPivot = 35f;
+            var sourceX = pivotRay.PivotX;
+            var sourceY = pivotRay.PivotY;
+            var (spawnX, spawnY) = GetPointAlongWeaponPivotRay(pivotRay, flameSpawnDistanceFromPivot);
             if (IsFlameSpawnBlocked(sourceX, sourceY, spawnX, spawnY, attacker.Team))
             {
                 return false;
@@ -41,7 +42,7 @@ public sealed partial class SimulationWorld
             var spreadDegrees = spreadSign * MathF.Pow(_random.NextSingle() * 3f, 1.8f);
             var maxRunSpeed = MathF.Max(0.0001f, attacker.MaxRunSpeed);
             spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
-            var flameAngle = baseAngle + DegreesToRadians(spreadDegrees);
+            var flameAngle = pivotRay.AngleRadians + DegreesToRadians(spreadDegrees);
             var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
@@ -52,7 +53,7 @@ public sealed partial class SimulationWorld
                 spawnX,
                 spawnY,
                 launchedVelocityX + (attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond),
-                launchedVelocityY + (attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond));
+                launchedVelocityY);
             return true;
         }
     }
