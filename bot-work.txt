@@ -431,3 +431,16 @@ Compat GoalWeights: treat weight=0 as unreachable result (2026-04-20)
 - Targeted Conflict+Waterway matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement).
 - Full stock CTF+KOTH Score matrix: total=84 passed=33 failed=51 timedOut=0 (no net gain vs baseline).
 - Action: revert (only keep changes that strictly increase passes).
+
+No-next recovery: trigger forced-neighbor earlier when destination is blocked (2026-04-20)
+- Observation: On Conflict/Waterway, `no_next_direct` often targets the raw objective destination (direct movement), but force-neighbor kicks in only after `NoNextPointTicks > 8`, and then decays the counter. This creates sustained oscillation between "direct to destination" and "forced neighbor", with no progress.
+- Hypothesis: If the destination is not in obstacle line-of-sight (line hits solid), direct movement is likely to be a wall-hug/stall; in that case we should prefer a nav neighbor step immediately instead of waiting 9 ticks.
+- Patch plan: BotAI/BotController.ClientBot2020Compat.cs:
+  - In `TryForceCompatNeighborStep`, gate the early return so that when `CompatLineHitsSolid(destination, player)` is true we allow forced-neighbor selection even for small `NoNextPointTicks`.
+- Next: run targeted Conflict+Waterway matrix then full stock matrix; revert immediately on any regression vs 33/84 baseline.
+
+No-next recovery: trigger forced-neighbor earlier when destination is blocked result (2026-04-20)
+- Targeted Conflict+Waterway matrix (12 cases): total=12 passed=0 failed=12 timedOut=0 (no improvement; objective approach worsened).
+- Full stock CTF+KOTH Score matrix: total=84 passed=25 failed=59 timedOut=0 (REGRESSION vs baseline=33).
+- Action: revert immediately and re-run full matrix to verify baseline restoration.
+- Revert verification: full stock CTF+KOTH Score matrix restored to total=84 passed=33 failed=51 timedOut=0 (2026-04-20).
