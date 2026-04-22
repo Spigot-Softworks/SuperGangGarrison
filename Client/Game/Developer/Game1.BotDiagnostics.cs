@@ -258,9 +258,15 @@ public partial class Game1
     {
         var focusLabel = TruncateBotDiagnosticLabel(entry.FocusLabel, 16);
         var routeLabel = TruncateBotDiagnosticLabel(entry.RouteLabel, 10);
+        var fallbackLabel = string.IsNullOrWhiteSpace(entry.FallbackRouteLabel)
+            ? string.Empty
+            : $" fb={TruncateBotDiagnosticLabel(entry.FallbackTriggerLabel, 8)}";
+        var issueLabel = string.IsNullOrWhiteSpace(entry.NavigationIssueLabel)
+            ? string.Empty
+            : $" issue={TruncateBotDiagnosticLabel(entry.NavigationIssueLabel, 14)}";
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"[{entry.Slot:00}] {GetBotTeamLabel(entry.Team)} {entry.ClassId,-7} {GetBotRoleLabel(entry.Role),-7} {GetBotStateLabel(entry.State),-8} {GetBotFocusLabel(entry.FocusKind),-4}={focusLabel,-16} nav={routeLabel,-10} hp={entry.Health,3}/{entry.MaxHealth,-3} vis={(entry.HasVisibleEnemy ? "Y" : "N")} stuck={entry.StuckTicks,2}");
+            $"[{entry.Slot:00}] {GetBotTeamLabel(entry.Team)} {entry.ClassId,-7} {GetBotRoleLabel(entry.Role),-7} {GetBotStateLabel(entry.State),-8} {GetBotFocusLabel(entry.FocusKind),-4}={focusLabel,-16} nav={routeLabel,-10}{fallbackLabel}{issueLabel} hp={entry.Health,3}/{entry.MaxHealth,-3} vis={(entry.HasVisibleEnemy ? "Y" : "N")} stuck={entry.StuckTicks,2}");
     }
 
     private static string GetBotTeamLabel(PlayerTeam team)

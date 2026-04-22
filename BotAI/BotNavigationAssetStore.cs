@@ -174,6 +174,73 @@ public static class BotNavigationAssetStore
         return cacheEntry.Success;
     }
 
+    public static bool TryLoadModernShippedAssetForEditing(
+        SimpleLevel level,
+        out BotNavigationAsset? asset,
+        out string path,
+        out string message,
+        out BotNavigationValidationResult validation)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+
+        asset = null;
+        path = ResolveModernShippedPath(level.Name, level.MapAreaIndex) ?? string.Empty;
+        message = string.Empty;
+        validation = BotNavigationValidationResult.Valid;
+
+        if (string.IsNullOrWhiteSpace(path) || !AssetExists(path))
+        {
+            message = "no shipped modern nav asset found";
+            return false;
+        }
+
+        if (!TryReadAsset(path, out asset) || asset is null)
+        {
+            asset = null;
+            message = "modern nav asset could not be deserialized";
+            return false;
+        }
+
+        if (asset.FormatVersion != CurrentFormatVersion)
+        {
+            asset = null;
+            message = $"modern nav asset format mismatch {asset.FormatVersion}";
+            return false;
+        }
+
+        if (!string.Equals(asset.LevelName, level.Name, StringComparison.OrdinalIgnoreCase)
+            || asset.MapAreaIndex != level.MapAreaIndex)
+        {
+            asset = null;
+            message = "modern nav asset metadata mismatch";
+            return false;
+        }
+
+        if (asset.ClassId.HasValue)
+        {
+            asset = null;
+            message = "modern nav asset must be profile-scoped";
+            return false;
+        }
+
+        if (asset.BuildStrategy != BotNavigationBuildStrategy.ModernClientBotPointGraph)
+        {
+            asset = null;
+            message = $"modern nav asset strategy mismatch {asset.BuildStrategy}";
+            return false;
+        }
+
+        validation = BotNavigationAssetValidator.Validate(level, asset);
+        var currentFingerprint = BotNavigationLevelFingerprint.Compute(level);
+        var fingerprintMessage = string.Equals(asset.LevelFingerprint, currentFingerprint, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : " fingerprint mismatch";
+        message = validation.IsStructurallyValid
+            ? $"editable modern nav loaded{fingerprintMessage}"
+            : $"editable modern nav loaded with validation issues: {validation.BuildSummary()}{fingerprintMessage}";
+        return true;
+    }
+
     private static BotNavigationLoadResult LoadModernAssets(
         SimpleLevel level,
         PlayerClass[] requestedClasses,
@@ -426,7 +493,10 @@ public static class BotNavigationAssetStore
         {
             try
             {
-                var asset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint);
+                // Runtime navigation must use the broad geometry graph. The
+                // movement validator is diagnostic/proof data and can over-prune
+                // edges that still participate in successful map routes.
+                var asset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint, validateTraversals: false);
                 var validation = BotNavigationAssetValidator.Validate(level, asset);
                 TryWriteRuntimeCache(asset);
                 return new ModernAssetLoadResult(

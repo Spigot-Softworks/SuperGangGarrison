@@ -23,15 +23,32 @@ public static class BotNavigationModernPointGraphBuilder
     private const float DropTraversalHorizontalTolerance = 18f;
     private const float DropTraversalMinimumDistance = 18f;
     private const float MaximumUniversalJumpRise = 120f;
+    private static readonly PlayerClass[] TraversalValidationClasses =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Pyro,
+        PlayerClass.Heavy,
+    ];
 
-    public static BotNavigationAsset Build(SimpleLevel level, string? levelFingerprint = null)
+    public static BotNavigationAsset Build(
+        SimpleLevel level,
+        string? levelFingerprint = null,
+        bool validateTraversals = false)
     {
         ArgumentNullException.ThrowIfNull(level);
+        if (validateTraversals)
+        {
+            return BuildValidatedFromRuntimeNavPoints(level, levelFingerprint);
+        }
 
         var stopwatch = Stopwatch.StartNew();
+        var phaseStopwatch = Stopwatch.StartNew();
         var obstacleSurfaces = level.Solids;
         var grid = ObstacleGrid.Build(level.Bounds, obstacleSurfaces);
         var rawPoints = BuildRawPoints(obstacleSurfaces, grid);
+        var surfaceSamplingMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
+
         var mutableNodes = new Dictionary<string, MutableNode>(StringComparer.Ordinal);
         var candidateNodeCount = 0;
 
@@ -67,6 +84,8 @@ public static class BotNavigationModernPointGraphBuilder
         {
             orderedNodes[index].Id = index;
         }
+        var autoAnchorMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
 
         var edges = new List<BotNavigationEdge>();
         var edgeKeys = new HashSet<long>();
@@ -98,9 +117,11 @@ public static class BotNavigationModernPointGraphBuilder
 
                 var traversalKind = ResolveTraversalKind(from, to);
                 if (!TryCreateTraversalEdge(
+                        level,
                         from,
                         to,
                         traversalKind,
+                        validateTraversals,
                         out var edge))
                 {
                     continue;
@@ -128,6 +149,7 @@ public static class BotNavigationModernPointGraphBuilder
                 }
             }
         }
+        var automaticEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
 
         stopwatch.Stop();
 
@@ -168,6 +190,152 @@ public static class BotNavigationModernPointGraphBuilder
                 JumpEdgeCount = jumpEdgeCount,
                 DropEdgeCount = dropEdgeCount,
                 BuildMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
+                SurfaceSamplingMilliseconds = surfaceSamplingMilliseconds,
+                AutoAnchorMilliseconds = autoAnchorMilliseconds,
+                AutomaticEdgeMilliseconds = automaticEdgeMilliseconds,
+            },
+            Nodes = builtNodes,
+            Edges = edges.ToArray(),
+        };
+    }
+
+    private static BotNavigationAsset BuildValidatedFromRuntimeNavPoints(
+        SimpleLevel level,
+        string? levelFingerprint)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var phaseStopwatch = Stopwatch.StartNew();
+        var runtimeNavPoints = ClientBotNavPoints.Build(level);
+        var obstacleSurfaces = ModernObstacleGeometry.BuildStaticObstacles(level).ToList();
+        var grid = ObstacleGrid.Build(level.Bounds, obstacleSurfaces);
+        var surfaceSamplingMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
+
+        var runtimePoints = runtimeNavPoints.Points
+            .OrderBy(static point => point.Id)
+            .ToArray();
+        var orderedNodes = new List<MutableNode>(runtimePoints.Length);
+        for (var index = 0; index < runtimePoints.Length; index += 1)
+        {
+            var sourcePoint = runtimePoints[index];
+            var mutableNode = new MutableNode(
+                sourcePoint.SurfaceId,
+                sourcePoint.X,
+                sourcePoint.Y,
+                sourcePoint.Y,
+                sourcePoint.Kind,
+                sourcePoint.Team,
+                sourcePoint.Label,
+                sourcePoint.RequiresGroundSupport);
+            mutableNode.Id = sourcePoint.Id;
+            for (var blockedIndex = 0; blockedIndex < sourcePoint.ReverseOnlyBlockedFromNodeIds.Count; blockedIndex += 1)
+            {
+                mutableNode.AddReverseOnlyBlockedFromNodeId(sourcePoint.ReverseOnlyBlockedFromNodeIds[blockedIndex]);
+            }
+
+            orderedNodes.Add(mutableNode);
+        }
+        var autoAnchorMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+        phaseStopwatch.Restart();
+
+        var edges = new List<BotNavigationEdge>();
+        var edgeKeys = new HashSet<long>();
+        var walkEdgeCount = 0;
+        var jumpEdgeCount = 0;
+        var dropEdgeCount = 0;
+        for (var fromIndex = 0; fromIndex < orderedNodes.Count; fromIndex += 1)
+        {
+            var fromNode = orderedNodes[fromIndex];
+            for (var toIndex = 0; toIndex < orderedNodes.Count; toIndex += 1)
+            {
+                var toNode = orderedNodes[toIndex];
+                if (fromNode.Id == toNode.Id)
+                {
+                    continue;
+                }
+
+                if (!TryEvaluateDirectedConnection(grid, fromNode, toNode, out var reverseOnlyBlocked)
+                    || IsConnectionRedundant(grid, fromNode, toNode, orderedNodes))
+                {
+                    continue;
+                }
+
+                if (reverseOnlyBlocked || runtimeNavPoints.IsReverseBlocked(toNode.Id, fromNode.Id))
+                {
+                    toNode.AddReverseOnlyBlockedFromNodeId(fromNode.Id);
+                }
+
+                var traversalKind = ResolveTraversalKind(fromNode, toNode);
+                if (!TryCreateTraversalEdge(
+                        level,
+                        fromNode,
+                        toNode,
+                        traversalKind,
+                        validateTraversal: true,
+                        out var builtEdge)
+                    || !TryAddEdge(edgeKeys, edges, builtEdge))
+                {
+                    continue;
+                }
+
+                switch (traversalKind)
+                {
+                    case BotNavigationTraversalKind.Drop:
+                        dropEdgeCount += 1;
+                        break;
+                    case BotNavigationTraversalKind.Jump:
+                        jumpEdgeCount += 1;
+                        break;
+                    default:
+                        walkEdgeCount += 1;
+                        break;
+                }
+            }
+        }
+        var automaticEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
+
+        stopwatch.Stop();
+
+        var builtNodes = orderedNodes
+            .Select(static node => new BotNavigationNode
+            {
+                Id = node.Id,
+                X = node.X,
+                Y = node.Y,
+                SurfaceId = node.SurfaceId,
+                Kind = node.Kind,
+                Team = node.Team,
+                Label = node.Label,
+                RequiresGroundSupport = node.RequiresGroundSupport,
+                ReverseOnlyBlockedFromNodeIds = node.ReverseOnlyBlockedFromNodeIds.ToArray(),
+            })
+            .ToArray();
+
+        return new BotNavigationAsset
+        {
+            FormatVersion = BotNavigationAssetStore.CurrentFormatVersion,
+            LevelName = level.Name,
+            MapAreaIndex = level.MapAreaIndex,
+            ClassId = null,
+            Profile = BotNavigationProfile.Standard,
+            LevelFingerprint = levelFingerprint ?? BotNavigationLevelFingerprint.Compute(level),
+            BuildStrategy = BotNavigationBuildStrategy.ModernClientBotPointGraph,
+            BuiltUtc = DateTime.UtcNow,
+            Stats = new BotNavigationBuildStats
+            {
+                SurfaceCount = obstacleSurfaces.Count,
+                CandidateNodeCount = runtimePoints.Length,
+                SurfaceSampleNodeCount = runtimePoints.Length,
+                AutoAnchorNodeCount = builtNodes.Count(static node => node.Kind != BotNavigationNodeKind.Surface),
+                NodeCount = builtNodes.Length,
+                EdgeCount = edges.Count,
+                WalkEdgeCount = walkEdgeCount,
+                JumpEdgeCount = jumpEdgeCount,
+                DropEdgeCount = dropEdgeCount,
+                BuildMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
+                SurfaceSamplingMilliseconds = surfaceSamplingMilliseconds,
+                AutoAnchorMilliseconds = autoAnchorMilliseconds,
+                AutomaticEdgeMilliseconds = automaticEdgeMilliseconds,
             },
             Nodes = builtNodes,
             Edges = edges.ToArray(),
@@ -423,12 +591,33 @@ public static class BotNavigationModernPointGraphBuilder
     }
 
     private static bool TryCreateTraversalEdge(
+        SimpleLevel level,
         MutableNode from,
         MutableNode to,
         BotNavigationTraversalKind traversalKind,
+        bool validateTraversal,
         out BotNavigationEdge edge)
     {
         edge = default!;
+        var cost = Math.Max(GridStep, DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY));
+        IReadOnlyList<BotNavigationInputFrame> inputTape = Array.Empty<BotNavigationInputFrame>();
+        if (validateTraversal)
+        {
+            cost = EstimateGeneratedTraversalCost(from, to, traversalKind);
+            if (traversalKind == BotNavigationTraversalKind.Jump
+                && TryBuildGeneratedJumpTape(level, from, to, out var generatedJumpTape, out var generatedJumpCost))
+            {
+                inputTape = generatedJumpTape;
+                cost = generatedJumpCost;
+            }
+            else if (!TryValidateGeneratedTraversal(level, from, to, traversalKind, out cost))
+            {
+                return false;
+            }
+
+            cost = Math.Max(GridStep, cost);
+        }
+
         switch (traversalKind)
         {
             case BotNavigationTraversalKind.Jump:
@@ -437,7 +626,8 @@ public static class BotNavigationModernPointGraphBuilder
                     FromNodeId = from.Id,
                     ToNodeId = to.Id,
                     Kind = BotNavigationTraversalKind.Jump,
-                    Cost = Math.Max(GridStep, DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY)),
+                    Cost = cost,
+                    InputTape = inputTape,
                 };
                 return true;
 
@@ -447,7 +637,7 @@ public static class BotNavigationModernPointGraphBuilder
                     FromNodeId = from.Id,
                     ToNodeId = to.Id,
                     Kind = BotNavigationTraversalKind.Drop,
-                    Cost = Math.Max(GridStep, DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY)),
+                    Cost = cost,
                 };
                 return true;
 
@@ -457,10 +647,162 @@ public static class BotNavigationModernPointGraphBuilder
                     FromNodeId = from.Id,
                     ToNodeId = to.Id,
                     Kind = BotNavigationTraversalKind.Walk,
-                    Cost = Math.Max(GridStep, DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY)),
+                    Cost = cost,
                 };
                 return true;
         }
+    }
+
+    private static bool TryBuildGeneratedJumpTape(
+        SimpleLevel level,
+        MutableNode from,
+        MutableNode to,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        return BotNavigationMovementValidator.TryBuildSharedJumpTape(
+            level,
+            TraversalValidationClasses,
+            from.RawX,
+            from.RawY,
+            to.RawX,
+            to.RawY,
+            out tape,
+            out cost);
+    }
+
+    private static float EstimateGeneratedTraversalCost(MutableNode from, MutableNode to, BotNavigationTraversalKind traversalKind)
+    {
+        var cost = ComputeDirectedTraversalCost(from.RawX, from.RawY, to.RawX, to.RawY);
+        return traversalKind switch
+        {
+            BotNavigationTraversalKind.Jump => cost * 1.15f,
+            BotNavigationTraversalKind.Drop => MathF.Max(GridStep, DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY) * 0.8f),
+            _ => cost,
+        };
+    }
+
+    private static bool TryValidateGeneratedTraversal(
+        SimpleLevel level,
+        MutableNode from,
+        MutableNode to,
+        BotNavigationTraversalKind traversalKind,
+        out float cost)
+    {
+        cost = DistanceBetween(from.RawX, from.RawY, to.RawX, to.RawY);
+        if (traversalKind == BotNavigationTraversalKind.Drop)
+        {
+            return true;
+        }
+
+        var bestCost = float.PositiveInfinity;
+        for (var classIndex = 0; classIndex < TraversalValidationClasses.Length; classIndex += 1)
+        {
+            var classId = TraversalValidationClasses[classIndex];
+            var classDefinition = BotNavigationClasses.GetDefinition(classId);
+            var sourceY = from.RawY - classDefinition.CollisionBottom;
+            var targetY = to.RawY - classDefinition.CollisionBottom;
+            var profile = BotNavigationProfiles.GetProfileForClass(classId);
+            if (traversalKind == BotNavigationTraversalKind.Walk)
+            {
+                if (TryValidateGeneratedGroundTraversal(level, classDefinition, from.RawX, sourceY, to.RawX, targetY, out var groundCost))
+                {
+                    bestCost = MathF.Min(bestCost, groundCost);
+                }
+
+                continue;
+            }
+
+            if (TryValidateGeneratedJumpTraversal(level, classDefinition, profile, from.RawX, sourceY, to.RawX, targetY, out var jumpCost))
+            {
+                bestCost = MathF.Min(bestCost, jumpCost);
+            }
+        }
+
+        if (bestCost < float.PositiveInfinity)
+        {
+            cost = bestCost;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryValidateGeneratedGroundTraversal(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        out float cost)
+    {
+        if (BotNavigationMovementValidator.TryBuildGroundTape(
+                level,
+                classDefinition,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                out _,
+                out cost)
+            || BotNavigationMovementValidator.TryBuildGroundTape(
+                level,
+                classDefinition,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Blue,
+                out _,
+                out cost))
+        {
+            return true;
+        }
+
+        cost = 0f;
+        return false;
+    }
+
+    private static bool TryValidateGeneratedJumpTraversal(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        BotNavigationProfile profile,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        out float cost)
+    {
+        if (BotNavigationMovementValidator.TryBuildJumpTape(
+                level,
+                classDefinition,
+                profile,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Red,
+                out _,
+                out cost)
+            || BotNavigationMovementValidator.TryBuildJumpTape(
+                level,
+                classDefinition,
+                profile,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+                PlayerTeam.Blue,
+                out _,
+                out cost))
+        {
+            return true;
+        }
+
+        cost = 0f;
+        return false;
     }
 
     private static bool TryAddNode(

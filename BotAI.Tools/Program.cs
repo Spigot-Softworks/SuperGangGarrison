@@ -36,6 +36,11 @@ if (options.ProbeOrangeBranch)
     return RunOrangeBranchProbe();
 }
 
+if (options.BuildScoreRoutes)
+{
+    return BuildScoreRoutes(options);
+}
+
 if (options.RunBotScenarioHarness)
 {
     return RunBotScenarioHarness(options);
@@ -133,7 +138,7 @@ foreach (var entry in catalog)
         DeleteLegacyClassAssets(outputDirectory, level.Name, level.MapAreaIndex);
         DeleteLegacyProfileAssets(outputDirectory, level.Name, level.MapAreaIndex);
 
-        var asset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint);
+        var asset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint, validateTraversals: options.ValidateModernEdges);
         var validation = BotNavigationAssetValidator.Validate(level, asset);
         var generatedReachabilityAudit = options.AuditReachability
             ? BotNavigationAssetValidator.AuditAttackReachability(level, asset)
@@ -148,7 +153,7 @@ foreach (var entry in catalog)
         reachabilityIssues += generatedReachabilityAudit.Issues.Count;
         var classTokens = string.Join("/", BotNavigationClasses.All.Select(BotNavigationClasses.GetFileToken));
         Console.WriteLine(
-            $"built map={entry.Name} area={areaIndex} mesh=modern classes={classTokens} strategy={asset.BuildStrategy} nodes={asset.Nodes.Count} edges={asset.Edges.Count} ms={asset.Stats.BuildMilliseconds:F2} phases=sample:{asset.Stats.SurfaceSamplingMilliseconds:F1},anchors:{asset.Stats.AutoAnchorMilliseconds:F1},hints:{asset.Stats.HintNodeMilliseconds:F1},auto-edges:{asset.Stats.AutomaticEdgeMilliseconds:F1},hint-edges:{asset.Stats.HintEdgeMilliseconds:F1},drops:{asset.Stats.DropEdgeMilliseconds:F1} nav={(validation.IsStructurallyValid ? "ok" : $"invalid:{validation.Issues.Count}")} reachability={(generatedReachabilityAudit.IsStructurallyValid ? "ok" : $"issues:{generatedReachabilityAudit.Issues.Count}")}");
+            $"built map={entry.Name} area={areaIndex} mesh=modern classes={classTokens} strategy={asset.BuildStrategy} edgeValidation={(options.ValidateModernEdges ? "movement" : "geometry")} nodes={asset.Nodes.Count} edges={asset.Edges.Count} ms={asset.Stats.BuildMilliseconds:F2} phases=sample:{asset.Stats.SurfaceSamplingMilliseconds:F1},anchors:{asset.Stats.AutoAnchorMilliseconds:F1},hints:{asset.Stats.HintNodeMilliseconds:F1},auto-edges:{asset.Stats.AutomaticEdgeMilliseconds:F1},hint-edges:{asset.Stats.HintEdgeMilliseconds:F1},drops:{asset.Stats.DropEdgeMilliseconds:F1} nav={(validation.IsStructurallyValid ? "ok" : $"invalid:{validation.Issues.Count}")} reachability={(generatedReachabilityAudit.IsStructurallyValid ? "ok" : $"issues:{generatedReachabilityAudit.Issues.Count}")}");
         if (!validation.IsStructurallyValid)
         {
             Console.WriteLine($"  issues: {validation.BuildSummary()}");
@@ -190,7 +195,7 @@ static int RunBotScenarioHarness(NavBuildOptions options)
         var result = RunBotScenarioCase(scenario, wallTimeoutMilliseconds, options.CollectBotDiagnostics);
         var progress = result.StartObjectiveDistance - result.BestObjectiveDistance;
         Console.WriteLine(
-            $"result status={(result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail")} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode={scenario.PathMode} elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} maxSpawn={result.MaxDistanceFromSpawn:0.0} longestNoProgress={result.LongestNoProgressSeconds:0.0}s maxStuck={result.MaxStuckTicks} satisfied={result.SatisfiedScenario} completed={result.CompletedObjective} reason={result.FailureReason}");
+            $"result status={(result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail")} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode={scenario.PathMode} elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} maxSpawn={result.MaxDistanceFromSpawn:0.0} longestNoProgress={result.LongestNoProgressSeconds:0.0}s maxStuck={result.MaxStuckTicks} satisfied={result.SatisfiedScenario} completed={result.CompletedObjective} reason={result.FailureReason} objective={CompactScoreRouteLogValue(result.ObjectiveSummary, 320)}");
         if (!string.IsNullOrWhiteSpace(result.RouteSummary))
         {
             Console.WriteLine($"  routes: {result.RouteSummary}");
@@ -223,6 +228,1226 @@ static int RunBotScenarioHarness(NavBuildOptions options)
     Console.WriteLine(
         $"summary total={cases.Count} passed={passed} failed={failed} timedOut={timedOut} elapsedMs={startedAt.ElapsedMilliseconds}");
     return failed == 0 ? 0 : 3;
+}
+
+static int BuildScoreRoutes(NavBuildOptions options)
+{
+    var mapNames = GetScoreRouteBuildMapNames(options);
+    if (mapNames.Count == 0)
+    {
+        Console.Error.WriteLine("No maps matched the requested filters.");
+        return 2;
+    }
+
+    ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.GeneratedAssetFresh;
+    var totalAreas = 0;
+    var validatedContexts = 0;
+    var failedContexts = 0;
+    foreach (var mapName in mapNames)
+    {
+        var mapStopwatch = Stopwatch.StartNew();
+        var baseLevel = SimpleLevelFactory.CreateImportedLevel(mapName);
+        if (baseLevel is null)
+        {
+            Console.WriteLine($"score-routes map={mapName} status=load_fail");
+            continue;
+        }
+
+        for (var areaIndex = 1; areaIndex <= baseLevel.MapAreaCount; areaIndex += 1)
+        {
+            var level = areaIndex == 1 ? baseLevel : SimpleLevelFactory.CreateImportedLevel(mapName, areaIndex);
+            if (level is null)
+            {
+                Console.WriteLine($"score-routes map={mapName} area={areaIndex} status=load_fail");
+                continue;
+            }
+
+            totalAreas += 1;
+            var fingerprint = BotNavigationLevelFingerprint.Compute(level);
+            // Prove score-routes on top of the same broad graph runtime uses.
+            // Edge-level traversal validation is still useful, but not as the
+            // primary graph source for scoring.
+            var graphAsset = BotNavigationModernPointGraphBuilder.Build(level, fingerprint, validateTraversals: false);
+            var navigationGraph = new BotNavigationRuntimeGraph(graphAsset);
+            var savedRoutes = new List<BotNavigationScoreRouteEntry>();
+            Console.WriteLine(
+                $"score-routes map={level.Name} area={level.MapAreaIndex} mode={level.Mode} graphNodes={graphAsset.Nodes.Count} graphEdges={graphAsset.Edges.Count} buildMs={graphAsset.Stats.BuildMilliseconds:F1}");
+
+            foreach (var team in new[] { PlayerTeam.Blue, PlayerTeam.Red })
+            {
+                foreach (var profilePlan in GetScoreRouteProfilePlans())
+                {
+                    if (TryGetScoreRouteBudgetStopReason(options.GetEffectiveScoreRouteMapBudgetMilliseconds(), mapStopwatch, out var mapBudgetStopReason))
+                    {
+                        failedContexts += 1;
+                        Console.WriteLine(
+                            $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} status=skipped reason={mapBudgetStopReason}");
+                        continue;
+                    }
+
+                    if (TryBuildValidatedScoreRoutesForProfile(
+                            level,
+                            graphAsset,
+                            navigationGraph,
+                            team,
+                            profilePlan,
+                            options,
+                            out var validatedRoutes,
+                            out var summary))
+                    {
+                        savedRoutes.AddRange(validatedRoutes);
+                        validatedContexts += 1;
+                    }
+                    else
+                    {
+                        failedContexts += 1;
+                    }
+
+                    Console.WriteLine(summary);
+                }
+            }
+
+            var scoreRouteAsset = new BotNavigationScoreRouteAsset
+            {
+                FormatVersion = BotNavigationScoreRouteStore.CurrentFormatVersion,
+                LevelName = level.Name,
+                MapAreaIndex = level.MapAreaIndex,
+                LevelFingerprint = fingerprint,
+                Routes = savedRoutes
+                    .OrderBy(route => route.Team)
+                    .ThenBy(route => route.Profile)
+                    .ThenBy(route => route.Phase)
+                    .ThenBy(route => route.Key, StringComparer.Ordinal)
+                    .ToArray(),
+            };
+            var scoreRoutePath = BotNavigationScoreRouteStore.ResolveWritablePath(level.Name, level.MapAreaIndex);
+            if (options.ScoreRouteDiagnostics)
+            {
+                Console.WriteLine(
+                    $"score-routes diagnostics map={level.Name} area={level.MapAreaIndex} validatedRoutes={scoreRouteAsset.Routes.Count} skippedSave=True path={scoreRoutePath}");
+            }
+            else if (scoreRouteAsset.Routes.Count > 0)
+            {
+                BotNavigationScoreRouteStore.Save(scoreRouteAsset);
+                Console.WriteLine(
+                    $"score-routes saved map={level.Name} area={level.MapAreaIndex} routes={scoreRouteAsset.Routes.Count} path={scoreRoutePath}");
+            }
+            else
+            {
+                if (File.Exists(scoreRoutePath))
+                {
+                    File.Delete(scoreRoutePath);
+                }
+
+                Console.WriteLine(
+                    $"score-routes skipped map={level.Name} area={level.MapAreaIndex} routes=0 path={scoreRoutePath}");
+            }
+        }
+    }
+
+    Console.WriteLine($"score-routes summary areas={totalAreas} validatedContexts={validatedContexts} failedContexts={failedContexts}");
+    return failedContexts == 0 ? 0 : 3;
+}
+
+static IReadOnlyList<string> GetScoreRouteBuildMapNames(NavBuildOptions options)
+{
+    if (options.MapNames.Count > 0)
+    {
+        return options.MapNames
+            .OrderBy(static mapName => mapName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    if (options.IncludeCustomMaps)
+    {
+        return SimpleLevelFactory.GetAvailableSourceLevels()
+            .Select(static entry => entry.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static mapName => mapName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    return GetStockScoreMaps();
+}
+
+static bool TryBuildValidatedScoreRoutesForProfile(
+    SimpleLevel level,
+    BotNavigationAsset graphAsset,
+    BotNavigationRuntimeGraph navigationGraph,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan,
+    NavBuildOptions options,
+    out IReadOnlyList<BotNavigationScoreRouteEntry> validatedRoutes,
+    out string summary)
+{
+    validatedRoutes = Array.Empty<BotNavigationScoreRouteEntry>();
+    if (!TryCreateScoreRouteProbeWorld(level.Name, level.MapAreaIndex, team, profilePlan.ClassId, out var world, out var bot, out var failureReason))
+    {
+        summary = $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} status=probe_fail reason={failureReason}";
+        return false;
+    }
+
+    var maxPhaseRoutesToTry = options.GetEffectiveScoreRouteMaxPhaseRoutes();
+    var bestResult = default(BotScenarioResult);
+    var hasBestResult = false;
+    var proofAttempts = 0;
+    var contextStopwatch = Stopwatch.StartNew();
+    var stopReason = string.Empty;
+    var traversalProof = BuildProvenScoreRouteSegments(level, graphAsset, navigationGraph, team, profilePlan);
+    if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
+    {
+        if (!TryGetScoreRouteGoal(world, bot, team, BotNavigationScoreRoutePhase.AttackIntel, out var attackGoal, out failureReason)
+            || !TryGetScoreRouteGoal(world, bot, team, BotNavigationScoreRoutePhase.ReturnIntel, out var returnGoal, out failureReason))
+        {
+            summary = $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} status=goal_fail reason={failureReason}";
+            return false;
+        }
+
+        var attackBuild = BuildScoreRouteCandidates(level, navigationGraph, team, profilePlan, BotNavigationScoreRoutePhase.AttackIntel, attackGoal, traversalProof.ProvenSegmentsByKey);
+        var returnBuild = BuildScoreRouteCandidates(level, navigationGraph, team, profilePlan, BotNavigationScoreRoutePhase.ReturnIntel, returnGoal, traversalProof.ProvenSegmentsByKey);
+        var attackCandidates = attackBuild.Entries
+            .Take(maxPhaseRoutesToTry)
+            .ToArray();
+        var returnCandidates = returnBuild.Entries
+            .Take(maxPhaseRoutesToTry)
+            .ToArray();
+        if (attackCandidates.Length == 0 || returnCandidates.Length == 0)
+        {
+            summary =
+                $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode=CTF status=no_candidates proof={traversalProof.ProvenEdgeCount}/{graphAsset.Edges.Count} jumps={traversalProof.ProvenJumpEdgeCount}/{traversalProof.TotalJumpEdgeCount} attack={attackCandidates.Length}/{attackBuild.StartNodeCount}:{attackBuild.RawRouteCount}:{attackBuild.BuildFailures} return={returnCandidates.Length}/{returnBuild.StartNodeCount}:{returnBuild.RawRouteCount}:{returnBuild.BuildFailures}";
+            return false;
+        }
+
+        for (var returnIndex = 0; returnIndex < returnCandidates.Length; returnIndex += 1)
+        {
+            for (var attackIndex = 0; attackIndex < attackCandidates.Length; attackIndex += 1)
+            {
+                var bundle = new[]
+                {
+                    attackCandidates[attackIndex],
+                    returnCandidates[returnIndex],
+                };
+                if (!TryRunScoreRouteProofAttempt(
+                        level,
+                        graphAsset,
+                        bundle,
+                        team,
+                        profilePlan,
+                        options,
+                        contextStopwatch,
+                        ref proofAttempts,
+                        $"ctf_pair attack={attackIndex + 1}/{attackCandidates.Length} return={returnIndex + 1}/{returnCandidates.Length}",
+                        out var result,
+                        out stopReason))
+                {
+                    goto FinishCtfProofs;
+                }
+
+                if (!hasBestResult || IsBetterScoreRouteProofResult(result, bestResult))
+                {
+                    bestResult = result;
+                    hasBestResult = true;
+                }
+
+                if (result.Passed)
+                {
+                    validatedRoutes = bundle;
+                    summary =
+                        $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode=CTF status=pass attempts={proofAttempts} attackPair={attackIndex + 1}/{attackCandidates.Length} returnPair={returnIndex + 1}/{returnCandidates.Length} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} reason={result.FailureReason}";
+                    return true;
+                }
+            }
+        }
+
+        for (var returnCount = 1; returnCount <= returnCandidates.Length; returnCount += 1)
+        {
+            for (var attackCount = 1; attackCount <= attackCandidates.Length; attackCount += 1)
+            {
+                var bundle = attackCandidates.Take(attackCount)
+                    .Concat(returnCandidates.Take(returnCount))
+                    .ToArray();
+                if (!TryRunScoreRouteProofAttempt(
+                        level,
+                        graphAsset,
+                        bundle,
+                        team,
+                        profilePlan,
+                        options,
+                        contextStopwatch,
+                        ref proofAttempts,
+                        $"ctf_prefix attack={attackCount}/{attackCandidates.Length} return={returnCount}/{returnCandidates.Length}",
+                        out var result,
+                        out stopReason))
+                {
+                    goto FinishCtfProofs;
+                }
+
+                if (!hasBestResult || IsBetterScoreRouteProofResult(result, bestResult))
+                {
+                    bestResult = result;
+                    hasBestResult = true;
+                }
+
+                if (result.Passed)
+                {
+                    validatedRoutes = bundle;
+                    summary =
+                        $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode=CTF status=pass attempts={proofAttempts} attack={attackCount}/{attackCandidates.Length} return={returnCount}/{returnCandidates.Length} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} reason={result.FailureReason}";
+                    return true;
+                }
+            }
+        }
+
+FinishCtfProofs:
+        summary =
+            $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode=CTF status=fail proof={traversalProof.ProvenEdgeCount}/{graphAsset.Edges.Count} jumps={traversalProof.ProvenJumpEdgeCount}/{traversalProof.TotalJumpEdgeCount} attack={attackCandidates.Length} return={returnCandidates.Length} attempts={proofAttempts}{FormatScoreRouteStopReason(stopReason)} {FormatScoreRouteBestResult(hasBestResult, bestResult)}";
+        return false;
+    }
+
+    if (!TryGetScoreRouteGoal(world, bot, team, BotNavigationScoreRoutePhase.CaptureObjective, out var captureGoal, out failureReason))
+    {
+        summary = $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} status=goal_fail reason={failureReason}";
+        return false;
+    }
+
+    var captureBuild = BuildScoreRouteCandidates(level, navigationGraph, team, profilePlan, BotNavigationScoreRoutePhase.CaptureObjective, captureGoal, traversalProof.ProvenSegmentsByKey);
+    var captureCandidates = captureBuild.Entries
+        .Take(maxPhaseRoutesToTry)
+        .ToArray();
+    if (captureCandidates.Length == 0)
+    {
+        summary =
+            $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode={world.MatchRules.Mode} status=no_candidates proof={traversalProof.ProvenEdgeCount}/{graphAsset.Edges.Count} jumps={traversalProof.ProvenJumpEdgeCount}/{traversalProof.TotalJumpEdgeCount} routes={captureCandidates.Length}/{captureBuild.StartNodeCount}:{captureBuild.RawRouteCount}:{captureBuild.BuildFailures}";
+        return false;
+    }
+
+    for (var routeIndex = 0; routeIndex < captureCandidates.Length; routeIndex += 1)
+    {
+        var bundle = new[] { captureCandidates[routeIndex] };
+        if (!TryRunScoreRouteProofAttempt(
+                level,
+                graphAsset,
+                bundle,
+                team,
+                profilePlan,
+                options,
+                contextStopwatch,
+                ref proofAttempts,
+                $"capture_pair route={routeIndex + 1}/{captureCandidates.Length}",
+                out var result,
+                out stopReason))
+        {
+            goto FinishCaptureProofs;
+        }
+
+        if (!hasBestResult || IsBetterScoreRouteProofResult(result, bestResult))
+        {
+            bestResult = result;
+            hasBestResult = true;
+        }
+
+        if (result.Passed)
+        {
+            validatedRoutes = bundle;
+            summary =
+                $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode={world.MatchRules.Mode} status=pass attempts={proofAttempts} routePair={routeIndex + 1}/{captureCandidates.Length} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} reason={result.FailureReason}";
+            return true;
+        }
+    }
+
+    for (var routeCount = 1; routeCount <= captureCandidates.Length; routeCount += 1)
+    {
+        var bundle = captureCandidates.Take(routeCount).ToArray();
+        if (!TryRunScoreRouteProofAttempt(
+                level,
+                graphAsset,
+                bundle,
+                team,
+                profilePlan,
+                options,
+                contextStopwatch,
+                ref proofAttempts,
+                $"capture_prefix routes={routeCount}/{captureCandidates.Length}",
+                out var result,
+                out stopReason))
+        {
+            goto FinishCaptureProofs;
+        }
+
+        if (!hasBestResult || IsBetterScoreRouteProofResult(result, bestResult))
+        {
+            bestResult = result;
+            hasBestResult = true;
+        }
+
+        if (result.Passed)
+        {
+            validatedRoutes = bundle;
+            summary =
+                $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode={world.MatchRules.Mode} status=pass attempts={proofAttempts} routes={routeCount}/{captureCandidates.Length} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} reason={result.FailureReason}";
+            return true;
+        }
+    }
+
+FinishCaptureProofs:
+    summary =
+            $"score-route map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} mode={world.MatchRules.Mode} status=fail proof={traversalProof.ProvenEdgeCount}/{graphAsset.Edges.Count} jumps={traversalProof.ProvenJumpEdgeCount}/{traversalProof.TotalJumpEdgeCount} routes={captureCandidates.Length} attempts={proofAttempts}{FormatScoreRouteStopReason(stopReason)} {FormatScoreRouteBestResult(hasBestResult, bestResult)}";
+    return false;
+}
+
+static ScoreRouteCandidateBuildResult BuildScoreRouteCandidates(
+    SimpleLevel level,
+    BotNavigationRuntimeGraph navigationGraph,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan,
+    BotNavigationScoreRoutePhase phase,
+    (float X, float Y) goal,
+    IReadOnlyDictionary<long, BotNavigationScoreRouteSegment> provenSegmentsByKey)
+{
+    var routeCandidates = new List<(BotNavigationScoreRouteEntry Entry, float Cost, float GoalDistance, int UnprovenJumpCount, int UntapedJumpCount)>();
+    var seenRouteKeys = new HashSet<string>(StringComparer.Ordinal);
+    var startNodeIds = GetScoreRouteStartNodeIds(level, navigationGraph, team, profilePlan, phase);
+    var rawRouteCount = 0;
+    var buildFailures = 0;
+    foreach (var startNodeId in startNodeIds)
+    {
+        foreach (var candidateRoute in BuildCandidateRoutesFromStartNode(navigationGraph, startNodeId, goal))
+        {
+            rawRouteCount += 1;
+            var routeKey = string.Join(">", candidateRoute);
+            if (!seenRouteKeys.Add(routeKey))
+            {
+                continue;
+            }
+
+            if (!TryBuildScoreRouteEntry(
+                    navigationGraph,
+                    team,
+                    profilePlan,
+                    phase,
+                    candidateRoute,
+                    goal,
+                    provenSegmentsByKey,
+                    out var entry,
+                    out var routeCost,
+                    out var goalDistance,
+                    out var unprovenJumpCount,
+                    out var untapedJumpCount))
+            {
+                buildFailures += 1;
+                continue;
+            }
+
+            routeCandidates.Add((entry, routeCost, goalDistance, unprovenJumpCount, untapedJumpCount));
+        }
+    }
+
+    var orderedCandidates = routeCandidates
+        .OrderBy(static entry => entry.GoalDistance)
+        .ThenBy(static entry => entry.UnprovenJumpCount)
+        .ThenBy(static entry => entry.UntapedJumpCount)
+        .ThenBy(static entry => entry.Cost)
+        .ThenBy(static entry => entry.Entry.RouteNodeIds.Count)
+        .ThenBy(static entry => entry.Entry.Key, StringComparer.Ordinal)
+        .ToList();
+    var diversifiedCandidates = DiversifyScoreRouteCandidatesByFirstHop(orderedCandidates);
+
+    return new ScoreRouteCandidateBuildResult(
+        diversifiedCandidates
+            .Select(static entry => entry.Entry)
+            .ToArray(),
+        startNodeIds.Count,
+        rawRouteCount,
+        buildFailures);
+}
+
+static IReadOnlyList<(BotNavigationScoreRouteEntry Entry, float Cost, float GoalDistance, int UnprovenJumpCount, int UntapedJumpCount)> DiversifyScoreRouteCandidatesByFirstHop(
+    IReadOnlyList<(BotNavigationScoreRouteEntry Entry, float Cost, float GoalDistance, int UnprovenJumpCount, int UntapedJumpCount)> orderedCandidates)
+{
+    if (orderedCandidates.Count <= 1)
+    {
+        return orderedCandidates;
+    }
+
+    var diversified = new List<(BotNavigationScoreRouteEntry Entry, float Cost, float GoalDistance, int UnprovenJumpCount, int UntapedJumpCount)>(orderedCandidates.Count);
+    var consumed = new bool[orderedCandidates.Count];
+    var seenFirstHopKeys = new HashSet<long>();
+    for (var index = 0; index < orderedCandidates.Count; index += 1)
+    {
+        var routeNodeIds = orderedCandidates[index].Entry.RouteNodeIds;
+        if (routeNodeIds.Count < 2)
+        {
+            continue;
+        }
+
+        var firstHopKey = GetRouteEdgeKey(routeNodeIds[0], routeNodeIds[1]);
+        if (!seenFirstHopKeys.Add(firstHopKey))
+        {
+            continue;
+        }
+
+        diversified.Add(orderedCandidates[index]);
+        consumed[index] = true;
+    }
+
+    for (var index = 0; index < orderedCandidates.Count; index += 1)
+    {
+        if (consumed[index])
+        {
+            continue;
+        }
+
+        diversified.Add(orderedCandidates[index]);
+    }
+
+    return diversified;
+}
+
+static IReadOnlyList<int> GetScoreRouteStartNodeIds(
+    SimpleLevel level,
+    BotNavigationRuntimeGraph navigationGraph,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan,
+    BotNavigationScoreRoutePhase phase)
+{
+    var nodeIds = new List<int>();
+    var seenNodeIds = new HashSet<int>();
+    var enemyBase = level.GetIntelBase(GetOpposingTeamForScenario(team));
+    var classDefinition = BotNavigationClasses.GetDefinition(profilePlan.ClassId);
+    IEnumerable<(float X, float Y)> startPositions = phase switch
+    {
+        BotNavigationScoreRoutePhase.ReturnIntel => enemyBase.HasValue
+            ? new[] { (enemyBase.Value.X, enemyBase.Value.Y) }
+            : Array.Empty<(float X, float Y)>(),
+        _ => (team == PlayerTeam.Blue ? level.BlueSpawns : level.RedSpawns)
+            .Select(spawn => (spawn.X, spawn.Y + classDefinition.CollisionBottom)),
+    };
+
+    foreach (var startPosition in startPositions)
+    {
+        if (phase == BotNavigationScoreRoutePhase.ReturnIntel)
+        {
+            foreach (var nearbyNodeId in GetNearbyScoreRouteStartNodeIds(
+                navigationGraph,
+                startPosition.X,
+                startPosition.Y,
+                preferredRadius: 220f,
+                fallbackRadius: 360f,
+                maxNodeCount: 12))
+            {
+                if (seenNodeIds.Add(nearbyNodeId))
+                {
+                    nodeIds.Add(nearbyNodeId);
+                }
+            }
+
+            continue;
+        }
+
+        foreach (var nearbyNodeId in GetNearbyScoreRouteStartNodeIds(
+            navigationGraph,
+            startPosition.X,
+            startPosition.Y,
+            preferredRadius: 180f,
+            fallbackRadius: 320f,
+            maxNodeCount: 6))
+        {
+            if (seenNodeIds.Add(nearbyNodeId))
+            {
+                nodeIds.Add(nearbyNodeId);
+            }
+        }
+    }
+
+    return nodeIds;
+}
+
+static IReadOnlyList<int> GetNearbyScoreRouteStartNodeIds(
+    BotNavigationRuntimeGraph navigationGraph,
+    float x,
+    float y,
+    float preferredRadius,
+    float fallbackRadius,
+    int maxNodeCount)
+{
+    maxNodeCount = Math.Max(1, maxNodeCount);
+    var preferredDistanceSquared = preferredRadius > 0f
+        ? preferredRadius * preferredRadius
+        : float.PositiveInfinity;
+    var fallbackDistanceSquared = fallbackRadius > 0f
+        ? fallbackRadius * fallbackRadius
+        : preferredDistanceSquared;
+    var nearbyNodeIds = navigationGraph.Nodes
+        .Select(node => new
+        {
+            Node = node,
+            DistanceSquared = MathF.Pow(node.X - x, 2f) + MathF.Pow(node.Y - y, 2f),
+        })
+        .Where(candidate => candidate.DistanceSquared <= fallbackDistanceSquared)
+        .OrderBy(candidate => candidate.DistanceSquared > preferredDistanceSquared ? 1 : 0)
+        .ThenBy(candidate => candidate.Node.RequiresGroundSupport ? 0 : 1)
+        .ThenBy(candidate => candidate.DistanceSquared)
+        .ThenBy(candidate => candidate.Node.Id)
+        .Take(maxNodeCount)
+        .Select(candidate => candidate.Node.Id)
+        .ToArray();
+
+    if (nearbyNodeIds.Length > 0)
+    {
+        return nearbyNodeIds;
+    }
+
+    if (navigationGraph.TryFindNearestNode(x, y, fallbackRadius, requireGroundSupport: true, out var groundedNode)
+        || navigationGraph.TryFindNearestNode(x, y, fallbackRadius, requireGroundSupport: false, out groundedNode))
+    {
+        return [groundedNode.Id];
+    }
+
+    return Array.Empty<int>();
+}
+
+static IReadOnlyList<int[]> BuildCandidateRoutesFromStartNode(
+    BotNavigationRuntimeGraph navigationGraph,
+    int startNodeId,
+    (float X, float Y) goal)
+{
+    float[] goalRadii = [220f, 320f, 420f, 520f];
+    var routes = new List<int[]>();
+    var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+    var edgeFilter = CreateScoreRouteCandidateEdgeFilter(navigationGraph);
+    var hasExactGoalNode = navigationGraph.TryFindNearestNode(goal.X, goal.Y, 220f, requireGroundSupport: true, out var exactGoalNode)
+        || navigationGraph.TryFindNearestNode(goal.X, goal.Y, 220f, requireGroundSupport: false, out exactGoalNode);
+    if (hasExactGoalNode)
+    {
+        TryAddCandidateRoute(navigationGraph.FindRoute(startNodeId, exactGoalNode.Id, edgeFilter), seenKeys, routes);
+    }
+
+    for (var radiusIndex = 0; radiusIndex < goalRadii.Length; radiusIndex += 1)
+    {
+        if (navigationGraph.TryFindRouteToGoalRadius(startNodeId, goal.X, goal.Y, goalRadii[radiusIndex], edgeFilter, out var radiusRoute, out _))
+        {
+            TryAddCandidateRoute(radiusRoute, seenKeys, routes);
+        }
+    }
+
+    var baseRoute = routes.FirstOrDefault(route => route.Length > 1);
+    if (hasExactGoalNode && baseRoute is not null)
+    {
+        for (var edgeIndex = 0; edgeIndex < baseRoute.Length - 1 && edgeIndex < 4; edgeIndex += 1)
+        {
+            var blockedFromNodeId = baseRoute[edgeIndex];
+            var blockedToNodeId = baseRoute[edgeIndex + 1];
+            Func<BotNavigationEdge, bool> alternateEdgeFilter = edge =>
+                !navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId)
+                && (edge.FromNodeId != blockedFromNodeId
+                    || edge.ToNodeId != blockedToNodeId);
+
+            TryAddCandidateRoute(navigationGraph.FindRoute(startNodeId, exactGoalNode.Id, alternateEdgeFilter), seenKeys, routes);
+            for (var radiusIndex = 0; radiusIndex < goalRadii.Length; radiusIndex += 1)
+            {
+                if (navigationGraph.TryFindRouteToGoalRadius(startNodeId, goal.X, goal.Y, goalRadii[radiusIndex], alternateEdgeFilter, out var radiusRoute, out _))
+                {
+                    TryAddCandidateRoute(radiusRoute, seenKeys, routes);
+                }
+            }
+
+        }
+    }
+
+    if (routes.Count == 0)
+    {
+        float[] minimumImprovements = [160f, 96f, 48f, 24f, 8f];
+        for (var index = 0; index < minimumImprovements.Length; index += 1)
+        {
+            if (navigationGraph.TryFindBestPartialRoute(
+                    startNodeId,
+                    goal.X,
+                    goal.Y,
+                    minimumImprovements[index],
+                    edgeFilter,
+                    out var partialRoute,
+                    out _))
+            {
+                TryAddCandidateRoute(partialRoute, seenKeys, routes);
+            }
+        }
+    }
+
+    return routes;
+}
+
+static void TryAddCandidateRoute(int[]? route, HashSet<string> seenKeys, List<int[]> routes)
+{
+    if (route is null || route.Length <= 1)
+    {
+        return;
+    }
+
+    var routeKey = string.Join(">", route);
+    if (!seenKeys.Add(routeKey))
+    {
+        return;
+    }
+
+    routes.Add(route);
+}
+
+static bool TryBuildScoreRouteEntry(
+    BotNavigationRuntimeGraph navigationGraph,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan,
+    BotNavigationScoreRoutePhase phase,
+    IReadOnlyList<int> routeNodeIds,
+    (float X, float Y) goal,
+    IReadOnlyDictionary<long, BotNavigationScoreRouteSegment> provenSegmentsByKey,
+    out BotNavigationScoreRouteEntry entry,
+    out float routeCost,
+    out float goalDistance,
+    out int unprovenJumpCount,
+    out int untapedJumpCount)
+{
+    entry = default!;
+    routeCost = 0f;
+    goalDistance = float.PositiveInfinity;
+    unprovenJumpCount = 0;
+    untapedJumpCount = 0;
+    if (routeNodeIds.Count <= 1)
+    {
+        return false;
+    }
+
+    var segments = new List<BotNavigationScoreRouteSegment>(routeNodeIds.Count - 1);
+    for (var index = 0; index < routeNodeIds.Count - 1; index += 1)
+    {
+        var fromNodeId = routeNodeIds[index];
+        var toNodeId = routeNodeIds[index + 1];
+        if (!navigationGraph.TryGetEdge(fromNodeId, toNodeId, out var edge)
+            || !TryGetScoreRouteSegment(edge, provenSegmentsByKey, out var segment, out var segmentWasProven))
+        {
+            return false;
+        }
+
+        if (edge.Kind == BotNavigationTraversalKind.Jump && !segmentWasProven)
+        {
+            unprovenJumpCount += 1;
+            if (segment.InputTape.Count == 0)
+            {
+                untapedJumpCount += 1;
+            }
+        }
+
+        routeCost += Math.Max(1f, edge.Cost);
+        segments.Add(segment);
+    }
+
+    var goalNodeId = routeNodeIds[^1];
+    if (!navigationGraph.TryGetNode(goalNodeId, out var goalNode))
+    {
+        return false;
+    }
+
+    goalDistance = DistanceBetween(goalNode.X, goalNode.Y, goal.X, goal.Y);
+    entry = new BotNavigationScoreRouteEntry
+    {
+        Key = $"{team}:{profilePlan.Profile}:{phase}:{routeNodeIds[0]}->{goalNodeId}",
+        Label = $"score:{phase}:{routeNodeIds[0]}->{goalNodeId}",
+        Team = team,
+        Profile = profilePlan.Profile,
+        Phase = phase,
+        GoalNodeId = goalNodeId,
+        GoalX = goal.X,
+        GoalY = goal.Y,
+        RouteNodeIds = routeNodeIds.ToArray(),
+        Segments = segments,
+    };
+    return true;
+}
+
+static bool TryGetScoreRouteSegment(
+    BotNavigationEdge edge,
+    IReadOnlyDictionary<long, BotNavigationScoreRouteSegment> provenSegmentsByKey,
+    out BotNavigationScoreRouteSegment segment,
+    out bool segmentWasProven)
+{
+    if (provenSegmentsByKey.TryGetValue(GetRouteEdgeKey(edge.FromNodeId, edge.ToNodeId), out segment!))
+    {
+        segmentWasProven = true;
+        return true;
+    }
+
+    segmentWasProven = false;
+    var startToleranceX = 18f;
+    var startToleranceY = 24f;
+    var landingToleranceX = 18f;
+    var landingToleranceY = edge.Kind == BotNavigationTraversalKind.Walk ? 64f : 18f;
+    var requireGroundedArrival = edge.Kind != BotNavigationTraversalKind.Drop;
+    IReadOnlyList<BotNavigationInputFrame> inputTape = Array.Empty<BotNavigationInputFrame>();
+    if (edge.Kind == BotNavigationTraversalKind.Jump)
+    {
+        startToleranceX = 10f;
+        startToleranceY = 14f;
+        landingToleranceX = 24f;
+        landingToleranceY = 12f;
+        requireGroundedArrival = true;
+        inputTape = edge.InputTape;
+    }
+
+    segment = new BotNavigationScoreRouteSegment
+    {
+        FromNodeId = edge.FromNodeId,
+        ToNodeId = edge.ToNodeId,
+        TraversalKind = edge.Kind,
+        StartToleranceX = startToleranceX,
+        StartToleranceY = startToleranceY,
+        LandingToleranceX = landingToleranceX,
+        LandingToleranceY = landingToleranceY,
+        RequireGroundedArrival = requireGroundedArrival,
+        InputTape = inputTape,
+    };
+    return true;
+}
+
+static ScoreRouteTraversalProofResult BuildProvenScoreRouteSegments(
+    SimpleLevel level,
+    BotNavigationAsset graphAsset,
+    BotNavigationRuntimeGraph navigationGraph,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan)
+{
+    var provenSegmentsByKey = new Dictionary<long, BotNavigationScoreRouteSegment>();
+    var classDefinition = BotNavigationClasses.GetDefinition(profilePlan.ClassId);
+    var provenJumpEdgeCount = 0;
+    var totalJumpEdgeCount = 0;
+    for (var edgeIndex = 0; edgeIndex < graphAsset.Edges.Count; edgeIndex += 1)
+    {
+        var edge = graphAsset.Edges[edgeIndex];
+        if (!navigationGraph.TryGetNode(edge.FromNodeId, out var fromNode)
+            || !navigationGraph.TryGetNode(edge.ToNodeId, out var toNode))
+        {
+            continue;
+        }
+
+        IReadOnlyList<BotNavigationInputFrame> inputTape = Array.Empty<BotNavigationInputFrame>();
+        var startToleranceX = 18f;
+        var startToleranceY = 24f;
+        var landingToleranceX = 18f;
+        var landingToleranceY = edge.Kind == BotNavigationTraversalKind.Walk ? 64f : 18f;
+        var requireGroundedArrival = edge.Kind != BotNavigationTraversalKind.Drop;
+        if (edge.Kind == BotNavigationTraversalKind.Jump)
+        {
+            totalJumpEdgeCount += 1;
+            if (!BotNavigationMovementValidator.TryBuildJumpTape(
+                    level,
+                    classDefinition,
+                    profilePlan.Profile,
+                    fromNode.X,
+                    fromNode.Y - classDefinition.CollisionBottom,
+                    toNode.X,
+                    toNode.Y - classDefinition.CollisionBottom,
+                    team,
+                    out inputTape,
+                    out _))
+            {
+                var fallbackValidated = edge.InputTape.Count > 0
+                    && BotNavigationMovementValidator.TryValidateRecordedTraversalTape(
+                        level,
+                        classDefinition,
+                        fromNode.X,
+                        fromNode.Y - classDefinition.CollisionBottom,
+                        toNode.X,
+                        toNode.Y - classDefinition.CollisionBottom,
+                        team,
+                        edge.InputTape,
+                        requireGroundedArrival: true,
+                        out _,
+                        out _);
+                if (fallbackValidated)
+                {
+                    inputTape = edge.InputTape;
+                }
+                else if (!BotNavigationMovementValidator.TryBuildHintJumpTape(
+                             level,
+                             classDefinition,
+                             profilePlan.Profile,
+                             fromNode.X,
+                             fromNode.Y - classDefinition.CollisionBottom,
+                             toNode.X,
+                             toNode.Y - classDefinition.CollisionBottom,
+                             team,
+                             requireGroundedArrival: true,
+                             out inputTape,
+                             out _))
+                {
+                    continue;
+                }
+            }
+
+            provenJumpEdgeCount += 1;
+            startToleranceX = 10f;
+            startToleranceY = 14f;
+            landingToleranceX = 24f;
+            landingToleranceY = 12f;
+            requireGroundedArrival = true;
+        }
+        else if (edge.Kind == BotNavigationTraversalKind.Drop)
+        {
+            startToleranceX = 18f;
+            startToleranceY = 24f;
+            landingToleranceX = 24f;
+            landingToleranceY = 24f;
+            requireGroundedArrival = false;
+        }
+
+        provenSegmentsByKey[GetRouteEdgeKey(edge.FromNodeId, edge.ToNodeId)] = new BotNavigationScoreRouteSegment
+        {
+            FromNodeId = edge.FromNodeId,
+            ToNodeId = edge.ToNodeId,
+            TraversalKind = edge.Kind,
+            StartToleranceX = startToleranceX,
+            StartToleranceY = startToleranceY,
+            LandingToleranceX = landingToleranceX,
+            LandingToleranceY = landingToleranceY,
+            RequireGroundedArrival = requireGroundedArrival,
+            InputTape = inputTape,
+        };
+    }
+
+    return new ScoreRouteTraversalProofResult(
+        provenSegmentsByKey,
+        provenSegmentsByKey.Count,
+        provenJumpEdgeCount,
+        totalJumpEdgeCount);
+}
+
+static Func<BotNavigationEdge, bool> CreateScoreRouteCandidateEdgeFilter(BotNavigationRuntimeGraph navigationGraph)
+{
+    return edge => !navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId);
+}
+
+static BotScenarioResult RunScoreRouteProof(
+    SimpleLevel level,
+    BotNavigationAsset graphAsset,
+    IReadOnlyList<BotNavigationScoreRouteEntry> routes,
+    PlayerTeam team,
+    PlayerClass classId,
+    NavBuildOptions options)
+{
+    var overrideAsset = new BotNavigationScoreRouteAsset
+    {
+        FormatVersion = BotNavigationScoreRouteStore.CurrentFormatVersion,
+        LevelName = level.Name,
+        MapAreaIndex = level.MapAreaIndex,
+        LevelFingerprint = graphAsset.LevelFingerprint,
+        Routes = routes.ToArray(),
+    };
+    BotNavigationScoreRouteStore.SetRuntimeOverride(level.Name, level.MapAreaIndex, overrideAsset);
+    try
+    {
+        var scenario = new BotScenarioCase(
+            level.Name,
+            team,
+            classId,
+            options.GetEffectiveScoreRouteProofSeconds(),
+            BotPathMode.ModernGraphRoute,
+            BotScenarioKind.Score,
+            level.MapAreaIndex);
+        return RunBotScenarioCase(
+            scenario,
+            options.GetEffectiveScoreRouteProofWallTimeoutMilliseconds(),
+            collectDiagnostics: options.ScoreRouteDiagnostics,
+            earlyNoProgressStopSeconds: options.GetEffectiveScoreRouteNoProgressStopSeconds());
+    }
+    finally
+    {
+        BotNavigationScoreRouteStore.ClearRuntimeOverride(level.Name, level.MapAreaIndex);
+    }
+}
+
+static bool TryRunScoreRouteProofAttempt(
+    SimpleLevel level,
+    BotNavigationAsset graphAsset,
+    IReadOnlyList<BotNavigationScoreRouteEntry> routes,
+    PlayerTeam team,
+    ScoreRouteProfilePlan profilePlan,
+    NavBuildOptions options,
+    Stopwatch contextStopwatch,
+    ref int proofAttempts,
+    string attemptLabel,
+    out BotScenarioResult result,
+    out string stopReason)
+{
+    result = default;
+    if (TryGetScoreRouteProofStopReason(options, contextStopwatch, proofAttempts, out stopReason))
+    {
+        return false;
+    }
+
+    proofAttempts += 1;
+    result = RunScoreRouteProof(level, graphAsset, routes, team, profilePlan.ClassId, options);
+    if (options.ScoreRouteDiagnostics)
+    {
+        Console.WriteLine(
+            $"score-route-probe map={level.Name} area={level.MapAreaIndex} team={team} profile={profilePlan.Profile} class={profilePlan.ClassId} attempt={proofAttempts} kind=\"{CompactScoreRouteLogValue(attemptLabel, 120)}\" {FormatScoreRouteAttemptResult(result)}");
+    }
+
+    stopReason = string.Empty;
+    return true;
+}
+
+static bool TryGetScoreRouteProofStopReason(
+    NavBuildOptions options,
+    Stopwatch contextStopwatch,
+    int proofAttempts,
+    out string stopReason)
+{
+    stopReason = string.Empty;
+    var maxProofAttempts = options.GetEffectiveScoreRouteMaxProofAttemptsPerContext();
+    if (maxProofAttempts > 0 && proofAttempts >= maxProofAttempts)
+    {
+        stopReason = $"max_proofs_{maxProofAttempts}";
+        return true;
+    }
+
+    return TryGetScoreRouteBudgetStopReason(options.GetEffectiveScoreRouteContextBudgetMilliseconds(), contextStopwatch, out stopReason);
+}
+
+static bool TryGetScoreRouteBudgetStopReason(int budgetMilliseconds, Stopwatch stopwatch, out string stopReason)
+{
+    stopReason = string.Empty;
+    if (budgetMilliseconds > 0 && stopwatch.ElapsedMilliseconds >= budgetMilliseconds)
+    {
+        stopReason = $"budget_{budgetMilliseconds}ms_elapsed_{stopwatch.ElapsedMilliseconds}ms";
+        return true;
+    }
+
+    return false;
+}
+
+static string FormatScoreRouteStopReason(string stopReason)
+{
+    return string.IsNullOrWhiteSpace(stopReason)
+        ? string.Empty
+        : $" stopped={stopReason}";
+}
+
+static string FormatScoreRouteBestResult(bool hasBestResult, BotScenarioResult bestResult)
+{
+    if (!hasBestResult)
+    {
+        return "start=n/a best=n/a progress=n/a reason=no_proof_attempts";
+    }
+
+    return
+        $"start={bestResult.StartObjectiveDistance:0.0} best={bestResult.BestObjectiveDistance:0.0} progress={bestResult.StartObjectiveDistance - bestResult.BestObjectiveDistance:0.0} reason={bestResult.FailureReason}";
+}
+
+static string FormatScoreRouteAttemptResult(BotScenarioResult result)
+{
+    var progress = result.StartObjectiveDistance - result.BestObjectiveDistance;
+    var phase = ExtractLatestTraceToken(result.TraceSummary, "phase=");
+    var navIssue = ExtractLatestTraceToken(result.TraceSummary, "navIssue=");
+    var routeGoal = ExtractLatestTraceToken(result.TraceSummary, "routeGoal=");
+    var status = result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail";
+    var details =
+        $"status={status} elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} noProgress={result.LongestNoProgressSeconds:0.0}s phase={phase} navIssue={navIssue} routeGoal={routeGoal} reason={CompactScoreRouteLogValue(result.FailureReason, 180)}";
+    if (!string.IsNullOrWhiteSpace(result.RouteSummary))
+    {
+        details += $" routes=\"{CompactScoreRouteLogValue(result.RouteSummary, 240)}\"";
+    }
+
+    if (!string.IsNullOrWhiteSpace(result.ObjectiveSummary))
+    {
+        details += $" objective=\"{CompactScoreRouteLogValue(result.ObjectiveSummary, 320)}\"";
+    }
+
+    var traceEvents = ExtractTraceEvents(result.TraceSummary);
+    if (!string.IsNullOrWhiteSpace(traceEvents))
+    {
+        details += $" events=\"{CompactScoreRouteLogValue(traceEvents, 500)}\"";
+    }
+
+    return details;
+}
+
+static string ExtractLatestTraceToken(string traceSummary, string tokenPrefix)
+{
+    if (string.IsNullOrWhiteSpace(traceSummary))
+    {
+        return "n/a";
+    }
+
+    var searchIndex = traceSummary.Length;
+    while (searchIndex > 0)
+    {
+        var index = traceSummary.LastIndexOf(tokenPrefix, searchIndex - 1, StringComparison.Ordinal);
+        if (index < 0)
+        {
+            return "n/a";
+        }
+
+        var valueStart = index + tokenPrefix.Length;
+        if (valueStart >= traceSummary.Length)
+        {
+            searchIndex = index;
+            continue;
+        }
+
+        var valueEnd = valueStart;
+        while (valueEnd < traceSummary.Length
+            && !char.IsWhiteSpace(traceSummary[valueEnd])
+            && traceSummary[valueEnd] != '|')
+        {
+            valueEnd += 1;
+        }
+
+        if (valueEnd > valueStart)
+        {
+            return CompactScoreRouteLogValue(traceSummary[valueStart..valueEnd], 80);
+        }
+
+        searchIndex = index;
+    }
+
+    return "n/a";
+}
+
+static string ExtractTraceEvents(string traceSummary)
+{
+    if (string.IsNullOrWhiteSpace(traceSummary))
+    {
+        return string.Empty;
+    }
+
+    const string marker = "|| events:";
+    var index = traceSummary.LastIndexOf(marker, StringComparison.Ordinal);
+    return index < 0
+        ? string.Empty
+        : traceSummary[(index + marker.Length)..].Trim();
+}
+
+static string CompactScoreRouteLogValue(string value, int maxLength)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return "n/a";
+    }
+
+    var compact = value
+        .Replace('\r', ' ')
+        .Replace('\n', ' ')
+        .Replace('"', '\'')
+        .Trim();
+    while (compact.Contains("  ", StringComparison.Ordinal))
+    {
+        compact = compact.Replace("  ", " ", StringComparison.Ordinal);
+    }
+
+    if (maxLength > 0 && compact.Length > maxLength)
+    {
+        return compact[..Math.Max(0, maxLength - 3)] + "...";
+    }
+
+    return compact;
+}
+
+static bool TryCreateScoreRouteProbeWorld(
+    string levelName,
+    int mapAreaIndex,
+    PlayerTeam team,
+    PlayerClass classId,
+    out SimulationWorld world,
+    out PlayerEntity bot,
+    out string? failureReason)
+{
+    world = new SimulationWorld();
+    bot = default!;
+    if (!world.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats: false))
+    {
+        failureReason = $"failed_to_load_level:{levelName}:a{mapAreaIndex}";
+        return false;
+    }
+
+    world.PrepareLocalPlayerJoin();
+    const byte botSlot = 2;
+    if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+        || !world.TrySetNetworkPlayerTeam(botSlot, team)
+        || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+        || !world.TryGetNetworkPlayer(botSlot, out bot))
+    {
+        failureReason = "failed_to_spawn_probe_player";
+        return false;
+    }
+
+    failureReason = null;
+    return true;
+}
+
+static bool TryGetScoreRouteGoal(
+    SimulationWorld world,
+    PlayerEntity bot,
+    PlayerTeam team,
+    BotNavigationScoreRoutePhase phase,
+    out (float X, float Y) goal,
+    out string? failureReason)
+{
+    goal = default;
+    failureReason = null;
+    switch (phase)
+    {
+        case BotNavigationScoreRoutePhase.AttackIntel:
+        case BotNavigationScoreRoutePhase.CaptureObjective:
+        {
+            var objective = ResolveTeamObjective(world, bot, team);
+            goal = (objective.X, objective.Y);
+            return true;
+        }
+
+        case BotNavigationScoreRoutePhase.ReturnIntel:
+        {
+            var ownBase = world.Level.GetIntelBase(team);
+            if (!ownBase.HasValue)
+            {
+                failureReason = "missing_own_base";
+                return false;
+            }
+
+            goal = (ownBase.Value.X, ownBase.Value.Y);
+            return true;
+        }
+    }
+
+    failureReason = $"unsupported_phase:{phase}";
+    return false;
+}
+
+static bool IsBetterScoreRouteProofResult(BotScenarioResult candidate, BotScenarioResult currentBest)
+{
+    if (candidate.Passed != currentBest.Passed)
+    {
+        return candidate.Passed;
+    }
+
+    if (candidate.CompletedObjective != currentBest.CompletedObjective)
+    {
+        return candidate.CompletedObjective;
+    }
+
+    if (candidate.BestObjectiveDistance != currentBest.BestObjectiveDistance)
+    {
+        return candidate.BestObjectiveDistance < currentBest.BestObjectiveDistance;
+    }
+
+    return candidate.MaxDistanceFromSpawn > currentBest.MaxDistanceFromSpawn;
+}
+
+static IReadOnlyList<ScoreRouteProfilePlan> GetScoreRouteProfilePlans()
+{
+    return
+    [
+        new ScoreRouteProfilePlan(BotNavigationProfile.Light, PlayerClass.Scout),
+        new ScoreRouteProfilePlan(BotNavigationProfile.Standard, PlayerClass.Pyro),
+        new ScoreRouteProfilePlan(BotNavigationProfile.Heavy, PlayerClass.Heavy),
+    ];
 }
 
 static int RunOrangeLipProbe()
@@ -731,11 +1956,15 @@ static List<BotScenarioCase> BuildBotScenarioCases(NavBuildOptions options)
     return cases;
 }
 
-static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTimeoutMilliseconds, bool collectDiagnostics)
+static BotScenarioResult RunBotScenarioCase(
+    BotScenarioCase scenario,
+    int wallTimeoutMilliseconds,
+    bool collectDiagnostics,
+    int earlyNoProgressStopSeconds = 0)
 {
     var wallClock = Stopwatch.StartNew();
     var world = new SimulationWorld();
-    if (!world.TryLoadLevel(scenario.LevelName))
+    if (!world.TryLoadLevel(scenario.LevelName, scenario.MapAreaIndex, preservePlayerStats: false))
     {
         return new BotScenarioResult(
             Passed: false,
@@ -750,7 +1979,8 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             WallMilliseconds: wallClock.ElapsedMilliseconds,
             RouteSummary: string.Empty,
             TraceSummary: string.Empty,
-            FailureReason: "failed_to_load_level");
+            ObjectiveSummary: string.Empty,
+            FailureReason: $"failed_to_load_level:{scenario.LevelName}:a{scenario.MapAreaIndex}");
     }
 
     world.PrepareLocalPlayerJoin();
@@ -774,6 +2004,7 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             WallMilliseconds: wallClock.ElapsedMilliseconds,
             RouteSummary: string.Empty,
             TraceSummary: string.Empty,
+            ObjectiveSummary: string.Empty,
             FailureReason: "failed_to_spawn_bot");
     }
 
@@ -801,6 +2032,7 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             WallMilliseconds: wallClock.ElapsedMilliseconds,
             RouteSummary: string.Empty,
             TraceSummary: string.Empty,
+            ObjectiveSummary: string.Empty,
             FailureReason: setupFailureReason ?? "failed_to_prepare_scenario");
     }
 
@@ -823,12 +2055,58 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
     var completedObjective = false;
     var satisfiedScenario = false;
     var totalTicks = world.Config.TicksPerSecond * scenario.SimulationSeconds;
+    var earlyNoProgressStopTicks = earlyNoProgressStopSeconds > 0
+        ? world.Config.TicksPerSecond * earlyNoProgressStopSeconds
+        : 0;
     var lastCarryState = bot.IsCarryingIntel;
     var lastRedCaps = world.RedCaps;
     var lastBlueCaps = world.BlueCaps;
     var lastRedKothTicks = world.KothRedTimerTicksRemaining;
     var lastBlueKothTicks = world.KothBlueTimerTicksRemaining;
+    var startBotInCaptureZone = IsPlayerInCaptureZone(world, bot);
     var lastPointState = DescribeTrackedControlPoint(world, objective.ControlPointIndex);
+    var firstObjectiveZoneTick = IsBotInObjectiveZoneForScenario(world, bot, objective, scenario.Team, startBotInCaptureZone, startObjectiveDistance)
+        ? 0
+        : (int?)null;
+    var firstCarryTick = bot.IsCarryingIntel ? 0 : (int?)null;
+    var firstCapProgressTick = HasTeamCaptureProgressStarted(world, objective.ControlPointIndex, scenario.Team, initialRedKothTicks, initialBlueKothTicks)
+        ? 0
+        : (int?)null;
+    var objectiveAreaEntryTick = IsBotInObjectiveAreaForScenario(objective.Mode, startObjectiveDistance, startBotInCaptureZone)
+        ? 0
+        : (int?)null;
+    var objectiveAreaEntryRouteLabel = string.Empty;
+    var objectiveAreaEntryRouteGoal = string.Empty;
+    var hasEverCaptureZoneRect = startBotInCaptureZone;
+    var captureHoldSeen = false;
+    var bestCtfAttackDistance = objective.Mode == GameModeKind.CaptureTheFlag && !bot.IsCarryingIntel
+        ? startObjectiveDistance
+        : float.PositiveInfinity;
+    var bestCtfReturnDistance = objective.Mode == GameModeKind.CaptureTheFlag && bot.IsCarryingIntel
+        ? startObjectiveDistance
+        : float.PositiveInfinity;
+    var lastScorePhase = collectDiagnostics
+        ? DescribeScorePhase(
+            scenario,
+            world,
+            bot,
+            objective,
+            completedObjective: false,
+            botInCaptureZone: startBotInCaptureZone,
+            objectiveDistance: startObjectiveDistance,
+            initialRedCaps,
+            initialBlueCaps,
+            initialRedKothTicks,
+            initialBlueKothTicks,
+            scenario.Team)
+        : string.Empty;
+    var lastRouteGoalKey = string.Empty;
+    var lastNavigationIssueKey = string.Empty;
+    if (collectDiagnostics && !string.IsNullOrEmpty(lastScorePhase))
+    {
+        objectiveTrace!.Add(
+            $"t=0.0 phase={lastScorePhase} obj=({objective.X:0.0},{objective.Y:0.0}) d={startObjectiveDistance:0.0} carry={bot.IsCarryingIntel}");
+    }
 
     for (var tick = 0; tick < totalTicks; tick += 1)
     {
@@ -849,6 +2127,17 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
                 objectiveTrace,
                 satisfiedScenario,
                 completedObjective,
+                firstObjectiveZoneTick,
+                firstCarryTick,
+                firstCapProgressTick,
+                hasEverCaptureZoneRect,
+                captureHoldSeen,
+                collectDiagnostics,
+                objectiveAreaEntryTick,
+                objectiveAreaEntryRouteLabel,
+                objectiveAreaEntryRouteGoal,
+                bestCtfAttackDistance,
+                bestCtfReturnDistance,
                 failureReason: $"wall_timeout_{wallTimeoutMilliseconds}ms",
                 timedOut: true);
         }
@@ -871,6 +2160,17 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
                 objectiveTrace,
                 satisfiedScenario,
                 completedObjective,
+                firstObjectiveZoneTick,
+                firstCarryTick,
+                firstCapProgressTick,
+                hasEverCaptureZoneRect,
+                captureHoldSeen,
+                collectDiagnostics,
+                objectiveAreaEntryTick,
+                objectiveAreaEntryRouteLabel,
+                objectiveAreaEntryRouteGoal,
+                bestCtfAttackDistance,
+                bestCtfReturnDistance,
                 failureReason: "failed_to_apply_input",
                 timedOut: false);
         }
@@ -892,6 +2192,36 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             : default;
         var objectiveDistance = DistanceBetween(bot.X, bot.Y, objective.X, objective.Y);
         var botInCaptureZone = IsPlayerInCaptureZone(world, bot);
+        if (objective.Mode == GameModeKind.CaptureTheFlag)
+        {
+            if (bot.IsCarryingIntel)
+            {
+                bestCtfReturnDistance = MathF.Min(bestCtfReturnDistance, objectiveDistance);
+            }
+            else
+            {
+                bestCtfAttackDistance = MathF.Min(bestCtfAttackDistance, objectiveDistance);
+            }
+        }
+
+        if (!firstCarryTick.HasValue && bot.IsCarryingIntel)
+        {
+            firstCarryTick = tick;
+        }
+
+        if (!firstObjectiveZoneTick.HasValue
+            && IsBotInObjectiveZoneForScenario(world, bot, objective, scenario.Team, botInCaptureZone, objectiveDistance))
+        {
+            firstObjectiveZoneTick = tick;
+        }
+
+        if (!firstCapProgressTick.HasValue
+            && HasTeamCaptureProgressStarted(world, objective.ControlPointIndex, scenario.Team, initialRedKothTicks, initialBlueKothTicks))
+        {
+            firstCapProgressTick = tick;
+        }
+
+        hasEverCaptureZoneRect |= botInCaptureZone;
         if (objectiveDistance + 16f < bestObjectiveDistance
             || botInCaptureZone
             || (collectDiagnostics && diagnostic.RouteLabel.EndsWith("capture_zone_hold", StringComparison.Ordinal)))
@@ -905,6 +2235,24 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             longestNoProgressTicks = Math.Max(longestNoProgressTicks, ticksSinceBestObjectiveProgress);
         }
 
+        if (!objectiveAreaEntryTick.HasValue
+            && IsBotInObjectiveAreaForScenario(objective.Mode, objectiveDistance, botInCaptureZone))
+        {
+            objectiveAreaEntryTick = tick;
+            if (collectDiagnostics)
+            {
+                objectiveAreaEntryRouteLabel = diagnostic.RouteLabel;
+                objectiveAreaEntryRouteGoal = $"{diagnostic.RouteGoalNodeId}@({diagnostic.RouteGoalX:0.0},{diagnostic.RouteGoalY:0.0})";
+            }
+        }
+
+        if (collectDiagnostics
+            && !captureHoldSeen
+            && diagnostic.RouteLabel.Contains("capture_zone_hold", StringComparison.Ordinal))
+        {
+            captureHoldSeen = true;
+        }
+
         maxDistanceFromSpawn = MathF.Max(maxDistanceFromSpawn, DistanceBetween(bot.X, bot.Y, startX, startY));
         if (collectDiagnostics)
         {
@@ -915,7 +2263,7 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
         if (collectDiagnostics && tick % Math.Max(1, world.Config.TicksPerSecond / 30) == 0)
         {
             routeTrace!.Add(
-                $"t={tick / (float)world.Config.TicksPerSecond:0.0} pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0} vel=({bot.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0},{bot.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0}) target=({diagnostic.MovementTargetX:0.0},{diagnostic.MovementTargetY:0.0}) input=L{input.Left}/R{input.Right}/J{input.Up} req={diagnostic.RequestedHorizontal}/{diagnostic.RequestedJump} move={diagnostic.MoveDebug} jump={diagnostic.JumpDebug} g={diagnostic.IsGrounded}/{diagnostic.ProbeGrounded} st={diagnostic.StuckTicks}/{diagnostic.ModernStuckTicks} d={objectiveDistance:0.0} route={diagnostic.RouteLabel} cp={diagnostic.CurrentPointId} np={diagnostic.NextPointId} np2={diagnostic.NextPoint2Id} prev={diagnostic.PreviousCurrentPointId}->{diagnostic.PreviousNextPointId} goal={diagnostic.RouteGoalNodeId} sab={diagnostic.SecondAnchorBlockPointId}/{diagnostic.SecondAnchorBlockTicksRemaining}");
+                $"t={tick / (float)world.Config.TicksPerSecond:0.0} pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0} vel=({bot.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0},{bot.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0}) target=({diagnostic.MovementTargetX:0.0},{diagnostic.MovementTargetY:0.0}) input=L{input.Left}/R{input.Right}/J{input.Up} req={diagnostic.RequestedHorizontal}/{diagnostic.RequestedJump} move={diagnostic.MoveDebug} jump={diagnostic.JumpDebug} g={diagnostic.IsGrounded}/{diagnostic.ProbeGrounded} st={diagnostic.StuckTicks}/{diagnostic.ModernStuckTicks} d={objectiveDistance:0.0} route={diagnostic.RouteLabel} cp={diagnostic.CurrentPointId} np={diagnostic.NextPointId} np2={diagnostic.NextPoint2Id} prev={diagnostic.PreviousCurrentPointId}->{diagnostic.PreviousNextPointId} goal={diagnostic.RouteGoalNodeId}@({diagnostic.RouteGoalX:0.0},{diagnostic.RouteGoalY:0.0}) nn={diagnostic.NoNextPointTicks} sab={diagnostic.SecondAnchorBlockPointId}/{diagnostic.SecondAnchorBlockTicksRemaining} issue={diagnostic.NavigationIssueLabel} br={diagnostic.BranchFromPointId}->{diagnostic.BranchToPointId}:{diagnostic.BranchTicks}/{diagnostic.BranchNoProgressTicks} dt={diagnostic.DirectTargetTicks}/{diagnostic.DirectTargetNoProgressTicks}");
             if (routeTrace.Count > 120)
             {
                 routeTrace.RemoveAt(0);
@@ -929,6 +2277,45 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
             {
                 objectiveTrace!.Add($"t={timeSeconds:0.0} carry={bot.IsCarryingIntel}");
                 lastCarryState = bot.IsCarryingIntel;
+            }
+
+            var scorePhase = DescribeScorePhase(
+                scenario,
+                world,
+                bot,
+                objective,
+                completedObjective,
+                botInCaptureZone,
+                objectiveDistance,
+                initialRedCaps,
+                initialBlueCaps,
+                initialRedKothTicks,
+                initialBlueKothTicks,
+                scenario.Team);
+            if (!string.IsNullOrEmpty(scorePhase)
+                && !string.Equals(scorePhase, lastScorePhase, StringComparison.Ordinal))
+            {
+                objectiveTrace!.Add(
+                    $"t={timeSeconds:0.0} phase={scorePhase} d={objectiveDistance:0.0} carry={bot.IsCarryingIntel} caps={world.RedCaps}-{world.BlueCaps} koth={world.KothRedTimerTicksRemaining}-{world.KothBlueTimerTicksRemaining}");
+                lastScorePhase = scorePhase;
+            }
+
+            var routeGoalKey = $"{diagnostic.RouteGoalNodeId}@{diagnostic.RouteGoalX:0.0},{diagnostic.RouteGoalY:0.0}";
+            if (!string.Equals(routeGoalKey, lastRouteGoalKey, StringComparison.Ordinal))
+            {
+                objectiveTrace!.Add(
+                    $"t={timeSeconds:0.0} routeGoal={routeGoalKey} target=({diagnostic.MovementTargetX:0.0},{diagnostic.MovementTargetY:0.0}) route={diagnostic.RouteLabel} cp={diagnostic.CurrentPointId} np={diagnostic.NextPointId} nn={diagnostic.NoNextPointTicks} issue={diagnostic.NavigationIssueLabel}");
+                lastRouteGoalKey = routeGoalKey;
+            }
+
+            var navigationIssueKey = string.IsNullOrWhiteSpace(diagnostic.NavigationIssueLabel)
+                ? "clear"
+                : diagnostic.NavigationIssueLabel;
+            if (!string.Equals(navigationIssueKey, lastNavigationIssueKey, StringComparison.Ordinal))
+            {
+                objectiveTrace!.Add(
+                    $"t={timeSeconds:0.0} navIssue={navigationIssueKey} branch={diagnostic.BranchFromPointId}->{diagnostic.BranchToPointId} br={diagnostic.BranchTicks}/{diagnostic.BranchNoProgressTicks} dt={diagnostic.DirectTargetTicks}/{diagnostic.DirectTargetNoProgressTicks} route={diagnostic.RouteLabel}");
+                lastNavigationIssueKey = navigationIssueKey;
             }
 
             if (world.RedCaps != lastRedCaps || world.BlueCaps != lastBlueCaps)
@@ -952,7 +2339,7 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
                 lastPointState = pointState;
             }
 
-            if (objectiveTrace.Count > 40)
+            if (objectiveTrace!.Count > 80)
             {
                 objectiveTrace.RemoveAt(0);
             }
@@ -970,6 +2357,39 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
         if (satisfiedScenario)
         {
             break;
+        }
+
+        if (earlyNoProgressStopTicks > 0
+            && ticksSinceBestObjectiveProgress >= earlyNoProgressStopTicks)
+        {
+            return CreateScenarioResult(
+                scenario,
+                world,
+                bot,
+                startObjectiveDistance,
+                bestObjectiveDistance,
+                maxDistanceFromSpawn,
+                maxStuckTicks,
+                longestNoProgressTicks,
+                wallClock.ElapsedMilliseconds,
+                routeLabelCounts,
+                routeTrace,
+                objectiveTrace,
+                satisfiedScenario,
+                completedObjective,
+                firstObjectiveZoneTick,
+                firstCarryTick,
+                firstCapProgressTick,
+                hasEverCaptureZoneRect,
+                captureHoldSeen,
+                collectDiagnostics,
+                objectiveAreaEntryTick,
+                objectiveAreaEntryRouteLabel,
+                objectiveAreaEntryRouteGoal,
+                bestCtfAttackDistance,
+                bestCtfReturnDistance,
+                failureReason: $"early_no_progress_{ticksSinceBestObjectiveProgress / (float)world.Config.TicksPerSecond:0.0}s",
+                timedOut: false);
         }
     }
 
@@ -1015,6 +2435,17 @@ static BotScenarioResult RunBotScenarioCase(BotScenarioCase scenario, int wallTi
         objectiveTrace,
         satisfiedScenario,
         completedObjective,
+        firstObjectiveZoneTick,
+        firstCarryTick,
+        firstCapProgressTick,
+        hasEverCaptureZoneRect,
+        captureHoldSeen,
+        collectDiagnostics,
+        objectiveAreaEntryTick,
+        objectiveAreaEntryRouteLabel,
+        objectiveAreaEntryRouteGoal,
+        bestCtfAttackDistance,
+        bestCtfReturnDistance,
         failureReason,
         timedOut: false);
 }
@@ -1034,6 +2465,17 @@ static BotScenarioResult CreateScenarioResult(
     List<string>? objectiveTrace,
     bool satisfiedScenario,
     bool completedObjective,
+    int? firstObjectiveZoneTick,
+    int? firstCarryTick,
+    int? firstCapProgressTick,
+    bool hasEverCaptureZoneRect,
+    bool captureHoldSeen,
+    bool captureHoldKnown,
+    int? objectiveAreaEntryTick,
+    string objectiveAreaEntryRouteLabel,
+    string objectiveAreaEntryRouteGoal,
+    float bestCtfAttackDistance,
+    float bestCtfReturnDistance,
     string? failureReason,
     bool timedOut)
 {
@@ -1049,6 +2491,21 @@ static BotScenarioResult CreateScenarioResult(
             ? $"events: {string.Join(" | ", objectiveTrace)}"
             : $"{traceSummary} || events: {string.Join(" | ", objectiveTrace)}";
     }
+    var objectiveSummary = BuildScenarioObjectiveSummary(
+        scenario,
+        world,
+        firstObjectiveZoneTick,
+        firstCarryTick,
+        firstCapProgressTick,
+        hasEverCaptureZoneRect,
+        captureHoldSeen,
+        captureHoldKnown,
+        objectiveAreaEntryTick,
+        objectiveAreaEntryRouteLabel,
+        objectiveAreaEntryRouteGoal,
+        bestCtfAttackDistance,
+        bestCtfReturnDistance);
+
     return new BotScenarioResult(
         Passed: !timedOut && satisfiedScenario && string.IsNullOrEmpty(failureReason),
         TimedOut: timedOut,
@@ -1062,7 +2519,64 @@ static BotScenarioResult CreateScenarioResult(
         WallMilliseconds: wallMilliseconds,
         RouteSummary: routeSummary,
         TraceSummary: traceSummary,
+        ObjectiveSummary: objectiveSummary,
         FailureReason: failureReason ?? string.Empty);
+}
+
+static string BuildScenarioObjectiveSummary(
+    BotScenarioCase scenario,
+    SimulationWorld world,
+    int? firstObjectiveZoneTick,
+    int? firstCarryTick,
+    int? firstCapProgressTick,
+    bool hasEverCaptureZoneRect,
+    bool captureHoldSeen,
+    bool captureHoldKnown,
+    int? objectiveAreaEntryTick,
+    string objectiveAreaEntryRouteLabel,
+    string objectiveAreaEntryRouteGoal,
+    float bestCtfAttackDistance,
+    float bestCtfReturnDistance)
+{
+    var ticksPerSecond = Math.Max(1, world.Config.TicksPerSecond);
+    var ctfMode = world.MatchRules.Mode == GameModeKind.CaptureTheFlag;
+    var ctfAttackBest = ctfMode && !float.IsPositiveInfinity(bestCtfAttackDistance)
+        ? bestCtfAttackDistance.ToString("0.0", CultureInfo.InvariantCulture)
+        : "n/a";
+    var ctfReturnBest = ctfMode && !float.IsPositiveInfinity(bestCtfReturnDistance)
+        ? bestCtfReturnDistance.ToString("0.0", CultureInfo.InvariantCulture)
+        : "n/a";
+    var capHold = captureHoldKnown
+        ? (captureHoldSeen ? "true" : "false")
+        : "n/a";
+    var entryRoute = string.IsNullOrWhiteSpace(objectiveAreaEntryRouteLabel)
+        ? "n/a"
+        : CompactScoreRouteLogValue(objectiveAreaEntryRouteLabel, 60);
+    var entryGoal = string.IsNullOrWhiteSpace(objectiveAreaEntryRouteGoal)
+        ? "n/a"
+        : CompactScoreRouteLogValue(objectiveAreaEntryRouteGoal, 80);
+
+    return
+        $"zoneFirst={FormatTickSeconds(firstObjectiveZoneTick, ticksPerSecond)};" +
+        $"carryFirst={FormatTickSeconds(firstCarryTick, ticksPerSecond)};" +
+        $"capProgFirst={FormatTickSeconds(firstCapProgressTick, ticksPerSecond)};" +
+        $"capRectEver={hasEverCaptureZoneRect};" +
+        $"capHold={capHold};" +
+        $"entry={FormatTickSeconds(objectiveAreaEntryTick, ticksPerSecond)};" +
+        $"entryRoute={entryRoute};" +
+        $"entryGoal={entryGoal};" +
+        $"ctfAttackBest={ctfAttackBest};" +
+        $"ctfReturnBest={ctfReturnBest}";
+}
+
+static string FormatTickSeconds(int? tick, int ticksPerSecond)
+{
+    if (!tick.HasValue || tick.Value < 0 || ticksPerSecond <= 0)
+    {
+        return "n/a";
+    }
+
+    return (tick.Value / (float)ticksPerSecond).ToString("0.0s", CultureInfo.InvariantCulture);
 }
 
 static string DescribeTrackedControlPoint(SimulationWorld world, int controlPointIndex)
@@ -1575,6 +3089,136 @@ static bool HasSatisfiedScenario(
     };
 }
 
+static string DescribeScorePhase(
+    BotScenarioCase scenario,
+    SimulationWorld world,
+    PlayerEntity bot,
+    BotObjectiveProbe objective,
+    bool completedObjective,
+    bool botInCaptureZone,
+    float objectiveDistance,
+    int initialRedCaps,
+    int initialBlueCaps,
+    int initialRedKothTicks,
+    int initialBlueKothTicks,
+    PlayerTeam team)
+{
+    if (scenario.Kind != BotScenarioKind.Score)
+    {
+        return string.Empty;
+    }
+
+    if (completedObjective)
+    {
+        return "score_complete";
+    }
+
+    if (objective.Mode == GameModeKind.CaptureTheFlag)
+    {
+        if (bot.IsCarryingIntel)
+        {
+            return objectiveDistance <= MathF.Max(80f, GetArrivalDistance(objective.Mode) + 24f)
+                ? "ctf_pre_score"
+                : "ctf_return";
+        }
+
+        return "ctf_attack";
+    }
+
+    if (objective.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+    {
+        var hasTimerProgress = team == PlayerTeam.Blue
+            ? world.KothBlueTimerTicksRemaining < initialBlueKothTicks
+            : world.KothRedTimerTicksRemaining < initialRedKothTicks;
+        if (hasTimerProgress)
+        {
+            return botInCaptureZone ? "koth_progress_hold" : "koth_progress";
+        }
+
+        return botInCaptureZone ? "koth_capture_zone" : "koth_approach";
+    }
+
+    if (objective.ControlPointIndex >= 0)
+    {
+        var point = world.ControlPoints.FirstOrDefault(candidate => candidate.Index == objective.ControlPointIndex);
+        if (point is not null && point.Team == team)
+        {
+            return "cp_owned";
+        }
+    }
+
+    return botInCaptureZone ? "cp_capture_zone" : "cp_approach";
+}
+
+static bool IsBotInObjectiveZoneForScenario(
+    SimulationWorld world,
+    PlayerEntity bot,
+    BotObjectiveProbe objective,
+    PlayerTeam team,
+    bool botInCaptureZone,
+    float objectiveDistance)
+{
+    _ = team;
+    if (objective.Mode == GameModeKind.CaptureTheFlag)
+    {
+        return objectiveDistance <= GetArrivalDistance(world.MatchRules.Mode);
+    }
+
+    return botInCaptureZone;
+}
+
+static bool IsBotInObjectiveAreaForScenario(
+    GameModeKind mode,
+    float objectiveDistance,
+    bool botInCaptureZone)
+{
+    if (mode == GameModeKind.CaptureTheFlag)
+    {
+        return objectiveDistance <= MathF.Max(96f, GetArrivalDistance(mode) + 24f);
+    }
+
+    return botInCaptureZone || objectiveDistance <= MathF.Max(120f, GetArrivalDistance(mode) + 36f);
+}
+
+static bool HasTeamCaptureProgressStarted(
+    SimulationWorld world,
+    int controlPointIndex,
+    PlayerTeam team,
+    int initialRedKothTicks,
+    int initialBlueKothTicks)
+{
+    if (world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+    {
+        return team == PlayerTeam.Blue
+            ? world.KothBlueTimerTicksRemaining < initialBlueKothTicks
+            : world.KothRedTimerTicksRemaining < initialRedKothTicks;
+    }
+
+    if (controlPointIndex < 0)
+    {
+        return false;
+    }
+
+    var point = world.ControlPoints.FirstOrDefault(candidate => candidate.Index == controlPointIndex);
+    if (point is null)
+    {
+        return false;
+    }
+
+    if (point.Team == team)
+    {
+        return true;
+    }
+
+    if (point.CappingTeam != team)
+    {
+        return false;
+    }
+
+    return point.CappingTicks > 0f
+        || (team == PlayerTeam.Blue ? point.BlueCappers : point.RedCappers) > 0;
+}
+
 static bool IsPlayerInCaptureZone(SimulationWorld world, PlayerEntity player)
 {
     if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
@@ -1889,6 +3533,11 @@ static float DistanceBetween(float x1, float y1, float x2, float y2)
     return MathF.Sqrt((dx * dx) + (dy * dy));
 }
 
+static long GetRouteEdgeKey(int fromNodeId, int toNodeId)
+{
+    return ((long)fromNodeId << 32) | (uint)toNodeId;
+}
+
 static bool TryResolveCaptureObjectiveForTool(
     SimulationWorld world,
     PlayerEntity player,
@@ -1958,7 +3607,7 @@ static IReadOnlyList<string> GetStockScoreMaps()
 internal sealed class NavBuildOptions
 {
     public const string Usage =
-        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--run-bot-scenario] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--path-mode ModernHybrid|ClientBot2020Compat] [--seconds N] [--wall-timeout-ms N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch]";
+        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--path-mode ModernHybrid|ClientBot2020Compat|ModernGraphRoute] [--seconds N] [--wall-timeout-ms N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch]";
 
     public HashSet<string> MapNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -1973,6 +3622,22 @@ internal sealed class NavBuildOptions
     public bool RepairShipped { get; private set; }
 
     public bool AuditCaptureRoutes { get; private set; }
+
+    public bool ValidateModernEdges { get; private set; }
+
+    public bool BuildScoreRoutes { get; private set; }
+
+    public bool ScoreRouteDiagnostics { get; private set; }
+
+    public int ScoreRouteMaxPhaseRoutes { get; private set; }
+
+    public int ScoreRouteMaxProofAttemptsPerContext { get; private set; }
+
+    public int ScoreRouteContextBudgetMilliseconds { get; private set; }
+
+    public int ScoreRouteMapBudgetMilliseconds { get; private set; }
+
+    public int ScoreRouteNoProgressStopSeconds { get; private set; } = 45;
 
     public bool RunBotScenarioHarness { get; private set; }
 
@@ -2056,6 +3721,79 @@ internal sealed class NavBuildOptions
             if (arg.Equals("--audit-capture-routes", StringComparison.OrdinalIgnoreCase))
             {
                 options.AuditCaptureRoutes = true;
+                continue;
+            }
+
+            if (arg.Equals("--validate-modern-edges", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ValidateModernEdges = true;
+                continue;
+            }
+
+            if (arg.Equals("--build-score-routes", StringComparison.OrdinalIgnoreCase))
+            {
+                options.BuildScoreRoutes = true;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-diagnostics", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ScoreRouteDiagnostics = true;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-max-phase-routes", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), out var maxPhaseRoutes))
+                {
+                    throw new ArgumentException($"Invalid score-route-max-phase-routes value '{args[index]}'.");
+                }
+
+                options.ScoreRouteMaxPhaseRoutes = maxPhaseRoutes;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-max-proof-attempts", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), out var maxProofAttempts))
+                {
+                    throw new ArgumentException($"Invalid score-route-max-proof-attempts value '{args[index]}'.");
+                }
+
+                options.ScoreRouteMaxProofAttemptsPerContext = maxProofAttempts;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-context-budget-ms", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), out var contextBudgetMs))
+                {
+                    throw new ArgumentException($"Invalid score-route-context-budget-ms value '{args[index]}'.");
+                }
+
+                options.ScoreRouteContextBudgetMilliseconds = contextBudgetMs;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-map-budget-ms", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), out var mapBudgetMs))
+                {
+                    throw new ArgumentException($"Invalid score-route-map-budget-ms value '{args[index]}'.");
+                }
+
+                options.ScoreRouteMapBudgetMilliseconds = mapBudgetMs;
+                continue;
+            }
+
+            if (arg.Equals("--score-route-no-progress-stop-seconds", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), out var noProgressStopSeconds))
+                {
+                    throw new ArgumentException($"Invalid score-route-no-progress-stop-seconds value '{args[index]}'.");
+                }
+
+                options.ScoreRouteNoProgressStopSeconds = noProgressStopSeconds;
                 continue;
             }
 
@@ -2222,6 +3960,57 @@ internal sealed class NavBuildOptions
             }
         }
 
+        if (BuildScoreRoutes && GetEffectiveWallTimeoutMilliseconds() <= 0)
+        {
+            message = "--wall-timeout-ms must be greater than zero.";
+            return false;
+        }
+
+        if (BuildScoreRoutes)
+        {
+            if (GetEffectiveScoreRouteProofSeconds() <= 0)
+            {
+                message = "--seconds must be greater than zero.";
+                return false;
+            }
+
+            if (GetEffectiveScoreRouteProofWallTimeoutMilliseconds() <= 0)
+            {
+                message = "--wall-timeout-ms must be greater than zero.";
+                return false;
+            }
+
+            if (GetEffectiveScoreRouteMaxPhaseRoutes() <= 0)
+            {
+                message = "--score-route-max-phase-routes must be greater than zero.";
+                return false;
+            }
+
+            if (ScoreRouteMaxProofAttemptsPerContext < 0)
+            {
+                message = "--score-route-max-proof-attempts must be zero or greater.";
+                return false;
+            }
+
+            if (ScoreRouteContextBudgetMilliseconds < 0)
+            {
+                message = "--score-route-context-budget-ms must be zero or greater.";
+                return false;
+            }
+
+            if (ScoreRouteMapBudgetMilliseconds < 0)
+            {
+                message = "--score-route-map-budget-ms must be zero or greater.";
+                return false;
+            }
+
+            if (ScoreRouteNoProgressStopSeconds < 0)
+            {
+                message = "--score-route-no-progress-stop-seconds must be zero or greater.";
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -2273,6 +4062,71 @@ internal sealed class NavBuildOptions
             _ => WallTimeoutMilliseconds,
         };
     }
+
+    public int GetEffectiveScoreRouteMaxPhaseRoutes()
+    {
+        if (ScoreRouteMaxPhaseRoutes > 0)
+        {
+            return ScoreRouteMaxPhaseRoutes;
+        }
+
+        return ScoreRouteDiagnostics ? 2 : 4;
+    }
+
+    public int GetEffectiveScoreRouteMaxProofAttemptsPerContext()
+    {
+        if (ScoreRouteMaxProofAttemptsPerContext > 0)
+        {
+            return ScoreRouteMaxProofAttemptsPerContext;
+        }
+
+        return ScoreRouteDiagnostics ? 4 : 0;
+    }
+
+    public int GetEffectiveScoreRouteContextBudgetMilliseconds()
+    {
+        if (ScoreRouteContextBudgetMilliseconds > 0)
+        {
+            return ScoreRouteContextBudgetMilliseconds;
+        }
+
+        return ScoreRouteDiagnostics ? 60_000 : 0;
+    }
+
+    public int GetEffectiveScoreRouteMapBudgetMilliseconds()
+    {
+        if (ScoreRouteMapBudgetMilliseconds > 0)
+        {
+            return ScoreRouteMapBudgetMilliseconds;
+        }
+
+        return ScoreRouteDiagnostics ? 180_000 : 0;
+    }
+
+    public int GetEffectiveScoreRouteProofSeconds()
+    {
+        if (_hasExplicitScenarioSeconds)
+        {
+            return ScenarioSeconds;
+        }
+
+        return ScoreRouteDiagnostics ? 60 : GetEffectiveScenarioSeconds();
+    }
+
+    public int GetEffectiveScoreRouteProofWallTimeoutMilliseconds()
+    {
+        if (_hasExplicitWallTimeoutMilliseconds)
+        {
+            return WallTimeoutMilliseconds;
+        }
+
+        return ScoreRouteDiagnostics ? 20_000 : GetEffectiveWallTimeoutMilliseconds();
+    }
+
+    public int GetEffectiveScoreRouteNoProgressStopSeconds()
+    {
+        return ScoreRouteNoProgressStopSeconds;
+    }
 }
 
 internal enum BotScenarioKind
@@ -2289,7 +4143,24 @@ internal readonly record struct BotScenarioCase(
     PlayerClass ClassId,
     int SimulationSeconds,
     BotPathMode PathMode,
-    BotScenarioKind Kind);
+    BotScenarioKind Kind,
+    int MapAreaIndex = 1);
+
+internal readonly record struct ScoreRouteProfilePlan(
+    BotNavigationProfile Profile,
+    PlayerClass ClassId);
+
+internal readonly record struct ScoreRouteCandidateBuildResult(
+    IReadOnlyList<BotNavigationScoreRouteEntry> Entries,
+    int StartNodeCount,
+    int RawRouteCount,
+    int BuildFailures);
+
+internal readonly record struct ScoreRouteTraversalProofResult(
+    IReadOnlyDictionary<long, BotNavigationScoreRouteSegment> ProvenSegmentsByKey,
+    int ProvenEdgeCount,
+    int ProvenJumpEdgeCount,
+    int TotalJumpEdgeCount);
 
 internal readonly record struct BotObjectiveProbe(GameModeKind Mode, float X, float Y, int ControlPointIndex);
 
@@ -2306,4 +4177,5 @@ internal readonly record struct BotScenarioResult(
     long WallMilliseconds,
     string RouteSummary,
     string TraceSummary,
+    string ObjectiveSummary,
     string FailureReason);

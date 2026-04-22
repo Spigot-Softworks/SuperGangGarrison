@@ -28,6 +28,12 @@ public partial class Game1
         PlayerClass.Sniper,
         PlayerClass.Quote,
     ];
+    private static readonly PlayerClass[] NavEditorScoreTrioClasses =
+    [
+        PlayerClass.Scout,
+        PlayerClass.Heavy,
+        PlayerClass.Pyro,
+    ];
 
     private readonly Dictionary<byte, PracticeBotSlotState> _practiceBotSlots = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
@@ -49,6 +55,7 @@ public partial class Game1
     private double _browserPracticeBotPerfBuildInputMaxMilliseconds;
     private double _browserPracticeBotPerfSetInputTotalMilliseconds;
     private double _browserPracticeBotPerfSetInputMaxMilliseconds;
+    private bool _navEditorScoreTrioActive;
 
     public BotPathMode PracticeBotPathMode { get; set; } = BotPathMode.ClientBot2020Compat;
 
@@ -147,6 +154,16 @@ public partial class Game1
         var desiredSlots = new Dictionary<byte, PracticeBotSlotState>();
         var nextSlot = (byte)(SimulationWorld.LocalPlayerSlot + 1);
 
+        if (_navEditorScoreTrioActive && !IsLastToDieSessionActive)
+        {
+            AppendExplicitDesiredPracticeBotSlots(
+                desiredSlots,
+                nextSlot,
+                localTeam,
+                NavEditorScoreTrioClasses);
+            return desiredSlots;
+        }
+
         if (IsLastToDieSessionActive)
         {
             nextSlot = AppendLastToDieDesiredPracticeBotSlots(
@@ -195,6 +212,26 @@ public partial class Game1
                 nextSlot,
                 team,
                 classId,
+                _practiceBotDisplayNamePool.GetOrAssign(nextSlot, team, index + 1));
+            nextSlot += 1;
+        }
+
+        return nextSlot;
+    }
+
+    private byte AppendExplicitDesiredPracticeBotSlots(
+        Dictionary<byte, PracticeBotSlotState> desiredSlots,
+        byte startSlot,
+        PlayerTeam team,
+        IReadOnlyList<PlayerClass> classes)
+    {
+        var nextSlot = startSlot;
+        for (var index = 0; index < classes.Count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
+        {
+            desiredSlots[nextSlot] = new PracticeBotSlotState(
+                nextSlot,
+                team,
+                classes[index],
                 _practiceBotDisplayNamePool.GetOrAssign(nextSlot, team, index + 1));
             nextSlot += 1;
         }
@@ -388,7 +425,8 @@ public partial class Game1
             return;
         }
 
-        _practiceBotController.CollectDiagnostics = _botDiagnosticsEnabled;
+        var collectDiagnostics = _botDiagnosticsEnabled || (_navEditorEnabled && _navEditorShowBotTags);
+        _practiceBotController.CollectDiagnostics = collectDiagnostics;
         if (_practiceBotSlots.Count == 0)
         {
             if (_botDiagnosticsEnabled)
@@ -549,5 +587,54 @@ public partial class Game1
 
             yield return player;
         }
+    }
+
+    private void RunNavEditorScoreTrioPracticeBots()
+    {
+        if (!IsPracticeSessionActive)
+        {
+            SetNavEditorStatus("score trio is practice-only");
+            AddConsoleLine("nav editor score trio requires an active practice session.");
+            return;
+        }
+
+        _navEditorScoreTrioActive = true;
+        PracticeBotPathMode = BotPathMode.ClientBot2020Compat;
+        ResetPracticeBotManagerState(releaseWorldSlots: true);
+        SyncPracticeBotRoster(_world.LocalPlayerTeam);
+        var teamLabel = _world.LocalPlayerTeam.ToString();
+        SetNavEditorStatus($"score trio spawned from {teamLabel} spawn ({DescribeNavEditorScoreTrioClasses()}, current state)");
+        AddConsoleLine($"nav editor score trio respawned {DescribeNavEditorScoreTrioClasses()} on {teamLabel} from spawn in the current match state.");
+    }
+
+    private void StopNavEditorScoreTrioPracticeBots(bool silent = false)
+    {
+        if (!_navEditorScoreTrioActive)
+        {
+            if (!silent)
+            {
+                SetNavEditorStatus("score trio is not active");
+            }
+
+            return;
+        }
+
+        _navEditorScoreTrioActive = false;
+        ResetPracticeBotManagerState(releaseWorldSlots: true);
+        if (IsOfflineBotSessionActive)
+        {
+            SyncPracticeBotRoster(_world.LocalPlayerTeam);
+        }
+
+        if (!silent)
+        {
+            SetNavEditorStatus("score trio cleared; restored practice bot roster");
+            AddConsoleLine("nav editor score trio cleared; restored the normal practice bot roster.");
+        }
+    }
+
+    private static string DescribeNavEditorScoreTrioClasses()
+    {
+        return string.Join("/", NavEditorScoreTrioClasses.Select(BotNavigationClasses.GetShortLabel));
     }
 }

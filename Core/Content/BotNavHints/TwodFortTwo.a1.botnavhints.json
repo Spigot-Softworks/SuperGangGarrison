@@ -1,0 +1,314 @@
+{
+  "FormatVersion": 1,
+  "LevelName": "TwodFortTwo",
+  "MapAreaIndex": 1,
+  "BuildMode": "ExplicitGraph",
+  "Nodes": [
+    {
+      "Label": "route",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3143,
+      "Y": 1139,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackRole": "Entry",
+      "FallbackTriggers": [
+        "DirectTarget"
+      ],
+      "FallbackActivationZone": {
+        "MinX": 2896,
+        "MinY": 1137,
+        "MaxX": 3142,
+        "MaxY": 1184
+      }
+    },
+    {
+      "Label": "route-2",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3217,
+      "Y": 1070,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-3",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3349,
+      "Y": 977,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-4",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3208,
+      "Y": 878,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-5",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3345,
+      "Y": 798,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-6",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3229,
+      "Y": 711,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-7",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 3100,
+      "Y": 692,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-8",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 576,
+      "Y": 1115,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackRole": "Entry",
+      "FallbackTriggers": [
+        "NoNext"
+      ],
+      "FallbackActivationZone": {
+        "MinX": 167,
+        "MinY": 1072,
+        "MaxX": 719,
+        "MaxY": 1179
+      }
+    },
+    {
+      "Label": "route-9",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 472,
+      "Y": 1118,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-10",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 392,
+      "Y": 1111,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-11",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 195,
+      "Y": 1075,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-12",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 61,
+      "Y": 965,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-13",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 237,
+      "Y": 885,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-14",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 67,
+      "Y": 792,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-15",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 220,
+      "Y": 700,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    },
+    {
+      "Label": "route-16",
+      "AutoLabel": true,
+      "Classes": [],
+      "X": 331,
+      "Y": 691,
+      "Kind": "RouteAnchor",
+      "Team": null,
+      "FallbackTriggers": []
+    }
+  ],
+  "Links": [
+    {
+      "FromLabel": "route",
+      "ToLabel": "route-2",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-2",
+      "ToLabel": "route-3",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-3",
+      "ToLabel": "route-4",
+      "Classes": [],
+      "Bidirectional": true,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-4",
+      "ToLabel": "route-5",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-5",
+      "ToLabel": "route-6",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-6",
+      "ToLabel": "route-7",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-8",
+      "ToLabel": "route-9",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-9",
+      "ToLabel": "route-10",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-10",
+      "ToLabel": "route-11",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-11",
+      "ToLabel": "route-12",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-12",
+      "ToLabel": "route-13",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-13",
+      "ToLabel": "route-14",
+      "Classes": [],
+      "Bidirectional": true,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-14",
+      "ToLabel": "route-15",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Jump",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    },
+    {
+      "FromLabel": "route-15",
+      "ToLabel": "route-16",
+      "Classes": [],
+      "Bidirectional": false,
+      "Traversal": "Walk",
+      "CostMultiplier": 1,
+      "RecordedTraversals": []
+    }
+  ]
+}

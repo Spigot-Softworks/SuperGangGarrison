@@ -17,6 +17,22 @@ public enum BotNavigationHintBuildMode
     ExplicitGraph = 1,
 }
 
+public enum BotNavigationHintFallbackRole
+{
+    None = 0,
+    Entry = 1,
+    Exit = 2,
+}
+
+public enum BotNavigationHintFallbackTrigger
+{
+    NoNext = 0,
+    Stuck = 1,
+    Reacquire = 2,
+    CarryReturn = 3,
+    DirectTarget = 4,
+}
+
 public sealed class BotNavigationHintNode
 {
     public string Label { get; init; } = string.Empty;
@@ -36,6 +52,31 @@ public sealed class BotNavigationHintNode
     public BotNavigationNodeKind Kind { get; init; } = BotNavigationNodeKind.RouteAnchor;
 
     public PlayerTeam? Team { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public BotNavigationHintFallbackRole FallbackRole { get; init; }
+
+    public IReadOnlyList<BotNavigationHintFallbackTrigger> FallbackTriggers { get; init; } = Array.Empty<BotNavigationHintFallbackTrigger>();
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public float FallbackRadius { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? RequiresCarryingIntel { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BotNavigationHintFallbackActivationZone? FallbackActivationZone { get; init; }
+}
+
+public sealed class BotNavigationHintFallbackActivationZone
+{
+    public float MinX { get; init; }
+
+    public float MinY { get; init; }
+
+    public float MaxX { get; init; }
+
+    public float MaxY { get; init; }
 }
 
 public sealed class BotNavigationHintLink
@@ -52,6 +93,9 @@ public sealed class BotNavigationHintLink
     public bool Bidirectional { get; init; }
 
     public BotNavigationHintTraversalKind Traversal { get; init; } = BotNavigationHintTraversalKind.Auto;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool StartJumpImmediately { get; init; }
 
     public float CostMultiplier { get; init; } = 1f;
 

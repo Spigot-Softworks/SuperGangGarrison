@@ -1,6 +1,6 @@
 namespace OpenGarrison.BotAI;
 
-internal sealed class BotNavigationRuntimeGraph
+public sealed class BotNavigationRuntimeGraph
 {
     private readonly BotNavigationNode[] _nodesById;
     private readonly Dictionary<int, List<BotNavigationEdge>> _edgesByFromNodeId = new();
@@ -19,7 +19,7 @@ internal sealed class BotNavigationRuntimeGraph
             : asset.ClassId.HasValue
                 ? BotNavigationClasses.GetFileToken(asset.ClassId.Value)
                 : BotNavigationProfiles.GetFileToken(asset.Profile);
-        CacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{scopeToken}|{asset.LevelFingerprint}";
+        CacheKey = $"{asset.LevelName}|{asset.MapAreaIndex}|{scopeToken}|{asset.LevelFingerprint}|{asset.Nodes.Count}|{asset.Edges.Count}|{asset.BuiltUtc.Ticks}";
 
         var maxNodeId = asset.Nodes.Count == 0 ? -1 : asset.Nodes.Max(static node => node.Id);
         _nodesById = new BotNavigationNode[Math.Max(0, maxNodeId + 1)];
@@ -232,9 +232,19 @@ internal sealed class BotNavigationRuntimeGraph
 
     public int[]? FindRoute(int startNodeId, int goalNodeId)
     {
+        return FindRoute(startNodeId, goalNodeId, edgeFilter: null);
+    }
+
+    public int[]? FindRoute(int startNodeId, int goalNodeId, Func<BotNavigationEdge, bool>? edgeFilter)
+    {
         if (startNodeId == goalNodeId)
         {
             return [startNodeId];
+        }
+
+        if (edgeFilter is not null)
+        {
+            return ComputeRoute(startNodeId, goalNodeId, edgeFilter);
         }
 
         var routeKey = GetPairKey(startNodeId, goalNodeId);
@@ -243,7 +253,7 @@ internal sealed class BotNavigationRuntimeGraph
             return cachedRoute;
         }
 
-        var route = ComputeRoute(startNodeId, goalNodeId);
+        var route = ComputeRoute(startNodeId, goalNodeId, edgeFilter: null);
         _routeCache[routeKey] = route;
         return route;
     }
@@ -256,6 +266,25 @@ internal sealed class BotNavigationRuntimeGraph
         out int[] route,
         out int goalNodeId)
     {
+        return TryFindRouteToGoalRadius(
+            startNodeId,
+            goalX,
+            goalY,
+            goalRadius,
+            edgeFilter: null,
+            out route,
+            out goalNodeId);
+    }
+
+    public bool TryFindRouteToGoalRadius(
+        int startNodeId,
+        float goalX,
+        float goalY,
+        float goalRadius,
+        Func<BotNavigationEdge, bool>? edgeFilter,
+        out int[] route,
+        out int goalNodeId)
+    {
         route = Array.Empty<int>();
         goalNodeId = -1;
         if (!TryGetNode(startNodeId, out _))
@@ -263,7 +292,7 @@ internal sealed class BotNavigationRuntimeGraph
             return false;
         }
 
-        BuildShortestPathTree(startNodeId, out var costByNodeId, out var cameFromNodeId);
+        BuildShortestPathTree(startNodeId, edgeFilter, out var costByNodeId, out var cameFromNodeId);
 
         var bestScore = float.PositiveInfinity;
         for (var index = 0; index < _nodesById.Length; index += 1)
@@ -307,6 +336,25 @@ internal sealed class BotNavigationRuntimeGraph
         out int[] route,
         out int goalNodeId)
     {
+        return TryFindBestPartialRoute(
+            startNodeId,
+            goalX,
+            goalY,
+            minimumImprovementDistance,
+            edgeFilter: null,
+            out route,
+            out goalNodeId);
+    }
+
+    public bool TryFindBestPartialRoute(
+        int startNodeId,
+        float goalX,
+        float goalY,
+        float minimumImprovementDistance,
+        Func<BotNavigationEdge, bool>? edgeFilter,
+        out int[] route,
+        out int goalNodeId)
+    {
         route = Array.Empty<int>();
         goalNodeId = -1;
         if (!TryGetNode(startNodeId, out var startNode))
@@ -314,7 +362,7 @@ internal sealed class BotNavigationRuntimeGraph
             return false;
         }
 
-        BuildShortestPathTree(startNodeId, out var costByNodeId, out var cameFromNodeId);
+        BuildShortestPathTree(startNodeId, edgeFilter, out var costByNodeId, out var cameFromNodeId);
 
         var startGoalDistance = DistanceBetween(startNode.X, startNode.Y, goalX, goalY);
         var bestGoalDistance = startGoalDistance;
@@ -360,7 +408,7 @@ internal sealed class BotNavigationRuntimeGraph
         return route.Length > 1;
     }
 
-    private int[]? ComputeRoute(int startNodeId, int goalNodeId)
+    private int[]? ComputeRoute(int startNodeId, int goalNodeId, Func<BotNavigationEdge, bool>? edgeFilter)
     {
         if (!TryGetNode(startNodeId, out var startNode) || !TryGetNode(goalNodeId, out var goalNode))
         {
@@ -391,6 +439,11 @@ internal sealed class BotNavigationRuntimeGraph
             for (var index = 0; index < edges.Count; index += 1)
             {
                 var edge = edges[index];
+                if (edgeFilter is not null && !edgeFilter(edge))
+                {
+                    continue;
+                }
+
                 var newCost = costByNodeId[currentNodeId] + Math.Max(1f, edge.Cost);
                 if (newCost >= costByNodeId[edge.ToNodeId])
                 {
@@ -428,7 +481,11 @@ internal sealed class BotNavigationRuntimeGraph
         return route.ToArray();
     }
 
-    private void BuildShortestPathTree(int startNodeId, out float[] costByNodeId, out int[] cameFromNodeId)
+    private void BuildShortestPathTree(
+        int startNodeId,
+        Func<BotNavigationEdge, bool>? edgeFilter,
+        out float[] costByNodeId,
+        out int[] cameFromNodeId)
     {
         costByNodeId = new float[_nodesById.Length];
         cameFromNodeId = new int[_nodesById.Length];
@@ -449,6 +506,11 @@ internal sealed class BotNavigationRuntimeGraph
             for (var index = 0; index < edges.Count; index += 1)
             {
                 var edge = edges[index];
+                if (edgeFilter is not null && !edgeFilter(edge))
+                {
+                    continue;
+                }
+
                 var newCost = costByNodeId[currentNodeId] + Math.Max(1f, edge.Cost);
                 if (newCost >= costByNodeId[edge.ToNodeId])
                 {
