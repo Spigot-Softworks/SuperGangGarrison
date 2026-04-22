@@ -23,6 +23,7 @@ public static class BotNavigationModernPointGraphBuilder
     private const float DropTraversalHorizontalTolerance = 18f;
     private const float DropTraversalMinimumDistance = 18f;
     private const float MaximumUniversalJumpRise = 120f;
+    private const float WalkIntoJumpShortcutMaximumWalkDistance = 72f;
     private static readonly PlayerClass[] TraversalValidationClasses =
     [
         PlayerClass.Scout,
@@ -149,6 +150,14 @@ public static class BotNavigationModernPointGraphBuilder
                 }
             }
         }
+
+        jumpEdgeCount += AddWalkIntoJumpShortcutEdges(
+            level,
+            grid,
+            orderedNodes,
+            edgeKeys,
+            edges,
+            validateTraversals);
         var automaticEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
 
         stopwatch.Stop();
@@ -292,6 +301,14 @@ public static class BotNavigationModernPointGraphBuilder
                 }
             }
         }
+
+        jumpEdgeCount += AddWalkIntoJumpShortcutEdges(
+            level,
+            grid,
+            orderedNodes,
+            edgeKeys,
+            edges,
+            validateTraversals: true);
         var automaticEdgeMilliseconds = phaseStopwatch.Elapsed.TotalMilliseconds;
 
         stopwatch.Stop();
@@ -651,6 +668,96 @@ public static class BotNavigationModernPointGraphBuilder
                 };
                 return true;
         }
+    }
+
+    private static int AddWalkIntoJumpShortcutEdges(
+        SimpleLevel level,
+        ObstacleGrid grid,
+        IReadOnlyList<MutableNode> orderedNodes,
+        HashSet<long> edgeKeys,
+        List<BotNavigationEdge> edges,
+        bool validateTraversals)
+    {
+        if (!SupportsWalkIntoJumpShortcuts(level.Mode))
+        {
+            return 0;
+        }
+
+        var nodesById = orderedNodes.ToDictionary(static node => node.Id);
+        var incomingWalkEdgesByToNodeId = new Dictionary<int, List<BotNavigationEdge>>();
+        var existingEdges = edges.ToArray();
+        for (var edgeIndex = 0; edgeIndex < existingEdges.Length; edgeIndex += 1)
+        {
+            var edge = existingEdges[edgeIndex];
+            if (edge.Kind != BotNavigationTraversalKind.Walk)
+            {
+                continue;
+            }
+
+            if (!incomingWalkEdgesByToNodeId.TryGetValue(edge.ToNodeId, out var incomingEdges))
+            {
+                incomingEdges = new List<BotNavigationEdge>();
+                incomingWalkEdgesByToNodeId[edge.ToNodeId] = incomingEdges;
+            }
+
+            incomingEdges.Add(edge);
+        }
+
+        var addedEdges = 0;
+        for (var edgeIndex = 0; edgeIndex < existingEdges.Length; edgeIndex += 1)
+        {
+            var jumpEdge = existingEdges[edgeIndex];
+            if (jumpEdge.Kind != BotNavigationTraversalKind.Jump
+                || !incomingWalkEdgesByToNodeId.TryGetValue(jumpEdge.FromNodeId, out var incomingWalkEdges)
+                || !nodesById.TryGetValue(jumpEdge.FromNodeId, out var jumpSourceNode)
+                || !nodesById.TryGetValue(jumpEdge.ToNodeId, out var jumpTargetNode))
+            {
+                continue;
+            }
+
+            for (var incomingIndex = 0; incomingIndex < incomingWalkEdges.Count; incomingIndex += 1)
+            {
+                var walkEdge = incomingWalkEdges[incomingIndex];
+                if (walkEdge.FromNodeId == jumpEdge.ToNodeId
+                    || edgeKeys.Contains(GetEdgeKey(walkEdge.FromNodeId, jumpEdge.ToNodeId))
+                    || !nodesById.TryGetValue(walkEdge.FromNodeId, out var walkSourceNode)
+                    || MathF.Abs(jumpSourceNode.RawX - walkSourceNode.RawX) > WalkIntoJumpShortcutMaximumWalkDistance
+                    || !IsSameDirectionShortcut(walkSourceNode, jumpSourceNode, jumpTargetNode)
+                    || ResolveTraversalKind(walkSourceNode, jumpTargetNode) != BotNavigationTraversalKind.Jump
+                    || !TryEvaluateDirectedConnection(grid, walkSourceNode, jumpTargetNode, out var reverseOnlyBlocked)
+                    || reverseOnlyBlocked
+                    || !TryCreateTraversalEdge(
+                        level,
+                        walkSourceNode,
+                        jumpTargetNode,
+                        BotNavigationTraversalKind.Jump,
+                        validateTraversals,
+                        out var shortcutEdge)
+                    || !TryAddEdge(edgeKeys, edges, shortcutEdge))
+                {
+                    continue;
+                }
+
+                addedEdges += 1;
+            }
+        }
+
+        return addedEdges;
+    }
+
+    private static bool IsSameDirectionShortcut(MutableNode walkSourceNode, MutableNode jumpSourceNode, MutableNode jumpTargetNode)
+    {
+        var walkDirection = MathF.Sign(jumpSourceNode.RawX - walkSourceNode.RawX);
+        var shortcutDirection = MathF.Sign(jumpTargetNode.RawX - walkSourceNode.RawX);
+        return walkDirection != 0f && walkDirection == shortcutDirection;
+    }
+
+    private static bool SupportsWalkIntoJumpShortcuts(GameModeKind mode)
+    {
+        return mode is GameModeKind.KingOfTheHill
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.ControlPoint
+            or GameModeKind.Arena;
     }
 
     private static bool TryBuildGeneratedJumpTape(
