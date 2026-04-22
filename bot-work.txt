@@ -893,3 +893,36 @@ Attempt: generated walk-into-jump shortcut edges (2026-04-22)
 - Decision:
   - Keep the scoped shortcut patch.
   - Next practical target should be Conflict return/final-score handling for Blue Scout and Pyro return, separately from this KOTH seam fix.
+
+Attempt: CTF intel-return final approach node banding (2026-04-22)
+- Observation:
+  - Conflict Blue Scout could reach enemy intel, return near home, then fail final score completion by snapping from the lower home floor route back to an off-band upper/left node.
+  - Concrete case: Blue home is around `(3252,444)`. The route should continue through lower-floor nodes near `74/75`, but nearest-node reacquire could pick an off-band node near `58`, causing a backward jump/replan loop instead of finishing the cap.
+- Patch:
+  - `BotController.cs`: route start/goal selection now has a CTF-carrying-intel special case.
+  - Preserve the default nearest node when it is already a valid score-approach node in the intel marker's vertical band.
+  - Only use the same-band replacement start node when the carrier is already horizontally close to home and vertically overlapping the intel marker band.
+  - This keeps Conflict from snapping to the off-band home node while avoiding earlier Eiger regressions.
+- Rejected/narrowed variants during the attempt:
+  - Extended CTF return score-route refresh lifetime: regressed Eiger; removed.
+  - Forced special goal selection even when the default goal was already in the score band: regressed Eiger Blue Scout by replacing good goal node `99` with worse nearby node `116`; narrowed to preserve good default goals.
+  - Allowed same-band start replacement anywhere with matching Y: regressed Eiger Blue Pyro mid-map by activating final-approach logic far from home; narrowed with a horizontal final-approach gate.
+- Verification:
+  - Build: PASS.
+  - Focused Eiger Blue Pyro score scenario: PASS.
+  - Focused Conflict Blue Scout score scenario: PASS.
+  - Five-map sentinel:
+    - Command: `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --map Valley --map Harvest --map TwodFortTwo --map Gallery --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+    - Result: `total=30 passed=15 failed=15 timedOut=0`
+    - Eiger: `6/6`; Valley: `6/6`; Harvest: `2/6`; TwodFortTwo: `0/6`; Gallery: `1/6`
+  - Harvest/Gallery/Conflict/Corinth target matrix:
+    - Command: `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Harvest --map Gallery --map Conflict --map Corinth --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+    - Result: `total=24 passed=6 failed=18 timedOut=0`
+    - Conflict: `2/6` (Blue Scout, Red Scout)
+    - Corinth: `1/6` (Blue Scout)
+    - Harvest: `2/6` (Blue Scout, Red Scout)
+    - Gallery: `1/6` (Red Pyro)
+- Decision:
+  - Keep and commit.
+  - This is a narrow +1 target-gate improvement over the committed rescue baseline without reducing the five-map sentinel.
+  - Next practical target: Conflict Red Pyro return or Gallery/Corinth KOTH approach, but keep each attempt gated against Eiger/Valley and the target matrix before committing.
