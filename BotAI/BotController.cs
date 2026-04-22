@@ -23,6 +23,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float WallProbeBottomInset = 4f;
     private const float RouteNodeArrivalDistance = 18f;
     private const float RouteWalkApproximateArrivalHeight = 64f;
+    private const float RouteWalkArrivalFeetHeight = 32f;
+    private const float RouteWalkRecoveryJumpFeetDrop = 24f;
+    private const float RouteWalkRecoveryFlatHeightDelta = 16f;
     private const float TraversalStartDistance = 6f;
     private const float RoutePartialMinimumImprovementDistance = 18f;
     private const float RouteRepathDistance = 120f;
@@ -1199,6 +1202,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
         var goalMoved = destination.X != memory.RouteGoalX
             || destination.Y != memory.RouteGoalY;
+        var routeGoalChanged = memory.RouteGoalNodeId != exactGoalNodeId
+            || goalMoved;
         if (memory.RouteRefreshTicks > 0)
         {
             memory.RouteRefreshTicks -= 1;
@@ -1209,6 +1214,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var holdCurrentGraphRoute = !player.IsGrounded
             || memory.RouteIsPartial
             || memory.ActiveTraversalTape is not null;
+        var deferRouteGoalRepath = holdCurrentGraphRoute
+            && hasCurrentRouteNode
+            && ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection);
         if (!hasStartNode && !(holdCurrentGraphRoute && hasCurrentRouteNode))
         {
             ClearNavigationRoute(memory);
@@ -1218,8 +1226,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var requiresRepath = memory.RouteNodeIds is null
             || memory.RouteNodeIds.Length <= 1
             || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-            || memory.RouteGoalNodeId != exactGoalNodeId
-            || goalMoved
+            || (!deferRouteGoalRepath && routeGoalChanged)
             || !hasCurrentRouteNode
             || memory.RouteRefreshTicks <= 0;
         if (requiresRepath)
@@ -1233,8 +1240,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             var resetObjectiveProgress = memory.RouteNodeIds is null
                 || memory.RouteNodeIds.Length <= 1
                 || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-                || memory.RouteGoalNodeId != exactGoalNodeId
-                || goalMoved;
+                || routeGoalChanged;
             if (!TryBuildValidatedRouteToDestination(
                     navigationGraph,
                     startNode.Id,
@@ -1359,7 +1365,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return traversalDecision;
         }
 
-        return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, validatedEdge.Kind), TraversalKind: validatedEdge.Kind);
+        var forceWalkRecoveryJump = ShouldForceWalkRouteRecoveryJump(player, navigationGraph, previousNodeId, nextNode, validatedEdge);
+        return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: forceWalkRecoveryJump, LocksMovement: false, Label: GetRouteLabel(memory, validatedEdge.Kind), TraversalKind: validatedEdge.Kind);
     }
 
     private static bool TryBuildValidatedRouteToDestination(
@@ -1726,6 +1733,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
         var goalMoved = destination.X != memory.RouteGoalX
             || destination.Y != memory.RouteGoalY;
+        var routeGoalChanged = memory.RouteGoalNodeId != exactGoalNodeId
+            || goalMoved;
         if (memory.RouteRefreshTicks > 0)
         {
             memory.RouteRefreshTicks -= 1;
@@ -1733,8 +1742,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         Func<BotNavigationEdge, bool> edgeFilter = edge => CanUseUniversalGraphRouteEdge(world, player, navigationGraph, edge, memory);
         var hasCurrentRouteNode = TryGetCurrentRouteNode(navigationGraph, memory, out var currentRouteNode);
-        var currentRouteDistanceExceeded = hasCurrentRouteNode
-            && DistanceSquared(player.X, playerFeet, currentRouteNode.X, currentRouteNode.Y) > RouteRepathDistance * RouteRepathDistance;
         var hasCurrentRouteEdge = false;
         BotNavigationEdge currentRouteEdge = default!;
         if (hasCurrentRouteNode
@@ -1745,9 +1752,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             hasCurrentRouteEdge = navigationGraph.TryGetEdge(currentRouteFromNodeId, currentRouteNode.Id, out currentRouteEdge);
         }
 
+        var currentRouteDistanceExceeded = hasCurrentRouteNode
+            && DistanceSquared(player.X, playerFeet, currentRouteNode.X, currentRouteNode.Y) > RouteRepathDistance * RouteRepathDistance;
         var holdCurrentGraphRoute = !player.IsGrounded
             || memory.RouteIsPartial
             || memory.ActiveTraversalTape is not null;
+        var deferRouteGoalRepath = holdCurrentGraphRoute
+            && hasCurrentRouteNode
+            && ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection);
         if (!hasStartNode && !(holdCurrentGraphRoute && hasCurrentRouteNode))
         {
             ClearNavigationRoute(memory);
@@ -1758,8 +1770,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && (memory.RouteNodeIds is null
                 || memory.RouteNodeIds.Length == 0
                 || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-                || memory.RouteGoalNodeId != exactGoalNodeId
-                || goalMoved
+                || (!deferRouteGoalRepath && routeGoalChanged)
                 || (!holdCurrentGraphRoute && memory.RouteRefreshTicks <= 0)
                 || !hasCurrentRouteNode
                 || (!holdCurrentGraphRoute && currentRouteDistanceExceeded));
@@ -1775,8 +1786,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             var resetObjectiveProgress = memory.RouteNodeIds is null
                 || memory.RouteNodeIds.Length == 0
                 || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-                || memory.RouteGoalNodeId != exactGoalNodeId
-                || goalMoved;
+                || routeGoalChanged;
             if (!TryBuildRouteToDestination(
                     navigationGraph,
                     startNode.Id,
@@ -1917,7 +1927,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return traversalDecision;
         }
 
-        return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, executionEdge.Kind), TraversalKind: executionEdge.Kind);
+        var forceWalkRecoveryJump = ShouldForceWalkRouteRecoveryJump(player, navigationGraph, previousNodeId, nextNode, executionEdge);
+        return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: forceWalkRecoveryJump, LocksMovement: false, Label: GetRouteLabel(memory, executionEdge.Kind), TraversalKind: executionEdge.Kind);
     }
 
     private bool TryApplyPreferredScoreRoute(
