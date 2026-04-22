@@ -125,7 +125,18 @@ public static class BotNavigationDebugPlanner
 
         if (hintLink.Traversal is BotNavigationHintTraversalKind.Auto or BotNavigationHintTraversalKind.Jump)
         {
-            if (TryBuildHintJumpTapeForEitherTeam(level, classDefinition, profile, fromX, fromY, toX, toY, requireGroundedArrival, out var jumpTape, out _))
+            if (TryBuildHintJumpTapeForEitherTeam(
+                level,
+                classDefinition,
+                profile,
+                fromX,
+                fromY,
+                toX,
+                toY,
+                requireGroundedArrival,
+                hintLink.StartJumpImmediately,
+                out var jumpTape,
+                out _))
             {
                 step = CreateStep(
                     hintLink.FromLabel,
@@ -148,7 +159,8 @@ public static class BotNavigationDebugPlanner
                     fromX,
                     fromY,
                     toX,
-                    toY);
+                    toY,
+                    hintLink.StartJumpImmediately);
                 step = CreateStep(
                     hintLink.FromLabel,
                     hintLink.ToLabel,
@@ -474,11 +486,12 @@ public static class BotNavigationDebugPlanner
         float targetX,
         float targetY,
         bool requireGroundedArrival,
+        bool startJumpImmediately,
         out IReadOnlyList<BotNavigationInputFrame> tape,
         out float cost)
     {
-        return BotNavigationMovementValidator.TryBuildHintJumpTape(level, classDefinition, profile, sourceX, sourceY, targetX, targetY, PlayerTeam.Red, requireGroundedArrival, out tape, out cost)
-            || BotNavigationMovementValidator.TryBuildHintJumpTape(level, classDefinition, profile, sourceX, sourceY, targetX, targetY, PlayerTeam.Blue, requireGroundedArrival, out tape, out cost);
+        return BotNavigationMovementValidator.TryBuildHintJumpTape(level, classDefinition, profile, sourceX, sourceY, targetX, targetY, PlayerTeam.Red, requireGroundedArrival, startJumpImmediately, out tape, out cost)
+            || BotNavigationMovementValidator.TryBuildHintJumpTape(level, classDefinition, profile, sourceX, sourceY, targetX, targetY, PlayerTeam.Blue, requireGroundedArrival, startJumpImmediately, out tape, out cost);
     }
 
     private static bool TryValidateRecordedHintTapeForEitherTeam(

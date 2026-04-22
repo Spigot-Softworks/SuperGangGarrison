@@ -23,6 +23,13 @@ public partial class Game1
         AddLink = 2,
     }
 
+    private enum NavEditorLayerMode
+    {
+        HintLayer = 0,
+        GeneratedGraph = 1,
+        Both = 2,
+    }
+
     private enum NavEditorTraversalCaptureMode
     {
         None = 0,
@@ -35,11 +42,20 @@ public partial class Game1
         Empty = 0,
         Anchor = 1,
         Link = 2,
+        GeneratedGraphNode = 3,
+        GeneratedGraphEdge = 4,
+    }
+
+    private enum NavEditorGraphEdgeDisplayMode
+    {
+        Soft = 0,
+        Cyan = 1,
+        Red = 2,
     }
 
     private const int NavEditorPanelWidth = 440;
     private const int NavEditorPanelPadding = 12;
-    private const int NavEditorPanelExpandedHeight = 520;
+    private const int NavEditorPanelExpandedHeight = 656;
     private const int NavEditorPanelCollapsedHeight = 92;
     private const int NavEditorPanelHeaderHeight = 78;
     private const int NavEditorPanelHeaderButtonSize = 24;
@@ -65,7 +81,9 @@ public partial class Game1
     private const float NavEditorPlaybackTargetToleranceY = 18f;
     private const float NavEditorApproximateGroundedArrivalToleranceY = 64f;
     private const int NavEditorPlaybackMaximumTicks = 720;
+    private const int NavEditorPlaybackPostTapeMaximumTicks = 90;
     private const int NavEditorClearAllPromptHeight = 84;
+    private const float NavEditorMinimumActivationZoneSize = 16f;
     private bool _navEditorEnabled;
     private bool _navEditorDirty;
     private NavEditorTool _navEditorTool = NavEditorTool.Select;
@@ -78,11 +96,25 @@ public partial class Game1
     private string _navEditorStatusMessage = "nav editor disabled";
     private float _navEditorStatusSecondsRemaining;
     private string _navEditorLastConsoleStatusMessage = string.Empty;
+    private NavEditorLayerMode _navEditorLayerMode = NavEditorLayerMode.HintLayer;
+    private bool _navEditorShowBotTags = true;
+    private BotNavigationAsset? _navEditorGeneratedCompatGraph;
+    private BotNavigationAsset? _navEditorGeneratedCompatGraphDiagnosticsAsset;
+    private ClientBotNavPoints? _navEditorGeneratedCompatGraphDiagnosticsNavPoints;
+    private string _navEditorGeneratedCompatGraphStatus = "generated graph not loaded";
+    private int _navEditorSelectedGeneratedGraphNodeId = -1;
+    private int _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+    private int _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+    private int _navEditorPendingGeneratedGraphSourceNodeId = -1;
+    private int _navEditorGraphRouteStartNodeId = -1;
+    private int _navEditorGraphRouteGoalNodeId = -1;
+    private int[] _navEditorGraphPreviewRouteNodeIds = Array.Empty<int>();
     private PlayerClass[] _navEditorDefaultClasses = Array.Empty<PlayerClass>();
     private BotNavigationNodeKind _navEditorDefaultAnchorKind = BotNavigationNodeKind.RouteAnchor;
     private PlayerTeam? _navEditorDefaultAnchorTeam;
     private BotNavigationHintTraversalKind _navEditorDefaultTraversal = BotNavigationHintTraversalKind.Auto;
     private bool _navEditorDefaultBidirectional = true;
+    private NavEditorGraphEdgeDisplayMode _navEditorGraphEdgeDisplayMode;
     private float _navEditorDefaultCostMultiplier = 1f;
     private PlayerClass? _navEditorViewClass;
     private bool _navEditorRenamingAnchor;
@@ -105,11 +137,18 @@ public partial class Game1
     private int _navEditorPlaybackStepIndex = -1;
     private int _navEditorPlaybackFrameIndex;
     private double _navEditorPlaybackFrameSecondsRemaining;
+    private int _navEditorPlaybackPostTapeTicks;
     private int _navEditorPlaybackElapsedTicks;
     private string _navEditorPlaybackLabel = string.Empty;
     private bool _navEditorPanelCollapsed;
     private bool _navEditorPanelDragging;
     private bool _navEditorPanelPositionInitialized;
+    private int _navEditorDraggingAnchorIndex = -1;
+    private Vector2 _navEditorDraggingAnchorOffset;
+    private bool _navEditorDraggingActivationZone;
+    private int _navEditorActivationZoneAnchorIndex = -1;
+    private Vector2 _navEditorActivationZoneStart;
+    private Vector2 _navEditorActivationZoneCurrent;
     private Point _navEditorPanelPosition;
     private Point _navEditorPanelDragOffset;
     private bool _navEditorContextMenuOpen;
@@ -118,8 +157,12 @@ public partial class Game1
     private NavEditorContextMenuTargetKind _navEditorContextMenuTargetKind;
     private int _navEditorContextMenuAnchorIndex = -1;
     private int _navEditorContextMenuLinkIndex = -1;
+    private int _navEditorContextMenuGeneratedGraphEdgeFromNodeId = -1;
+    private int _navEditorContextMenuGeneratedGraphEdgeToNodeId = -1;
     private int[] _navEditorContextMenuOpenPath = Array.Empty<int>();
     private bool _navEditorClearAllConfirmationOpen;
+    private int _navEditorDraggingGeneratedGraphNodeId = -1;
+    private Vector2 _navEditorDraggingGeneratedGraphNodeOffset;
 
     private void UpdateNavEditor(KeyboardState keyboard, MouseState mouse, MouseState panelMouse, Vector2 cameraPosition, float deltaSeconds)
     {
@@ -154,6 +197,7 @@ public partial class Game1
 
         var clickPressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var rightClickPressed = mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton != ButtonState.Pressed;
+        var rightClickReleased = mouse.RightButton != ButtonState.Pressed && _previousMouse.RightButton == ButtonState.Pressed;
 
         if (_navEditorClearAllConfirmationOpen)
         {
@@ -210,7 +254,7 @@ public partial class Game1
 
         if (IsKeyPressed(keyboard, Keys.F7))
         {
-            SaveNavEditorHints();
+            SaveNavEditorState();
         }
 
         if (IsKeyPressed(keyboard, Keys.F8))
@@ -221,6 +265,11 @@ public partial class Game1
         if (IsKeyPressed(keyboard, Keys.F9))
         {
             ToggleNavEditorPanelCollapsed();
+        }
+
+        if (IsKeyPressed(keyboard, Keys.F10))
+        {
+            CycleNavEditorGraphEdgeDisplayMode();
         }
 
         if (!_navEditorRenamingAnchor
@@ -271,6 +320,48 @@ public partial class Game1
             _navEditorPanelDragging = false;
         }
 
+        if (_navEditorDraggingAnchorIndex >= 0)
+        {
+            if (mouse.LeftButton == ButtonState.Pressed
+                && _navEditorLayerMode != NavEditorLayerMode.GeneratedGraph
+                && _navEditorDraggingAnchorIndex < _navEditorAnchors.Count)
+            {
+                DragNavEditorAnchor(_navEditorDraggingAnchorIndex, mouse.Position.ToVector2() + cameraPosition - _navEditorDraggingAnchorOffset);
+                return;
+            }
+
+            _navEditorDraggingAnchorIndex = -1;
+        }
+
+        if (_navEditorDraggingGeneratedGraphNodeId >= 0)
+        {
+            if (mouse.LeftButton == ButtonState.Pressed
+                && _navEditorLayerMode != NavEditorLayerMode.HintLayer)
+            {
+                DragNavEditorGeneratedGraphNode(_navEditorDraggingGeneratedGraphNodeId, mouse.Position.ToVector2() + cameraPosition - _navEditorDraggingGeneratedGraphNodeOffset);
+                return;
+            }
+
+            _navEditorDraggingGeneratedGraphNodeId = -1;
+        }
+
+        if (_navEditorDraggingActivationZone)
+        {
+            if (mouse.RightButton == ButtonState.Pressed)
+            {
+                UpdateNavEditorActivationZoneDrag(mouse, cameraPosition);
+                return;
+            }
+
+            if (rightClickReleased)
+            {
+                CommitNavEditorActivationZoneDrag();
+                return;
+            }
+
+            CancelNavEditorActivationZoneDrag();
+        }
+
         if (_navEditorContextMenuOpen)
         {
             UpdateNavEditorContextMenuHover(mouse.Position);
@@ -281,6 +372,12 @@ public partial class Game1
             if (IsNavEditorPanelHostHit(panelMouse.Position))
             {
                 CloseNavEditorContextMenu();
+                return;
+            }
+
+            if (IsNavEditorControlDown(keyboard))
+            {
+                BeginNavEditorActivationZoneDrag(mouse, cameraPosition);
                 return;
             }
 
@@ -389,6 +486,7 @@ public partial class Game1
             return;
         }
 
+        ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.ShippedModernAsset;
         _navEditorEnabled = true;
         RefreshNavEditorWindowGutter();
         _navEditorTool = NavEditorTool.Select;
@@ -410,11 +508,18 @@ public partial class Game1
             ReloadNavEditorState("nav editor enabled");
         }
 
-        AddConsoleLine("nav editor controls: drag the header to move, F9 collapse/expand, F7 save, F8 rebuild, F5 reload.");
+        AddConsoleLine("nav editor controls: drag the header to move, drag selected hint nodes or graph nodes to reposition, F9 collapse/expand, F10 cycle graph edge colors, F7 save, F8 rebuild, F5 reload.");
+        AddConsoleLine("nav editor fallback flow: mark one hint node as Entry, link it through waypoints, mark the final node as Exit, then choose a trigger such as NoNext or Stuck.");
+        AddConsoleLine("nav editor activation zones: Ctrl+right-drag on a hint node, or with an entry selected, to draw the rectangle where fallback can trigger.");
+        AddConsoleLine("nav editor graph edit: switch Layer to Graph to add/move/delete nodes; Link adds directed seams or two-way seams when New Direction is two-way; Save writes the consumed modern graph asset.");
+        AddConsoleLine("nav editor graph sim: right-click graph nodes to set start/goal, then run Test Route.");
+        AddConsoleLine("nav editor live bots: Run Trio respawns Scout/Heavy/Pyro on the local team from spawn in the current match state; Clear Trio restores the normal practice roster.");
     }
 
     private void DisableNavEditor(string reason)
     {
+        ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.Auto;
+        StopNavEditorScoreTrioPracticeBots(silent: true);
         ClearNavEditorTraversalCaptureState();
         ClearNavEditorTraversalPlaybackState();
         _navEditorEnabled = false;
@@ -422,6 +527,9 @@ public partial class Game1
         _navEditorPanelDragging = false;
         _navEditorRenamingAnchor = false;
         _navEditorPendingLinkAnchorIndex = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
+        _navEditorDraggingGeneratedGraphNodeId = -1;
+        CancelNavEditorActivationZoneDrag();
         _navEditorSelectedAnchorIndex = -1;
         _navEditorSelectedLinkIndex = -1;
         SetNavEditorStatus(reason);
@@ -446,6 +554,11 @@ public partial class Game1
         _navEditorSelectedAnchorIndex = -1;
         _navEditorSelectedLinkIndex = -1;
         _navEditorPendingLinkAnchorIndex = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
+        _navEditorDraggingAnchorIndex = -1;
+        _navEditorDraggingGeneratedGraphNodeId = -1;
+        CancelNavEditorActivationZoneDrag();
+        ClearNavEditorGeneratedGraphSelection();
         _navEditorRenamingAnchor = false;
         _navEditorRenameBuffer = string.Empty;
         _navEditorDirty = false;
@@ -453,6 +566,7 @@ public partial class Game1
         _navEditorLoadedMapAreaIndex = _world.Level.MapAreaIndex;
         ClearNavEditorTraversalCaptureState();
         ClearNavEditorTraversalPlaybackState();
+        LoadNavEditorGeneratedCompatGraph();
 
         var asset = BotNavigationHintStore.Load(_world.Level);
         if (asset is not null)
@@ -468,6 +582,20 @@ public partial class Game1
                     Y = node.Y,
                     Kind = node.Kind,
                     Team = node.Team,
+                    FallbackRole = node.FallbackRole,
+                    FallbackTriggers = node.FallbackTriggers.ToArray(),
+                    FallbackRadius = node.FallbackRadius,
+                    RequiresCarryingIntel = node.RequiresCarryingIntel,
+                    HasFallbackActivationZone = TryNormalizeNavEditorActivationZone(
+                        node.FallbackActivationZone,
+                        out var minX,
+                        out var minY,
+                        out var maxX,
+                        out var maxY),
+                    FallbackActivationMinX = minX,
+                    FallbackActivationMinY = minY,
+                    FallbackActivationMaxX = maxX,
+                    FallbackActivationMaxY = maxY,
                 });
             }
 
@@ -479,6 +607,7 @@ public partial class Game1
                     ToLabel = link.ToLabel,
                     Classes = BotNavigationClasses.ResolveApplicableClasses(link.Classes, link.Profiles).ToArray(),
                     Traversal = link.Traversal,
+                    StartJumpImmediately = link.StartJumpImmediately,
                     Bidirectional = link.Bidirectional,
                     CostMultiplier = link.CostMultiplier,
                     RecordedTraversals = ExpandNavEditorRecordedTraversals(link.RecordedTraversals).ToList(),
@@ -487,6 +616,31 @@ public partial class Game1
         }
 
         _navEditorNextAnchorNumber = GetNextNavEditorAnchorNumber();
+    }
+
+    private void LoadNavEditorGeneratedCompatGraph()
+    {
+        try
+        {
+            if (BotNavigationAssetStore.TryLoadModernShippedAssetForEditing(_world.Level, out var savedAsset, out _, out _, out var savedValidation)
+                && savedAsset is not null)
+            {
+                _navEditorGeneratedCompatGraph = savedAsset;
+                _navEditorGeneratedCompatGraphStatus = savedValidation.IsStructurallyValid
+                    ? $"saved graph: {savedAsset.Nodes.Count} nodes / {savedAsset.Edges.Count} links"
+                    : $"saved graph: {savedAsset.Nodes.Count} nodes / {savedAsset.Edges.Count} links INVALID ({savedValidation.BuildSummary()})";
+                return;
+            }
+
+            var fingerprint = BotNavigationLevelFingerprint.Compute(_world.Level);
+            _navEditorGeneratedCompatGraph = BotNavigationModernPointGraphBuilder.Build(_world.Level, fingerprint);
+            _navEditorGeneratedCompatGraphStatus = $"fresh graph: {_navEditorGeneratedCompatGraph.Nodes.Count} nodes / {_navEditorGeneratedCompatGraph.Edges.Count} links (geometry edge checks)";
+        }
+        catch (Exception ex)
+        {
+            _navEditorGeneratedCompatGraph = null;
+            _navEditorGeneratedCompatGraphStatus = $"generated graph failed: {ex.Message}";
+        }
     }
 
     private bool HasRetainedNavEditorStateForCurrentLevel()
@@ -498,6 +652,12 @@ public partial class Game1
 
     private void HandleNavEditorWorldClick(MouseState mouse, Vector2 cameraPosition)
     {
+        if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+        {
+            HandleNavEditorGeneratedGraphWorldClick(mouse, cameraPosition);
+            return;
+        }
+
         var mousePosition = mouse.Position.ToVector2();
         switch (_navEditorTool)
         {
@@ -537,6 +697,7 @@ public partial class Game1
                 if (TryPickNavEditorAnchor(mousePosition, cameraPosition, out var selectedAnchorIndex))
                 {
                     SelectNavEditorAnchor(selectedAnchorIndex);
+                    BeginNavEditorAnchorDrag(selectedAnchorIndex, mouse.Position.ToVector2() + cameraPosition);
                     return;
                 }
 
@@ -546,9 +707,271 @@ public partial class Game1
                     return;
                 }
 
+                if (_navEditorLayerMode == NavEditorLayerMode.Both
+                    && TryPickNavEditorGeneratedGraphNode(mousePosition, cameraPosition, out var selectedGraphNodeId))
+                {
+                    SelectNavEditorGeneratedGraphNode(selectedGraphNodeId);
+                    BeginNavEditorGeneratedGraphNodeDrag(selectedGraphNodeId, mouse.Position.ToVector2() + cameraPosition);
+                    return;
+                }
+
+                if (_navEditorLayerMode == NavEditorLayerMode.Both
+                    && TryPickNavEditorGeneratedGraphEdge(mousePosition, cameraPosition, out var selectedGraphEdgeFromNodeId, out var selectedGraphEdgeToNodeId))
+                {
+                    SelectNavEditorGeneratedGraphEdge(selectedGraphEdgeFromNodeId, selectedGraphEdgeToNodeId);
+                    return;
+                }
+
                 ClearNavEditorSelection();
                 return;
         }
+    }
+
+    private void HandleNavEditorGeneratedGraphWorldClick(MouseState mouse, Vector2 cameraPosition)
+    {
+        var mousePosition = mouse.Position.ToVector2();
+        switch (_navEditorTool)
+        {
+            case NavEditorTool.AddAnchor:
+                if (TryPickNavEditorGeneratedGraphNode(mousePosition, cameraPosition, out var pickedNodeId))
+                {
+                    SelectNavEditorGeneratedGraphNode(pickedNodeId);
+                    return;
+                }
+
+                if (!TryResolveNavEditorAnchorPlacement(mouse.X + cameraPosition.X, mouse.Y + cameraPosition.Y, out var snappedPosition))
+                {
+                    SetNavEditorStatus("graph node placement needs open space or nearby valid ground");
+                    return;
+                }
+
+                AddNavEditorGeneratedGraphNode(snappedPosition);
+                return;
+
+            case NavEditorTool.AddLink:
+                if (TryPickNavEditorGeneratedGraphNode(mousePosition, cameraPosition, out var linkNodeId))
+                {
+                    HandleNavEditorGeneratedGraphLinkNodeClick(linkNodeId);
+                    return;
+                }
+
+                if (TryPickNavEditorGeneratedGraphEdge(mousePosition, cameraPosition, out var linkEdgeFromNodeId, out var linkEdgeToNodeId))
+                {
+                    SelectNavEditorGeneratedGraphEdge(linkEdgeFromNodeId, linkEdgeToNodeId);
+                    return;
+                }
+
+                SetNavEditorStatus("click one graph node, then another, to add or remove a directed edge");
+                return;
+
+            default:
+                if (TryPickNavEditorGeneratedGraphNode(mousePosition, cameraPosition, out var graphNodeId))
+                {
+                    SelectNavEditorGeneratedGraphNode(graphNodeId);
+                    BeginNavEditorGeneratedGraphNodeDrag(graphNodeId, mouse.Position.ToVector2() + cameraPosition);
+                    return;
+                }
+
+                if (TryPickNavEditorGeneratedGraphEdge(mousePosition, cameraPosition, out var selectedEdgeFromNodeId, out var selectedEdgeToNodeId))
+                {
+                    SelectNavEditorGeneratedGraphEdge(selectedEdgeFromNodeId, selectedEdgeToNodeId);
+                    return;
+                }
+
+                ClearNavEditorSelection();
+                return;
+        }
+    }
+
+    private void AddNavEditorGeneratedGraphNode(Vector2 snappedPosition)
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            SetNavEditorStatus("graph node add failed: generated graph is not loaded");
+            return;
+        }
+
+        var roundedX = MathF.Round(snappedPosition.X);
+        var roundedY = MathF.Round(snappedPosition.Y);
+        var surfaceId = ResolveNavEditorGeneratedGraphSurfaceId(roundedX, roundedY);
+        _navEditorGeneratedCompatGraph = BotNavigationModernGraphEditor.AddSurfaceNode(asset, surfaceId, roundedX, roundedY);
+        _navEditorDirty = true;
+        UpdateNavEditorGeneratedGraphEditStatus();
+        var newNodeId = _navEditorGeneratedCompatGraph.Nodes.Max(static node => node.Id);
+        SelectNavEditorGeneratedGraphNode(newNodeId);
+        SetNavEditorStatus($"graph node added: {newNodeId} at ({roundedX:F0}, {roundedY:F0})");
+    }
+
+    private void HandleNavEditorGeneratedGraphLinkNodeClick(int nodeId)
+    {
+        SelectNavEditorGeneratedGraphNode(nodeId);
+        if (_navEditorPendingGeneratedGraphSourceNodeId < 0)
+        {
+            _navEditorPendingGeneratedGraphSourceNodeId = nodeId;
+            SetNavEditorStatus($"graph edge start set to node {nodeId}. Click a destination node.");
+            return;
+        }
+
+        if (_navEditorPendingGeneratedGraphSourceNodeId == nodeId)
+        {
+            SetNavEditorStatus("pick a different graph node to finish the directed edge");
+            return;
+        }
+
+        ToggleNavEditorGeneratedGraphEdgeConnection(_navEditorPendingGeneratedGraphSourceNodeId, nodeId);
+        _navEditorPendingGeneratedGraphSourceNodeId = nodeId;
+    }
+
+    private void BeginNavEditorGeneratedGraphNodeDrag(int nodeId, Vector2 worldPosition)
+    {
+        if (!TryGetNavEditorGeneratedGraphNode(nodeId, out var node))
+        {
+            return;
+        }
+
+        _navEditorDraggingGeneratedGraphNodeId = nodeId;
+        _navEditorDraggingGeneratedGraphNodeOffset = worldPosition - new Vector2(node.X, node.Y);
+    }
+
+    private void DragNavEditorGeneratedGraphNode(int nodeId, Vector2 worldPosition)
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset
+            || !TryGetNavEditorGeneratedGraphNode(nodeId, out var node))
+        {
+            return;
+        }
+
+        var roundedX = MathF.Round(worldPosition.X);
+        var roundedY = MathF.Round(worldPosition.Y);
+        if (Math.Abs(node.X - roundedX) < float.Epsilon && Math.Abs(node.Y - roundedY) < float.Epsilon)
+        {
+            return;
+        }
+
+        _navEditorGeneratedCompatGraph = BotNavigationModernGraphEditor.MoveNode(_world.Level, asset, nodeId, roundedX, roundedY);
+        _navEditorDirty = true;
+        UpdateNavEditorGeneratedGraphEditStatus();
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"moved graph node {nodeId} to ({roundedX:F0}, {roundedY:F0}); incident seams rebuilt");
+    }
+
+    private void ToggleNavEditorGeneratedGraphEdgeConnection(int fromNodeId, int toNodeId)
+    {
+        if (_navEditorDefaultBidirectional)
+        {
+            ToggleNavEditorGeneratedGraphBidirectionalEdge(fromNodeId, toNodeId);
+            return;
+        }
+
+        ToggleNavEditorGeneratedGraphDirectedEdge(fromNodeId, toNodeId);
+    }
+
+    private void ToggleNavEditorGeneratedGraphDirectedEdge(int fromNodeId, int toNodeId)
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            SetNavEditorStatus("graph edge edit failed: generated graph is not loaded");
+            return;
+        }
+
+        if (asset.Edges.Any(edge => edge.FromNodeId == fromNodeId && edge.ToNodeId == toNodeId))
+        {
+            _navEditorGeneratedCompatGraph = BotNavigationModernGraphEditor.RemoveDirectedEdge(asset, fromNodeId, toNodeId, out var removed);
+            if (!removed)
+            {
+                SetNavEditorStatus($"graph edge {fromNodeId}->{toNodeId} was already gone");
+                return;
+            }
+
+            _navEditorDirty = true;
+            UpdateNavEditorGeneratedGraphEditStatus();
+            RefreshNavEditorGeneratedGraphRoutePreview();
+            SetNavEditorStatus($"graph edge removed: {fromNodeId} -> {toNodeId}");
+            return;
+        }
+
+        if (!BotNavigationModernGraphEditor.TryBuildDirectedEdge(_world.Level, asset, fromNodeId, toNodeId, out var edge, out var failureMessage))
+        {
+            SetNavEditorStatus($"graph edge add failed: {failureMessage}");
+            return;
+        }
+
+        _navEditorGeneratedCompatGraph = BotNavigationModernGraphEditor.UpsertDirectedEdge(asset, edge);
+        _navEditorDirty = true;
+        UpdateNavEditorGeneratedGraphEditStatus();
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"graph edge added: {fromNodeId} -> {toNodeId} ({edge.Kind})");
+    }
+
+    private void ToggleNavEditorGeneratedGraphBidirectionalEdge(int firstNodeId, int secondNodeId)
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            SetNavEditorStatus("graph edge edit failed: generated graph is not loaded");
+            return;
+        }
+
+        var forwardExists = asset.Edges.Any(edge => edge.FromNodeId == firstNodeId && edge.ToNodeId == secondNodeId);
+        var reverseExists = asset.Edges.Any(edge => edge.FromNodeId == secondNodeId && edge.ToNodeId == firstNodeId);
+        if (forwardExists && reverseExists)
+        {
+            var updatedAsset = BotNavigationModernGraphEditor.RemoveDirectedEdge(asset, firstNodeId, secondNodeId, out _);
+            updatedAsset = BotNavigationModernGraphEditor.RemoveDirectedEdge(updatedAsset, secondNodeId, firstNodeId, out _);
+            _navEditorGeneratedCompatGraph = updatedAsset;
+            _navEditorDirty = true;
+            UpdateNavEditorGeneratedGraphEditStatus();
+            RefreshNavEditorGeneratedGraphRoutePreview();
+            SetNavEditorStatus($"graph edge pair removed: {firstNodeId} <-> {secondNodeId}");
+            return;
+        }
+
+        var workingAsset = asset;
+        var addedDirections = new List<string>(2);
+        var failures = new List<string>(2);
+        TryEnsureNavEditorGeneratedGraphDirectedEdge(ref workingAsset, firstNodeId, secondNodeId, $"{firstNodeId}->{secondNodeId}", addedDirections, failures);
+        TryEnsureNavEditorGeneratedGraphDirectedEdge(ref workingAsset, secondNodeId, firstNodeId, $"{secondNodeId}->{firstNodeId}", addedDirections, failures);
+        if (addedDirections.Count <= 0)
+        {
+            SetNavEditorStatus(failures.Count > 0
+                ? $"graph two-way add failed: {string.Join("; ", failures)}"
+                : $"graph edge pair unchanged: {firstNodeId} <-> {secondNodeId}");
+            return;
+        }
+
+        _navEditorGeneratedCompatGraph = workingAsset;
+        _navEditorDirty = true;
+        UpdateNavEditorGeneratedGraphEditStatus();
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        var failureSuffix = failures.Count > 0
+            ? $" ({string.Join("; ", failures)})"
+            : string.Empty;
+        SetNavEditorStatus(
+            addedDirections.Count == 2
+                ? $"graph edge pair set: {firstNodeId} <-> {secondNodeId}{failureSuffix}"
+                : $"graph edge updated: added {string.Join(", ", addedDirections)}{failureSuffix}");
+    }
+
+    private void TryEnsureNavEditorGeneratedGraphDirectedEdge(
+        ref BotNavigationAsset asset,
+        int fromNodeId,
+        int toNodeId,
+        string label,
+        List<string> addedDirections,
+        List<string> failures)
+    {
+        if (asset.Edges.Any(edge => edge.FromNodeId == fromNodeId && edge.ToNodeId == toNodeId))
+        {
+            return;
+        }
+
+        if (!BotNavigationModernGraphEditor.TryBuildDirectedEdge(_world.Level, asset, fromNodeId, toNodeId, out var edge, out var failureMessage))
+        {
+            failures.Add($"{label} {failureMessage}");
+            return;
+        }
+
+        asset = BotNavigationModernGraphEditor.UpsertDirectedEdge(asset, edge);
+        addedDirections.Add(label);
     }
 
     private void AddNavEditorAnchor(Vector2 snappedPosition)
@@ -636,6 +1059,7 @@ public partial class Game1
         {
             var link = _navEditorLinks[existingIndex];
             link.Traversal = defaultTraversal;
+            link.StartJumpImmediately = false;
             link.Bidirectional = _navEditorDefaultBidirectional;
             link.CostMultiplier = _navEditorDefaultCostMultiplier;
             link.Classes = _navEditorDefaultClasses.ToArray();
@@ -651,6 +1075,7 @@ public partial class Game1
             ToLabel = toAnchor.Label,
             Classes = _navEditorDefaultClasses.ToArray(),
             Traversal = defaultTraversal,
+            StartJumpImmediately = false,
             Bidirectional = _navEditorDefaultBidirectional,
             CostMultiplier = _navEditorDefaultCostMultiplier,
         });
@@ -714,6 +1139,63 @@ public partial class Game1
 
     private void DeleteSelectedNavEditorItem()
     {
+        if (_navEditorSelectedGeneratedGraphEdgeFromNodeId >= 0
+            && _navEditorSelectedGeneratedGraphEdgeToNodeId >= 0
+            && _navEditorGeneratedCompatGraph is BotNavigationAsset edgeAsset)
+        {
+            var fromNodeId = _navEditorSelectedGeneratedGraphEdgeFromNodeId;
+            var toNodeId = _navEditorSelectedGeneratedGraphEdgeToNodeId;
+            _navEditorGeneratedCompatGraph = BotNavigationModernGraphEditor.RemoveDirectedEdge(edgeAsset, fromNodeId, toNodeId, out var removed);
+            if (!removed)
+            {
+                SetNavEditorStatus($"graph edge {fromNodeId}->{toNodeId} was already gone");
+                return;
+            }
+
+            _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+            _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+            _navEditorDirty = true;
+            UpdateNavEditorGeneratedGraphEditStatus();
+            RefreshNavEditorGeneratedGraphRoutePreview();
+            SetNavEditorStatus($"graph edge deleted: {fromNodeId} -> {toNodeId}");
+            return;
+        }
+
+        if (_navEditorSelectedGeneratedGraphNodeId >= 0
+            && _navEditorGeneratedCompatGraph is BotNavigationAsset graphAsset)
+        {
+            var nodeId = _navEditorSelectedGeneratedGraphNodeId;
+            var deleteResult = BotNavigationModernGraphEditor.DeleteNodeAndReconnect(_world.Level, graphAsset, nodeId);
+            if (deleteResult.RemovedNodes <= 0)
+            {
+                SetNavEditorStatus($"graph node {nodeId} was already gone");
+                return;
+            }
+
+            _navEditorGeneratedCompatGraph = deleteResult.Asset;
+            _navEditorSelectedGeneratedGraphNodeId = -1;
+            if (_navEditorPendingGeneratedGraphSourceNodeId == nodeId)
+            {
+                _navEditorPendingGeneratedGraphSourceNodeId = -1;
+            }
+
+            if (_navEditorGraphRouteStartNodeId == nodeId)
+            {
+                _navEditorGraphRouteStartNodeId = -1;
+            }
+
+            if (_navEditorGraphRouteGoalNodeId == nodeId)
+            {
+                _navEditorGraphRouteGoalNodeId = -1;
+            }
+
+            _navEditorDirty = true;
+            UpdateNavEditorGeneratedGraphEditStatus();
+            RefreshNavEditorGeneratedGraphRoutePreview();
+            SetNavEditorStatus($"graph node deleted: {nodeId} (removed {deleteResult.RemovedEdges} edges, added {deleteResult.AddedEdges} reconnects)");
+            return;
+        }
+
         if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
         {
             var label = _navEditorAnchors[_navEditorSelectedAnchorIndex].Label;
@@ -768,6 +1250,7 @@ public partial class Game1
         _navEditorRenameBuffer = string.Empty;
         _navEditorNextAnchorNumber = 1;
         _navEditorClearAllConfirmationOpen = false;
+        CancelNavEditorActivationZoneDrag();
         _navEditorDirty = true;
         SetNavEditorStatus("cleared all nodes");
         AddConsoleLine($"nav editor cleared {anchorCount} anchors and {linkCount} links");
@@ -800,22 +1283,184 @@ public partial class Game1
     {
         _navEditorSelectedAnchorIndex = anchorIndex;
         _navEditorSelectedLinkIndex = -1;
+        _navEditorSelectedGeneratedGraphNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+    }
+
+    private void BeginNavEditorAnchorDrag(int anchorIndex, Vector2 worldPosition)
+    {
+        if (anchorIndex < 0 || anchorIndex >= _navEditorAnchors.Count)
+        {
+            return;
+        }
+
+        var anchor = _navEditorAnchors[anchorIndex];
+        _navEditorDraggingAnchorIndex = anchorIndex;
+        _navEditorDraggingAnchorOffset = worldPosition - new Vector2(anchor.X, anchor.Y);
+    }
+
+    private void DragNavEditorAnchor(int anchorIndex, Vector2 worldPosition)
+    {
+        if (anchorIndex < 0 || anchorIndex >= _navEditorAnchors.Count)
+        {
+            return;
+        }
+
+        var anchor = _navEditorAnchors[anchorIndex];
+        anchor.X = MathF.Round(worldPosition.X);
+        anchor.Y = MathF.Round(worldPosition.Y);
+        _navEditorDirty = true;
+        SetNavEditorStatus($"moved {anchor.Label} to ({anchor.X:F0}, {anchor.Y:F0})");
+    }
+
+    private void BeginNavEditorActivationZoneDrag(MouseState mouse, Vector2 cameraPosition)
+    {
+        if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+        {
+            SetNavEditorStatus("activation zones only apply to hint fallback entries. Switch Layer to Hints or Both.");
+            return;
+        }
+
+        var mouseScreenPosition = mouse.Position.ToVector2();
+        var anchorIndex = _navEditorSelectedAnchorIndex;
+        if (TryPickNavEditorAnchor(mouseScreenPosition, cameraPosition, out var pickedAnchorIndex))
+        {
+            anchorIndex = pickedAnchorIndex;
+            SelectNavEditorAnchor(anchorIndex);
+        }
+
+        if (anchorIndex < 0 || anchorIndex >= _navEditorAnchors.Count)
+        {
+            SetNavEditorStatus("select a fallback entry node, then Ctrl+right-drag to draw its activation rectangle");
+            return;
+        }
+
+        _navEditorDraggingActivationZone = true;
+        _navEditorActivationZoneAnchorIndex = anchorIndex;
+        _navEditorActivationZoneStart = mouseScreenPosition + cameraPosition;
+        _navEditorActivationZoneCurrent = _navEditorActivationZoneStart;
+        _navEditorDraggingAnchorIndex = -1;
+        CloseNavEditorContextMenu();
+        SetNavEditorStatus($"drawing activation zone for {_navEditorAnchors[anchorIndex].Label}");
+    }
+
+    private void UpdateNavEditorActivationZoneDrag(MouseState mouse, Vector2 cameraPosition)
+    {
+        _navEditorActivationZoneCurrent = mouse.Position.ToVector2() + cameraPosition;
+    }
+
+    private void CommitNavEditorActivationZoneDrag()
+    {
+        if (_navEditorActivationZoneAnchorIndex < 0 || _navEditorActivationZoneAnchorIndex >= _navEditorAnchors.Count)
+        {
+            CancelNavEditorActivationZoneDrag();
+            return;
+        }
+
+        var minX = MathF.Round(MathF.Min(_navEditorActivationZoneStart.X, _navEditorActivationZoneCurrent.X));
+        var minY = MathF.Round(MathF.Min(_navEditorActivationZoneStart.Y, _navEditorActivationZoneCurrent.Y));
+        var maxX = MathF.Round(MathF.Max(_navEditorActivationZoneStart.X, _navEditorActivationZoneCurrent.X));
+        var maxY = MathF.Round(MathF.Max(_navEditorActivationZoneStart.Y, _navEditorActivationZoneCurrent.Y));
+        var width = maxX - minX;
+        var height = maxY - minY;
+        var anchor = _navEditorAnchors[_navEditorActivationZoneAnchorIndex];
+        CancelNavEditorActivationZoneDrag();
+        if (width < NavEditorMinimumActivationZoneSize || height < NavEditorMinimumActivationZoneSize)
+        {
+            SetNavEditorStatus("activation zone canceled: drag a wider rectangle");
+            return;
+        }
+
+        if (anchor.FallbackRole != BotNavigationHintFallbackRole.Entry)
+        {
+            anchor.FallbackRole = BotNavigationHintFallbackRole.Entry;
+            if (anchor.FallbackTriggers.Length == 0)
+            {
+                anchor.FallbackTriggers = [BotNavigationHintFallbackTrigger.NoNext];
+            }
+        }
+
+        anchor.HasFallbackActivationZone = true;
+        anchor.FallbackActivationMinX = minX;
+        anchor.FallbackActivationMinY = minY;
+        anchor.FallbackActivationMaxX = maxX;
+        anchor.FallbackActivationMaxY = maxY;
+        _navEditorDirty = true;
+        SetNavEditorStatus($"activation zone set for {anchor.Label}: {width:F0}x{height:F0}");
+    }
+
+    private void CancelNavEditorActivationZoneDrag()
+    {
+        _navEditorDraggingActivationZone = false;
+        _navEditorActivationZoneAnchorIndex = -1;
+        _navEditorActivationZoneStart = Vector2.Zero;
+        _navEditorActivationZoneCurrent = Vector2.Zero;
     }
 
     private void SelectNavEditorLink(int linkIndex)
     {
         _navEditorSelectedLinkIndex = linkIndex;
         _navEditorSelectedAnchorIndex = -1;
+        _navEditorSelectedGeneratedGraphNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
         _navEditorRenamingAnchor = false;
         _navEditorRenameBuffer = string.Empty;
+        RefreshNavEditorGeneratedGraphRoutePreview();
     }
 
     private void ClearNavEditorSelection()
     {
         _navEditorSelectedAnchorIndex = -1;
         _navEditorSelectedLinkIndex = -1;
+        _navEditorSelectedGeneratedGraphNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
         _navEditorRenamingAnchor = false;
         _navEditorRenameBuffer = string.Empty;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+    }
+
+    private void SelectNavEditorGeneratedGraphNode(int nodeId)
+    {
+        _navEditorSelectedGeneratedGraphNodeId = nodeId;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+        _navEditorSelectedAnchorIndex = -1;
+        _navEditorSelectedLinkIndex = -1;
+        _navEditorRenamingAnchor = false;
+        _navEditorRenameBuffer = string.Empty;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"selected generated graph node {nodeId}");
+    }
+
+    private void SelectNavEditorGeneratedGraphEdge(int fromNodeId, int toNodeId)
+    {
+        _navEditorSelectedGeneratedGraphNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = fromNodeId;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = toNodeId;
+        _navEditorSelectedAnchorIndex = -1;
+        _navEditorSelectedLinkIndex = -1;
+        _navEditorRenamingAnchor = false;
+        _navEditorRenameBuffer = string.Empty;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"selected graph edge {fromNodeId} -> {toNodeId}");
+    }
+
+    private void ClearNavEditorGeneratedGraphSelection()
+    {
+        _navEditorSelectedGeneratedGraphNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorSelectedGeneratedGraphEdgeToNodeId = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
+        _navEditorGraphRouteStartNodeId = -1;
+        _navEditorGraphRouteGoalNodeId = -1;
+        _navEditorGraphPreviewRouteNodeIds = Array.Empty<int>();
     }
 
     private bool TryPickNavEditorAnchor(Vector2 mouseScreenPosition, Vector2 cameraPosition, out int anchorIndex)
@@ -842,6 +1487,90 @@ public partial class Game1
         }
 
         return anchorIndex >= 0;
+    }
+
+    private bool TryPickNavEditorGeneratedGraphNode(Vector2 mouseScreenPosition, Vector2 cameraPosition, out int nodeId)
+    {
+        nodeId = -1;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return false;
+        }
+
+        var bestDistanceSquared = NavEditorAnchorPickRadius * NavEditorAnchorPickRadius;
+        for (var index = 0; index < asset.Nodes.Count; index += 1)
+        {
+            var node = asset.Nodes[index];
+            var screenPosition = new Vector2(node.X - cameraPosition.X, node.Y - cameraPosition.Y);
+            var distanceSquared = Vector2.DistanceSquared(mouseScreenPosition, screenPosition);
+            if (distanceSquared > bestDistanceSquared)
+            {
+                continue;
+            }
+
+            bestDistanceSquared = distanceSquared;
+            nodeId = node.Id;
+        }
+
+        return nodeId >= 0;
+    }
+
+    private bool TryPickNavEditorGeneratedGraphEdge(Vector2 mouseScreenPosition, Vector2 cameraPosition, out int fromNodeId, out int toNodeId)
+    {
+        fromNodeId = -1;
+        toNodeId = -1;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return false;
+        }
+
+        var bestDistance = NavEditorLinkPickDistance;
+        for (var index = asset.Edges.Count - 1; index >= 0; index -= 1)
+        {
+            var edge = asset.Edges[index];
+            if (!TryGetNavEditorGeneratedGraphNode(edge.FromNodeId, out var fromNode)
+                || !TryGetNavEditorGeneratedGraphNode(edge.ToNodeId, out var toNode))
+            {
+                continue;
+            }
+
+            var fromScreen = new Vector2(fromNode.X - cameraPosition.X, fromNode.Y - cameraPosition.Y);
+            var toScreen = new Vector2(toNode.X - cameraPosition.X, toNode.Y - cameraPosition.Y);
+            var distance = DistanceToSegment(mouseScreenPosition, fromScreen, toScreen);
+            if (distance > bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            fromNodeId = edge.FromNodeId;
+            toNodeId = edge.ToNodeId;
+        }
+
+        return fromNodeId >= 0 && toNodeId >= 0;
+    }
+
+    private bool TryGetNavEditorGeneratedGraphEdge(int fromNodeId, int toNodeId, out BotNavigationEdge edge)
+    {
+        edge = default!;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < asset.Edges.Count; index += 1)
+        {
+            var candidate = asset.Edges[index];
+            if (candidate.FromNodeId != fromNodeId || candidate.ToNodeId != toNodeId)
+            {
+                continue;
+            }
+
+            edge = candidate;
+            return true;
+        }
+
+        return false;
     }
 
     private bool TryPickNavEditorLink(Vector2 mouseScreenPosition, Vector2 cameraPosition, out int linkIndex)
@@ -1124,6 +1853,7 @@ public partial class Game1
         {
             _navEditorTool = NavEditorTool.Select;
             _navEditorPendingLinkAnchorIndex = -1;
+            _navEditorPendingGeneratedGraphSourceNodeId = -1;
             SetNavEditorStatus("tool: select");
             return true;
         }
@@ -1132,7 +1862,8 @@ public partial class Game1
         {
             _navEditorTool = NavEditorTool.AddAnchor;
             _navEditorPendingLinkAnchorIndex = -1;
-            SetNavEditorStatus("tool: add anchor");
+            _navEditorPendingGeneratedGraphSourceNodeId = -1;
+            SetNavEditorStatus(_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph ? "tool: add graph node" : "tool: add anchor");
             return true;
         }
 
@@ -1140,13 +1871,14 @@ public partial class Game1
         {
             _navEditorTool = NavEditorTool.AddLink;
             _navEditorPendingLinkAnchorIndex = _navEditorSelectedAnchorIndex;
-            SetNavEditorStatus("tool: add link");
+            _navEditorPendingGeneratedGraphSourceNodeId = _navEditorSelectedGeneratedGraphNodeId;
+            SetNavEditorStatus(_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph ? "tool: toggle graph edge" : "tool: add link");
             return true;
         }
 
         if (layout.SaveButton.Contains(mouse.Position))
         {
-            SaveNavEditorHints();
+            SaveNavEditorState();
             return true;
         }
 
@@ -1164,7 +1896,14 @@ public partial class Game1
 
         if (layout.RenameButton.Contains(mouse.Position))
         {
-            BeginNavEditorRename();
+            if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+            {
+                SetNavEditorStatus("graph nodes use numeric ids; drag them to move, Link toggles edges, Delete removes nodes");
+            }
+            else
+            {
+                BeginNavEditorRename();
+            }
             return true;
         }
 
@@ -1176,13 +1915,23 @@ public partial class Game1
 
         if (layout.ClearAllButton.Contains(mouse.Position))
         {
-            BeginNavEditorClearAll();
+            if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+            {
+                SetNavEditorStatus("Clear All only applies to hint routes. Use Reload to discard graph edits or Rebuild to regenerate the graph.");
+            }
+            else
+            {
+                BeginNavEditorClearAll();
+            }
             return true;
         }
 
         if (layout.RecordButton.Contains(mouse.Position))
         {
-            StartNavEditorTraversalCapture();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                StartNavEditorTraversalCapture();
+            }
             return true;
         }
 
@@ -1194,13 +1943,19 @@ public partial class Game1
 
         if (layout.ClearRecordingButton.Contains(mouse.Position))
         {
-            ClearSelectedNavEditorRecordedTraversal();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                ClearSelectedNavEditorRecordedTraversal();
+            }
             return true;
         }
 
         if (layout.TestLinkButton.Contains(mouse.Position))
         {
-            StartNavEditorSelectedLinkPlayback();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                StartNavEditorSelectedLinkPlayback();
+            }
             return true;
         }
 
@@ -1222,21 +1977,81 @@ public partial class Game1
             return true;
         }
 
+        if (layout.LayerButton.Contains(mouse.Position))
+        {
+            CycleNavEditorLayerMode();
+            return true;
+        }
+
+        if (layout.RunScoreTrioButton.Contains(mouse.Position))
+        {
+            RunNavEditorScoreTrioPracticeBots();
+            return true;
+        }
+
+        if (layout.ClearScoreTrioButton.Contains(mouse.Position))
+        {
+            StopNavEditorScoreTrioPracticeBots();
+            return true;
+        }
+
+        if (layout.BotTagsButton.Contains(mouse.Position))
+        {
+            ToggleNavEditorBotTags();
+            return true;
+        }
+
         if (layout.AnchorKindButton.Contains(mouse.Position))
         {
-            CycleNavEditorDefaultAnchorKind();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorDefaultAnchorKind();
+            }
             return true;
         }
 
         if (layout.AnchorTeamButton.Contains(mouse.Position))
         {
-            CycleNavEditorDefaultAnchorTeam();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorDefaultAnchorTeam();
+            }
+            return true;
+        }
+
+        if (layout.FallbackRoleButton.Contains(mouse.Position))
+        {
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorFallbackRole();
+            }
+            return true;
+        }
+
+        if (layout.FallbackTriggerButton.Contains(mouse.Position))
+        {
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorFallbackTrigger();
+            }
+            return true;
+        }
+
+        if (layout.FallbackCarryButton.Contains(mouse.Position))
+        {
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorCarryRequirement();
+            }
             return true;
         }
 
         if (layout.TraversalButton.Contains(mouse.Position))
         {
-            CycleNavEditorDefaultTraversal();
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                CycleNavEditorDefaultTraversal();
+            }
             return true;
         }
 
@@ -1246,15 +2061,27 @@ public partial class Game1
             return true;
         }
 
+        if (layout.EdgeDisplayButton.Contains(mouse.Position))
+        {
+            CycleNavEditorGraphEdgeDisplayMode();
+            return true;
+        }
+
         if (layout.CostDownButton.Contains(mouse.Position))
         {
-            AdjustNavEditorDefaultCostMultiplier(-NavEditorCostStep);
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                AdjustNavEditorDefaultCostMultiplier(-NavEditorCostStep);
+            }
             return true;
         }
 
         if (layout.CostUpButton.Contains(mouse.Position))
         {
-            AdjustNavEditorDefaultCostMultiplier(NavEditorCostStep);
+            if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
+            {
+                AdjustNavEditorDefaultCostMultiplier(NavEditorCostStep);
+            }
             return true;
         }
 
@@ -1271,9 +2098,25 @@ public partial class Game1
         _navEditorContextMenuOpenPath = Array.Empty<int>();
         _navEditorContextMenuAnchorIndex = -1;
         _navEditorContextMenuLinkIndex = -1;
+        _navEditorContextMenuGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorContextMenuGeneratedGraphEdgeToNodeId = -1;
 
         var mouseScreenPosition = mouse.Position.ToVector2();
-        if (TryPickNavEditorAnchor(mouseScreenPosition, cameraPosition, out var anchorIndex))
+        if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+            && TryPickNavEditorGeneratedGraphNode(mouseScreenPosition, cameraPosition, out var graphNodeId))
+        {
+            SelectNavEditorGeneratedGraphNode(graphNodeId);
+            _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.GeneratedGraphNode;
+        }
+        else if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+            && TryPickNavEditorGeneratedGraphEdge(mouseScreenPosition, cameraPosition, out var graphEdgeFromNodeId, out var graphEdgeToNodeId))
+        {
+            SelectNavEditorGeneratedGraphEdge(graphEdgeFromNodeId, graphEdgeToNodeId);
+            _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.GeneratedGraphEdge;
+            _navEditorContextMenuGeneratedGraphEdgeFromNodeId = graphEdgeFromNodeId;
+            _navEditorContextMenuGeneratedGraphEdgeToNodeId = graphEdgeToNodeId;
+        }
+        else if (TryPickNavEditorAnchor(mouseScreenPosition, cameraPosition, out var anchorIndex))
         {
             SelectNavEditorAnchor(anchorIndex);
             _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.Anchor;
@@ -1284,6 +2127,20 @@ public partial class Game1
             SelectNavEditorLink(linkIndex);
             _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.Link;
             _navEditorContextMenuLinkIndex = linkIndex;
+        }
+        else if (_navEditorLayerMode == NavEditorLayerMode.Both
+            && TryPickNavEditorGeneratedGraphNode(mouseScreenPosition, cameraPosition, out graphNodeId))
+        {
+            SelectNavEditorGeneratedGraphNode(graphNodeId);
+            _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.GeneratedGraphNode;
+        }
+        else if (_navEditorLayerMode == NavEditorLayerMode.Both
+            && TryPickNavEditorGeneratedGraphEdge(mouseScreenPosition, cameraPosition, out var bothGraphEdgeFromNodeId, out var bothGraphEdgeToNodeId))
+        {
+            SelectNavEditorGeneratedGraphEdge(bothGraphEdgeFromNodeId, bothGraphEdgeToNodeId);
+            _navEditorContextMenuTargetKind = NavEditorContextMenuTargetKind.GeneratedGraphEdge;
+            _navEditorContextMenuGeneratedGraphEdgeFromNodeId = bothGraphEdgeFromNodeId;
+            _navEditorContextMenuGeneratedGraphEdgeToNodeId = bothGraphEdgeToNodeId;
         }
         else
         {
@@ -1301,6 +2158,8 @@ public partial class Game1
         _navEditorContextMenuOpenPath = Array.Empty<int>();
         _navEditorContextMenuAnchorIndex = -1;
         _navEditorContextMenuLinkIndex = -1;
+        _navEditorContextMenuGeneratedGraphEdgeFromNodeId = -1;
+        _navEditorContextMenuGeneratedGraphEdgeToNodeId = -1;
     }
 
     private void UpdateNavEditorContextMenuHover(Point mousePosition)
@@ -1363,12 +2222,44 @@ public partial class Game1
         {
             NavEditorContextMenuTargetKind.Anchor => BuildNavEditorAnchorContextMenuItems(),
             NavEditorContextMenuTargetKind.Link => BuildNavEditorLinkContextMenuItems(),
+            NavEditorContextMenuTargetKind.GeneratedGraphNode => BuildNavEditorGeneratedGraphNodeContextMenuItems(),
+            NavEditorContextMenuTargetKind.GeneratedGraphEdge => BuildNavEditorGeneratedGraphEdgeContextMenuItems(),
             _ => BuildNavEditorEmptyContextMenuItems(),
         };
     }
 
     private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorEmptyContextMenuItems()
     {
+        if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+        {
+            return
+            [
+                new NavEditorContextMenuItem
+                {
+                    Label = "Place Graph Node",
+                    Action = () =>
+                    {
+                        if (!TryResolveNavEditorAnchorPlacement(_navEditorContextMenuWorldPosition.X, _navEditorContextMenuWorldPosition.Y, out var snappedPosition))
+                        {
+                            SetNavEditorStatus("graph node placement needs open space or nearby valid ground");
+                            return;
+                        }
+
+                        AddNavEditorGeneratedGraphNode(snappedPosition);
+                    },
+                },
+                new NavEditorContextMenuItem
+                {
+                    Label = "Switch To Hints",
+                    Action = () =>
+                    {
+                        _navEditorLayerMode = NavEditorLayerMode.HintLayer;
+                        SetNavEditorStatus("layer: Hints");
+                    },
+                },
+            ];
+        }
+
         return
         [
             new NavEditorContextMenuItem
@@ -1408,6 +2299,11 @@ public partial class Game1
             },
             new NavEditorContextMenuItem
             {
+                Label = "Fallback",
+                Children = BuildNavEditorFallbackMenuItems(anchor),
+            },
+            new NavEditorContextMenuItem
+            {
                 Label = "Rename",
                 Action = BeginNavEditorRename,
             },
@@ -1440,6 +2336,12 @@ public partial class Game1
             {
                 Label = "Traversal",
                 Children = BuildNavEditorTraversalMenuItems(link.Traversal),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Jump Timing",
+                Enabled = link.Traversal == BotNavigationHintTraversalKind.Jump,
+                Children = BuildNavEditorJumpTimingMenuItems(link.StartJumpImmediately),
             },
             new NavEditorContextMenuItem
             {
@@ -1488,6 +2390,162 @@ public partial class Game1
             new NavEditorContextMenuItem
             {
                 Label = "Delete",
+                Action = DeleteSelectedNavEditorItem,
+            },
+        ];
+    }
+
+    private NavEditorContextMenuItem[] BuildNavEditorGeneratedGraphNodeContextMenuItems()
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset
+            || !TryGetNavEditorGeneratedGraphNode(_navEditorSelectedGeneratedGraphNodeId, out var node))
+        {
+            return Array.Empty<NavEditorContextMenuItem>();
+        }
+
+        var hasStart = _navEditorGraphRouteStartNodeId >= 0;
+        var hasGoal = _navEditorGraphRouteGoalNodeId >= 0;
+        var hasPendingEdgeStart = _navEditorPendingGeneratedGraphSourceNodeId >= 0;
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = $"Node {node.Id} ({node.X:F0}, {node.Y:F0})",
+                Enabled = false,
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Set Edge Start",
+                Active = _navEditorPendingGeneratedGraphSourceNodeId == node.Id,
+                Action = () =>
+                {
+                    _navEditorPendingGeneratedGraphSourceNodeId = node.Id;
+                    SelectNavEditorGeneratedGraphNode(node.Id);
+                    SetNavEditorStatus($"graph edge start: node {node.Id}");
+                },
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Toggle Start -> Here",
+                Enabled = hasPendingEdgeStart && _navEditorPendingGeneratedGraphSourceNodeId != node.Id,
+                Action = () => ToggleNavEditorGeneratedGraphDirectedEdge(_navEditorPendingGeneratedGraphSourceNodeId, node.Id),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Toggle Start <-> Here",
+                Enabled = hasPendingEdgeStart && _navEditorPendingGeneratedGraphSourceNodeId != node.Id,
+                Action = () => ToggleNavEditorGeneratedGraphBidirectionalEdge(_navEditorPendingGeneratedGraphSourceNodeId, node.Id),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Set Graph Start",
+                Active = _navEditorGraphRouteStartNodeId == node.Id,
+                Action = () => SetNavEditorGeneratedGraphRouteStart(node.Id),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Set Graph Goal",
+                Active = _navEditorGraphRouteGoalNodeId == node.Id,
+                Action = () => SetNavEditorGeneratedGraphRouteGoal(node.Id),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Run Start -> Here",
+                Enabled = hasStart && _navEditorGraphRouteStartNodeId != node.Id,
+                Action = () =>
+                {
+                    SetNavEditorGeneratedGraphRouteGoal(node.Id);
+                    StartNavEditorGeneratedGraphRoutePlayback();
+                },
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Run Here -> Goal",
+                Enabled = hasGoal && _navEditorGraphRouteGoalNodeId != node.Id,
+                Action = () =>
+                {
+                    SetNavEditorGeneratedGraphRouteStart(node.Id);
+                    StartNavEditorGeneratedGraphRoutePlayback();
+                },
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Run Graph Route",
+                Enabled = hasStart && hasGoal && _navEditorGraphRouteStartNodeId != _navEditorGraphRouteGoalNodeId && asset.Nodes.Count > 0,
+                Action = StartNavEditorGeneratedGraphRoutePlayback,
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Clear Graph Route",
+                Enabled = hasStart || hasGoal,
+                Action = ClearNavEditorGeneratedGraphSelection,
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Delete Node",
+                Action = DeleteSelectedNavEditorItem,
+            },
+        ];
+    }
+
+    private NavEditorContextMenuItem[] BuildNavEditorGeneratedGraphEdgeContextMenuItems()
+    {
+        if (!TryGetNavEditorGeneratedGraphEdge(
+                _navEditorContextMenuGeneratedGraphEdgeFromNodeId,
+                _navEditorContextMenuGeneratedGraphEdgeToNodeId,
+                out var edge))
+        {
+            return Array.Empty<NavEditorContextMenuItem>();
+        }
+
+        var hasReverse = TryGetNavEditorGeneratedGraphEdge(edge.ToNodeId, edge.FromNodeId, out _);
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = $"Edge {edge.FromNodeId} -> {edge.ToNodeId}",
+                Enabled = false,
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = $"{edge.Kind} cost {edge.Cost:0.##}",
+                Enabled = false,
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Set Edge Start",
+                Action = () =>
+                {
+                    _navEditorPendingGeneratedGraphSourceNodeId = edge.FromNodeId;
+                    SelectNavEditorGeneratedGraphNode(edge.FromNodeId);
+                    SetNavEditorStatus($"graph edge start: node {edge.FromNodeId}");
+                },
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Toggle Reverse",
+                Active = hasReverse,
+                Action = () => ToggleNavEditorGeneratedGraphDirectedEdge(edge.ToNodeId, edge.FromNodeId),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Toggle Two-Way",
+                Active = hasReverse,
+                Action = () => ToggleNavEditorGeneratedGraphBidirectionalEdge(edge.FromNodeId, edge.ToNodeId),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Select From Node",
+                Action = () => SelectNavEditorGeneratedGraphNode(edge.FromNodeId),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Select To Node",
+                Action = () => SelectNavEditorGeneratedGraphNode(edge.ToNodeId),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Delete Edge",
                 Action = DeleteSelectedNavEditorItem,
             },
         ];
@@ -1616,6 +2674,25 @@ public partial class Game1
         ];
     }
 
+    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorJumpTimingMenuItems(bool startJumpImmediately)
+    {
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = "Delayed",
+                Active = !startJumpImmediately,
+                Action = () => SetNavEditorStartJumpImmediately(false),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Immediate",
+                Active = startJumpImmediately,
+                Action = () => SetNavEditorStartJumpImmediately(true),
+            },
+        ];
+    }
+
     private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorDirectionMenuItems(bool bidirectional)
     {
         return
@@ -1631,6 +2708,104 @@ public partial class Game1
                 Label = "One-way",
                 Active = !bidirectional,
                 Action = () => SetNavEditorBidirectional(false),
+            },
+        ];
+    }
+
+    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorFallbackMenuItems(NavEditorAnchor anchor)
+    {
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = "Off",
+                Active = anchor.FallbackRole == BotNavigationHintFallbackRole.None,
+                Action = () => SetNavEditorFallbackRole(BotNavigationHintFallbackRole.None),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Entry",
+                Active = anchor.FallbackRole == BotNavigationHintFallbackRole.Entry,
+                Children = BuildNavEditorFallbackTriggerMenuItems(anchor.FallbackTriggers),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Exit",
+                Active = anchor.FallbackRole == BotNavigationHintFallbackRole.Exit,
+                Action = () => SetNavEditorFallbackRole(BotNavigationHintFallbackRole.Exit),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Carry",
+                Children = BuildNavEditorFallbackCarryMenuItems(anchor.RequiresCarryingIntel),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Clear Zone",
+                Enabled = anchor.HasFallbackActivationZone,
+                Action = ClearSelectedNavEditorActivationZone,
+            },
+        ];
+    }
+
+    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorFallbackTriggerMenuItems(IReadOnlyList<BotNavigationHintFallbackTrigger> currentTriggers)
+    {
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = "No Next",
+                Active = currentTriggers.Count == 0 || currentTriggers.Contains(BotNavigationHintFallbackTrigger.NoNext),
+                Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.NoNext),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Stuck",
+                Active = currentTriggers.Contains(BotNavigationHintFallbackTrigger.Stuck),
+                Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.Stuck),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Reacquire",
+                Active = currentTriggers.Contains(BotNavigationHintFallbackTrigger.Reacquire),
+                Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.Reacquire),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Carry Return",
+                Active = currentTriggers.Contains(BotNavigationHintFallbackTrigger.CarryReturn),
+                Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.CarryReturn),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Direct Target",
+                Active = currentTriggers.Contains(BotNavigationHintFallbackTrigger.DirectTarget),
+                Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.DirectTarget),
+            },
+        ];
+    }
+
+    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorFallbackCarryMenuItems(bool? requiresCarryingIntel)
+    {
+        return
+        [
+            new NavEditorContextMenuItem
+            {
+                Label = "Any",
+                Active = requiresCarryingIntel is null,
+                Action = () => SetNavEditorCarryRequirement(null),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "Must Carry",
+                Active = requiresCarryingIntel == true,
+                Action = () => SetNavEditorCarryRequirement(true),
+            },
+            new NavEditorContextMenuItem
+            {
+                Label = "No Carry",
+                Active = requiresCarryingIntel == false,
+                Action = () => SetNavEditorCarryRequirement(false),
             },
         ];
     }
@@ -1757,6 +2932,11 @@ public partial class Game1
         {
             var link = _navEditorLinks[_navEditorSelectedLinkIndex];
             link.Traversal = traversal;
+            if (traversal != BotNavigationHintTraversalKind.Jump)
+            {
+                link.StartJumpImmediately = false;
+            }
+
             _navEditorDirty = true;
             SetNavEditorStatus($"link traversal: {traversal}");
             return;
@@ -1764,6 +2944,25 @@ public partial class Game1
 
         _navEditorDefaultTraversal = traversal;
         SetNavEditorStatus($"new links use traversal: {traversal}");
+    }
+
+    private void SetNavEditorStartJumpImmediately(bool startJumpImmediately)
+    {
+        if (_navEditorSelectedLinkIndex < 0 || _navEditorSelectedLinkIndex >= _navEditorLinks.Count)
+        {
+            return;
+        }
+
+        var link = _navEditorLinks[_navEditorSelectedLinkIndex];
+        if (link.Traversal != BotNavigationHintTraversalKind.Jump)
+        {
+            SetNavEditorStatus("jump timing only applies to Jump links");
+            return;
+        }
+
+        link.StartJumpImmediately = startJumpImmediately;
+        _navEditorDirty = true;
+        SetNavEditorStatus(startJumpImmediately ? "link jump timing: immediate" : "link jump timing: delayed");
     }
 
     private void SetNavEditorBidirectional(bool bidirectional)
@@ -1795,6 +2994,75 @@ public partial class Game1
 
         _navEditorDefaultCostMultiplier = value;
         SetNavEditorStatus($"new link cost multiplier: {value:F1}");
+    }
+
+    private void SetNavEditorFallbackRole(BotNavigationHintFallbackRole role)
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        anchor.FallbackRole = role;
+        if (role == BotNavigationHintFallbackRole.Entry && anchor.FallbackTriggers.Length == 0)
+        {
+            anchor.FallbackTriggers = [BotNavigationHintFallbackTrigger.NoNext];
+        }
+
+        _navEditorDirty = true;
+        SetNavEditorStatus($"fallback role: {DescribeNavEditorFallbackRole(role)}");
+    }
+
+    private void SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger trigger)
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        anchor.FallbackRole = BotNavigationHintFallbackRole.Entry;
+        anchor.FallbackTriggers = [trigger];
+        _navEditorDirty = true;
+        SetNavEditorStatus($"fallback trigger: {DescribeNavEditorFallbackTriggers(anchor.FallbackTriggers)}");
+    }
+
+    private void SetNavEditorCarryRequirement(bool? requiresCarryingIntel)
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        anchor.RequiresCarryingIntel = requiresCarryingIntel;
+        _navEditorDirty = true;
+        SetNavEditorStatus($"carry requirement: {DescribeNavEditorCarryRequirement(requiresCarryingIntel)}");
+    }
+
+    private void ClearSelectedNavEditorActivationZone()
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            SetNavEditorStatus("select a fallback entry before clearing its activation zone");
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        if (!anchor.HasFallbackActivationZone)
+        {
+            SetNavEditorStatus($"{anchor.Label} uses the default circular activation radius");
+            return;
+        }
+
+        anchor.HasFallbackActivationZone = false;
+        anchor.FallbackActivationMinX = 0f;
+        anchor.FallbackActivationMinY = 0f;
+        anchor.FallbackActivationMaxX = 0f;
+        anchor.FallbackActivationMaxY = 0f;
+        _navEditorDirty = true;
+        SetNavEditorStatus($"cleared activation zone for {anchor.Label}");
     }
 
     private void SetNavEditorRecordTestClass(PlayerClass classId)
@@ -2073,6 +3341,27 @@ public partial class Game1
         SetNavEditorStatus($"new items apply to: {DescribeNavEditorClasses(_navEditorDefaultClasses)}");
     }
 
+    private void CycleNavEditorLayerMode()
+    {
+        _navEditorLayerMode = _navEditorLayerMode switch
+        {
+            NavEditorLayerMode.HintLayer => NavEditorLayerMode.Both,
+            NavEditorLayerMode.Both => NavEditorLayerMode.GeneratedGraph,
+            _ => NavEditorLayerMode.HintLayer,
+        };
+        _navEditorDraggingAnchorIndex = -1;
+        _navEditorDraggingGeneratedGraphNodeId = -1;
+        _navEditorPendingGeneratedGraphSourceNodeId = -1;
+        CancelNavEditorActivationZoneDrag();
+        SetNavEditorStatus($"layer: {DescribeNavEditorLayerMode(_navEditorLayerMode)}");
+    }
+
+    private void ToggleNavEditorBotTags()
+    {
+        _navEditorShowBotTags = !_navEditorShowBotTags;
+        SetNavEditorStatus(_navEditorShowBotTags ? "bot state tags enabled" : "bot state tags disabled");
+    }
+
     private void CycleNavEditorDefaultAnchorKind()
     {
         _navEditorDefaultAnchorKind = GetNextNavEditorAnchorKind(_navEditorDefaultAnchorKind);
@@ -2101,7 +3390,13 @@ public partial class Game1
     private void ToggleNavEditorDefaultBidirectional()
     {
         _navEditorDefaultBidirectional = !_navEditorDefaultBidirectional;
-        SetNavEditorStatus(_navEditorDefaultBidirectional ? "new links are bidirectional" : "new links are one-way");
+        SetNavEditorStatus(_navEditorDefaultBidirectional ? "new links will try both directions when valid" : "new links are one-way");
+    }
+
+    private void CycleNavEditorGraphEdgeDisplayMode()
+    {
+        _navEditorGraphEdgeDisplayMode = (NavEditorGraphEdgeDisplayMode)(((int)_navEditorGraphEdgeDisplayMode + 1) % 3);
+        SetNavEditorStatus($"graph edge colors: {DescribeNavEditorGraphEdgeDisplayMode(_navEditorGraphEdgeDisplayMode)}");
     }
 
     private void AdjustNavEditorDefaultCostMultiplier(float delta)
@@ -2150,6 +3445,11 @@ public partial class Game1
         {
             var link = _navEditorLinks[_navEditorSelectedLinkIndex];
             link.Traversal = GetNextNavEditorTraversal(link.Traversal);
+            if (link.Traversal != BotNavigationHintTraversalKind.Jump)
+            {
+                link.StartJumpImmediately = false;
+            }
+
             _navEditorDirty = true;
             SetNavEditorStatus($"link traversal: {link.Traversal}");
             return;
@@ -2187,6 +3487,81 @@ public partial class Game1
 
         _navEditorDefaultCostMultiplier = ClampNavEditorCostMultiplier(_navEditorDefaultCostMultiplier + delta);
         SetNavEditorStatus($"new link cost multiplier: {_navEditorDefaultCostMultiplier:F1}");
+    }
+
+    private void CycleNavEditorFallbackRole()
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            SetNavEditorStatus("select a hint node before changing fallback role");
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        anchor.FallbackRole = anchor.FallbackRole switch
+        {
+            BotNavigationHintFallbackRole.None => BotNavigationHintFallbackRole.Entry,
+            BotNavigationHintFallbackRole.Entry => BotNavigationHintFallbackRole.Exit,
+            _ => BotNavigationHintFallbackRole.None,
+        };
+        if (anchor.FallbackRole == BotNavigationHintFallbackRole.Entry && anchor.FallbackTriggers.Length == 0)
+        {
+            anchor.FallbackTriggers = [BotNavigationHintFallbackTrigger.NoNext];
+        }
+
+        _navEditorDirty = true;
+        SetNavEditorStatus($"fallback role: {DescribeNavEditorFallbackRole(anchor.FallbackRole)}");
+    }
+
+    private void CycleNavEditorFallbackTrigger()
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            SetNavEditorStatus("select a fallback entry before changing its trigger");
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        if (anchor.FallbackRole != BotNavigationHintFallbackRole.Entry)
+        {
+            anchor.FallbackRole = BotNavigationHintFallbackRole.Entry;
+        }
+
+        var current = anchor.FallbackTriggers.Length == 1
+            ? anchor.FallbackTriggers[0]
+            : BotNavigationHintFallbackTrigger.NoNext;
+        anchor.FallbackTriggers =
+        [
+            current switch
+            {
+                BotNavigationHintFallbackTrigger.NoNext => BotNavigationHintFallbackTrigger.Stuck,
+                BotNavigationHintFallbackTrigger.Stuck => BotNavigationHintFallbackTrigger.Reacquire,
+                BotNavigationHintFallbackTrigger.Reacquire => BotNavigationHintFallbackTrigger.CarryReturn,
+                BotNavigationHintFallbackTrigger.CarryReturn => BotNavigationHintFallbackTrigger.DirectTarget,
+                _ => BotNavigationHintFallbackTrigger.NoNext,
+            },
+        ];
+        _navEditorDirty = true;
+        SetNavEditorStatus($"fallback trigger: {DescribeNavEditorFallbackTriggers(anchor.FallbackTriggers)}");
+    }
+
+    private void CycleNavEditorCarryRequirement()
+    {
+        if (_navEditorSelectedAnchorIndex < 0 || _navEditorSelectedAnchorIndex >= _navEditorAnchors.Count)
+        {
+            SetNavEditorStatus("select a fallback entry before changing carry requirement");
+            return;
+        }
+
+        var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+        anchor.RequiresCarryingIntel = anchor.RequiresCarryingIntel switch
+        {
+            null => true,
+            true => false,
+            _ => null,
+        };
+        _navEditorDirty = true;
+        SetNavEditorStatus($"carry requirement: {DescribeNavEditorCarryRequirement(anchor.RequiresCarryingIntel)}");
     }
 
     private void CycleNavEditorRecordTestClass()
@@ -2306,6 +3681,7 @@ public partial class Game1
             Classes = link.Classes.ToArray(),
             Bidirectional = link.Bidirectional,
             Traversal = link.Traversal,
+            StartJumpImmediately = link.StartJumpImmediately,
             CostMultiplier = link.CostMultiplier,
             RecordedTraversals = link.RecordedTraversals
                 .Select(recording => new BotNavigationHintRecordedTraversal
@@ -2344,6 +3720,12 @@ public partial class Game1
 
     private void StartNavEditorSelectedRoutePlayback()
     {
+        if (ShouldUseNavEditorGeneratedGraphRoutePlayback())
+        {
+            StartNavEditorGeneratedGraphRoutePlayback();
+            return;
+        }
+
         if (!TryBuildNavEditorRoutePlayback(
                 out var playbackSteps,
                 out var classId,
@@ -2360,6 +3742,318 @@ public partial class Game1
             classId,
             teleportToFirstStepSource: true,
             label: label);
+    }
+
+    private void SetNavEditorGeneratedGraphRouteStart(int nodeId)
+    {
+        if (!TryGetNavEditorGeneratedGraphNode(nodeId, out _))
+        {
+            SetNavEditorStatus("generated graph start node is no longer valid");
+            return;
+        }
+
+        _navEditorGraphRouteStartNodeId = nodeId;
+        _navEditorSelectedGeneratedGraphNodeId = nodeId;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"graph route start: node {nodeId}");
+    }
+
+    private void SetNavEditorGeneratedGraphRouteGoal(int nodeId)
+    {
+        if (!TryGetNavEditorGeneratedGraphNode(nodeId, out _))
+        {
+            SetNavEditorStatus("generated graph goal node is no longer valid");
+            return;
+        }
+
+        _navEditorGraphRouteGoalNodeId = nodeId;
+        _navEditorSelectedGeneratedGraphNodeId = nodeId;
+        RefreshNavEditorGeneratedGraphRoutePreview();
+        SetNavEditorStatus($"graph route goal: node {nodeId}");
+    }
+
+    private void RefreshNavEditorGeneratedGraphRoutePreview()
+    {
+        if (!TryResolveNavEditorGeneratedGraphRouteEndpoints(out var startNodeId, out var goalNodeId, out _)
+            || !TryBuildNavEditorGeneratedGraphRoute(
+                startNodeId,
+                goalNodeId,
+                out var routeNodeIds,
+                out _))
+        {
+            _navEditorGraphPreviewRouteNodeIds = Array.Empty<int>();
+            return;
+        }
+
+        _navEditorGraphPreviewRouteNodeIds = routeNodeIds;
+    }
+
+    private void StartNavEditorGeneratedGraphRoutePlayback()
+    {
+        if (!TryBuildNavEditorGeneratedGraphRoutePlayback(
+                out var playbackSteps,
+                out var classId,
+                out var label,
+                out var failureMessage))
+        {
+            SetNavEditorStatus($"graph route test failed: {failureMessage}");
+            AddConsoleLine($"nav editor graph route test failed: {failureMessage}");
+            return;
+        }
+
+        BeginNavEditorTraversalPlayback(
+            playbackSteps,
+            classId,
+            teleportToFirstStepSource: true,
+            label: label);
+    }
+
+    private bool ShouldUseNavEditorGeneratedGraphRoutePlayback()
+    {
+        if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+        {
+            return true;
+        }
+
+        return _navEditorLayerMode == NavEditorLayerMode.Both
+            && (_navEditorSelectedGeneratedGraphNodeId >= 0
+                || (_navEditorSelectedAnchorIndex < 0
+                    && _navEditorSelectedLinkIndex < 0
+                    && (_navEditorGraphRouteStartNodeId >= 0 || _navEditorGraphRouteGoalNodeId >= 0)));
+    }
+
+    private bool CanStartNavEditorGeneratedGraphRoutePlayback()
+    {
+        if (_navEditorGeneratedCompatGraph is null
+            || IsNavEditorTraversalCaptureActive()
+            || IsNavEditorTraversalPlaybackActive())
+        {
+            return false;
+        }
+
+        return TryResolveNavEditorGeneratedGraphRouteEndpoints(out _, out _, out _);
+    }
+
+    private bool TryBuildNavEditorGeneratedGraphRoutePlayback(
+        out NavEditorPlaybackStep[] playbackSteps,
+        out PlayerClass classId,
+        out string label,
+        out string failureMessage)
+    {
+        playbackSteps = Array.Empty<NavEditorPlaybackStep>();
+        classId = _navEditorRecordTestClass;
+        label = string.Empty;
+        failureMessage = string.Empty;
+
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            failureMessage = "generated graph is not loaded";
+            return false;
+        }
+
+        if (!TryResolveNavEditorGeneratedGraphRouteEndpoints(out var startNodeId, out var goalNodeId, out failureMessage))
+        {
+            return false;
+        }
+
+        if (!TryBuildNavEditorGeneratedGraphRoute(startNodeId, goalNodeId, out var routeNodeIds, out failureMessage))
+        {
+            return false;
+        }
+
+        var nodesById = asset.Nodes.ToDictionary(static node => node.Id);
+        var edgesByPair = new Dictionary<long, BotNavigationEdge>();
+        for (var edgeIndex = 0; edgeIndex < asset.Edges.Count; edgeIndex += 1)
+        {
+            var edge = asset.Edges[edgeIndex];
+            var edgeKey = GetNavEditorGraphEdgeKey(edge.FromNodeId, edge.ToNodeId);
+            if (!edgesByPair.ContainsKey(edgeKey))
+            {
+                edgesByPair[edgeKey] = edge;
+            }
+        }
+        var steps = new List<NavEditorPlaybackStep>(Math.Max(0, routeNodeIds.Length - 1));
+        for (var index = 1; index < routeNodeIds.Length; index += 1)
+        {
+            var fromNodeId = routeNodeIds[index - 1];
+            var toNodeId = routeNodeIds[index];
+            if (!nodesById.TryGetValue(fromNodeId, out var fromNode)
+                || !nodesById.TryGetValue(toNodeId, out var toNode)
+                || !edgesByPair.TryGetValue(GetNavEditorGraphEdgeKey(fromNodeId, toNodeId), out var edge))
+            {
+                failureMessage = $"route edge {fromNodeId} -> {toNodeId} could not be resolved";
+                return false;
+            }
+
+            steps.Add(new NavEditorPlaybackStep
+            {
+                FromLabel = $"g{fromNode.Id}",
+                ToLabel = $"g{toNode.Id}",
+                FromX = fromNode.X,
+                FromY = fromNode.Y,
+                ToX = toNode.X,
+                ToY = toNode.Y,
+                Kind = edge.Kind,
+                ForcedHorizontalDirection = edge.Kind == BotNavigationTraversalKind.Drop
+                    ? (toNode.X >= fromNode.X ? 1 : -1)
+                    : 0,
+                RequiresGroundedArrival = toNode.RequiresGroundSupport,
+                InputTape = edge.InputTape.ToArray(),
+            });
+        }
+
+        if (steps.Count == 0)
+        {
+            failureMessage = "generated graph route produced no traversal steps";
+            return false;
+        }
+
+        _navEditorGraphRouteStartNodeId = startNodeId;
+        _navEditorGraphRouteGoalNodeId = goalNodeId;
+        _navEditorGraphPreviewRouteNodeIds = routeNodeIds;
+        playbackSteps = steps.ToArray();
+        label = $"graph {startNodeId} -> {goalNodeId}";
+        return true;
+    }
+
+    private bool TryResolveNavEditorGeneratedGraphRouteEndpoints(
+        out int startNodeId,
+        out int goalNodeId,
+        out string failureMessage)
+    {
+        startNodeId = _navEditorGraphRouteStartNodeId;
+        goalNodeId = _navEditorGraphRouteGoalNodeId;
+        failureMessage = string.Empty;
+
+        if (startNodeId < 0
+            && _navEditorSelectedGeneratedGraphNodeId >= 0
+            && _navEditorSelectedGeneratedGraphNodeId != goalNodeId)
+        {
+            startNodeId = _navEditorSelectedGeneratedGraphNodeId;
+        }
+
+        if (goalNodeId < 0
+            && _navEditorSelectedGeneratedGraphNodeId >= 0
+            && _navEditorSelectedGeneratedGraphNodeId != startNodeId)
+        {
+            goalNodeId = _navEditorSelectedGeneratedGraphNodeId;
+        }
+
+        if (goalNodeId < 0)
+        {
+            failureMessage = "right-click a generated node and choose Set Graph Goal";
+            return false;
+        }
+
+        if (startNodeId < 0)
+        {
+            failureMessage = "right-click a generated node and choose Set Graph Start";
+            return false;
+        }
+
+        if (startNodeId == goalNodeId)
+        {
+            failureMessage = "start and goal are the same generated node";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryBuildNavEditorGeneratedGraphRoute(
+        int startNodeId,
+        int goalNodeId,
+        out int[] routeNodeIds,
+        out string failureMessage)
+    {
+        routeNodeIds = Array.Empty<int>();
+        failureMessage = string.Empty;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            failureMessage = "generated graph is not loaded";
+            return false;
+        }
+
+        var nodesById = asset.Nodes.ToDictionary(static node => node.Id);
+        if (!nodesById.ContainsKey(startNodeId))
+        {
+            failureMessage = $"start node {startNodeId} is not in the generated graph";
+            return false;
+        }
+
+        if (!nodesById.ContainsKey(goalNodeId))
+        {
+            failureMessage = $"goal node {goalNodeId} is not in the generated graph";
+            return false;
+        }
+
+        var outgoingByNode = asset.Edges
+            .GroupBy(static edge => edge.FromNodeId)
+            .ToDictionary(static group => group.Key, static group => group.OrderBy(static edge => edge.Cost).ToArray());
+        var distanceByNode = new Dictionary<int, float> { [startNodeId] = 0f };
+        var previousByNode = new Dictionary<int, int>();
+        var pending = new PriorityQueue<int, float>();
+        pending.Enqueue(startNodeId, 0f);
+
+        while (pending.Count > 0)
+        {
+            var nodeId = pending.Dequeue();
+            var currentDistance = distanceByNode[nodeId];
+            if (nodeId == goalNodeId)
+            {
+                break;
+            }
+
+            if (!outgoingByNode.TryGetValue(nodeId, out var outgoingEdges))
+            {
+                continue;
+            }
+
+            for (var edgeIndex = 0; edgeIndex < outgoingEdges.Length; edgeIndex += 1)
+            {
+                var edge = outgoingEdges[edgeIndex];
+                if (!nodesById.ContainsKey(edge.ToNodeId))
+                {
+                    continue;
+                }
+
+                var edgeCost = edge.Cost > 0f ? edge.Cost : 1f;
+                var candidateDistance = currentDistance + edgeCost;
+                if (distanceByNode.TryGetValue(edge.ToNodeId, out var knownDistance)
+                    && knownDistance <= candidateDistance)
+                {
+                    continue;
+                }
+
+                distanceByNode[edge.ToNodeId] = candidateDistance;
+                previousByNode[edge.ToNodeId] = nodeId;
+                pending.Enqueue(edge.ToNodeId, candidateDistance);
+            }
+        }
+
+        if (!distanceByNode.ContainsKey(goalNodeId))
+        {
+            failureMessage = $"no generated graph route from node {startNodeId} to node {goalNodeId}";
+            return false;
+        }
+
+        var route = new List<int> { goalNodeId };
+        var currentNodeId = goalNodeId;
+        while (currentNodeId != startNodeId)
+        {
+            if (!previousByNode.TryGetValue(currentNodeId, out var previousNodeId))
+            {
+                failureMessage = "generated graph route reconstruction failed";
+                return false;
+            }
+
+            currentNodeId = previousNodeId;
+            route.Add(currentNodeId);
+        }
+
+        route.Reverse();
+        routeNodeIds = route.ToArray();
+        return true;
     }
 
     private bool TryBuildNavEditorRoutePlayback(
@@ -2578,6 +4272,7 @@ public partial class Game1
             Classes = link.Classes.ToArray(),
             Bidirectional = false,
             Traversal = link.Traversal,
+            StartJumpImmediately = link.StartJumpImmediately,
             CostMultiplier = link.CostMultiplier,
             RecordedTraversals = recordedTraversals,
         };
@@ -2682,6 +4377,7 @@ public partial class Game1
         _navEditorPlaybackStepIndex = -1;
         _navEditorPlaybackFrameIndex = 0;
         _navEditorPlaybackFrameSecondsRemaining = 0d;
+        _navEditorPlaybackPostTapeTicks = 0;
         _navEditorPlaybackElapsedTicks = 0;
         _navEditorPlaybackLabel = string.Empty;
     }
@@ -2706,7 +4402,6 @@ public partial class Game1
     {
         if (!TryGetNavEditorAnchor(step.ToLabel, out var targetAnchor))
         {
-            step.RequiresGroundedArrival = true;
             return step;
         }
 
@@ -2714,16 +4409,35 @@ public partial class Game1
         return step;
     }
 
-    private bool SaveNavEditorHints()
+    private bool SaveNavEditorState()
+    {
+        var hintsSaved = SaveNavEditorHintAsset();
+        var graphSaved = SaveNavEditorGeneratedGraphAsset();
+        if (!hintsSaved || !graphSaved)
+        {
+            SetNavEditorStatus("nav editor save failed");
+            return false;
+        }
+
+        _navEditorDirty = false;
+        _navEditorLoadedLevelName = _world.Level.Name;
+        _navEditorLoadedMapAreaIndex = _world.Level.MapAreaIndex;
+        SetNavEditorStatus("nav editor saved hints + graph");
+        AddConsoleLine($"nav editor saved {BotNavigationHintStore.ResolveWritablePath(_world.Level.Name, _world.Level.MapAreaIndex)}");
+        if (_navEditorScoreTrioActive)
+        {
+            RunNavEditorScoreTrioPracticeBots();
+            AddConsoleLine("nav editor respawned the score trio so the live run picks up the saved graph.");
+        }
+
+        return true;
+    }
+
+    private bool SaveNavEditorHintAsset()
     {
         try
         {
             BotNavigationHintStore.Save(BuildNavEditorHintAssetSnapshot());
-            _navEditorDirty = false;
-            _navEditorLoadedLevelName = _world.Level.Name;
-            _navEditorLoadedMapAreaIndex = _world.Level.MapAreaIndex;
-            SetNavEditorStatus("hint file saved");
-            AddConsoleLine($"nav editor saved {BotNavigationHintStore.ResolveWritablePath(_world.Level.Name, _world.Level.MapAreaIndex)}");
             return true;
         }
         catch (Exception ex)
@@ -2734,6 +4448,98 @@ public partial class Game1
         }
     }
 
+    private bool SaveNavEditorGeneratedGraphAsset()
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset)
+        {
+            SetNavEditorStatus("graph save failed: generated graph is not loaded");
+            AddConsoleLine("nav editor graph save failed: generated graph is not loaded");
+            return false;
+        }
+
+        try
+        {
+            var graphAsset = BuildNavEditorGeneratedGraphSnapshot();
+            var validation = BotNavigationAssetValidator.Validate(_world.Level, graphAsset);
+            var outputDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var runtimeOutputDirectory = ContentRoot.GetPath("BotNav");
+            if (!string.IsNullOrWhiteSpace(runtimeOutputDirectory))
+            {
+                outputDirectories.Add(runtimeOutputDirectory);
+            }
+
+            var sourceOutputDirectory = ProjectSourceLocator.FindDirectory("Core/Content/BotNav");
+            if (!string.IsNullOrWhiteSpace(sourceOutputDirectory))
+            {
+                outputDirectories.Add(sourceOutputDirectory);
+            }
+
+            var resolvedDirectory = Path.GetDirectoryName(BotNavigationAssetStore.ResolveModernShippedPath(_world.Level.Name, _world.Level.MapAreaIndex));
+            if (!string.IsNullOrWhiteSpace(resolvedDirectory))
+            {
+                outputDirectories.Add(resolvedDirectory);
+            }
+
+            if (outputDirectories.Count == 0)
+            {
+                throw new InvalidOperationException("could not resolve a writable BotNav output directory");
+            }
+
+            foreach (var outputDirectory in outputDirectories)
+            {
+                BotNavigationAssetStore.SaveShipped(graphAsset, outputDirectory);
+            }
+
+            _navEditorGeneratedCompatGraph = graphAsset;
+            _navEditorGeneratedCompatGraphStatus = validation.IsStructurallyValid
+                ? $"saved graph: {graphAsset.Nodes.Count} nodes / {graphAsset.Edges.Count} links"
+                : $"saved graph: {graphAsset.Nodes.Count} nodes / {graphAsset.Edges.Count} links INVALID ({validation.BuildSummary()})";
+            var fileName = BotNavigationAssetStore.GetModernAssetFileName(graphAsset.LevelName, graphAsset.MapAreaIndex);
+            foreach (var outputDirectory in outputDirectories)
+            {
+                AddConsoleLine($"nav editor saved {Path.Combine(outputDirectory, fileName)}");
+            }
+
+            if (!validation.IsStructurallyValid)
+            {
+                AddConsoleLine($"nav editor saved an invalid graph asset. Compat will ignore it until fixed: {validation.BuildSummary()}");
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetNavEditorStatus($"graph save failed: {ex.Message}");
+            AddConsoleLine($"nav editor graph save failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private BotNavigationAsset BuildNavEditorGeneratedGraphSnapshot()
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset currentGraph)
+        {
+            throw new InvalidOperationException("generated graph is not loaded");
+        }
+
+        var normalizedGraph = BotNavigationModernGraphEditor.Normalize(currentGraph);
+        var fingerprint = BotNavigationLevelFingerprint.Compute(_world.Level);
+        return new BotNavigationAsset
+        {
+            FormatVersion = BotNavigationAssetStore.CurrentFormatVersion,
+            LevelName = _world.Level.Name,
+            MapAreaIndex = _world.Level.MapAreaIndex,
+            ClassId = null,
+            Profile = BotNavigationProfile.Standard,
+            LevelFingerprint = fingerprint,
+            BuildStrategy = BotNavigationBuildStrategy.ModernClientBotPointGraph,
+            BuiltUtc = DateTime.UtcNow,
+            Stats = normalizedGraph.Stats,
+            Nodes = normalizedGraph.Nodes.ToArray(),
+            Edges = normalizedGraph.Edges.ToArray(),
+        };
+    }
+
     private void StartNavEditorRebuild()
     {
         if (_navEditorRebuildTask is not null && !_navEditorRebuildTask.IsCompleted)
@@ -2742,7 +4548,7 @@ public partial class Game1
             return;
         }
 
-        if (!SaveNavEditorHints())
+        if (!SaveNavEditorHintAsset())
         {
             return;
         }
@@ -2784,7 +4590,14 @@ public partial class Game1
             && string.Equals(_world.Level.Name, result.LevelName, StringComparison.OrdinalIgnoreCase)
             && _world.Level.MapAreaIndex == result.MapAreaIndex)
         {
+            _navEditorDirty = false;
+            _navEditorLoadedLevelName = _world.Level.Name;
+            _navEditorLoadedMapAreaIndex = _world.Level.MapAreaIndex;
+            _navEditorPendingGeneratedGraphSourceNodeId = -1;
+            _navEditorDraggingGeneratedGraphNodeId = -1;
+            ClearNavEditorGeneratedGraphSelection();
             LoadPracticeNavigationAssetsForCurrentLevel();
+            LoadNavEditorGeneratedCompatGraph();
         }
     }
 
@@ -2816,7 +4629,7 @@ public partial class Game1
         var classLabels = string.Join(
             "/",
             BotNavigationClasses.All.Select(BotNavigationClasses.GetShortLabel));
-        lines.Add($"modern [{classLabels}] nodes={asset.Nodes.Count} edges={asset.Edges.Count} nav={(validation.IsStructurallyValid ? "ok" : validation.BuildSummary())}");
+        lines.Add($"modern [{classLabels}] nodes={asset.Nodes.Count} edges={asset.Edges.Count} edgeValidation=geometry nav={(validation.IsStructurallyValid ? "ok" : validation.BuildSummary())}");
 
         var summary = invalidCount > 0
             ? $"nav rebuild finished with {invalidCount} invalid profile asset(s) (Modern graph only; editor hints saved separately)"
@@ -2865,6 +4678,11 @@ public partial class Game1
                 Y = anchor.Y,
                 Kind = anchor.Kind,
                 Team = anchor.Team,
+                FallbackRole = anchor.FallbackRole,
+                FallbackTriggers = anchor.FallbackTriggers.ToArray(),
+                FallbackRadius = anchor.FallbackRadius,
+                RequiresCarryingIntel = anchor.RequiresCarryingIntel,
+                FallbackActivationZone = CreateNavEditorFallbackActivationZone(anchor),
             }).ToArray(),
             Links = _navEditorLinks.Select(link => new BotNavigationHintLink
             {
@@ -2873,6 +4691,7 @@ public partial class Game1
                 Classes = link.Classes.ToArray(),
                 Bidirectional = link.Bidirectional,
                 Traversal = link.Traversal,
+                StartJumpImmediately = link.StartJumpImmediately,
                 CostMultiplier = link.CostMultiplier,
                 RecordedTraversals = link.RecordedTraversals
                     .Select(recording => new BotNavigationHintRecordedTraversal
@@ -2887,6 +4706,11 @@ public partial class Game1
 
     private void DrawNavEditorWorldOverlay(Vector2 cameraPosition)
     {
+        if (_navEditorLayerMode is NavEditorLayerMode.GeneratedGraph or NavEditorLayerMode.Both)
+        {
+            DrawNavEditorGeneratedCompatGraph(cameraPosition);
+        }
+
         for (var index = 0; index < _navEditorPlaybackSteps.Count; index += 1)
         {
             var playbackStep = _navEditorPlaybackSteps[index];
@@ -2898,58 +4722,383 @@ public partial class Game1
             DrawNavEditorLine(fromScreen, toScreen, playbackColor, index == _navEditorPlaybackStepIndex ? 5f : 3f);
         }
 
-        for (var index = 0; index < _navEditorLinks.Count; index += 1)
+        if (_navEditorLayerMode != NavEditorLayerMode.GeneratedGraph)
         {
-            var link = _navEditorLinks[index];
-            if (!AppliesToNavEditorViewClass(link.Classes))
+            for (var index = 0; index < _navEditorAnchors.Count; index += 1)
             {
-                continue;
+                var anchor = _navEditorAnchors[index];
+                if (anchor.FallbackRole != BotNavigationHintFallbackRole.Entry
+                    || !anchor.HasFallbackActivationZone
+                    || !AppliesToNavEditorViewClass(anchor.Classes))
+                {
+                    continue;
+                }
+
+                var selected = index == _navEditorSelectedAnchorIndex;
+                DrawNavEditorActivationZone(anchor, cameraPosition, selected);
             }
 
-            if (!TryGetNavEditorAnchorPosition(link.FromLabel, out var fromPosition)
-                || !TryGetNavEditorAnchorPosition(link.ToLabel, out var toPosition))
+            if (_navEditorDraggingActivationZone)
             {
-                continue;
+                DrawNavEditorActivationZonePreview(cameraPosition);
             }
 
-            var selected = index == _navEditorSelectedLinkIndex;
-            var color = selected ? new Color(255, 215, 120) : GetNavEditorLinkColor(link.Traversal);
-            var fromScreen = fromPosition - cameraPosition;
-            var toScreen = toPosition - cameraPosition;
-            DrawNavEditorLine(fromScreen, toScreen, color, selected ? 3f : NavEditorLinkThickness);
-
-            if (IsNavEditorTraversalCaptureActive()
-                && string.Equals(link.FromLabel, _navEditorRecordingSourceLabel, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(link.ToLabel, _navEditorRecordingTargetLabel, StringComparison.OrdinalIgnoreCase))
+            for (var index = 0; index < _navEditorLinks.Count; index += 1)
             {
-                DrawNavEditorLine(fromScreen, toScreen, new Color(255, 98, 92), 4f);
+                var link = _navEditorLinks[index];
+                if (!AppliesToNavEditorViewClass(link.Classes))
+                {
+                    continue;
+                }
+
+                if (!TryGetNavEditorAnchorPosition(link.FromLabel, out var fromPosition)
+                    || !TryGetNavEditorAnchorPosition(link.ToLabel, out var toPosition))
+                {
+                    continue;
+                }
+
+                var selected = index == _navEditorSelectedLinkIndex;
+                var color = selected ? new Color(255, 215, 120) : GetNavEditorLinkColor(link.Traversal);
+                var fromScreen = fromPosition - cameraPosition;
+                var toScreen = toPosition - cameraPosition;
+                DrawNavEditorLine(fromScreen, toScreen, color, selected ? 3f : NavEditorLinkThickness);
+
+                if (IsNavEditorTraversalCaptureActive()
+                    && string.Equals(link.FromLabel, _navEditorRecordingSourceLabel, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(link.ToLabel, _navEditorRecordingTargetLabel, StringComparison.OrdinalIgnoreCase))
+                {
+                    DrawNavEditorLine(fromScreen, toScreen, new Color(255, 98, 92), 4f);
+                }
+
+                var midpoint = (fromScreen + toScreen) * 0.5f;
+                var timingTag = link.Traversal == BotNavigationHintTraversalKind.Jump && link.StartJumpImmediately ? " immediate" : string.Empty;
+                var recordingTag = link.RecordedTraversals.Count > 0 ? $" rec:{string.Join("/", link.RecordedTraversals.Select(recording => BotNavigationClasses.GetShortLabel(recording.ClassId)))}" : string.Empty;
+                _spriteBatch.DrawString(_consoleFont, $"{link.Traversal}{timingTag}{(link.Bidirectional ? " <>" : " ->")} x{link.CostMultiplier:F1}{recordingTag}", midpoint + new Vector2(6f, -10f), color);
             }
 
-            var midpoint = (fromScreen + toScreen) * 0.5f;
-            var recordingTag = link.RecordedTraversals.Count > 0 ? $" rec:{string.Join("/", link.RecordedTraversals.Select(recording => BotNavigationClasses.GetShortLabel(recording.ClassId)))}" : string.Empty;
-            _spriteBatch.DrawString(_consoleFont, $"{link.Traversal}{(link.Bidirectional ? " <>" : " ->")} x{link.CostMultiplier:F1}{recordingTag}", midpoint + new Vector2(6f, -10f), color);
+            for (var index = 0; index < _navEditorAnchors.Count; index += 1)
+            {
+                var anchor = _navEditorAnchors[index];
+                if (!AppliesToNavEditorViewClass(anchor.Classes))
+                {
+                    continue;
+                }
+
+                var selected = index == _navEditorSelectedAnchorIndex;
+                var pending = index == _navEditorPendingLinkAnchorIndex;
+                var screenPosition = new Vector2(anchor.X - cameraPosition.X, anchor.Y - cameraPosition.Y);
+                var rectangle = new Rectangle(
+                    (int)MathF.Round(screenPosition.X - NavEditorAnchorHalfSize),
+                    (int)MathF.Round(screenPosition.Y - NavEditorAnchorHalfSize),
+                    (int)(NavEditorAnchorHalfSize * 2f),
+                    (int)(NavEditorAnchorHalfSize * 2f));
+                var fillColor = selected ? new Color(255, 215, 120) : pending ? new Color(255, 186, 92) : GetNavEditorAnchorColor(anchor);
+                _spriteBatch.Draw(_pixel, rectangle, fillColor);
+                var fallbackTag = anchor.FallbackRole == BotNavigationHintFallbackRole.None ? string.Empty : $" [{DescribeNavEditorFallbackRole(anchor.FallbackRole)}]";
+                _spriteBatch.DrawString(_consoleFont, anchor.Label + fallbackTag, screenPosition + new Vector2(10f, -10f), new Color(236, 238, 242));
+            }
         }
 
-        for (var index = 0; index < _navEditorAnchors.Count; index += 1)
+        if (_navEditorShowBotTags)
         {
-            var anchor = _navEditorAnchors[index];
-            if (!AppliesToNavEditorViewClass(anchor.Classes))
+            DrawNavEditorBotDiagnosticTags(cameraPosition);
+        }
+
+        DrawNavEditorTraversalPlaybackTag(cameraPosition);
+    }
+
+    private void DrawNavEditorGeneratedCompatGraph(Vector2 cameraPosition)
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return;
+        }
+
+        var nodesById = asset.Nodes.ToDictionary(static node => node.Id);
+        var edgeColor = _navEditorGraphEdgeDisplayMode switch
+        {
+            NavEditorGraphEdgeDisplayMode.Cyan => _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+                ? new Color(112, 232, 255, 180)
+                : new Color(112, 232, 255, 128),
+            NavEditorGraphEdgeDisplayMode.Red => _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+                ? new Color(255, 106, 106, 180)
+                : new Color(255, 106, 106, 128),
+            _ => _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+                ? new Color(92, 196, 255, 96)
+                : new Color(92, 196, 255, 42),
+        };
+        var nodeColor = _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+            ? new Color(180, 228, 255, 150)
+            : new Color(180, 228, 255, 72);
+        var routeNodeIds = _navEditorGraphPreviewRouteNodeIds;
+        var routeNodeSet = routeNodeIds.Length > 0
+            ? new HashSet<int>(routeNodeIds)
+            : new HashSet<int>();
+        var selectedEdgeColor = new Color(255, 215, 120, _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph ? 235 : 196);
+        for (var edgeIndex = 0; edgeIndex < asset.Edges.Count; edgeIndex += 1)
+        {
+            var edge = asset.Edges[edgeIndex];
+            if (!nodesById.TryGetValue(edge.FromNodeId, out var from)
+                || !nodesById.TryGetValue(edge.ToNodeId, out var to))
             {
                 continue;
             }
 
-            var selected = index == _navEditorSelectedAnchorIndex;
-            var pending = index == _navEditorPendingLinkAnchorIndex;
-            var screenPosition = new Vector2(anchor.X - cameraPosition.X, anchor.Y - cameraPosition.Y);
-            var rectangle = new Rectangle(
-                (int)MathF.Round(screenPosition.X - NavEditorAnchorHalfSize),
-                (int)MathF.Round(screenPosition.Y - NavEditorAnchorHalfSize),
-                (int)(NavEditorAnchorHalfSize * 2f),
-                (int)(NavEditorAnchorHalfSize * 2f));
-            var fillColor = selected ? new Color(255, 215, 120) : pending ? new Color(255, 186, 92) : GetNavEditorAnchorColor(anchor);
-            _spriteBatch.Draw(_pixel, rectangle, fillColor);
-            _spriteBatch.DrawString(_consoleFont, anchor.Label, screenPosition + new Vector2(10f, -10f), new Color(236, 238, 242));
+            var fromScreen = new Vector2(from.X - cameraPosition.X, from.Y - cameraPosition.Y);
+            var toScreen = new Vector2(to.X - cameraPosition.X, to.Y - cameraPosition.Y);
+            var selected = edge.FromNodeId == _navEditorSelectedGeneratedGraphEdgeFromNodeId
+                && edge.ToNodeId == _navEditorSelectedGeneratedGraphEdgeToNodeId;
+            var lineColor = selected ? selectedEdgeColor : edgeColor;
+            var endpointSize = selected ? 6 : 4;
+            DrawNavEditorLine(fromScreen, toScreen, lineColor, selected ? 3f : 1f);
+            _spriteBatch.Draw(
+                _pixel,
+                new Rectangle(
+                    (int)MathF.Round(toScreen.X) - (endpointSize / 2),
+                    (int)MathF.Round(toScreen.Y) - (endpointSize / 2),
+                    endpointSize,
+                    endpointSize),
+                lineColor);
+            if (selected)
+            {
+                var midpoint = (fromScreen + toScreen) * 0.5f;
+                _spriteBatch.DrawString(_consoleFont, $"{edge.FromNodeId}->{edge.ToNodeId}", midpoint + new Vector2(6f, -10f), selectedEdgeColor);
+            }
         }
+
+        if (routeNodeIds.Length > 1)
+        {
+            var routeColor = new Color(255, 214, 120, _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph ? 235 : 190);
+            for (var index = 1; index < routeNodeIds.Length; index += 1)
+            {
+                if (!nodesById.TryGetValue(routeNodeIds[index - 1], out var from)
+                    || !nodesById.TryGetValue(routeNodeIds[index], out var to))
+                {
+                    continue;
+                }
+
+                var fromScreen = new Vector2(from.X - cameraPosition.X, from.Y - cameraPosition.Y);
+                var toScreen = new Vector2(to.X - cameraPosition.X, to.Y - cameraPosition.Y);
+                DrawNavEditorLine(fromScreen, toScreen, routeColor, 4f);
+                _spriteBatch.Draw(_pixel, new Rectangle((int)MathF.Round(toScreen.X) - 3, (int)MathF.Round(toScreen.Y) - 3, 6, 6), routeColor);
+            }
+        }
+
+        for (var nodeIndex = 0; nodeIndex < asset.Nodes.Count; nodeIndex += 1)
+        {
+            var node = asset.Nodes[nodeIndex];
+            var screen = new Vector2(node.X - cameraPosition.X, node.Y - cameraPosition.Y);
+            var selected = node.Id == _navEditorSelectedGeneratedGraphNodeId;
+            var pendingEdgeStart = node.Id == _navEditorPendingGeneratedGraphSourceNodeId;
+            var routeStart = node.Id == _navEditorGraphRouteStartNodeId;
+            var routeGoal = node.Id == _navEditorGraphRouteGoalNodeId;
+            var routeNode = routeNodeSet.Contains(node.Id);
+            var halfSize = selected || routeStart || routeGoal || pendingEdgeStart ? 5 : routeNode ? 4 : 2;
+            var fillColor = routeGoal
+                ? new Color(255, 98, 92, 235)
+                : routeStart
+                    ? new Color(132, 255, 168, 235)
+                    : pendingEdgeStart
+                        ? new Color(255, 186, 92, 235)
+                    : selected
+                        ? new Color(255, 244, 170, 245)
+                        : routeNode
+                            ? new Color(255, 214, 120, 225)
+                            : nodeColor;
+            _spriteBatch.Draw(
+                _pixel,
+                new Rectangle(
+                    (int)MathF.Round(screen.X) - halfSize,
+                    (int)MathF.Round(screen.Y) - halfSize,
+                    halfSize * 2,
+                    halfSize * 2),
+                fillColor);
+            if (_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph)
+            {
+                var label = node.Id.ToString(CultureInfo.InvariantCulture);
+                if (routeStart)
+                {
+                    label += " S";
+                }
+
+                if (routeGoal)
+                {
+                    label += " G";
+                }
+
+                if (pendingEdgeStart)
+                {
+                    label += " E";
+                }
+
+                var labelColor = selected || routeStart || routeGoal || routeNode || pendingEdgeStart
+                    ? new Color(255, 244, 196, 235)
+                    : new Color(196, 232, 255, 180);
+                _spriteBatch.DrawString(_consoleFont, label, screen + new Vector2(4f, -8f), labelColor);
+            }
+        }
+    }
+
+    private void DrawNavEditorActivationZone(NavEditorAnchor anchor, Vector2 cameraPosition, bool selected)
+    {
+        if (!TryGetNavEditorActivationZoneRectangle(anchor, cameraPosition, out var rect))
+        {
+            return;
+        }
+
+        var fill = selected
+            ? new Color(255, 214, 120, 36)
+            : new Color(92, 196, 255, 24);
+        var outline = selected
+            ? new Color(255, 214, 120, 210)
+            : new Color(92, 196, 255, 150);
+        _spriteBatch.Draw(_pixel, rect, fill);
+        DrawNavEditorRectangleOutline(rect, outline, selected ? 2 : 1);
+        if (selected)
+        {
+            _spriteBatch.DrawString(_consoleFont, "activation zone", new Vector2(rect.X + 4f, rect.Y + 4f), outline);
+        }
+    }
+
+    private void DrawNavEditorActivationZonePreview(Vector2 cameraPosition)
+    {
+        var minX = MathF.Min(_navEditorActivationZoneStart.X, _navEditorActivationZoneCurrent.X) - cameraPosition.X;
+        var minY = MathF.Min(_navEditorActivationZoneStart.Y, _navEditorActivationZoneCurrent.Y) - cameraPosition.Y;
+        var maxX = MathF.Max(_navEditorActivationZoneStart.X, _navEditorActivationZoneCurrent.X) - cameraPosition.X;
+        var maxY = MathF.Max(_navEditorActivationZoneStart.Y, _navEditorActivationZoneCurrent.Y) - cameraPosition.Y;
+        var rect = new Rectangle(
+            (int)MathF.Round(minX),
+            (int)MathF.Round(minY),
+            Math.Max(1, (int)MathF.Round(maxX - minX)),
+            Math.Max(1, (int)MathF.Round(maxY - minY)));
+        _spriteBatch.Draw(_pixel, rect, new Color(255, 214, 120, 28));
+        DrawNavEditorRectangleOutline(rect, new Color(255, 214, 120, 230), 2);
+    }
+
+    private static bool TryGetNavEditorActivationZoneRectangle(NavEditorAnchor anchor, Vector2 cameraPosition, out Rectangle rect)
+    {
+        rect = default;
+        if (!anchor.HasFallbackActivationZone)
+        {
+            return false;
+        }
+
+        var minX = MathF.Min(anchor.FallbackActivationMinX, anchor.FallbackActivationMaxX);
+        var minY = MathF.Min(anchor.FallbackActivationMinY, anchor.FallbackActivationMaxY);
+        var maxX = MathF.Max(anchor.FallbackActivationMinX, anchor.FallbackActivationMaxX);
+        var maxY = MathF.Max(anchor.FallbackActivationMinY, anchor.FallbackActivationMaxY);
+        if (maxX - minX < 1f || maxY - minY < 1f)
+        {
+            return false;
+        }
+
+        rect = new Rectangle(
+            (int)MathF.Round(minX - cameraPosition.X),
+            (int)MathF.Round(minY - cameraPosition.Y),
+            Math.Max(1, (int)MathF.Round(maxX - minX)),
+            Math.Max(1, (int)MathF.Round(maxY - minY)));
+        return true;
+    }
+
+    private void DrawNavEditorBotDiagnosticTags(Vector2 cameraPosition)
+    {
+        var snapshot = _practiceBotController.LastDiagnostics;
+        _ = TryGetNavEditorGeneratedGraphDiagnosticsNavPoints(out var navPoints);
+        for (var index = 0; index < snapshot.Entries.Count; index += 1)
+        {
+            var entry = snapshot.Entries[index];
+            if (!_world.TryGetNetworkPlayer(entry.Slot, out var player) || !player.IsAlive)
+            {
+                continue;
+            }
+
+            var screen = new Vector2(player.X - cameraPosition.X, player.Y - cameraPosition.Y - 42f);
+            var tag = BuildNavEditorBotTag(entry, navPoints);
+            var size = _consoleFont.MeasureString(tag);
+            var rect = new Rectangle(
+                (int)MathF.Round(screen.X - (size.X * 0.5f) - 6f),
+                (int)MathF.Round(screen.Y - 4f),
+                (int)MathF.Round(size.X + 12f),
+                (int)MathF.Round(size.Y + 8f));
+            _spriteBatch.Draw(_pixel, rect, new Color(10, 12, 16, 190));
+            _spriteBatch.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, 1), new Color(255, 214, 120, 220));
+            _spriteBatch.DrawString(_consoleFont, tag, new Vector2(rect.X + 6f, rect.Y + 4f), new Color(236, 238, 242));
+        }
+    }
+
+    private bool TryGetNavEditorGeneratedGraphDiagnosticsNavPoints(out ClientBotNavPoints navPoints)
+    {
+        navPoints = default!;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return false;
+        }
+
+        if (!ReferenceEquals(_navEditorGeneratedCompatGraphDiagnosticsAsset, asset)
+            || _navEditorGeneratedCompatGraphDiagnosticsNavPoints is null)
+        {
+            try
+            {
+                _navEditorGeneratedCompatGraphDiagnosticsNavPoints = ClientBotNavPoints.Build(asset, _world.Level);
+                _navEditorGeneratedCompatGraphDiagnosticsAsset = asset;
+            }
+            catch
+            {
+                _navEditorGeneratedCompatGraphDiagnosticsAsset = asset;
+                _navEditorGeneratedCompatGraphDiagnosticsNavPoints = null;
+            }
+        }
+
+        navPoints = _navEditorGeneratedCompatGraphDiagnosticsNavPoints!;
+        return navPoints is not null;
+    }
+
+    private void DrawNavEditorTraversalPlaybackTag(Vector2 cameraPosition)
+    {
+        if (!TryGetCurrentNavEditorPlaybackStep(out var step))
+        {
+            return;
+        }
+
+        var screen = new Vector2(_world.LocalPlayer.X - cameraPosition.X, _world.LocalPlayer.Y - cameraPosition.Y - 64f);
+        var tag = string.Create(
+            CultureInfo.InvariantCulture,
+            $"test:{_navEditorPlaybackLabel} {step.FromLabel}->{step.ToLabel} {step.Kind} {_navEditorPlaybackStepIndex + 1}/{_navEditorPlaybackSteps.Count}");
+        var size = _consoleFont.MeasureString(tag);
+        var rect = new Rectangle(
+            (int)MathF.Round(screen.X - (size.X * 0.5f) - 6f),
+            (int)MathF.Round(screen.Y - 4f),
+            (int)MathF.Round(size.X + 12f),
+            (int)MathF.Round(size.Y + 8f));
+        _spriteBatch.Draw(_pixel, rect, new Color(10, 12, 16, 210));
+        _spriteBatch.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, 1), new Color(255, 214, 120, 235));
+        _spriteBatch.DrawString(_consoleFont, tag, new Vector2(rect.X + 6f, rect.Y + 4f), new Color(255, 244, 196));
+    }
+
+    private static string BuildNavEditorBotTag(BotControllerDiagnosticsEntry entry, ClientBotNavPoints? navPoints)
+    {
+        var route = string.IsNullOrWhiteSpace(entry.FallbackTriggerLabel)
+            ? entry.RouteLabel
+            : $"fallback:{entry.FallbackTriggerLabel}";
+        var currentWeightLabel = "?";
+        if (navPoints is not null
+            && entry.RouteGoalNodeId >= 0
+            && entry.CurrentPointId >= 0)
+        {
+            var goalWeights = navPoints.GetGoalWeights(entry.RouteGoalNodeId, maximumDepth: 130);
+            if (goalWeights is not null
+                && entry.CurrentPointId < goalWeights.Length)
+            {
+                currentWeightLabel = goalWeights[entry.CurrentPointId].ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        var issueLabel = string.IsNullOrWhiteSpace(entry.NavigationIssueLabel)
+            ? string.Empty
+            : $" issue={entry.NavigationIssueLabel} br={entry.BranchTicks}/{entry.BranchNoProgressTicks} dt={entry.DirectTargetTicks}/{entry.DirectTargetNoProgressTicks}";
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{route} cp={entry.CurrentPointId} np={entry.NextPointId} goal={entry.RouteGoalNodeId} w={currentWeightLabel} nn={entry.NoNextPointTicks} st={entry.ModernStuckTicks}{issueLabel}");
     }
 
     private void DrawNavEditorPanel(MouseState mouse)
@@ -2983,24 +5132,40 @@ public partial class Game1
             return;
         }
 
+        var graphToolLabels = _navEditorLayerMode == NavEditorLayerMode.GeneratedGraph;
         DrawNavEditorButton(layout.SelectToolButton, "Select", _navEditorTool == NavEditorTool.Select, true, mouse);
-        DrawNavEditorButton(layout.AnchorToolButton, "Anchor", _navEditorTool == NavEditorTool.AddAnchor, true, mouse);
-        DrawNavEditorButton(layout.LinkToolButton, "Link", _navEditorTool == NavEditorTool.AddLink, true, mouse);
-        DrawNavEditorButton(layout.SaveButton, "Save (F7)", false, true, mouse);
+        DrawNavEditorButton(layout.AnchorToolButton, graphToolLabels ? "Node" : "Anchor", _navEditorTool == NavEditorTool.AddAnchor, true, mouse);
+        DrawNavEditorButton(layout.LinkToolButton, graphToolLabels ? "Edge" : "Link", _navEditorTool == NavEditorTool.AddLink, true, mouse);
+        DrawNavEditorButton(layout.SaveButton, "Save All (F7)", false, true, mouse);
         DrawNavEditorButton(layout.RebuildButton, "Rebuild (F8)", false, _navEditorRebuildTask is null, mouse);
         DrawNavEditorButton(layout.ReloadButton, "Reload (F5)", false, true, mouse);
-        DrawNavEditorButton(layout.RenameButton, "Rename", false, _navEditorSelectedAnchorIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.DeleteButton, "Delete", false, (_navEditorSelectedAnchorIndex >= 0 || _navEditorSelectedLinkIndex >= 0) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.ClearAllButton, "Clear All", false, (_navEditorAnchors.Count > 0 || _navEditorLinks.Count > 0) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.RecordButton, "Rec. Traversal", false, _navEditorSelectedLinkIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        var canEditHintLayer = _navEditorLayerMode != NavEditorLayerMode.GeneratedGraph;
+        DrawNavEditorButton(layout.RenameButton, "Rename", false, canEditHintLayer && _navEditorSelectedAnchorIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        var canDeleteGraphSelection = (_navEditorLayerMode is NavEditorLayerMode.GeneratedGraph or NavEditorLayerMode.Both)
+            && (_navEditorSelectedGeneratedGraphNodeId >= 0 || (_navEditorSelectedGeneratedGraphEdgeFromNodeId >= 0 && _navEditorSelectedGeneratedGraphEdgeToNodeId >= 0));
+        DrawNavEditorButton(layout.DeleteButton, "Delete", false, (canEditHintLayer && (_navEditorSelectedAnchorIndex >= 0 || _navEditorSelectedLinkIndex >= 0) || canDeleteGraphSelection) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        DrawNavEditorButton(layout.ClearAllButton, "Clear All", false, canEditHintLayer && (_navEditorAnchors.Count > 0 || _navEditorLinks.Count > 0) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        DrawNavEditorButton(layout.RecordButton, "Rec. Traversal", false, canEditHintLayer && _navEditorSelectedLinkIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
         DrawNavEditorButton(layout.RecordProfileButton, BotNavigationClasses.GetShortLabel(_navEditorRecordTestClass), false, !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.ClearRecordingButton, "Clear Rec", false, _navEditorSelectedLinkIndex >= 0 && SelectedNavEditorLinkHasRecordingForClass(_navEditorRecordTestClass) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.TestLinkButton, "Test Link", false, _navEditorSelectedLinkIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
-        DrawNavEditorButton(layout.TestRouteButton, "Test Route", false, (_navEditorSelectedAnchorIndex >= 0 || _navEditorSelectedLinkIndex >= 0) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        DrawNavEditorButton(layout.ClearRecordingButton, "Clear Rec", false, canEditHintLayer && _navEditorSelectedLinkIndex >= 0 && SelectedNavEditorLinkHasRecordingForClass(_navEditorRecordTestClass) && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        DrawNavEditorButton(layout.TestLinkButton, "Test Link", false, canEditHintLayer && _navEditorSelectedLinkIndex >= 0 && !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive(), mouse);
+        var canTestHintRoute = canEditHintLayer
+            && (_navEditorSelectedAnchorIndex >= 0 || _navEditorSelectedLinkIndex >= 0)
+            && !IsNavEditorTraversalCaptureActive()
+            && !IsNavEditorTraversalPlaybackActive();
+        var canTestGraphRoute = ShouldUseNavEditorGeneratedGraphRoutePlayback()
+            && CanStartNavEditorGeneratedGraphRoutePlayback();
+        DrawNavEditorButton(layout.TestRouteButton, "Test Route", false, canTestHintRoute || canTestGraphRoute, mouse);
         DrawNavEditorButton(layout.StopTestButton, "Stop Test", false, IsNavEditorTraversalCaptureActive() || IsNavEditorTraversalPlaybackActive(), mouse);
         DrawNavEditorButton(layout.ViewClassButton, $"View: {DescribeNavEditorViewClass(_navEditorViewClass)}", false, true, mouse);
         DrawNavEditorButton(layout.ClassScopeButton, $"New Profile: {DescribeNavEditorClasses(_navEditorDefaultClasses)}", false, true, mouse);
-        var anchorControlsEnabled = true;
+        DrawNavEditorButton(layout.LayerButton, $"Layer: {DescribeNavEditorLayerMode(_navEditorLayerMode)}", false, true, mouse);
+        var canControlScoreTrio = !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive();
+        DrawNavEditorButton(layout.BotTagsButton, _navEditorShowBotTags ? "Bot Tags: On" : "Bot Tags: Off", false, true, mouse);
+        DrawNavEditorButton(layout.EdgeDisplayButton, $"Edges: {DescribeNavEditorGraphEdgeDisplayMode(_navEditorGraphEdgeDisplayMode)}", false, true, mouse);
+        DrawNavEditorButton(layout.RunScoreTrioButton, _navEditorScoreTrioActive ? "Respawn Trio" : "Run Trio", _navEditorScoreTrioActive, canControlScoreTrio, mouse);
+        DrawNavEditorButton(layout.ClearScoreTrioButton, "Clear Trio", false, _navEditorScoreTrioActive && canControlScoreTrio, mouse);
+        var anchorControlsEnabled = _navEditorLayerMode != NavEditorLayerMode.GeneratedGraph;
         DrawNavEditorButton(layout.AnchorKindButton, $"New Role: {DescribeNavEditorAnchorKind(_navEditorDefaultAnchorKind)}", false, anchorControlsEnabled, mouse);
         DrawNavEditorButton(
             layout.AnchorTeamButton,
@@ -3008,10 +5173,24 @@ public partial class Game1
             false,
             anchorControlsEnabled && CanNavEditorAnchorKindUseTeam(_navEditorDefaultAnchorKind),
             mouse);
+        DrawNavEditorButton(layout.FallbackRoleButton, $"Fallback: {DescribeNavEditorFallbackRole(GetNavEditorSelectedFallbackRoleOrDefault())}", false, anchorControlsEnabled, mouse);
+        DrawNavEditorButton(layout.FallbackTriggerButton, $"Trigger: {DescribeNavEditorFallbackTriggers(GetNavEditorSelectedFallbackTriggersOrDefault())}", false, anchorControlsEnabled, mouse);
+        DrawNavEditorButton(layout.FallbackCarryButton, $"Carry: {DescribeNavEditorCarryRequirement(GetNavEditorSelectedCarryRequirementOrDefault())}", false, anchorControlsEnabled, mouse);
 
-        var linkControlsEnabled = !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive();
+        var linkControlsEnabled = _navEditorLayerMode != NavEditorLayerMode.GeneratedGraph
+            && !IsNavEditorTraversalCaptureActive()
+            && !IsNavEditorTraversalPlaybackActive();
+        var directionControlsEnabled = !IsNavEditorTraversalCaptureActive() && !IsNavEditorTraversalPlaybackActive();
+        var directionLabel = _navEditorLayerMode == NavEditorLayerMode.HintLayer
+            ? (_navEditorDefaultBidirectional ? "New Direction: Two-way" : "New Direction: One-way")
+            : (_navEditorDefaultBidirectional ? "Graph Direction: Two-way" : "Graph Direction: Directed");
         DrawNavEditorButton(layout.TraversalButton, $"New Traversal: {_navEditorDefaultTraversal}", false, linkControlsEnabled, mouse);
-        DrawNavEditorButton(layout.DirectionButton, _navEditorDefaultBidirectional ? "New Direction: Two-way" : "New Direction: One-way", false, linkControlsEnabled, mouse);
+        DrawNavEditorButton(
+            layout.DirectionButton,
+            directionLabel,
+            false,
+            directionControlsEnabled,
+            mouse);
         DrawNavEditorButton(layout.CostDownButton, "-", false, linkControlsEnabled, mouse);
         DrawNavEditorButton(layout.CostUpButton, "+", false, linkControlsEnabled, mouse);
         _spriteBatch.DrawString(_consoleFont, $"New Cost x{_navEditorDefaultCostMultiplier:F1}", new Vector2(layout.CostDownButton.Right + 10f, layout.CostDownButton.Y + 6f), linkControlsEnabled ? new Color(236, 238, 242) : new Color(132, 138, 144));
@@ -3031,10 +5210,97 @@ public partial class Game1
 
     private IReadOnlyList<string> BuildNavEditorDetailLines()
     {
-        return
-        [
-            $"anchors={_navEditorAnchors.Count} links={_navEditorLinks.Count}",
-        ];
+        var lines = new List<string>
+        {
+            $"hints={_navEditorAnchors.Count} nodes / {_navEditorLinks.Count} links",
+            _navEditorGeneratedCompatGraphStatus,
+            $"graph add mode={(_navEditorDefaultBidirectional ? "two-way if valid" : "directed")} display={DescribeNavEditorGraphEdgeDisplayMode(_navEditorGraphEdgeDisplayMode)}",
+            _navEditorScoreTrioActive
+                ? $"score trio active: {_world.LocalPlayerTeam} {DescribeNavEditorScoreTrioClasses()} from spawn (current state)"
+                : $"score trio ready: Run Trio spawns {DescribeNavEditorScoreTrioClasses()} from local spawn",
+        };
+
+        if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
+        {
+            var anchor = _navEditorAnchors[_navEditorSelectedAnchorIndex];
+            lines.Add($"selected {anchor.Label}: {DescribeNavEditorAnchorRole(anchor.Kind, anchor.Team)} fallback={DescribeNavEditorFallbackRole(anchor.FallbackRole)}");
+            if (anchor.FallbackRole == BotNavigationHintFallbackRole.Entry)
+            {
+                var activation = anchor.HasFallbackActivationZone
+                    ? $"zone={MathF.Abs(anchor.FallbackActivationMaxX - anchor.FallbackActivationMinX):F0}x{MathF.Abs(anchor.FallbackActivationMaxY - anchor.FallbackActivationMinY):F0}"
+                    : $"radius={GetNavEditorFallbackRadius(anchor):F0}";
+                lines.Add($"entry trigger={DescribeNavEditorFallbackTriggers(anchor.FallbackTriggers)} {activation} carry={DescribeNavEditorCarryRequirement(anchor.RequiresCarryingIntel)}");
+            }
+        }
+        else if (_navEditorSelectedLinkIndex >= 0 && _navEditorSelectedLinkIndex < _navEditorLinks.Count)
+        {
+            var link = _navEditorLinks[_navEditorSelectedLinkIndex];
+            var timing = link.Traversal == BotNavigationHintTraversalKind.Jump
+                ? $" jumpTiming={(link.StartJumpImmediately ? "immediate" : "delayed")}"
+                : string.Empty;
+            lines.Add($"selected link: {link.FromLabel} -> {link.ToLabel} {link.Traversal}{timing} {(link.Bidirectional ? "two-way" : "one-way")}");
+        }
+        else if (_navEditorSelectedGeneratedGraphNodeId >= 0
+            && TryGetNavEditorGeneratedGraphNode(_navEditorSelectedGeneratedGraphNodeId, out var graphNode))
+        {
+            var outgoingCount = _navEditorGeneratedCompatGraph?.Edges.Count(edge => edge.FromNodeId == graphNode.Id) ?? 0;
+            var incomingCount = _navEditorGeneratedCompatGraph?.Edges.Count(edge => edge.ToNodeId == graphNode.Id) ?? 0;
+            lines.Add($"selected graph node {graphNode.Id}: ({graphNode.X:F0}, {graphNode.Y:F0}) {graphNode.Kind} out={outgoingCount} in={incomingCount}");
+            var outgoingLabels = _navEditorGeneratedCompatGraph?.Edges
+                .Where(edge => edge.FromNodeId == graphNode.Id)
+                .OrderBy(edge => edge.ToNodeId)
+                .Take(8)
+                .Select(edge => $"{edge.ToNodeId}:{edge.Kind}")
+                .ToArray() ?? Array.Empty<string>();
+            if (outgoingLabels.Length > 0)
+            {
+                var suffix = outgoingCount > outgoingLabels.Length ? " ..." : string.Empty;
+                lines.Add($"outgoing: {string.Join(", ", outgoingLabels)}{suffix}");
+            }
+            lines.Add($"edge start={DescribeNavEditorGraphRouteEndpoint(_navEditorPendingGeneratedGraphSourceNodeId)}");
+            lines.Add($"graph route start={DescribeNavEditorGraphRouteEndpoint(_navEditorGraphRouteStartNodeId)} goal={DescribeNavEditorGraphRouteEndpoint(_navEditorGraphRouteGoalNodeId)}");
+        }
+        else if (_navEditorSelectedGeneratedGraphEdgeFromNodeId >= 0
+            && _navEditorSelectedGeneratedGraphEdgeToNodeId >= 0
+            && TryGetNavEditorGeneratedGraphEdge(_navEditorSelectedGeneratedGraphEdgeFromNodeId, _navEditorSelectedGeneratedGraphEdgeToNodeId, out var graphEdge))
+        {
+            lines.Add($"selected graph edge: {graphEdge.FromNodeId} -> {graphEdge.ToNodeId} {graphEdge.Kind} cost={graphEdge.Cost:0.##}");
+            lines.Add($"reverse edge={(TryGetNavEditorGeneratedGraphEdge(graphEdge.ToNodeId, graphEdge.FromNodeId, out _) ? "present" : "missing")}");
+            lines.Add($"edge start={DescribeNavEditorGraphRouteEndpoint(_navEditorPendingGeneratedGraphSourceNodeId)}");
+        }
+        else
+        {
+            lines.Add(_navEditorLayerMode == NavEditorLayerMode.GeneratedGraph
+                ? _navEditorTool switch
+                {
+                    NavEditorTool.AddAnchor => "Node tool adds a surface node on valid ground",
+                    NavEditorTool.AddLink => _navEditorPendingGeneratedGraphSourceNodeId >= 0
+                        ? $"Edge tool: start={_navEditorPendingGeneratedGraphSourceNodeId}; click a destination node to toggle {(_navEditorDefaultBidirectional ? "a two-way seam when valid" : "a directed seam")}"
+                        : $"Edge tool: click one graph node, then another, to toggle {(_navEditorDefaultBidirectional ? "a two-way seam when valid" : "a directed seam")}",
+                    _ => "Select picks seams or drags graph nodes; Delete removes the selected seam or node"
+                }
+                : "right-click map to place fallback nodes; Ctrl+right-drag draws an activation zone");
+        }
+
+        if ((_navEditorGraphRouteStartNodeId >= 0 || _navEditorGraphRouteGoalNodeId >= 0)
+            && _navEditorSelectedGeneratedGraphNodeId < 0)
+        {
+            lines.Add($"graph route start={DescribeNavEditorGraphRouteEndpoint(_navEditorGraphRouteStartNodeId)} goal={DescribeNavEditorGraphRouteEndpoint(_navEditorGraphRouteGoalNodeId)}");
+        }
+
+        if (_navEditorGraphPreviewRouteNodeIds.Length > 1)
+        {
+            lines.Add($"graph preview: {_navEditorGraphPreviewRouteNodeIds.Length} nodes / {_navEditorGraphPreviewRouteNodeIds.Length - 1} links");
+        }
+
+        return lines;
+    }
+
+    private static string DescribeNavEditorGraphRouteEndpoint(int nodeId)
+    {
+        return nodeId >= 0
+            ? nodeId.ToString(CultureInfo.InvariantCulture)
+            : "unset";
     }
 
     private IReadOnlyList<string> GetWrappedNavEditorStatusLines(string status, float maxWidth)
@@ -3083,9 +5349,15 @@ public partial class Game1
         y += NavEditorButtonHeight + NavEditorButtonGap;
         var classRow = CreateNavEditorButtonRow(contentX, y, contentWidth, 2);
         y += NavEditorButtonHeight + NavEditorButtonGap;
+        var layerRow = CreateNavEditorButtonRow(contentX, y, contentWidth, 3);
+        y += NavEditorButtonHeight + NavEditorButtonGap;
+        var scoreSimRow = CreateNavEditorButtonRow(contentX, y, contentWidth, 2);
+        y += NavEditorButtonHeight + NavEditorButtonGap;
         var anchorKindRect = new Rectangle(contentX, y, contentWidth, NavEditorButtonHeight);
         y += NavEditorButtonHeight + NavEditorButtonGap;
         var anchorTeamRect = new Rectangle(contentX, y, contentWidth, NavEditorButtonHeight);
+        y += NavEditorButtonHeight + NavEditorButtonGap;
+        var fallbackRow = CreateNavEditorButtonRow(contentX, y, contentWidth, 3);
         y += NavEditorButtonHeight + NavEditorButtonGap;
         var traversalRect = new Rectangle(contentX, y, contentWidth, NavEditorButtonHeight);
         y += NavEditorButtonHeight + NavEditorButtonGap;
@@ -3114,8 +5386,16 @@ public partial class Game1
             testRow[2],
             classRow[0],
             classRow[1],
+            layerRow[0],
+            layerRow[1],
+            layerRow[2],
+            scoreSimRow[0],
+            scoreSimRow[1],
             anchorKindRect,
             anchorTeamRect,
+            fallbackRow[0],
+            fallbackRow[1],
+            fallbackRow[2],
             traversalRect,
             directionRect,
             costRow[0],
@@ -3132,6 +5412,11 @@ public partial class Game1
         }
 
         return rectangles;
+    }
+
+    private static bool IsNavEditorControlDown(KeyboardState keyboard)
+    {
+        return keyboard.IsKeyDown(Keys.LeftControl) || keyboard.IsKeyDown(Keys.RightControl);
     }
 
     private void EnsureNavEditorPanelPositionInitialized()
@@ -3310,6 +5595,15 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, start, null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
     }
 
+    private void DrawNavEditorRectangleOutline(Rectangle rect, Color color, int thickness)
+    {
+        var lineThickness = Math.Max(1, thickness);
+        _spriteBatch.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, lineThickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(rect.X, rect.Bottom - lineThickness, rect.Width, lineThickness), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(rect.X, rect.Y, lineThickness, rect.Height), color);
+        _spriteBatch.Draw(_pixel, new Rectangle(rect.Right - lineThickness, rect.Y, lineThickness, rect.Height), color);
+    }
+
     private PlayerClass[] GetNavEditorSelectedClassesOrDefault()
     {
         if (_navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count)
@@ -3371,6 +5665,27 @@ public partial class Game1
             : _navEditorDefaultCostMultiplier;
     }
 
+    private BotNavigationHintFallbackRole GetNavEditorSelectedFallbackRoleOrDefault()
+    {
+        return _navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count
+            ? _navEditorAnchors[_navEditorSelectedAnchorIndex].FallbackRole
+            : BotNavigationHintFallbackRole.None;
+    }
+
+    private BotNavigationHintFallbackTrigger[] GetNavEditorSelectedFallbackTriggersOrDefault()
+    {
+        return _navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count
+            ? _navEditorAnchors[_navEditorSelectedAnchorIndex].FallbackTriggers
+            : Array.Empty<BotNavigationHintFallbackTrigger>();
+    }
+
+    private bool? GetNavEditorSelectedCarryRequirementOrDefault()
+    {
+        return _navEditorSelectedAnchorIndex >= 0 && _navEditorSelectedAnchorIndex < _navEditorAnchors.Count
+            ? _navEditorAnchors[_navEditorSelectedAnchorIndex].RequiresCarryingIntel
+            : null;
+    }
+
     private static PlayerClass[] GetNextNavEditorClassSelection(PlayerClass[] current)
     {
         if (current.Length == 0)
@@ -3402,6 +5717,123 @@ public partial class Game1
     private static string DescribeNavEditorViewClass(PlayerClass? classId)
     {
         return classId.HasValue ? BotNavigationClasses.GetShortLabel(classId.Value) : "All";
+    }
+
+    private static string DescribeNavEditorLayerMode(NavEditorLayerMode mode)
+    {
+        return mode switch
+        {
+            NavEditorLayerMode.GeneratedGraph => "Graph",
+            NavEditorLayerMode.Both => "Both",
+            _ => "Hints",
+        };
+    }
+
+    private static string DescribeNavEditorGraphEdgeDisplayMode(NavEditorGraphEdgeDisplayMode mode)
+    {
+        return mode switch
+        {
+            NavEditorGraphEdgeDisplayMode.Cyan => "Cyan",
+            NavEditorGraphEdgeDisplayMode.Red => "Red",
+            _ => "Soft",
+        };
+    }
+
+    private static string DescribeNavEditorFallbackRole(BotNavigationHintFallbackRole role)
+    {
+        return role switch
+        {
+            BotNavigationHintFallbackRole.Entry => "Entry",
+            BotNavigationHintFallbackRole.Exit => "Exit",
+            _ => "Off",
+        };
+    }
+
+    private static string DescribeNavEditorFallbackTriggers(IReadOnlyList<BotNavigationHintFallbackTrigger> triggers)
+    {
+        return triggers.Count == 0
+            ? "NoNext"
+            : string.Join("/", triggers.Select(DescribeNavEditorFallbackTrigger));
+    }
+
+    private static string DescribeNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger trigger)
+    {
+        return trigger switch
+        {
+            BotNavigationHintFallbackTrigger.Stuck => "Stuck",
+            BotNavigationHintFallbackTrigger.Reacquire => "Reacq",
+            BotNavigationHintFallbackTrigger.CarryReturn => "Carry",
+            BotNavigationHintFallbackTrigger.DirectTarget => "Direct",
+            _ => "NoNext",
+        };
+    }
+
+    private static string DescribeNavEditorCarryRequirement(bool? requiresCarryingIntel)
+    {
+        return requiresCarryingIntel switch
+        {
+            true => "Must Carry",
+            false => "No Carry",
+            _ => "Any",
+        };
+    }
+
+    private static float GetNavEditorFallbackRadius(NavEditorAnchor anchor)
+    {
+        return anchor.FallbackRadius > 0f
+            ? anchor.FallbackRadius
+            : anchor.FallbackRole == BotNavigationHintFallbackRole.Exit ? 72f : 112f;
+    }
+
+    private static bool TryNormalizeNavEditorActivationZone(
+        BotNavigationHintFallbackActivationZone? zone,
+        out float minX,
+        out float minY,
+        out float maxX,
+        out float maxY)
+    {
+        minX = minY = maxX = maxY = 0f;
+        if (zone is null)
+        {
+            return false;
+        }
+
+        minX = MathF.Min(zone.MinX, zone.MaxX);
+        minY = MathF.Min(zone.MinY, zone.MaxY);
+        maxX = MathF.Max(zone.MinX, zone.MaxX);
+        maxY = MathF.Max(zone.MinY, zone.MaxY);
+        if (maxX - minX < 1f || maxY - minY < 1f)
+        {
+            minX = minY = maxX = maxY = 0f;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static BotNavigationHintFallbackActivationZone? CreateNavEditorFallbackActivationZone(NavEditorAnchor anchor)
+    {
+        if (!anchor.HasFallbackActivationZone)
+        {
+            return null;
+        }
+
+        var minX = MathF.Min(anchor.FallbackActivationMinX, anchor.FallbackActivationMaxX);
+        var minY = MathF.Min(anchor.FallbackActivationMinY, anchor.FallbackActivationMaxY);
+        var maxX = MathF.Max(anchor.FallbackActivationMinX, anchor.FallbackActivationMaxX);
+        var maxY = MathF.Max(anchor.FallbackActivationMinY, anchor.FallbackActivationMaxY);
+        if (maxX - minX < 1f || maxY - minY < 1f)
+        {
+            return null;
+        }
+
+        return new BotNavigationHintFallbackActivationZone
+        {
+            MinX = minX,
+            MinY = minY,
+            MaxX = maxX,
+            MaxY = maxY,
+        };
     }
 
     private bool AppliesToNavEditorViewClass(IReadOnlyList<PlayerClass> classes)
@@ -3481,7 +5913,7 @@ public partial class Game1
 
     private static bool CanNavEditorAnchorKindUseTeam(BotNavigationNodeKind kind)
     {
-        return kind is BotNavigationNodeKind.Spawn or BotNavigationNodeKind.Objective or BotNavigationNodeKind.HealingCabinet;
+        return kind is BotNavigationNodeKind.RouteAnchor or BotNavigationNodeKind.Spawn or BotNavigationNodeKind.Objective or BotNavigationNodeKind.HealingCabinet;
     }
 
     private static PlayerTeam? NormalizeNavEditorAnchorTeam(BotNavigationNodeKind kind, PlayerTeam? team)
@@ -3694,6 +6126,11 @@ public partial class Game1
         return Vector2.Distance(point, projection);
     }
 
+    private static long GetNavEditorGraphEdgeKey(int fromNodeId, int toNodeId)
+    {
+        return ((long)fromNodeId << 32) ^ (uint)toNodeId;
+    }
+
     private static Color GetNavEditorClassColor(PlayerClass[] classes)
     {
         if (classes.Length == 0)
@@ -3785,15 +6222,25 @@ public partial class Game1
 
         if (step.InputTape.Length > 0)
         {
-            if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Length)
+            if (_navEditorPlaybackFrameIndex < 0)
             {
                 return default;
+            }
+
+            if (_navEditorPlaybackFrameIndex >= step.InputTape.Length)
+            {
+                return CreateNavEditorDirectionalPlaybackInput(step);
             }
 
             var frame = step.InputTape[_navEditorPlaybackFrameIndex];
             return CreateNavEditorPlaybackInput(frame);
         }
 
+        return CreateNavEditorDirectionalPlaybackInput(step);
+    }
+
+    private PlayerInputSnapshot CreateNavEditorDirectionalPlaybackInput(NavEditorPlaybackStep step)
+    {
         var horizontalDirection = step.ForcedHorizontalDirection;
         if (horizontalDirection == 0)
         {
@@ -3903,6 +6350,17 @@ public partial class Game1
             return;
         }
 
+        if (_navEditorPlaybackFrameIndex >= step.InputTape.Length)
+        {
+            _navEditorPlaybackPostTapeTicks += 1;
+            if (_navEditorPlaybackPostTapeTicks > NavEditorPlaybackPostTapeMaximumTicks)
+            {
+                CancelNavEditorTraversalPlayback(BuildNavEditorPlaybackMissMessage("traversal test ended before reaching", step));
+            }
+
+            return;
+        }
+
         if (_navEditorPlaybackFrameIndex < 0 || _navEditorPlaybackFrameIndex >= step.InputTape.Length)
         {
             CancelNavEditorTraversalPlayback($"traversal test missed {step.ToLabel}");
@@ -3926,7 +6384,7 @@ public partial class Game1
                     return;
                 }
 
-                CancelNavEditorTraversalPlayback($"traversal test ended before reaching {step.ToLabel}");
+                _navEditorPlaybackFrameSecondsRemaining = 0d;
                 return;
             }
 
@@ -3964,6 +6422,7 @@ public partial class Game1
     {
         _navEditorPlaybackFrameIndex = 0;
         _navEditorPlaybackFrameSecondsRemaining = 0d;
+        _navEditorPlaybackPostTapeTicks = 0;
     }
 
     private bool TryGetCurrentNavEditorPlaybackStep(out NavEditorPlaybackStep step)
@@ -3976,6 +6435,64 @@ public partial class Game1
 
         step = _navEditorPlaybackSteps[_navEditorPlaybackStepIndex];
         return true;
+    }
+
+    private bool TryGetNavEditorGeneratedGraphNode(int nodeId, out BotNavigationNode node)
+    {
+        node = default!;
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < asset.Nodes.Count; index += 1)
+        {
+            if (asset.Nodes[index].Id != nodeId)
+            {
+                continue;
+            }
+
+            node = asset.Nodes[index];
+            return true;
+        }
+
+        return false;
+    }
+
+    private void UpdateNavEditorGeneratedGraphEditStatus()
+    {
+        if (_navEditorGeneratedCompatGraph is not BotNavigationAsset asset)
+        {
+            _navEditorGeneratedCompatGraphStatus = "generated graph not loaded";
+            return;
+        }
+
+        _navEditorGeneratedCompatGraphStatus = $"graph edits: {asset.Nodes.Count} nodes / {asset.Edges.Count} links (unsaved)";
+    }
+
+    private int ResolveNavEditorGeneratedGraphSurfaceId(float x, float y)
+    {
+        var bestSurfaceId = -1;
+        var bestDistance = float.PositiveInfinity;
+        for (var index = 0; index < _world.Level.Solids.Count; index += 1)
+        {
+            var solid = _world.Level.Solids[index];
+            if (x < solid.Left || x > solid.Right || y < solid.Top || y > solid.Bottom)
+            {
+                continue;
+            }
+
+            var distance = MathF.Abs(y - solid.Top);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestSurfaceId = index;
+        }
+
+        return bestSurfaceId;
     }
 
     private bool HasReachedNavEditorPlaybackTarget(NavEditorPlaybackStep step)
@@ -3994,6 +6511,15 @@ public partial class Game1
             && _world.LocalPlayer.IsGrounded
             && horizontalDelta <= NavEditorPlaybackTargetToleranceX
             && verticalDelta <= NavEditorApproximateGroundedArrivalToleranceY;
+    }
+
+    private string BuildNavEditorPlaybackMissMessage(string prefix, NavEditorPlaybackStep step)
+    {
+        var dx = _world.LocalPlayer.X - step.ToX;
+        var dy = _world.LocalPlayer.Y - step.ToY;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{prefix} {step.ToLabel} (dx={dx:0.#}, dy={dy:0.#}, grounded={_world.LocalPlayer.IsGrounded}, tape={step.InputTape.Length})");
     }
 
     private bool ShouldForceApproximateNavEditorJump(NavEditorPlaybackStep step, int horizontalDirection)
@@ -4199,7 +6725,12 @@ public partial class Game1
     {
         return _navEditorSelectedLinkIndex >= 0
             && _navEditorSelectedLinkIndex < _navEditorLinks.Count
-            && _navEditorLinks[_navEditorSelectedLinkIndex].RecordedTraversals.Any(recording => recording.ClassId == classId);
+            && LinkHasRecordedTraversalForClass(_navEditorLinks[_navEditorSelectedLinkIndex], classId);
+    }
+
+    private static bool LinkHasRecordedTraversalForClass(NavEditorLink link, PlayerClass classId)
+    {
+        return link.RecordedTraversals.Any(recording => recording.ClassId == classId && recording.InputTape.Length > 0);
     }
 
     private static string DescribeRecordedTraversalClasses(IReadOnlyList<NavEditorRecordedTraversal> recordedTraversals)
@@ -4334,6 +6865,15 @@ public partial class Game1
         public float Y { get; set; }
         public BotNavigationNodeKind Kind { get; set; } = BotNavigationNodeKind.RouteAnchor;
         public PlayerTeam? Team { get; set; }
+        public BotNavigationHintFallbackRole FallbackRole { get; set; }
+        public BotNavigationHintFallbackTrigger[] FallbackTriggers { get; set; } = Array.Empty<BotNavigationHintFallbackTrigger>();
+        public float FallbackRadius { get; set; }
+        public bool? RequiresCarryingIntel { get; set; }
+        public bool HasFallbackActivationZone { get; set; }
+        public float FallbackActivationMinX { get; set; }
+        public float FallbackActivationMinY { get; set; }
+        public float FallbackActivationMaxX { get; set; }
+        public float FallbackActivationMaxY { get; set; }
     }
 
     private sealed class NavEditorLink
@@ -4343,6 +6883,7 @@ public partial class Game1
         public PlayerClass[] Classes { get; set; } = Array.Empty<PlayerClass>();
         public bool Bidirectional { get; set; }
         public BotNavigationHintTraversalKind Traversal { get; set; } = BotNavigationHintTraversalKind.Auto;
+        public bool StartJumpImmediately { get; set; }
         public float CostMultiplier { get; set; } = 1f;
 
         public List<NavEditorRecordedTraversal> RecordedTraversals { get; set; } = new();
@@ -4425,8 +6966,16 @@ public partial class Game1
         Rectangle StopTestButton,
         Rectangle ViewClassButton,
         Rectangle ClassScopeButton,
+        Rectangle LayerButton,
+        Rectangle BotTagsButton,
+        Rectangle EdgeDisplayButton,
+        Rectangle RunScoreTrioButton,
+        Rectangle ClearScoreTrioButton,
         Rectangle AnchorKindButton,
         Rectangle AnchorTeamButton,
+        Rectangle FallbackRoleButton,
+        Rectangle FallbackTriggerButton,
+        Rectangle FallbackCarryButton,
         Rectangle TraversalButton,
         Rectangle DirectionButton,
         Rectangle CostDownButton,

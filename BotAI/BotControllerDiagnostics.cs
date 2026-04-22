@@ -51,12 +51,24 @@ public readonly record struct BotControllerDiagnosticsEntry(
     bool RequestedJump,
     string JumpDebug,
     int RouteGoalNodeId,
+    float RouteGoalX,
+    float RouteGoalY,
     int PreviousCurrentPointId,
     int PreviousNextPointId,
     bool IsGrounded,
     bool ProbeGrounded,
     int SecondAnchorBlockPointId,
-    int SecondAnchorBlockTicksRemaining);
+    int SecondAnchorBlockTicksRemaining,
+    int NoNextPointTicks,
+    string FallbackRouteLabel,
+    string FallbackTriggerLabel,
+    string NavigationIssueLabel,
+    int BranchFromPointId,
+    int BranchToPointId,
+    int BranchTicks,
+    int BranchNoProgressTicks,
+    int DirectTargetTicks,
+    int DirectTargetNoProgressTicks);
 
 public sealed record BotControllerDiagnosticsSnapshot(
     IReadOnlyList<BotControllerDiagnosticsEntry> Entries,

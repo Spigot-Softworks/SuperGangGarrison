@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace OpenGarrison.BotAI;
 
-internal static class BotNavigationMovementValidator
+public static class BotNavigationMovementValidator
 {
     private const double FixedDeltaSeconds = 1d / SimulationConfig.DefaultTicksPerSecond;
     private const float HorizontalAimDistance = 256f;
@@ -23,12 +23,14 @@ internal static class BotNavigationMovementValidator
 
     private static readonly int[] RunUpTickOptions = [0, 4, 8, 12, 16, 20];
     private static readonly int[] HintRunUpTickOptions = [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40];
+    private static readonly int[] ImmediateRunUpTickOptions = [0];
     private static readonly int[] LightAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32, 36, 40];
     private static readonly int[] StandardAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32, 36];
     private static readonly int[] HeavyAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32];
     private static readonly int[] HintLightAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56];
     private static readonly int[] HintStandardAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52];
     private static readonly int[] HintHeavyAirborneTickOptions = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48];
+    private static readonly PlayerTeam[] ValidationTeams = [PlayerTeam.Red, PlayerTeam.Blue];
 
     public static JumpSearchEnvelope GetSearchEnvelope(BotNavigationProfile profile, CharacterClassDefinition classDefinition)
     {
@@ -133,16 +135,19 @@ internal static class BotNavigationMovementValidator
         float sourceX,
         float sourceY,
         float targetX,
-        float targetY)
+        float targetY,
+        bool startJumpImmediately = false)
     {
         var direction = targetX >= sourceX ? 1 : -1;
         var horizontalDistance = MathF.Abs(targetX - sourceX);
         var riseDistance = MathF.Max(0f, sourceY - targetY);
         var dropDistance = MathF.Max(0f, targetY - sourceY);
-        var runUpTicks = PickNearestTickOption(
-            HintRunUpTickOptions,
-            (int)MathF.Round(((horizontalDistance / MathF.Max(1f, classDefinition.MaxRunSpeed)) * SimulationConfig.DefaultTicksPerSecond * 0.45f)
-                + (riseDistance / MathF.Max(1f, classDefinition.JumpSpeed / 2f))));
+        var runUpTicks = startJumpImmediately
+            ? 0
+            : PickNearestTickOption(
+                HintRunUpTickOptions,
+                (int)MathF.Round(((horizontalDistance / MathF.Max(1f, classDefinition.MaxRunSpeed)) * SimulationConfig.DefaultTicksPerSecond * 0.45f)
+                    + (riseDistance / MathF.Max(1f, classDefinition.JumpSpeed / 2f))));
         var airborneTicks = PickNearestTickOption(
             GetHintAirborneTickOptions(profile),
             (int)MathF.Round(
@@ -205,6 +210,84 @@ internal static class BotNavigationMovementValidator
         out IReadOnlyList<BotNavigationInputFrame> tape,
         out float cost)
     {
+        return TryBuildHintJumpTape(
+            level,
+            classDefinition,
+            profile,
+            sourceX,
+            sourceY,
+            targetX,
+            targetY,
+            team,
+            requireGroundedArrival,
+            startJumpImmediately: false,
+            out tape,
+            out cost);
+    }
+
+    public static bool TryBuildSharedJumpTape(
+        SimpleLevel level,
+        IReadOnlyList<PlayerClass> classIds,
+        float sourceFeetX,
+        float sourceFeetY,
+        float targetFeetX,
+        float targetFeetY,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        tape = Array.Empty<BotNavigationInputFrame>();
+        cost = 0f;
+
+        if (classIds.Count == 0)
+        {
+            return false;
+        }
+
+        var direction = targetFeetX >= sourceFeetX ? 1 : -1;
+        var airborneTickOptions = GetSharedAirborneTickOptions(classIds);
+        foreach (var runUpTicks in RunUpTickOptions)
+        {
+            foreach (var airborneTicks in airborneTickOptions)
+            {
+                if (!TryBuildSharedJumpTapeCandidate(
+                        level,
+                        classIds,
+                        direction,
+                        sourceFeetX,
+                        sourceFeetY,
+                        targetFeetX,
+                        targetFeetY,
+                        runUpTicks,
+                        airborneTicks,
+                        out var candidateTape,
+                        out var candidateCost))
+                {
+                    continue;
+                }
+
+                tape = candidateTape;
+                cost = candidateCost;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool TryBuildHintJumpTape(
+        SimpleLevel level,
+        CharacterClassDefinition classDefinition,
+        BotNavigationProfile profile,
+        float sourceX,
+        float sourceY,
+        float targetX,
+        float targetY,
+        PlayerTeam team,
+        bool requireGroundedArrival,
+        bool startJumpImmediately,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
         return TryBuildJumpTapeInternal(
             level,
             classDefinition,
@@ -214,7 +297,7 @@ internal static class BotNavigationMovementValidator
             targetX,
             targetY,
             team,
-            HintRunUpTickOptions,
+            startJumpImmediately ? ImmediateRunUpTickOptions : HintRunUpTickOptions,
             GetHintAirborneTickOptions(profile),
             HintLandingToleranceX,
             HintLandingToleranceY,
@@ -402,6 +485,19 @@ internal static class BotNavigationMovementValidator
             out cost,
             out traversalKind,
             out _);
+    }
+
+    public static bool IsWithinTraversalLandingWindow(
+        float currentX,
+        float currentY,
+        bool isGrounded,
+        float targetX,
+        float targetY,
+        bool requireGroundedArrival)
+    {
+        return (!requireGroundedArrival || isGrounded)
+            && MathF.Abs(currentX - targetX) <= HintLandingToleranceX
+            && MathF.Abs(currentY - targetY) <= HintLandingToleranceY;
     }
 
     public static bool TryValidateRecordedTraversalTape(
@@ -625,6 +721,87 @@ internal static class BotNavigationMovementValidator
         return false;
     }
 
+    private static bool TryBuildSharedJumpTapeCandidate(
+        SimpleLevel level,
+        IReadOnlyList<PlayerClass> classIds,
+        int direction,
+        float sourceFeetX,
+        float sourceFeetY,
+        float targetFeetX,
+        float targetFeetY,
+        int runUpTicks,
+        int airborneTicks,
+        out IReadOnlyList<BotNavigationInputFrame> tape,
+        out float cost)
+    {
+        tape = Array.Empty<BotNavigationInputFrame>();
+        cost = 0f;
+
+        var maxUsedPostJumpTicks = 0;
+        for (var classIndex = 0; classIndex < classIds.Count; classIndex += 1)
+        {
+            var classDefinition = BotNavigationClasses.GetDefinition(classIds[classIndex]);
+            var sourceY = sourceFeetY - classDefinition.CollisionBottom;
+            var targetY = targetFeetY - classDefinition.CollisionBottom;
+            for (var teamIndex = 0; teamIndex < ValidationTeams.Length; teamIndex += 1)
+            {
+                if (!TrySimulateJumpAttempt(
+                        level,
+                        classDefinition,
+                        direction,
+                        sourceFeetX,
+                        sourceY,
+                        targetFeetX,
+                        targetY,
+                        ValidationTeams[teamIndex],
+                        runUpTicks,
+                        airborneTicks,
+                        LandingToleranceX,
+                        LandingToleranceY,
+                        requireGroundedArrival: true,
+                        out var usedPostJumpTicks))
+                {
+                    return false;
+                }
+
+                maxUsedPostJumpTicks = Math.Max(maxUsedPostJumpTicks, usedPostJumpTicks);
+            }
+        }
+
+        var candidateTape = BuildDirectionalJumpTape(direction, runUpTicks, maxUsedPostJumpTicks);
+        var maxCost = 0f;
+        for (var classIndex = 0; classIndex < classIds.Count; classIndex += 1)
+        {
+            var classDefinition = BotNavigationClasses.GetDefinition(classIds[classIndex]);
+            var sourceY = sourceFeetY - classDefinition.CollisionBottom;
+            var targetY = targetFeetY - classDefinition.CollisionBottom;
+            for (var teamIndex = 0; teamIndex < ValidationTeams.Length; teamIndex += 1)
+            {
+                if (!TryValidateRecordedTraversalTape(
+                        level,
+                        classDefinition,
+                        sourceFeetX,
+                        sourceY,
+                        targetFeetX,
+                        targetY,
+                        ValidationTeams[teamIndex],
+                        candidateTape,
+                        requireGroundedArrival: true,
+                        out var candidateCost,
+                        out _))
+                {
+                    return false;
+                }
+
+                maxCost = MathF.Max(maxCost, candidateCost);
+            }
+        }
+
+        tape = candidateTape;
+        cost = maxCost;
+        return true;
+    }
+
     private static bool TrySimulateJumpAttempt(
         SimpleLevel level,
         CharacterClassDefinition classDefinition,
@@ -739,6 +916,23 @@ internal static class BotNavigationMovementValidator
         };
     }
 
+    private static IReadOnlyList<BotNavigationInputFrame> BuildDirectionalJumpTape(int direction, int runUpTicks, int airborneTicks)
+    {
+        var tape = new List<BotNavigationInputFrame>(3);
+        if (runUpTicks > 0)
+        {
+            tape.Add(CreateDirectionalFrame(direction, jump: false, runUpTicks));
+        }
+
+        tape.Add(CreateDirectionalFrame(direction, jump: true, ticks: 1));
+        if (airborneTicks > 0)
+        {
+            tape.Add(CreateDirectionalFrame(direction, jump: false, airborneTicks));
+        }
+
+        return tape;
+    }
+
     private static int GetFrameTickCount(BotNavigationInputFrame frame, double fixedDeltaSeconds)
     {
         if (frame.Ticks > 0)
@@ -838,6 +1032,17 @@ internal static class BotNavigationMovementValidator
             BotNavigationProfile.Heavy => HintHeavyAirborneTickOptions,
             _ => HintStandardAirborneTickOptions,
         };
+    }
+
+    private static int[] GetSharedAirborneTickOptions(IReadOnlyList<PlayerClass> classIds)
+    {
+        return classIds
+            .Select(classId => BotNavigationProfiles.GetProfileForClass(classId))
+            .Distinct()
+            .SelectMany(GetAirborneTickOptions)
+            .Distinct()
+            .Order()
+            .ToArray();
     }
 
     private static int PickNearestTickOption(int[] options, int requestedTicks)
@@ -955,7 +1160,7 @@ public static class BotNavigationRecordedTraversalValidator
     }
 }
 
-internal readonly record struct JumpSearchEnvelope(
+public readonly record struct JumpSearchEnvelope(
     float MaxHorizontalDistance,
     float MaxRiseDistance,
     float MaxDescentDistance);

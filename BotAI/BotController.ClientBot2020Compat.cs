@@ -14,7 +14,7 @@ public sealed partial class ModernPracticeBotController
         ModernPathSelection objectiveSelection)
     {
         var state = memory.ClientBot2020Compat ??= new ClientBot2020CompatState();
-        var captureHoldState = ResolveModernCaptureHoldState(player, objectiveSelection, memory, timing.FixedDeltaSeconds);
+        var captureHoldState = ResolveModernCaptureHoldState(world, player, objectiveSelection, memory, timing.FixedDeltaSeconds);
         memory.NavigationGraphKey = navPoints.CacheKey;
         memory.RouteGoalX = destination.X;
         memory.RouteGoalY = destination.Y;
@@ -26,12 +26,13 @@ public sealed partial class ModernPracticeBotController
             state.NextPoint3 = -1;
             state.NoNextPointTicks = 0;
             state.StickyNextTicks = 0;
-            state.ClosestPointX = player.X;
-            state.ClosestPointY = player.Bottom;
+            state.ClosestPointX = captureHoldState.TargetX;
+            state.ClosestPointY = captureHoldState.TargetY;
             state.DebugDecisionReason = "capture_zone_hold";
+            ClearClientBot2020CompatFailureInstrumentation(state);
             SyncClientBot2020CompatStateToMemory(state, memory);
             return new NavigationDecision(
-                (player.X, player.Bottom),
+                (captureHoldState.TargetX, captureHoldState.TargetY),
                 HasRoute: true,
                 ForcedHorizontalDirection: 0,
                 ForceJump: false,
@@ -56,6 +57,7 @@ public sealed partial class ModernPracticeBotController
             state.NextPoint = -1;
             state.NextPoint2 = -1;
             state.NextPoint3 = -1;
+            UpdateClientBot2020CompatFailureInstrumentation(player, state);
             SyncClientBot2020CompatStateToMemory(state, memory);
             return new NavigationDecision(destination, HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "compat:direct_target");
         }
@@ -74,7 +76,7 @@ public sealed partial class ModernPracticeBotController
                 {
                     state.OldClosestPoint = closestPointId;
                     state.GoalPointId = closestPointId;
-                    state.GoalWeights = navPoints.GetGoalWeights(closestPointId, ModernMaximumWeightDepth);
+                    state.GoalWeights = navPoints.GetGoalWeights(closestPointId, ModernMaximumWeightDepth, player.ClassId);
                     state.NavMapDone = state.GoalWeights is not null;
                 }
             }
@@ -123,6 +125,7 @@ public sealed partial class ModernPracticeBotController
             state.DebugDecisionReason = "direct_target_nonode";
         }
 
+        UpdateClientBot2020CompatFailureInstrumentation(player, state);
         SyncClientBot2020CompatStateToMemory(state, memory);
         var movementTarget = (state.ClosestPointX, state.ClosestPointY);
         return new NavigationDecision(
@@ -164,6 +167,17 @@ public sealed partial class ModernPracticeBotController
         memory.ModernStuckTicks = state.StuckTicks;
         memory.ModernDropGapTicks = state.DropGapTicks;
         memory.ModernPreviousTargetDistance = state.PreviousTargetDistance;
+        memory.FallbackRouteLabel = string.IsNullOrWhiteSpace(state.ActiveFallbackEntryLabel)
+            ? string.Empty
+            : $"{state.ActiveFallbackEntryLabel}->{state.ActiveFallbackTargetLabel}";
+        memory.FallbackTriggerLabel = state.ActiveFallbackTriggerLabel;
+        memory.NavigationIssueLabel = state.NavigationIssueLabel;
+        memory.BranchDiagnosticCurrentPointId = state.BranchDiagnosticCurrentPoint;
+        memory.BranchDiagnosticNextPointId = state.BranchDiagnosticNextPoint;
+        memory.BranchDiagnosticTicks = state.BranchDiagnosticTicks;
+        memory.BranchDiagnosticNoProgressTicks = state.BranchDiagnosticNoProgressTicks;
+        memory.DirectTargetTicks = state.DirectTargetTicks;
+        memory.DirectTargetNoProgressTicks = state.DirectTargetNoProgressTicks;
         memory.HasModernClosestPointTarget = true;
         memory.ModernClosestPointTargetX = state.ClosestPointX;
         memory.ModernClosestPointTargetY = state.ClosestPointY;
@@ -202,6 +216,26 @@ public sealed partial class ModernPracticeBotController
         state.StuckTicks = memory.ModernStuckTicks;
         state.DropGapTicks = memory.ModernDropGapTicks;
         state.PreviousTargetDistance = memory.ModernPreviousTargetDistance;
+        state.NavigationIssueLabel = memory.NavigationIssueLabel;
+        state.BranchDiagnosticCurrentPoint = memory.BranchDiagnosticCurrentPointId;
+        state.BranchDiagnosticNextPoint = memory.BranchDiagnosticNextPointId;
+        state.BranchDiagnosticTicks = memory.BranchDiagnosticTicks;
+        state.BranchDiagnosticNoProgressTicks = memory.BranchDiagnosticNoProgressTicks;
+        state.DirectTargetTicks = memory.DirectTargetTicks;
+        state.DirectTargetNoProgressTicks = memory.DirectTargetNoProgressTicks;
+        if (string.IsNullOrWhiteSpace(memory.FallbackRouteLabel))
+        {
+            state.ActiveFallbackEntryLabel = string.Empty;
+            state.ActiveFallbackTargetLabel = string.Empty;
+            state.ActiveFallbackTriggerLabel = string.Empty;
+            state.ActiveFallbackRouteIndex = 0;
+            state.ActiveFallbackTicks = 0;
+            state.ActiveFallbackNoProgressTicks = 0;
+            state.ActiveFallbackPreviousTargetDistance = float.PositiveInfinity;
+            state.ActiveFallbackTraversalKind = BotNavigationTraversalKind.Walk;
+            ClearClientBot2020CompatFallbackTraversal(state);
+        }
+
         if (memory.HasModernClosestPointTarget)
         {
             state.ClosestPointX = memory.ModernClosestPointTargetX;
@@ -249,6 +283,688 @@ public sealed partial class ModernPracticeBotController
             navigationDecision.CaptureHoldActive);
     }
 
+    private NavigationDecision ApplyClientBot2020CompatFallbackRoute(
+        SimulationWorld world,
+        PlayerEntity player,
+        ModernPathSelection objectiveSelection,
+        BotMemory memory,
+        BotTimingProfile timing,
+        NavigationDecision navigationDecision)
+    {
+        _ = timing;
+        var state = memory.ClientBot2020Compat ??= new ClientBot2020CompatState();
+        var hintAsset = GetCompatHintAsset(world.Level);
+        if (hintAsset is null || hintAsset.Nodes.Count == 0 || hintAsset.Links.Count == 0)
+        {
+            ClearClientBot2020CompatFallbackRoute(state, memory);
+            return navigationDecision;
+        }
+
+        if (!TryResolveActiveCompatFallbackRoute(player, hintAsset, state, out var route)
+            && TryFindCompatFallbackRoute(player, objectiveSelection, hintAsset, state, out route, out var triggerLabel))
+        {
+            state.ActiveFallbackEntryLabel = route.EntryLabel;
+            state.ActiveFallbackTargetLabel = route.Nodes.Count > 1 ? route.Nodes[1].Label : route.Nodes[0].Label;
+            state.ActiveFallbackTriggerLabel = triggerLabel;
+            state.ActiveFallbackRouteIndex = IsPlayerNearHintNode(player, route.Nodes[0], player.ClassId, 24f) && route.Nodes.Count > 1 ? 1 : 0;
+            state.ActiveFallbackTicks = 0;
+            state.ActiveFallbackNoProgressTicks = 0;
+            state.ActiveFallbackPreviousTargetDistance = float.PositiveInfinity;
+            ClearClientBot2020CompatFallbackTraversal(state);
+        }
+
+        if (string.IsNullOrWhiteSpace(state.ActiveFallbackEntryLabel)
+            || !TryResolveActiveCompatFallbackRoute(player, hintAsset, state, out route))
+        {
+            ClearClientBot2020CompatFallbackRoute(state, memory);
+            return navigationDecision;
+        }
+
+        state.ActiveFallbackTicks += 1;
+        if (state.ActiveFallbackTicks > 720)
+        {
+            ClearClientBot2020CompatFallbackRoute(state, memory);
+            return navigationDecision;
+        }
+
+        var targetIndex = Math.Clamp(state.ActiveFallbackRouteIndex, 0, route.Nodes.Count - 1);
+        while (targetIndex < route.Nodes.Count)
+        {
+            var targetNode = route.Nodes[targetIndex];
+            if (!IsPlayerNearHintNode(player, targetNode, player.ClassId, GetCompatFallbackArrivalRadius(targetNode)))
+            {
+                break;
+            }
+
+            if (targetIndex == route.Nodes.Count - 1
+                || targetNode.FallbackRole == BotNavigationHintFallbackRole.Exit)
+            {
+                ClearClientBot2020CompatFallbackRoute(state, memory);
+                return navigationDecision;
+            }
+
+            targetIndex += 1;
+        }
+
+        if (targetIndex >= route.Nodes.Count)
+        {
+            ClearClientBot2020CompatFallbackRoute(state, memory);
+            return navigationDecision;
+        }
+
+        var target = route.Nodes[targetIndex];
+        var targetFeetY = GetCompatFallbackNodeFeetY(target, player.ClassId);
+        var targetDistance = DistanceBetween(player.X, player.Y, target.X, target.Y);
+        if (targetDistance + 1f < state.ActiveFallbackPreviousTargetDistance)
+        {
+            state.ActiveFallbackNoProgressTicks = 0;
+        }
+        else
+        {
+            state.ActiveFallbackNoProgressTicks += 1;
+        }
+
+        state.ActiveFallbackPreviousTargetDistance = targetDistance;
+        if (state.ActiveFallbackNoProgressTicks > 180)
+        {
+            ClearClientBot2020CompatFallbackRoute(state, memory);
+            return navigationDecision;
+        }
+
+        var traversalKind = BotNavigationTraversalKind.Walk;
+        BotNavigationHintNode? sourceNode = null;
+        BotNavigationHintLink? sourceLink = null;
+        IReadOnlyList<BotNavigationInputFrame>? inputTape = null;
+        if (targetIndex > 0 && targetIndex - 1 < route.Links.Count)
+        {
+            sourceNode = route.Nodes[targetIndex - 1];
+            sourceLink = route.Links[targetIndex - 1];
+            inputTape = TryFindCompatFallbackRecordedTraversal(sourceLink.RecordedTraversals, player.ClassId, out var recordedTraversal)
+                ? recordedTraversal.InputTape
+                : null;
+            traversalKind = inputTape is { Count: > 0 }
+                ? ResolveCompatFallbackRecordedTraversalKind(sourceNode.Y, target.Y, inputTape)
+                : ResolveCompatFallbackTraversalKind(sourceLink, sourceNode, target);
+            if (inputTape is not { Count: > 0 }
+                && traversalKind == BotNavigationTraversalKind.Jump
+                && sourceLink.StartJumpImmediately)
+            {
+                inputTape = BuildCompatFallbackImmediateJumpTape(world, player, sourceNode, target);
+            }
+        }
+
+        state.ActiveFallbackRouteIndex = targetIndex;
+        state.ActiveFallbackTargetLabel = target.Label;
+        state.ActiveFallbackTraversalKind = traversalKind;
+
+        if (sourceNode is not null
+            && inputTape is { Count: > 0 }
+            && TryResolveCompatFallbackRecordedTraversalDecision(
+                world,
+                player,
+                sourceNode,
+                target,
+                inputTape,
+                state,
+                memory,
+                timing,
+                navigationDecision,
+                traversalKind,
+                out var recordedDecision))
+        {
+            return recordedDecision;
+        }
+
+        ClearClientBot2020CompatFallbackTraversal(state);
+        state.ClosestPointX = target.X;
+        state.ClosestPointY = targetFeetY;
+        state.NextPoint = -1;
+        state.NextPoint2 = -1;
+        state.NextPoint3 = -1;
+        state.DebugDecisionReason = $"fallback_{state.ActiveFallbackTriggerLabel}";
+        SyncClientBot2020CompatStateToMemory(state, memory);
+
+        var forceJump = traversalKind == BotNavigationTraversalKind.Jump
+            && CompatHasGroundContact(world, player)
+            && targetDistance > 18f;
+        return new NavigationDecision(
+            (target.X, targetFeetY),
+            navigationDecision.HasRoute,
+            navigationDecision.ForcedHorizontalDirection,
+            forceJump,
+            navigationDecision.LocksMovement,
+            $"compat:fallback:{state.ActiveFallbackTriggerLabel}:{state.ActiveFallbackEntryLabel}->{target.Label}",
+            traversalKind,
+            MovementTargetUsesFeetCoordinates: true,
+            navigationDecision.CaptureHoldActive);
+    }
+
+    private static bool TryResolveActiveCompatFallbackRoute(
+        PlayerEntity player,
+        BotNavigationHintAsset hintAsset,
+        ClientBot2020CompatState state,
+        out CompatFallbackRoute route)
+    {
+        route = default!;
+        return !string.IsNullOrWhiteSpace(state.ActiveFallbackEntryLabel)
+            && TryBuildCompatFallbackRoute(hintAsset, state.ActiveFallbackEntryLabel, player.ClassId, out route);
+    }
+
+    private static bool TryFindCompatFallbackRoute(
+        PlayerEntity player,
+        ModernPathSelection objectiveSelection,
+        BotNavigationHintAsset hintAsset,
+        ClientBot2020CompatState state,
+        out CompatFallbackRoute route,
+        out string triggerLabel)
+    {
+        route = default!;
+        triggerLabel = string.Empty;
+        for (var index = 0; index < hintAsset.Nodes.Count; index += 1)
+        {
+            var node = hintAsset.Nodes[index];
+            if (!IsCompatFallbackEntryForPlayer(player, node)
+                || !IsPlayerInCompatFallbackActivationArea(player, node, player.ClassId)
+                || !TryResolveCompatFallbackTrigger(player, objectiveSelection, state, node, out triggerLabel)
+                || !TryBuildCompatFallbackRoute(hintAsset, node.Label, player.ClassId, out route))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsCompatFallbackEntryForPlayer(PlayerEntity player, BotNavigationHintNode node)
+    {
+        return node.FallbackRole == BotNavigationHintFallbackRole.Entry
+            && !string.IsNullOrWhiteSpace(node.Label)
+            && (!node.Team.HasValue || node.Team.Value == player.Team)
+            && (!node.RequiresCarryingIntel.HasValue || node.RequiresCarryingIntel.Value == player.IsCarryingIntel)
+            && BotNavigationClasses.AppliesToClass(node.Classes, node.Profiles, player.ClassId);
+    }
+
+    private static bool TryResolveCompatFallbackTrigger(
+        PlayerEntity player,
+        ModernPathSelection objectiveSelection,
+        ClientBot2020CompatState state,
+        BotNavigationHintNode node,
+        out string triggerLabel)
+    {
+        _ = objectiveSelection;
+        IReadOnlyList<BotNavigationHintFallbackTrigger> triggers = node.FallbackTriggers.Count == 0
+            ? new[] { BotNavigationHintFallbackTrigger.NoNext }
+            : node.FallbackTriggers;
+        for (var index = 0; index < triggers.Count; index += 1)
+        {
+            var trigger = triggers[index];
+            if (!IsCompatFallbackTriggerActive(player, state, trigger))
+            {
+                continue;
+            }
+
+            triggerLabel = GetCompatFallbackTriggerLabel(trigger);
+            return true;
+        }
+
+        triggerLabel = string.Empty;
+        return false;
+    }
+
+    private static bool IsCompatFallbackTriggerActive(
+        PlayerEntity player,
+        ClientBot2020CompatState state,
+        BotNavigationHintFallbackTrigger trigger)
+    {
+        return trigger switch
+        {
+            BotNavigationHintFallbackTrigger.NoNext => state.NoNextPointTicks > 8 || string.Equals(state.DebugDecisionReason, "no_next_direct", StringComparison.Ordinal),
+            BotNavigationHintFallbackTrigger.Stuck => state.StuckTicks > 24,
+            BotNavigationHintFallbackTrigger.Reacquire => state.DebugDecisionReason.StartsWith("reacquire", StringComparison.OrdinalIgnoreCase),
+            BotNavigationHintFallbackTrigger.CarryReturn => player.IsCarryingIntel,
+            BotNavigationHintFallbackTrigger.DirectTarget => state.DebugDecisionReason.StartsWith("direct_target", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+    }
+
+    private static string GetCompatFallbackTriggerLabel(BotNavigationHintFallbackTrigger trigger)
+    {
+        return trigger switch
+        {
+            BotNavigationHintFallbackTrigger.Stuck => "stuck",
+            BotNavigationHintFallbackTrigger.Reacquire => "reacquire",
+            BotNavigationHintFallbackTrigger.CarryReturn => "carry_return",
+            BotNavigationHintFallbackTrigger.DirectTarget => "direct_target",
+            _ => "no_next",
+        };
+    }
+
+    private static bool TryBuildCompatFallbackRoute(
+        BotNavigationHintAsset hintAsset,
+        string entryLabel,
+        PlayerClass classId,
+        out CompatFallbackRoute route)
+    {
+        route = default!;
+        var nodesByLabel = new Dictionary<string, BotNavigationHintNode>(StringComparer.OrdinalIgnoreCase);
+        for (var nodeIndex = 0; nodeIndex < hintAsset.Nodes.Count; nodeIndex += 1)
+        {
+            var node = hintAsset.Nodes[nodeIndex];
+            if (!string.IsNullOrWhiteSpace(node.Label) && !nodesByLabel.ContainsKey(node.Label))
+            {
+                nodesByLabel[node.Label] = node;
+            }
+        }
+
+        if (!nodesByLabel.TryGetValue(entryLabel, out var entry))
+        {
+            return false;
+        }
+
+        var nodes = new List<BotNavigationHintNode> { entry };
+        var links = new List<BotNavigationHintLink>();
+        var visitedLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { entry.Label };
+        var currentLabel = entry.Label;
+        for (var depth = 0; depth < 32; depth += 1)
+        {
+            var outgoing = hintAsset.Links
+                .Where(link =>
+                    string.Equals(link.FromLabel, currentLabel, StringComparison.OrdinalIgnoreCase)
+                    && BotNavigationClasses.AppliesToClass(link.Classes, link.Profiles, classId)
+                    && nodesByLabel.ContainsKey(link.ToLabel))
+                .OrderBy(static link => link.CostMultiplier)
+                .ThenBy(static link => link.ToLabel, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (outgoing.Length == 0)
+            {
+                break;
+            }
+
+            var link = outgoing[0];
+            var nextNode = nodesByLabel[link.ToLabel];
+            if (!visitedLabels.Add(nextNode.Label))
+            {
+                break;
+            }
+
+            links.Add(link);
+            nodes.Add(nextNode);
+            currentLabel = nextNode.Label;
+            if (nextNode.FallbackRole == BotNavigationHintFallbackRole.Exit)
+            {
+                break;
+            }
+        }
+
+        if (nodes.Count < 2)
+        {
+            return false;
+        }
+
+        route = new CompatFallbackRoute(entry.Label, nodes.ToArray(), links.ToArray());
+        return true;
+    }
+
+    private static float GetCompatFallbackEntryRadius(BotNavigationHintNode node)
+    {
+        return node.FallbackRadius > 0f ? node.FallbackRadius : 112f;
+    }
+
+    private static bool IsPlayerInCompatFallbackActivationArea(PlayerEntity player, BotNavigationHintNode node, PlayerClass classId)
+    {
+        if (TryGetCompatFallbackActivationZone(node, out var minX, out var minY, out var maxX, out var maxY))
+        {
+            var playerMinY = MathF.Min(player.Y, player.Bottom);
+            var playerMaxY = MathF.Max(player.Y, player.Bottom);
+            return player.X >= minX
+                && player.X <= maxX
+                && playerMaxY >= minY
+                && playerMinY <= maxY;
+        }
+
+        return IsPlayerNearHintNode(player, node, classId, GetCompatFallbackEntryRadius(node));
+    }
+
+    private static bool TryGetCompatFallbackActivationZone(
+        BotNavigationHintNode node,
+        out float minX,
+        out float minY,
+        out float maxX,
+        out float maxY)
+    {
+        minX = minY = maxX = maxY = 0f;
+        var zone = node.FallbackActivationZone;
+        if (zone is null)
+        {
+            return false;
+        }
+
+        minX = MathF.Min(zone.MinX, zone.MaxX);
+        minY = MathF.Min(zone.MinY, zone.MaxY);
+        maxX = MathF.Max(zone.MinX, zone.MaxX);
+        maxY = MathF.Max(zone.MinY, zone.MaxY);
+        return maxX - minX >= 1f && maxY - minY >= 1f;
+    }
+
+    private static float GetCompatFallbackArrivalRadius(BotNavigationHintNode node)
+    {
+        if (node.FallbackRole == BotNavigationHintFallbackRole.Exit)
+        {
+            return node.FallbackRadius > 0f ? node.FallbackRadius : 72f;
+        }
+
+        return MathF.Max(20f, (node.FallbackRadius > 0f ? node.FallbackRadius : 64f) * 0.35f);
+    }
+
+    private static bool IsPlayerNearHintNode(PlayerEntity player, BotNavigationHintNode node, PlayerClass classId, float radius)
+    {
+        _ = classId;
+        return DistanceBetween(player.X, player.Y, node.X, node.Y) <= radius;
+    }
+
+    private static float GetCompatFallbackNodeFeetY(BotNavigationHintNode node, PlayerClass classId)
+    {
+        var classDefinition = BotNavigationClasses.GetDefinition(classId);
+        return node.Y + classDefinition.CollisionBottom;
+    }
+
+    private static BotNavigationTraversalKind ResolveCompatFallbackTraversalKind(
+        BotNavigationHintLink link,
+        BotNavigationHintNode source,
+        BotNavigationHintNode target)
+    {
+        return link.Traversal switch
+        {
+            BotNavigationHintTraversalKind.Drop => BotNavigationTraversalKind.Drop,
+            BotNavigationHintTraversalKind.Jump => BotNavigationTraversalKind.Jump,
+            BotNavigationHintTraversalKind.Walk => BotNavigationTraversalKind.Walk,
+            _ => target.Y > source.Y + 8f
+                ? BotNavigationTraversalKind.Drop
+                : target.Y < source.Y - 8f
+                ? BotNavigationTraversalKind.Jump
+                : BotNavigationTraversalKind.Walk,
+        };
+    }
+
+    private static IReadOnlyList<BotNavigationInputFrame> BuildCompatFallbackImmediateJumpTape(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationHintNode source,
+        BotNavigationHintNode target)
+    {
+        var classDefinition = BotNavigationClasses.GetDefinition(player.ClassId);
+        var profile = BotNavigationProfiles.GetProfileForClass(player.ClassId);
+        if (BotNavigationMovementValidator.TryBuildHintJumpTape(
+                world.Level,
+                classDefinition,
+                profile,
+                source.X,
+                source.Y,
+                target.X,
+                target.Y,
+                player.Team,
+                requireGroundedArrival: true,
+                startJumpImmediately: true,
+                out var tape,
+                out _)
+            && tape.Count > 0)
+        {
+            return tape;
+        }
+
+        return BotNavigationMovementValidator.BuildApproximateHintJumpTape(
+            classDefinition,
+            profile,
+            source.X,
+            source.Y,
+            target.X,
+            target.Y,
+            startJumpImmediately: true);
+    }
+
+    private static bool TryResolveCompatFallbackRecordedTraversalDecision(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationHintNode source,
+        BotNavigationHintNode target,
+        IReadOnlyList<BotNavigationInputFrame> inputTape,
+        ClientBot2020CompatState state,
+        BotMemory memory,
+        BotTimingProfile timing,
+        NavigationDecision navigationDecision,
+        BotNavigationTraversalKind traversalKind,
+        out NavigationDecision decision)
+    {
+        var sourceFeetY = GetCompatFallbackNodeFeetY(source, player.ClassId);
+        var targetFeetY = GetCompatFallbackNodeFeetY(target, player.ClassId);
+        if (!IsExecutingCompatFallbackTraversal(state, source.Label, target.Label))
+        {
+            ClearClientBot2020CompatFallbackTraversal(state);
+        }
+
+        if (DistanceSquared(player.X, player.Bottom, source.X, sourceFeetY) > TraversalStartDistance * TraversalStartDistance)
+        {
+            state.ClosestPointX = source.X;
+            state.ClosestPointY = sourceFeetY;
+            state.NextPoint = -1;
+            state.NextPoint2 = -1;
+            state.NextPoint3 = -1;
+            state.DebugDecisionReason = $"fallback_{state.ActiveFallbackTriggerLabel}_record_align";
+            SyncClientBot2020CompatStateToMemory(state, memory);
+            decision = new NavigationDecision(
+                (source.X, sourceFeetY),
+                navigationDecision.HasRoute,
+                ForcedHorizontalDirection: 0,
+                ForceJump: false,
+                LocksMovement: true,
+                Label: $"compat:fallback:{state.ActiveFallbackTriggerLabel}:{state.ActiveFallbackEntryLabel}->{target.Label}:record_align",
+                traversalKind,
+                MovementTargetUsesFeetCoordinates: true,
+                navigationDecision.CaptureHoldActive);
+            return true;
+        }
+
+        if (!IsExecutingCompatFallbackTraversal(state, source.Label, target.Label))
+        {
+            if (!CompatHasGroundContact(world, player))
+            {
+                state.ClosestPointX = source.X;
+                state.ClosestPointY = sourceFeetY;
+                state.NextPoint = -1;
+                state.NextPoint2 = -1;
+                state.NextPoint3 = -1;
+                state.DebugDecisionReason = $"fallback_{state.ActiveFallbackTriggerLabel}_record_wait";
+                SyncClientBot2020CompatStateToMemory(state, memory);
+                decision = new NavigationDecision(
+                    (source.X, sourceFeetY),
+                    navigationDecision.HasRoute,
+                    ForcedHorizontalDirection: 0,
+                    ForceJump: false,
+                    LocksMovement: true,
+                    Label: $"compat:fallback:{state.ActiveFallbackTriggerLabel}:{state.ActiveFallbackEntryLabel}->{target.Label}:record_wait",
+                    traversalKind,
+                    MovementTargetUsesFeetCoordinates: true,
+                    navigationDecision.CaptureHoldActive);
+                return true;
+            }
+
+            BeginCompatFallbackTraversalExecution(state, source.Label, target.Label, traversalKind, inputTape);
+        }
+
+        if (TryConsumeCompatFallbackTraversalExecution(state, timing.FixedDeltaSeconds, out var forcedHorizontalDirection, out var forceJump))
+        {
+            state.ClosestPointX = target.X;
+            state.ClosestPointY = targetFeetY;
+            state.NextPoint = -1;
+            state.NextPoint2 = -1;
+            state.NextPoint3 = -1;
+            state.DebugDecisionReason = $"fallback_{state.ActiveFallbackTriggerLabel}_record";
+            SyncClientBot2020CompatStateToMemory(state, memory);
+            decision = new NavigationDecision(
+                (target.X, targetFeetY),
+                navigationDecision.HasRoute,
+                forcedHorizontalDirection,
+                forceJump,
+                LocksMovement: true,
+                Label: $"compat:fallback:{state.ActiveFallbackTriggerLabel}:{state.ActiveFallbackEntryLabel}->{target.Label}:record",
+                traversalKind,
+                MovementTargetUsesFeetCoordinates: true,
+                navigationDecision.CaptureHoldActive);
+            return true;
+        }
+
+        ClearClientBot2020CompatFallbackTraversal(state);
+        state.ClosestPointX = target.X;
+        state.ClosestPointY = targetFeetY;
+        state.NextPoint = -1;
+        state.NextPoint2 = -1;
+        state.NextPoint3 = -1;
+        state.DebugDecisionReason = $"fallback_{state.ActiveFallbackTriggerLabel}";
+        SyncClientBot2020CompatStateToMemory(state, memory);
+        decision = new NavigationDecision(
+            (target.X, targetFeetY),
+            navigationDecision.HasRoute,
+            ForcedHorizontalDirection: 0,
+            ForceJump: false,
+            LocksMovement: false,
+            Label: $"compat:fallback:{state.ActiveFallbackTriggerLabel}:{state.ActiveFallbackEntryLabel}->{target.Label}",
+            traversalKind,
+            MovementTargetUsesFeetCoordinates: true,
+            navigationDecision.CaptureHoldActive);
+        return true;
+    }
+
+    private static bool TryFindCompatFallbackRecordedTraversal(
+        IReadOnlyList<BotNavigationHintRecordedTraversal> recordedTraversals,
+        PlayerClass classId,
+        out BotNavigationHintRecordedTraversal recordedTraversal)
+    {
+        var profile = BotNavigationProfiles.GetProfileForClass(classId);
+        var match = recordedTraversals.FirstOrDefault(entry => entry.ClassId == classId && entry.InputTape.Count > 0)
+            ?? recordedTraversals.FirstOrDefault(entry => entry.ClassId.HasValue && BotNavigationProfiles.GetProfileForClass(entry.ClassId.Value) == profile && entry.InputTape.Count > 0)
+            ?? recordedTraversals.FirstOrDefault(entry => entry.Profile == profile && entry.InputTape.Count > 0);
+        recordedTraversal = match!;
+        return match is not null;
+    }
+
+    private static BotNavigationTraversalKind ResolveCompatFallbackRecordedTraversalKind(
+        float sourceY,
+        float targetY,
+        IReadOnlyList<BotNavigationInputFrame> tape)
+    {
+        if (tape.Any(static frame => frame.Up))
+        {
+            return BotNavigationTraversalKind.Jump;
+        }
+
+        return targetY > sourceY + 8f
+            ? BotNavigationTraversalKind.Drop
+            : BotNavigationTraversalKind.Walk;
+    }
+
+    private static void BeginCompatFallbackTraversalExecution(
+        ClientBot2020CompatState state,
+        string fromLabel,
+        string toLabel,
+        BotNavigationTraversalKind traversalKind,
+        IReadOnlyList<BotNavigationInputFrame> inputTape)
+    {
+        state.ActiveFallbackTraversalFromLabel = fromLabel;
+        state.ActiveFallbackTraversalToLabel = toLabel;
+        state.ActiveFallbackTraversalKind = traversalKind;
+        state.ActiveFallbackTraversalTape = inputTape;
+        state.ActiveFallbackTraversalFrameIndex = 0;
+        state.ActiveFallbackTraversalFrameSecondsRemaining = inputTape.Count == 0
+            ? 0d
+            : GetFrameDurationSeconds(inputTape[0]);
+    }
+
+    private static bool IsExecutingCompatFallbackTraversal(
+        ClientBot2020CompatState state,
+        string fromLabel,
+        string toLabel)
+    {
+        return state.ActiveFallbackTraversalTape is not null
+            && state.ActiveFallbackTraversalFrameIndex >= 0
+            && state.ActiveFallbackTraversalFrameIndex < state.ActiveFallbackTraversalTape.Count
+            && string.Equals(state.ActiveFallbackTraversalFromLabel, fromLabel, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(state.ActiveFallbackTraversalToLabel, toLabel, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryConsumeCompatFallbackTraversalExecution(
+        ClientBot2020CompatState state,
+        double simulationTickSeconds,
+        out int forcedHorizontalDirection,
+        out bool forceJump)
+    {
+        forcedHorizontalDirection = 0;
+        forceJump = false;
+        if (state.ActiveFallbackTraversalTape is null
+            || state.ActiveFallbackTraversalFrameIndex < 0
+            || state.ActiveFallbackTraversalFrameIndex >= state.ActiveFallbackTraversalTape.Count)
+        {
+            return false;
+        }
+
+        var frame = state.ActiveFallbackTraversalTape[state.ActiveFallbackTraversalFrameIndex];
+        forcedHorizontalDirection = frame.Right ? 1 : frame.Left ? -1 : 0;
+        forceJump = frame.Up;
+
+        if (state.ActiveFallbackTraversalFrameSecondsRemaining <= 0d)
+        {
+            state.ActiveFallbackTraversalFrameSecondsRemaining = GetFrameDurationSeconds(frame);
+        }
+
+        var remainingSeconds = state.ActiveFallbackTraversalFrameSecondsRemaining - Math.Max(0d, simulationTickSeconds);
+        while (remainingSeconds <= 0d)
+        {
+            state.ActiveFallbackTraversalFrameIndex += 1;
+            if (state.ActiveFallbackTraversalTape is null
+                || state.ActiveFallbackTraversalFrameIndex >= state.ActiveFallbackTraversalTape.Count)
+            {
+                ClearClientBot2020CompatFallbackTraversal(state);
+                return true;
+            }
+
+            remainingSeconds += GetFrameDurationSeconds(state.ActiveFallbackTraversalTape[state.ActiveFallbackTraversalFrameIndex]);
+        }
+
+        state.ActiveFallbackTraversalFrameSecondsRemaining = remainingSeconds;
+        return true;
+    }
+
+    private static void ClearClientBot2020CompatFallbackTraversal(ClientBot2020CompatState state)
+    {
+        state.ActiveFallbackTraversalFromLabel = string.Empty;
+        state.ActiveFallbackTraversalToLabel = string.Empty;
+        state.ActiveFallbackTraversalKind = BotNavigationTraversalKind.Walk;
+        state.ActiveFallbackTraversalTape = null;
+        state.ActiveFallbackTraversalFrameIndex = 0;
+        state.ActiveFallbackTraversalFrameSecondsRemaining = 0d;
+    }
+
+    private static void ClearClientBot2020CompatFallbackRoute(ClientBot2020CompatState state, BotMemory memory)
+    {
+        state.ActiveFallbackEntryLabel = string.Empty;
+        state.ActiveFallbackTargetLabel = string.Empty;
+        state.ActiveFallbackTriggerLabel = string.Empty;
+        state.ActiveFallbackRouteIndex = 0;
+        state.ActiveFallbackTicks = 0;
+        state.ActiveFallbackNoProgressTicks = 0;
+        state.ActiveFallbackPreviousTargetDistance = float.PositiveInfinity;
+        state.ActiveFallbackTraversalKind = BotNavigationTraversalKind.Walk;
+        ClearClientBot2020CompatFallbackTraversal(state);
+        memory.FallbackRouteLabel = string.Empty;
+        memory.FallbackTriggerLabel = string.Empty;
+    }
+
+    private sealed record CompatFallbackRoute(
+        string EntryLabel,
+        IReadOnlyList<BotNavigationHintNode> Nodes,
+        IReadOnlyList<BotNavigationHintLink> Links);
+
     private void FinalizeClientBot2020CompatFrameState(BotMemory memory)
     {
         if (memory.ClientBot2020Compat is not ClientBot2020CompatState state)
@@ -280,6 +996,103 @@ public sealed partial class ModernPracticeBotController
         }
 
         state.PreviousTargetDistance = currentTargetDistance;
+    }
+
+    private static void ClearClientBot2020CompatFailureInstrumentation(ClientBot2020CompatState state)
+    {
+        state.NavigationIssueLabel = string.Empty;
+        state.BranchDiagnosticCurrentPoint = -1;
+        state.BranchDiagnosticNextPoint = -1;
+        state.BranchDiagnosticReason = string.Empty;
+        state.BranchDiagnosticTargetX = 0f;
+        state.BranchDiagnosticTargetY = 0f;
+        state.BranchDiagnosticTicks = 0;
+        state.BranchDiagnosticNoProgressTicks = 0;
+        state.BranchDiagnosticBestDistance = float.PositiveInfinity;
+        state.DirectTargetTicks = 0;
+        state.DirectTargetNoProgressTicks = 0;
+    }
+
+    private static void UpdateClientBot2020CompatFailureInstrumentation(
+        PlayerEntity player,
+        ClientBot2020CompatState state)
+    {
+        var reason = state.DebugDecisionReason ?? string.Empty;
+        var currentDistance = DistanceBetween(player.X, player.Y, state.ClosestPointX, state.ClosestPointY);
+        var branchChanged = state.BranchDiagnosticCurrentPoint != state.CurrentPoint
+            || state.BranchDiagnosticNextPoint != state.NextPoint
+            || !string.Equals(state.BranchDiagnosticReason, reason, StringComparison.Ordinal)
+            || DistanceSquared(state.BranchDiagnosticTargetX, state.BranchDiagnosticTargetY, state.ClosestPointX, state.ClosestPointY) > 16f * 16f;
+
+        if (branchChanged)
+        {
+            state.BranchDiagnosticCurrentPoint = state.CurrentPoint;
+            state.BranchDiagnosticNextPoint = state.NextPoint;
+            state.BranchDiagnosticReason = reason;
+            state.BranchDiagnosticTargetX = state.ClosestPointX;
+            state.BranchDiagnosticTargetY = state.ClosestPointY;
+            state.BranchDiagnosticTicks = 1;
+            state.BranchDiagnosticNoProgressTicks = 0;
+            state.BranchDiagnosticBestDistance = currentDistance;
+        }
+        else
+        {
+            state.BranchDiagnosticTicks += 1;
+            if (currentDistance + 1f < state.BranchDiagnosticBestDistance)
+            {
+                state.BranchDiagnosticBestDistance = currentDistance;
+                state.BranchDiagnosticNoProgressTicks = Math.Max(0, state.BranchDiagnosticNoProgressTicks - 4);
+            }
+            else
+            {
+                state.BranchDiagnosticNoProgressTicks += 1;
+            }
+        }
+
+        var isDirectTarget = IsClientBot2020CompatDirectTargetReason(reason);
+        if (isDirectTarget)
+        {
+            state.DirectTargetTicks = branchChanged ? 1 : state.DirectTargetTicks + 1;
+            state.DirectTargetNoProgressTicks = state.BranchDiagnosticNoProgressTicks;
+        }
+        else
+        {
+            state.DirectTargetTicks = 0;
+            state.DirectTargetNoProgressTicks = 0;
+        }
+
+        state.NavigationIssueLabel = ResolveClientBot2020CompatNavigationIssueLabel(state, isDirectTarget);
+    }
+
+    private static bool IsClientBot2020CompatDirectTargetReason(string reason)
+    {
+        return reason.StartsWith("direct_target", StringComparison.Ordinal)
+            || string.Equals(reason, "no_next_direct", StringComparison.Ordinal)
+            || string.Equals(reason, "missing_currentpoint", StringComparison.Ordinal);
+    }
+
+    private static string ResolveClientBot2020CompatNavigationIssueLabel(
+        ClientBot2020CompatState state,
+        bool isDirectTarget)
+    {
+        if (isDirectTarget && state.DirectTargetNoProgressTicks >= 30)
+        {
+            return "direct_np";
+        }
+
+        if (state.CurrentPoint >= 0
+            && state.NextPoint < 0
+            && state.NoNextPointTicks >= 12)
+        {
+            return "no_next_np";
+        }
+
+        if (state.BranchDiagnosticNoProgressTicks >= 60)
+        {
+            return "branch_np";
+        }
+
+        return string.Empty;
     }
 
     private static bool TryApplyClientBot2020CompatReanchor(
@@ -669,6 +1482,74 @@ public sealed partial class ModernPracticeBotController
             localMinDistance = localDistance;
             state.CurrentPoint = candidate.Id;
         }
+    }
+
+    private static bool TrySuppressCompatNoNextBranch(
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        int[] goalWeights,
+        ClientBot2020CompatState state)
+    {
+        var failedPointId = state.CurrentPoint;
+        if (failedPointId < 0)
+        {
+            return false;
+        }
+
+        state.SecondAnchorBlockPoint = failedPointId;
+        state.SecondAnchorBlockTicks = Math.Max(state.SecondAnchorBlockTicks, 72);
+        state.SecondAnchorCooldownTicks = Math.Max(state.SecondAnchorCooldownTicks, 72);
+        state.CurrentPoint = -1;
+        state.NextPoint = -1;
+        state.NextPoint2 = -1;
+        state.NextPoint3 = -1;
+        state.StickyNextTicks = 0;
+        state.NavChurnTicks = 0;
+        state.NavChurnSwitchTicks = 0;
+        state.NavChurnLockTicks = 0;
+        state.NavChurnLockPoint = -1;
+        state.NoNextPointTicks = 0;
+
+        if (!TryAcquireWeightedCompatCurrentPointIgnoringSight(player, navPoints, goalWeights, state))
+        {
+            TryAcquireNearestCompatCurrentPointIgnoringSight(player, navPoints, state);
+        }
+
+        return state.CurrentPoint >= 0 && state.CurrentPoint != failedPointId;
+    }
+
+    private static bool TryAcquireWeightedCompatCurrentPointIgnoringSight(
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        int[] goalWeights,
+        ClientBot2020CompatState state)
+    {
+        state.CurrentPoint = -1;
+        var bestDistance = float.PositiveInfinity;
+        for (var index = 0; index < navPoints.Points.Count; index += 1)
+        {
+            if (state.SecondAnchorBlockTicks > 0 && index == state.SecondAnchorBlockPoint)
+            {
+                continue;
+            }
+
+            var candidate = navPoints.Points[index];
+            if (GetModernGoalWeight(goalWeights, candidate.Id) <= 0)
+            {
+                continue;
+            }
+
+            var distance = DistanceBetween(candidate.X, GetModernNodeFeetY(navPoints, candidate), player.X, player.Y);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            state.CurrentPoint = candidate.Id;
+        }
+
+        return state.CurrentPoint >= 0;
     }
 
     private static void TrySelectCompatNextPoint(
@@ -1062,10 +1943,18 @@ public sealed partial class ModernPracticeBotController
         }
         else if (state.NoNextPointTicks > 24)
         {
-            state.CurrentPoint = -1;
-            state.OldPathPointKey = $"{Environment.TickCount}_{state.NoNextPointTicks}";
-            state.NoNextPointTicks = 0;
-            state.DebugDecisionReason = "force_reacquire_nonp";
+            if (TrySuppressCompatNoNextBranch(player, navPoints, goalWeights, state))
+            {
+                state.DebugDecisionReason = "no_next_branch_block";
+                TrySelectCompatNextPoint(world, player, destination, navPoints, goalWeights, state, timing);
+            }
+            else
+            {
+                state.CurrentPoint = -1;
+                state.OldPathPointKey = $"{Environment.TickCount}_{state.NoNextPointTicks}";
+                state.NoNextPointTicks = 0;
+                state.DebugDecisionReason = "force_reacquire_nonp";
+            }
         }
     }
 
@@ -1178,6 +2067,22 @@ public sealed partial class ModernPracticeBotController
                 return TriggerModernBotJump(memory, timing);
             }
 
+            if (horizontal != 0
+                && ShouldDelayModernRouteJumpLaunch(
+                    world.Level,
+                    player,
+                    targetX,
+                    targetY,
+                    horizontal,
+                    hasGroundContact,
+                    jumpRange,
+                    jumpHeightTotal,
+                    out var jumpDelayReason))
+            {
+                memory.ModernJumpDebug = $"compat:{jumpDelayReason}";
+                return false;
+            }
+
             if (state.CurrentPoint >= 0
                 && state.NextPoint >= 0
                 && navPoints.TryGetPoint(state.CurrentPoint, out var currentNode)
@@ -1220,8 +2125,8 @@ public sealed partial class ModernPracticeBotController
 
             if (horizontal != 0 && CompatHasWaistObstacleAhead(world, player, horizontal))
             {
-                if (MathF.Abs(horizontalSpeed) > 0.0001f
-                    && MathF.Abs(MathF.Sign(horizontal) - MathF.Sign(horizontalSpeed)) < 2f)
+                if (MathF.Abs(horizontalSpeed) <= 0.0001f
+                    || MathF.Abs(MathF.Sign(horizontal) - MathF.Sign(horizontalSpeed)) < 2f)
                 {
                     if (IsModernStairStepAhead(world, player, horizontal, horizontalSpeed))
                     {

@@ -1,0 +1,452 @@
+{
+  "FormatVersion": 2,
+  "LevelName": "Waterway",
+  "MapAreaIndex": 1,
+  "LevelFingerprint": "58b7d687bdcad196aebb5ada6f7066d92f77d5d1aa56d464765fc059b191e30f",
+  "Routes": [
+    {
+      "Key": "Red:Light:AttackIntel:34-\u003E35",
+      "Label": "score:AttackIntel:34-\u003E35",
+      "Team": "Red",
+      "Profile": "Light",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 35,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        34,
+        35
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 34,
+          "ToNodeId": 35,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Red:Light:ReturnIntel:47-\u003E30",
+      "Label": "score:ReturnIntel:47-\u003E30",
+      "Team": "Red",
+      "Profile": "Light",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 30,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        47,
+        31,
+        30
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 47,
+          "ToNodeId": 31,
+          "TraversalKind": "Jump",
+          "StartToleranceX": 10,
+          "StartToleranceY": 14,
+          "LandingToleranceX": 24,
+          "LandingToleranceY": 12,
+          "RequireGroundedArrival": true,
+          "InputTape": [
+            {
+              "Left": true,
+              "Right": false,
+              "Up": false,
+              "DurationSeconds": 0.4,
+              "Ticks": 12
+            },
+            {
+              "Left": true,
+              "Right": false,
+              "Up": true,
+              "DurationSeconds": 0.03333333333333333,
+              "Ticks": 1
+            }
+          ]
+        },
+        {
+          "FromNodeId": 31,
+          "ToNodeId": 30,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Red:Standard:AttackIntel:34-\u003E35",
+      "Label": "score:AttackIntel:34-\u003E35",
+      "Team": "Red",
+      "Profile": "Standard",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 35,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        34,
+        35
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 34,
+          "ToNodeId": 35,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Red:Standard:ReturnIntel:47-\u003E30",
+      "Label": "score:ReturnIntel:47-\u003E30",
+      "Team": "Red",
+      "Profile": "Standard",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 30,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        47,
+        31,
+        30
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 47,
+          "ToNodeId": 31,
+          "TraversalKind": "Jump",
+          "StartToleranceX": 10,
+          "StartToleranceY": 14,
+          "LandingToleranceX": 24,
+          "LandingToleranceY": 12,
+          "RequireGroundedArrival": true,
+          "InputTape": [
+            {
+              "Left": true,
+              "Right": false,
+              "Up": false,
+              "DurationSeconds": 0.4,
+              "Ticks": 12
+            },
+            {
+              "Left": true,
+              "Right": false,
+              "Up": true,
+              "DurationSeconds": 0.03333333333333333,
+              "Ticks": 1
+            }
+          ]
+        },
+        {
+          "FromNodeId": 31,
+          "ToNodeId": 30,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Red:Heavy:AttackIntel:34-\u003E35",
+      "Label": "score:AttackIntel:34-\u003E35",
+      "Team": "Red",
+      "Profile": "Heavy",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 35,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        34,
+        35
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 34,
+          "ToNodeId": 35,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Red:Heavy:ReturnIntel:37-\u003E36",
+      "Label": "score:ReturnIntel:37-\u003E36",
+      "Team": "Red",
+      "Profile": "Heavy",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 36,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        37,
+        36
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 37,
+          "ToNodeId": 36,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Light:AttackIntel:37-\u003E36",
+      "Label": "score:AttackIntel:37-\u003E36",
+      "Team": "Blue",
+      "Profile": "Light",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 36,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        37,
+        36
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 37,
+          "ToNodeId": 36,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Light:ReturnIntel:46-\u003E29",
+      "Label": "score:ReturnIntel:46-\u003E29",
+      "Team": "Blue",
+      "Profile": "Light",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 29,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        46,
+        28,
+        29
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 46,
+          "ToNodeId": 28,
+          "TraversalKind": "Jump",
+          "StartToleranceX": 10,
+          "StartToleranceY": 14,
+          "LandingToleranceX": 24,
+          "LandingToleranceY": 12,
+          "RequireGroundedArrival": true,
+          "InputTape": [
+            {
+              "Left": false,
+              "Right": true,
+              "Up": false,
+              "DurationSeconds": 0.4,
+              "Ticks": 12
+            },
+            {
+              "Left": false,
+              "Right": true,
+              "Up": true,
+              "DurationSeconds": 0.03333333333333333,
+              "Ticks": 1
+            }
+          ]
+        },
+        {
+          "FromNodeId": 28,
+          "ToNodeId": 29,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Standard:AttackIntel:37-\u003E36",
+      "Label": "score:AttackIntel:37-\u003E36",
+      "Team": "Blue",
+      "Profile": "Standard",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 36,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        37,
+        36
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 37,
+          "ToNodeId": 36,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Standard:ReturnIntel:46-\u003E29",
+      "Label": "score:ReturnIntel:46-\u003E29",
+      "Team": "Blue",
+      "Profile": "Standard",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 29,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        46,
+        28,
+        29
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 46,
+          "ToNodeId": 28,
+          "TraversalKind": "Jump",
+          "StartToleranceX": 10,
+          "StartToleranceY": 14,
+          "LandingToleranceX": 24,
+          "LandingToleranceY": 12,
+          "RequireGroundedArrival": true,
+          "InputTape": [
+            {
+              "Left": false,
+              "Right": true,
+              "Up": false,
+              "DurationSeconds": 0.4,
+              "Ticks": 12
+            },
+            {
+              "Left": false,
+              "Right": true,
+              "Up": true,
+              "DurationSeconds": 0.03333333333333333,
+              "Ticks": 1
+            }
+          ]
+        },
+        {
+          "FromNodeId": 28,
+          "ToNodeId": 29,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Heavy:AttackIntel:19-\u003E16",
+      "Label": "score:AttackIntel:19-\u003E16",
+      "Team": "Blue",
+      "Profile": "Heavy",
+      "Phase": "AttackIntel",
+      "GoalNodeId": 16,
+      "GoalX": 996,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        19,
+        17,
+        16
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 19,
+          "ToNodeId": 17,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        },
+        {
+          "FromNodeId": 17,
+          "ToNodeId": 16,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    },
+    {
+      "Key": "Blue:Heavy:ReturnIntel:34-\u003E35",
+      "Label": "score:ReturnIntel:34-\u003E35",
+      "Team": "Blue",
+      "Profile": "Heavy",
+      "Phase": "ReturnIntel",
+      "GoalNodeId": 35,
+      "GoalX": 5274,
+      "GoalY": 1014,
+      "RouteNodeIds": [
+        34,
+        35
+      ],
+      "Segments": [
+        {
+          "FromNodeId": 34,
+          "ToNodeId": 35,
+          "TraversalKind": "Walk",
+          "StartToleranceX": 18,
+          "StartToleranceY": 24,
+          "LandingToleranceX": 18,
+          "LandingToleranceY": 64,
+          "RequireGroundedArrival": true,
+          "InputTape": []
+        }
+      ]
+    }
+  ]
+}

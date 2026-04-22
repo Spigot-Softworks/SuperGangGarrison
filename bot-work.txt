@@ -613,3 +613,198 @@ C#-Native Recovery and Final Mile Override (2026-04-20)
 C#-Native Recovery and Final Mile Override result (2026-04-20)
 - Full stock CTF+KOTH Score matrix: total=84 passed=34 failed=50 timedOut=0 (IMPROVEMENT vs baseline=33)
 - Action: Commit immediately.\
+
+Rescue: restore broad runtime graph for ModernGraphRoute/score-route proof (2026-04-22)
+- Observation:
+  - The rescue branch still forced `validateTraversals: true` in the two hot-path graph builders:
+    - `BotAI/BotNavigationAssetStore.cs` runtime modern graph generation
+    - `BotAI.Tools/Program.cs` score-route proof graph build
+  - Direct graph comparison on the exact failing five-map rescue state showed the problem clearly:
+    - Gallery geometry graph: `146 nodes / 361 edges`; validated graph: `146 nodes / 192 edges`
+    - Valley geometry graph: `142 nodes / 363 edges`; validated graph: `142 nodes / 221 edges`
+    - Raw BFS on geometry graph:
+      - Gallery stuck position near node `15` still has path to goal node `47`
+      - Valley stuck position near node `87` still has path to goal node `97`
+    - Raw BFS on movement-validated graph:
+      - Gallery `15 -> 47` path missing
+      - Valley `87 -> 97` path missing
+  - Conclusion: the local movement validator was still over-pruning the runtime graph and physically deleting viable score paths.
+- Patch:
+  - `BotAI/BotNavigationAssetStore.cs`
+    - Change runtime modern asset generation from `validateTraversals: true` to `false`
+    - Keep movement validation as diagnostic/proof-only, not the runtime graph source
+  - `BotAI.Tools/Program.cs`
+    - Change score-route proof graph build from `validateTraversals: true` to `false`
+    - Make proof run on the same broad graph runtime uses
+- Targeted verification:
+  - `Gallery / Red / Scout / ModernGraphRoute / Score`
+    - Before: `route-miss` starvation
+    - After: no longer `route-miss`; now real route execution/jump churn (`r1/15:jump`, `cp=94 -> np=67`) with intermittent `start-miss`
+  - `Valley / Blue / Scout / ModernGraphRoute / Score`
+    - Before: FAIL with `route-miss`
+    - After: PASS
+- Five-map gate:
+  - Command:
+    - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --map Valley --map Harvest --map TwodFortTwo --map Gallery --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+  - Result: `total=30 passed=11 failed=19 timedOut=0`
+  - Breakdown:
+    - Eiger: `3/6`
+    - Valley: `6/6`
+    - Harvest: `1/6`
+    - TwodFortTwo: `0/6`
+    - Gallery: `1/6`
+- Net:
+  - Rescue branch recovered from `9/30` to `11/30`
+  - This restores the five-map aggregate to the prior screenshot baseline total, but with a different map mix
+  - Remaining failures are now mostly execution/reacquire problems, not graph-connectivity starvation
+- Next practical slice:
+  - Investigate `Gallery / Red / Scout` jump churn on `cp=94 -> np=67` plus `start-miss` reacquire loss
+  - Investigate why `Gallery / Blue / Scout` regressed from earlier PASS to long low-progress routing despite broad graph restore
+  - Keep movement validation out of runtime until it can prove non-regression on the gate
+
+Rescue follow-up: force untaped graph jumps from source node attempt (2026-04-22)
+- Hypothesis:
+  - Some remaining Gallery failures were sitting on untaped `Jump` edges for hundreds/thousands of ticks without actually initiating the jump.
+  - Forcing untaped graph jumps once the bot reached the source node window might recover those stalls.
+- Patch:
+  - `BotAI/BotController.NavigationTraversal.cs`
+    - In `TryResolveTraversalDecision(...)` for untaped `Jump` traversals:
+      - first move to the source node window
+      - then set `ForceJump = player.IsGrounded`
+- Targeted results:
+  - `Gallery / Blue / Scout`
+    - Improved best distance from roughly `1317` to `1048.6`
+  - `Gallery / Red / Scout`
+    - Regressed badly from roughly `best=155.8` back out to roughly `best=1332.1`
+- Action:
+  - Reverted immediately.
+  - Conclusion: globally forcing untaped graph jumps from the source node is too aggressive in the current controller and causes severe jump-edge regressions.
+
+Rescue follow-up: raw jump landing credit and steep impossible-jump proof gate (2026-04-22)
+- Hypothesis:
+  - The broad runtime graph is necessary, but some generated jump edges are still impossible shortcuts.
+  - Raw jump execution can also land inside the same validator landing window and then fail to advance the route, causing a re-jump/churn loop.
+- Patch:
+  - `BotAI/BotController.NavigationTraversal.cs`
+    - Credit untaped/raw jump completion when the bot reaches the traversal landing window.
+    - Store a short-lived traversal completion memory for both taped and raw traversal completion so the route can advance on the next route-progress tick.
+  - `BotAI/BotController.cs`
+    - Extend `RouteBlockedEdgeTicksDefault` to keep a proven-bad edge suppressed for the remainder of a normal 180s scenario.
+    - If a raw jump edge has already failed and no runtime tape can be built, reject that edge instead of allowing it forever.
+    - Require runtime proof for steep upward generated jumps (`from.Y - to.Y >= 64`) so obvious no-tape vertical shortcuts are skipped before execution.
+- Targeted results:
+  - `Valley / Blue / Scout / ModernGraphRoute / Score`: PASS.
+  - `Eiger / Blue / Scout / ModernGraphRoute / Score`: PASS.
+  - `Eiger / Red / Scout / ModernGraphRoute / Score`: PASS in the single-map matrix.
+  - `Eiger` single-map matrix: `total=6 passed=2 failed=4 timedOut=0`.
+    - Scouts now pass.
+    - Heavy/Pyro still fail near enemy intel, reaching roughly `ctfAttackBest=93-99` but not picking up.
+  - `Gallery / Blue / Scout` and `Gallery / Red / Scout`: still FAIL.
+- Conclusion:
+  - Keep for now. It recovers real Eiger Scout passes without breaking the Valley Blue Scout sentinel.
+  - The remaining Eiger Heavy/Pyro issue is no longer pure graph connectivity; they route close to intel, then churn below it after bad final approach/blocked-edge handling.
+- Next:
+  - Inspect Eiger Heavy/Pyro final attack approach around blocked edges `158->143` and `160->139`.
+  - Avoid broad validator pruning; keep this as targeted runtime edge rejection plus route/controller repair.
+
+Rescue follow-up: Eiger terrain-assisted edges and return-direct latch tightening (2026-04-22)
+- Problem:
+  - Eiger had recovered Scout passes, but Heavy/Pyro still failed near enemy intel or on return.
+  - The broad fallback route builder could still fall back to edges that runtime had just temporarily blocked.
+  - Heavy/Pyro needed terrain-assisted stair/ramp links that looked like steep impossible jumps if evaluated as clean airborne jumps.
+  - Blue Pyro reached home with intel but latched into `intel_home_direct` too early, around 100-150 px from home, then oscillated instead of finishing the graph route.
+- Patch:
+  - `BotAI/BotController.NavigationTraversal.cs`
+    - Make unfiltered route fallback still honor the fallback edge filter.
+    - This prevents broad fallback from immediately reintroducing blocked or reverse-invalid edges.
+  - `BotAI/BotController.cs`
+    - Add broad fallback edge filter that excludes temporarily blocked edges and reverse-only invalid edges.
+    - Allow non-Scout terrain-intersecting steep/long graph links as stair/ramp candidates instead of rejecting them as impossible jumps.
+    - Keep Scout strict on those steep links to avoid Eiger false shortcuts like the earlier `108->68`/`113->75` regression.
+    - Tighten intel-return direct finish:
+      - require line of sight
+      - require actual feet distance <= `88`
+      - do not preserve the direct latch inside the old broad `760x760` release box
+      - do not use stalled direct fallback unless already within the same close finish window
+- Targeted verification:
+  - Build:
+    - `dotnet build BotAI.Tools\OpenGarrison.BotAI.Tools.csproj -c Debug`
+    - Result: PASS, warnings only.
+  - Eiger matrix:
+    - Command:
+      - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --path-mode ModernGraphRoute --scenario-kind Score --seconds 180 --no-bot-diagnostics`
+    - Result: `total=6 passed=6 failed=0 timedOut=0`
+    - Blue Scout: PASS
+    - Red Scout: PASS
+    - Blue Heavy: PASS
+    - Red Heavy: PASS
+    - Blue Pyro: PASS
+    - Red Pyro: PASS
+- Decision:
+  - Keep pending five-map gate.
+  - This restores the key Eiger sentinel to the screenshot baseline while preserving the broad-graph runtime architecture.
+
+Rescue gate: five-map ModernGraphRoute matrix after Eiger recovery (2026-04-22)
+- Command:
+  - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --map Valley --map Harvest --map TwodFortTwo --map Gallery --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+- Result:
+  - `total=30 passed=13 failed=17 timedOut=0`
+- Breakdown:
+  - Eiger: `6/6`
+  - Valley: `6/6`
+  - Harvest: `0/6`
+  - TwodFortTwo: `0/6`
+  - Gallery: `1/6` (`Red Pyro` only)
+- Comparison to screenshot baseline:
+  - Aggregate is better than screenshot baseline `11/30`.
+  - Map mix changed:
+    - Eiger restored/improved to `6/6`
+    - Valley improved to `6/6`
+    - Gallery improved from `0/6` to `1/6`
+    - Harvest regressed from screenshot `2/6` to `0/6`
+    - TwodFortTwo unchanged at `0/6`
+- Decision:
+  - Do not revert the Eiger/Valley recovery patch.
+  - Next target is Harvest because it is the clearest remaining regression against the screenshot mix.
+
+Rescue follow-up: regenerate stale Harvest score-route asset (2026-04-22)
+- Problem:
+  - The saved `Core/Content/BotNavScoreRoutes/Harvest.a1.botnavscore.json` was stale/incoherent against the current generated graph.
+  - It referenced `GoalNodeId=35`, but current graph node `35` is not the KOTH objective route target.
+  - Runtime Blue Scout started the stale preferred route, failed around `136->75`, then fell back to generic routing and ended in `route-miss` below the point.
+- Diagnostic:
+  - Command:
+    - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --build-score-routes --map Harvest --score-route-diagnostics --score-route-max-phase-routes 8 --score-route-max-proof-attempts 24 --score-route-context-budget-ms 60000 --score-route-map-budget-ms 180000 --seconds 120`
+  - Result:
+    - Builder proved one route: `Blue:Light:CaptureObjective:93->131`.
+    - Diagnostics reported `validatedRoutes=1`.
+    - Other Harvest profiles/teams still failed proof by falling under/near the cap and going into `route-miss`.
+- Patch/action:
+  - Regenerated and saved Harvest score routes:
+    - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --build-score-routes --map Harvest --score-route-max-phase-routes 8 --score-route-max-proof-attempts 1 --score-route-context-budget-ms 60000 --score-route-map-budget-ms 180000 --score-route-no-progress-stop-seconds 45 --seconds 120`
+  - Saved asset now contains the proved Blue Light route to goal node `131`.
+- Targeted verification:
+  - Harvest matrix:
+    - `total=6 passed=1 failed=5 timedOut=0`
+    - Blue Scout PASS
+    - Red Scout/Heavy/Pyro and Blue Heavy/Pyro still FAIL
+- Five-map gate after regeneration:
+  - Command:
+    - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --map Valley --map Harvest --map TwodFortTwo --map Gallery --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+  - Result: `total=30 passed=14 failed=16 timedOut=0`
+  - Breakdown:
+    - Eiger: `6/6`
+    - Valley: `6/6`
+    - Harvest: `1/6`
+    - TwodFortTwo: `0/6`
+    - Gallery: `1/6`
+- Remaining failure mechanism:
+  - Harvest Red Scout trace shows generic routing can reach near the point, then loses route/current node and direct-targets a capture zone above its head:
+    - `route=route-miss cp=-1 np=-1 goal=131@(2433.1,786.0)`
+    - player is underneath around `bottom=896-954`
+    - horizontal delta is near zero, so movement holds `h0` and repeatedly vertical-jumps
+  - This is the same class of failure as earlier direct-target/no-route loops: when graph reacquire fails near a vertical objective, direct targeting is worse than selecting a reachable escape/approach node or a proved score route.
+- Decision:
+  - Keep the regenerated Harvest asset.
+  - Current rescue baseline is now better than the screenshot aggregate (`14/30` vs `11/30`), though Harvest is still below the old map mix (`1/6` vs `2/6`).
+  - Next practical fix should target route-miss capture recovery: when near a KOTH/capture objective but below it with no current graph node, do not direct-target the zone; choose a reachable graph/current-node reacquire target or a proved score route.

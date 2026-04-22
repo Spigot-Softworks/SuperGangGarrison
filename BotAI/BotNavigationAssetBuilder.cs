@@ -800,6 +800,7 @@ public static class BotNavigationAssetBuilder
                     toNode.X,
                     toNode.Y,
                     toNode.RequiresGroundSupport,
+                    hintLink.StartJumpImmediately,
                     out var inputTape,
                     out var jumpCost))
             {
@@ -822,7 +823,8 @@ public static class BotNavigationAssetBuilder
                     fromNode.X,
                     fromNode.Y,
                     toNode.X,
-                    toNode.Y);
+                    toNode.Y,
+                    hintLink.StartJumpImmediately);
                 edge = new BotNavigationEdge
                 {
                     FromNodeId = fromNode.Id,
@@ -1265,6 +1267,7 @@ public static class BotNavigationAssetBuilder
         float targetX,
         float targetY,
         bool requireGroundedArrival,
+        bool startJumpImmediately,
         out IReadOnlyList<BotNavigationInputFrame> tape,
         out float cost)
     {
@@ -1281,6 +1284,7 @@ public static class BotNavigationAssetBuilder
                 targetY,
                 PlayerTeam.Red,
                 requireGroundedArrival,
+                startJumpImmediately,
                 out tape,
                 out cost))
         {
@@ -1297,6 +1301,7 @@ public static class BotNavigationAssetBuilder
             targetY,
             PlayerTeam.Blue,
             requireGroundedArrival,
+            startJumpImmediately,
             out tape,
             out cost);
     }

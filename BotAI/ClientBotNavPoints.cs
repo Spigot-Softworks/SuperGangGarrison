@@ -2,7 +2,7 @@ using OpenGarrison.Core;
 
 namespace OpenGarrison.BotAI;
 
-internal sealed class ClientBotNavPoints
+public sealed class ClientBotNavPoints
 {
     private const int GridStep = 6;
     private const int HeadroomStart = 6;
