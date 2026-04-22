@@ -1284,7 +1284,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
         }
 
-        AdvanceRouteProgress(player, navigationGraph, memory);
+        AdvanceRouteProgress(player, navigationGraph, memory, ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection));
         if (!TryGetCurrentRouteNode(navigationGraph, memory, out var nextNode))
         {
             ClearNavigationRoute(memory);
@@ -1485,6 +1485,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         return fromFeetY - toFeetY >= 64f;
+    }
+
+    private static bool ShouldDelayAirborneJumpChainHandoffForRoute(
+        PlayerClass classId,
+        ModernPathSelection objectiveSelection)
+    {
+        return objectiveSelection.IsCaptureObjective
+            && BotNavigationProfiles.GetProfileForClass(classId) != BotNavigationProfile.Light;
     }
 
     private static bool ShouldUseRuntimeValidatedJumpTape(
@@ -1826,7 +1834,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
         }
 
-        AdvanceRouteProgress(player, navigationGraph, memory);
+        AdvanceRouteProgress(player, navigationGraph, memory, ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection));
         if (!TryGetCurrentRouteNode(navigationGraph, memory, out var nextNode))
         {
             ClearNavigationRoute(memory);

@@ -144,7 +144,11 @@ public sealed partial class ModernPracticeBotController
         return false;
     }
 
-    private static void AdvanceRouteProgress(PlayerEntity player, BotNavigationRuntimeGraph navigationGraph, BotMemory memory)
+    private static void AdvanceRouteProgress(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        BotMemory memory,
+        bool delayAirborneJumpChainHandoff)
     {
         if (memory.RouteNodeIds is null)
         {
@@ -153,7 +157,14 @@ public sealed partial class ModernPracticeBotController
 
         while (memory.RouteIndex < memory.RouteNodeIds.Length
             && navigationGraph.TryGetNode(memory.RouteNodeIds[memory.RouteIndex], out var currentNode)
-            && HasReachedRouteNode(player, navigationGraph, memory, memory.RouteNodeIds, memory.RouteIndex, currentNode))
+            && HasReachedRouteNode(
+                player,
+                navigationGraph,
+                memory,
+                memory.RouteNodeIds,
+                memory.RouteIndex,
+                currentNode,
+                delayAirborneJumpChainHandoff))
         {
             if (memory.RouteIndex > 0)
             {
@@ -170,9 +181,15 @@ public sealed partial class ModernPracticeBotController
         BotMemory memory,
         int[] routeNodeIds,
         int routeIndex,
-        BotNavigationNode currentNode)
+        BotNavigationNode currentNode,
+        bool delayAirborneJumpChainHandoff)
     {
         var playerFeetY = GetModernPlayerFeetY(player);
+        if (ShouldDelayAirborneJumpChainHandoff(player, navigationGraph, memory, routeNodeIds, routeIndex, currentNode, delayAirborneJumpChainHandoff))
+        {
+            return false;
+        }
+
         if (DistanceSquared(player.X, playerFeetY, currentNode.X, currentNode.Y)
             <= GetRouteNodeArrivalDistanceSquared(navigationGraph, memory, routeNodeIds, routeIndex))
         {
@@ -250,6 +267,30 @@ public sealed partial class ModernPracticeBotController
             && edge.Kind == BotNavigationTraversalKind.Walk
             && MathF.Abs(player.X - currentNode.X) <= RouteNodeArrivalDistance
             && MathF.Abs(player.Y - currentNode.Y) <= RouteWalkApproximateArrivalHeight;
+    }
+
+    private static bool ShouldDelayAirborneJumpChainHandoff(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        BotMemory memory,
+        int[] routeNodeIds,
+        int routeIndex,
+        BotNavigationNode currentNode,
+        bool delayAirborneJumpChainHandoff)
+    {
+        if (!delayAirborneJumpChainHandoff
+            || player.IsGrounded
+            || memory.ActiveTraversalTape is not null
+            || routeIndex <= 0
+            || routeIndex + 1 >= routeNodeIds.Length
+            || !currentNode.RequiresGroundSupport
+            || !navigationGraph.TryGetEdge(routeNodeIds[routeIndex], routeNodeIds[routeIndex + 1], out var outgoingEdge)
+            || outgoingEdge.Kind != BotNavigationTraversalKind.Jump)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static float GetRouteNodeArrivalDistanceSquared(
