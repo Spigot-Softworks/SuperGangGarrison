@@ -266,7 +266,7 @@ public sealed partial class ModernPracticeBotController
             && navigationGraph.TryGetEdge(routeNodeIds[routeIndex - 1], routeNodeIds[routeIndex], out var edge)
             && edge.Kind == BotNavigationTraversalKind.Walk
             && MathF.Abs(player.X - currentNode.X) <= RouteNodeArrivalDistance
-            && MathF.Abs(player.Y - currentNode.Y) <= RouteWalkApproximateArrivalHeight;
+            && MathF.Abs(playerFeetY - currentNode.Y) <= RouteWalkArrivalFeetHeight;
     }
 
     private static bool ShouldDelayAirborneJumpChainHandoff(
@@ -282,15 +282,18 @@ public sealed partial class ModernPracticeBotController
             || player.IsGrounded
             || memory.ActiveTraversalTape is not null
             || routeIndex <= 0
-            || routeIndex + 1 >= routeNodeIds.Length
-            || !currentNode.RequiresGroundSupport
-            || !navigationGraph.TryGetEdge(routeNodeIds[routeIndex], routeNodeIds[routeIndex + 1], out var outgoingEdge)
-            || outgoingEdge.Kind != BotNavigationTraversalKind.Jump)
+            || !currentNode.RequiresGroundSupport)
         {
             return false;
         }
 
-        return true;
+        if (routeIndex + 1 >= routeNodeIds.Length)
+        {
+            return true;
+        }
+
+        return navigationGraph.TryGetEdge(routeNodeIds[routeIndex], routeNodeIds[routeIndex + 1], out var outgoingEdge)
+            && outgoingEdge.Kind is BotNavigationTraversalKind.Walk or BotNavigationTraversalKind.Jump;
     }
 
     private static float GetRouteNodeArrivalDistanceSquared(
@@ -328,6 +331,36 @@ public sealed partial class ModernPracticeBotController
             && memory.RouteIndex >= 0
             && memory.RouteIndex < memory.RouteNodeIds.Length
             && navigationGraph.TryGetNode(memory.RouteNodeIds[memory.RouteIndex], out node);
+    }
+
+    private static bool ShouldForceWalkRouteRecoveryJump(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        int previousNodeId,
+        BotNavigationNode nextNode,
+        BotNavigationEdge edge)
+    {
+        if (!player.IsGrounded
+            || edge.Kind != BotNavigationTraversalKind.Walk
+            || !navigationGraph.TryGetNode(previousNodeId, out var sourceNode)
+            || MathF.Abs(sourceNode.Y - nextNode.Y) > RouteWalkRecoveryFlatHeightDelta)
+        {
+            return false;
+        }
+
+        var minX = MathF.Min(sourceNode.X, nextNode.X) - RouteNodeArrivalDistance;
+        var maxX = MathF.Max(sourceNode.X, nextNode.X) + RouteNodeArrivalDistance;
+        if (player.X < minX || player.X > maxX)
+        {
+            return false;
+        }
+
+        var segmentLengthX = nextNode.X - sourceNode.X;
+        var segmentT = MathF.Abs(segmentLengthX) <= float.Epsilon
+            ? 1f
+            : Math.Clamp((player.X - sourceNode.X) / segmentLengthX, 0f, 1f);
+        var segmentY = sourceNode.Y + ((nextNode.Y - sourceNode.Y) * segmentT);
+        return GetModernPlayerFeetY(player) - segmentY >= RouteWalkRecoveryJumpFeetDrop;
     }
 
     private static bool TryBuildRouteToDestination(

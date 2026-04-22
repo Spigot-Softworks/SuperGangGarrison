@@ -962,3 +962,165 @@ Attempt: non-light capture-route grounded jump-chain handoff (2026-04-22)
   - New target pass: Gallery Blue Pyro. Scout sentinel passes are preserved because Light profile routes keep the old midair handoff behavior.
 - Decision:
   - Keep and commit. This is a narrow +1 improvement on both target and sentinel gates after the broad variant was rejected.
+
+Attempt: hold grounded long walk route edges during refresh (2026-04-22)
+- Observation:
+  - Corinth Red Scout repeatedly starts the valid lower walk edge `98 -> 99`, but route refresh reacquires from nearby node `76` while the bot is still on the walk segment.
+  - Concrete trace: at `t=69.6` route is `cp=98 np=99` with target `(851,1122)` and the bot moving right along the segment; at `t=69.8` route refresh emits `route-replan`, then reacquires `76 -> 91`, causing the recurring lower-route churn and eventual `route_edge_block:98->99`.
+  - The edge itself is not the failed movement; abandoning the edge mid-walk is the failure.
+- Patch:
+  - `BotController.NavigationTraversal.cs`: add helpers to identify the current route edge and detect whether the player is still near a grounded walk segment.
+  - `BotController.cs`: route refresh/repath now holds the current route when the bot is grounded and still on the active walk segment, instead of using nearest-node reacquire until it leaves the segment or no-progress blocking fires.
+- Expected effect:
+  - Long grounded walk edges should no longer churn purely because their target node is farther than `RouteRepathDistance`.
+  - Primary target is Corinth Red Scout; possible secondary gains on maps with long flat/stair landing walk edges.
+- Verification:
+  - Focused Corinth Red Scout: still FAIL, but best improved from the committed baseline's lower-route churn around `1036.4` to `298.7`.
+  - It fixed the lower `98 -> 99` reacquire loop and exposed the next blocker at `route_edge_block:55->48`.
+  - Target gate (Harvest/Gallery/Conflict/Corinth ModernGraphRoute Score): `total=24 passed=7 failed=17 timedOut=0`, unchanged versus the committed rescue baseline.
+- Decision:
+  - Keep uncommitted while investigating the next slice because it is a real local controller fix, but do not commit it alone without a target/sentinel pass gain.
+
+Attempt: descending Scout KOTH jump-chain handoff delay (2026-04-22)
+- Observation:
+  - With raw source alignment reverted, Corinth Red Scout gets past the lower `98 -> 99` churn but fails the upper approach after `route_edge_block:55->48`.
+  - Concrete late trace: the route repeatedly advances through jump chains like `56 -> 49 -> 41` while Scout is still airborne and descending. It then misses the next launch support and loops around the right-side tower approach with best distance around `298.7`.
+  - The earlier broad capture-route grounded jump-chain handoff made Corinth Red Scout pass, but it regressed Valley Scouts and Harvest Blue Scout because it delayed all Light-profile handoffs.
+- Patch:
+  - `BotController.NavigationTraversal.cs`: route progress now has two handoff-delay modes. The existing full delay remains for non-Light capture routes; the new Light-profile mode delays only when the bot is airborne and descending into a grounded jump-chain node.
+  - `BotController.cs`: capture-objective Scout/Sniper/Spy routes opt into the descending-only delay while non-Light routes keep the already-committed full delay.
+- Expected effect:
+  - Recover the useful Corinth Scout behavior from the rejected broad patch without delaying Scout handoffs while still rising, which is the likely source of the prior Valley/Harvest regressions.
+- Verification:
+- Verification:
+  - Build: PASS.
+  - Focused Corinth Red Scout: FAIL and severe regression versus grounded-walk-hold-only.
+  - Result: best distance worsened from `298.7` to `1190.0`; progress dropped from `930.4` to `39.1`.
+  - New trace blocked near spawn-side edges `58 -> 91` and `58 -> 76`, proving the descending-only criterion still delayed too early in Scout routes.
+- Decision:
+  - Reverted immediately. Scout handoff timing cannot be safely fixed with a broad profile/objective rule; it needs edge-local or route-local evidence, not a global Light-profile delay.
+
+Attempt: align grounded raw jumps to source node (2026-04-22)
+- Observation:
+  - After the grounded walk hold gets Corinth Red Scout past the lower `98 -> 99` churn, the next failure is jump `55 -> 48`.
+  - Concrete trace: the bot begins `55 -> 48` from about `x=1519` while source node `55` is `x=1541`, still carrying rightward velocity from the previous route segment. The jump then cannot reach target node `48` at `x=1397,y=858`.
+  - Taped jumps already walk to the source window before launching; raw jump edges do not, so they can launch early from a bad setup pose.
+- Patch:
+  - `BotController.NavigationTraversal.cs`: for raw jump edges, if the bot is grounded and the source node requires ground support, route to the source node first unless the bot is already inside the source launch window.
+- Expected effect:
+  - Raw graph jumps should launch from the intended support node instead of from a stale nearest-node reacquire pose.
+  - Primary target is Corinth Red Scout `55 -> 48`; possible secondary gains on maps where jumps are technically valid but timing/setup is early.
+- Verification:
+- Verification:
+  - Focused Corinth Red Scout after adding this on top of grounded walk hold: still FAIL, best=322.7.
+  - It changed the blocker from `55 -> 48` into a worse deadlock at `88 -> 71`: the bot stood at `(1664.4,1116.0)`, bottom `1140`, while targeting source node `88` at `(1661,1092)` with locked movement and no jump.
+  - Diagnosis: raw source alignment can select a source node above the bot and lock movement on an unreachable setup point. This is not safe as a broad rule.
+- Decision:
+  - Reverted before gate testing. The next attempt should fix jump setup/taped execution without letting an unreachable source-acquire state freeze the controller.
+
+Attempt: non-light capture route waits for grounded support nodes (2026-04-22)
+- Observation:
+  - Harvest Blue Heavy does not fail because the lower shelf can be routed back to the cap; the graph has no path from lower-shelf nodes `167/168/169/173/174` to cap nodes `131/132` even with no runtime edge filter.
+  - The trace shows the upper route ending around `t=11.7`, then a partial lower route `168 -> 167`, then permanent `route-miss` vertical jumping under the point.
+  - The current committed non-light capture handoff guard only delays airborne handoff when the next edge is a jump; Harvest's hill route also advances through grounded-support walk nodes (`161 -> 160 -> 159`) and final route completion while the bot can still be airborne/falling.
+- Patch:
+  - Pending: broaden the existing non-Light capture handoff guard so Heavy/Pyro-style routes do not advance past any ground-support node while airborne, including walk handoffs and final route-end.
+- Expected effect:
+  - Heavy/Pyro should stop prematurely completing the upper KOTH route while falling through it.
+  - Scout/light capture routes remain unchanged, preserving the Valley/Harvest Scout passes that regressed under the earlier broad handoff delay.
+- Verification:
+  - Build: PASS.
+  - Focused Harvest Blue Heavy 120s: FAIL, best=142.1, progress=1418.0. The route-end was delayed but still fell to the lower shelf and entered the same route-miss loop.
+  - Focused Harvest Blue Pyro 120s: FAIL, best=132.8, progress=1427.3. Same lower-shelf route-miss pattern.
+  - Focused Gallery Blue Pyro 120s: PASS.
+  - Focused Valley Blue Scout 120s: PASS.
+- Decision:
+  - Keep uncommitted only while testing the next narrower fix. This did not solve Harvest by itself and should not be committed alone.
+
+Attempt: walk route arrival uses feet and tighter vertical window (2026-04-22)
+- Observation:
+  - Harvest Blue Pyro shows the first bad handoff before the lower-shelf loop: the bot advances through `161 -> 160 -> 159`, then starts jump `159 -> 132` while its body is already far below node `159`.
+  - Concrete trace: near `t=8.1`, the bot starts `159 -> 132` from about `(2631.6,880.0)` with bottom `904.0`, while source node `159` is `(2639,828)`.
+  - The normal route-node radius uses player feet, but the walk-edge fallback compares `player.Y` (top/body origin) to the node Y. That can falsely credit a ground-support node even when the bot's feet are much lower than the intended support.
+- Patch:
+  - Pending: make walk-edge arrival compare player feet to the node Y and use a tighter vertical window than the loose segment-hold tolerance.
+- Expected effect:
+  - Prevent bots from starting the next jump after falling below the intended walk target support.
+  - If the edge is genuinely missed, no-progress/edge blocking should get a chance to replan instead of launching from the wrong vertical state.
+- Verification:
+  - Pending.
+
+Attempt: Harvest non-light capture route recovery, isolated and gated (2026-04-22)
+- Scope note:
+  - This entry supersedes the uncommitted/pending Harvest isolation notes immediately above. The rejected slices were left documented because they explain why the final kept patch is scoped the way it is.
+- Observations:
+  - Harvest Blue Heavy/Pyro failed by falling from the upper hill route to lower shelf nodes, then entering a permanent `route-miss` vertical jump loop under the KOTH point.
+  - The concrete Heavy trace showed `135 -> 161 -> 160 -> 159`, then a route end / lower route from `168 -> 167`, with no usable graph path from the lower shelf back to cap nodes `131/132`.
+  - A 14-second Heavy trace showed a second root cause: KOTH destination Y alternated between valid cap targets (`735` and `786`), and `goalMoved` forced a route rebuild while Heavy was airborne. That bypassed the non-light airborne handoff guard and restarted the route from a later hill node before Heavy had landed.
+- Rejected slices:
+  - Full dirty stack: target matrix reached `9/24`, but regressed Conflict Red Scout and Corinth Blue Scout. Rejected as-is.
+  - Route-start high support-node filter: preserved some local intent but regressed Harvest Blue Pyro and still did not pass Heavy. Reverted.
+  - Grounded long-walk route hold, descending Scout handoff delay, and raw jump source alignment did not produce a gated improvement and are not part of the kept patch.
+- Kept patch:
+  - `BotController.NavigationTraversal.cs`: broaden non-light capture route handoff delay so Standard-profile capture routes do not advance past airborne ground-support nodes into walk/jump/final handoffs.
+  - `BotController.NavigationTraversal.cs`: walk-edge route arrival now checks player feet against the node Y with a tighter `32px` vertical window instead of comparing `player.Y` to the node.
+  - `BotController.NavigationTraversal.cs`: flat walk edges can force a corrective jump when the bot has dropped below the edge support line.
+  - `BotController.cs`: non-light capture routes defer route-goal repaths while airborne and already following a route, preventing KOTH target-Y oscillation from replacing the route midair.
+- Verification:
+  - Build: `dotnet build BotAI.Tools\OpenGarrison.BotAI.Tools.csproj -c Debug` PASS.
+  - Focused guards: Harvest Blue Heavy PASS, Harvest Blue Pyro PASS, Conflict Red Scout PASS, Corinth Blue Scout PASS.
+  - Target matrix:
+    - Command: `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Harvest --map Gallery --map Conflict --map Corinth --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+    - Result: `total=24 passed=11 failed=13 timedOut=0`
+    - Baseline comparison: committed rescue baseline was `7/24`; this is +4 with Conflict Blue/Red Scout, Corinth Blue Scout, Gallery Blue/Red Pyro preserved and Harvest now `6/6`.
+  - Five-map sentinel:
+    - Command: `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Eiger --map Valley --map Harvest --map TwodFortTwo --map Gallery --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+    - Result: `total=30 passed=17 failed=13 timedOut=0`
+    - Baseline comparison: committed rescue baseline was `16/30`; this is +1.
+- Decision:
+  - Keep and commit. This is the first isolated patch in the rescue tree that improves both the target gate and the five-map sentinel while preserving the known Scout sentinels.
+
+Attempt: corrective jump when flat walk edge drops below support (2026-04-22)
+- Observation:
+  - After rejecting high support-node reacquire, Harvest Blue Pyro no longer restarts from `159`, but still falls to lower nodes `169/168`.
+  - The first physical failure remains edge `160 -> 159`: the graph marks it as a flat walk edge, yet while walking it the bot's feet drop from `828` to `858+` and then lower, below the edge's support line.
+  - Because the edge kind is `Walk`, normal route jump logic never fires, so the bot keeps walking down the terrain and loses the upper approach.
+- Patch:
+  - Pending: when following a flat walk edge, if the bot is grounded and has dropped significantly below the source-target segment height, force a recovery jump while continuing the route.
+- Expected effect:
+  - Give the controller a chance to preserve height on flat graph walk edges that are physically behaving like short step/hop traversals.
+  - Primary target is Harvest non-Light hill approach; this is narrower than changing global jump timing.
+- Verification:
+  - Pending.
+
+Attempt: route start reacquire rejects high support nodes (2026-04-22)
+- Observation:
+  - Harvest Blue Pyro's route label changes from `r2/5 cp=160 np=159` to `r1/3 cp=159 np=132` while the bot is below node `159`.
+  - This means the controller can reacquire/restart a route from a nearby node by X/distance even when that ground-support node is physically above the bot's feet.
+  - In the concrete failing trace, node `159` is at `y=828`, while Pyro's bottom is `912`; the nearest-node search radius is `144`, so the upper node can still win over lower-shelf nodes.
+- Patch:
+  - Pending: filter route start candidates so ground-support nodes substantially above the bot's feet are not valid reacquire starts.
+- Expected effect:
+  - Prevent invalid route restarts from upper supports after a bot has already fallen below them.
+  - The controller should either keep the current route long enough to block/replan honestly, or reacquire on the shelf the bot is actually on.
+- Verification:
+  - Pending.
+
+Attempt: taped traversal completion must still be in landing window (2026-04-22)
+- Observation:
+  - The feet-based walk arrival change did not stop Harvest Blue Pyro from advancing from `160 -> 159` into `159 -> 132` while far below node `159`.
+  - The short trace proves the false credit survives after the walk fallback is tightened: at `t=8.1`, Pyro is near `x=2638` but bottom `912`, node `159` is `y=828`, and the route still advances.
+  - The remaining acceptance path is `LastTraversalCompletionTicks`: taped traversals can mark completion when the input tape runs out, without requiring the bot to actually be inside the target landing window.
+- Patch:
+  - Pending: keep raw completion credit unchanged, but require taped completion credit to still satisfy the target landing window before route progress consumes it.
+- Expected effect:
+  - A taped movement that simply expires below/away from its target should not advance the graph route.
+  - This should prevent the Harvest hill route from launching `159 -> 132` after the bot has already fallen below the intended support.
+- Verification:
+  - Pending.
+
+Status correction: Harvest isolation closure (2026-04-22)
+- The pending Harvest notes directly above are superseded by the gated attempt named "Harvest non-light capture route recovery, isolated and gated".
+- Final kept pieces are: broader non-light capture handoff guard, feet-based walk arrival, flat-walk recovery jump, and airborne non-light capture goal-repath deferral.
+- Final rejected pieces are: route-start high support-node filtering, grounded long-walk route hold, descending Scout handoff delay, raw jump source alignment, and taped-completion tightening.
+- No pending code from the rejected pieces remains in the committed candidate.
