@@ -56,6 +56,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float ModernIntelReturnGraphReleaseDistanceX = 760f;
     private const float ModernIntelReturnGraphReleaseDistanceY = 760f;
     private const float ModernIntelReturnDirectArrivalDistance = 88f;
+    private const float ModernIntelMarkerSize = 24f;
     private const int ModernIntelReturnDirectLatchTicks = 90;
     private const float ModernIntelReturnBlockedEdgeBypassDistanceX = 760f;
     private const float ModernIntelReturnBlockedEdgeBypassDistanceY = 760f;
@@ -1192,14 +1193,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         var playerFeet = GetModernPlayerFeetY(player);
-        var hasStartNode = navigationGraph.TryFindNearestNode(
-            player.X,
-            playerFeet,
-            RouteStartNodeSearchDistance,
-            requireGroundSupport: true,
-            out var startNode);
+        var hasStartNode = TryFindModernRouteStartNode(world, player, navigationGraph, destination, out var startNode);
 
-        var hasExactGoalNode = navigationGraph.TryFindNearestNode(destination.X, destination.Y, RouteGoalNodeSearchDistance, requireGroundSupport: true, out var goalNode);
+        var hasExactGoalNode = TryFindModernRouteGoalNode(world, player, navigationGraph, destination, out var goalNode);
         var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
         var goalMoved = destination.X != memory.RouteGoalX
             || destination.Y != memory.RouteGoalY;
@@ -1716,14 +1712,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         var playerFeet = GetModernPlayerFeetY(player);
-        var hasStartNode = navigationGraph.TryFindNearestNode(
-            player.X,
-            playerFeet,
-            RouteStartNodeSearchDistance,
-            requireGroundSupport: true,
-            out var startNode);
+        var hasStartNode = TryFindModernRouteStartNode(world, player, navigationGraph, destination, out var startNode);
 
-        var hasExactGoalNode = navigationGraph.TryFindNearestNode(destination.X, destination.Y, RouteGoalNodeSearchDistance, requireGroundSupport: true, out var goalNode);
+        var hasExactGoalNode = TryFindModernRouteGoalNode(world, player, navigationGraph, destination, out var goalNode);
         var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
         var goalMoved = destination.X != memory.RouteGoalX
             || destination.Y != memory.RouteGoalY;
@@ -1974,11 +1965,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return true;
         }
 
-        if (!navigationGraph.TryFindNearestNode(
-                player.X,
-                GetModernPlayerFeetY(player),
-                RouteStartNodeSearchDistance,
-                requireGroundSupport: true,
+        if (!TryFindModernRouteStartNode(
+                world,
+                player,
+                navigationGraph,
+                objectiveSelection.Destination,
                 out var preferredRouteNearestNode))
         {
             ClearActivePreferredScoreRoute(memory);
@@ -3875,6 +3866,194 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return MathF.Abs(player.X - destination.X) <= ModernPointDirectDistance
             && MathF.Abs(player.Y - destination.Y) <= ModernPointVerticalDistance
             && HasModernObstacleLineOfSight(world, player.X, player.Y, destination.X, destination.Y);
+    }
+
+    private static bool TryFindModernRouteGoalNode(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        (float X, float Y) destination,
+        out BotNavigationNode goalNode)
+    {
+        var hasDefaultGoalNode = navigationGraph.TryFindNearestNode(
+            destination.X,
+            destination.Y,
+            RouteGoalNodeSearchDistance,
+            requireGroundSupport: true,
+            out var defaultGoalNode);
+
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && player.IsCarryingIntel
+            && hasDefaultGoalNode
+            && IsModernIntelReturnScoreApproachNode(player, defaultGoalNode, destination))
+        {
+            goalNode = defaultGoalNode;
+            return true;
+        }
+
+        if (TryFindModernIntelReturnGoalNode(world, player, navigationGraph, destination, out goalNode))
+        {
+            return true;
+        }
+
+        goalNode = defaultGoalNode;
+        return hasDefaultGoalNode;
+    }
+
+    private static bool TryFindModernRouteStartNode(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        (float X, float Y) destination,
+        out BotNavigationNode startNode)
+    {
+        var hasDefaultStartNode = navigationGraph.TryFindNearestNode(
+            player.X,
+            GetModernPlayerFeetY(player),
+            RouteStartNodeSearchDistance,
+            requireGroundSupport: true,
+            out var defaultStartNode);
+
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && player.IsCarryingIntel
+            && PlayerOverlapsIntelMarkerY(player, destination.Y)
+            && hasDefaultStartNode
+            && PlayerFeetOverlapIntelMarkerY(player, defaultStartNode.Y, destination.Y))
+        {
+            startNode = defaultStartNode;
+            return true;
+        }
+
+        if (TryFindModernIntelReturnStartNode(world, player, navigationGraph, destination, out startNode))
+        {
+            return true;
+        }
+
+        startNode = defaultStartNode;
+        return hasDefaultStartNode;
+    }
+
+    private static bool TryFindModernIntelReturnStartNode(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        (float X, float Y) destination,
+        out BotNavigationNode startNode)
+    {
+        startNode = default!;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag
+            || !player.IsCarryingIntel
+            || MathF.Abs(player.X - destination.X) > ModernIntelReturnFinalApproachDistanceX
+            || !PlayerOverlapsIntelMarkerY(player, destination.Y))
+        {
+            return false;
+        }
+
+        var playerFeet = GetModernPlayerFeetY(player);
+        var bestScore = float.PositiveInfinity;
+        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
+        {
+            var candidate = navigationGraph.Nodes[index];
+            if (!candidate.RequiresGroundSupport
+                || !PlayerFeetOverlapIntelMarkerY(player, candidate.Y, destination.Y))
+            {
+                continue;
+            }
+
+            var distanceToPlayer = DistanceBetween(candidate.X, candidate.Y, player.X, playerFeet);
+            if (distanceToPlayer > RouteGoalNodeSearchDistance)
+            {
+                continue;
+            }
+
+            var horizontalScore = MathF.Abs(candidate.X - player.X);
+            var verticalScore = MathF.Abs(candidate.Y - playerFeet) * 4f;
+            var destinationScore = DistanceBetween(candidate.X, candidate.Y, destination.X, destination.Y) * 0.05f;
+            var score = horizontalScore + verticalScore + destinationScore;
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            startNode = candidate;
+        }
+
+        return float.IsFinite(bestScore);
+    }
+
+    private static bool TryFindModernIntelReturnGoalNode(
+        SimulationWorld world,
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        (float X, float Y) destination,
+        out BotNavigationNode goalNode)
+    {
+        goalNode = default!;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag || !player.IsCarryingIntel)
+        {
+            return false;
+        }
+
+        var bestScore = float.PositiveInfinity;
+        var desiredFeetY = destination.Y + player.CollisionBottomOffset - player.CollisionTopOffset;
+        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
+        {
+            var candidate = navigationGraph.Nodes[index];
+            if (!candidate.RequiresGroundSupport)
+            {
+                continue;
+            }
+
+            var distanceToHome = DistanceBetween(candidate.X, candidate.Y, destination.X, destination.Y);
+            if (distanceToHome > RouteGoalNodeSearchDistance
+                || !PlayerFeetOverlapIntelMarkerY(player, candidate.Y, destination.Y))
+            {
+                continue;
+            }
+
+            var horizontalDistance = MathF.Abs(candidate.X - destination.X);
+            if (horizontalDistance > ModernIntelReturnFinalApproachDistanceX)
+            {
+                continue;
+            }
+
+            var verticalScore = MathF.Abs(candidate.Y - desiredFeetY);
+            var score = (verticalScore * 4f) + horizontalDistance + (distanceToHome * 0.05f);
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            goalNode = candidate;
+        }
+
+        return float.IsFinite(bestScore);
+    }
+
+    private static bool IsModernIntelReturnScoreApproachNode(
+        PlayerEntity player,
+        BotNavigationNode node,
+        (float X, float Y) destination)
+    {
+        return node.RequiresGroundSupport
+            && MathF.Abs(node.X - destination.X) <= ModernIntelReturnFinalApproachDistanceX
+            && DistanceBetween(node.X, node.Y, destination.X, destination.Y) <= RouteGoalNodeSearchDistance
+            && PlayerFeetOverlapIntelMarkerY(player, node.Y, destination.Y);
+    }
+
+    private static bool PlayerOverlapsIntelMarkerY(PlayerEntity player, float markerY)
+    {
+        return PlayerFeetOverlapIntelMarkerY(player, player.Bottom, markerY);
+    }
+
+    private static bool PlayerFeetOverlapIntelMarkerY(PlayerEntity player, float feetY, float markerY)
+    {
+        var playerTop = feetY - player.CollisionBottomOffset + player.CollisionTopOffset;
+        var markerTop = markerY - (ModernIntelMarkerSize / 2f);
+        var markerBottom = markerY + (ModernIntelMarkerSize / 2f);
+        return playerTop < markerBottom && feetY > markerTop;
     }
 
     private static bool ShouldUseModernIntelReturnFinalApproach(
