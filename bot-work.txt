@@ -808,3 +808,44 @@ Rescue follow-up: regenerate stale Harvest score-route asset (2026-04-22)
   - Keep the regenerated Harvest asset.
   - Current rescue baseline is now better than the screenshot aggregate (`14/30` vs `11/30`), though Harvest is still below the old map mix (`1/6` vs `2/6`).
   - Next practical fix should target route-miss capture recovery: when near a KOTH/capture objective but below it with no current graph node, do not direct-target the zone; choose a reachable graph/current-node reacquire target or a proved score route.
+
+Next target baseline: Harvest/Gallery/Conflict/Corinth ModernGraphRoute (2026-04-22)
+- Command:
+  - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --stock-ctf-koth-matrix --map Harvest --map Gallery --map Conflict --map Corinth --scenario-kind Score --path-mode ModernGraphRoute --class Scout --class Heavy --class Pyro --no-bot-diagnostics`
+- Result:
+  - `total=24 passed=4 failed=20 timedOut=0`
+- Breakdown:
+  - Conflict: `1/6`
+    - Red Scout PASS
+    - Blue Scout reaches/returns near score but fails final completion
+    - Red Pyro reaches intel but fails return badly
+    - Heavy/Pyro attack-side routing still weak
+  - Corinth: `1/6`
+    - Blue Scout PASS
+    - Other classes/teams fail KOTH approach
+  - Harvest: `1/6`
+    - Blue Scout PASS after regenerated score-route
+    - Others fail by route-miss/direct-target under or near cap
+  - Gallery: `1/6`
+    - Red Pyro PASS
+    - Others fail KOTH approach
+- Next patch target:
+  - KOTH/capture route-miss recovery.
+  - When near a vertical capture objective with no usable route/current node, direct-targeting the zone above the bot causes `h0` vertical jump loops.
+  - Runtime should instead reacquire a reachable graph approach node or keep routing to the nearest reachable capture-zone graph node.
+
+Rejected attempt: KOTH/capture route-miss reacquire target (2026-04-22)
+- Patch:
+  - Added a ModernGraphRoute-only fallback that searched nearby ground nodes when a capture-objective route failed or ended at a partial/invalid endpoint.
+  - The fallback selected a reachable-looking graph node near the player, cleared the active route, and direct-targeted that node as `capture_route_reacquire`.
+- Targeted verification:
+  - `dotnet BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll --run-bot-scenario --map Harvest --scenario-kind Score --path-mode ModernGraphRoute --team Red --class Scout --seconds 120 --fail-fast`
+  - Result: FAIL.
+  - Trace shifted from `route-miss`/direct-target under cap into persistent `capture_route_reacquire` churn.
+- Diagnosis:
+  - This did not fix the underlying Harvest failure.
+  - Red-side routing initially progresses to the cap approach, then breaks around the route segment near nodes `157 -> 158`; the graph has no simple forward connection from the left cap approach toward node `159`/the cap-side component.
+  - Reacquiring nearby nodes after the miss only creates another local loop; it does not repair the missing/weak graph seam.
+- Decision:
+  - Reverted the controller patch.
+  - Do not retry generic capture reacquire without first fixing the route graph seam or using a proved objective route.
