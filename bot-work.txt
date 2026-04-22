@@ -926,3 +926,39 @@ Attempt: CTF intel-return final approach node banding (2026-04-22)
   - Keep and commit.
   - This is a narrow +1 target-gate improvement over the committed rescue baseline without reducing the five-map sentinel.
   - Next practical target: Conflict Red Pyro return or Gallery/Corinth KOTH approach, but keep each attempt gated against Eiger/Valley and the target matrix before committing.
+
+Attempt: capture-route grounded jump-chain handoff (2026-04-22)
+- Observation:
+  - Harvest Blue Heavy reaches the KOTH objective route, but route progress advances from the hill approach into the next jump while Heavy is still airborne.
+  - Concrete trace: after `135 -> 161 -> 160 -> 159`, the route starts `159 -> 132` before Heavy is grounded on the launch support near node `159`; Heavy falls to lower shelf nodes `168/167`, and there is no graph path from that shelf back to capture node `131`.
+  - This produces the recurring `route-miss` direct-target loop under the point: the target X is close, so the bot vertical-jumps in place toward an unreachable objective above it.
+- Patch:
+  - `BotController.NavigationTraversal.cs`: capture-objective routes now delay route-node handoff when the current node requires ground support, the next edge is a jump, and the bot is still airborne.
+  - `BotController.cs`: both graph-route controllers pass `objectiveSelection.IsCaptureObjective` into route progress so the guard is scoped to KOTH/control-point scoring and does not affect CTF intel routes.
+- Expected effect:
+  - KOTH bots should finish landing on a jump launch support before chaining into the next jump edge.
+  - This should prevent premature lower-shelf falloffs like Harvest Heavy/Pyro without reintroducing the earlier broad CTF regression from unscoped jump-handoff delays.
+- Verification:
+  - Target gate (Harvest/Gallery/Conflict/Corinth ModernGraphRoute Score): total=24 passed=7 failed=17 timedOut=0.
+  - Five-map sentinel (Eiger/Valley/Harvest/TwodFortTwo/Gallery ModernGraphRoute Score): total=30 passed=13 failed=17 timedOut=0.
+  - Regressed from committed rescue baseline sentinel total=15/30. Concrete losses: Valley Scout Blue+Red and Harvest Blue Scout; gains were Gallery Blue Pyro and Corinth Red Scout.
+- Decision:
+  - Reverted. The behavior is locally plausible but too broad as implemented; it blocks successful fast Scout KOTH routes and is not safe to keep without a narrower condition.
+
+Attempt: non-light capture-route grounded jump-chain handoff (2026-04-22)
+- Observation:
+  - The broad capture-route handoff guard produced useful gains but regressed Scout KOTH routes, especially Valley Scout Blue+Red and Harvest Blue Scout.
+  - This implies Scout/light routes need the existing fast midair chaining, while slower Standard/Heavy profiles may benefit from waiting until they are actually grounded on the jump launch support.
+- Patch:
+  - `BotController.NavigationTraversal.cs`: route progress can optionally delay airborne handoff into a grounded-support jump.
+  - `BotController.cs`: the delay is enabled only for capture-objective routes whose navigation profile is not `Light`; Scout/Sniper/Spy keep the old route advancement behavior.
+- Expected effect:
+  - Preserve baseline Scout KOTH passes while retaining the non-Scout Gallery/Harvest-style benefit from avoiding premature jump-chain handoff.
+- Verification:
+  - Build: `dotnet build BotAI.Tools\OpenGarrison.BotAI.Tools.csproj -c Debug` passed.
+  - Target gate (Harvest/Gallery/Conflict/Corinth ModernGraphRoute Score): total=24 passed=7 failed=17 timedOut=0.
+  - Five-map sentinel (Eiger/Valley/Harvest/TwodFortTwo/Gallery ModernGraphRoute Score): total=30 passed=16 failed=14 timedOut=0.
+  - Baseline comparison: target improves from 6/24 to 7/24; sentinel improves from 15/30 to 16/30.
+  - New target pass: Gallery Blue Pyro. Scout sentinel passes are preserved because Light profile routes keep the old midair handoff behavior.
+- Decision:
+  - Keep and commit. This is a narrow +1 improvement on both target and sentinel gates after the broad variant was rejected.
