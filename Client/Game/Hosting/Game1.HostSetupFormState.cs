@@ -459,6 +459,7 @@ public partial class Game1
         public void SortMapEntries(string? selectedLevelName = null)
         {
             var desiredSelection = selectedLevelName ?? GetSelectedMapEntry()?.LevelName;
+            NormalizeIncludedMapOrders(MapEntries);
             MapEntries = OpenGarrisonStockMapCatalog.GetOrderedEntries(MapEntries)
                 .Select(entry => entry.Clone())
                 .ToList();
@@ -564,6 +565,16 @@ public partial class Game1
             return Math.Max(0, MapEntries.Count - Math.Max(1, visibleRowCount));
         }
 
+        private static void NormalizeIncludedMapOrders(IEnumerable<OpenGarrisonMapRotationEntry> entries)
+        {
+            var normalizedOrder = 1;
+            foreach (var entry in OpenGarrisonStockMapCatalog.GetOrderedEntries(entries).Where(entry => entry.Order > 0))
+            {
+                entry.Order = normalizedOrder;
+                normalizedOrder += 1;
+            }
+        }
+
         private static List<OpenGarrisonMapRotationEntry> BuildMapEntries(OpenGarrisonHostSettings hostDefaults)
         {
             var configuredEntries = hostDefaults.StockMapRotation
@@ -588,6 +599,8 @@ public partial class Game1
                     });
                 }
             }
+
+            NormalizeIncludedMapOrders(mergedEntries);
 
             return OpenGarrisonStockMapCatalog.GetOrderedEntries(mergedEntries)
                 .Select(entry => entry.Clone())

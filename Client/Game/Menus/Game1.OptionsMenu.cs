@@ -61,6 +61,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleFlameRenderModeSetting()
+    {
+        _flameRenderMode = (_flameRenderMode + 1) % 2;
+        PersistClientSettings();
+    }
+
     private void CycleGibLevelSetting()
     {
         _gibLevel = _gibLevel switch

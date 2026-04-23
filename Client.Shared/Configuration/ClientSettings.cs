@@ -34,6 +34,8 @@ public sealed class ClientSettings
 
     public int ParticleMode { get; set; }
 
+    public int FlameRenderMode { get; set; }
+
     public int GibLevel { get; set; } = 3;
 
     public int CorpseDurationMode { get; set; }

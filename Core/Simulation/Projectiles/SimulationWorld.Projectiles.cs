@@ -187,7 +187,7 @@ public sealed partial class SimulationWorld
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {
-            rocket.DelayExplosionUntilNextTick();
+            rocket.DelayExplosionUntilNextTick(RocketProjectileEntity.DelayedExplosionReasonSpawnBlocked);
         }
 
         _rockets.Add(rocket);
