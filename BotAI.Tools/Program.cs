@@ -174,7 +174,6 @@ return 0;
 
 static int RunBotScenarioHarness(NavBuildOptions options)
 {
-    ModernPracticeBotController.CompatNavPointSourceOverride = options.CompatNavPointSource;
     var cases = BuildBotScenarioCases(options);
     if (cases.Count == 0)
     {
@@ -191,11 +190,11 @@ static int RunBotScenarioHarness(NavBuildOptions options)
     {
         var scenario = cases[index];
         Console.WriteLine(
-            $"run case={index + 1}/{cases.Count} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode={scenario.PathMode} seconds={scenario.SimulationSeconds} kind={scenario.Kind}");
+            $"run case={index + 1}/{cases.Count} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode=ModernGraphRoute seconds={scenario.SimulationSeconds} kind={scenario.Kind}");
         var result = RunBotScenarioCase(scenario, wallTimeoutMilliseconds, options.CollectBotDiagnostics);
         var progress = result.StartObjectiveDistance - result.BestObjectiveDistance;
         Console.WriteLine(
-            $"result status={(result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail")} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode={scenario.PathMode} elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} maxSpawn={result.MaxDistanceFromSpawn:0.0} longestNoProgress={result.LongestNoProgressSeconds:0.0}s maxStuck={result.MaxStuckTicks} satisfied={result.SatisfiedScenario} completed={result.CompletedObjective} reason={result.FailureReason} objective={CompactScoreRouteLogValue(result.ObjectiveSummary, 320)}");
+            $"result status={(result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail")} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode=ModernGraphRoute elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} maxSpawn={result.MaxDistanceFromSpawn:0.0} longestNoProgress={result.LongestNoProgressSeconds:0.0}s maxStuck={result.MaxStuckTicks} satisfied={result.SatisfiedScenario} completed={result.CompletedObjective} reason={result.FailureReason} objective={CompactScoreRouteLogValue(result.ObjectiveSummary, 320)}");
         if (!string.IsNullOrWhiteSpace(result.RouteSummary))
         {
             Console.WriteLine($"  routes: {result.RouteSummary}");
@@ -239,7 +238,6 @@ static int BuildScoreRoutes(NavBuildOptions options)
         return 2;
     }
 
-    ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.GeneratedAssetFresh;
     var totalAreas = 0;
     var validatedContexts = 0;
     var failedContexts = 0;
@@ -1148,7 +1146,6 @@ static BotScenarioResult RunScoreRouteProof(
             team,
             classId,
             options.GetEffectiveScoreRouteProofSeconds(),
-            BotPathMode.ModernGraphRoute,
             BotScenarioKind.Score,
             level.MapAreaIndex);
         return RunBotScenarioCase(
@@ -1916,8 +1913,8 @@ static List<BotScenarioCase> BuildBotScenarioCases(NavBuildOptions options)
         {
             foreach (var scenarioClass in scenarioClasses)
             {
-                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Blue, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioPathMode, BotScenarioKind.Score));
-                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Red, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioPathMode, BotScenarioKind.Score));
+                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Blue, scenarioClass, options.GetEffectiveScenarioSeconds(), BotScenarioKind.Score));
+                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Red, scenarioClass, options.GetEffectiveScenarioSeconds(), BotScenarioKind.Score));
             }
         }
 
@@ -1937,8 +1934,8 @@ static List<BotScenarioCase> BuildBotScenarioCases(NavBuildOptions options)
 
             foreach (var scenarioClass in scenarioClasses)
             {
-                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Blue, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioPathMode, options.ScenarioKind));
-                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Red, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioPathMode, options.ScenarioKind));
+                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Blue, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioKind));
+                cases.Add(new BotScenarioCase(mapName, PlayerTeam.Red, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioKind));
             }
         }
 
@@ -1949,7 +1946,7 @@ static List<BotScenarioCase> BuildBotScenarioCases(NavBuildOptions options)
     {
         foreach (var scenarioClass in scenarioClasses)
         {
-            cases.Add(new BotScenarioCase(mapName, options.ScenarioTeam, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioPathMode, options.ScenarioKind));
+            cases.Add(new BotScenarioCase(mapName, options.ScenarioTeam, scenarioClass, options.GetEffectiveScenarioSeconds(), options.ScenarioKind));
         }
     }
 
@@ -2014,7 +2011,7 @@ static BotScenarioResult RunBotScenarioCase(
     };
     var controlledSlots = new Dictionary<byte, ControlledBotSlot>
     {
-        [botSlot] = new(botSlot, scenario.Team, scenario.ClassId, scenario.PathMode),
+        [botSlot] = new(botSlot, scenario.Team, scenario.ClassId),
     };
 
     if (!TryPrepareScenario(world, bot, scenario, out var setupFailureReason))
@@ -3607,7 +3604,7 @@ static IReadOnlyList<string> GetStockScoreMaps()
 internal sealed class NavBuildOptions
 {
     public const string Usage =
-        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--path-mode ModernHybrid|ClientBot2020Compat|ModernGraphRoute] [--seconds N] [--wall-timeout-ms N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch]";
+        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--seconds N] [--wall-timeout-ms N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch]";
 
     public HashSet<string> MapNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -3652,10 +3649,6 @@ internal sealed class NavBuildOptions
     public PlayerTeam ScenarioTeam { get; private set; } = PlayerTeam.Blue;
 
     public IReadOnlyList<PlayerClass> ScenarioClasses => _scenarioClasses;
-
-    public BotPathMode ScenarioPathMode { get; private set; } = BotPathMode.ClientBot2020Compat;
-
-    public CompatNavPointSource CompatNavPointSource { get; private set; } = CompatNavPointSource.Auto;
 
     public int ScenarioSeconds { get; private set; } = 120;
 
@@ -3866,28 +3859,6 @@ internal sealed class NavBuildOptions
                     options._scenarioClasses.Add(playerClass);
                 }
 
-                continue;
-            }
-
-            if (arg.Equals("--path-mode", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                if (!Enum.TryParse<BotPathMode>(args[++index].Trim(), ignoreCase: true, out var pathMode))
-                {
-                    throw new ArgumentException($"Unknown path mode '{args[index]}'.");
-                }
-
-                options.ScenarioPathMode = pathMode;
-                continue;
-            }
-
-            if (arg.Equals("--compat-nav-source", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
-            {
-                if (!Enum.TryParse<CompatNavPointSource>(args[++index].Trim(), ignoreCase: true, out var compatNavPointSource))
-                {
-                    throw new ArgumentException($"Unknown compat nav source '{args[index]}'.");
-                }
-
-                options.CompatNavPointSource = compatNavPointSource;
                 continue;
             }
 
@@ -4142,7 +4113,6 @@ internal readonly record struct BotScenarioCase(
     PlayerTeam Team,
     PlayerClass ClassId,
     int SimulationSeconds,
-    BotPathMode PathMode,
     BotScenarioKind Kind,
     int MapAreaIndex = 1);
 

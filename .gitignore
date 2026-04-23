@@ -6,6 +6,8 @@ Gang-Garrison-2/
 /NextPrioritiesAndBugs.txt
 /AbilityNames.txt
 .codex-dotnet/
+.codex-temp/
+.dotnet/
 /.tmp*/
 %TEMP%/
 Tests/**/TestResults/
