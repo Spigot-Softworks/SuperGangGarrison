@@ -57,8 +57,6 @@ public partial class Game1
     private double _browserPracticeBotPerfSetInputMaxMilliseconds;
     private bool _navEditorScoreTrioActive;
 
-    public BotPathMode PracticeBotPathMode { get; set; } = BotPathMode.ClientBot2020Compat;
-
     private sealed class PracticeBotSlotState
     {
         public PracticeBotSlotState(byte slot, PlayerTeam team, PlayerClass classId, string displayName)
@@ -566,8 +564,7 @@ public partial class Game1
             _controlledPracticeBotSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 entry.Value.Team,
-                entry.Value.ClassId,
-                PracticeBotPathMode);
+                entry.Value.ClassId);
         }
 
         return _controlledPracticeBotSlotsBuffer;
@@ -599,7 +596,6 @@ public partial class Game1
         }
 
         _navEditorScoreTrioActive = true;
-        PracticeBotPathMode = BotPathMode.ClientBot2020Compat;
         ResetPracticeBotManagerState(releaseWorldSlots: true);
         SyncPracticeBotRoster(_world.LocalPlayerTeam);
         var teamLabel = _world.LocalPlayerTeam.ToString();

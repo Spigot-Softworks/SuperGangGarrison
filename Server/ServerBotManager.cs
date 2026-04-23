@@ -44,8 +44,6 @@ internal sealed class ServerBotManager
     private double _perfApplyInputTotalMs;
     private double _perfApplyInputMaxMs;
 
-    public BotPathMode BotPathMode { get; set; } = BotPathMode.ClientBot2020Compat;
-
     public ServerBotManager(
         SimulationWorld world,
         SimulationConfig config,
@@ -381,8 +379,7 @@ internal sealed class ServerBotManager
             _controlledSlotsBuffer[entry.Key] = new ControlledBotSlot(
                 entry.Key,
                 player.Team,
-                player.ClassId,
-                BotPathMode);
+                player.ClassId);
         }
     }
 

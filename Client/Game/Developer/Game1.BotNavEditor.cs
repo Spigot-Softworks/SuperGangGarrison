@@ -486,7 +486,6 @@ public partial class Game1
             return;
         }
 
-        ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.ShippedModernAsset;
         _navEditorEnabled = true;
         RefreshNavEditorWindowGutter();
         _navEditorTool = NavEditorTool.Select;
@@ -518,7 +517,6 @@ public partial class Game1
 
     private void DisableNavEditor(string reason)
     {
-        ModernPracticeBotController.CompatNavPointSourceOverride = CompatNavPointSource.Auto;
         StopNavEditorScoreTrioPracticeBots(silent: true);
         ClearNavEditorTraversalCaptureState();
         ClearNavEditorTraversalPlaybackState();
