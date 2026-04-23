@@ -9,6 +9,8 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
+
     private void DrawMedicBeams(Vector2 cameraPosition)
     {
         foreach (var player in EnumerateRenderablePlayers())
@@ -274,9 +276,16 @@ public partial class Game1
             DrawNeedleProjectile(needle, cameraPosition);
         }
 
-        foreach (var flame in _world.Flames)
+        if (_flameRenderMode == 0)
         {
-            DrawFlameProjectile(flame, cameraPosition);
+            DrawFlameProjectiles(cameraPosition);
+        }
+        else
+        {
+            foreach (var flame in _world.Flames)
+            {
+                DrawFlameProjectile(flame, cameraPosition);
+            }
         }
 
         foreach (var flare in _world.Flares)
@@ -377,20 +386,320 @@ public partial class Game1
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Custom procedural flame particle
+    // -----------------------------------------------------------------------
+
+    private void DrawFlameProjectiles(Vector2 cameraPosition)
+    {
+        var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
+
+        foreach (var flame in _world.Flames)
+        {
+            AccumulateFlameParticle(cells, flame);
+        }
+
+        DrawProceduralFlameCells(cells, cameraPosition);
+    }
+
+    private void DrawProceduralFlameCells(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        Vector2 cameraPosition,
+        bool topOutlineOnly = false)
+    {
+        const float cellSize = 2f;
+
+        static bool IsBoundaryCell(System.Collections.Generic.Dictionary<(int, int), float> map, int gx, int gy)
+        {
+            for (var offsetY = -1; offsetY <= 1; offsetY += 1)
+            {
+                for (var offsetX = -1; offsetX <= 1; offsetX += 1)
+                {
+                    if (offsetX == 0 && offsetY == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!map.ContainsKey((gx + offsetX, gy + offsetY)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        static bool IsTopBoundaryCell(System.Collections.Generic.Dictionary<(int, int), float> map, int gx, int gy)
+        {
+            return !map.ContainsKey((gx - 1, gy - 1))
+                || !map.ContainsKey((gx, gy - 1))
+                || !map.ContainsKey((gx + 1, gy - 1));
+        }
+
+        foreach (var ((gx, gy), retainedAlpha) in cells)
+        {
+            // Thresholding already happened during accumulation, so coloring only sees
+            // the merged depth of cells that survived the 50% opacity cut.
+            var hasOutline = topOutlineOnly
+                ? IsTopBoundaryCell(cells, gx, gy)
+                : IsBoundaryCell(cells, gx, gy);
+            Color pixelColor;
+            if (hasOutline)
+                pixelColor = new Color(255,  75,   0);  // deep orange outline
+            else if (retainedAlpha < 0.75f)
+                pixelColor = new Color(255,  75,   0);  // deep orange
+            else if (retainedAlpha < 1.30f)
+                pixelColor = new Color(255, 145,   5);  // orange-yellow
+            else if (retainedAlpha < 2.10f)
+                pixelColor = new Color(255, 210,  25);  // yellow
+            else
+                pixelColor = new Color(255, 242, 130);  // near-white (overlap core)
+
+            var rect = new Rectangle(
+                (int)MathF.Round((gx * cellSize) - cameraPosition.X),
+                (int)MathF.Round((gy * cellSize) - cameraPosition.Y),
+                (int)cellSize,
+                (int)cellSize);
+            _spriteBatch.Draw(_pixel, rect, pixelColor);
+        }
+    }
+
+    private void DrawProceduralFlameParticles(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        Vector2 cameraPosition,
+        bool topOutlineOnly = false)
+    {
+        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly);
+    }
+
+    private void AccumulateFlameParticle(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        FlameProjectileEntity flame)
+    {
+        var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
+        var scale = GetFlameProjectileScale(flame);
+        AccumulateProceduralFlameParticle(
+            cells,
+            flame.Id,
+            renderPosition.X,
+            renderPosition.Y,
+            scale,
+            alphaScale: 1f,
+            motionX: flame.VelocityX,
+            motionY: flame.VelocityY,
+            trajectoryStretch: 1.5f);
+    }
+
+    private void AccumulateProceduralFlameParticle(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        int seed,
+        float centerX,
+        float centerY,
+        float scale,
+        float alphaScale,
+        float motionX = 0f,
+        float motionY = 0f,
+        float trajectoryStretch = 1f)
+    {
+        const float cellSize = 2f;
+
+        var clampedAlphaScale = Math.Clamp(alphaScale, 0f, 1f);
+
+        // Horn waving – both horns sway side-to-side together, driven by a
+        // per-flame deterministic phase/speed so every flame looks independent.
+        var hornPhase    = GetDeterministicUnitFloat(seed, salt: 97)  * MathF.PI * 2f;
+        var hornSpeed    = MathHelper.Lerp(0.07f, 0.13f, GetDeterministicUnitFloat(seed, salt: 113));
+        var swayAmp      = MathHelper.Lerp(1.5f,  3.0f,  GetDeterministicUnitFloat(seed, salt: 127)) * scale;
+        var hornSway     = MathF.Sin(_world.Frame * hornSpeed + hornPhase) * swayAmp;
+
+        // --- circle centres & radii (world-space) ---
+        var cx    = centerX;
+        var cy    = centerY;
+        var baseR = 6f * scale;
+
+        var motionLengthSquared = (motionX * motionX) + (motionY * motionY);
+        var oppositeMotionDirection = motionLengthSquared > 0.0001f
+            ? Vector2.Normalize(new Vector2(-motionX, -motionY))
+            : new Vector2(0f, -1f);
+        var trajectoryDirection = motionLengthSquared > 0.0001f
+            ? Vector2.Normalize(new Vector2(motionX, motionY))
+            : new Vector2(1f, 0f);
+        var clampedStretch = Math.Clamp(trajectoryStretch, 1f, 2.25f);
+        var hornAxis = new Vector2(0f, -1f) * 1.2f + oppositeMotionDirection * 0.65f;
+        if (hornAxis.LengthSquared() <= 0.0001f)
+        {
+            hornAxis = new Vector2(0f, -1f);
+        }
+        else
+        {
+            hornAxis.Normalize();
+        }
+
+        var hornPerpendicular = new Vector2(-hornAxis.Y, hornAxis.X);
+        if (hornPerpendicular.LengthSquared() <= 0.0001f)
+        {
+            hornPerpendicular = new Vector2(1f, 0f);
+        }
+        else
+        {
+            hornPerpendicular.Normalize();
+        }
+
+        // Per-flame random: which horn (left=1, right=2) is the big one.
+        var bigOnLeft = GetDeterministicUnitFloat(seed, salt: 151) < 0.5f;
+        var hornBigR   = 5.5f * scale;
+        var hornSmallLargeR = 2.8f * scale;
+        var h1LargeR = bigOnLeft ? hornBigR : hornSmallLargeR;
+        var h2LargeR = bigOnLeft ? hornSmallLargeR : hornBigR;
+
+        // Horn base circles stay biased upward, but their axis tilts backward against motion.
+        // Perpendicular separation stays asymmetric so the big horn sits more central.
+        var h1SepX  = (bigOnLeft ? 2.5f : 3.5f) * scale;
+        var h2SepX  = (bigOnLeft ? 3.5f : 2.5f) * scale;
+        var hornRiseY = 5f * scale;
+        var hornWaveX = hornPerpendicular.X * hornSway;
+        var hornWaveY = hornPerpendicular.Y * hornSway;
+        var h1lCx = cx + hornAxis.X * hornRiseY - hornPerpendicular.X * h1SepX + hornWaveX;
+        var h1lCy = cy + hornAxis.Y * hornRiseY - hornPerpendicular.Y * h1SepX + hornWaveY;
+        var h2lCx = cx + hornAxis.X * hornRiseY + hornPerpendicular.X * h2SepX + hornWaveX;
+        var h2lCy = cy + hornAxis.Y * hornRiseY + hornPerpendicular.Y * h2SepX + hornWaveY;
+
+        // noiseRadius: how far outside the hard boundary the edge fuzz extends.
+        var noiseRadius = 2f * scale;
+
+        var maxCircleRadius = MathF.Max(baseR, MathF.Max(h1LargeR, h2LargeR));
+        var extraStretchRadius = (clampedStretch - 1f) * maxCircleRadius;
+        var minX = MathF.Min(cx - baseR, MathF.Min(h1lCx - h1LargeR, h2lCx - h2LargeR)) - noiseRadius - extraStretchRadius;
+        var maxX = MathF.Max(cx + baseR, MathF.Max(h1lCx + h1LargeR, h2lCx + h2LargeR)) + noiseRadius + extraStretchRadius;
+        var minY = MathF.Min(cy - baseR, MathF.Min(h1lCy - h1LargeR, h2lCy - h2LargeR)) - noiseRadius - extraStretchRadius;
+        var maxY = MathF.Max(cy + baseR, MathF.Max(h1lCy + h1LargeR, h2lCy + h2LargeR)) + noiseRadius + extraStretchRadius;
+
+        var minGX = (int)MathF.Floor(minX / cellSize);
+        var maxGX = (int)MathF.Floor(maxX / cellSize);
+        var minGY = (int)MathF.Floor(minY / cellSize);
+        var maxGY = (int)MathF.Floor(maxY / cellSize);
+
+        // Noise seed: unique per flame, stable across frames (no temporal shimmer).
+        var noiseSeed = seed * 1234567 ^ 0x5EED_ABCD;
+
+        // Per-cell SDF helper (static – no capture).
+        static float CircleSDF(
+            float px,
+            float py,
+            float circleCx,
+            float circleCy,
+            float r,
+            Vector2 trajectoryDirection,
+            float stretch)
+        {
+            var dx = px - circleCx;
+            var dy = py - circleCy;
+            var alongTrajectory = (dx * trajectoryDirection.X) + (dy * trajectoryDirection.Y);
+            var perpX = dx - (alongTrajectory * trajectoryDirection.X);
+            var perpY = dy - (alongTrajectory * trajectoryDirection.Y);
+            var scaledAlong = alongTrajectory / stretch;
+            return MathF.Sqrt((scaledAlong * scaledAlong) + (perpX * perpX) + (perpY * perpY)) - r;
+        }
+
+        var noiseRadiusTimes2 = noiseRadius * 2f;
+
+        for (var gy = minGY; gy <= maxGY; gy++)
+        {
+            var cellCY = (gy * cellSize) + (cellSize * 0.5f);
+            for (var gx = minGX; gx <= maxGX; gx++)
+            {
+                var cellCX = (gx * cellSize) + (cellSize * 0.5f);
+
+                // Minimum signed distance to the compound shape.
+                var sdf = MathF.Min(
+                    CircleSDF(cellCX, cellCY, cx,    cy,    baseR, trajectoryDirection, clampedStretch),
+                    MathF.Min(
+                        CircleSDF(cellCX, cellCY, h1lCx, h1lCy, h1LargeR, trajectoryDirection, clampedStretch),
+                            CircleSDF(cellCX, cellCY, h2lCx, h2lCy, h2LargeR, trajectoryDirection, clampedStretch)));
+
+                // Skip cells well outside the fuzz zone.
+                if (sdf > noiseRadius)
+                {
+                    continue;
+                }
+
+                // rawAlpha: 1.0 deep inside shape, 0.5 at boundary, 0.0 at noiseRadius outside.
+                var rawAlpha = 0.5f - (sdf / noiseRadiusTimes2);
+
+                // Edge noise: stronger further from centre (i.e. higher at the boundary/outside).
+                var noise       = GetFlameEdgeNoise(gx, gy, noiseSeed);
+                var clampedRaw  = Math.Clamp(rawAlpha, 0f, 1f);
+                var noiseEffect = (noise - 0.5f) * (1f - clampedRaw) * 0.7f;
+                var noisedAlpha = rawAlpha + noiseEffect;
+                rawAlpha *= clampedAlphaScale;
+                noisedAlpha *= clampedAlphaScale;
+
+                // Apply the shape cut before any overlap accumulation so coloring is
+                // driven only by merged cells that survive the opacity threshold.
+                if (noisedAlpha < 0.5f)
+                {
+                    continue;
+                }
+
+                var key = (gx, gy);
+                if (cells.TryGetValue(key, out var existing))
+                {
+                    // Surviving cells now merge additively, and the merged depth alone
+                    // decides the final colour stage.
+                    cells[key] = MathF.Min(4.0f, existing + rawAlpha);
+                }
+                else
+                {
+                    cells[key] = rawAlpha;
+                }
+            }
+        }
+    }
+
+    private static float GetFlameEdgeNoise(int gx, int gy, int seed)
+    {
+        // 3x3 Gaussian kernel to soften edge noise and reduce jagged pixel transitions.
+        var weightedNoise =
+            (GetFlameEdgeNoiseSample(gx - 1, gy - 1, seed) * 1f) +
+            (GetFlameEdgeNoiseSample(gx,     gy - 1, seed) * 2f) +
+            (GetFlameEdgeNoiseSample(gx + 1, gy - 1, seed) * 1f) +
+            (GetFlameEdgeNoiseSample(gx - 1, gy,     seed) * 2f) +
+            (GetFlameEdgeNoiseSample(gx,     gy,     seed) * 4f) +
+            (GetFlameEdgeNoiseSample(gx + 1, gy,     seed) * 2f) +
+            (GetFlameEdgeNoiseSample(gx - 1, gy + 1, seed) * 1f) +
+            (GetFlameEdgeNoiseSample(gx,     gy + 1, seed) * 2f) +
+            (GetFlameEdgeNoiseSample(gx + 1, gy + 1, seed) * 1f);
+        return weightedNoise / 16f;
+    }
+
+    private static float GetFlameEdgeNoiseSample(int gx, int gy, int seed)
+    {
+        unchecked
+        {
+            var hash = (uint)seed;
+            hash ^= (uint)(gx * 374761393);
+            hash ^= (uint)(gy * 668265263);
+            hash = (hash ^ (hash >> 13)) * 1274126177u;
+            hash ^= hash >> 16;
+            return (hash & 1023u) / 1023f;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Legacy sprite-based flame draw (kept for reference, no longer called)
+    // -----------------------------------------------------------------------
+
     private void DrawFlameProjectile(FlameProjectileEntity flame, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
         var flameColor = Color.White;
         var flameSprite = GetResolvedSprite("FlameS");
+        var flameScale = GetFlameProjectileScale(flame);
+
         if (flameSprite is not null && flameSprite.Frames.Count > 0)
         {
-            var flameAgeTicks = flame.IsAttached
-                ? FlameProjectileEntity.AttachedLifetimeTicks - flame.TicksRemaining
-                : FlameProjectileEntity.AirLifetimeTicks - flame.TicksRemaining;
-            var frameIndex = Math.Clamp(
-                Math.Abs(flameAgeTicks) % flameSprite.Frames.Count,
-                0,
-                flameSprite.Frames.Count - 1);
+            var frameIndex = GetFlameProjectileFrameIndex(flame, flameSprite.Frames.Count);
             DrawLoadedSpriteFrame(
                 flameSprite.Frames[frameIndex],
                 new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
@@ -398,13 +707,14 @@ public partial class Game1
                 flameColor,
                 0f,
                 flameSprite.Origin.ToVector2(),
-                Vector2.One,
+                new Vector2(flameScale, flameScale),
                 SpriteEffects.None,
                 0f);
             return;
         }
 
-        var flameSize = flame.IsAttached ? 8 : 6;
+        var baseFlameSize = flame.IsAttached ? 8f : 6f;
+        var flameSize = Math.Max(2, (int)MathF.Round(baseFlameSize * flameScale));
         var fallbackColor = flame.IsAttached
             ? new Color(255, 120, 60)
             : new Color(255, 170, 90);
@@ -414,6 +724,104 @@ public partial class Game1
             flameSize,
             flameSize);
         _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
+    }
+
+    private float GetFlameProjectileScale(FlameProjectileEntity flame)
+    {
+        var flameLifetimeTicks = flame.IsAttached
+            ? FlameProjectileEntity.AttachedLifetimeTicks
+            : FlameProjectileEntity.AirLifetimeTicks;
+        var flameAgeTicks = flameLifetimeTicks - flame.TicksRemaining;
+        var lifeProgress = float.Clamp(flameAgeTicks / (float)Math.Max(1, flameLifetimeTicks), 0f, 1f);
+
+        // Deterministic per-flame variation avoids flicker while giving each flame a unique growth profile.
+        var randomGrowthRate = MathHelper.Lerp(0.72f, 1.28f, GetDeterministicUnitFloat(flame.Id, salt: 11));
+        var randomMaxScale = MathHelper.Lerp(1.18f, 1.4f, GetDeterministicUnitFloat(flame.Id, salt: 29));
+        var startScale = MathHelper.Lerp(0.42f, 0.58f, GetDeterministicUnitFloat(flame.Id, salt: 47));
+        var growthProgress = MathF.Pow(lifeProgress, randomGrowthRate);
+        return MathHelper.Lerp(startScale, randomMaxScale, growthProgress);
+    }
+
+    private static int GetFlameProjectileFrameIndex(FlameProjectileEntity flame, int frameCount)
+    {
+        if (frameCount <= 0)
+        {
+            return 0;
+        }
+
+        var flameLifetimeTicks = flame.IsAttached
+            ? FlameProjectileEntity.AttachedLifetimeTicks
+            : FlameProjectileEntity.AirLifetimeTicks;
+        var flameAgeTicks = flameLifetimeTicks - flame.TicksRemaining;
+        return Math.Clamp(Math.Abs(flameAgeTicks) % frameCount, 0, frameCount - 1);
+    }
+
+    private Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
+    {
+        // Geometric centre-of-mass of the compound particle (base + 2 large horn + 2 small tip circles).
+        // Weighted by circle area (∝ r²): base r=6, horn large r=4 ×2, horn small r=2.5 ×2.
+        // Symmetric in X, net Y offset ≈ -3.4 * scale upward from base centre.
+        var scale = GetFlameProjectileScale(flame);
+        return new Vector2(flame.X, flame.Y - 3.4f * scale);
+    }
+
+    private Vector2 GetSpriteFrameCenterOfMass(LoadedSpriteFrame frame)
+    {
+        if (_spriteFrameCenterOfMassCache.TryGetValue(frame, out var cachedCenterOfMass))
+        {
+            return cachedCenterOfMass;
+        }
+
+        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+        if (sourceRectangle.Width <= 0 || sourceRectangle.Height <= 0)
+        {
+            var emptyCenter = Vector2.Zero;
+            _spriteFrameCenterOfMassCache[frame] = emptyCenter;
+            return emptyCenter;
+        }
+
+        var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+
+        double weightedX = 0d;
+        double weightedY = 0d;
+        double totalWeight = 0d;
+        for (var y = 0; y < sourceRectangle.Height; y += 1)
+        {
+            for (var x = 0; x < sourceRectangle.Width; x += 1)
+            {
+                var alpha = pixels[(y * sourceRectangle.Width) + x].A;
+                if (alpha <= 0)
+                {
+                    continue;
+                }
+
+                var weight = alpha / 255d;
+                weightedX += (x + 0.5d) * weight;
+                weightedY += (y + 0.5d) * weight;
+                totalWeight += weight;
+            }
+        }
+
+        var centerOfMass = totalWeight > 0d
+            ? new Vector2((float)(weightedX / totalWeight), (float)(weightedY / totalWeight))
+            : new Vector2(sourceRectangle.Width * 0.5f, sourceRectangle.Height * 0.5f);
+        _spriteFrameCenterOfMassCache[frame] = centerOfMass;
+        return centerOfMass;
+    }
+
+    private static float GetDeterministicUnitFloat(int seed, int salt)
+    {
+        unchecked
+        {
+            uint value = (uint)(seed * 73856093) ^ (uint)(salt * 19349663);
+            value ^= value >> 16;
+            value *= 2246822519u;
+            value ^= value >> 13;
+            value *= 3266489917u;
+            value ^= value >> 16;
+            return (value & 0x00FFFFFFu) / 16777215f;
+        }
     }
 
     private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)

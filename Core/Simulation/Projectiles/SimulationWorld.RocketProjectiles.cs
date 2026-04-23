@@ -4,6 +4,80 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    public bool DebugHasLastRocketCollision { get; private set; }
+    public float DebugLastRocketCollisionX { get; private set; }
+    public float DebugLastRocketCollisionY { get; private set; }
+    public string DebugLastRocketCollisionObjectName { get; private set; } = string.Empty;
+    public string DebugLastRocketCollisionReason { get; private set; } = string.Empty;
+
+    public bool DebugHasProjectileSpawnBlocked { get; private set; }
+    public float DebugProjectileSpawnBlockedX { get; private set; }
+    public float DebugProjectileSpawnBlockedY { get; private set; }
+    public float DebugProjectileSpawnBlockedWidth { get; private set; }
+    public float DebugProjectileSpawnBlockedHeight { get; private set; }
+    public string DebugProjectileSpawnBlockedObjectName { get; private set; } = string.Empty;
+
+    private void SetLastRocketCollisionDebug(float x, float y, string objectName, string reason)
+    {
+        DebugHasLastRocketCollision = true;
+        DebugLastRocketCollisionX = x;
+        DebugLastRocketCollisionY = y;
+        DebugLastRocketCollisionObjectName = objectName;
+        DebugLastRocketCollisionReason = reason;
+    }
+
+    private void SetProjectileSpawnBlockedDebug(float x, float y, float width, float height, string objectName)
+    {
+        DebugHasProjectileSpawnBlocked = true;
+        DebugProjectileSpawnBlockedX = x;
+        DebugProjectileSpawnBlockedY = y;
+        DebugProjectileSpawnBlockedWidth = width;
+        DebugProjectileSpawnBlockedHeight = height;
+        DebugProjectileSpawnBlockedObjectName = objectName;
+    }
+
+    private string ResolveRocketEnvironmentCollisionName(float hitX, float hitY)
+    {
+        const float epsilon = 0.25f;
+        for (var index = 0; index < Level.RoomObjects.Count; index += 1)
+        {
+            var roomObject = Level.RoomObjects[index];
+            var blocksProjectiles = roomObject.Type switch
+            {
+                RoomObjectType.TeamGate => true,
+                RoomObjectType.ControlPointSetupGate => Level.ControlPointSetupGatesActive,
+                RoomObjectType.BulletWall => true,
+                _ => false,
+            };
+            if (!blocksProjectiles)
+            {
+                continue;
+            }
+
+            if (hitX >= roomObject.Left - epsilon
+                && hitX <= roomObject.Right + epsilon
+                && hitY >= roomObject.Top - epsilon
+                && hitY <= roomObject.Bottom + epsilon)
+            {
+                return $"RoomObject:{roomObject.Type}";
+            }
+        }
+
+        for (var index = 0; index < Level.Solids.Count; index += 1)
+        {
+            var solid = Level.Solids[index];
+            if (hitX >= solid.Left - epsilon
+                && hitX <= solid.Right + epsilon
+                && hitY >= solid.Top - epsilon
+                && hitY <= solid.Bottom + epsilon)
+            {
+                return "LevelSolid";
+            }
+        }
+
+        return "Environment";
+    }
+
     private void AdvanceRockets()
     {
         RocketProjectileSystem.Advance(this);
@@ -90,6 +164,10 @@ public sealed partial class SimulationWorld
 
             if (rocket.ExplodeImmediately)
             {
+                var explodeReason = string.IsNullOrWhiteSpace(rocket.DelayedExplosionReason)
+                    ? "Unknown"
+                    : rocket.DelayedExplosionReason;
+                world.SetLastRocketCollisionDebug(rocket.X, rocket.Y, "ExplodeImmediately", explodeReason);
                 rocket.ClearDelayedExplosion();
                 if (rocket.IsFading)
                 {
@@ -123,7 +201,34 @@ public sealed partial class SimulationWorld
             if (hit.HasValue)
             {
                 var hitResult = hit.Value;
-                rocket.MoveTo(hitResult.HitX, hitResult.HitY);
+                var hitX = hitResult.HitX;
+                var hitY = hitResult.HitY;
+                var collisionObjectName = "Environment";
+                if (hitResult.HitPlayer is not null)
+                {
+                    collisionObjectName = $"Player:{hitResult.HitPlayer.Id}";
+                }
+                else if (hitResult.HitSentry is not null)
+                {
+                    collisionObjectName = $"Sentry:{hitResult.HitSentry.Id}";
+                }
+                else if (hitResult.HitGenerator is not null)
+                {
+                    collisionObjectName = $"Generator:{hitResult.HitGenerator.Team}";
+                }
+
+                if (hitResult.HitPlayer is null && hitResult.HitSentry is null && hitResult.HitGenerator is null)
+                {
+                    // The legacy GameMaker rocket uses a collision mask, so it explodes a few pixels
+                    // before the projectile origin would mathematically touch the wall.
+                    var backoffDistance = MathF.Min(hitResult.Distance, RocketProjectileEntity.EnvironmentCollisionBackoffDistance);
+                    hitX -= directionX * backoffDistance;
+                    hitY -= directionY * backoffDistance;
+                    collisionObjectName = world.ResolveRocketEnvironmentCollisionName(hitResult.HitX, hitResult.HitY);
+                }
+
+                rocket.MoveTo(hitX, hitY);
+                world.SetLastRocketCollisionDebug(hitX, hitY, collisionObjectName, "CollisionHit");
                 world.RegisterCombatTrace(rocket.PreviousX, rocket.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (rocket.IsFading
                     && hitResult.HitPlayer is null

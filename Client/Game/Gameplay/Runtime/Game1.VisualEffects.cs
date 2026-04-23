@@ -37,6 +37,7 @@ public partial class Game1
     private readonly List<WallspinDustVisual> _wallspinDustVisuals = new();
     private readonly List<BlastJumpFlameVisual> _blastJumpFlameVisuals = new();
     private readonly List<FlameSmokeVisual> _flameSmokeVisuals = new();
+    private readonly List<FlameSmokeVisual> _flameSmokeSecondaryVisuals = new();
     private readonly List<LooseSheetVisual> _looseSheetVisuals = new();
     private readonly List<SnapshotVisualEvent> _pendingNetworkVisualEvents = new();
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
@@ -56,6 +57,7 @@ public partial class Game1
         _wallspinDustVisuals.Clear();
         _blastJumpFlameVisuals.Clear();
         _flameSmokeVisuals.Clear();
+        _flameSmokeSecondaryVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
         _pendingNetworkDamageEvents.Clear();
     }
@@ -394,18 +396,40 @@ public partial class Game1
 
     private sealed class FlameSmokeVisual
     {
-        public const int LifetimeTicks = 14;
-
-        public FlameSmokeVisual(float x, float y)
+        public FlameSmokeVisual(float x, float y, float offsetX, float offsetY, float driftX, float driftY, float initialRadius, float finalRadius, float initialAlpha, int lifetimeTicks)
         {
             X = x;
             Y = y;
+            OffsetX = offsetX;
+            OffsetY = offsetY;
+            DriftX = driftX;
+            DriftY = driftY;
+            InitialRadius = initialRadius;
+            FinalRadius = finalRadius;
+            InitialAlpha = initialAlpha;
+            LifetimeTicks = Math.Max(1, lifetimeTicks);
             TicksRemaining = LifetimeTicks;
         }
 
         public float X { get; }
 
         public float Y { get; }
+
+        public float OffsetX { get; }
+
+        public float OffsetY { get; }
+
+        public float DriftX { get; }
+
+        public float DriftY { get; }
+
+        public float InitialRadius { get; }
+
+        public float FinalRadius { get; }
+
+        public float InitialAlpha { get; }
+
+        public int LifetimeTicks { get; }
 
         public int TicksRemaining { get; set; }
     }
@@ -568,10 +592,12 @@ public partial class Game1
 
     private sealed class BlastJumpFlameVisual
     {
-        public BlastJumpFlameVisual(float x, float y, int initialTicks, int frameSeed)
+        public BlastJumpFlameVisual(float x, float y, float motionX, float motionY, int initialTicks, int frameSeed)
         {
             X = x;
             Y = y;
+            MotionX = motionX;
+            MotionY = motionY;
             InitialTicks = Math.Max(1, initialTicks);
             TicksRemaining = InitialTicks;
             FrameSeed = frameSeed;
@@ -580,6 +606,10 @@ public partial class Game1
         public float X { get; }
 
         public float Y { get; }
+
+        public float MotionX { get; }
+
+        public float MotionY { get; }
 
         public int InitialTicks { get; }
 
@@ -590,18 +620,40 @@ public partial class Game1
 
     private sealed class RocketSmokeVisual
     {
-        public const int LifetimeTicks = 16;
-
-        public RocketSmokeVisual(float x, float y)
+        public RocketSmokeVisual(float x, float y, float offsetX, float offsetY, float driftX, float driftY, float initialRadius, float finalRadius, float initialAlpha, int lifetimeTicks)
         {
             X = x;
             Y = y;
+            OffsetX = offsetX;
+            OffsetY = offsetY;
+            DriftX = driftX;
+            DriftY = driftY;
+            InitialRadius = initialRadius;
+            FinalRadius = finalRadius;
+            InitialAlpha = initialAlpha;
+            LifetimeTicks = Math.Max(1, lifetimeTicks);
             TicksRemaining = LifetimeTicks;
         }
 
         public float X { get; }
 
         public float Y { get; }
+
+        public float OffsetX { get; }
+
+        public float OffsetY { get; }
+
+        public float DriftX { get; }
+
+        public float DriftY { get; }
+
+        public float InitialRadius { get; }
+
+        public float FinalRadius { get; }
+
+        public float InitialAlpha { get; }
+
+        public int LifetimeTicks { get; }
 
         public int TicksRemaining { get; set; }
     }

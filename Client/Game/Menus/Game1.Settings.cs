@@ -31,6 +31,7 @@ public partial class Game1
         _musicMode = _clientSettings.MusicMode;
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
+        _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
         _gibLevel = Math.Clamp(_clientSettings.GibLevel, 0, 3);
         _corpseDurationMode = Math.Clamp(_clientSettings.CorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _healerRadarEnabled = _clientSettings.HealerRadarEnabled;
@@ -62,6 +63,7 @@ public partial class Game1
         _clientSettings.MusicMode = _musicMode;
         _clientSettings.KillCamEnabled = _killCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_particleMode, 0, 2);
+        _clientSettings.FlameRenderMode = Math.Clamp(_flameRenderMode, 0, 1);
         _clientSettings.GibLevel = Math.Clamp(_gibLevel, 0, 3);
         _clientSettings.CorpseDurationMode = Math.Clamp(_corpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _clientSettings.HealerRadarEnabled = _healerRadarEnabled;

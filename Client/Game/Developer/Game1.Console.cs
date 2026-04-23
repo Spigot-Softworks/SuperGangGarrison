@@ -214,6 +214,42 @@ public partial class Game1
                 }
 
                 break;
+            case "debug":
+                if (!IsPracticeSessionActive)
+                {
+                    AddConsoleLine("debug menu is not available online.");
+                    break;
+                }
+
+                if (parts.Length < 2)
+                {
+                    AddConsoleLine(_debugMenuEnabled ? "debug menu: enabled" : "debug menu: disabled");
+                    break;
+                }
+
+                if (int.TryParse(parts[1], out var debugToggle))
+                {
+                    if (debugToggle == 0)
+                    {
+                        DisableDebugMenu();
+                        AddConsoleLine("debug menu disabled");
+                    }
+                    else if (debugToggle == 1)
+                    {
+                        EnableDebugMenu();
+                        AddConsoleLine("debug menu enabled");
+                    }
+                    else
+                    {
+                        AddConsoleLine("usage: debug <0|1>");
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: debug <0|1>");
+                }
+
+                break;
             case "spawn_dummy":
                 if (RejectOnlineDummyCommand())
                 {
