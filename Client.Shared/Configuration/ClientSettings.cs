@@ -48,6 +48,10 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowUberOutlinesEnabled { get; set; } = true;
+
+    public bool AudioMuted { get; set; }
+
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
     public bool SpriteDropShadowEnabled { get; set; }
@@ -131,6 +135,8 @@ public sealed class ClientSettings
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
+            AudioMuted = document.AudioMuted,
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
@@ -161,6 +167,8 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
+        preferences.AudioMuted = AudioMuted;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
