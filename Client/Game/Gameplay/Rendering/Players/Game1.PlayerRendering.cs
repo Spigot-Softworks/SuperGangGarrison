@@ -201,6 +201,11 @@ public partial class Game1
         return GameplayPlayerSpriteRenderController.GetHeavyEatSpriteFrameIndexProxy(heavyEatTicksRemaining, frameCount, team);
     }
 
+    private bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
+    {
+        return _gameplayWeaponRenderController.TryDrawWeaponSpriteBackdrop(player, cameraPosition, tint, visibilityAlpha, bodySelection);
+    }
+
     private bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
     {
         return _gameplayWeaponRenderController.TryDrawWeaponSprite(player, cameraPosition, tint, visibilityAlpha, bodySelection);

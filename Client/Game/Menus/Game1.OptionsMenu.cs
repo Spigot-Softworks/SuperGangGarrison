@@ -123,6 +123,19 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleAudioMuteSetting()
+    {
+        _audioMuted = !_audioMuted;
+        ApplyAudioMuteState();
+        PersistClientSettings();
+    }
+
+    private void ToggleUberOutlinesSetting()
+    {
+        _uberOutlineEnabled = !_uberOutlineEnabled;
+        PersistClientSettings();
+    }
+
     private void ToggleKillCamSetting()
     {
         _killCamEnabled = !_killCamEnabled;
