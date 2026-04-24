@@ -22,6 +22,7 @@ public partial class Game1
         _chatTeamOnly = teamOnly;
         _chatInput = string.Empty;
         _chatScrollOffset = 0;
+        InitializeChatInputCursor();
     }
 
     private void ResetChatInputState(bool requireOpenKeyRelease = false)
@@ -31,6 +32,7 @@ public partial class Game1
         _chatSubmitAwaitingOpenKeyRelease = requireOpenKeyRelease;
         _chatInput = string.Empty;
         _chatScrollOffset = 0;
+        InitializeChatInputCursor();
     }
 
     private void SubmitChatMessage()
@@ -220,9 +222,32 @@ public partial class Game1
     {
         var prefixWidth = MeasureBitmapFontWidth(promptPrefix, 1f);
         var maxInputWidth = Math.Max(24f, promptRectangle.Width - 18f - prefixWidth);
-        var visibleInput = GetTrailingBitmapFontTextThatFits($"{_chatInput}_", maxInputWidth);
+        var visibleInput = GetTrailingBitmapFontTextThatFits(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth);
         var promptPosition = new Vector2(promptRectangle.X + 8f, promptRectangle.Y + 6f);
         DrawBitmapFontText(promptPrefix, promptPosition, new Color(255, 245, 210), 1f);
+        var inputPosition = new Vector2(promptPosition.X + prefixWidth, promptPosition.Y);
+        if (HasTextSelection(_chatInputCursorIndex, _chatInputSelectionStart))
+        {
+            var (visibleInputWithOffset, visibleStartIndex) = GetTrailingBitmapFontTextThatFitsWithOffset(_chatInput, maxInputWidth);
+            var (selectionStart, selectionLength) = GetTextSelectionRange(_chatInputCursorIndex, _chatInputSelectionStart);
+            var visibleSelectionStart = Math.Max(0, Math.Min(visibleInputWithOffset.Length, selectionStart - visibleStartIndex));
+            var visibleSelectionEnd = Math.Max(visibleSelectionStart, Math.Min(visibleInputWithOffset.Length, selectionStart + selectionLength - visibleStartIndex));
+            var visibleSelectionLength = Math.Max(0, visibleSelectionEnd - visibleSelectionStart);
+            if (visibleSelectionLength > 0)
+            {
+                DrawBitmapFontTextWithSelection(
+                    visibleInputWithOffset,
+                    inputPosition,
+                    visibleSelectionStart + visibleSelectionLength,
+                    visibleSelectionStart,
+                    Color.White,
+                    Color.Black,
+                    Color.White,
+                    1f);
+                return;
+            }
+        }
+
         DrawBitmapFontText(
             visibleInput,
             new Vector2(promptPosition.X + prefixWidth, promptPosition.Y),
@@ -455,6 +480,28 @@ public partial class Game1
         }
 
         return text[^1].ToString();
+    }
+
+    private (string Text, int StartIndex) GetTrailingBitmapFontTextThatFitsWithOffset(string text, float maxWidth)
+    {
+        if (string.IsNullOrEmpty(text) || MeasureBitmapFontWidth(text, 1f) <= maxWidth)
+        {
+            return (text, 0);
+        }
+
+        var startIndex = text.Length - 1;
+        while (startIndex > 0)
+        {
+            var candidate = text[startIndex..];
+            if (MeasureBitmapFontWidth(candidate, 1f) <= maxWidth)
+            {
+                return (candidate, startIndex);
+            }
+
+            startIndex -= 1;
+        }
+
+        return (text[^1].ToString(), text.Length - 1);
     }
 
     private static Color GetChatTeamColor(byte team)

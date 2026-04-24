@@ -44,8 +44,17 @@ public partial class Game1
         _activeInterpolatedEntityIds.Clear();
         var remotePlayerRenderTimeSeconds = GetRemotePlayerRenderTimeSeconds();
         var entityRenderTimeSeconds = GetEntityRenderTimeSeconds();
-        var localPlayerStateKey = GetPlayerStateKey(_world.LocalPlayer);
-        _interpolatedEntityPositions[localPlayerStateKey] = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        var localPlayerStateKey = GetResolvedLocalPlayerId();
+        if (_remotePlayerSnapshotHistories.TryGetValue(localPlayerStateKey, out var localHistory)
+            && localHistory.Count > 0)
+        {
+            UpdateInterpolatedRemotePlayerPosition(_world.LocalPlayer, remotePlayerRenderTimeSeconds);
+        }
+        else
+        {
+            _interpolatedEntityPositions[localPlayerStateKey] = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        }
+
         _activeInterpolatedEntityIds.Add(localPlayerStateKey);
         foreach (var player in EnumerateRemotePlayersForView())
         {
@@ -203,11 +212,6 @@ public partial class Game1
                 continue;
             }
 
-            if (!_networkClient.IsSpectator && player.Slot == localPlayerSlot)
-            {
-                continue;
-            }
-
             AppendRemotePlayerSnapshot(player, snapshotServerTimeSeconds);
         }
 
@@ -360,21 +364,25 @@ public partial class Game1
 
     private void UpdateInterpolatedRemotePlayerPosition(PlayerEntity player, double renderTimeSeconds)
     {
-        if (!_remotePlayerSnapshotHistories.TryGetValue(player.Id, out var history) || history.Count == 0)
+        var playerStateKey = ReferenceEquals(player, _world.LocalPlayer)
+            ? GetResolvedLocalPlayerId()
+            : player.Id;
+
+        if (!_remotePlayerSnapshotHistories.TryGetValue(playerStateKey, out var history) || history.Count == 0)
         {
-            _interpolatedEntityPositions[player.Id] = new Vector2(player.X, player.Y);
+            _interpolatedEntityPositions[playerStateKey] = new Vector2(player.X, player.Y);
             return;
         }
 
         if (history.Count == 1)
         {
-            _interpolatedEntityPositions[player.Id] = EvaluateRemotePlayerExtrapolation(history[0], renderTimeSeconds);
+            _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(history[0], renderTimeSeconds);
             return;
         }
 
         if (renderTimeSeconds <= history[0].TimeSeconds)
         {
-            _interpolatedEntityPositions[player.Id] = history[0].Position;
+            _interpolatedEntityPositions[playerStateKey] = history[0].Position;
             return;
         }
 
@@ -387,11 +395,11 @@ public partial class Game1
             }
 
             var older = history[index - 1];
-            _interpolatedEntityPositions[player.Id] = InterpolateRemotePlayerSample(older, newer, renderTimeSeconds);
+            _interpolatedEntityPositions[playerStateKey] = InterpolateRemotePlayerSample(older, newer, renderTimeSeconds);
             return;
         }
 
-        _interpolatedEntityPositions[player.Id] = EvaluateRemotePlayerExtrapolation(history[^1], renderTimeSeconds);
+        _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(history[^1], renderTimeSeconds);
     }
 
     private void AppendRemotePlayerSnapshot(PlayerEntity player, double snapshotTimeSeconds)

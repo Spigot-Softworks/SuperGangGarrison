@@ -81,8 +81,20 @@ public partial class Game1
         DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
         DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);
 
-        DrawMenuInputBoxScaled(hostBounds, _connectHostBuffer, _editingConnectHost, buttonScale);
-        DrawMenuInputBoxScaled(portBounds, _connectPortBuffer, _editingConnectPort, buttonScale);
+        DrawMenuInputBoxScaled(
+            hostBounds,
+            _connectHostBuffer,
+            _editingConnectHost,
+            buttonScale,
+            _connectHostCursorIndex,
+            _connectHostSelectionStart);
+        DrawMenuInputBoxScaled(
+            portBounds,
+            _connectPortBuffer,
+            _editingConnectPort,
+            buttonScale,
+            _connectPortCursorIndex,
+            _connectPortSelectionStart);
         DrawMenuButtonScaled(connectBounds, "Connect", false, buttonScale);
         DrawMenuButtonScaled(backBounds, "Back", false, buttonScale);
 
@@ -142,7 +154,13 @@ public partial class Game1
         DrawBitmapFontText("Enter password to continue.", new Vector2(panel.X + 28f, panel.Y + 54f), new Color(200, 200, 200), 0.9f);
 
         var masked = new string('*', _passwordEditBuffer.Length);
-        DrawMenuInputBox(new Rectangle(panel.X + 28, panel.Y + 92, panel.Width - 56, 36), masked, active: true);
+        DrawMenuInputBoxScaled(
+            new Rectangle(panel.X + 28, panel.Y + 92, panel.Width - 56, 36),
+            masked,
+            active: true,
+            1f,
+            _passwordEditCursorIndex,
+            _passwordEditSelectionStart);
         DrawBitmapFontText("Press Enter to submit, Esc to cancel.", new Vector2(panel.X + 28f, panel.Y + 142f), new Color(200, 200, 200), 0.85f);
 
         if (!string.IsNullOrWhiteSpace(_passwordPromptMessage))

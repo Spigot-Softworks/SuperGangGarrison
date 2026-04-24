@@ -317,7 +317,7 @@ public partial class Game1
     private Vector2 SampleObservedRenderVelocity(PlayerEntity player)
     {
         var playerStateKey = GetPlayerStateKey(player);
-        var currentPosition = GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _world.LocalPlayer));
+        var currentPosition = GetRenderPosition(player, allowInterpolation: true);
         var currentTimeSeconds = _networkInterpolationClockSeconds;
         if (!_playerPreviousRenderPositions.TryGetValue(playerStateKey, out var previousPosition)
             || !_playerPreviousRenderSampleTimes.TryGetValue(playerStateKey, out var previousTimeSeconds))

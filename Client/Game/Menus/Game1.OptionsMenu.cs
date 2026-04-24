@@ -27,6 +27,7 @@ public partial class Game1
     {
         _editingPlayerName = true;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
+        InitializePlayerNameEditCursor();
     }
 
     private void ToggleFullscreenSetting()
