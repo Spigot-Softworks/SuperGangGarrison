@@ -97,6 +97,7 @@ public partial class Game1
         _networkInputAccumulatorSeconds += _clientUpdateElapsedSeconds;
         while (_networkInputAccumulatorSeconds >= _config.FixedDeltaSeconds)
         {
+            _networkClient.AdvanceNetworkInputTick();
             _networkInputAccumulatorSeconds -= _config.FixedDeltaSeconds;
             var outboundNetworkInput = networkInput;
             if (_latchedJumpPressSequence != 0 && !outboundNetworkInput.Up)
