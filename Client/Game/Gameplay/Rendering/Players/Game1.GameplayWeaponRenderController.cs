@@ -23,6 +23,83 @@ public partial class Game1
             return TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
         }
 
+        public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
+        {
+            if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
+            {
+                return false;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var weaponDefinition = GetWeaponRenderDefinition(player);
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var spriteName = weaponAnimationMode switch
+            {
+                WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
+                _ => weaponDefinition.NormalSpriteName,
+            };
+            if (spriteName is null)
+            {
+                return false;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!player.IsUbered)
+            {
+                return false;
+            }
+
+            var facingScale = GetRenderFacingScale(player);
+            var playerScale = player.PlayerScale;
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
+            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+            var rotation = GetRenderWeaponRotation(player);
+
+            if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
+            {
+                var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+                var desiredFacingScale = System.MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+                if (desiredFacingScale != facingScale)
+                {
+                    facingScale = desiredFacingScale;
+                    drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+                    aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+                }
+
+                rotation = facingScale < 0f ? aimRadians + System.MathF.PI : aimRadians;
+            }
+
+            if (!_game._uberOutlineEnabled)
+            {
+                return false;
+            }
+
+            var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+            var scale = new Vector2(facingScale * playerScale, playerScale);
+            var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+            var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+            _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+            _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), scale);
+            return true;
+        }
+
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
             if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
@@ -82,10 +159,15 @@ public partial class Game1
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
             var scale = new Vector2(facingScale * playerScale, playerScale);
-            _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
             if (player.IsUbered)
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team) * 0.7f, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                _game.DrawSpriteFrameFlatColor(sprite.Frames[frameIndex], position, teamColor * 0.45f, rotation, sprite.Origin.ToVector2(), scale);
+            }
+            else
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
             }
 
             DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);

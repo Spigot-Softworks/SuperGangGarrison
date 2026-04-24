@@ -37,6 +37,7 @@ public partial class Game1
             var bodySelection = _game.GetPlayerBodySpriteSelection(player);
             _game.DrawExperimentalDemoknightChargeBlur(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             _game.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             if (!_game.TryDrawPlayerSprite(player, cameraPosition, spriteTint, bodySelection))
             {
                 _game._spriteBatch.Draw(_game._pixel, rectangle, fallbackColor);

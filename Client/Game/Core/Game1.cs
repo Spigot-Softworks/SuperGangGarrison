@@ -233,6 +233,7 @@ public partial class Game1 : Game
     private bool _showHealthBarEnabled;
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
+    private bool _uberOutlineEnabled = true;
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
