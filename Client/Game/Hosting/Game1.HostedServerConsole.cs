@@ -61,7 +61,13 @@ public partial class Game1
         }
 
         DrawBitmapFontText("Console Command", new Vector2(consoleLayout.CommandBounds.X, consoleLayout.CommandBounds.Y - 20f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(consoleLayout.CommandBounds, consoleSnapshot.CommandInput, _hostSetupEditField == HostSetupEditField.ServerConsoleCommand);
+        DrawMenuInputBoxScaled(
+            consoleLayout.CommandBounds,
+            consoleSnapshot.CommandInput,
+            _hostSetupEditField == HostSetupEditField.ServerConsoleCommand,
+            1f,
+            consoleSnapshot.CommandInputCursorIndex,
+            consoleSnapshot.CommandInputSelectionStart);
         DrawMenuButton(consoleLayout.SendBounds, "Send", false);
         DrawMenuButton(consoleLayout.ClearBounds, "Clear", false);
         DrawMenuButton(consoleLayout.StatusCommandBounds, "Status", false);

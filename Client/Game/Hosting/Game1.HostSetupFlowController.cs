@@ -268,17 +268,18 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    _game._hostSetupState.BackspaceActiveField();
+                    _game.HandleHostSetupFieldBackspace();
                     break;
                 case '\t':
                     _game._hostSetupState.CycleField();
+                    _game.InitializeHostSetupFieldCursor(_game._hostSetupState.EditField);
                     break;
                 case '\r':
                 case '\n':
                     _game.TryHostFromSetup();
                     break;
                 default:
-                    _game._hostSetupState.AppendCharacterToActiveField(character);
+                    _game.HandleHostSetupFieldCharacterInput(character);
                     break;
             }
 
@@ -313,6 +314,7 @@ public partial class Game1
         public void FocusHostSetupField(HostSetupEditField field)
         {
             _game._hostSetupEditField = field;
+            _game.InitializeHostSetupFieldCursor(field);
         }
 
         public void ClearHostSetupFocus()
@@ -603,7 +605,7 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    _game._hostedServerConsole.BackspaceCommandInput();
+                    _game.HandleHostSetupFieldBackspace();
                     break;
                 case '\r':
                 case '\n':
@@ -611,9 +613,10 @@ public partial class Game1
                     break;
                 case '\t':
                     FocusHostSetupField(HostSetupEditField.ServerConsoleCommand);
+                    _game.InitializeHostSetupFieldCursor(_game._hostSetupState.EditField);
                     break;
                 default:
-                    _game._hostedServerConsole.AppendCommandInput(character, 120);
+                    _game.HandleHostSetupFieldCharacterInput(character);
                     break;
             }
 

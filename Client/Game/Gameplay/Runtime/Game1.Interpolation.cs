@@ -81,9 +81,9 @@ public partial class Game1
             return _predictedLocalPlayerPosition;
         }
 
-        if (_networkClient.IsConnected && !ReferenceEquals(player, _world.LocalPlayer))
+        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
+            return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
         }
 
         return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
