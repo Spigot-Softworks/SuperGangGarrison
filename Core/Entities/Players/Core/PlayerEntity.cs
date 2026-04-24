@@ -552,8 +552,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsMedicHealing = false;
         if (resetMedicUberCharge)
         {
-            MedicUberCharge = ClassId == PlayerClass.Medic ? MedicUberMaxCharge : 0f;
-            IsMedicUberReady = ClassId == PlayerClass.Medic;
+            MedicUberCharge = ClassId == PlayerClass.Medic ? 0f : 0f;
+            IsMedicUberReady = false;
         }
 
         IsMedicUbering = false;
