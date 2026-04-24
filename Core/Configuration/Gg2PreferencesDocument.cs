@@ -49,6 +49,10 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowUberOutlinesEnabled { get; set; } = true;
+
+    public bool AudioMuted { get; set; }
+
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
     public bool SpriteDropShadowEnabled { get; set; }
@@ -99,6 +103,8 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
+            AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
@@ -139,6 +145,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
+        ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
