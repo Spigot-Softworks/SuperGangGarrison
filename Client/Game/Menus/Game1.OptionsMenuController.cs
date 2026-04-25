@@ -127,6 +127,48 @@ public partial class Game1
 
             if (_game._editingPlayerName)
             {
+                var valueClickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
+                if (valueClickPressed)
+                {
+                    GetOptionsMenuPanelLayout(out _, out var valueListBounds, out _, out var compactLayout, out var valueRowHeight);
+                    var rowBounds = new Rectangle(
+                        valueListBounds.X,
+                        valueListBounds.Y + ((0 - _game._optionsScrollOffset) * valueRowHeight),
+                        valueListBounds.Width,
+                        valueRowHeight - 2);
+
+                    if (valueListBounds.Contains(mouse.Position))
+                    {
+                        const float optionsRowHorizontalPadding = 14f;
+                        var valueBoxWidth = (int)(rowBounds.Width * 0.42f);
+                        var valueBoxHeight = rowBounds.Height - 12;
+                        if (valueBoxHeight < 30)
+                        {
+                            valueBoxHeight = 30;
+                        }
+
+                        var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
+                        var valueBoxBounds = new Rectangle(
+                            (int)(valueRightX - valueBoxWidth),
+                            rowBounds.Y + ((rowBounds.Height - valueBoxHeight) / 2),
+                            valueBoxWidth,
+                            valueBoxHeight);
+
+                        if (valueBoxBounds.Contains(mouse.Position) && _game.IsTextFieldDoubleClick(TextFieldClickTarget.OptionsPlayerName))
+                        {
+                            _game.SelectAllTextInActiveField(TextFieldClickTarget.OptionsPlayerName);
+                        }
+                        else
+                        {
+                            _game.ResetTextFieldClickTarget();
+                        }
+                    }
+                    else
+                    {
+                        _game.ResetTextFieldClickTarget();
+                    }
+                }
+
                 return;
             }
 
