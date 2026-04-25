@@ -329,6 +329,11 @@ public partial class Game1 : Game
     {
         _bootstrapController.Initialize();
         base.Initialize();
+
+        if (!OperatingSystem.IsBrowser())
+        {
+            Window.AllowUserResizing = !_graphics.IsFullScreen;
+        }
     }
 
     public void EnsureBrowserHostLifecycleInitialized()
