@@ -625,6 +625,78 @@ public partial class Game1
         set => _uiShellState.ConnectPortBuffer = value;
     }
 
+    private int _playerNameEditCursorIndex
+    {
+        get => _uiShellState.PlayerNameEditCursorIndex;
+        set => _uiShellState.PlayerNameEditCursorIndex = value;
+    }
+
+    private int _playerNameEditSelectionStart
+    {
+        get => _uiShellState.PlayerNameEditSelectionStart;
+        set => _uiShellState.PlayerNameEditSelectionStart = value;
+    }
+
+    private int _connectHostCursorIndex
+    {
+        get => _uiShellState.ConnectHostCursorIndex;
+        set => _uiShellState.ConnectHostCursorIndex = value;
+    }
+
+    private int _connectHostSelectionStart
+    {
+        get => _uiShellState.ConnectHostSelectionStart;
+        set => _uiShellState.ConnectHostSelectionStart = value;
+    }
+
+    private int _connectPortCursorIndex
+    {
+        get => _uiShellState.ConnectPortCursorIndex;
+        set => _uiShellState.ConnectPortCursorIndex = value;
+    }
+
+    private int _connectPortSelectionStart
+    {
+        get => _uiShellState.ConnectPortSelectionStart;
+        set => _uiShellState.ConnectPortSelectionStart = value;
+    }
+
+    private int _passwordEditCursorIndex
+    {
+        get => _uiShellState.PasswordEditCursorIndex;
+        set => _uiShellState.PasswordEditCursorIndex = value;
+    }
+
+    private int _passwordEditSelectionStart
+    {
+        get => _uiShellState.PasswordEditSelectionStart;
+        set => _uiShellState.PasswordEditSelectionStart = value;
+    }
+
+    private int _chatInputCursorIndex
+    {
+        get => _uiShellState.ChatInputCursorIndex;
+        set => _uiShellState.ChatInputCursorIndex = value;
+    }
+
+    private int _chatInputSelectionStart
+    {
+        get => _uiShellState.ChatInputSelectionStart;
+        set => _uiShellState.ChatInputSelectionStart = value;
+    }
+
+    private int _consoleInputCursorIndex
+    {
+        get => _uiShellState.ConsoleInputCursorIndex;
+        set => _uiShellState.ConsoleInputCursorIndex = value;
+    }
+
+    private int _consoleInputSelectionStart
+    {
+        get => _uiShellState.ConsoleInputSelectionStart;
+        set => _uiShellState.ConsoleInputSelectionStart = value;
+    }
+
     private string _menuStatusMessage
     {
         get => _uiShellState.MenuStatusMessage;
@@ -726,8 +798,20 @@ public partial class Game1
         public int InGameMenuHoverIndex = -1;
         public int GameplayLoadoutMenuHoverIndex = -1;
         public string PlayerNameEditBuffer = string.Empty;
+        public int PlayerNameEditCursorIndex;
+        public int PlayerNameEditSelectionStart;
         public string ConnectHostBuffer = "127.0.0.1";
+        public int ConnectHostCursorIndex;
+        public int ConnectHostSelectionStart;
         public string ConnectPortBuffer = "8190";
+        public int ConnectPortCursorIndex;
+        public int ConnectPortSelectionStart;
+        public int PasswordEditCursorIndex;
+        public int PasswordEditSelectionStart;
+        public int ConsoleInputCursorIndex;
+        public int ConsoleInputSelectionStart;
+        public int ChatInputCursorIndex;
+        public int ChatInputSelectionStart;
         public string MenuStatusMessage = string.Empty;
         public ControlsMenuBinding? PendingControlsBinding;
     }

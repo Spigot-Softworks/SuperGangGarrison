@@ -250,7 +250,128 @@ public partial class Game1
                 return;
             }
 
+            if (TryHandleHostSetupTextFieldClick(mouse, layout))
+            {
+                return;
+            }
+
+            _game.ResetTextFieldClickTarget();
             HandleHostSetupSettingsMenuClick(mouse, layout);
+        }
+
+        private bool TryHandleHostSetupTextFieldClick(MouseState mouse, HostSetupMenuLayout layout)
+        {
+            var serverNameBounds = _game.GetHostSetupScrolledContentBounds(layout.ServerNameBounds);
+            var portBounds = _game.GetHostSetupScrolledContentBounds(layout.PortBounds);
+            var slotsBounds = _game.GetHostSetupScrolledContentBounds(layout.SlotsBounds);
+            var passwordBounds = _game.GetHostSetupScrolledContentBounds(layout.PasswordBounds);
+            var rconPasswordBounds = _game.GetHostSetupScrolledContentBounds(layout.RconPasswordBounds);
+            var rotationFileBounds = _game.GetHostSetupScrolledContentBounds(layout.RotationFileBounds);
+            var timeLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.TimeLimitBounds);
+            var capLimitBounds = _game.GetHostSetupScrolledContentBounds(layout.CapLimitBounds);
+            var respawnBounds = _game.GetHostSetupScrolledContentBounds(layout.RespawnBounds);
+            var clickPoint = mouse.Position;
+
+            if (HostSetupContentContains(layout, serverNameBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.ServerName);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupServerName))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupServerName);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, portBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.Port);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupPort))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupPort);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, slotsBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.Slots);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupSlots))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupSlots);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, passwordBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.Password);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupPassword))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupPassword);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, rconPasswordBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.RconPassword);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupRconPassword))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupRconPassword);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, rotationFileBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.MapRotationFile);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupMapRotationFile))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupMapRotationFile);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, timeLimitBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.TimeLimit);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupTimeLimit))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupTimeLimit);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, capLimitBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.CapLimit);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupCapLimit))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupCapLimit);
+                }
+
+                return true;
+            }
+
+            if (HostSetupContentContains(layout, respawnBounds, clickPoint))
+            {
+                FocusHostSetupField(HostSetupEditField.RespawnSeconds);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupRespawnSeconds))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupRespawnSeconds);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         public bool HandleHostSetupTextInput(TextInputEventArgs e)
@@ -268,17 +389,18 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    _game._hostSetupState.BackspaceActiveField();
+                    _game.HandleHostSetupFieldBackspace();
                     break;
                 case '\t':
                     _game._hostSetupState.CycleField();
+                    _game.InitializeHostSetupFieldCursor(_game._hostSetupState.EditField);
                     break;
                 case '\r':
                 case '\n':
                     _game.TryHostFromSetup();
                     break;
                 default:
-                    _game._hostSetupState.AppendCharacterToActiveField(character);
+                    _game.HandleHostSetupFieldCharacterInput(character);
                     break;
             }
 
@@ -313,6 +435,7 @@ public partial class Game1
         public void FocusHostSetupField(HostSetupEditField field)
         {
             _game._hostSetupEditField = field;
+            _game.InitializeHostSetupFieldCursor(field);
         }
 
         public void ClearHostSetupFocus()
@@ -354,6 +477,11 @@ public partial class Game1
             if (consoleLayout.CommandBounds.Contains(mouse.Position))
             {
                 FocusHostSetupField(HostSetupEditField.ServerConsoleCommand);
+                if (_game.IsTextFieldDoubleClick(TextFieldClickTarget.HostSetupConsoleCommand))
+                {
+                    _game.SelectAllTextInActiveField(TextFieldClickTarget.HostSetupConsoleCommand);
+                }
+
                 return;
             }
 
@@ -603,7 +731,7 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    _game._hostedServerConsole.BackspaceCommandInput();
+                    _game.HandleHostSetupFieldBackspace();
                     break;
                 case '\r':
                 case '\n':
@@ -611,9 +739,10 @@ public partial class Game1
                     break;
                 case '\t':
                     FocusHostSetupField(HostSetupEditField.ServerConsoleCommand);
+                    _game.InitializeHostSetupFieldCursor(_game._hostSetupState.EditField);
                     break;
                 default:
-                    _game._hostedServerConsole.AppendCommandInput(character, 120);
+                    _game.HandleHostSetupFieldCharacterInput(character);
                     break;
             }
 

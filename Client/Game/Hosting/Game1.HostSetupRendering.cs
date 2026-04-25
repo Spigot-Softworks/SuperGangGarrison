@@ -171,33 +171,33 @@ public partial class Game1
 
         var labelColor = new Color(210, 210, 210);
         DrawHostSetupContentText(layout, "Server Name", new Vector2(serverNameBounds.X, serverNameBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, serverNameBounds, _hostServerNameBuffer, _hostSetupEditField == HostSetupEditField.ServerName, inputScale);
+        DrawHostSetupContentInput(layout, serverNameBounds, _hostServerNameBuffer, _hostSetupEditField == HostSetupEditField.ServerName, inputScale, _hostServerNameCursorIndex, _hostServerNameSelectionStart);
 
         DrawHostSetupContentText(layout, "Password", new Vector2(passwordBounds.X, passwordBounds.Y - 16f), labelColor, fieldLabelScale);
         var maskedPassword = string.IsNullOrEmpty(_hostPasswordBuffer) ? string.Empty : new string('*', _hostPasswordBuffer.Length);
-        DrawHostSetupContentInput(layout, passwordBounds, maskedPassword, _hostSetupEditField == HostSetupEditField.Password, inputScale);
+        DrawHostSetupContentInput(layout, passwordBounds, maskedPassword, _hostSetupEditField == HostSetupEditField.Password, inputScale, _hostPasswordCursorIndex, _hostPasswordSelectionStart);
 
         DrawHostSetupContentText(layout, "RCON Password", new Vector2(rconPasswordBounds.X, rconPasswordBounds.Y - 16f), labelColor, fieldLabelScale);
         var maskedRconPassword = string.IsNullOrEmpty(_hostRconPasswordBuffer) ? string.Empty : new string('*', _hostRconPasswordBuffer.Length);
-        DrawHostSetupContentInput(layout, rconPasswordBounds, maskedRconPassword, _hostSetupEditField == HostSetupEditField.RconPassword, inputScale);
+        DrawHostSetupContentInput(layout, rconPasswordBounds, maskedRconPassword, _hostSetupEditField == HostSetupEditField.RconPassword, inputScale, _hostRconPasswordCursorIndex, _hostRconPasswordSelectionStart);
 
         DrawHostSetupContentText(layout, compactLayout ? "Rotation File" : "Custom Rotation File", new Vector2(rotationFileBounds.X, rotationFileBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, rotationFileBounds, _hostMapRotationFileBuffer, _hostSetupEditField == HostSetupEditField.MapRotationFile, inputScale);
+        DrawHostSetupContentInput(layout, rotationFileBounds, _hostMapRotationFileBuffer, _hostSetupEditField == HostSetupEditField.MapRotationFile, inputScale, _hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart);
 
         DrawHostSetupContentText(layout, "Port", new Vector2(portBounds.X, portBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, portBounds, _hostPortBuffer, _hostSetupEditField == HostSetupEditField.Port, inputScale);
+        DrawHostSetupContentInput(layout, portBounds, _hostPortBuffer, _hostSetupEditField == HostSetupEditField.Port, inputScale, _hostPortCursorIndex, _hostPortSelectionStart);
 
         DrawHostSetupContentText(layout, "Slots", new Vector2(slotsBounds.X, slotsBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, slotsBounds, _hostSlotsBuffer, _hostSetupEditField == HostSetupEditField.Slots, inputScale);
+        DrawHostSetupContentInput(layout, slotsBounds, _hostSlotsBuffer, _hostSetupEditField == HostSetupEditField.Slots, inputScale, _hostSlotsCursorIndex, _hostSlotsSelectionStart);
 
         DrawHostSetupContentText(layout, compactLayout ? "Time (mins)" : "Time Limit (mins)", new Vector2(timeLimitBounds.X, timeLimitBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, timeLimitBounds, _hostTimeLimitBuffer, _hostSetupEditField == HostSetupEditField.TimeLimit, inputScale);
+        DrawHostSetupContentInput(layout, timeLimitBounds, _hostTimeLimitBuffer, _hostSetupEditField == HostSetupEditField.TimeLimit, inputScale, _hostTimeLimitCursorIndex, _hostTimeLimitSelectionStart);
 
         DrawHostSetupContentText(layout, "Cap Limit", new Vector2(capLimitBounds.X, capLimitBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, capLimitBounds, _hostCapLimitBuffer, _hostSetupEditField == HostSetupEditField.CapLimit, inputScale);
+        DrawHostSetupContentInput(layout, capLimitBounds, _hostCapLimitBuffer, _hostSetupEditField == HostSetupEditField.CapLimit, inputScale, _hostCapLimitCursorIndex, _hostCapLimitSelectionStart);
 
         DrawHostSetupContentText(layout, compactLayout ? "Respawn (sec)" : "Respawn Time (secs)", new Vector2(respawnBounds.X, respawnBounds.Y - 16f), labelColor, fieldLabelScale);
-        DrawHostSetupContentInput(layout, respawnBounds, _hostRespawnSecondsBuffer, _hostSetupEditField == HostSetupEditField.RespawnSeconds, inputScale);
+        DrawHostSetupContentInput(layout, respawnBounds, _hostRespawnSecondsBuffer, _hostSetupEditField == HostSetupEditField.RespawnSeconds, inputScale, _hostRespawnSecondsCursorIndex, _hostRespawnSecondsSelectionStart);
 
         DrawHostSetupContentButton(layout, lobbyBounds, _hostLobbyAnnounceEnabled ? "Lobby Announce: On" : "Lobby Announce: Off", _hostLobbyAnnounceEnabled, buttonScale);
         DrawHostSetupContentButton(layout, autoBalanceBounds, _hostAutoBalanceEnabled ? "Auto-balance: On" : "Auto-balance: Off", _hostAutoBalanceEnabled, buttonScale);
@@ -302,14 +302,14 @@ public partial class Game1
         DrawBitmapFontText(text, position, color, scale);
     }
 
-    private void DrawHostSetupContentInput(HostSetupMenuLayout layout, Rectangle bounds, string text, bool active, float scale)
+    private void DrawHostSetupContentInput(HostSetupMenuLayout layout, Rectangle bounds, string text, bool active, float scale, int cursorIndex = -1, int selectionStart = -1)
     {
         if (!IsHostSetupContentBoundsVisible(layout, bounds))
         {
             return;
         }
 
-        DrawMenuInputBoxScaled(bounds, text, active, scale);
+        DrawMenuInputBoxScaled(bounds, text, active, scale, cursorIndex, selectionStart);
     }
 
     private void DrawHostSetupContentButton(HostSetupMenuLayout layout, Rectangle bounds, string label, bool highlighted, float scale)

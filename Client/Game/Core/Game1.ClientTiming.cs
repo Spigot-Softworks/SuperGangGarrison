@@ -20,6 +20,10 @@ public partial class Game1
     private bool _pendingPredictedSecondaryWeaponPress;
     private uint _latchedJumpPressSequence;
 
+    private bool _hasLatestLocalAimWorldPosition;
+    private float _latestLocalAimWorldX;
+    private float _latestLocalAimWorldY;
+
     private int ConsumeClientTickCount(GameTime gameTime)
     {
         _clientUpdateElapsedSeconds = (float)Math.Clamp(gameTime.ElapsedGameTime.TotalSeconds, 0d, 0.1d);
@@ -45,6 +49,9 @@ public partial class Game1
         _pendingPredictedSecondaryAbilityPress = false;
         _pendingPredictedSecondaryWeaponPress = false;
         _latchedJumpPressSequence = 0;
+        _hasLatestLocalAimWorldPosition = false;
+        _latestLocalAimWorldX = 0f;
+        _latestLocalAimWorldY = 0f;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -97,6 +104,7 @@ public partial class Game1
         _networkInputAccumulatorSeconds += _clientUpdateElapsedSeconds;
         while (_networkInputAccumulatorSeconds >= _config.FixedDeltaSeconds)
         {
+            _networkClient.AdvanceNetworkInputTick();
             _networkInputAccumulatorSeconds -= _config.FixedDeltaSeconds;
             var outboundNetworkInput = networkInput;
             if (_latchedJumpPressSequence != 0 && !outboundNetworkInput.Up)
@@ -216,5 +224,19 @@ public partial class Game1
     private float ScaleLegacyUiDistance(float distancePerTick)
     {
         return distancePerTick * GetLegacyUiStepCount();
+    }
+
+    private bool TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees)
+    {
+        if (!ReferenceEquals(player, _world.LocalPlayer) || !_hasLatestLocalAimWorldPosition)
+        {
+            aimDirectionDegrees = 0f;
+            return false;
+        }
+
+        var aimDeltaX = _latestLocalAimWorldX - player.X;
+        var aimDeltaY = _latestLocalAimWorldY - player.Y;
+        aimDirectionDegrees = MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI);
+        return true;
     }
 }
