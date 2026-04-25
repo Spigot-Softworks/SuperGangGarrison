@@ -72,7 +72,7 @@ public partial class Game1
                 }
             }
 
-            _game.HandleActiveTextFieldKeyboardShortcuts(keyboard);
+            _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {

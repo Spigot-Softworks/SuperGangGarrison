@@ -141,11 +141,15 @@ public partial class Game1
         var baseX = 18f;
         var maxPanelWidth = GetChatHudMaxPanelWidth(baseX);
         var promptPrefix = _chatTeamOnly ? "(TEAM) > " : "> ";
+        var maxInputWidth = Math.Max(24f, Math.Max(280, ViewportWidth / 3) - 18f - MeasureBitmapFontWidth(promptPrefix, 1f));
+        var promptLines = WrapBitmapFontText(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth, maxInputWidth);
+        var promptLineHeight = GetChatHudLineHeight();
+        var promptHeight = Math.Max(24, (int)MathF.Ceiling(promptLines.Count * promptLineHeight + 12f));
         var promptRectangle = new Rectangle(
             12,
-            ViewportHeight - 118,
+            ViewportHeight - 94 - promptHeight,
             Math.Max(280, ViewportWidth / 3),
-            24);
+            promptHeight);
         var maxChatHeight = Math.Max(72f, promptRectangle.Y - 24f);
         var visibleLines = GetVisibleChatLines(maxPanelWidth, maxChatHeight, _chatOpen);
         var totalChatHeight = 0f;
@@ -174,7 +178,7 @@ public partial class Game1
         }
 
         DrawInsetHudPanel(promptRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
-        DrawChatPrompt(promptRectangle, promptPrefix);
+        DrawChatPrompt(promptRectangle, promptPrefix, promptLines);
         DrawChatScrollStatus(promptRectangle);
     }
 
@@ -218,16 +222,19 @@ public partial class Game1
         }
     }
 
-    private void DrawChatPrompt(Rectangle promptRectangle, string promptPrefix)
+    private void DrawChatPrompt(Rectangle promptRectangle, string promptPrefix, List<string> promptLines)
     {
         var prefixWidth = MeasureBitmapFontWidth(promptPrefix, 1f);
-        var maxInputWidth = Math.Max(24f, promptRectangle.Width - 18f - prefixWidth);
-        var visibleInput = GetTrailingBitmapFontTextThatFits(GetTextWithCursor(_chatInput, _chatInputCursorIndex), maxInputWidth);
         var promptPosition = new Vector2(promptRectangle.X + 8f, promptRectangle.Y + 6f);
         DrawBitmapFontText(promptPrefix, promptPosition, new Color(255, 245, 210), 1f);
-        var inputPosition = new Vector2(promptPosition.X + prefixWidth, promptPosition.Y);
-        if (HasTextSelection(_chatInputCursorIndex, _chatInputSelectionStart))
+
+        var inputX = promptPosition.X + prefixWidth;
+        var inputY = promptPosition.Y;
+        var lineHeight = GetChatHudLineHeight();
+
+        if (promptLines.Count == 1 && HasTextSelection(_chatInputCursorIndex, _chatInputSelectionStart))
         {
+            var maxInputWidth = Math.Max(24f, promptRectangle.Width - 18f - prefixWidth);
             var (visibleInputWithOffset, visibleStartIndex) = GetTrailingBitmapFontTextThatFitsWithOffset(_chatInput, maxInputWidth);
             var (selectionStart, selectionLength) = GetTextSelectionRange(_chatInputCursorIndex, _chatInputSelectionStart);
             var visibleSelectionStart = Math.Max(0, Math.Min(visibleInputWithOffset.Length, selectionStart - visibleStartIndex));
@@ -237,7 +244,7 @@ public partial class Game1
             {
                 DrawBitmapFontTextWithSelection(
                     visibleInputWithOffset,
-                    inputPosition,
+                    new Vector2(inputX, inputY),
                     visibleSelectionStart + visibleSelectionLength,
                     visibleSelectionStart,
                     Color.White,
@@ -248,11 +255,14 @@ public partial class Game1
             }
         }
 
-        DrawBitmapFontText(
-            visibleInput,
-            new Vector2(promptPosition.X + prefixWidth, promptPosition.Y),
-            Color.White,
-            1f);
+        for (var lineIndex = 0; lineIndex < promptLines.Count; lineIndex += 1)
+        {
+            DrawBitmapFontText(
+                promptLines[lineIndex],
+                new Vector2(inputX, inputY + (lineIndex * lineHeight)),
+                Color.White,
+                1f);
+        }
     }
 
     private void DrawChatScrollStatus(Rectangle promptRectangle)

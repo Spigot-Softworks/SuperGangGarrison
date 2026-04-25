@@ -75,7 +75,12 @@ public partial class Game1
             if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
             {
                 var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                var desiredFacingScale = System.MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+                var desiredFacingScale = facingScale;
+                var aimDeltaX = aimWorldX - drawX;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
+                }
                 if (desiredFacingScale != facingScale)
                 {
                     facingScale = desiredFacingScale;
@@ -83,7 +88,7 @@ public partial class Game1
                     aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
                 }
 
-                rotation = facingScale < 0f ? aimRadians + System.MathF.PI : aimRadians;
+                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
             }
 
             if (!_game._uberOutlineEnabled)
@@ -146,7 +151,12 @@ public partial class Game1
             if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
             {
                 var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                var desiredFacingScale = System.MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+                var desiredFacingScale = facingScale;
+                var aimDeltaX = aimWorldX - drawX;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
+                }
                 if (desiredFacingScale != facingScale)
                 {
                     facingScale = desiredFacingScale;
@@ -154,7 +164,7 @@ public partial class Game1
                     aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
                 }
 
-                rotation = facingScale < 0f ? aimRadians + System.MathF.PI : aimRadians;
+                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
             }
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
@@ -183,8 +193,19 @@ public partial class Game1
 
         public static float GetWeaponRotation(PlayerEntity player)
         {
-            var radians = System.MathF.PI * player.AimDirectionDegrees / 180f;
-            return GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player) ? radians + System.MathF.PI : radians;
+            var fallbackRadians = System.MathF.PI * player.AimDirectionDegrees / 180f;
+            var facingScale = GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player) ? -1f : 1f;
+            return GetWeaponRotationFromAim(fallbackRadians, facingScale);
+        }
+
+        private static float GetWeaponRotationFromAim(float aimRadians, float facingScale)
+        {
+            if (facingScale >= 0f)
+            {
+                return aimRadians;
+            }
+
+            return aimRadians + System.MathF.PI;
         }
 
         private float GetRenderFacingScale(PlayerEntity player)
@@ -195,6 +216,17 @@ public partial class Game1
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
 
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game._hasLatestLocalAimWorldPosition)
+            {
+                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    return aimDeltaX < 0f ? -1f : 1f;
+                }
+                return player.FacingDirectionX < 0f ? -1f : 1f;
+            }
+
             return GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
         }
 
@@ -203,7 +235,19 @@ public partial class Game1
             if (_game.IsBackstabReplacementRenderActive(player))
             {
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
-                return GetRenderFacingScale(player) < 0f ? radians + System.MathF.PI : radians;
+                return GetRenderFacingScale(player) < 0f ? System.MathF.PI - radians : radians;
+            }
+
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game._hasLatestLocalAimWorldPosition)
+            {
+                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
+                var aimDeltaY = _game._latestLocalAimWorldY - player.Y;
+                var aimRadians = System.MathF.Atan2(aimDeltaY, aimDeltaX);
+                var facingScale = System.MathF.Abs(aimDeltaX) > 0.001f
+                    ? (aimDeltaX < 0f ? -1f : 1f)
+                    : (player.FacingDirectionX < 0f ? -1f : 1f);
+                return GetWeaponRotationFromAim(aimRadians, facingScale);
             }
 
             return GetWeaponRotation(player);

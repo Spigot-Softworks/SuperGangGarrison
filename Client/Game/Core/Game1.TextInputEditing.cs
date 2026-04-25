@@ -38,6 +38,41 @@ public partial class Game1
         return string.Concat(text.AsSpan(0, cursorIndex), "_", text.AsSpan(cursorIndex));
     }
 
+    private const double TextInputDoubleClickThresholdSeconds = 0.45;
+    private const double TextInputArrowRepeatDelaySeconds = 0.5;
+    private const double TextInputArrowRepeatIntervalSeconds = 0.05;
+
+    private enum TextFieldClickTarget
+    {
+        None,
+        ManualConnectHost,
+        ManualConnectPort,
+        OptionsPlayerName,
+        HostSetupServerName,
+        HostSetupPort,
+        HostSetupSlots,
+        HostSetupPassword,
+        HostSetupRconPassword,
+        HostSetupMapRotationFile,
+        HostSetupTimeLimit,
+        HostSetupCapLimit,
+        HostSetupRespawnSeconds,
+        HostSetupConsoleCommand,
+    }
+
+    private TextFieldClickTarget _lastTextInputClickTarget;
+    private double _lastTextInputClickTimeSeconds;
+
+    private ArrowKeyRepeatState _textInputLeftArrowRepeatState;
+    private ArrowKeyRepeatState _textInputRightArrowRepeatState;
+
+    private struct ArrowKeyRepeatState
+    {
+        public bool IsHeld;
+        public double HeldTimeSeconds;
+        public double RepeatTimerSeconds;
+    }
+
     private void DrawBitmapFontTextWithSelection(
         string text,
         Vector2 position,
@@ -122,6 +157,121 @@ public partial class Game1
             selectionBackgroundColor);
         _spriteBatch.DrawString(font, selected, new Vector2(selectionX, position.Y), selectionTextColor);
         _spriteBatch.DrawString(font, after, new Vector2(selectionX + selectionWidth, position.Y), normalTextColor);
+    }
+
+    private static double GetCurrentTimeSeconds()
+        => Environment.TickCount64 / 1000.0;
+
+    private bool IsTextFieldDoubleClick(TextFieldClickTarget target)
+    {
+        var now = GetCurrentTimeSeconds();
+        var isDoubleClick = target != TextFieldClickTarget.None
+            && _lastTextInputClickTarget == target
+            && (now - _lastTextInputClickTimeSeconds) <= TextInputDoubleClickThresholdSeconds;
+
+        _lastTextInputClickTarget = target;
+        _lastTextInputClickTimeSeconds = now;
+        return isDoubleClick;
+    }
+
+    private static bool IsTextArrowRepeatTick(bool keyDown, bool keyPressed, ref ArrowKeyRepeatState state, double elapsedSeconds)
+    {
+        if (keyPressed)
+        {
+            state.IsHeld = true;
+            state.HeldTimeSeconds = 0;
+            state.RepeatTimerSeconds = TextInputArrowRepeatDelaySeconds;
+            return true;
+        }
+
+        if (!keyDown)
+        {
+            state.IsHeld = false;
+            return false;
+        }
+
+        if (!state.IsHeld)
+        {
+            return false;
+        }
+
+        state.HeldTimeSeconds += elapsedSeconds;
+        state.RepeatTimerSeconds -= elapsedSeconds;
+        if (state.HeldTimeSeconds >= TextInputArrowRepeatDelaySeconds && state.RepeatTimerSeconds <= 0)
+        {
+            state.RepeatTimerSeconds += TextInputArrowRepeatIntervalSeconds;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void SelectAllTextInActiveField(TextFieldClickTarget clickTarget)
+    {
+        switch (clickTarget)
+        {
+            case TextFieldClickTarget.ManualConnectHost:
+                _connectHostCursorIndex = _connectHostBuffer.Length;
+                _connectHostSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.ManualConnectPort:
+                _connectPortCursorIndex = _connectPortBuffer.Length;
+                _connectPortSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.OptionsPlayerName:
+                _playerNameEditCursorIndex = _playerNameEditBuffer.Length;
+                _playerNameEditSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupServerName:
+                _hostServerNameCursorIndex = _hostServerNameBuffer.Length;
+                _hostServerNameSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupPort:
+                _hostPortCursorIndex = _hostPortBuffer.Length;
+                _hostPortSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupSlots:
+                _hostSlotsCursorIndex = _hostSlotsBuffer.Length;
+                _hostSlotsSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupPassword:
+                _hostPasswordCursorIndex = _hostPasswordBuffer.Length;
+                _hostPasswordSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupRconPassword:
+                _hostRconPasswordCursorIndex = _hostRconPasswordBuffer.Length;
+                _hostRconPasswordSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupMapRotationFile:
+                _hostMapRotationFileCursorIndex = _hostMapRotationFileBuffer.Length;
+                _hostMapRotationFileSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupTimeLimit:
+                _hostTimeLimitCursorIndex = _hostTimeLimitBuffer.Length;
+                _hostTimeLimitSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupCapLimit:
+                _hostCapLimitCursorIndex = _hostCapLimitBuffer.Length;
+                _hostCapLimitSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupRespawnSeconds:
+                _hostRespawnSecondsCursorIndex = _hostRespawnSecondsBuffer.Length;
+                _hostRespawnSecondsSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.HostSetupConsoleCommand:
+                _hostedServerConsole.CommandInputCursorIndex = _hostedServerConsole.CommandInput.Length;
+                _hostedServerConsole.CommandInputSelectionStart = 0;
+                break;
+            case TextFieldClickTarget.None:
+            default:
+                break;
+        }
+    }
+
+    private void ResetTextFieldClickTarget()
+    {
+        _lastTextInputClickTarget = TextFieldClickTarget.None;
+        _lastTextInputClickTimeSeconds = 0;
     }
 
     private bool HandleActiveTextFieldClipboardShortcuts(KeyboardState keyboard)
@@ -1167,16 +1317,20 @@ public partial class Game1
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GlobalFree(IntPtr hMem);
 
-    private bool HandleActiveTextFieldKeyboardShortcuts(KeyboardState keyboard)
+    private bool HandleActiveTextFieldKeyboardShortcuts(KeyboardState keyboard, double elapsedSeconds)
     {
         if (HandleActiveTextFieldClipboardShortcuts(keyboard))
         {
             return true;
         }
 
-        var leftPressed = keyboard.IsKeyDown(Keys.Left) && !_previousKeyboard.IsKeyDown(Keys.Left);
-        var rightPressed = keyboard.IsKeyDown(Keys.Right) && !_previousKeyboard.IsKeyDown(Keys.Right);
-        if (!leftPressed && !rightPressed)
+        var leftDown = keyboard.IsKeyDown(Keys.Left);
+        var rightDown = keyboard.IsKeyDown(Keys.Right);
+        var leftPressed = leftDown && !_previousKeyboard.IsKeyDown(Keys.Left);
+        var rightPressed = rightDown && !_previousKeyboard.IsKeyDown(Keys.Right);
+        var leftRepeat = IsTextArrowRepeatTick(leftDown, leftPressed, ref _textInputLeftArrowRepeatState, elapsedSeconds);
+        var rightRepeat = IsTextArrowRepeatTick(rightDown, rightPressed, ref _textInputRightArrowRepeatState, elapsedSeconds);
+        if (!leftRepeat && !rightRepeat)
         {
             return false;
         }
@@ -1185,14 +1339,14 @@ public partial class Game1
 
         if (_passwordPromptOpen)
         {
-            if (leftPressed)
+            if (leftRepeat)
             {
                 var result = MoveTextCursorLeft(_passwordEditCursorIndex, _passwordEditSelectionStart, shiftHeld);
                 _passwordEditCursorIndex = result.CursorIndex;
                 _passwordEditSelectionStart = result.SelectionStart;
             }
 
-            if (rightPressed)
+            if (rightRepeat)
             {
                 var result = MoveTextCursorRight(_passwordEditCursorIndex, _passwordEditSelectionStart, _passwordEditBuffer, shiftHeld);
                 _passwordEditCursorIndex = result.CursorIndex;
@@ -1206,14 +1360,14 @@ public partial class Game1
         {
             if (_editingConnectHost)
             {
-                if (leftPressed)
+                if (leftRepeat)
                 {
                     var result = MoveTextCursorLeft(_connectHostCursorIndex, _connectHostSelectionStart, shiftHeld);
                     _connectHostCursorIndex = result.CursorIndex;
                     _connectHostSelectionStart = result.SelectionStart;
                 }
 
-                if (rightPressed)
+                if (rightRepeat)
                 {
                     var result = MoveTextCursorRight(_connectHostCursorIndex, _connectHostSelectionStart, _connectHostBuffer, shiftHeld);
                     _connectHostCursorIndex = result.CursorIndex;
@@ -1225,14 +1379,14 @@ public partial class Game1
 
             if (_editingConnectPort)
             {
-                if (leftPressed)
+                if (leftRepeat)
                 {
                     var result = MoveTextCursorLeft(_connectPortCursorIndex, _connectPortSelectionStart, shiftHeld);
                     _connectPortCursorIndex = result.CursorIndex;
                     _connectPortSelectionStart = result.SelectionStart;
                 }
 
-                if (rightPressed)
+                if (rightRepeat)
                 {
                     var result = MoveTextCursorRight(_connectPortCursorIndex, _connectPortSelectionStart, _connectPortBuffer, shiftHeld);
                     _connectPortCursorIndex = result.CursorIndex;
@@ -1245,14 +1399,14 @@ public partial class Game1
 
         if (_optionsMenuOpen && _editingPlayerName)
         {
-            if (leftPressed)
+            if (leftRepeat)
             {
                 var result = MoveTextCursorLeft(_playerNameEditCursorIndex, _playerNameEditSelectionStart, shiftHeld);
                 _playerNameEditCursorIndex = result.CursorIndex;
                 _playerNameEditSelectionStart = result.SelectionStart;
             }
 
-            if (rightPressed)
+            if (rightRepeat)
             {
                 var result = MoveTextCursorRight(_playerNameEditCursorIndex, _playerNameEditSelectionStart, _playerNameEditBuffer, shiftHeld);
                 _playerNameEditCursorIndex = result.CursorIndex;
@@ -1267,14 +1421,14 @@ public partial class Game1
             switch (_hostSetupEditField)
             {
                 case HostSetupEditField.ServerName:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostServerNameCursorIndex, _hostServerNameSelectionStart, shiftHeld);
                         _hostServerNameCursorIndex = result.CursorIndex;
                         _hostServerNameSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostServerNameCursorIndex, _hostServerNameSelectionStart, _hostServerNameBuffer, shiftHeld);
                         _hostServerNameCursorIndex = result.CursorIndex;
@@ -1283,14 +1437,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.Port:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostPortCursorIndex, _hostPortSelectionStart, shiftHeld);
                         _hostPortCursorIndex = result.CursorIndex;
                         _hostPortSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostPortCursorIndex, _hostPortSelectionStart, _hostPortBuffer, shiftHeld);
                         _hostPortCursorIndex = result.CursorIndex;
@@ -1299,14 +1453,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.Slots:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostSlotsCursorIndex, _hostSlotsSelectionStart, shiftHeld);
                         _hostSlotsCursorIndex = result.CursorIndex;
                         _hostSlotsSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostSlotsCursorIndex, _hostSlotsSelectionStart, _hostSlotsBuffer, shiftHeld);
                         _hostSlotsCursorIndex = result.CursorIndex;
@@ -1315,14 +1469,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.Password:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostPasswordCursorIndex, _hostPasswordSelectionStart, shiftHeld);
                         _hostPasswordCursorIndex = result.CursorIndex;
                         _hostPasswordSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostPasswordCursorIndex, _hostPasswordSelectionStart, _hostPasswordBuffer, shiftHeld);
                         _hostPasswordCursorIndex = result.CursorIndex;
@@ -1331,14 +1485,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.RconPassword:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostRconPasswordCursorIndex, _hostRconPasswordSelectionStart, shiftHeld);
                         _hostRconPasswordCursorIndex = result.CursorIndex;
                         _hostRconPasswordSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostRconPasswordCursorIndex, _hostRconPasswordSelectionStart, _hostRconPasswordBuffer, shiftHeld);
                         _hostRconPasswordCursorIndex = result.CursorIndex;
@@ -1347,14 +1501,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.MapRotationFile:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart, shiftHeld);
                         _hostMapRotationFileCursorIndex = result.CursorIndex;
                         _hostMapRotationFileSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostMapRotationFileCursorIndex, _hostMapRotationFileSelectionStart, _hostMapRotationFileBuffer, shiftHeld);
                         _hostMapRotationFileCursorIndex = result.CursorIndex;
@@ -1363,14 +1517,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.TimeLimit:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostTimeLimitCursorIndex, _hostTimeLimitSelectionStart, shiftHeld);
                         _hostTimeLimitCursorIndex = result.CursorIndex;
                         _hostTimeLimitSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostTimeLimitCursorIndex, _hostTimeLimitSelectionStart, _hostTimeLimitBuffer, shiftHeld);
                         _hostTimeLimitCursorIndex = result.CursorIndex;
@@ -1379,14 +1533,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.CapLimit:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostCapLimitCursorIndex, _hostCapLimitSelectionStart, shiftHeld);
                         _hostCapLimitCursorIndex = result.CursorIndex;
                         _hostCapLimitSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostCapLimitCursorIndex, _hostCapLimitSelectionStart, _hostCapLimitBuffer, shiftHeld);
                         _hostCapLimitCursorIndex = result.CursorIndex;
@@ -1395,14 +1549,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.RespawnSeconds:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostRespawnSecondsCursorIndex, _hostRespawnSecondsSelectionStart, shiftHeld);
                         _hostRespawnSecondsCursorIndex = result.CursorIndex;
                         _hostRespawnSecondsSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostRespawnSecondsCursorIndex, _hostRespawnSecondsSelectionStart, _hostRespawnSecondsBuffer, shiftHeld);
                         _hostRespawnSecondsCursorIndex = result.CursorIndex;
@@ -1411,14 +1565,14 @@ public partial class Game1
 
                     return true;
                 case HostSetupEditField.ServerConsoleCommand:
-                    if (leftPressed)
+                    if (leftRepeat)
                     {
                         var result = MoveTextCursorLeft(_hostedServerConsole.CommandInputCursorIndex, _hostedServerConsole.CommandInputSelectionStart, shiftHeld);
                         _hostedServerConsole.CommandInputCursorIndex = result.CursorIndex;
                         _hostedServerConsole.CommandInputSelectionStart = result.SelectionStart;
                     }
 
-                    if (rightPressed)
+                    if (rightRepeat)
                     {
                         var result = MoveTextCursorRight(_hostedServerConsole.CommandInputCursorIndex, _hostedServerConsole.CommandInputSelectionStart, _hostedServerConsole.CommandInput, shiftHeld);
                         _hostedServerConsole.CommandInputCursorIndex = result.CursorIndex;
@@ -1431,14 +1585,14 @@ public partial class Game1
 
         if (_chatOpen)
         {
-            if (leftPressed)
+            if (leftRepeat)
             {
                 var result = MoveTextCursorLeft(_chatInputCursorIndex, _chatInputSelectionStart, shiftHeld);
                 _chatInputCursorIndex = result.CursorIndex;
                 _chatInputSelectionStart = result.SelectionStart;
             }
 
-            if (rightPressed)
+            if (rightRepeat)
             {
                 var result = MoveTextCursorRight(_chatInputCursorIndex, _chatInputSelectionStart, _chatInput, shiftHeld);
                 _chatInputCursorIndex = result.CursorIndex;
@@ -1450,14 +1604,14 @@ public partial class Game1
 
         if (_consoleOpen)
         {
-            if (leftPressed)
+            if (leftRepeat)
             {
                 var result = MoveTextCursorLeft(_consoleInputCursorIndex, _consoleInputSelectionStart, shiftHeld);
                 _consoleInputCursorIndex = result.CursorIndex;
                 _consoleInputSelectionStart = result.SelectionStart;
             }
 
-            if (rightPressed)
+            if (rightRepeat)
             {
                 var result = MoveTextCursorRight(_consoleInputCursorIndex, _consoleInputSelectionStart, _consoleInput, shiftHeld);
                 _consoleInputCursorIndex = result.CursorIndex;

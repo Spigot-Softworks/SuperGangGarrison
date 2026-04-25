@@ -44,18 +44,30 @@ public partial class Game1
         if (hostBounds.Contains(point))
         {
             _connectionFlowController.SetManualConnectEditingField(editHost: true);
+            if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectHost))
+            {
+                SelectAllTextInActiveField(TextFieldClickTarget.ManualConnectHost);
+            }
         }
         else if (portBounds.Contains(point))
         {
             _connectionFlowController.SetManualConnectEditingField(editHost: false);
+            if (IsTextFieldDoubleClick(TextFieldClickTarget.ManualConnectPort))
+            {
+                SelectAllTextInActiveField(TextFieldClickTarget.ManualConnectPort);
+            }
         }
-        else if (connectBounds.Contains(point))
+        else
         {
-            TryConnectFromMenu();
-        }
-        else if (backBounds.Contains(point))
-        {
-            CloseManualConnectMenu(clearStatus: false);
+            ResetTextFieldClickTarget();
+            if (connectBounds.Contains(point))
+            {
+                TryConnectFromMenu();
+            }
+            else if (backBounds.Contains(point))
+            {
+                CloseManualConnectMenu(clearStatus: false);
+            }
         }
     }
 

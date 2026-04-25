@@ -161,7 +161,11 @@ public partial class Game1
             return new PlayerBodySpriteSelection(spriteName, animationImage, bodyYOffset, equipmentOffset, player.IsCarryingIntel, false);
         }
 
-        public static float GetPlayerFacingScale(PlayerEntity player) => IsFacingLeftByAim(player) ? -1f : 1f;
+        public static float GetPlayerFacingScale(PlayerEntity player)
+        {
+            return IsFacingLeftByAim(player) ? -1f : 1f;
+        }
+
         public static bool IsFacingLeftByAim(PlayerEntity player)
         {
             var radians = System.MathF.PI * player.AimDirectionDegrees / 180f;
@@ -211,7 +215,17 @@ public partial class Game1
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
-
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game.TryGetLocalPlayerAimDirection(player, out var aimDirectionDegrees))
+            {
+                var radians = System.MathF.PI * aimDirectionDegrees / 180f;
+                var cos = System.MathF.Cos(radians);
+                if (System.MathF.Abs(cos) < 0.001f)
+                {
+                    return player.FacingDirectionX < 0f ? -1f : 1f;
+                }
+                return cos < 0f ? -1f : 1f;
+            }
             return GetPlayerFacingScale(player);
         }
 
