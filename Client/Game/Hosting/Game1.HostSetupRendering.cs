@@ -26,9 +26,13 @@ public partial class Game1
         const float infoScale = 1f;
         const float inputScale = 1f;
         const float buttonScale = 1f;
-        _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+        DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
+
+        var hostHeaderText = "HOST A SERVER";
+        var hostHeaderX = panel.Right - 24f - MeasureBitmapFontWidth(hostHeaderText, headerScale);
+        DrawBitmapFontText(hostHeaderText, new Vector2(hostHeaderX, panel.Y + (compactLayout ? 16f : 20f)), Color.White, headerScale);
+
+        DrawRoundedRectangleOutline(layout.ContentViewportBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
 
         if (!string.IsNullOrWhiteSpace(_menuStatusMessage) && compactLayout)
         {
@@ -78,8 +82,8 @@ public partial class Game1
                 listBounds.Y - 30,
                 serverNameBounds.Width + 20,
                 autoBalanceBounds.Bottom - listBounds.Y + 42);
-            DrawHostSetupContentBlock(layout, listSection, new Color(26, 28, 33, 170));
-            DrawHostSetupContentBlock(layout, settingsSection, new Color(26, 28, 33, 170));
+            DrawHostSetupContentBlock(layout, listSection, new Color(46, 40, 35, 170));
+            DrawHostSetupContentBlock(layout, settingsSection, new Color(46, 40, 35, 170));
         }
 
         DrawHostSetupContentText(layout, "Stock Map Rotation", new Vector2(listBounds.X, listBounds.Y - 24f), Color.White, 1f);
@@ -118,15 +122,15 @@ public partial class Game1
 
             if (index == _hostMapIndex)
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(90, 64, 64));
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(95, 72, 68));
             }
             else if (index == _hostSetupHoverIndex)
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(60, 60, 70));
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(75, 67, 62));
             }
             else
             {
-                _spriteBatch.Draw(_pixel, rowBounds, new Color(44, 46, 52, 170));
+                _spriteBatch.Draw(_pixel, rowBounds, new Color(54, 47, 41));
             }
 
             var modeLabel = entry.Mode switch
@@ -153,14 +157,14 @@ public partial class Game1
         if (_hostMapEntries.Count > layout.VisibleRowCapacity && IsHostSetupContentBoundsVisible(layout, listRowsBounds))
         {
             var trackBounds = new Rectangle(listBounds.Right + 8, listRowsBounds.Y, 8, listRowsBounds.Height);
-            _spriteBatch.Draw(_pixel, trackBounds, new Color(30, 32, 38));
+            _spriteBatch.Draw(_pixel, trackBounds, new Color(22, 24, 28));
 
             var maxOffset = Math.Max(1, _hostMapEntries.Count - layout.VisibleRowCapacity);
             var thumbHeight = Math.Max(24, (int)MathF.Round(trackBounds.Height * (layout.VisibleRowCapacity / (float)_hostMapEntries.Count)));
             var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
             var thumbY = trackBounds.Y + (int)MathF.Round((_hostMapScrollOffset / (float)maxOffset) * thumbTravel);
             var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
-            _spriteBatch.Draw(_pixel, thumbBounds, new Color(125, 125, 125));
+            _spriteBatch.Draw(_pixel, thumbBounds, new Color(105, 105, 105));
         }
 
         var selectedMap = GetSelectedHostMapEntry();
@@ -207,18 +211,18 @@ public partial class Game1
         if (contentHeight > layout.ContentViewportBounds.Height)
         {
             var trackBounds = layout.ContentScrollbarTrackBounds;
-            _spriteBatch.Draw(_pixel, trackBounds, new Color(30, 32, 38));
+            _spriteBatch.Draw(_pixel, trackBounds, new Color(22, 24, 28));
 
             var maxOffset = Math.Max(1, contentHeight - layout.ContentViewportBounds.Height);
             var thumbHeight = Math.Max(24, (int)MathF.Round(trackBounds.Height * (layout.ContentViewportBounds.Height / (float)contentHeight)));
             var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
             var thumbY = trackBounds.Y + (int)MathF.Round((_hostSetupContentScrollOffset / (float)maxOffset) * thumbTravel);
             var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
-            _spriteBatch.Draw(_pixel, thumbBounds, new Color(125, 125, 125));
+            _spriteBatch.Draw(_pixel, thumbBounds, new Color(105, 105, 105));
         }
 
-        _spriteBatch.Draw(_pixel, footerBounds, new Color(28, 30, 35, 235));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, layout.FooterTop, panel.Width, 2), new Color(76, 76, 76));
+        _spriteBatch.Draw(_pixel, footerBounds, new Color(54, 47, 41, 235));
+        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, layout.FooterTop, panel.Width, 2), new Color(80, 80, 80));
 
         DrawMenuButtonScaled(layout.HostBounds, GetHostSetupPrimaryButtonLabel(), false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, GetHostSetupSecondaryButtonLabel(), IsServerLauncherMode && IsHostedServerRunning, buttonScale);

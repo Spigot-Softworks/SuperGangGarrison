@@ -12,7 +12,23 @@ public partial class Game1
 {
     private sealed class OptionsMenuController
     {
-        private readonly record struct OptionsMenuAction(string Label, string Value, Action Activate);
+        private readonly record struct OptionsMenuAction(string Label, string Value, Action Activate, OptionsMenuTab Tab);
+
+        private enum OptionsMenuTab
+        {
+            Graphics,
+            Audio,
+            Gameplay,
+            Other,
+        }
+
+        private static readonly string[] OptionsMenuTabLabels =
+        {
+            "Graphics",
+            "Audio",
+            "Gameplay",
+            "Other",
+        };
 
         private readonly Game1 _game;
 
@@ -130,7 +146,7 @@ public partial class Game1
                 var valueClickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
                 if (valueClickPressed)
                 {
-                    GetOptionsMenuPanelLayout(out _, out var valueListBounds, out _, out var compactLayout, out var valueRowHeight);
+                    GetOptionsMenuPanelLayout(out _, out var valueListBounds, out _, out _, out var valueRowHeight);
                     var rowBounds = new Rectangle(
                         valueListBounds.X,
                         valueListBounds.Y + ((0 - _game._optionsScrollOffset) * valueRowHeight),
@@ -173,7 +189,8 @@ public partial class Game1
             }
 
             var actions = BuildOptionsMenuActions();
-            GetOptionsMenuPanelLayout(out _, out var listBounds, out var backBounds, out _, out var rowHeight);
+            GetOptionsMenuPanelLayout(out var panel, out var listBounds, out var backBounds, out var compactLayout, out var rowHeight);
+            var tabBounds = GetOptionsMenuTabButtonBounds(panel, compactLayout);
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
@@ -185,6 +202,20 @@ public partial class Game1
                     _game._optionsScrollOffset + (wheelDelta > 0 ? -stepCount : stepCount),
                     0,
                     Math.Max(0, actions.Count - visibleRowCount));
+            }
+
+            if (mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed)
+            {
+                for (var tabIndex = 0; tabIndex < tabBounds.Length; tabIndex += 1)
+                {
+                    if (tabBounds[tabIndex].Contains(mouse.Position))
+                    {
+                        _game._optionsPageIndex = tabIndex;
+                        _game._optionsScrollOffset = 0;
+                        _game._optionsHoverIndex = -1;
+                        return;
+                    }
+                }
             }
 
             _game._optionsHoverIndex = -1;
@@ -228,17 +259,16 @@ public partial class Game1
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
-            _game._spriteBatch.Draw(_game._pixel, panel, new Color(34, 35, 39, 235));
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+            _game.DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
-                const float optionsHeaderScale = 1.15f;
-                const float optionsRowTextScale = 1.39f;
-                const float optionsCompactRowTextScale = 1.24f;
+                const float optionsHeaderScale = 1f;
+                const float optionsRowTextScale = 1f;
+                const float optionsCompactRowTextScale = 1f;
                 const float optionsRowHorizontalPadding = 14f;
                 const float optionsRowColumnGap = 20f;
 
                 _game.DrawBitmapFontText("Options", new Vector2(listBounds.X, panel.Y + 14f), Color.White, optionsHeaderScale);
+                DrawOptionsMenuTabs(panel, compactLayout);
             if (actions.Count > visibleRowCount)
             {
                 var visibleStart = _game._optionsScrollOffset + 1;
@@ -247,16 +277,18 @@ public partial class Game1
                     $"{visibleStart}-{visibleEnd}/{actions.Count}",
                     new Vector2(listBounds.Right - (compactLayout ? 78f : 96f), panel.Y + 14f),
                     new Color(186, 186, 186),
-                    compactLayout ? 0.92f : 1f);
+                    1f);
             }
 
             var endIndex = Math.Min(actions.Count, _game._optionsScrollOffset + visibleRowCount);
+            var rowSpacing = compactLayout ? 4 : 6;
+            var rowHeightWithoutSpacing = rowHeight - rowSpacing;
             for (var index = _game._optionsScrollOffset; index < endIndex; index += 1)
             {
                 var visibleRow = index - _game._optionsScrollOffset;
-                var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeight - 2);
+                var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeightWithoutSpacing);
                 var isHovered = index == _game._optionsHoverIndex;
-                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(60, 60, 70) : new Color(44, 46, 52, 170));
+                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(75, 67, 62) : new Color(54, 47, 41));
 
                 var textScale = compactLayout ? optionsCompactRowTextScale : optionsRowTextScale;
                 var textY = rowBounds.Y + ((rowBounds.Height - _game.MeasureBitmapFontHeight(textScale)) * 0.5f);
@@ -276,9 +308,9 @@ public partial class Game1
                 {
                     var valueBoxWidth = (int)(rowBounds.Width * 0.42f);
                     var valueBoxHeight = rowBounds.Height - 12;
-                    if (valueBoxHeight < 30)
+                    if (valueBoxHeight < 18)
                     {
-                        valueBoxHeight = 30;
+                        valueBoxHeight = 18;
                     }
                     var valueBoxBounds = new Rectangle(
                         (int)(valueRightX - valueBoxWidth),
@@ -303,14 +335,14 @@ public partial class Game1
             if (actions.Count > visibleRowCount)
             {
                 var trackBounds = new Rectangle(panel.Right - 20, listBounds.Y, 8, listBounds.Height);
-                _game._spriteBatch.Draw(_game._pixel, trackBounds, new Color(30, 32, 38));
+                _game._spriteBatch.Draw(_game._pixel, trackBounds, new Color(22, 24, 28));
 
                 var maxOffset = Math.Max(1, actions.Count - visibleRowCount);
                 var thumbHeight = Math.Max(24, (int)MathF.Round(trackBounds.Height * (visibleRowCount / (float)actions.Count)));
                 var thumbTravel = Math.Max(0, trackBounds.Height - thumbHeight);
                 var thumbY = trackBounds.Y + (int)MathF.Round((_game._optionsScrollOffset / (float)maxOffset) * thumbTravel);
                 var thumbBounds = new Rectangle(trackBounds.X, thumbY, trackBounds.Width, thumbHeight);
-                _game._spriteBatch.Draw(_game._pixel, thumbBounds, new Color(125, 125, 125));
+                _game._spriteBatch.Draw(_game._pixel, thumbBounds, new Color(105, 105, 105));
             }
 
             var backHovered = _game._optionsHoverIndex == actions.Count;
@@ -319,35 +351,87 @@ public partial class Game1
 
         private List<OptionsMenuAction> BuildOptionsMenuActions()
         {
-            var actions = new List<OptionsMenuAction>
+            var allActions = new List<OptionsMenuAction>
             {
-                new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName),
-                new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting),
-                new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting),
-                new("Mute Audio", _game._audioMuted ? "Muted" : "On", _game.ToggleAudioMuteSetting),
-                new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting),
-                new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting),
-                new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting),
-                new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting),
-                new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting),
-                new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting),
-                new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting),
-                new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting),
-                new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting),
-                new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting),
-                new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting),
-                new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting),
-                new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting),
-                new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting),
-                new("Controls", string.Empty, OpenControlsMenuFromOptions),
+                new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
+                new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting, OptionsMenuTab.Graphics),
+                new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
+                new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
+                new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
+                new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
+                new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
+                new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
+                new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
+                new("Mute Audio", _game._audioMuted ? "Muted" : "On", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
+                new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Gameplay),
+                new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Gameplay),
+                new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Gameplay),
+                new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Gameplay),
+                new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Gameplay),
+                new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Gameplay),
+                new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
+                new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
             };
 
             if (_game.HasClientPluginOptions())
             {
-                actions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions));
+                allActions.Add(new OptionsMenuAction("Plugin Options", string.Empty, OpenPluginOptionsMenuFromOptions, OptionsMenuTab.Other));
             }
 
-            return actions;
+            var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
+            var filteredActions = new List<OptionsMenuAction>(allActions.Count);
+
+            foreach (var action in allActions)
+            {
+                if (action.Tab == currentTab)
+                {
+                    filteredActions.Add(action);
+                }
+            }
+
+            return filteredActions;
+        }
+
+        private static OptionsMenuTab GetOptionsMenuTab(int pageIndex)
+        {
+            return pageIndex switch
+            {
+                0 => OptionsMenuTab.Graphics,
+                1 => OptionsMenuTab.Audio,
+                2 => OptionsMenuTab.Gameplay,
+                _ => OptionsMenuTab.Other,
+            };
+        }
+
+        private Rectangle[] GetOptionsMenuTabButtonBounds(Rectangle panel, bool compactLayout)
+        {
+            var padding = compactLayout ? 20 : 28;
+            var buttonHeight = compactLayout ? 34 : 42;
+            var tabCount = OptionsMenuTabLabels.Length;
+            var spacing = compactLayout ? 8 : 12;
+            var totalWidth = (tabCount * 140) + ((tabCount - 1) * spacing);
+            var buttonWidth = Math.Min(160, Math.Max(100, (panel.Width - (padding * 2) - ((tabCount - 1) * spacing)) / tabCount));
+            var startX = panel.X + padding;
+            var y = panel.Y + (compactLayout ? 52 : 60);
+            var bounds = new Rectangle[tabCount];
+
+            for (var i = 0; i < tabCount; i += 1)
+            {
+                bounds[i] = new Rectangle(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
+            }
+
+            return bounds;
+        }
+
+        private void DrawOptionsMenuTabs(Rectangle panel, bool compactLayout)
+        {
+            var tabBounds = GetOptionsMenuTabButtonBounds(panel, compactLayout);
+            for (var i = 0; i < tabBounds.Length; i += 1)
+            {
+                var selected = i == _game._optionsPageIndex;
+                _game.DrawMenuButtonScaled(tabBounds[i], OptionsMenuTabLabels[i], selected, 1f);
+            }
         }
 
         private void GetOptionsMenuPanelLayout(out Rectangle panel, out Rectangle listBounds, out Rectangle backBounds, out bool compactLayout, out int rowHeight)
@@ -362,16 +446,21 @@ public partial class Game1
 
             compactLayout = panel.Height < 540 || panel.Width < 700;
             var padding = compactLayout ? 20 : 28;
-            rowHeight = compactLayout ? 46 : 52;
-            var headerHeight = compactLayout ? 48 : 56;
+            var baseRowHeight = compactLayout ? 24 : 26;
+            var rowSpacing = compactLayout ? 4 : 6;
+            rowHeight = baseRowHeight + rowSpacing;
+            var titleHeight = compactLayout ? 48 : 56;
+            var tabRowHeight = compactLayout ? 44 : 48;
+            var headerHeight = titleHeight + tabRowHeight;
             var footerHeight = compactLayout ? 56 : 64;
             var scrollbarPadding = 18;
+            var listTopPadding = compactLayout ? 8 : 10;
 
             listBounds = new Rectangle(
                 panel.X + padding,
-                panel.Y + headerHeight,
+                panel.Y + headerHeight + listTopPadding,
                 panel.Width - (padding * 2) - scrollbarPadding,
-                Math.Max(rowHeight, panel.Height - headerHeight - footerHeight - 10));
+                Math.Max(rowHeight, panel.Height - headerHeight - footerHeight - 10 - listTopPadding));
 
             var backWidth = compactLayout ? 150 : 180;
             var backHeight = compactLayout ? 36 : 42;
