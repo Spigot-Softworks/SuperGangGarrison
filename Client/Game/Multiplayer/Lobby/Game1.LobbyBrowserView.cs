@@ -113,9 +113,8 @@ public partial class Game1
         const float headerScale = 1f;
         const float rowScale = 1f;
         const float buttonScale = 1f;
-        _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+        DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
+        DrawRoundedRectangleOutline(listBounds, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 1, radius: 6);
 
         var headerY = listBounds.Y - 22f;
         DrawBitmapFontText("NAME", new Vector2(nameColumnX, headerY), Color.White, headerScale);
@@ -133,10 +132,10 @@ public partial class Game1
             var highlighted = index == _lobbyBrowserSelectedIndex;
             var hovered = index == _lobbyBrowserHoverIndex;
             var background = highlighted
-                ? new Color(110, 53, 53)
+                ? new Color(95, 72, 68)
                 : hovered
-                    ? new Color(64, 66, 72)
-                    : new Color(44, 46, 52);
+                    ? new Color(75, 67, 62)
+                    : new Color(54, 47, 41);
             _spriteBatch.Draw(_pixel, bounds, background);
 
             var statusColor = entry.HasResponse || entry.CanJoinDirectly

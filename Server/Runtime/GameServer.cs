@@ -62,7 +62,8 @@ sealed partial class GameServer
     private int _botAutofillMinPlayers;
     private int _botAutofillPerTeam;
     private int _botAutofillLastTick;
-    private readonly bool _secondaryAbilitiesEnabled;
+    private bool _secondaryAbilitiesEnabled;
+    private bool _randomSpreadEnabled;
     private readonly int? _timeLimitMinutesOverride;
     private readonly int? _capLimitOverride;
     private readonly int? _respawnSecondsOverride;
@@ -138,6 +139,7 @@ sealed partial class GameServer
         int autoBalanceNewPlayerGraceSeconds,
         bool autoBalanceEnabled,
         bool secondaryAbilitiesEnabled,
+        bool randomSpreadEnabled,
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
@@ -178,6 +180,7 @@ sealed partial class GameServer
         _autoBalanceNewPlayerGraceSeconds = autoBalanceNewPlayerGraceSeconds;
         _autoBalanceEnabled = autoBalanceEnabled;
         _secondaryAbilitiesEnabled = secondaryAbilitiesEnabled;
+        _randomSpreadEnabled = randomSpreadEnabled;
         _timeLimitMinutesOverride = timeLimitMinutesOverride;
         _capLimitOverride = capLimitOverride;
         _respawnSecondsOverride = respawnSecondsOverride;

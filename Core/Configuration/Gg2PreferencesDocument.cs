@@ -251,6 +251,8 @@ public sealed class OpenGarrisonHostSettings
 
     public bool SecondaryAbilitiesEnabled { get; set; } = true;
 
+    public bool RandomSpreadEnabled { get; set; } = true;
+
     public bool DedicatedModeEnabled { get; set; }
 
     public string MapRotationFile { get; set; } = string.Empty;
@@ -321,6 +323,7 @@ public sealed class OpenGarrisonHostSettings
             LobbyAnnounceEnabled = LobbyAnnounceEnabled,
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
+            RandomSpreadEnabled = RandomSpreadEnabled,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),
