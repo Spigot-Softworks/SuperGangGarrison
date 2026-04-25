@@ -53,6 +53,12 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool AudioMuted { get; set; }
 
+    public int MenuMusicVolumePercent { get; set; } = 70;
+
+    public int IngameMusicVolumePercent { get; set; } = 70;
+
+    public int SoundEffectsVolumePercent { get; set; } = 70;
+
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
     public bool SpriteDropShadowEnabled { get; set; }
@@ -105,6 +111,9 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
+            MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
+            IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
+            SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
@@ -147,6 +156,9 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
+        ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
+        ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
+        ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);

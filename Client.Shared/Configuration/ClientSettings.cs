@@ -30,6 +30,12 @@ public sealed class ClientSettings
         set => MusicMode = value ? MusicMode.MenuAndInGame : MusicMode.MenuOnly;
     }
 
+    public int MenuMusicVolumePercent { get; set; } = 70;
+
+    public int IngameMusicVolumePercent { get; set; } = 70;
+
+    public int SoundEffectsVolumePercent { get; set; } = 70;
+
     public bool KillCamEnabled { get; set; } = true;
 
     public int ParticleMode { get; set; }
@@ -137,6 +143,9 @@ public sealed class ClientSettings
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
             AudioMuted = document.AudioMuted,
+            MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
+            IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
+            SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
@@ -169,6 +178,9 @@ public sealed class ClientSettings
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
         preferences.AudioMuted = AudioMuted;
+        preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;
+        preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;
+        preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
