@@ -194,6 +194,8 @@ public partial class Game1
             var visibleRowCount = Math.Max(1, listBounds.Height / rowHeight);
             ClampOptionsScrollOffset(actions.Count, visibleRowCount);
 
+            const float optionsRowValueHorizontalPadding = 14f;
+            const float optionsRowValueTextScale = 1f;
             var wheelDelta = mouse.ScrollWheelValue - _game._previousMouse.ScrollWheelValue;
             if (wheelDelta != 0 && listBounds.Contains(mouse.Position))
             {
@@ -245,7 +247,40 @@ public partial class Game1
                 return;
             }
 
-            actions[_game._optionsHoverIndex].Activate();
+            var selectedAction = actions[_game._optionsHoverIndex];
+            if (selectedAction.Label is "Menu Music Volume" or "In-Game Music Volume" or "SFX Volume")
+            {
+                var visibleIndex = _game._optionsHoverIndex - _game._optionsScrollOffset;
+                var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleIndex * rowHeight), listBounds.Width, rowHeight);
+                var valueRightX = rowBounds.Right - optionsRowValueHorizontalPadding;
+                var displayValue = selectedAction.Label == "SFX Volume"
+                    ? $"< {selectedAction.Value} >"
+                    : $"< {selectedAction.Value} >";
+                var valueWidth = _game.MeasureBitmapFontWidth(displayValue, optionsRowValueTextScale);
+                var valueX = valueRightX - valueWidth;
+                if (mouse.X < valueX + (valueWidth / 2))
+                {
+                    if (selectedAction.Label == "Menu Music Volume")
+                    {
+                        _game.AdjustMenuMusicVolume(-5);
+                        return;
+                    }
+
+                    if (selectedAction.Label == "In-Game Music Volume")
+                    {
+                        _game.AdjustIngameMusicVolume(-5);
+                        return;
+                    }
+
+                    if (selectedAction.Label == "SFX Volume")
+                    {
+                        _game.AdjustSoundEffectsVolume(-5);
+                        return;
+                    }
+                }
+            }
+
+            selectedAction.Activate();
         }
 
         public void DrawOptionsMenu()
@@ -296,7 +331,12 @@ public partial class Game1
                 var row = actions[index];
                 var labelX = rowBounds.X + optionsRowHorizontalPadding;
                 var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
-                var trimmedValue = _game.TrimBitmapMenuText(row.Value, rowBounds.Width * 0.42f, textScale);
+                var displayValue = row.Label switch
+                {
+                    "Menu Music Volume" or "In-Game Music Volume" or "SFX Volume" => $"< {row.Value} >",
+                    _ => row.Value,
+                };
+                var trimmedValue = _game.TrimBitmapMenuText(displayValue, rowBounds.Width * 0.42f, textScale);
                 var valueWidth = _game.MeasureBitmapFontWidth(trimmedValue, textScale);
                 var valueX = valueRightX - valueWidth;
                 var labelMaxWidth = Math.Max(40f, valueX - labelX - optionsRowColumnGap);
@@ -362,8 +402,12 @@ public partial class Game1
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
+                new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),
-                new("Mute Audio", _game._audioMuted ? "Muted" : "On", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
+                new("Menu Music Volume", $"{_game._menuMusicVolumePercent}%", () => _game.AdjustMenuMusicVolume(5), OptionsMenuTab.Audio),
+                new("In-Game Music Volume", $"{_game._ingameMusicVolumePercent}%", () => _game.AdjustIngameMusicVolume(5), OptionsMenuTab.Audio),
+                new("SFX Volume", $"{_game._soundEffectsVolumePercent}%", () => _game.AdjustSoundEffectsVolume(5), OptionsMenuTab.Audio),
+                new("Mute All Audio (F12)", _game._audioMuted ? "Muted" : "Unmuted", _game.ToggleAudioMuteSetting, OptionsMenuTab.Audio),
                 new("Healer Radar", _game._healerRadarEnabled ? "Enabled" : "Disabled", _game.ToggleHealerRadarSetting, OptionsMenuTab.Gameplay),
                 new("Show Healer", _game._showHealerEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealerSetting, OptionsMenuTab.Gameplay),
                 new("Show Healing", _game._showHealingEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealingSetting, OptionsMenuTab.Gameplay),

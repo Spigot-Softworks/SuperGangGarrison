@@ -34,6 +34,24 @@ public partial class Game1
     {
         _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
         ApplyGraphicsSettings();
+
+        if (!OperatingSystem.IsBrowser())
+        {
+            Window.AllowUserResizing = !_graphics.IsFullScreen;
+        }
+    }
+
+    private void ResetWindowSize()
+    {
+        if (_graphics.IsFullScreen || OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var defaultDimensions = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+        _graphics.PreferredBackBufferWidth = defaultDimensions.X;
+        _graphics.PreferredBackBufferHeight = defaultDimensions.Y;
+        _graphics.ApplyChanges();
     }
 
     private void CycleMusicModeSetting()
@@ -127,7 +145,27 @@ public partial class Game1
     private void ToggleAudioMuteSetting()
     {
         _audioMuted = !_audioMuted;
-        ApplyAudioMuteState();
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustMenuMusicVolume(int deltaPercent)
+    {
+        _menuMusicVolumePercent = Math.Clamp(_menuMusicVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustIngameMusicVolume(int deltaPercent)
+    {
+        _ingameMusicVolumePercent = Math.Clamp(_ingameMusicVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustSoundEffectsVolume(int deltaPercent)
+    {
+        _soundEffectsVolumePercent = Math.Clamp(_soundEffectsVolumePercent + deltaPercent, 0, 100);
         PersistClientSettings();
     }
 
