@@ -40,6 +40,7 @@ public partial class Game1
 
             var chosen = candidates[Random.Shared.Next(candidates.Length)];
             TryLoadLoopedMusic(chosen, out _game._menuMusic, out _game._menuMusicInstance, 0.8f);
+            _game.ApplyAudioVolumeState();
         }
 
         public void LoadFaucetMusic()
@@ -47,6 +48,7 @@ public partial class Game1
             if (_game._audioAvailable)
             {
                 TryLoadLoopedMusic(Path.Combine("Music", "faucetmusic.wav"), out _game._faucetMusic, out _game._faucetMusicInstance, 0.8f);
+                _game.ApplyAudioVolumeState();
             }
         }
 
@@ -55,6 +57,7 @@ public partial class Game1
             if (_game._audioAvailable)
             {
                 TryLoadLoopedMusic(Path.Combine("Music", "ingamemusic.wav"), out _game._ingameMusic, out _game._ingameMusicInstance, 0.8f);
+                _game.ApplyAudioVolumeState();
             }
         }
 
@@ -63,6 +66,7 @@ public partial class Game1
             if (_game._audioAvailable)
             {
                 TryLoadLoopedMusic(Path.Combine("Music", "menu-l2d.fixed.wav"), out _game._lastToDieMenuMusic, out _game._lastToDieMenuMusicInstance, 0.82f, disableAudioOnFailure: false);
+                _game.ApplyAudioVolumeState();
             }
         }
 
@@ -71,6 +75,7 @@ public partial class Game1
             if (_game._audioAvailable)
             {
                 TryLoadLoopedMusic(Path.Combine("Music", "ingame_l2d.wav"), out _game._lastToDieIngameMusic, out _game._lastToDieIngameMusicInstance, 0.82f, disableAudioOnFailure: false);
+                _game.ApplyAudioVolumeState();
             }
         }
 
@@ -268,7 +273,7 @@ public partial class Game1
                     _game._lastToDieGameOverSound = LoadMusicSoundEffect(soundPath);
                     _game._lastToDieGameOverSoundInstance = _game._lastToDieGameOverSound.CreateInstance();
                     _game._lastToDieGameOverSoundInstance.IsLooped = false;
-                    _game._lastToDieGameOverSoundInstance.Volume = 0.85f;
+                    _game._lastToDieGameOverSoundInstance.Volume = 0.85f * _game._ingameMusicVolumePercent / 100f;
                 }
                 catch (Exception ex)
                 {
