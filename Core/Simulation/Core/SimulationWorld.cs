@@ -88,6 +88,7 @@ public sealed partial class SimulationWorld
     private float _configuredHorizontalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
     private float _configuredVerticalSpeedClampPerTick = LegacyMovementModel.MaxStepSpeedPerTick;
     private bool _roundEndFriendlyFireEnabled;
+    private readonly Dictionary<int, int> _deterministicSpreadShotIndexByPlayerId = new();
     private CharacterClassDefinition _localPlayerClassDefinition = CharacterClassCatalog.Scout;
     private CharacterClassDefinition _enemyDummyClassDefinition = CharacterClassCatalog.Scout;
     private readonly CharacterClassDefinition _friendlyDummyClassDefinition = CharacterClassCatalog.Heavy;
@@ -156,6 +157,17 @@ public sealed partial class SimulationWorld
     public MatchState MatchState { get; private set; }
 
     public ExperimentalGameplaySettings ExperimentalGameplaySettings { get; private set; } = new();
+
+    public bool RandomSpreadEnabled { get; set; } = true;
+
+    public int GetDeterministicSpreadShotIndex(int attackerId)
+    {
+        var index = _deterministicSpreadShotIndexByPlayerId.TryGetValue(attackerId, out var currentIndex)
+            ? currentIndex
+            : 0;
+        _deterministicSpreadShotIndexByPlayerId[attackerId] = index + 1;
+        return index;
+    }
 
     public int MapChangeTicksRemaining => _pendingMapChangeTicks;
 
