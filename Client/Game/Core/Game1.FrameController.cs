@@ -66,7 +66,13 @@ public partial class Game1
             if (toggleConsolePressed && !_game._mainMenuOpen)
             {
                 _game._consoleOpen = !_game._consoleOpen;
+                if (_game._consoleOpen)
+                {
+                    _game.InitializeConsoleInputCursor();
+                }
             }
+
+            _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {

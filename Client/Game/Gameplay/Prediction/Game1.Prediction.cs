@@ -38,8 +38,8 @@ public partial class Game1
             return;
         }
 
-        _pendingPredictedInputs.Add(new PredictedLocalInput(sequence, input, jumpPressed, primaryPressed, secondaryAbilityPressed, secondaryWeaponPressed));
-        RebuildLocalPrediction(preserveRenderContinuity: false);
+        // Client-side movement and shooting prediction are disabled.
+        // Keep the latest local input for UI and jump-edge latching, but render only authoritative server state.
     }
 
     private void ReconcileLocalPrediction(uint lastProcessedInputSequence)
@@ -57,8 +57,13 @@ public partial class Game1
         }
 
         AcknowledgeLatchedPredictedInputs(lastProcessedInputSequence);
-        _pendingPredictedInputs.RemoveAll(input => input.Sequence <= lastProcessedInputSequence);
-        RebuildLocalPrediction(preserveRenderContinuity: true);
+        _pendingPredictedInputs.Clear();
+        _hasPredictedLocalPlayerPosition = false;
+        _hasSmoothedLocalPlayerRenderPosition = false;
+        _hasPredictedLocalActionState = false;
+        _predictedLocalPlayerShadow = null;
+        _predictedLocalPlayerRenderCorrectionOffset = Vector2.Zero;
+        _lastPredictedRenderSmoothingTimeSeconds = -1d;
     }
 
     private void RebuildLocalPrediction(bool preserveRenderContinuity)

@@ -30,11 +30,16 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    if (_game._consoleInput.Length > 0)
-                    {
-                        _game._consoleInput = _game._consoleInput[..^1];
-                    }
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._consoleInput,
+                        _game._consoleInputCursorIndex,
+                        _game._consoleInputSelectionStart);
+                    _game._consoleInput = result.Text;
+                    _game._consoleInputCursorIndex = result.CursorIndex;
+                    _game._consoleInputSelectionStart = result.SelectionStart;
                     break;
+                }
                 case '\r':
                     _game.ExecuteConsoleCommand();
                     break;
@@ -44,7 +49,15 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character))
                     {
-                        _game._consoleInput += character;
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._consoleInput,
+                            character,
+                            _game._consoleInputCursorIndex,
+                            _game._consoleInputSelectionStart,
+                            int.MaxValue);
+                        _game._consoleInput = result.Text;
+                        _game._consoleInputCursorIndex = result.CursorIndex;
+                        _game._consoleInputSelectionStart = result.SelectionStart;
                     }
                     break;
             }

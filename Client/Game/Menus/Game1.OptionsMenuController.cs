@@ -127,6 +127,48 @@ public partial class Game1
 
             if (_game._editingPlayerName)
             {
+                var valueClickPressed = mouse.LeftButton == ButtonState.Pressed && _game._previousMouse.LeftButton != ButtonState.Pressed;
+                if (valueClickPressed)
+                {
+                    GetOptionsMenuPanelLayout(out _, out var valueListBounds, out _, out var compactLayout, out var valueRowHeight);
+                    var rowBounds = new Rectangle(
+                        valueListBounds.X,
+                        valueListBounds.Y + ((0 - _game._optionsScrollOffset) * valueRowHeight),
+                        valueListBounds.Width,
+                        valueRowHeight - 2);
+
+                    if (valueListBounds.Contains(mouse.Position))
+                    {
+                        const float optionsRowHorizontalPadding = 14f;
+                        var valueBoxWidth = (int)(rowBounds.Width * 0.42f);
+                        var valueBoxHeight = rowBounds.Height - 12;
+                        if (valueBoxHeight < 30)
+                        {
+                            valueBoxHeight = 30;
+                        }
+
+                        var valueRightX = rowBounds.Right - optionsRowHorizontalPadding;
+                        var valueBoxBounds = new Rectangle(
+                            (int)(valueRightX - valueBoxWidth),
+                            rowBounds.Y + ((rowBounds.Height - valueBoxHeight) / 2),
+                            valueBoxWidth,
+                            valueBoxHeight);
+
+                        if (valueBoxBounds.Contains(mouse.Position) && _game.IsTextFieldDoubleClick(TextFieldClickTarget.OptionsPlayerName))
+                        {
+                            _game.SelectAllTextInActiveField(TextFieldClickTarget.OptionsPlayerName);
+                        }
+                        else
+                        {
+                            _game.ResetTextFieldClickTarget();
+                        }
+                    }
+                    else
+                    {
+                        _game.ResetTextFieldClickTarget();
+                    }
+                }
+
                 return;
             }
 
@@ -229,7 +271,30 @@ public partial class Game1
                 var trimmedLabel = _game.TrimBitmapMenuText(row.Label, labelMaxWidth, textScale);
 
                 _game.DrawBitmapFontText(trimmedLabel, new Vector2(labelX, textY), Color.White, textScale);
-                if (!string.IsNullOrWhiteSpace(trimmedValue))
+
+                if (row.Label == "Player Name" && _game._editingPlayerName)
+                {
+                    var valueBoxWidth = (int)(rowBounds.Width * 0.42f);
+                    var valueBoxHeight = rowBounds.Height - 12;
+                    if (valueBoxHeight < 30)
+                    {
+                        valueBoxHeight = 30;
+                    }
+                    var valueBoxBounds = new Rectangle(
+                        (int)(valueRightX - valueBoxWidth),
+                        rowBounds.Y + ((rowBounds.Height - valueBoxHeight) / 2),
+                        valueBoxWidth,
+                        valueBoxHeight);
+
+                    _game.DrawMenuInputBoxScaled(
+                        valueBoxBounds,
+                        _game._playerNameEditBuffer,
+                        true,
+                        textScale,
+                        _game._playerNameEditCursorIndex,
+                        _game._playerNameEditSelectionStart);
+                }
+                else if (!string.IsNullOrWhiteSpace(trimmedValue))
                 {
                     _game.DrawBitmapFontText(trimmedValue, new Vector2(valueX, textY), Color.White, textScale);
                 }
@@ -256,7 +321,7 @@ public partial class Game1
         {
             var actions = new List<OptionsMenuAction>
             {
-                new("Player Name", _game._editingPlayerName ? _game._playerNameEditBuffer + "_" : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName),
+                new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName),
                 new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting),
                 new("Mute Audio", _game._audioMuted ? "Muted" : "On", _game.ToggleAudioMuteSetting),

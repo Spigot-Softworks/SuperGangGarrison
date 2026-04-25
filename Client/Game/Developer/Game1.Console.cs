@@ -556,12 +556,31 @@ public partial class Game1
             linePosition.Y += 18f;
         }
 
-        var promptText = $"> {_consoleInput}_";
-        _spriteBatch.DrawString(
-            _consoleFont,
-            promptText,
-            new Vector2(overlayRectangle.X + 12, overlayRectangle.Bottom - 30),
-            new Color(255, 245, 190));
+        var promptPrefix = "> ";
+        var promptPosition = new Vector2(overlayRectangle.X + 12, overlayRectangle.Bottom - 30);
+        var promptPrefixWidth = _consoleFont.MeasureString(promptPrefix).X;
+        _spriteBatch.DrawString(_consoleFont, promptPrefix, promptPosition, new Color(255, 245, 190));
+
+        if (HasTextSelection(_consoleInputCursorIndex, _consoleInputSelectionStart))
+        {
+            DrawSpriteFontTextWithSelection(
+                _consoleFont,
+                _consoleInput,
+                new Vector2(promptPosition.X + promptPrefixWidth, promptPosition.Y),
+                _consoleInputCursorIndex,
+                _consoleInputSelectionStart,
+                new Color(255, 245, 190),
+                Color.Black,
+                Color.White);
+        }
+        else
+        {
+            _spriteBatch.DrawString(
+                _consoleFont,
+                GetTextWithCursor(_consoleInput, _consoleInputCursorIndex),
+                new Vector2(promptPosition.X + promptPrefixWidth, promptPosition.Y),
+                new Color(255, 245, 190));
+        }
     }
 
     private void AppendWrappedConsoleLines(List<string> lines, string text, float maxWidth)

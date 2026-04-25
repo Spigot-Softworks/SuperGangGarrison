@@ -7,6 +7,8 @@ namespace OpenGarrison.Client;
 
 internal readonly record struct HostedServerConsoleSnapshot(
     string CommandInput,
+    int CommandInputCursorIndex,
+    int CommandInputSelectionStart,
     IReadOnlyList<string> ConsoleLines,
     string StatusName,
     string StatusPort,
@@ -24,6 +26,27 @@ internal sealed class HostedServerConsoleState
     private readonly object _sync = new();
     private readonly List<string> _consoleLines = new();
     private string _commandInput = string.Empty;
+    public int CommandInputCursorIndex { get; set; }
+    public int CommandInputSelectionStart { get; set; }
+
+    public string CommandInput
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _commandInput;
+            }
+        }
+        set
+        {
+            lock (_sync)
+            {
+                _commandInput = value;
+            }
+        }
+    }
+
     private string? _lastOutputLine;
     private string _statusName = "Offline";
     private string _statusPort = "--";
@@ -40,6 +63,8 @@ internal sealed class HostedServerConsoleState
         {
             return new HostedServerConsoleSnapshot(
                 _commandInput,
+                CommandInputCursorIndex,
+                CommandInputSelectionStart,
                 _consoleLines.ToArray(),
                 _statusName,
                 _statusPort,
@@ -58,6 +83,8 @@ internal sealed class HostedServerConsoleState
         {
             _consoleLines.Clear();
             _commandInput = string.Empty;
+            CommandInputCursorIndex = 0;
+            CommandInputSelectionStart = 0;
             _lastOutputLine = null;
             _statusName = "Offline";
             _statusPort = "--";
@@ -94,6 +121,8 @@ internal sealed class HostedServerConsoleState
         lock (_sync)
         {
             _commandInput = string.Empty;
+            CommandInputCursorIndex = 0;
+            CommandInputSelectionStart = 0;
             _statusName = serverName;
             _statusPort = port.ToString(CultureInfo.InvariantCulture);
             _statusPlayers = $"0/{maxPlayers}";
@@ -175,6 +204,8 @@ internal sealed class HostedServerConsoleState
         lock (_sync)
         {
             _commandInput = string.Empty;
+            CommandInputCursorIndex = 0;
+            CommandInputSelectionStart = 0;
         }
     }
 
