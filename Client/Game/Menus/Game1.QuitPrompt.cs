@@ -79,11 +79,9 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.76f);
 
         GetQuitPromptLayout(out var panel, out var confirmBounds, out var cancelBounds, out var compactLayout);
-        const float titleScale = 1.75f;
-        const float buttonScale = 1.75f;
-        _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 242));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+        const float titleScale = 1f;
+        const float buttonScale = 1f;
+        DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         DrawBitmapFontTextCentered(
             "Are you sure you want to quit?",
@@ -121,7 +119,10 @@ public partial class Game1
 
     private void DrawQuitPromptButton(Rectangle bounds, string label, bool highlighted, float textScale)
     {
-        _spriteBatch.Draw(_pixel, bounds, highlighted ? new Color(120, 50, 50) : new Color(56, 58, 64));
+        var fillColor = highlighted ? new Color(97, 89, 82) : new Color(74, 67, 61);
+        var outlineColor = new Color(213, 205, 188);
+        DrawRoundedRectangleOutline(bounds, fillColor, outlineColor, outlineThickness: 2, radius: 8);
+
         var trimmedLabel = TrimBitmapMenuText(label, bounds.Width - 28f, textScale);
         DrawBitmapFontTextCentered(
             trimmedLabel,

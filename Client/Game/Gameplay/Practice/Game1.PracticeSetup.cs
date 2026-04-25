@@ -171,9 +171,7 @@ public partial class Game1
         var rowTextOffset = compactLayout ? 8f : 10f;
         var mapEntry = GetSelectedPracticeMapEntry();
 
-        _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+        DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         DrawBitmapFontText("Map", new Vector2(rowLabelX, layout.MapValueBounds.Y + rowTextOffset), Color.White, labelScale);
         DrawPracticeSelectorRow(
@@ -354,9 +352,9 @@ public partial class Game1
         float buttonScale,
         float valueScale)
     {
-        DrawMenuButtonScaled(leftBounds, "<", false, buttonScale);
+        DrawMenuButtonCentered(leftBounds, "<", false, buttonScale);
         DrawMenuInputBoxScaled(valueBounds, valueText, active: false, valueScale);
-        DrawMenuButtonScaled(rightBounds, ">", false, buttonScale);
+        DrawMenuButtonCentered(rightBounds, ">", false, buttonScale);
     }
 
     private static Rectangle OffsetPracticeRow(Rectangle bounds, int offsetY)

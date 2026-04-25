@@ -86,9 +86,7 @@ public partial class Game1
             out var compactLayout);
         const float labelScale = 1f;
         const float buttonScale = 1f;
-        _spriteBatch.Draw(_pixel, panel, new Color(34, 35, 39, 235));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+        DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
         DrawBitmapFontText("Host", new Vector2(hostBounds.X, hostBounds.Y - 16f), Color.White, labelScale);
         DrawBitmapFontText("Port", new Vector2(portBounds.X, portBounds.Y - 16f), Color.White, labelScale);

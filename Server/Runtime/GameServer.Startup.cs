@@ -103,6 +103,7 @@ partial class GameServer
             _autoBalanceNewPlayerGraceSeconds,
             _autoBalanceEnabled,
             _secondaryAbilitiesEnabled,
+            _randomSpreadEnabled,
             _timeLimitMinutesOverride,
             _capLimitOverride,
             _respawnSecondsOverride,
@@ -171,6 +172,7 @@ partial class GameServer
         }
 
         Console.WriteLine($"Auto-balance: {(_autoBalanceEnabled ? "Enabled" : "Disabled")}");
+        Console.WriteLine($"Random bullet spread: {(_randomSpreadEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
@@ -510,6 +512,31 @@ partial class GameServer
             _autoBalanceEnabled,
             () => _autoBalanceEnabled,
             value => _autoBalanceEnabled = value);
+        registry.RegisterBoolean(
+            "sv_randomspread",
+            "Enable or disable random bullet spread.",
+            _randomSpreadEnabled,
+            () => _world.RandomSpreadEnabled,
+            value =>
+            {
+                _randomSpreadEnabled = value;
+                _world.RandomSpreadEnabled = value;
+            });
+        registry.RegisterBoolean(
+            "sv_secondaryabilities",
+            "Enable or disable secondary abilities on the server.",
+            _secondaryAbilitiesEnabled,
+            () => _world.ExperimentalGameplaySettings.EnableSecondaryAbilities,
+            value =>
+            {
+                _secondaryAbilitiesEnabled = value;
+                _world.ConfigureExperimentalGameplaySettings(
+                    _world.ExperimentalGameplaySettings with
+                    {
+                        EnableSecondaryAbilities = value,
+                        EnableSoldierShotgunSecondaryWeapon = value,
+                    });
+            });
         registry.RegisterString(
             "sv_map",
             "Current loaded map level name.",

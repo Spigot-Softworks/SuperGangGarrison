@@ -57,7 +57,15 @@ public sealed partial class SimulationWorld
             }
 
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var speed = 7f + (_random.NextSingle() * 3f);
+            if (!_world.RandomSpreadEnabled)
+            {
+                directionRadians += GetDeterministicContinuousSpreadRadians(attacker.Id, 4f);
+            }
+
+            var speed = _world.RandomSpreadEnabled
+                ? 7f + (_random.NextSingle() * 3f)
+                : 7f;
+
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 MathF.Cos(directionRadians) * speed,
