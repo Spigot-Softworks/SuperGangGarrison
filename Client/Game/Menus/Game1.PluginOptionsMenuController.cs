@@ -136,13 +136,11 @@ public partial class Game1
             var visibleRowCount = Math.Max(1, Math.Min(rows.Count, listBounds.Height / rowHeight));
             ClampPluginOptionsScrollOffset(rows.Count, visibleRowCount);
 
-            _game._spriteBatch.Draw(_game._pixel, panel, new Color(34, 35, 39, 235));
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Y, panel.Width, 3), new Color(210, 210, 210));
-            _game._spriteBatch.Draw(_game._pixel, new Rectangle(panel.X, panel.Bottom - 3, panel.Width, 3), new Color(76, 76, 76));
+            _game.DrawRoundedRectangleOutline(panel, new Color(59, 51, 46), new Color(213, 205, 188), outlineThickness: 2, radius: 8);
 
             const float headerScale = 1.15f;
-            const float rowTextScale = 1.39f;
-            const float compactRowTextScale = 1.24f;
+            const float rowTextScale = 1f;
+            const float compactRowTextScale = 1f;
             const float rowHorizontalPadding = 14f;
             const float rowColumnGap = 20f;
 
@@ -167,7 +165,8 @@ public partial class Game1
                 var visibleRow = index - _game._pluginOptionsScrollOffset;
                 var rowBounds = new Rectangle(listBounds.X, listBounds.Y + (visibleRow * rowHeight), listBounds.Width, rowHeight - 2);
                 var isHovered = index == _game._pluginOptionsHoverIndex;
-                _game._spriteBatch.Draw(_game._pixel, rowBounds, isHovered ? new Color(60, 60, 70) : new Color(44, 46, 52, 170));
+                var rowFill = isHovered ? new Color(75, 67, 62) : new Color(54, 47, 41);
+                _game._spriteBatch.Draw(_game._pixel, rowBounds, rowFill);
 
                 var textScale = compactLayout ? compactRowTextScale : rowTextScale;
                 var textY = rowBounds.Y + ((rowBounds.Height - _game.MeasureBitmapFontHeight(textScale)) * 0.5f);
@@ -318,7 +317,9 @@ public partial class Game1
 
             compactLayout = panel.Height < 540 || panel.Width < 700;
             var padding = compactLayout ? 20 : 28;
-            rowHeight = compactLayout ? 46 : 52;
+            var baseRowHeight = compactLayout ? 24 : 26;
+            var rowSpacing = compactLayout ? 4 : 6;
+            rowHeight = baseRowHeight + rowSpacing;
             var headerHeight = compactLayout ? 48 : 56;
             var footerHeight = compactLayout ? 56 : 64;
             var scrollbarPadding = 18;

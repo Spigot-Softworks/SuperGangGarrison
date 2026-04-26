@@ -64,6 +64,8 @@ public sealed partial class SimulationWorld
             snapshotPlayer.SniperChargeTicks,
             snapshotPlayer.FacingDirectionX,
             snapshotPlayer.AimDirectionDegrees,
+            snapshotPlayer.AimWorldX,
+            snapshotPlayer.AimWorldY,
             snapshotPlayer.IsTaunting,
             snapshotPlayer.TauntFrameIndex,
             snapshotPlayer.IsChatBubbleVisible,

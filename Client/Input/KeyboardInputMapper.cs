@@ -10,7 +10,9 @@ internal static class KeyboardInputMapper
         KeyboardState keyboard,
         MouseState mouse,
         float cameraX,
-        float cameraY)
+        float cameraY,
+        float localPlayerX,
+        float localPlayerY)
     {
         return new PlayerInputSnapshot(
             Left: keyboard.IsKeyDown(bindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left),
@@ -24,8 +26,8 @@ internal static class KeyboardInputMapper
             FireSecondary: mouse.RightButton == ButtonState.Pressed,
             FireSecondaryWeapon: keyboard.IsKeyDown(bindings.FireSecondaryWeapon),
             InteractWeapon: keyboard.IsKeyDown(bindings.InteractWeapon),
-            AimWorldX: cameraX + mouse.X,
-            AimWorldY: cameraY + mouse.Y,
+            AimWorldX: (cameraX + mouse.X) - localPlayerX,
+            AimWorldY: (cameraY + mouse.Y) - localPlayerY,
             DebugKill: false,
             DropIntel: keyboard.IsKeyDown(Keys.B));
     }

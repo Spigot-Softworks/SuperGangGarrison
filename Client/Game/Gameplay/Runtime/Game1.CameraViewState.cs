@@ -27,6 +27,17 @@ public partial class Game1
             return cameraTopLeft;
         }
 
+        if (_networkClient.IsSpectator && GetSpectatorFocusPlayer() is PlayerEntity trackedPlayer && GetPlayerIsSniperScoped(trackedPlayer))
+        {
+            cameraTopLeft = GetSpectatorScopedSniperCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
+            if (trackLiveCamera)
+            {
+                TrackLiveCamera(cameraTopLeft);
+            }
+
+            return cameraTopLeft;
+        }
+
         var localViewPosition = GetLocalViewPosition();
         if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
@@ -105,5 +116,15 @@ public partial class Game1
         }
 
         return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+    }
+
+    private Vector2 GetSpectatorScopedSniperCameraTopLeft(PlayerEntity trackedPlayer, int viewportWidth, int viewportHeight)
+    {
+        var trackedPlayerPosition = GetRenderPosition(trackedPlayer);
+        var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
+        var scopedCameraCenter = (trackedPlayerPosition + aimWorldPosition) / 2f;
+        return new Vector2(
+            scopedCameraCenter.X - (viewportWidth / 2f),
+            scopedCameraCenter.Y - (viewportHeight / 2f));
     }
 }

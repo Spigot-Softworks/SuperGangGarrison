@@ -158,6 +158,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float AimDirectionDegrees { get; private set; }
 
+    public float AimWorldX { get; private set; }
+
+    public float AimWorldY { get; private set; }
+
+    public (float X, float Y) AimWorldPosition => (AimWorldX, AimWorldY);
+
     public PrimaryWeaponDefinition PrimaryWeapon => ClassDefinition.PrimaryWeapon;
 
     public int CurrentShells { get; private set; }
@@ -439,6 +445,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetPlayerScale(float scale)
     {
         _playerScale = ClampPlayerScale(scale);
+    }
+
+    public void SetAimWorldPosition(float x, float y)
+    {
+        AimWorldX = x;
+        AimWorldY = y;
     }
 
     public static float ClampPlayerScale(float scale) => float.Clamp(scale, MinPlayerScale, MaxPlayerScale);

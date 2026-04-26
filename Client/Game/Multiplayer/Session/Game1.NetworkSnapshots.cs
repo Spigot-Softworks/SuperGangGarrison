@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
@@ -154,6 +155,7 @@ public partial class Game1
             return;
         }
 
+        CaptureSmoothingTrackForLocalPlayer(snapshot);
         _lastAppliedSnapshotFrame = snapshot.Frame;
         if (_queuedAuthoritativeSnapshots.Count == 0)
         {
@@ -176,6 +178,35 @@ public partial class Game1
         }
 
         ReopenJoinMenusAfterMapTransition(previousLevelName, previousMapAreaIndex, wasAwaitingJoin);
+    }
+
+    private void CaptureSmoothingTrackForLocalPlayer(SnapshotMessage snapshot)
+    {
+        if (!_networkClient.IsConnected || !_world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
+        var localPlayerStateKey = GetResolvedLocalPlayerId();
+        var currentRenderPosition = GetRenderPosition(localPlayerStateKey, _world.LocalPlayer.X, _world.LocalPlayer.Y, allowInterpolation: true);
+        var targetPosition = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        if (Vector2.DistanceSquared(currentRenderPosition, targetPosition) <= 0.0001f)
+        {
+            return;
+        }
+
+        var tickDurationSeconds = snapshot.TickRate > 0
+            ? 1f / snapshot.TickRate
+            : 1f / SimulationConfig.DefaultTicksPerSecond;
+        var durationSeconds = Math.Clamp(tickDurationSeconds, 1f / SimulationConfig.DefaultTicksPerSecond, 0.25f);
+        _entityInterpolationTracks[localPlayerStateKey] = new InterpolationTrack(
+            currentRenderPosition,
+            targetPosition,
+            _networkInterpolationClockSeconds,
+            durationSeconds,
+            Vector2.Zero,
+            0f,
+            0f);
     }
 
     private void ReopenJoinMenusAfterMapTransition(string previousLevelName, int previousMapAreaIndex, bool wasAwaitingJoin)

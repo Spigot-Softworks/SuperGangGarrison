@@ -15,6 +15,7 @@ internal static class SnapshotContributionPlanner
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
     private const int SnapshotPlayerMovementBytes = 32;
+    private const int ProjectileSnapshotUpdateIntervalTicks = 3;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
@@ -23,6 +24,7 @@ internal static class SnapshotContributionPlanner
         SimulationWorld world)
     {
         var focus = GetClientFocusPoint(client, world);
+        var frame = world.Frame;
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
 
         AddPlayerDelta(
@@ -71,7 +73,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Rockets.Add(state),
-            static (builder, id) => builder.RemovedRocketIds.Add(id));
+            static (builder, id) => builder.RemovedRocketIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsRocketMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Flames,
@@ -84,7 +88,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Flames.Add(state),
-            static (builder, id) => builder.RemovedFlameIds.Add(id));
+            static (builder, id) => builder.RemovedFlameIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsFlameMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Flares,
@@ -97,7 +103,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Flares.Add(state),
-            static (builder, id) => builder.RemovedFlareIds.Add(id));
+            static (builder, id) => builder.RemovedFlareIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Mines,
@@ -110,7 +118,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Mines.Add(state),
-            static (builder, id) => builder.RemovedMineIds.Add(id));
+            static (builder, id) => builder.RemovedMineIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsMineMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Shots,
@@ -123,7 +133,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Shots.Add(state),
-            static (builder, id) => builder.RemovedShotIds.Add(id));
+            static (builder, id) => builder.RemovedShotIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Needles,
@@ -136,7 +148,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Needles.Add(state),
-            static (builder, id) => builder.RemovedNeedleIds.Add(id));
+            static (builder, id) => builder.RemovedNeedleIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.RevolverShots,
@@ -149,7 +163,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.RevolverShots.Add(state),
-            static (builder, id) => builder.RemovedRevolverShotIds.Add(id));
+            static (builder, id) => builder.RemovedRevolverShotIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Bubbles,
@@ -162,7 +178,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Bubbles.Add(state),
-            static (builder, id) => builder.RemovedBubbleIds.Add(id));
+            static (builder, id) => builder.RemovedBubbleIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.Blades,
@@ -175,7 +193,9 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Blades.Add(state),
-            static (builder, id) => builder.RemovedBladeIds.Add(id));
+            static (builder, id) => builder.RemovedBladeIds.Add(id),
+            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsShotMotionOnlyChange),
+            frame);
         AddEntityDelta(
             contributions,
             fullSnapshot.DeadBodies,
@@ -451,9 +471,22 @@ internal static class SnapshotContributionPlanner
         Func<T, float> xSelector,
         Func<T, float> ySelector,
         Action<SnapshotDeltaBudgeter.Builder, T> addState,
-        Action<SnapshotDeltaBudgeter.Builder, int> addRemovedId)
+        Action<SnapshotDeltaBudgeter.Builder, int> addRemovedId,
+        Func<T, T, long, int, bool>? shouldSkipMotionOnlyUpdate = null,
+        long currentWorldFrame = 0) where T : notnull
     {
         var delta = DiffEntities(currentStates, baselineStates, idSelector);
+        Dictionary<int, T>? baselineById = null;
+        if (baselineStates is not null)
+        {
+            baselineById = new Dictionary<int, T>(baselineStates.Count);
+            for (var index = 0; index < baselineStates.Count; index += 1)
+            {
+                var state = baselineStates[index];
+                baselineById[idSelector(state)] = state;
+            }
+        }
+
         for (var index = 0; index < delta.RemovedIds.Count; index += 1)
         {
             var removedId = delta.RemovedIds[index];
@@ -467,12 +500,100 @@ internal static class SnapshotContributionPlanner
         for (var index = 0; index < delta.UpdatedStates.Count; index += 1)
         {
             var state = delta.UpdatedStates[index];
+            if (baselineById is not null
+                && baselineById.TryGetValue(idSelector(state), out var baselineState)
+                && shouldSkipMotionOnlyUpdate is not null
+                && shouldSkipMotionOnlyUpdate(state, baselineState, currentWorldFrame, idSelector(state)))
+            {
+                continue;
+            }
+
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority,
                 DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                 estimateUpdatedBytes(state),
                 builder => addState(builder, state)));
         }
+    }
+
+    private static bool ShouldSkipScheduledProjectileUpdate<T>(
+        T state,
+        T baselineState,
+        long currentWorldFrame,
+        int entityId,
+        Func<T, T, bool> isMotionOnlyChange)
+    {
+        if (!isMotionOnlyChange(state, baselineState))
+        {
+            return false;
+        }
+
+        return ((currentWorldFrame + entityId) % ProjectileSnapshotUpdateIntervalTicks) != 0;
+    }
+
+    private static bool IsShotMotionOnlyChange(SnapshotShotState state, SnapshotShotState baselineState)
+    {
+        return EqualityComparer<SnapshotShotState>.Default.Equals(
+            state with
+            {
+                X = baselineState.X,
+                Y = baselineState.Y,
+                VelocityX = baselineState.VelocityX,
+                VelocityY = baselineState.VelocityY,
+                TicksRemaining = baselineState.TicksRemaining,
+            },
+            baselineState);
+    }
+
+    private static bool IsRocketMotionOnlyChange(SnapshotRocketState state, SnapshotRocketState baselineState)
+    {
+        return EqualityComparer<SnapshotRocketState>.Default.Equals(
+            state with
+            {
+                X = baselineState.X,
+                Y = baselineState.Y,
+                PreviousX = baselineState.PreviousX,
+                PreviousY = baselineState.PreviousY,
+                DirectionRadians = baselineState.DirectionRadians,
+                Speed = baselineState.Speed,
+                TicksRemaining = baselineState.TicksRemaining,
+                ReducedKnockbackSourceTicksRemaining = baselineState.ReducedKnockbackSourceTicksRemaining,
+                ZeroKnockbackSourceTicksRemaining = baselineState.ZeroKnockbackSourceTicksRemaining,
+                LastKnownRangeOriginX = baselineState.LastKnownRangeOriginX,
+                LastKnownRangeOriginY = baselineState.LastKnownRangeOriginY,
+                DistanceToTravel = baselineState.DistanceToTravel,
+                FadeSourceTicksRemaining = baselineState.FadeSourceTicksRemaining,
+            },
+            baselineState);
+    }
+
+    private static bool IsFlameMotionOnlyChange(SnapshotFlameState state, SnapshotFlameState baselineState)
+    {
+        return EqualityComparer<SnapshotFlameState>.Default.Equals(
+            state with
+            {
+                X = baselineState.X,
+                Y = baselineState.Y,
+                PreviousX = baselineState.PreviousX,
+                PreviousY = baselineState.PreviousY,
+                VelocityX = baselineState.VelocityX,
+                VelocityY = baselineState.VelocityY,
+                TicksRemaining = baselineState.TicksRemaining,
+            },
+            baselineState);
+    }
+
+    private static bool IsMineMotionOnlyChange(SnapshotMineState state, SnapshotMineState baselineState)
+    {
+        return EqualityComparer<SnapshotMineState>.Default.Equals(
+            state with
+            {
+                X = baselineState.X,
+                Y = baselineState.Y,
+                VelocityX = baselineState.VelocityX,
+                VelocityY = baselineState.VelocityY,
+            },
+            baselineState);
     }
 
     private static void AddPointEventContributions<T>(
@@ -602,7 +723,7 @@ internal static class SnapshotContributionPlanner
     private static EntityDelta<T> DiffEntities<T>(
         IReadOnlyList<T> currentStates,
         IReadOnlyList<T>? baselineStates,
-        Func<T, int> idSelector)
+        Func<T, int> idSelector) where T : notnull
     {
         var updatedStates = new List<T>(currentStates.Count);
         if (baselineStates is null || baselineStates.Count == 0)

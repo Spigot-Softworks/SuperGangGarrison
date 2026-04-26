@@ -161,7 +161,9 @@ internal static partial class ServerHelpers
             player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
             ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
             replicatedStates.ToArray(),
-            player.PlayerScale);
+            player.PlayerScale,
+            AimWorldX: player.AimWorldX,
+            AimWorldY: player.AimWorldY);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

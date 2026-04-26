@@ -238,7 +238,6 @@ public partial class Game1
         if (_particleMode != 1)
         {
             DrawRocketSmokeVisuals(cameraPosition);
-            DrawMineTrailVisuals(cameraPosition);
             DrawWallspinDustVisuals(cameraPosition);
             DrawBlastJumpFlameVisuals(cameraPosition);
             DrawFlameSmokeVisuals(cameraPosition);
@@ -296,6 +295,11 @@ public partial class Game1
         foreach (var rocket in _world.Rockets)
         {
             DrawRocketProjectile(rocket, cameraPosition);
+        }
+
+        if (_particleMode != 1)
+        {
+            DrawMineTrailVisuals(cameraPosition);
         }
 
         foreach (var mine in _world.Mines)
