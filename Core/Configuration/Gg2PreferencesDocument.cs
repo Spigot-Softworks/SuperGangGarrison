@@ -63,7 +63,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
-    public bool PositionSmoothingEnabled { get; set; } = true;
+    public bool PositionSmoothingEnabled { get; set; } = false;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -120,7 +120,7 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
-            PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Object Motion Smoothing", true),
+            PositionSmoothingEnabled = false,
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
@@ -167,7 +167,6 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
-        ini.SetBool(SettingsSection, "Object Motion Smoothing", PositionSmoothingEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
 
