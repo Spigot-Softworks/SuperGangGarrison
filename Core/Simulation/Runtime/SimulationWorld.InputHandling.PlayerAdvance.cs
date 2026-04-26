@@ -26,6 +26,8 @@ public sealed partial class SimulationWorld
             };
         }
 
+        player.SetAimWorldPosition(input.AimWorldX, input.AimWorldY);
+
         var jumpPressed = input.Up && !previousInput.Up;
         var dropPressed = input.DropIntel && !previousInput.DropIntel;
         var buildPressed = input.BuildSentry && !previousInput.BuildSentry;

@@ -23,6 +23,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool VSync { get; set; }
 
+    public int FrameRateLimit { get; set; }
+
     public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
@@ -60,6 +62,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public int SoundEffectsVolumePercent { get; set; } = 70;
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
+
+    public bool PositionSmoothingEnabled { get; set; } = true;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -99,6 +103,7 @@ public sealed class OpenGarrisonPreferencesDocument
             Rewards = ini.GetString(SettingsSection, "Rewards", string.Empty),
             Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
+            FrameRateLimit = ini.GetInt(SettingsSection, "Frame Rate Limit", 0),
             IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
             MusicMode = LoadMusicMode(ini),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
@@ -115,6 +120,7 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
+            PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Object Motion Smoothing", true),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
@@ -150,6 +156,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
         ini.SetBool(SettingsSection, "Monitor Sync", VSync);
+        ini.SetInt(SettingsSection, "Frame Rate Limit", FrameRateLimit);
         ini.SetBool(SettingsSection, "Healer Radar", HealerRadarEnabled);
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
@@ -160,6 +167,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
+        ini.SetBool(SettingsSection, "Object Motion Smoothing", PositionSmoothingEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
 

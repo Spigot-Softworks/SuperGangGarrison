@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.ClientShared;
@@ -205,6 +206,7 @@ public partial class Game1 : Game
     private bool _wasMatchEnded;
     private int _previousLocalDemoknightChargeTicks = PlayerEntity.ExperimentalDemoknightChargeMaxTicks;
     private MouseState _previousMouse;
+    private Point _lastKnownMousePosition;
     private bool _suppressPrimaryFireUntilMouseRelease;
     private Vector2 _respawnCameraCenter;
     private bool _respawnCameraDetached;
@@ -222,11 +224,14 @@ public partial class Game1 : Game
     private readonly Queue<DevMessagePopupState> _pendingDevMessagePopups = new();
     private DevMessagePopupState? _activeDevMessagePopup;
     private bool _killCamEnabled = true;
+    private bool _positionSmoothingEnabled = true;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _flameRenderMode;
     private int _gibLevel = 3;
     private int _corpseDurationMode;
+    private int _frameRateLimit;
+    private long _lastDrawTimestamp;
     private bool _healerRadarEnabled = true;
     private bool _showHealerEnabled = true;
     private bool _showHealingEnabled = true;
@@ -320,7 +325,7 @@ public partial class Game1 : Game
         }
         else
         {
-            IsFixedTimeStep = true;
+            IsFixedTimeStep = false;
             TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
         }
     }
@@ -380,6 +385,7 @@ public partial class Game1 : Game
         var browserDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
+        ApplyFrameRateLimit();
         GraphicsDevice.Clear(new Color(24, 32, 48));
         _frameController.Draw(gameTime);
 
@@ -397,6 +403,40 @@ public partial class Game1 : Game
         counter += 1;
         Console.WriteLine(
             $"Browser frame {phase} #{counter}: startupSplash={_startupSplashOpen} mainMenu={_mainMenuOpen} bootstrapComplete={_bootstrapController.IsContentBootstrapComplete} elapsed={gameTime.ElapsedGameTime.TotalMilliseconds:0.##}ms");
+    }
+
+    private void ApplyFrameRateLimit()
+    {
+        if (OperatingSystem.IsBrowser() || _frameRateLimit <= 0)
+        {
+            _lastDrawTimestamp = Stopwatch.GetTimestamp();
+            return;
+        }
+
+        var currentTimestamp = Stopwatch.GetTimestamp();
+        if (_lastDrawTimestamp == 0)
+        {
+            _lastDrawTimestamp = currentTimestamp;
+            return;
+        }
+
+        var elapsedSeconds = (currentTimestamp - _lastDrawTimestamp) / (double)Stopwatch.Frequency;
+        var targetSeconds = 1d / _frameRateLimit;
+        if (elapsedSeconds < targetSeconds)
+        {
+            var sleepMilliseconds = (int)Math.Floor((targetSeconds - elapsedSeconds) * 1000d);
+            if (sleepMilliseconds > 0)
+            {
+                Thread.Sleep(sleepMilliseconds);
+            }
+
+            while ((Stopwatch.GetTimestamp() - _lastDrawTimestamp) / (double)Stopwatch.Frequency < targetSeconds)
+            {
+                Thread.Sleep(0);
+            }
+        }
+
+        _lastDrawTimestamp = Stopwatch.GetTimestamp();
     }
 
     private void LogBrowserMenuState(int buttonCount)
