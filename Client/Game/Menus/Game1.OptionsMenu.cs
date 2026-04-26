@@ -165,12 +165,6 @@ public partial class Game1
         PersistClientSettings();
     }
 
-    private void TogglePositionSmoothingSetting()
-    {
-        _positionSmoothingEnabled = !_positionSmoothingEnabled;
-        PersistClientSettings();
-    }
-
     private void ToggleSpriteDropShadowSetting()
     {
         _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
