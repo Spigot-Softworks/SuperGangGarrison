@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
@@ -89,6 +90,18 @@ public partial class Game1
             WriteGameplayRenderTrace("hud after persistentselfname");
             DrawHoveredPlayerNameHud(mouse, cameraPosition);
             WriteGameplayRenderTrace("hud after hoveredplayername");
+            DrawSpectatorTrackedPlayerCrosshair(cameraPosition);
+            WriteGameplayRenderTrace("hud after spectatortrackedcrosshair");
+            if (_networkClient.IsSpectator)
+            {
+                var trackedPlayer = GetSpectatorFocusPlayer();
+                if (trackedPlayer is not null && GetPlayerIsSniperScoped(trackedPlayer))
+                {
+                    var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
+                    var screenAimPosition = new Vector2(aimWorldPosition.X - cameraPosition.X, aimWorldPosition.Y - cameraPosition.Y);
+                    _gameplayAimHudController.DrawSpectatorSniperHud(trackedPlayer, screenAimPosition);
+                }
+            }
             DrawDroppedWeaponInteractionHud(cameraPosition);
             WriteGameplayRenderTrace("hud after droppedweaponhud");
         }
@@ -114,6 +127,32 @@ public partial class Game1
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
+    }
+
+    private void DrawSpectatorTrackedPlayerCrosshair(Vector2 cameraPosition)
+    {
+        if (!_networkClient.IsSpectator)
+        {
+            return;
+        }
+
+        var trackedPlayer = GetSpectatorFocusPlayer();
+        if (trackedPlayer is null || !trackedPlayer.IsAlive)
+        {
+            return;
+        }
+
+        var crosshairSprite = GetResolvedSprite("SpectatorCrosshairS");
+        if (crosshairSprite is null || crosshairSprite.Frames.Count < 2)
+        {
+            return;
+        }
+
+        var aimWorldPosition = GetRenderAimWorldPosition(trackedPlayer);
+        var screenPosition = new Vector2(aimWorldPosition.X - cameraPosition.X, aimWorldPosition.Y - cameraPosition.Y);
+        var frameIndex = trackedPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+        frameIndex = Math.Clamp(frameIndex, 0, crosshairSprite.Frames.Count - 1);
+        DrawLoadedSpriteFrame(crosshairSprite.Frames[frameIndex], screenPosition, null, Color.White, 0f, crosshairSprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
     }
 
     private void DrawGameplayModalOverlays(MouseState mouse)

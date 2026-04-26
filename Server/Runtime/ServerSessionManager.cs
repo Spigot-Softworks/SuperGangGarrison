@@ -98,13 +98,27 @@ sealed class ServerSessionManager
                 && client.IsAuthorized
                 && client.TryGetInputForNextTick(out var input))
             {
-                _world.TrySetNetworkPlayerInput(slot, input);
+                _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input));
             }
             else
             {
                 _world.TryClearNetworkPlayerInputOverride(slot);
             }
         }
+    }
+
+    private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
+    {
+        if (!_world.TryGetNetworkPlayer(slot, out var player))
+        {
+            return input;
+        }
+
+        return input with
+        {
+            AimWorldX = input.AimWorldX + player.X,
+            AimWorldY = input.AimWorldY + player.Y,
+        };
     }
 
     public void HandleControlCommand(ClientSession client, ControlCommandMessage command)

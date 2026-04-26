@@ -343,6 +343,11 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
+            if (!_positionSmoothingEnabled && TryGetLatestLocalServerVelocity(out var serverVelocity))
+            {
+                return serverVelocity.X;
+            }
+
             if (_hasPredictedLocalPlayerPosition)
             {
                 return MathF.Abs(observedRenderVelocity.X) > MathF.Abs(_predictedLocalPlayerVelocity.X)
@@ -360,6 +365,11 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
+            if (!_positionSmoothingEnabled && TryGetLatestLocalServerVelocity(out var serverVelocity))
+            {
+                return serverVelocity.Y;
+            }
+
             if (_hasPredictedLocalPlayerPosition)
             {
                 return MathF.Abs(observedRenderVelocity.Y) > MathF.Abs(_predictedLocalPlayerVelocity.Y)
@@ -373,8 +383,26 @@ public partial class Game1
         return player.VerticalSpeed;
     }
 
+    private bool TryGetLatestLocalServerVelocity(out Vector2 velocity)
+    {
+        var playerStateKey = GetResolvedLocalPlayerId();
+        if (_remotePlayerSnapshotHistories.TryGetValue(playerStateKey, out var history) && history.Count > 0)
+        {
+            velocity = history[^1].Velocity;
+            return true;
+        }
+
+        velocity = Vector2.Zero;
+        return false;
+    }
+
     private bool GetPlayerRenderIsGrounded(PlayerEntity player)
     {
+        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer) && !_positionSmoothingEnabled)
+        {
+            return player.IsGrounded;
+        }
+
         return _networkClient.IsConnected
             && ReferenceEquals(player, _world.LocalPlayer)
             && _hasPredictedLocalPlayerPosition

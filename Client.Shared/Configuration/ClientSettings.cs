@@ -20,6 +20,8 @@ public sealed class ClientSettings
 
     public bool VSync { get; set; }
 
+    public int FrameRateLimit { get; set; }
+
     public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
@@ -59,6 +61,8 @@ public sealed class ClientSettings
     public bool AudioMuted { get; set; }
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
+
+    public bool PositionSmoothingEnabled { get; set; } = true;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -130,13 +134,14 @@ public sealed class ClientSettings
             PlayerName = document.PlayerName,
             Rewards = document.Rewards,
             Fullscreen = document.Fullscreen,
+            VSync = document.VSync,
+            FrameRateLimit = document.FrameRateLimit,
             MusicMode = document.MusicMode,
             IngameResolution = document.IngameResolution,
             ParticleMode = document.ParticleMode,
             GibLevel = document.GibLevel,
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
-            VSync = document.VSync,
             HealerRadarEnabled = document.HealerRadarEnabled,
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
@@ -147,6 +152,7 @@ public sealed class ClientSettings
             IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
             SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
+            PositionSmoothingEnabled = document.PositionSmoothingEnabled,
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             RecentConnection = new ClientRecentConnectionSettings
@@ -182,7 +188,9 @@ public sealed class ClientSettings
         preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;
         preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
+        preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
+        preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;
