@@ -36,6 +36,8 @@ public sealed partial class PlayerEntity
         int sniperChargeTicks,
         float facingDirectionX,
         float aimDirectionDegrees,
+        float aimWorldX,
+        float aimWorldY,
         bool isTaunting,
         float tauntFrameIndex,
         bool isChatBubbleVisible,
@@ -171,6 +173,8 @@ public sealed partial class PlayerEntity
             : 0;
         FacingDirectionX = facingDirectionX;
         AimDirectionDegrees = aimDirectionDegrees;
+        AimWorldX = aimWorldX;
+        AimWorldY = aimWorldY;
         ResetSourceFacingDirectionState();
         IsTaunting = isTaunting;
         TauntFrameIndex = tauntFrameIndex;

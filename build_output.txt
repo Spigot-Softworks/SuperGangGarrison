@@ -1,0 +1,50 @@
+  Trwa określanie projektów do przywrócenia...
+  Wszystkie projekty są aktualne na potrzeby przywrócenia.
+  OpenGarrison.Protocol -> F:\OpenGarrisonCode\OpenGarrison-Fork\Protocol\bin\Debug\net10.0\OpenGarrison.Protocol.dll
+  OpenGarrison.GameplayModding.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\GameplayModding.Abstractions\bin\Debug\net10.0\OpenGarrison.GameplayModding.Abstractions.dll
+  OpenGarrison.PluginHost.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\OpenGarrison.PluginHost.Abstractions\bin\Debug\net10.0\OpenGarrison.PluginHost.Abstractions.dll
+  OpenGarrison.Client.Plugins.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\bin\Debug\net10.0\OpenGarrison.Client.Plugins.Abstractions.dll
+  OpenGarrison.Client.Plugins.RandomBackgrounds -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.RandomBackgrounds\bin\Debug\net10.0\OpenGarrison.Client.Plugins.RandomBackgrounds.dll
+  OpenGarrison.Client.Plugins.MoreAnimations -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.MoreAnimations\bin\Debug\net10.0\OpenGarrison.Client.Plugins.MoreAnimations.dll
+  OpenGarrison.Client.Plugins.ShowPing -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.ShowPing\bin\Debug\net10.0\OpenGarrison.Client.Plugins.ShowPing.dll
+  OpenGarrison.Client.Plugins.CameraShake -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.CameraShake\bin\Debug\net10.0\OpenGarrison.Client.Plugins.CameraShake.dll
+  OpenGarrison.Client.Plugins.TeamOnlyMinimap -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.TeamOnlyMinimap\bin\Debug\net10.0\OpenGarrison.Client.Plugins.TeamOnlyMinimap.dll
+  OpenGarrison.Client.Plugins.DamageIndicator -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.DamageIndicator\bin\Debug\net10.0\OpenGarrison.Client.Plugins.DamageIndicator.dll
+  OpenGarrison.Client.Plugins.BubbleWheel -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.BubbleWheel\bin\Debug\net10.0\OpenGarrison.Client.Plugins.BubbleWheel.dll
+  OpenGarrison.Client.Plugins.LowHealthIndicator -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.LowHealthIndicator\bin\Debug\net10.0\OpenGarrison.Client.Plugins.LowHealthIndicator.dll
+  OpenGarrison.Core -> F:\OpenGarrisonCode\OpenGarrison-Fork\Core\bin\Debug\net10.0\OpenGarrison.Core.dll
+  OpenGarrison.Client.Shared -> F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\bin\Debug\net10.0\OpenGarrison.Client.Shared.dll
+  OpenGarrison.BotAI -> F:\OpenGarrisonCode\OpenGarrison-Fork\BotAI\bin\Debug\net10.0\OpenGarrison.BotAI.dll
+  OpenGarrison.Server.Plugins.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\bin\Debug\net10.0\OpenGarrison.Server.Plugins.Abstractions.dll
+  OpenGarrison.Server.Plugins.ChatVoting -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Server\OpenGarrison.Server.Plugins.ChatVoting\bin\Debug\net10.0\OpenGarrison.Server.Plugins.ChatVoting.dll
+  OpenGarrison.BotAI.Tools -> F:\OpenGarrisonCode\OpenGarrison-Fork\BotAI.Tools\bin\Debug\net10.0\OpenGarrison.BotAI.Tools.dll
+  OpenGarrison.PluginHost.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\OpenGarrison.PluginHost.Abstractions\bin\Debug\net10.0\OpenGarrison.PluginHost.Abstractions.dll
+  OpenGarrison.Protocol -> F:\OpenGarrisonCode\OpenGarrison-Fork\Protocol\bin\Debug\net10.0\OpenGarrison.Protocol.dll
+  OpenGarrison.Client.Plugins.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\Plugins\Client\OpenGarrison.Client.Plugins.Abstractions\bin\browser\Debug\net10.0\OpenGarrison.Client.Plugins.Abstractions.dll
+  OpenGarrison.Server -> F:\OpenGarrisonCode\OpenGarrison-Fork\Server\bin\Debug\net10.0\OG2.Server.dll
+  OpenGarrison.GameplayModding.Abstractions -> F:\OpenGarrisonCode\OpenGarrison-Fork\GameplayModding.Abstractions\bin\Debug\net10.0\OpenGarrison.GameplayModding.Abstractions.dll
+  OpenGarrison.Core -> F:\OpenGarrisonCode\OpenGarrison-Fork\Core\bin\Debug\net10.0\OpenGarrison.Core.dll
+  OpenGarrison.BotAI -> F:\OpenGarrisonCode\OpenGarrison-Fork\BotAI\bin\Debug\net10.0\OpenGarrison.BotAI.dll
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserAssetBundleLoader.cs(46,85): warning CA1865: Użyj ciągu „string.EndsWith(char)” zamiast „string.EndsWith(string)” w przypadku ciągu z pojedynczym znakiem (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1865) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj]
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserBootstrapAssetCatalog.cs(206,42): warning CA1859: Zmień zwracany typ metody „CreateDefaultBinaryPaths” z „System.Collections.Generic.IReadOnlyList<string>” na „System.Collections.Generic.List<string>”, aby zwiększyć wydajność (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1859) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj]
+  OpenGarrison.Client.Shared -> f:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\bin\Debug\net10.0\OpenGarrison.Client.Shared.dll
+  OpenGarrison.Client -> F:\OpenGarrisonCode\OpenGarrison-Fork\Client\bin\Debug\net10.0\OG2.dll
+  OpenGarrison.Client -> F:\OpenGarrisonCode\OpenGarrison-Fork\Client\bin\browser\Debug\net10.0\OG2.dll
+  OpenGarrison.ServerLauncher -> F:\OpenGarrisonCode\OpenGarrison-Fork\ServerLauncher\bin\Debug\net10.0\OG2.ServerLauncher.dll
+  OpenGarrison.PluginHost.Tests -> F:\OpenGarrisonCode\OpenGarrison-Fork\Tests\OpenGarrison.PluginHost.Tests\bin\Debug\net10.0\OpenGarrison.PluginHost.Tests.dll
+  OpenGarrison.Client.Browser -> F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\bin\Debug\net10.0\OG2.Browser.dll
+  OpenGarrison.Client.Browser (Blazor output) -> F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\bin\Debug\net10.0\wwwroot
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserAssetBundleLoader.cs(46,85): warning CA1865: U┼╝yj ci─ůgu ÔÇ×string.EndsWith(char)ÔÇŁ zamiast ÔÇ×string.EndsWith(string)ÔÇŁ w przypadku ci─ůgu z pojedynczym znakiem (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1865) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj] [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\OpenGarrison.Client.Browser.csproj]
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserBootstrapAssetCatalog.cs(206,42): warning CA1859: Zmie┼ä zwracany typ metody ÔÇ×CreateDefaultBinaryPathsÔÇŁ z ÔÇ×System.Collections.Generic.IReadOnlyList<string>ÔÇŁ na ÔÇ×System.Collections.Generic.List<string>ÔÇŁ, aby zwi─Ökszy─ç wydajno┼Ť─ç (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1859) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj] [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\OpenGarrison.Client.Browser.csproj]
+  Browser asset build completed. Atlases=3 Pages=20 Sprites=1020 Warnings=0 Output=F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\wwwroot\Content\Browser
+
+Kompilacja powiodła się.
+
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserAssetBundleLoader.cs(46,85): warning CA1865: Użyj ciągu „string.EndsWith(char)” zamiast „string.EndsWith(string)” w przypadku ciągu z pojedynczym znakiem (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1865) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj]
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserBootstrapAssetCatalog.cs(206,42): warning CA1859: Zmień zwracany typ metody „CreateDefaultBinaryPaths” z „System.Collections.Generic.IReadOnlyList<string>” na „System.Collections.Generic.List<string>”, aby zwiększyć wydajność (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1859) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj]
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserAssetBundleLoader.cs(46,85): warning CA1865: U┼╝yj ci─ůgu ÔÇ×string.EndsWith(char)ÔÇŁ zamiast ÔÇ×string.EndsWith(string)ÔÇŁ w przypadku ci─ůgu z pojedynczym znakiem (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1865) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj] [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\OpenGarrison.Client.Browser.csproj]
+F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\Assets\BrowserBootstrapAssetCatalog.cs(206,42): warning CA1859: Zmie┼ä zwracany typ metody ÔÇ×CreateDefaultBinaryPathsÔÇŁ z ÔÇ×System.Collections.Generic.IReadOnlyList<string>ÔÇŁ na ÔÇ×System.Collections.Generic.List<string>ÔÇŁ, aby zwi─Ökszy─ç wydajno┼Ť─ç (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1859) [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Shared\OpenGarrison.Client.Shared.csproj] [F:\OpenGarrisonCode\OpenGarrison-Fork\Client.Browser\OpenGarrison.Client.Browser.csproj]
+    Ostrzeżenia: 4
+    Liczba błędów: 0
+
+Czas, który upłynął: 00:00:29.42

@@ -49,7 +49,7 @@ public partial class Game1
                 _game.UpdateChatScrollState(keyboard, mouse);
             }
 
-            _game.UpdateSpectatorTrackingHotkeys(keyboard);
+            _game.UpdateSpectatorTrackingHotkeys(keyboard, mouse);
 
             if (_game.CanToggleGameplaySelectionMenus())
             {

@@ -319,6 +319,8 @@ public static partial class ProtocolCodec
             WriteGameplayIdList(writer, player.OwnedGameplayItemIds);
             WriteReplicatedStateEntries(writer, player.ReplicatedStates);
             writer.Write(player.PlayerScale);
+            writer.Write(player.AimWorldX);
+            writer.Write(player.AimWorldY);
         }
     }
 
@@ -402,6 +404,8 @@ public static partial class ProtocolCodec
                 ReadString(reader, MaxGameplayIdBytes),
                 ReadGameplayIdList(reader),
                 ReadReplicatedStateEntries(reader),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
                 reader.ReadSingle()));
         }
 

@@ -394,6 +394,7 @@ public partial class Game1
             var allActions = new List<OptionsMenuAction>
             {
                 new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
+                new("Object motion smoothing", _game._positionSmoothingEnabled ? "On" : "Off", _game.TogglePositionSmoothingSetting, OptionsMenuTab.Other),
                 new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
@@ -401,6 +402,7 @@ public partial class Game1
                 new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Corpses", GetCorpseDurationLabel(_game._corpseDurationMode), _game.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _game._spriteDropShadowEnabled ? "Enabled" : "Disabled", _game.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
+                new("Frame Limit", GetFrameRateLimitLabel(_game._frameRateLimit), _game.CycleFrameRateLimitSetting, OptionsMenuTab.Graphics),
                 new("V Sync", _game._graphics.SynchronizeWithVerticalRetrace ? "Enabled" : "Disabled", _game.ToggleVSyncSetting, OptionsMenuTab.Graphics),
                 new("Reset Window Size", string.Empty, _game.ResetWindowSize, OptionsMenuTab.Graphics),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting, OptionsMenuTab.Audio),

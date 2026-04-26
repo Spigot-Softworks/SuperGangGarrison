@@ -17,7 +17,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int HeavyEatDurationTicks = 124;
     public const int HeavySandvichCooldownTicks = 1350;
     private const float HealingCabinetSoundCooldownSeconds = 4f;
-    private const float HeavyEatHealPerTick = 0.4f;
+    private static readonly float HeavyEatHealPerTick = 200f / HeavyEatDurationTicks;
     private const float StepUpHeight = 6f;
     private const float StepSupportEpsilon = 2f;
     public const float SniperScopedMoveScale = 2f / 3f;
@@ -157,6 +157,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public float FacingDirectionX { get; private set; }
 
     public float AimDirectionDegrees { get; private set; }
+
+    public float AimWorldX { get; private set; }
+
+    public float AimWorldY { get; private set; }
+
+    public (float X, float Y) AimWorldPosition => (AimWorldX, AimWorldY);
 
     public PrimaryWeaponDefinition PrimaryWeapon => ClassDefinition.PrimaryWeapon;
 
@@ -439,6 +445,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetPlayerScale(float scale)
     {
         _playerScale = ClampPlayerScale(scale);
+    }
+
+    public void SetAimWorldPosition(float x, float y)
+    {
+        AimWorldX = x;
+        AimWorldY = y;
     }
 
     public static float ClampPlayerScale(float scale) => float.Clamp(scale, MinPlayerScale, MaxPlayerScale);

@@ -374,6 +374,19 @@ public partial class Game1
             return;
         }
 
+        if (!_positionSmoothingEnabled)
+        {
+            var latest = history[^1];
+            if (renderTimeSeconds <= latest.TimeSeconds)
+            {
+                _interpolatedEntityPositions[playerStateKey] = latest.Position;
+                return;
+            }
+
+            _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(latest, renderTimeSeconds);
+            return;
+        }
+
         if (history.Count == 1)
         {
             _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(history[0], renderTimeSeconds);
@@ -409,6 +422,7 @@ public partial class Game1
             new PlayerSnapshotSample(
                 new Vector2(player.X, player.Y),
                 new Vector2(player.HorizontalSpeed, player.VerticalSpeed),
+                new Vector2(player.AimWorldX, player.AimWorldY),
                 snapshotTimeSeconds,
                 player.Team,
                 player.ClassId,
@@ -422,6 +436,7 @@ public partial class Game1
             new PlayerSnapshotSample(
                 new Vector2(player.X, player.Y),
                 new Vector2(player.HorizontalSpeed, player.VerticalSpeed),
+                new Vector2(player.AimWorldX, player.AimWorldY),
                 snapshotTimeSeconds,
                 (PlayerTeam)player.Team,
                 (PlayerClass)player.ClassId,
@@ -529,6 +544,40 @@ public partial class Game1
         // through raw network velocities that can change abruptly.
         var alpha = float.Clamp((float)((renderTimeSeconds - older.TimeSeconds) / durationSeconds), 0f, 1f);
         return Vector2.Lerp(older.Position, newer.Position, alpha);
+    }
+
+    private static Vector2 EvaluateRemotePlayerAimHistory(List<PlayerSnapshotSample> history, double renderTimeSeconds)
+    {
+        if (history.Count == 1)
+        {
+            return history[0].AimWorldPosition;
+        }
+
+        if (renderTimeSeconds <= history[0].TimeSeconds)
+        {
+            return history[0].AimWorldPosition;
+        }
+
+        for (var index = 1; index < history.Count; index += 1)
+        {
+            var newer = history[index];
+            if (renderTimeSeconds > newer.TimeSeconds)
+            {
+                continue;
+            }
+
+            var older = history[index - 1];
+            var durationSeconds = newer.TimeSeconds - older.TimeSeconds;
+            if (durationSeconds <= 0.0001d)
+            {
+                return newer.AimWorldPosition;
+            }
+
+            var alpha = float.Clamp((float)((renderTimeSeconds - older.TimeSeconds) / durationSeconds), 0f, 1f);
+            return Vector2.Lerp(older.AimWorldPosition, newer.AimWorldPosition, alpha);
+        }
+
+        return history[^1].AimWorldPosition;
     }
 
     private static Vector2 EvaluateRemotePlayerExtrapolation(PlayerSnapshotSample sample, double renderTimeSeconds)

@@ -32,27 +32,27 @@ public partial class Game1
             var keyboard = windowActive ? _game.GetCurrentKeyboardState() : default;
             var rawMouse = windowActive ? _game.GetConstrainedMouseState(_game.GetCurrentMouseState()) : default;
             var mouse = windowActive ? _game.GetScaledMouseState(rawMouse) : default;
+            if (windowActive)
+            {
+                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
+            }
+            else
+            {
+                mouse = new MouseState(
+                    _game._lastKnownMousePosition.X,
+                    _game._lastKnownMousePosition.Y,
+                    0,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released);
+            }
+
             if (!_game._wasWindowActive && windowActive)
             {
                 _game._previousKeyboard = keyboard;
                 _game._previousMouse = mouse;
-            }
-
-            if (OperatingSystem.IsBrowser() && windowActive)
-            {
-                foreach (var character in BrowserInputBridge.DrainTextInput())
-                {
-                    _game.HandleBrowserTextInput(character);
-                }
-            }
-
-            _game._clientPluginPreviousKeyboard = _game._previousKeyboard;
-            _game._clientPluginKeyboard = keyboard;
-            _game._wasWindowActive = windowActive;
-
-            if (TryHandlePasswordPromptCancel(keyboard, mouse))
-            {
-                return clientTicks;
             }
 
             var muteAudioPressed = keyboard.IsKeyDown(Keys.F12) && !_game._previousKeyboard.IsKeyDown(Keys.F12);

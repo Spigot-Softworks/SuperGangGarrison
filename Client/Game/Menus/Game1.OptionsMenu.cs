@@ -23,6 +23,19 @@ public partial class Game1
         };
     }
 
+    private static string GetFrameRateLimitLabel(int frameRateLimit)
+    {
+        return frameRateLimit switch
+        {
+            0 => "Off",
+            30 => "30 FPS",
+            60 => "60 FPS",
+            75 => "75 FPS",
+            120 => "120 FPS",
+            _ => "Off",
+        };
+    }
+
     private void BeginEditingPlayerName()
     {
         _editingPlayerName = true;
@@ -67,6 +80,22 @@ public partial class Game1
     {
         _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
         ApplyGraphicsSettings();
+    }
+
+    private void CycleFrameRateLimitSetting()
+    {
+        var current = NormalizeFrameRateLimit(_frameRateLimit);
+        var next = current switch
+        {
+            0 => 30,
+            30 => 60,
+            60 => 75,
+            75 => 120,
+            _ => 0,
+        };
+
+        _frameRateLimit = next;
+        PersistClientSettings();
     }
 
     private void CycleParticleModeSetting()
@@ -133,6 +162,12 @@ public partial class Game1
     private void TogglePersistentSelfNameSetting()
     {
         _showPersistentSelfNameEnabled = !_showPersistentSelfNameEnabled;
+        PersistClientSettings();
+    }
+
+    private void TogglePositionSmoothingSetting()
+    {
+        _positionSmoothingEnabled = !_positionSmoothingEnabled;
         PersistClientSettings();
     }
 

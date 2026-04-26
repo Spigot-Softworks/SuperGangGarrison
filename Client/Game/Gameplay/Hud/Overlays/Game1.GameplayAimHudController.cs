@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -42,6 +43,34 @@ public partial class Game1
             }
 
             _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), new Vector2(mouse.X + 15f * chargeScaleX, mouse.Y - 10f), Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
+        }
+
+        public void DrawSpectatorSniperHud(PlayerEntity player, Vector2 screenAimPosition)
+        {
+            if (!player.HasScopedSniperWeaponEquipped || !_game.GetPlayerIsSniperScoped(player))
+            {
+                return;
+            }
+
+            var damage = _game.GetPlayerSniperRifleDamage(player);
+            var chargeScaleX = IsFacingLeftByAim(player) ? 1f : -1f;
+            var chargePosition = screenAimPosition + new Vector2(15f * chargeScaleX, -10f);
+            if (damage < 85)
+            {
+                _game.TryDrawScreenSprite("ChargeS", 0, chargePosition, Color.White * 0.25f, new Vector2(chargeScaleX, 1f));
+            }
+            else
+            {
+                _game.TryDrawScreenSprite("FullChargeS", 0, screenAimPosition + new Vector2(65f * chargeScaleX, 0f), Color.White, Vector2.One);
+            }
+
+            var chargeWidth = (int)MathF.Ceiling(damage * 40f / 85f);
+            if (chargeWidth <= 0)
+            {
+                return;
+            }
+
+            _game.TryDrawScreenSpritePart("ChargeS", 1, new Rectangle(0, 0, chargeWidth, 20), chargePosition, Color.White * 0.8f, new Vector2(chargeScaleX, 1f));
         }
 
         public void DrawCrosshair(MouseState mouse)

@@ -66,27 +66,72 @@ public partial class Game1
             return new Vector2(x, y);
         }
 
-        return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
+        if (_entityInterpolationTracks.TryGetValue(entityId, out var track))
+        {
+            return EvaluateInterpolationTrack(track);
+        }
+
+        if (_positionSmoothingEnabled || _entitySnapshotHistories.ContainsKey(entityId))
+        {
+            return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
+        }
+
+        return new Vector2(x, y);
     }
 
     private Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
     {
-        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer) && _hasPredictedLocalPlayerPosition)
-        {
-            if (_hasSmoothedLocalPlayerRenderPosition)
-            {
-                return _smoothedLocalPlayerRenderPosition;
-            }
-
-            return _predictedLocalPlayerPosition;
-        }
-
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
+            if (!_positionSmoothingEnabled)
+            {
+                return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
+            }
+
+            if (_hasPredictedLocalPlayerPosition)
+            {
+                if (_hasSmoothedLocalPlayerRenderPosition)
+                {
+                    return _smoothedLocalPlayerRenderPosition;
+                }
+
+                return _predictedLocalPlayerPosition;
+            }
+
             return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
         }
 
         return GetRenderPosition(player.Id, player.X, player.Y, allowInterpolation);
+    }
+
+    private Vector2 GetRenderAimWorldPosition(PlayerEntity player)
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return new Vector2(player.AimWorldX, player.AimWorldY);
+        }
+
+        if (ReferenceEquals(player, _world.LocalPlayer))
+        {
+            if (_hasLatestLocalAimWorldPosition)
+            {
+                return new Vector2(_latestLocalAimWorldX, _latestLocalAimWorldY);
+            }
+
+            return new Vector2(player.AimWorldX, player.AimWorldY);
+        }
+
+        if (!_positionSmoothingEnabled)
+        {
+            return new Vector2(player.AimWorldX, player.AimWorldY);
+        }
+
+        if (_remotePlayerSnapshotHistories.TryGetValue(player.Id, out var history) && history.Count > 0)
+        {
+            return EvaluateRemotePlayerAimHistory(history, _remotePlayerRenderTimeSeconds);
+        }
+
+        return new Vector2(player.AimWorldX, player.AimWorldY);
     }
 
     private Vector2 GetRenderIntelPosition(TeamIntelligenceState intelState)
@@ -111,6 +156,7 @@ public partial class Game1
     private readonly record struct PlayerSnapshotSample(
         Vector2 Position,
         Vector2 Velocity,
+        Vector2 AimWorldPosition,
         double TimeSeconds,
         PlayerTeam Team,
         PlayerClass ClassId,

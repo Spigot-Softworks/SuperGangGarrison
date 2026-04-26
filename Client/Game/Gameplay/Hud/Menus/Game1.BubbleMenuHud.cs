@@ -57,6 +57,7 @@ public partial class Game1
 
         var leftMousePressed = mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed;
         var leftMouseDown = mouse.LeftButton == ButtonState.Pressed;
+        var leftMouseReleased = mouse.LeftButton == ButtonState.Released && _previousMouse.LeftButton == ButtonState.Pressed;
         var callMedicPressed = keyboard.IsKeyDown(_inputBindings.CallMedic) && !_previousKeyboard.IsKeyDown(_inputBindings.CallMedic);
         var openZPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuZ);
         var openXPressed = keyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX) && !_previousKeyboard.IsKeyDown(_inputBindings.OpenBubbleMenuX);
@@ -74,59 +75,85 @@ public partial class Game1
         {
             var pressedDigit = GetPressedDigit(keyboard);
             var pluginOverrideActive = HasClientPluginBubbleMenuOverride();
-            var menuKeyHeld = IsCurrentBubbleMenuKeyHeld(keyboard);
-            var holdStillActive = menuKeyHeld || leftMouseDown;
 
-            if (pluginOverrideActive)
-            {
-                var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
-                    ToClientBubbleMenuKind(_bubbleMenuKind),
-                    _bubbleMenuXPageIndex,
-                    _world.LocalPlayer.AimDirectionDegrees,
-                    GetBubbleMenuPointerDistanceFromCenter(mouse),
-                    leftMousePressed,
-                    leftMouseDown,
-                    LeftMouseReleased: false,
-                    pressedDigit,
-                    keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q)));
-                if (pluginResult is not null)
+                if (pluginOverrideActive)
                 {
-                    if (leftMousePressed)
+                    var pluginResult = TryHandleClientPluginBubbleMenuInput(new ClientBubbleMenuInputState(
+                        ToClientBubbleMenuKind(_bubbleMenuKind),
+                        _bubbleMenuXPageIndex,
+                        _world.LocalPlayer.AimDirectionDegrees,
+                        GetBubbleMenuPointerDistanceFromCenter(mouse),
+                        leftMousePressed,
+                        leftMouseDown,
+                        leftMouseReleased,
+                        pressedDigit,
+                        keyboard.IsKeyDown(Keys.Q) && !_previousKeyboard.IsKeyDown(Keys.Q)));
+                    if (pluginResult is not null)
                     {
-                        SuppressPrimaryFireUntilMouseRelease();
+                        if (leftMousePressed)
+                        {
+                            SuppressPrimaryFireUntilMouseRelease();
+                        }
+
+                        ApplyBubbleMenuPluginResult(pluginResult);
                     }
 
-                    ApplyBubbleMenuPluginResult(pluginResult);
+                    if (pluginOverrideActive && leftMouseReleased && _bubbleMenuPendingFrame.HasValue)
+                    {
+                        CommitBubbleMenuSelectionAndClose();
+                    }
+                    else if (pluginResult is null && TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
+                    {
+                        _bubbleMenuPendingFrame = bubbleFrame;
+                        _bubbleMenuSessionHadInteraction = true;
+                        CommitBubbleMenuSelectionAndClose();
+                    }
+                }
+                else if (TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
+                {
+                    _bubbleMenuPendingFrame = bubbleFrame;
+                    _bubbleMenuSessionHadInteraction = true;
+                    CommitBubbleMenuSelectionAndClose();
                 }
             }
-            else if (TryGetBubbleMenuSelection(keyboard, pressedDigit, out var bubbleFrame))
-            {
-                _bubbleMenuPendingFrame = bubbleFrame;
-                _bubbleMenuSessionHadInteraction = true;
-            }
 
-            if (!holdStillActive)
-            {
-                CommitBubbleMenuSelectionAndClose();
-            }
+            AdvanceBubbleMenuAnimation();
         }
-
-        AdvanceBubbleMenuAnimation();
-    }
 
     private void HandleBubbleMenuOpenKeyPresses(bool openZPressed, bool openXPressed, bool openCPressed)
     {
         if (openZPressed)
         {
-            OpenBubbleMenu(BubbleMenuKind.Z);
+            if (_bubbleMenuKind == BubbleMenuKind.Z && !_bubbleMenuClosing)
+            {
+                BeginClosingBubbleMenu();
+            }
+            else
+            {
+                OpenBubbleMenu(BubbleMenuKind.Z);
+            }
         }
         else if (openXPressed)
         {
-            OpenBubbleMenu(BubbleMenuKind.X);
+            if (_bubbleMenuKind == BubbleMenuKind.X && !_bubbleMenuClosing)
+            {
+                BeginClosingBubbleMenu();
+            }
+            else
+            {
+                OpenBubbleMenu(BubbleMenuKind.X);
+            }
         }
         else if (openCPressed)
         {
-            OpenBubbleMenu(BubbleMenuKind.C);
+            if (_bubbleMenuKind == BubbleMenuKind.C && !_bubbleMenuClosing)
+            {
+                BeginClosingBubbleMenu();
+            }
+            else
+            {
+                OpenBubbleMenu(BubbleMenuKind.C);
+            }
         }
     }
 

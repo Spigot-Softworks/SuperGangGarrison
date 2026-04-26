@@ -27,7 +27,7 @@ public sealed class InputBindingsSettings
 
     public Keys InteractWeapon { get; set; } = Keys.Q;
 
-    public Keys ShowScoreboard { get; set; } = Keys.LeftShift;
+    public Keys ShowScoreboard { get; set; } = Keys.Tab;
 
     public Keys ChangeTeam { get; set; } = Keys.N;
 
