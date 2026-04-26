@@ -14,6 +14,7 @@ public partial class Game1
     private double _clientTickAccumulatorSeconds;
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
+    private float _goreSourceTickAccumulator;
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
@@ -44,6 +45,7 @@ public partial class Game1
     {
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
+        _goreSourceTickAccumulator = 0f;
         _pendingPredictedJumpPress = false;
         _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
@@ -168,7 +170,7 @@ public partial class Game1
             UpdateNoticeState();
             AdvanceExplosionVisuals();
             AdvanceImpactVisuals();
-            AdvanceBloodVisuals();
+            AdvanceGoreSourceTicks();
             AdvanceExperimentalHealingHudIndicators();
             AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
@@ -188,6 +190,42 @@ public partial class Game1
         }
 
         AdvanceBackstabVisuals();
+    }
+
+    private void AdvanceGameplayGoreEffects()
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return;
+        }
+
+        if (_world.PlayerGibs.Count == 0 && _world.BloodDrops.Count == 0)
+        {
+            return;
+        }
+
+        var level = _world.Level;
+        var bounds = _world.Bounds;
+        foreach (var gib in _world.PlayerGibs)
+        {
+            gib.Advance(level, bounds);
+        }
+
+        foreach (var drop in _world.BloodDrops)
+        {
+            drop.Advance(level, bounds);
+        }
+    }
+
+    private void AdvanceGoreSourceTicks()
+    {
+        _goreSourceTickAccumulator += (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
+        while (_goreSourceTickAccumulator >= 1f)
+        {
+            _goreSourceTickAccumulator -= 1f;
+            AdvanceBloodVisuals();
+            AdvanceGameplayGoreEffects();
+        }
     }
 
     private float GetLegacyUiStepCount()

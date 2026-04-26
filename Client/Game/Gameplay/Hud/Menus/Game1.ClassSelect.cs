@@ -257,12 +257,13 @@ public partial class Game1
             return;
         }
 
-        _classSelectPortraitAnimationFrame = MathF.Min(maxFrame, _classSelectPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance());
+        _classSelectPortraitAnimationFrame = MathF.Min(maxFrame, _classSelectPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance(_clientUpdateElapsedSeconds));
     }
 
-    private static float GetClassSelectPortraitAnimationAdvance()
+    private static float GetClassSelectPortraitAnimationAdvance(float clientUpdateElapsedSeconds)
     {
-        return 0.4f * LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond;
+        var elapsedSeconds = Math.Min(clientUpdateElapsedSeconds, 1f / ClientUpdateTicksPerSecond);
+        return 0.4f * LegacyMovementModel.SourceTicksPerSecond * elapsedSeconds;
     }
 
     private bool TryDrawClassSelectPortraitAnimation(int hoverIndex, PlayerTeam previewTeam, Vector2 position, Color tint)

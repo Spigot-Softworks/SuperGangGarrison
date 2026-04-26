@@ -165,7 +165,7 @@ public partial class Game1
     {
         if (_entitySnapshotHistories.TryGetValue(entityId, out var history) && history.Count > 0)
         {
-            _interpolatedEntityPositions[entityId] = EvaluateEntitySnapshotHistory(history, renderTimeSeconds);
+            _interpolatedEntityPositions[entityId] = EvaluateEntitySnapshotHistory(history, renderTimeSeconds, entityId);
             return;
         }
 
@@ -804,6 +804,11 @@ public partial class Game1
 
     private Vector2 EvaluateEntitySnapshotHistory(List<EntitySnapshotSample> history, double renderTimeSeconds)
     {
+        return EvaluateEntitySnapshotHistory(history, renderTimeSeconds, -1);
+    }
+
+    private Vector2 EvaluateEntitySnapshotHistory(List<EntitySnapshotSample> history, double renderTimeSeconds, int entityId)
+    {
         if (history.Count == 0)
         {
             return Vector2.Zero;
@@ -811,12 +816,12 @@ public partial class Game1
 
         if (history.Count == 1)
         {
-            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds, entityId);
         }
 
         if (renderTimeSeconds <= history[0].TimeSeconds)
         {
-            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds, entityId);
         }
 
         for (var index = 1; index < history.Count; index += 1)
@@ -831,10 +836,10 @@ public partial class Game1
             return InterpolateEntitySnapshotSample(older, newer, renderTimeSeconds);
         }
 
-        return EvaluateEntitySampleExtrapolation(history[^1], renderTimeSeconds);
+        return EvaluateEntitySampleExtrapolation(history[^1], renderTimeSeconds, entityId);
     }
 
-    private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds)
+    private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
         var evaluationTimeSeconds = renderTimeSeconds;
         if (sample.Velocity != Vector2.Zero)
@@ -842,7 +847,7 @@ public partial class Game1
             evaluationTimeSeconds = Math.Max(renderTimeSeconds, GetEstimatedServerTimeSeconds());
         }
 
-        return EvaluateEntitySampleExtrapolation(sample, evaluationTimeSeconds);
+        return EvaluateEntitySampleExtrapolation(sample, evaluationTimeSeconds, entityId);
     }
 
     private static Vector2 InterpolateEntitySnapshotSample(EntitySnapshotSample older, EntitySnapshotSample newer, double renderTimeSeconds)
@@ -857,7 +862,7 @@ public partial class Game1
         return Vector2.Lerp(older.Position, newer.Position, alpha);
     }
 
-    private static Vector2 EvaluateEntitySampleExtrapolation(EntitySnapshotSample sample, double renderTimeSeconds)
+    private Vector2 EvaluateEntitySampleExtrapolation(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
         var extrapolationSeconds = float.Clamp(
             (float)(renderTimeSeconds - sample.TimeSeconds),
@@ -868,14 +873,62 @@ public partial class Game1
             return sample.Position;
         }
 
-        var offset = sample.Velocity * extrapolationSeconds;
-        var distance = offset.Length();
-        if (sample.MaxExtrapolationDistance > 0f && distance > sample.MaxExtrapolationDistance)
+        if (TryGetMineById(entityId, out var mine) && !mine.IsStickied)
         {
-            offset *= sample.MaxExtrapolationDistance / distance;
+            var predictedPosition = EvaluateMineProjectileExtrapolation(sample.Position, sample.Velocity, extrapolationSeconds, _world.ConfiguredGravityScale);
+            var distance = Vector2.Distance(sample.Position, predictedPosition);
+            if (sample.MaxExtrapolationDistance > 0f && distance > sample.MaxExtrapolationDistance)
+            {
+                predictedPosition = sample.Position + (predictedPosition - sample.Position) * (sample.MaxExtrapolationDistance / distance);
+            }
+
+            return predictedPosition;
+        }
+
+        var offset = sample.Velocity * extrapolationSeconds;
+        var distanceLinear = offset.Length();
+        if (sample.MaxExtrapolationDistance > 0f && distanceLinear > sample.MaxExtrapolationDistance)
+        {
+            offset *= sample.MaxExtrapolationDistance / distanceLinear;
         }
 
         return sample.Position + offset;
+    }
+
+    private Vector2 EvaluateMineProjectileExtrapolation(Vector2 position, Vector2 velocityPerSecond, float extrapolationSeconds, float gravityScale)
+    {
+        var currentVelocityX = velocityPerSecond.X;
+        var currentVelocityY = velocityPerSecond.Y;
+        var stepSeconds = 1f / _config.TicksPerSecond;
+        var gravityPerSecond = MineProjectileEntity.GravityPerTick * gravityScale * _config.TicksPerSecond;
+        var maxFallSpeedPerSecond = MineProjectileEntity.MaxFallSpeed * _config.TicksPerSecond;
+        var remainingSeconds = extrapolationSeconds;
+
+        while (remainingSeconds > 0f)
+        {
+            var dt = Math.Min(stepSeconds, remainingSeconds);
+            currentVelocityY = MathF.Min(maxFallSpeedPerSecond, currentVelocityY + gravityPerSecond * dt);
+            position.X += currentVelocityX * dt;
+            position.Y += currentVelocityY * dt;
+            remainingSeconds -= dt;
+        }
+
+        return position;
+    }
+
+    private bool TryGetMineById(int entityId, out MineProjectileEntity mine)
+    {
+        foreach (var candidate in _world.Mines)
+        {
+            if (candidate.Id == entityId)
+            {
+                mine = candidate;
+                return true;
+            }
+        }
+
+        mine = default!;
+        return false;
     }
 
     private double GetEntityRenderTimeSeconds()
