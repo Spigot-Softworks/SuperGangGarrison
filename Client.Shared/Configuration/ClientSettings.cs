@@ -62,7 +62,7 @@ public sealed class ClientSettings
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
-    public bool PositionSmoothingEnabled { get; set; } = true;
+    public bool PositionSmoothingEnabled { get; set; } = false;
 
     public bool SpriteDropShadowEnabled { get; set; }
 

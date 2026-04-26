@@ -610,7 +610,7 @@ public partial class Game1
             return;
         }
 
-        _gameplayLoadoutPortraitAnimationFrame = MathF.Min(maxFrame, _gameplayLoadoutPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance());
+        _gameplayLoadoutPortraitAnimationFrame = MathF.Min(maxFrame, _gameplayLoadoutPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance(_clientUpdateElapsedSeconds));
     }
 
     private bool TryDrawGameplayLoadoutMenuPortraitAnimation(PlayerClass viewedClass, Vector2 position, Color tint, float scale)

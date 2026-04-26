@@ -224,7 +224,7 @@ public partial class Game1 : Game
     private readonly Queue<DevMessagePopupState> _pendingDevMessagePopups = new();
     private DevMessagePopupState? _activeDevMessagePopup;
     private bool _killCamEnabled = true;
-    private bool _positionSmoothingEnabled = true;
+    private bool _positionSmoothingEnabled = false;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _flameRenderMode;
