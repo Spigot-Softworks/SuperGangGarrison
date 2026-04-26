@@ -394,7 +394,6 @@ public partial class Game1
             var allActions = new List<OptionsMenuAction>
             {
                 new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
-                new("Object motion smoothing", _game._positionSmoothingEnabled ? "On" : "Off", _game.TogglePositionSmoothingSetting, OptionsMenuTab.Other),
                 new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
