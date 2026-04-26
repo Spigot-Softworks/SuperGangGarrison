@@ -77,7 +77,7 @@ public partial class Game1
                 return;
             }
 
-            var sourceTickAdvance = _game._clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+            var sourceTickAdvance = (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
             if (sourceTickAdvance <= 0f)
             {
                 return;

@@ -109,16 +109,7 @@ sealed class ServerSessionManager
 
     private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
     {
-        if (!_world.TryGetNetworkPlayer(slot, out var player))
-        {
-            return input;
-        }
-
-        return input with
-        {
-            AimWorldX = input.AimWorldX + player.X,
-            AimWorldY = input.AimWorldY + player.Y,
-        };
+        return input;
     }
 
     public void HandleControlCommand(ClientSession client, ControlCommandMessage command)

@@ -64,7 +64,7 @@ public partial class Game1
                 }
             }
 
-            var sourceTickAdvance = _game._clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+            var sourceTickAdvance = (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
             if (sourceTickAdvance <= 0f)
             {
                 return;
@@ -105,7 +105,7 @@ public partial class Game1
 
         public void AdvanceImpactVisuals()
         {
-            var sourceTickAdvance = _game._clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+            var sourceTickAdvance = (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
             if (sourceTickAdvance <= 0f)
             {
                 return;
