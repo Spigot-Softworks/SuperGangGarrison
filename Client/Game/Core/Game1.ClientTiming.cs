@@ -177,6 +177,7 @@ public partial class Game1
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
+            AdvanceFrozenSpyVisuals();
             AdvanceMedigunBeamHelixPhase();
 
             if (_autoBalanceNoticeTicks > 0)
