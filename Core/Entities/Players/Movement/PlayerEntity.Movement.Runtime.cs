@@ -225,11 +225,7 @@ public sealed partial class PlayerEntity
                 VerticalSpeed = 0f;
             }
 
-            if (TryGetSupportingDropdownPlatform(level, input.Down, out var dropdownPlatform)
-                && dropdownPlatform.ResetsMovementState())
-            {
-                MovementState = LegacyMovementState.None;
-            }
+            MovementState = LegacyMovementState.None;
         }
         else
         {

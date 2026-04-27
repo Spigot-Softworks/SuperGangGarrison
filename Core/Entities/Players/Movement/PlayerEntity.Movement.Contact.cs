@@ -267,8 +267,9 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (!TrySnapToGroundBelow(level, team)
-            && !TrySnapToDropdownPlatformBelow(level, allowDropdownFallThrough))
+        var groundedOnFloor = TrySnapToGroundBelow(level, team);
+        var groundedOnPlatform = !groundedOnFloor && TrySnapToDropdownPlatformBelow(level, allowDropdownFallThrough);
+        if (!groundedOnFloor && !groundedOnPlatform)
         {
             return;
         }
@@ -276,6 +277,11 @@ public sealed partial class PlayerEntity
         IsGrounded = true;
         RemainingAirJumps = MaxAirJumps;
         VerticalSpeed = 0f;
+        if (groundedOnFloor)
+        {
+            MovementState = LegacyMovementState.None;
+        }
+        MovementState = LegacyMovementState.None;
     }
 
     private bool TrySnapToGroundBelow(SimpleLevel level, PlayerTeam team)

@@ -112,7 +112,9 @@ public partial class Game1
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
-                    _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[0], new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y), Color.White, 0f, sprite.Origin.ToVector2(), new Vector2(facingLeft ? -1f : 1f, 1f));
+                    var frame = sprite.Frames[0];
+                    var corpseOrigin = new Vector2(frame.Width * 0.5f, frame.Height - (height * 0.5f));
+                    _game.DrawSpriteFrameWithOptionalShadow(frame, new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y), Color.White, 0f, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
                     return;
                 }
             }

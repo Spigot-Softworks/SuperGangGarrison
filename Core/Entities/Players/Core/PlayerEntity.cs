@@ -657,6 +657,14 @@ public sealed partial class PlayerEntity : SimulationEntity
         MovementState = movementState;
     }
 
+    public void SetMovementStateIfAirborne(LegacyMovementState movementState)
+    {
+        if (!IsGrounded)
+        {
+            MovementState = movementState;
+        }
+    }
+
     public void ScaleVerticalSpeed(float scale)
     {
         VerticalSpeed *= scale;
