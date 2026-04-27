@@ -16,12 +16,8 @@ public partial class Game1
 {
     private bool CanOpenGameplayLoadoutMenu()
     {
-        if (_networkClient.IsSpectator || _world.LocalPlayerAwaitingJoin)
-        {
-            return false;
-        }
-
-        return GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
+        // Gameplay loadout selection is not currently supported in the in-game menu.
+        return false;
     }
 
     private void LoadGameplayLoadoutMenuTextures()
