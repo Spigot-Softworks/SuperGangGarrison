@@ -282,18 +282,6 @@ public partial class Game1
             CaptureProjectileInterpolationTarget(mine.Id, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
-        for (var gibIndex = 0; gibIndex < snapshot.PlayerGibs.Count; gibIndex += 1)
-        {
-            var gib = snapshot.PlayerGibs[gibIndex];
-            CaptureEntityInterpolationTarget(true, gib.Id, gib.X, gib.Y, new Vector2(gib.VelocityX, gib.VelocityY), 0.03f, 12f, snapshotServerTimeSeconds);
-        }
-
-        for (var bloodDropIndex = 0; bloodDropIndex < snapshot.BloodDrops.Count; bloodDropIndex += 1)
-        {
-            var bloodDrop = snapshot.BloodDrops[bloodDropIndex];
-            CaptureEntityInterpolationTarget(true, bloodDrop.Id, bloodDrop.X, bloodDrop.Y, new Vector2(bloodDrop.VelocityX, bloodDrop.VelocityY), 0.03f, 8f, snapshotServerTimeSeconds);
-        }
-
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.RedIntel.Team, snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshotServerTimeSeconds);
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.BlueIntel.Team, snapshot.BlueIntel.X, snapshot.BlueIntel.Y, snapshotServerTimeSeconds);
     }
