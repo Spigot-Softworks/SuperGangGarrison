@@ -1452,6 +1452,127 @@ public sealed class ServerAdminFoundationTests
     }
 
     [Fact]
+    public void SnapshotBroadcasterOmitsCloakedSpyBehindEnemyViewer()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            slot: 2,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "EnemyViewer",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        Assert.True(world.TrySetNetworkPlayerName(2, "EnemyViewer"));
+        Assert.True(world.TrySetNetworkPlayerName(3, "HiddenSpy"));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.True(world.TryGetNetworkPlayer(2, out var viewer));
+        Assert.True(world.TryGetNetworkPlayer(3, out var spy));
+
+        spy.Spawn(PlayerTeam.Red, 40f, 0f);
+        Assert.True(spy.TryToggleSpyCloak());
+
+        viewer.Spawn(PlayerTeam.Blue, 50f, 0f);
+        var viewerInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: 60f,
+            AimWorldY: 0f,
+            DebugKill: false);
+        Assert.True(world.TrySetNetworkPlayerInput(client.Slot, viewerInput));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var sent = Assert.Single(sentSnapshots);
+        Assert.DoesNotContain(sent.Message.Players, player => player.Slot == 3);
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterOmitsUncloakedSpyBehindEnemyViewer()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            slot: 2,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "EnemyViewer",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        Assert.True(world.TrySetNetworkPlayerName(2, "EnemyViewer"));
+        Assert.True(world.TrySetNetworkPlayerName(3, "HiddenSpy"));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
+        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.True(world.TryGetNetworkPlayer(2, out var viewer));
+        Assert.True(world.TryGetNetworkPlayer(3, out var spy));
+
+        spy.Spawn(PlayerTeam.Red, 40f, 0f);
+        Assert.False(spy.IsSpyCloaked);
+        Assert.Equal(1f, spy.SpyCloakAlpha);
+
+        viewer.Spawn(PlayerTeam.Blue, 50f, 0f);
+        var viewerInput = new PlayerInputSnapshot(
+            Left: false,
+            Right: false,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: 60f,
+            AimWorldY: 0f,
+            DebugKill: false);
+        Assert.True(world.TrySetNetworkPlayerInput(client.Slot, viewerInput));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var sent = Assert.Single(sentSnapshots);
+        Assert.DoesNotContain(sent.Message.Players, player => player.Slot == 3);
+    }
+
+    [Fact]
     public void SnapshotBroadcasterSerializesServerBotClassIndependentOfLocalPlayerClass()
     {
         var world = new SimulationWorld();

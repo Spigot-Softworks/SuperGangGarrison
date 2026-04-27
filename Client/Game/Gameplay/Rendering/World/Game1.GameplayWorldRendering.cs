@@ -55,6 +55,7 @@ public partial class Game1
             DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
+        DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);

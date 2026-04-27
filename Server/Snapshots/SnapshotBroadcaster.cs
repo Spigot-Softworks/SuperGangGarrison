@@ -272,6 +272,7 @@ sealed class SnapshotBroadcaster
 
         // Start with capacity for clients + bots
         var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length + _botManager.BotSlots.Count);
+        var removedPlayerIds = new List<int>();
 
         // Add human client players
         foreach (var entry in sharedSnapshot.OrderedClients)
@@ -282,27 +283,91 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
+            if (!_world.TryGetNetworkPlayer(entry.Slot, out var player))
             {
-                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
+                continue;
             }
+
+            if (ShouldHideSpyFromViewer(player, viewer))
+            {
+                removedPlayerIds.Add(entry.Slot);
+                continue;
+            }
+
+            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
         }
 
         // Add server bot players
         foreach (var (botSlot, botState) in _botManager.BotSlots)
         {
-            if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            if (!_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
-                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer));
+                continue;
             }
+
+            if (ShouldHideSpyFromViewer(botPlayer, viewer))
+            {
+                removedPlayerIds.Add(botSlot);
+                continue;
+            }
+
+            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer));
         }
 
         return sharedSnapshot.Template with
         {
             LastProcessedInputSequence = client.LastProcessedInputSequence,
             Players = players.ToArray(),
+            RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
         };
+    }
+
+    private static bool ShouldHideSpyFromViewer(PlayerEntity player, PlayerEntity? viewer)
+    {
+        if (viewer is null)
+        {
+            return false;
+        }
+
+        if (player.Team == viewer.Team)
+        {
+            return false;
+        }
+
+        if (player.ClassId != PlayerClass.Spy)
+        {
+            return false;
+        }
+
+        if (player.IsSpyVisibleToEnemies)
+        {
+            return false;
+        }
+
+        if (player.IsSpyBackstabAnimating)
+        {
+            return false;
+        }
+
+        if (!viewer.IsAlive)
+        {
+            return false;
+        }
+
+        return IsSpyHiddenFromViewer(player, viewer);
+    }
+
+    private static bool IsSpyHiddenFromViewer(PlayerEntity spy, PlayerEntity viewer)
+    {
+        var viewerFacingSign = IsFacingLeftByAim(viewer) ? -1 : 1;
+        return Math.Sign(spy.X - viewer.X) == -viewerFacingSign;
+    }
+
+    private static bool IsFacingLeftByAim(PlayerEntity player)
+    {
+        var radians = MathF.PI * player.AimDirectionDegrees / 180f;
+        return MathF.Cos(radians) < 0f;
     }
 
     private static SnapshotPlayerState CreateSpectatorSnapshotPlayerState(ClientSession client)

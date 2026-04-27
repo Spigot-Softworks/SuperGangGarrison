@@ -177,6 +177,7 @@ public partial class Game1
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
+            AdvanceFrozenSpyVisuals();
             AdvanceMedigunBeamHelixPhase();
 
             if (_autoBalanceNoticeTicks > 0)
@@ -187,9 +188,9 @@ public partial class Game1
                     _autoBalanceNoticeText = string.Empty;
                 }
             }
-        }
 
-        AdvanceBackstabVisuals();
+            AdvanceBackstabVisuals();
+        }
     }
 
     private void AdvanceGameplayGoreEffects()
