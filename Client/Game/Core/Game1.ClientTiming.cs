@@ -187,9 +187,9 @@ public partial class Game1
                     _autoBalanceNoticeText = string.Empty;
                 }
             }
-        }
 
-        AdvanceBackstabVisuals();
+            AdvanceBackstabVisuals();
+        }
     }
 
     private void AdvanceGameplayGoreEffects()
