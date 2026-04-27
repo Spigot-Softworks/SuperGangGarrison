@@ -38,7 +38,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float SpyCloakFadePerTick = 0.05f;
     public const float SpyCloakToggleThreshold = 0.5f;
     public const float SpyMinAllyCloakAlpha = 0.5f;
-    public const float SpyDamageRevealAlpha = 0.1f;
+    public const float SpyDamageRevealAlpha = 0.3f;
     public const float SpyMineRevealAlpha = 0.2f;
     public const float SpySniperRevealAlpha = 0.3f;
     public const int QuoteBubbleLimit = 25;
