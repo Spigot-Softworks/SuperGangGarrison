@@ -30,23 +30,33 @@ public partial class Game1
                 ? BrowserInputBridge.IsFocused
                 : _game.IsActive;
             var keyboard = windowActive ? _game.GetCurrentKeyboardState() : default;
-            var rawMouse = windowActive ? _game.GetConstrainedMouseState(_game.GetCurrentMouseState()) : default;
-            var mouse = windowActive ? _game.GetScaledMouseState(rawMouse) : default;
+            var rawMouse = _game.GetConstrainedMouseState(_game.GetCurrentMouseState());
+            var mouse = _game.GetScaledMouseState(rawMouse);
             if (windowActive)
             {
                 _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
             }
             else
             {
-                mouse = new MouseState(
-                    _game._lastKnownMousePosition.X,
-                    _game._lastKnownMousePosition.Y,
+                rawMouse = new MouseState(
+                    rawMouse.X,
+                    rawMouse.Y,
                     0,
                     ButtonState.Released,
                     ButtonState.Released,
                     ButtonState.Released,
                     ButtonState.Released,
                     ButtonState.Released);
+                mouse = new MouseState(
+                    mouse.X,
+                    mouse.Y,
+                    0,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released);
+                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
             }
 
             if (!_game._wasWindowActive && windowActive)
