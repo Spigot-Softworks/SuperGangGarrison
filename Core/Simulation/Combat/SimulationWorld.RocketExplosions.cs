@@ -196,11 +196,11 @@ public sealed partial class SimulationWorld
         {
             if (player.Id == rocket.OwnerId && player.Team == rocket.Team)
             {
-                player.SetMovementState(LegacyMovementState.ExplosionRecovery);
+                player.SetMovementStateIfAirborne(LegacyMovementState.ExplosionRecovery);
                 return;
             }
 
-            player.SetMovementState(player.Team == rocket.Team
+            player.SetMovementStateIfAirborne(player.Team == rocket.Team
                 ? LegacyMovementState.FriendlyJuggle
                 : LegacyMovementState.RocketJuggle);
         }
