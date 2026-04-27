@@ -79,6 +79,23 @@ public partial class Game1
                 DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
             }
 
+            if (player.ClassId == PlayerClass.Spy
+                && !ReferenceEquals(player, _game._world.LocalPlayer)
+                && player.Team != _game._world.LocalPlayer.Team
+                && !(_game.IsSpyHiddenFromLocalViewer(player) && !_game.GetPlayerIsSpyVisibleToEnemies(player)))
+            {
+                _game.RecordLastVisibleEnemySpyFrame(
+                    player,
+                    spriteName,
+                    frameIndex,
+                    renderPosition,
+                    sprite.Origin.ToVector2(),
+                    scale,
+                    bodyYOffset,
+                    tint,
+                    drawIntelOverlay);
+            }
+
             return true;
         }
 
