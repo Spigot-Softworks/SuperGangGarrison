@@ -353,7 +353,21 @@ public sealed partial class SimulationWorld
                 state.VelocityY,
                 state.IsStuck,
                 state.TicksRemaining,
-                state.Scale));
+                state.Scale),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        state.IsStuck,
+                        state.TicksRemaining,
+                        state.Scale);
+                }
+            });
     }
 
     private void ApplySnapshotMines(IReadOnlyList<SnapshotMineState> mines)
