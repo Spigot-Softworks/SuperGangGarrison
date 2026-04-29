@@ -1,0 +1,63 @@
+{
+  "Version": 1,
+  "Map": "Valley",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Blue",
+  "Class": "Medic",
+  "AttackTicks": 300,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 15
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 25
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 23
+    }
+  ],
+  "Return": []
+}

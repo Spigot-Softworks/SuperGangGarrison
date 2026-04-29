@@ -10,6 +10,8 @@
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
     <ProjectReference Include="..\BotAI\OpenGarrison.BotAI.csproj" />
+    <ProjectReference Include="..\MLBot.Contracts\OpenGarrison.MLBot.Contracts.csproj" />
+    <ProjectReference Include="..\MLBot\OpenGarrison.MLBot.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

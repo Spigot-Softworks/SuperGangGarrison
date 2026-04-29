@@ -22,7 +22,7 @@ public partial class Game1
         {
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
-            var rawMouse = _game.GetConstrainedMouseState(_game.GetCurrentMouseState());
+            var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
             var mouse = _game.GetScaledMouseState(rawMouse);
             var cameraPosition = _game.GetCameraTopLeft(viewportWidth, viewportHeight, mouse.X, mouse.Y);
             _game.PrepareLastToDieDeathFocusOverlayIfNeeded(viewportWidth, viewportHeight);

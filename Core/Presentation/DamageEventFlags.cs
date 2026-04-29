@@ -9,4 +9,5 @@ public enum DamageEventFlags : byte
 {
     None = 0,
     Airshot = 1 << 0,
+    Evaded = 1 << 1,
 }

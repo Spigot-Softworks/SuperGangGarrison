@@ -171,7 +171,7 @@ public partial class Game1
             LogBrowserPracticeStartupStep("reset-last-to-die");
 
             _game.ResetPracticeBotManagerState(releaseWorldSlots: true);
-            _game.ResetPracticeNavigationState();
+            Game1.ResetPracticeNavigationState();
             _game._botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
             _game.ResetBotDiagnosticSample();
             _game._networkClient.Disconnect();

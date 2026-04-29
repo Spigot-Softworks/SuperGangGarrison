@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "6a674129599ab0564a3e6e80507d9cbfb2a15262bb44d932a923170434529597",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-22T16:39:03.1357136Z",
+  "BuiltUtc": "2026-04-28T23:57:13.0281177Z",
   "Stats": {
     "SurfaceCount": 1026,
     "CandidateNodeCount": 145,
@@ -14,16 +14,16 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 145,
-    "EdgeCount": 366,
+    "EdgeCount": 403,
     "WalkEdgeCount": 124,
-    "JumpEdgeCount": 240,
+    "JumpEdgeCount": 277,
     "DropEdgeCount": 2,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 116.0638,
-    "SurfaceSamplingMilliseconds": 18.1782,
-    "AutoAnchorMilliseconds": 0.1231,
+    "BuildMilliseconds": 33.4646,
+    "SurfaceSamplingMilliseconds": 13.3439,
+    "AutoAnchorMilliseconds": 0.3294,
     "HintNodeMilliseconds": 0,
-    "AutomaticEdgeMilliseconds": 97.7605,
+    "AutomaticEdgeMilliseconds": 19.7903,
     "HintEdgeMilliseconds": 0,
     "DropEdgeMilliseconds": 0
   },
@@ -4193,6 +4193,265 @@
       "ToNodeId": 143,
       "Kind": "Walk",
       "Cost": 227,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 23,
+      "ToNodeId": 20,
+      "Kind": "Jump",
+      "Cost": 246.29251,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 22,
+      "ToNodeId": 10,
+      "Kind": "Jump",
+      "Cost": 112.72977,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 25,
+      "ToNodeId": 3,
+      "Kind": "Jump",
+      "Cost": 115.25623,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 24,
+      "ToNodeId": 14,
+      "Kind": "Jump",
+      "Cost": 100.57833,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 27,
+      "ToNodeId": 15,
+      "Kind": "Jump",
+      "Cost": 100.57833,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 26,
+      "ToNodeId": 4,
+      "Kind": "Jump",
+      "Cost": 115.25623,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 29,
+      "ToNodeId": 13,
+      "Kind": "Jump",
+      "Cost": 112.72977,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 28,
+      "ToNodeId": 21,
+      "Kind": "Jump",
+      "Cost": 246.29251,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 45,
+      "ToNodeId": 39,
+      "Kind": "Jump",
+      "Cost": 62.169125,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 46,
+      "ToNodeId": 40,
+      "Kind": "Jump",
+      "Cost": 62.169125,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 56,
+      "Kind": "Jump",
+      "Cost": 170.65755,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 48,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 91.78235,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 48,
+      "ToNodeId": 52,
+      "Kind": "Jump",
+      "Cost": 63.694584,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 43,
+      "Kind": "Jump",
+      "Cost": 91.78235,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 51,
+      "ToNodeId": 55,
+      "Kind": "Jump",
+      "Cost": 63.694584,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 50,
+      "ToNodeId": 57,
+      "Kind": "Jump",
+      "Cost": 170.65755,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 53,
+      "Kind": "Jump",
+      "Cost": 126.57014,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 58,
+      "ToNodeId": 54,
+      "Kind": "Jump",
+      "Cost": 126.57014,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 52,
+      "Kind": "Jump",
+      "Cost": 88.588936,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 55,
+      "Kind": "Jump",
+      "Cost": 88.588936,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 65,
+      "ToNodeId": 83,
+      "Kind": "Jump",
+      "Cost": 67.977936,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 84,
+      "Kind": "Jump",
+      "Cost": 67.977936,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 107,
+      "Kind": "Jump",
+      "Cost": 151.07614,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 103,
+      "ToNodeId": 107,
+      "Kind": "Jump",
+      "Cost": 156.46086,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 123.54756,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 103,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 126.14278,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 98,
+      "ToNodeId": 126,
+      "Kind": "Jump",
+      "Cost": 111.01801,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 100,
+      "ToNodeId": 113,
+      "Kind": "Jump",
+      "Cost": 62.26556,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 101,
+      "ToNodeId": 116,
+      "Kind": "Jump",
+      "Cost": 62.26556,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 114,
+      "ToNodeId": 105,
+      "Kind": "Jump",
+      "Cost": 76.837494,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 115,
+      "ToNodeId": 106,
+      "Kind": "Jump",
+      "Cost": 76.837494,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 121,
+      "ToNodeId": 111,
+      "Kind": "Jump",
+      "Cost": 131.04198,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 124,
+      "ToNodeId": 112,
+      "Kind": "Jump",
+      "Cost": 131.04198,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 125,
+      "ToNodeId": 117,
+      "Kind": "Jump",
+      "Cost": 89.19641,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 128,
+      "ToNodeId": 118,
+      "Kind": "Jump",
+      "Cost": 89.19641,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 130,
+      "ToNodeId": 119,
+      "Kind": "Jump",
+      "Cost": 78,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 131,
+      "ToNodeId": 120,
+      "Kind": "Jump",
+      "Cost": 78,
       "InputTape": []
     }
   ]

@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "851a3f40236ad123207385b664190299391a4fd580318618f9fd1733a04a025d",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-22T16:39:02.1801532Z",
+  "BuiltUtc": "2026-04-28T23:57:12.7797693Z",
   "Stats": {
     "SurfaceCount": 296,
     "CandidateNodeCount": 102,
@@ -14,16 +14,16 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 102,
-    "EdgeCount": 245,
+    "EdgeCount": 283,
     "WalkEdgeCount": 94,
-    "JumpEdgeCount": 147,
+    "JumpEdgeCount": 185,
     "DropEdgeCount": 4,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 102.4866,
-    "SurfaceSamplingMilliseconds": 15.009,
-    "AutoAnchorMilliseconds": 6.9441,
+    "BuildMilliseconds": 17.8928,
+    "SurfaceSamplingMilliseconds": 4.522,
+    "AutoAnchorMilliseconds": 0.3413,
     "HintNodeMilliseconds": 0,
-    "AutomaticEdgeMilliseconds": 80.5268,
+    "AutomaticEdgeMilliseconds": 13.0286,
     "HintEdgeMilliseconds": 0,
     "DropEdgeMilliseconds": 0
   },
@@ -2879,6 +2879,272 @@
       "ToNodeId": 100,
       "Kind": "Walk",
       "Cost": 395,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 1,
+      "ToNodeId": 4,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 0,
+      "ToNodeId": 5,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 3,
+      "ToNodeId": 6,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 7,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 14,
+      "Kind": "Jump",
+      "Cost": 203.94362,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 8,
+      "ToNodeId": 15,
+      "Kind": "Jump",
+      "Cost": 203.94362,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 11,
+      "ToNodeId": 16,
+      "Kind": "Jump",
+      "Cost": 203.94362,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 10,
+      "ToNodeId": 17,
+      "Kind": "Jump",
+      "Cost": 203.94362,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 13,
+      "ToNodeId": 18,
+      "Kind": "Jump",
+      "Cost": 42.43819,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 12,
+      "ToNodeId": 19,
+      "Kind": "Jump",
+      "Cost": 42.43819,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 31,
+      "ToNodeId": 60,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 30,
+      "ToNodeId": 61,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 33,
+      "ToNodeId": 62,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 32,
+      "ToNodeId": 63,
+      "Kind": "Jump",
+      "Cost": 160.70158,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 37,
+      "ToNodeId": 44,
+      "Kind": "Jump",
+      "Cost": 128.5496,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 36,
+      "ToNodeId": 45,
+      "Kind": "Jump",
+      "Cost": 111.12605,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 39,
+      "ToNodeId": 46,
+      "Kind": "Jump",
+      "Cost": 111.12605,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 38,
+      "ToNodeId": 47,
+      "Kind": "Jump",
+      "Cost": 128.5496,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 41,
+      "ToNodeId": 53,
+      "Kind": "Jump",
+      "Cost": 103.57606,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 42,
+      "ToNodeId": 54,
+      "Kind": "Jump",
+      "Cost": 103.57606,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 52,
+      "ToNodeId": 40,
+      "Kind": "Jump",
+      "Cost": 139.16896,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 55,
+      "ToNodeId": 43,
+      "Kind": "Jump",
+      "Cost": 139.16896,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 74,
+      "ToNodeId": 85,
+      "Kind": "Jump",
+      "Cost": 181.59296,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 74,
+      "ToNodeId": 92,
+      "Kind": "Jump",
+      "Cost": 482.8302,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 75,
+      "ToNodeId": 48,
+      "Kind": "Jump",
+      "Cost": 118.79394,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 80,
+      "ToNodeId": 59,
+      "Kind": "Jump",
+      "Cost": 118.79394,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 93,
+      "Kind": "Jump",
+      "Cost": 482.8302,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 90,
+      "Kind": "Jump",
+      "Cost": 181.59296,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 72,
+      "Kind": "Jump",
+      "Cost": 98.95454,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 96,
+      "Kind": "Jump",
+      "Cost": 701.64166,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 73,
+      "Kind": "Jump",
+      "Cost": 199.44925,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 92,
+      "Kind": "Jump",
+      "Cost": 103.57606,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 97,
+      "Kind": "Jump",
+      "Cost": 99.62429,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 89,
+      "ToNodeId": 93,
+      "Kind": "Jump",
+      "Cost": 103.57606,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 89,
+      "ToNodeId": 98,
+      "Kind": "Jump",
+      "Cost": 99.62429,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 91,
+      "ToNodeId": 82,
+      "Kind": "Jump",
+      "Cost": 199.44925,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 83,
+      "Kind": "Jump",
+      "Cost": 98.95454,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 90,
+      "ToNodeId": 99,
+      "Kind": "Jump",
+      "Cost": 701.64166,
       "InputTape": []
     }
   ]

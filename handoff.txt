@@ -1,0 +1,61 @@
+OpenGarrison Bot Work Failure Handoff
+
+This document intentionally replaces the prior MLBot handoff content. The ML training direction and the later deterministic-oracle pivot did not produce a releasable bot fix.
+
+What failed
+
+- Broad ML/IL/RL work did not produce reliable scoring across TwodFortTwo. The bots remained brittle around traversal, especially the alternating stair/final-intel approach.
+- Unified/class-general training regressed previously working cases. Blue Scout and other classes still got caught or failed to complete full score chains.
+- Extra V5/V6 data, DAgger/intervention clips, staged chunks, reward tweaks, and traversal affordance ideas did not create a proven headless self-improving loop.
+- The local movement oracle search was too slow and incomplete. It could solve some isolated pockets but failed the mirrored/right-side TwodFortTwo staircase case.
+- The mirror fallback was invalid. The opposite-side tape replayed to the right x position but stayed on the lower platform, so it was rejected.
+- A runtime bridge-edge attempt made Blue Scout worse: after adding bridge edges from lower-right nodes into upper stair nodes, Blue Scout failed before pickup.
+- No model or deterministic bot patch from this effort should be promoted.
+
+Concrete failed evidence
+
+- Red Pyro TwodFortTwo Score did pass once, but that did not generalize.
+- Blue Pyro TwodFortTwo Score passed once after direct route-miss fallback, but the path remained fragile and not a general fix.
+- Blue Scout TwodFortTwo Score failed after pickup before the last pass, with return progress stuck around the home staircase.
+- Blue Scout local movement oracle right-side climb failed:
+  - start `(2784,930)` goal `(3096,690)` radius `96`
+  - best result approximately `(2993,856)` with final distance about `195`
+  - failure reason `timeout`
+- Reflected/mirrored fallback failed validation:
+  - final approximately `(3091.6,930.0)`
+  - final distance about `240`
+  - reason `mirrored_validation_fail`
+- Runtime bridge attempt failed:
+  - Blue Scout TwodFortTwo Score timed out
+  - `carryFirst=n/a`
+  - `ctfAttackBest=325.7`
+  - not releasable
+
+Code cleanup performed after failure
+
+- Reverted tracked experimental changes in:
+  - `BotAI.Tools/Program.cs`
+  - `BotAI/BotController.cs`
+  - `BotAI/BotController.NavigationTraversal.cs`
+  - `BotAI/BotNavigationAsset.cs`
+  - `BotAI/BotNavigationMovementValidator.cs`
+  - `BotAI/BotNavigationRuntimeGraph.cs`
+  - `Core/Entities/Players/Movement/PlayerEntity.Movement.cs`
+- Removed untracked experimental files:
+  - `BotAI/BotNavigationMovementOracle.cs`
+  - `BotAI/BotNavigationPlatformGraphBuilder.cs`
+  - `Core/Entities/Players/Movement/PlayerEntity.MovementProbe.cs`
+
+Recommended next direction
+
+- Do not continue broad ML model promotion.
+- Do not rely on the failed local movement oracle as implemented.
+- Treat TwodFortTwo bot release readiness as unresolved.
+- The next engineer should start from source/runtime proof, not from these failed assumptions.
+- If a release must ship soon, use narrow deterministic route/behavior fixes with end-to-end score proof per class/team/map, or disable unsupported bot claims for release.
+
+Current acceptance bar
+
+- Do not claim success from graph reachability or local route progress.
+- A valid fix must pass full scenario scoring, not just pickup or arrival.
+- Minimum proof for TwodFortTwo should include full `Score` for both teams and held-out classes, with no hidden deterministic ML-policy overrides.

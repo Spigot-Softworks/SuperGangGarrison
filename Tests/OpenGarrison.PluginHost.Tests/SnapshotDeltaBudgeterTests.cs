@@ -1,5 +1,6 @@
 using System.Net;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using Xunit;
@@ -392,6 +393,85 @@ public sealed class SnapshotDeltaBudgeterTests
         var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == localPlayer.Slot);
         Assert.Equal(correctedLocalPlayer.X, mergedLocalPlayer.X);
         Assert.Equal(correctedLocalPlayer.HorizontalSpeed, mergedLocalPlayer.HorizontalSpeed);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotReductionPreservesGameplayEquipmentForRemoteWeaponPresentation()
+    {
+        var baselineSoldier = CreatePlayerState(2, 902, "Remote Soldier") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+            GameplayModPackId = "stock.gg2",
+            GameplayLoadoutId = "soldier.stock",
+            GameplayPrimaryItemId = "weapon.rocketlauncher",
+            GameplaySecondaryItemId = "weapon.soldier-shotgun",
+            GameplayUtilityItemId = "ability.soldier-utility",
+            GameplayEquippedSlot = (byte)GameplayEquipmentSlot.Primary,
+            GameplayEquippedItemId = "weapon.rocketlauncher",
+        };
+        var currentSoldier = baselineSoldier with
+        {
+            Ammo = 5,
+            AimDirectionDegrees = 35f,
+            GameplayEquippedSlot = (byte)GameplayEquipmentSlot.Secondary,
+            GameplayEquippedItemId = "weapon.soldier-shotgun",
+            OwnedGameplayItemIds =
+            [
+                "inventory.remote-soldier-primary",
+                "inventory.remote-soldier-secondary",
+                "inventory.remote-soldier-utility",
+            ],
+            ReplicatedStates =
+            [
+                new SnapshotReplicatedStateEntry(
+                    "core.player",
+                    "soldier_shotgun_equipped",
+                    SnapshotReplicatedStateValueKind.Toggle,
+                    BoolValue: true),
+            ],
+        };
+        var baseline = CreateSnapshot(900) with
+        {
+            Players = [baselineSoldier],
+        };
+        var current = CreateSnapshot(901);
+        var fullDelta = current with
+        {
+            IsDelta = true,
+            BaselineFrame = baseline.Frame,
+            Players = [currentSoldier],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 1900,
+                DistanceSquared: 1f,
+                EstimatedBytes: ProtocolCodec.MeasureSerializedSize(fullDelta),
+                Apply: builder => builder.Players.Add(currentSoldier),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.PlayerRosterUpdate),
+        };
+        var targetPayloadBytes = ProtocolCodec.MeasureSerializedSize(fullDelta) - 16;
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(
+            current,
+            baseline,
+            contributions,
+            targetPayloadBytes);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= targetPayloadBytes);
+        var deltaPlayer = Assert.Single(result.Message.Players);
+        Assert.Equal("weapon.soldier-shotgun", deltaPlayer.GameplayEquippedItemId);
+        Assert.Equal((byte)GameplayEquipmentSlot.Secondary, deltaPlayer.GameplayEquippedSlot);
+        Assert.Equal("weapon.soldier-shotgun", deltaPlayer.GameplaySecondaryItemId);
+        Assert.Contains(
+            deltaPlayer.ReplicatedStates ?? [],
+            state => state.OwnerId == "core.player"
+                && state.Key == "soldier_shotgun_equipped"
+                && state.BoolValue);
+        var mergedSoldier = Assert.Single(merged.Players);
+        Assert.Equal("weapon.soldier-shotgun", mergedSoldier.GameplayEquippedItemId);
+        Assert.Equal((byte)GameplayEquipmentSlot.Secondary, mergedSoldier.GameplayEquippedSlot);
     }
 
     [Fact]

@@ -1,0 +1,83 @@
+{
+  "Version": 1,
+  "Map": "Valley",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Blue",
+  "Class": "Heavy",
+  "AttackTicks": 406,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 33
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 21
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 23
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 31
+    }
+  ],
+  "Return": []
+}

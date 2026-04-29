@@ -1,0 +1,133 @@
+{
+  "schema": "mlbot-v7-twod-ctf-chain-matrix",
+  "scenarios": [
+    {
+      "name": "twod_red_scout_attack_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "twod_red_scout_return_score_from_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "ReturnIntel",
+      "ticks": 2400,
+      "start_x": 3111.8245,
+      "start_y": 702.0,
+      "start_vx": -233.2078,
+      "start_vy": 0.0,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "twod_red_scout_full_score",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "None",
+      "ticks": 4200,
+      "success_criterion": "full_score"
+    },
+    {
+      "name": "twod_blue_scout_attack_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "twod_blue_scout_return_score_from_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "ReturnIntel",
+      "ticks": 2400,
+      "start_x": 312.8294,
+      "start_y": 702.0,
+      "start_vx": 236.127,
+      "start_vy": 0.0,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "twod_blue_scout_full_score",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "None",
+      "ticks": 4200,
+      "success_criterion": "full_score"
+    },
+    {
+      "name": "twod_red_demoman_attack_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Demoman",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "twod_red_demoman_return_score_from_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Demoman",
+      "task": "ReturnIntel",
+      "ticks": 2600,
+      "start_x": 3111.3442,
+      "start_y": 702.0,
+      "start_vx": -169.6994,
+      "start_vy": 0.0,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "twod_red_demoman_full_score",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Demoman",
+      "task": "None",
+      "ticks": 4600,
+      "success_criterion": "full_score"
+    },
+    {
+      "name": "twod_blue_demoman_attack_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Demoman",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "twod_blue_demoman_return_score_from_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Demoman",
+      "task": "ReturnIntel",
+      "ticks": 2600,
+      "start_x": 315.6096,
+      "start_y": 686.5999,
+      "start_vx": 169.8652,
+      "start_vy": -213.0,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "twod_blue_demoman_full_score",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Demoman",
+      "task": "None",
+      "ticks": 4600,
+      "success_criterion": "full_score"
+    }
+  ]
+}

@@ -100,7 +100,7 @@ public partial class Game1
                 return Vector2.Zero;
             }
 
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(_game.GetCurrentMouseState()));
+            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
             return RoundToSourcePixels(_game.CalculateBaseCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y, trackLiveCamera: false));
         }
 

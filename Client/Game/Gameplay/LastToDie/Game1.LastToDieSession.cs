@@ -1,11 +1,14 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -30,6 +33,7 @@ public partial class Game1
     private const int LastToDieFailureContinueDelayTicks = 18;
     private const float LastToDieStageIntroDurationSeconds = 2f;
     private const int LastToDieKillTimerReductionSeconds = 3;
+    private const float LastToDieAccessoryChoiceChance = 0.2f;
 
     private enum LastToDieSurvivorKind
     {
@@ -61,6 +65,11 @@ public partial class Game1
         SoldierRageCaptureDuringRage,
         SoldierNapalmRockets,
         SoldierFinalClipRocketBurst,
+        SoldierCivilDefenseTurret,
+        SoldierLuckyBastard,
+        SoldierThundergunner,
+        SoldierBattleborn,
+        SoldierFogOfWar,
         DemoknightMeleeRange,
         DemoknightLifesteal,
         DemoknightMoveSpeed,
@@ -80,6 +89,48 @@ public partial class Game1
         LastToDiePerkKind Kind,
         string Label,
         string Description);
+
+    private enum LastToDieAccessorySlot
+    {
+        Helmet,
+        Dogtags,
+    }
+
+    private enum LastToDieAccessoryStatKind
+    {
+        ExplosiveDamage,
+        BulletDamage,
+        MovementSpeed,
+        JumpHeight,
+        BonusJumps,
+        Evasion,
+        Thorns,
+        BulletResist,
+        ExplosiveResist,
+        FireResist,
+        HealthRegeneration,
+        DamageResist,
+        AcquiredWeaponDamage,
+        AcquiredWeaponHealing,
+        DamageToClass,
+        ProjectilesPerShot,
+    }
+
+    private readonly record struct LastToDieAccessoryDefinition(
+        LastToDieAccessorySlot Slot,
+        LastToDieAccessoryStatKind StatKind,
+        int Value,
+        PlayerClass? TargetClass = null)
+    {
+        public string SlotLabel => Slot == LastToDieAccessorySlot.Helmet ? "Helmet" : "Dogtags";
+    }
+
+    private readonly record struct LastToDieRewardChoice(
+        LastToDiePerkDefinition? Perk,
+        LastToDieAccessoryDefinition? Accessory)
+    {
+        public bool IsAccessory => Accessory.HasValue;
+    }
 
     private readonly record struct LastToDieSurvivorDefinition(
         LastToDieSurvivorKind Kind,
@@ -117,7 +168,11 @@ public partial class Game1
 
         public HashSet<LastToDiePerkKind> ChosenPerks { get; } = [];
 
-        public LastToDiePerkDefinition[] PendingPerkChoices { get; set; } = [];
+        public LastToDieRewardChoice[] PendingRewardChoices { get; set; } = [];
+
+        public LastToDieAccessoryDefinition? EquippedHelmet { get; set; }
+
+        public LastToDieAccessoryDefinition? EquippedDogtags { get; set; }
 
         public int LevelsCompleted { get; set; }
 
@@ -142,7 +197,7 @@ public partial class Game1
 
     private static readonly LastToDiePerkDefinition[] LastToDieSoldierPerkCatalog =
     [
-        new(LastToDiePerkKind.SoldierShotgun, "12 Gauge", "Press Space to fire secondary shotgun."),
+        new(LastToDiePerkKind.SoldierShotgun, "12 Gauge", "Doubles shotgun pellet count."),
         new(LastToDiePerkKind.HealOnDamage, "Sadist", "Restore 35% of dealt damage."),
         new(LastToDiePerkKind.HealOnKill, "Natural Born Killer", "Restore 75 health on kill."),
         new(LastToDiePerkKind.RateOfFireOnDamage, "Rocket Frenzy", "Landing a hit instantly requeues primary fire."),
@@ -162,6 +217,11 @@ public partial class Game1
         new(LastToDiePerkKind.SoldierNapalmRockets, "Napalm Rockets", "Napalm fucking rockets."),
         new(LastToDiePerkKind.SoldierFinalClipRocketBurst, "Last Kiss", "Emptying your clip fires a delayed bonus rocket."),
         new(LastToDiePerkKind.SoldierRageCaptureDuringRage, "Manifest Destiny", "Keep capturing objectives while raging."),
+        new(LastToDiePerkKind.SoldierCivilDefenseTurret, "Civil Defense Turret", "Right-click deploys a sentry that destroys bullets, rockets, and mines."),
+        new(LastToDiePerkKind.SoldierLuckyBastard, "Lucky Bastard", "Critical damage triggers 5s invulnerability, then revives based on your kill threshold."),
+        new(LastToDiePerkKind.SoldierThundergunner, "Thundergunner", "Right-click unleashes a stronger airblast that reflects projectiles and bullets and knocks enemies away."),
+        new(LastToDiePerkKind.SoldierBattleborn, "Battleborn", "Gain a damage bonus equal to your current combo meter count."),
+        new(LastToDiePerkKind.SoldierFogOfWar, "Fog of War", "Taking damage grants stacking evasion for 3s. Evaded attacks flash Miss! above you."),
     ];
 
     private static readonly LastToDiePerkDefinition[] LastToDieDemoknightPerkCatalog =
@@ -193,10 +253,205 @@ public partial class Game1
     private int _lastToDieTimerReductionPopupTicksRemaining;
     private float _lastToDieTimerReductionPopupRise;
     private int _lastToDieTimerReductionPopupSeconds;
+    private Texture2D? _lastToDieBuffIconTexture;
+    private bool _lastToDieBuffIconLoadAttempted;
+
+    private const string LastToDieHelmetLoadoutItemId = "ltd.accessory.helmet";
+    private const string LastToDieDogtagsLoadoutItemId = "ltd.accessory.dogtags";
 
     private bool IsLastToDieSessionActive => _gameplaySessionKind == GameplaySessionKind.LastToDie;
 
     private bool IsOfflineBotSessionActive => _gameplaySessionKind is GameplaySessionKind.Practice or GameplaySessionKind.LastToDie;
+
+    private bool ShouldUseLastToDieAccessoryLoadoutColumn(PlayerClass viewedClass)
+    {
+        return IsLastToDieSessionActive
+            && _lastToDieRun is not null
+            && _lastToDieRun.SurvivorKind == LastToDieSurvivorKind.Soldier
+            && viewedClass == PlayerClass.Soldier;
+    }
+
+    private void AddLastToDieAccessoryLoadoutButtons(GameplayLoadoutMenuLayout layout, List<GameplayLoadoutMenuButton> buttons)
+    {
+        AddButton(LastToDieHelmetLoadoutItemId, 0);
+        AddButton(LastToDieDogtagsLoadoutItemId, 1);
+
+        void AddButton(string itemId, int optionIndex)
+        {
+            buttons.Add(new GameplayLoadoutMenuButton(
+                GameplayLoadoutMenuPresentation.GetColumnOptionBounds(layout.LeftColumnBounds, optionIndex),
+                () => SetNetworkStatus("Last To Die accessories auto-equip from reward drops."),
+                GameplayLoadoutMenuButtonKind.AccessoryOption,
+                PlayerClass.Soldier,
+                GameplayEquipmentSlot.Secondary,
+                itemId));
+        }
+    }
+
+    private void DrawLastToDieAccessoryLoadoutColumn(
+        GameplayLoadoutMenuLayout layout,
+        Rectangle columnBounds,
+        List<GameplayLoadoutMenuButton> buttons)
+    {
+        DrawGameplayLoadoutAccessoryColumnBackground(columnBounds);
+        DrawLastToDieAccessoryLoadoutOption(
+            GameplayLoadoutMenuPresentation.GetColumnOptionBounds(columnBounds, 0),
+            _lastToDieRun?.EquippedHelmet,
+            _gameplayLoadoutHelmetTexture,
+            LastToDieHelmetLoadoutItemId,
+            buttons);
+        DrawLastToDieAccessoryLoadoutOption(
+            GameplayLoadoutMenuPresentation.GetColumnOptionBounds(columnBounds, 1),
+            _lastToDieRun?.EquippedDogtags,
+            _gameplayLoadoutDogTagsTexture,
+            LastToDieDogtagsLoadoutItemId,
+            buttons);
+    }
+
+    private void DrawGameplayLoadoutAccessoryColumnBackground(Rectangle columnBounds)
+    {
+        if (_gameplayLoadoutScrollerTexture is not null)
+        {
+            var frameWidth = _gameplayLoadoutScrollerTexture.Width / 5;
+            var source = new Rectangle(0, 0, frameWidth, _gameplayLoadoutScrollerTexture.Height);
+            DrawLoadedSpriteFrame(_gameplayLoadoutScrollerTexture, columnBounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(columnBounds.Width / (float)source.Width, columnBounds.Height / (float)source.Height), SpriteEffects.None, 0f);
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, columnBounds, new Color(90, 82, 63));
+    }
+
+    private void DrawLastToDieAccessoryLoadoutOption(
+        Rectangle bounds,
+        LastToDieAccessoryDefinition? accessory,
+        LoadedSpriteFrame? texture,
+        string itemId,
+        List<GameplayLoadoutMenuButton> buttons)
+    {
+        var hovered = _gameplayLoadoutMenuHoverIndex >= 0
+            && _gameplayLoadoutMenuHoverIndex < buttons.Count
+            && buttons[_gameplayLoadoutMenuHoverIndex].Kind == GameplayLoadoutMenuButtonKind.AccessoryOption
+            && string.Equals(buttons[_gameplayLoadoutMenuHoverIndex].ItemId, itemId, StringComparison.Ordinal);
+
+        if (texture is not null)
+        {
+            var sourceX = accessory.HasValue ? texture.Width / 2 : 0;
+            var source = new Rectangle(sourceX, 0, texture.Width / 2, texture.Height);
+            DrawLoadedSpriteFrame(texture, bounds.Location.ToVector2(), source, Color.White, 0f, Vector2.Zero, new Vector2(bounds.Width / (float)source.Width, bounds.Height / (float)source.Height), SpriteEffects.None, 0f);
+        }
+        else
+        {
+            _spriteBatch.Draw(_pixel, bounds, accessory.HasValue ? new Color(232, 221, 177) : new Color(52, 47, 35));
+            DrawCenteredMenuFontText(accessory?.SlotLabel ?? "Empty", bounds, accessory.HasValue ? new Color(51, 40, 31) : new Color(240, 233, 221), 1f, 0.42f);
+        }
+
+        if (hovered)
+        {
+            DrawGameplayLoadoutMenuOutline(bounds, new Color(255, 239, 198), 2);
+        }
+    }
+
+    private GameplayLoadoutMenuBoardLine[] BuildLastToDieAccessoryLoadoutBoardLines(string? itemId)
+    {
+        var showHelmet = string.IsNullOrWhiteSpace(itemId)
+            || string.Equals(itemId, LastToDieHelmetLoadoutItemId, StringComparison.Ordinal);
+        var accessory = showHelmet
+            ? _lastToDieRun?.EquippedHelmet
+            : _lastToDieRun?.EquippedDogtags;
+        var slotLabel = showHelmet ? "Helmet" : "Dogtags";
+        if (!accessory.HasValue)
+        {
+            return
+            [
+                new GameplayLoadoutMenuBoardLine(slotLabel, new Color(245, 240, 232)),
+                new GameplayLoadoutMenuBoardLine("No item equipped.", new Color(186, 186, 186)),
+                new GameplayLoadoutMenuBoardLine("Find one from reward drops.", new Color(186, 186, 186)),
+            ];
+        }
+
+        return
+        [
+            new GameplayLoadoutMenuBoardLine($"{GetLastToDieAccessoryPrefix(accessory.Value)} {slotLabel}", new Color(255, 214, 82)),
+            new GameplayLoadoutMenuBoardLine(GetLastToDieAccessoryDescription(accessory.Value), new Color(186, 186, 186)),
+        ];
+    }
+
+    private void DrawLastToDieBuffIcon(MouseState mouse)
+    {
+        if (!IsLastToDieSessionActive || _lastToDieRun is null || _world.LocalPlayerAwaitingJoin)
+        {
+            return;
+        }
+
+        var iconBounds = new Rectangle(96, ViewportHeight - 83, 35, 35);
+        var texture = GetLastToDieBuffIconTexture();
+        if (texture is not null)
+        {
+            _spriteBatch.Draw(texture, iconBounds, Color.White);
+        }
+        else
+        {
+            _spriteBatch.Draw(_pixel, iconBounds, new Color(76, 26, 26));
+            _spriteBatch.Draw(_pixel, new Rectangle(iconBounds.X + 6, iconBounds.Y + 6, iconBounds.Width - 12, iconBounds.Height - 12), new Color(224, 66, 66));
+        }
+
+        if (!iconBounds.Contains(mouse.Position))
+        {
+            return;
+        }
+
+        var lines = BuildLastToDieBuffTooltipLines(_lastToDieRun);
+        if (lines.Count == 0)
+        {
+            lines.Add("No stat bonuses");
+        }
+
+        const float scale = 0.9f;
+        var width = 0f;
+        foreach (var line in lines)
+        {
+            width = MathF.Max(width, MeasureBitmapFontWidth(line, scale));
+        }
+
+        var panel = new Rectangle(
+            iconBounds.Right + 10,
+            Math.Max(12, iconBounds.Y - 13),
+            (int)MathF.Ceiling(width + 30),
+            Math.Max(43, 23 + (lines.Count * 20)));
+        _spriteBatch.Draw(_pixel, panel, new Color(20, 22, 26, 238));
+        _spriteBatch.Draw(_pixel, new Rectangle(panel.X, panel.Y, panel.Width, 2), new Color(220, 72, 72));
+        var y = panel.Y + 10f;
+        foreach (var line in lines)
+        {
+            DrawBitmapFontText(line, new Vector2(panel.X + 13f, y), new Color(232, 232, 232), scale);
+            y += 20f;
+        }
+    }
+
+    private Texture2D? GetLastToDieBuffIconTexture()
+    {
+        if (_lastToDieBuffIconLoadAttempted)
+        {
+            return _lastToDieBuffIconTexture;
+        }
+
+        _lastToDieBuffIconLoadAttempted = true;
+        try
+        {
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "ltd_buff.png");
+            if (File.Exists(path))
+            {
+                using var stream = File.OpenRead(path);
+                _lastToDieBuffIconTexture = Texture2D.FromStream(GraphicsDevice, stream);
+            }
+        }
+        catch
+        {
+            _lastToDieBuffIconTexture = null;
+        }
+
+        return _lastToDieBuffIconTexture;
+    }
 
     private int GetOfflineEnemyBotCount()
     {
@@ -213,7 +468,11 @@ public partial class Game1
     private bool ShouldSuspendOfflineGameplaySimulation()
     {
         return IsLastToDieSessionActive
-            && (_lastToDieSurvivorMenuOpen || _lastToDiePerkMenuOpen || IsLastToDieStageClearOverlayActive() || IsLastToDieFailurePresentationActive());
+            && (HasOpenGameplayOverlay()
+                || _lastToDieSurvivorMenuOpen
+                || _lastToDiePerkMenuOpen
+                || IsLastToDieStageClearOverlayActive()
+                || IsLastToDieFailurePresentationActive());
     }
 
     private bool IsLastToDieStageClearOverlayActive()
@@ -505,7 +764,7 @@ public partial class Game1
             if (_lastToDieRun.AwaitingOpeningPerkSelection)
             {
                 _lastToDieRun.AwaitingOpeningPerkSelection = false;
-                _lastToDieRun.PendingPerkChoices = [];
+                _lastToDieRun.PendingRewardChoices = [];
                 return;
             }
 
@@ -515,20 +774,70 @@ public partial class Game1
 
         StopIngameMusic();
         StopLastToDieIngameMusic();
-        _lastToDieRun.PendingPerkChoices = choices;
+        _lastToDieRun.PendingRewardChoices = choices;
         _lastToDiePerkMenuOpen = true;
         _lastToDiePerkHoverIndex = -1;
     }
 
-    private static LastToDiePerkDefinition[] BuildLastToDiePerkChoices(LastToDieRunState run)
+    private static LastToDieRewardChoice[] BuildLastToDiePerkChoices(LastToDieRunState run)
     {
         var available = GetLastToDiePerkCatalog(run.SurvivorKind)
             .Where(definition => !run.ChosenPerks.Contains(definition.Kind))
             .ToList();
         ShuffleLastToDiePerks(available);
-        return available
+        var choices = available
             .Take(Math.Min(LastToDiePerkChoiceCount, available.Count))
+            .Select(perk => new LastToDieRewardChoice(perk, null))
             .ToArray();
+        if (choices.Length > 0
+            && run.SurvivorKind == LastToDieSurvivorKind.Soldier
+            && RandomNumberGenerator.GetInt32(100) < (int)(LastToDieAccessoryChoiceChance * 100f))
+        {
+            var replaceIndex = RandomNumberGenerator.GetInt32(choices.Length);
+            choices[replaceIndex] = new LastToDieRewardChoice(null, CreateRandomLastToDieAccessory());
+        }
+
+        return choices;
+    }
+
+    private static LastToDieAccessoryDefinition CreateRandomLastToDieAccessory()
+    {
+        var slot = RandomNumberGenerator.GetInt32(2) == 0
+            ? LastToDieAccessorySlot.Helmet
+            : LastToDieAccessorySlot.Dogtags;
+        var statKinds = Enum.GetValues<LastToDieAccessoryStatKind>();
+        var statKind = statKinds[RandomNumberGenerator.GetInt32(statKinds.Length)];
+        PlayerClass? targetClass = statKind == LastToDieAccessoryStatKind.DamageToClass
+            ? GameplayLoadoutMenuPresentation.ClassStripOrder[RandomNumberGenerator.GetInt32(GameplayLoadoutMenuPresentation.ClassStripOrder.Length)]
+            : null;
+        return new LastToDieAccessoryDefinition(slot, statKind, RollLastToDieAccessoryValue(statKind), targetClass);
+    }
+
+    private static int RollLastToDieAccessoryValue(LastToDieAccessoryStatKind statKind)
+    {
+        return statKind switch
+        {
+            LastToDieAccessoryStatKind.JumpHeight => RollLastToDieAccessoryStep(5, 50, 5),
+            LastToDieAccessoryStatKind.BonusJumps => RollLastToDieAccessoryStep(1, 4, 1),
+            LastToDieAccessoryStatKind.Evasion => RollLastToDieAccessoryStep(10, 60, 5),
+            LastToDieAccessoryStatKind.Thorns => RollLastToDieAccessoryStep(10, 100, 10),
+            LastToDieAccessoryStatKind.BulletResist
+                or LastToDieAccessoryStatKind.ExplosiveResist
+                or LastToDieAccessoryStatKind.FireResist
+                or LastToDieAccessoryStatKind.DamageResist
+                or LastToDieAccessoryStatKind.AcquiredWeaponHealing => RollLastToDieAccessoryStep(10, 60, 5),
+            LastToDieAccessoryStatKind.HealthRegeneration => RollLastToDieAccessoryStep(3, 15, 1),
+            LastToDieAccessoryStatKind.AcquiredWeaponDamage => RollLastToDieAccessoryStep(10, 90, 5),
+            LastToDieAccessoryStatKind.DamageToClass => RollLastToDieAccessoryStep(10, 70, 5),
+            LastToDieAccessoryStatKind.ProjectilesPerShot => RollLastToDieAccessoryStep(2, 4, 1),
+            _ => RollLastToDieAccessoryStep(10, 80, 5),
+        };
+    }
+
+    private static int RollLastToDieAccessoryStep(int minValue, int maxValue, int step)
+    {
+        var stepCount = ((maxValue - minValue) / step) + 1;
+        return minValue + (RandomNumberGenerator.GetInt32(stepCount) * step);
     }
 
     private static LastToDiePerkDefinition[] GetLastToDiePerkCatalog(LastToDieSurvivorKind survivorKind)
@@ -552,7 +861,7 @@ public partial class Game1
         _lastToDieRun.StageDurationMinutes = Math.Min(
             LastToDieFinalStageMinutes,
             _lastToDieRun.StageDurationMinutes + LastToDieStageMinuteIncrement);
-        _lastToDieRun.PendingPerkChoices = [];
+        _lastToDieRun.PendingRewardChoices = [];
 
         var nextMap = SelectRandomLastToDieMap(_lastToDieRun.CurrentLevelName);
         if (nextMap is null || !BeginLastToDieStage(nextMap.LevelName))
@@ -637,7 +946,11 @@ public partial class Game1
         {
             settings = perk switch
             {
-                LastToDiePerkKind.SoldierShotgun => settings with { EnableSoldierShotgunSecondaryWeapon = true },
+                LastToDiePerkKind.SoldierShotgun => settings with
+                {
+                    EnableSoldierShotgunSecondaryWeapon = true,
+                    SoldierShotgunPelletMultiplier = 2,
+                },
                 LastToDiePerkKind.HealOnDamage => settings with { EnableHealOnDamage = true },
                 LastToDiePerkKind.HealOnKill => settings with { EnableHealOnKill = true, HealOnKillAmount = 75 },
                 LastToDiePerkKind.RateOfFireOnDamage => settings with { EnableRateOfFireMultiplierOnDamage = true },
@@ -657,6 +970,11 @@ public partial class Game1
                 LastToDiePerkKind.SoldierRageCaptureDuringRage => settings with { EnableSoldierRageCaptureDuringRage = true },
                 LastToDiePerkKind.SoldierNapalmRockets => settings with { EnableSoldierNapalmRockets = true },
                 LastToDiePerkKind.SoldierFinalClipRocketBurst => settings with { EnableSoldierFinalClipRocketBurst = true },
+                LastToDiePerkKind.SoldierCivilDefenseTurret => settings with { EnableSoldierCivilDefenseTurret = true },
+                LastToDiePerkKind.SoldierLuckyBastard => settings with { EnableSoldierLuckyBastard = true },
+                LastToDiePerkKind.SoldierThundergunner => settings with { EnableSoldierThundergunner = true },
+                LastToDiePerkKind.SoldierBattleborn => settings with { EnableSoldierBattleborn = true },
+                LastToDiePerkKind.SoldierFogOfWar => settings with { EnableSoldierFogOfWar = true },
                 LastToDiePerkKind.DemoknightMeleeRange => settings with { DemoknightSwordRangeMultiplier = 1.5f },
                 LastToDiePerkKind.DemoknightLifesteal => settings with { EnableHealOnDamage = true, HealOnDamageFraction = 0.6f },
                 LastToDiePerkKind.DemoknightMoveSpeed => settings with { PassiveMovementSpeedMultiplier = 1.3f },
@@ -674,7 +992,79 @@ public partial class Game1
             };
         }
 
+        return ApplyLastToDieAccessorySettings(run, settings);
+    }
+
+    private static ExperimentalGameplaySettings ApplyLastToDieAccessorySettings(
+        LastToDieRunState run,
+        ExperimentalGameplaySettings settings)
+    {
+        ApplyAccessory(run.EquippedHelmet);
+        ApplyAccessory(run.EquippedDogtags);
         return settings;
+
+        void ApplyAccessory(LastToDieAccessoryDefinition? accessory)
+        {
+            if (!accessory.HasValue)
+            {
+                return;
+            }
+
+            var item = accessory.Value;
+            var percentMultiplier = 1f + (item.Value / 100f);
+            switch (item.StatKind)
+            {
+                case LastToDieAccessoryStatKind.ExplosiveDamage:
+                case LastToDieAccessoryStatKind.BulletDamage:
+                    settings = settings with { PassiveDamageMultiplier = settings.PassiveDamageMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.MovementSpeed:
+                    settings = settings with { PassiveMovementSpeedMultiplier = settings.PassiveMovementSpeedMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.JumpHeight:
+                    settings = settings with { PassiveJumpHeightMultiplier = settings.PassiveJumpHeightMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.BonusJumps:
+                    settings = settings with { PassiveBonusAirJumps = settings.PassiveBonusAirJumps + item.Value };
+                    break;
+                case LastToDieAccessoryStatKind.Evasion:
+                    settings = settings with { PassiveEvasionChance = settings.PassiveEvasionChance + (item.Value / 100f) };
+                    break;
+                case LastToDieAccessoryStatKind.Thorns:
+                    settings = settings with { PassiveThornsFraction = settings.PassiveThornsFraction + (item.Value / 100f) };
+                    break;
+                case LastToDieAccessoryStatKind.BulletResist:
+                case LastToDieAccessoryStatKind.ExplosiveResist:
+                case LastToDieAccessoryStatKind.FireResist:
+                case LastToDieAccessoryStatKind.DamageResist:
+                    settings = settings with { PassiveDamageResistance = CombineLastToDieResistance(settings.PassiveDamageResistance, item.Value / 100f) };
+                    break;
+                case LastToDieAccessoryStatKind.HealthRegeneration:
+                    settings = settings with
+                    {
+                        EnablePassiveHealthRegeneration = true,
+                        PassiveHealthRegenerationPerSecond = settings.PassiveHealthRegenerationPerSecond + item.Value,
+                    };
+                    break;
+                case LastToDieAccessoryStatKind.AcquiredWeaponDamage:
+                    settings = settings with { AcquiredWeaponDamageMultiplier = settings.AcquiredWeaponDamageMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.AcquiredWeaponHealing:
+                    settings = settings with { AcquiredWeaponHealingMultiplier = settings.AcquiredWeaponHealingMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.DamageToClass:
+                    settings = settings with { PassiveDamageMultiplier = settings.PassiveDamageMultiplier * percentMultiplier };
+                    break;
+                case LastToDieAccessoryStatKind.ProjectilesPerShot:
+                    settings = settings with { BonusProjectilesPerShot = Math.Max(settings.BonusProjectilesPerShot, item.Value - 1) };
+                    break;
+            }
+        }
+    }
+
+    private static float CombineLastToDieResistance(float current, float added)
+    {
+        return 1f - ((1f - Math.Clamp(current, 0f, 0.95f)) * (1f - Math.Clamp(added, 0f, 0.95f)));
     }
 
     private void UpdateLastToDieSurvivorMenu(KeyboardState keyboard, MouseState mouse)
@@ -709,10 +1099,10 @@ public partial class Game1
             return;
         }
 
-        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
+        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingRewardChoices.Length);
         _lastToDiePerkHoverIndex = GetLastToDieChoiceHoverIndex(mouse.Position, layout);
 
-        if (TryGetLastToDieChoiceHotkeySelection(keyboard, _lastToDieRun.PendingPerkChoices.Length, out var selectedIndex))
+        if (TryGetLastToDieChoiceHotkeySelection(keyboard, _lastToDieRun.PendingRewardChoices.Length, out var selectedIndex))
         {
             ChooseLastToDiePerk(selectedIndex);
             return;
@@ -788,14 +1178,23 @@ public partial class Game1
     {
         if (_lastToDieRun is null
             || selectedIndex < 0
-            || selectedIndex >= _lastToDieRun.PendingPerkChoices.Length)
+            || selectedIndex >= _lastToDieRun.PendingRewardChoices.Length)
         {
             return;
         }
 
-        var selected = _lastToDieRun.PendingPerkChoices[selectedIndex];
-        _lastToDieRun.ChosenPerks.Add(selected.Kind);
-        _lastToDieRun.PendingPerkChoices = [];
+        var selected = _lastToDieRun.PendingRewardChoices[selectedIndex];
+        if (selected.Accessory.HasValue)
+        {
+            EquipLastToDieAccessory(_lastToDieRun, selected.Accessory.Value);
+        }
+        else if (selected.Perk.HasValue)
+        {
+            _lastToDieRun.ChosenPerks.Add(selected.Perk.Value.Kind);
+        }
+
+        _world.ConfigureExperimentalGameplaySettings(BuildLastToDieExperimentalGameplaySettings(_lastToDieRun));
+        _lastToDieRun.PendingRewardChoices = [];
         _lastToDiePerkMenuOpen = false;
         _lastToDiePerkHoverIndex = -1;
         SuppressPrimaryFireUntilMouseRelease();
@@ -811,6 +1210,147 @@ public partial class Game1
         }
 
         AdvanceLastToDieStage();
+    }
+
+    private static void EquipLastToDieAccessory(LastToDieRunState run, LastToDieAccessoryDefinition accessory)
+    {
+        if (accessory.Slot == LastToDieAccessorySlot.Helmet)
+        {
+            run.EquippedHelmet = accessory;
+        }
+        else
+        {
+            run.EquippedDogtags = accessory;
+        }
+    }
+
+    private static string GetLastToDieRewardChoiceLabel(LastToDieRewardChoice choice)
+    {
+        if (choice.Accessory.HasValue)
+        {
+            var accessory = choice.Accessory.Value;
+            return $"Item: {GetLastToDieAccessoryPrefix(accessory)} {accessory.SlotLabel}";
+        }
+
+        return choice.Perk?.Label ?? string.Empty;
+    }
+
+    private static string GetLastToDieRewardChoiceDescription(LastToDieRewardChoice choice)
+    {
+        if (choice.Accessory.HasValue)
+        {
+            return GetLastToDieAccessoryDescription(choice.Accessory.Value);
+        }
+
+        return choice.Perk?.Description ?? string.Empty;
+    }
+
+    private static string GetLastToDieAccessoryPrefix(LastToDieAccessoryDefinition accessory)
+    {
+        return accessory.StatKind switch
+        {
+            LastToDieAccessoryStatKind.ExplosiveDamage => "Grenadier's",
+            LastToDieAccessoryStatKind.BulletDamage => "Rifleman's",
+            LastToDieAccessoryStatKind.MovementSpeed => "Speedy",
+            LastToDieAccessoryStatKind.JumpHeight => "Air Superiority",
+            LastToDieAccessoryStatKind.BonusJumps => "Hoppy",
+            LastToDieAccessoryStatKind.Evasion => "Graceful",
+            LastToDieAccessoryStatKind.Thorns => "Pointy",
+            LastToDieAccessoryStatKind.BulletResist => "Stubborn",
+            LastToDieAccessoryStatKind.ExplosiveResist => "Bomb Squad",
+            LastToDieAccessoryStatKind.FireResist => "Flaming",
+            LastToDieAccessoryStatKind.HealthRegeneration => "Sturdy",
+            LastToDieAccessoryStatKind.DamageResist => "Defensive",
+            LastToDieAccessoryStatKind.AcquiredWeaponDamage => "Expert's",
+            LastToDieAccessoryStatKind.AcquiredWeaponHealing => "Cunning",
+            LastToDieAccessoryStatKind.DamageToClass => "Specialist's",
+            LastToDieAccessoryStatKind.ProjectilesPerShot => "Tyrant's",
+            _ => "Soldier's",
+        };
+    }
+
+    private static string GetLastToDieAccessoryDescription(LastToDieAccessoryDefinition accessory)
+    {
+        return accessory.StatKind switch
+        {
+            LastToDieAccessoryStatKind.BonusJumps => $"+{accessory.Value} bonus jumps. (Auto equips)",
+            LastToDieAccessoryStatKind.HealthRegeneration => $"+{accessory.Value} health regeneration per second. (Auto equips)",
+            LastToDieAccessoryStatKind.ProjectilesPerShot => $"Projectiles per shot x{accessory.Value}. (Auto equips)",
+            LastToDieAccessoryStatKind.DamageToClass => $"+{accessory.Value}% damage to {accessory.TargetClass?.ToString() ?? "one class"}. (Auto equips)",
+            _ => $"+{accessory.Value}% {GetLastToDieAccessoryStatLabel(accessory.StatKind)}. (Auto equips)",
+        };
+    }
+
+    private static string GetLastToDieAccessoryStatLabel(LastToDieAccessoryStatKind statKind)
+    {
+        return statKind switch
+        {
+            LastToDieAccessoryStatKind.ExplosiveDamage => "explosive damage",
+            LastToDieAccessoryStatKind.BulletDamage => "bullet damage",
+            LastToDieAccessoryStatKind.MovementSpeed => "movement speed",
+            LastToDieAccessoryStatKind.JumpHeight => "jump height",
+            LastToDieAccessoryStatKind.Evasion => "evasion",
+            LastToDieAccessoryStatKind.Thorns => "thorns",
+            LastToDieAccessoryStatKind.BulletResist => "bullet resist",
+            LastToDieAccessoryStatKind.ExplosiveResist => "explosive resist",
+            LastToDieAccessoryStatKind.FireResist => "fire resist",
+            LastToDieAccessoryStatKind.DamageResist => "damage resist",
+            LastToDieAccessoryStatKind.AcquiredWeaponDamage => "damage with acquired weapons",
+            LastToDieAccessoryStatKind.AcquiredWeaponHealing => "healing from acquired weapons",
+            _ => statKind.ToString(),
+        };
+    }
+
+    private static List<string> BuildLastToDieBuffTooltipLines(LastToDieRunState run)
+    {
+        var lines = new List<string>();
+        if (run.EquippedHelmet.HasValue)
+        {
+            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedHelmet.Value));
+        }
+
+        if (run.EquippedDogtags.HasValue)
+        {
+            lines.Add(GetLastToDieAccessoryTooltipLine(run.EquippedDogtags.Value));
+        }
+
+        foreach (var perk in run.ChosenPerks.Take(8))
+        {
+            if (TryGetLastToDiePerkDefinition(run.SurvivorKind, perk, out var definition))
+            {
+                lines.Add(definition.Label);
+            }
+        }
+
+        if (run.ChosenPerks.Count > 8)
+        {
+            lines.Add($"+{run.ChosenPerks.Count - 8} perks");
+        }
+
+        return lines;
+    }
+
+    private static string GetLastToDieAccessoryTooltipLine(LastToDieAccessoryDefinition accessory)
+    {
+        return $"{accessory.SlotLabel}: {GetLastToDieAccessoryPrefix(accessory)} +{accessory.Value}";
+    }
+
+    private static bool TryGetLastToDiePerkDefinition(
+        LastToDieSurvivorKind survivorKind,
+        LastToDiePerkKind perkKind,
+        out LastToDiePerkDefinition definition)
+    {
+        foreach (var candidate in GetLastToDiePerkCatalog(survivorKind))
+        {
+            if (candidate.Kind == perkKind)
+            {
+                definition = candidate;
+                return true;
+            }
+        }
+
+        definition = default;
+        return false;
     }
 
     private LastToDieChoiceMenuLayout GetLastToDieChoiceMenuLayout(int choiceCount)
@@ -897,7 +1437,7 @@ public partial class Game1
         var viewportHeight = ViewportHeight;
         _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.Black * 0.86f);
 
-        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingPerkChoices.Length);
+        var layout = GetLastToDieChoiceMenuLayout(_lastToDieRun.PendingRewardChoices.Length);
         _spriteBatch.Draw(_pixel, layout.Panel, new Color(22, 24, 29, 242));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Y, layout.Panel.Width, 3), new Color(210, 210, 210));
         _spriteBatch.Draw(_pixel, new Rectangle(layout.Panel.X, layout.Panel.Bottom - 3, layout.Panel.Width, 3), new Color(76, 76, 76));
@@ -908,9 +1448,9 @@ public partial class Game1
             : "Choose 1 reward for the next stage.";
         DrawBitmapFontText(subtitle, new Vector2(layout.Panel.X + 28f, layout.Panel.Y + 58f), new Color(212, 212, 212), 0.94f);
 
-        for (var index = 0; index < _lastToDieRun.PendingPerkChoices.Length; index += 1)
+        for (var index = 0; index < _lastToDieRun.PendingRewardChoices.Length; index += 1)
         {
-            var choice = _lastToDieRun.PendingPerkChoices[index];
+            var choice = _lastToDieRun.PendingRewardChoices[index];
             var bounds = layout.CardBounds[index];
             var isHovered = index == _lastToDiePerkHoverIndex;
             var backColor = isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232);
@@ -920,9 +1460,18 @@ public partial class Game1
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
 
             DrawBitmapFontText($"{index + 1}", new Vector2(bounds.X + 14f, bounds.Y + 12f), new Color(236, 224, 198), 1f);
-            DrawBitmapFontText(choice.Label, new Vector2(bounds.X + 14f, bounds.Y + 44f), Color.White, 0.98f);
+            var label = GetLastToDieRewardChoiceLabel(choice);
+            var description = GetLastToDieRewardChoiceDescription(choice);
+            var labelColor = choice.IsAccessory ? new Color(255, 214, 82) : Color.White;
+            if (choice.IsAccessory)
+            {
+                DrawBitmapFontText(label, new Vector2(bounds.X + 13f, bounds.Y + 43f), new Color(255, 160, 28) * 0.55f, 1.02f);
+                DrawBitmapFontText(label, new Vector2(bounds.X + 15f, bounds.Y + 45f), new Color(255, 244, 160) * 0.35f, 1.02f);
+            }
 
-            var descriptionLines = WrapMenuParagraph(choice.Description, 28);
+            DrawBitmapFontText(label, new Vector2(bounds.X + 14f, bounds.Y + 44f), labelColor, 0.98f);
+
+            var descriptionLines = WrapMenuParagraph(description, 28);
             var lineY = bounds.Y + 84f;
             for (var lineIndex = 0; lineIndex < descriptionLines.Length; lineIndex += 1)
             {

@@ -203,7 +203,7 @@ public sealed class BrowserBootstrapAssetCatalog(
         "Content/Sprites/Menu/Fonts/MenuFontAtlas.json",
     ];
 
-    private static IReadOnlyList<string> CreateDefaultBinaryPaths()
+    private static List<string> CreateDefaultBinaryPaths()
     {
         var binaryPaths = new List<string>
         {

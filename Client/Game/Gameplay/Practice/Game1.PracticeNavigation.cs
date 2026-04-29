@@ -4,7 +4,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
-    private void ResetPracticeNavigationState()
+    private static void ResetPracticeNavigationState()
     {
     }
 
@@ -13,7 +13,7 @@ public partial class Game1
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary());
     }
 
-    private string GetPracticeNavigationDiagnosticsSummary()
+    private static string GetPracticeNavigationDiagnosticsSummary()
     {
         return "nav clientbot-navpoints";
     }

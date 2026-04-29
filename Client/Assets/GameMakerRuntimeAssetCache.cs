@@ -329,7 +329,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         }
     }
 
-    private bool TryGetCachedBrowserSound(GameMakerSoundAsset soundAsset, out SoundEffect sound)
+    private static bool TryGetCachedBrowserSound(GameMakerSoundAsset soundAsset, out SoundEffect sound)
     {
         sound = null!;
         if (!TryGetCachedBrowserSoundBytes(soundAsset.AudioPath, out var bytes)

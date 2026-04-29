@@ -24,9 +24,9 @@ public sealed class NeedleProjectileEntity : SimulationEntity
         TicksRemaining = LifetimeTicks;
     }
 
-    public PlayerTeam Team { get; }
+    public PlayerTeam Team { get; private set; }
 
-    public int OwnerId { get; }
+    public int OwnerId { get; private set; }
 
     public float X { get; private set; }
 
@@ -63,6 +63,18 @@ public sealed class NeedleProjectileEntity : SimulationEntity
     public void Destroy()
     {
         TicksRemaining = 0;
+    }
+
+    public void Reflect(int ownerId, PlayerTeam team, float directionRadians)
+    {
+        var speed = MathF.Sqrt((VelocityX * VelocityX) + (VelocityY * VelocityY));
+        OwnerId = ownerId;
+        Team = team;
+        VelocityX = MathF.Cos(directionRadians) * speed;
+        VelocityY = MathF.Sin(directionRadians) * speed;
+        PreviousX = X;
+        PreviousY = Y;
+        TicksRemaining = LifetimeTicks;
     }
 
     public void ApplyNetworkState(float x, float y, float velocityX, float velocityY, int ticksRemaining)

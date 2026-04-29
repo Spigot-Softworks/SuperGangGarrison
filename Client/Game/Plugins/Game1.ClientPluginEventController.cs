@@ -89,6 +89,7 @@ public partial class Game1
             for (var index = 0; index < localDamageEvents.Count; index += 1)
             {
                 TryTrackLastToDieDamageDealt(localDamageEvents[index].AttackerPlayerId, localDamageEvents[index].Amount);
+                _game.ObserveLastToDieDamageEvent(localDamageEvents[index]);
             }
 
             for (var index = 0; index < _game._pendingNetworkDamageEvents.Count; index += 1)

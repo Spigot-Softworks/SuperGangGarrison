@@ -139,7 +139,7 @@ public partial class Game1
                 return false;
             }
 
-            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(_game.GetCurrentMouseState()));
+            var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
             aimWorldX = cameraPosition.X + mouse.X;
             aimWorldY = cameraPosition.Y + mouse.Y;
             return true;

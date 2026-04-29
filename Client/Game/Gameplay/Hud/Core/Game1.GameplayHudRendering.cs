@@ -67,6 +67,8 @@ public partial class Game1
         {
             DrawLocalHealthHud();
             WriteGameplayRenderTrace("hud after localhealth");
+            DrawLastToDieBuffIcon(mouse);
+            WriteGameplayRenderTrace("hud after ltdbufficon");
             DrawExperimentalHealingHudIndicators();
             WriteGameplayRenderTrace("hud after experimentalhealing");
             DrawAmmoHud();
@@ -113,6 +115,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after clientpluginhud");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
+        DrawMLBotCaptureOverlay();
+        WriteGameplayRenderTrace("hud after mlbotcapture");
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }
 

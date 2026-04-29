@@ -100,6 +100,7 @@ internal enum GameplayLoadoutMenuButtonKind
 {
     Class,
     ItemOption,
+    AccessoryOption,
     Back,
 }
 

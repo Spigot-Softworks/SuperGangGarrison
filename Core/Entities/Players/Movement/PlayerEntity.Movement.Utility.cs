@@ -2,6 +2,26 @@ namespace OpenGarrison.Core;
 
 public sealed partial class PlayerEntity
 {
+    public void RestoreMovementProbeState(bool? isGrounded, int? remainingAirJumps, float? facingDirectionX)
+    {
+        if (isGrounded.HasValue)
+        {
+            IsGrounded = isGrounded.Value;
+        }
+
+        if (remainingAirJumps.HasValue)
+        {
+            RemainingAirJumps = int.Clamp(remainingAirJumps.Value, 0, MaxAirJumps);
+        }
+
+        if (facingDirectionX.HasValue)
+        {
+            FacingDirectionX = facingDirectionX.Value < 0f ? -1f : 1f;
+            AimDirectionDegrees = FacingDirectionX < 0f ? 180f : 0f;
+            ResetSourceFacingDirectionState();
+        }
+    }
+
     private float GetMovementScale(PlayerInputSnapshot input)
     {
         if (IsHeavyEating || (IsTaunting && !IsRaging))

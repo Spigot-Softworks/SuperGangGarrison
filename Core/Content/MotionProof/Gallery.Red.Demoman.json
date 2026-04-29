@@ -1,0 +1,58 @@
+{
+  "Version": 1,
+  "Map": "Gallery",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Red",
+  "Class": "Demoman",
+  "AttackTicks": 247,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 40
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 47
+    }
+  ],
+  "Return": []
+}

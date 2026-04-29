@@ -279,7 +279,7 @@ public partial class Game1
             return TryCreateManualConnectEndpoint(_game._connectHostBuffer, TryParseBrowserPort(_game._connectPortBuffer), out endpoint);
         }
 
-        private bool TryCreateManualConnectEndpoint(string? hostText, int port, out NetworkEndpoint endpoint)
+        private static bool TryCreateManualConnectEndpoint(string? hostText, int port, out NetworkEndpoint endpoint)
         {
             endpoint = default;
             var host = hostText?.Trim() ?? string.Empty;

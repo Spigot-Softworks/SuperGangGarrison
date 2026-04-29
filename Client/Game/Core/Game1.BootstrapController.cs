@@ -309,6 +309,8 @@ public partial class Game1
             _game._gameplayLoadoutScrollerTexture?.Dispose();
             _game._gameplayLoadoutPageTexture?.Dispose();
             _game._gameplayLoadoutBackButtonTexture?.Dispose();
+            _game._gameplayLoadoutHelmetTexture?.Dispose();
+            _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
@@ -334,6 +336,8 @@ public partial class Game1
             _game._gameplayLoadoutScrollerTexture = null;
             _game._gameplayLoadoutPageTexture = null;
             _game._gameplayLoadoutBackButtonTexture = null;
+            _game._gameplayLoadoutHelmetTexture = null;
+            _game._gameplayLoadoutDogTagsTexture = null;
             _game.PersistClientSettings();
             _game.PersistInputBindings();
             _initialized = false;

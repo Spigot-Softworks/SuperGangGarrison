@@ -1,0 +1,37 @@
+{
+  "schema": "mlbot-v6-capture-objective-matrix",
+  "scenarios": [
+    {
+      "name": "koth_harvest_red_scout_capture",
+      "level_name": "Harvest",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "koth_harvest_blue_soldier_capture",
+      "level_name": "Harvest",
+      "team": "Blue",
+      "class_id": "Soldier",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "dkoth_sixties_red_scout_capture",
+      "level_name": "Sixties",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "dkoth_sixties_blue_demoman_capture",
+      "level_name": "Sixties",
+      "team": "Blue",
+      "class_id": "Demoman",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    }
+  ]
+}

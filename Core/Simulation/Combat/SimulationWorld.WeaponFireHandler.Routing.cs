@@ -12,6 +12,9 @@ public sealed partial class SimulationWorld
         public void FireExperimentalSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
+            var pelletCountMultiplier = _world.IsExperimentalPracticePowerOwner(attacker)
+                ? Math.Max(1, _world.ExperimentalGameplaySettings.SoldierShotgunPelletMultiplier)
+                : 1;
             DispatchPrimaryWeaponFire(
                 attacker,
                 weaponDefinition,
@@ -20,6 +23,7 @@ public sealed partial class SimulationWorld
                 aimWorldX,
                 aimWorldY,
                 pelletSpawnDistance: 20f,
+                pelletCountMultiplier: pelletCountMultiplier,
                 killFeedWeaponSpriteNameOverride: "ShotgunKL");
         }
 
@@ -51,6 +55,7 @@ public sealed partial class SimulationWorld
             float aimWorldX,
             float aimWorldY,
             float pelletSpawnDistance = 15f,
+            int pelletCountMultiplier = 1,
             string? killFeedWeaponSpriteNameOverride = null)
         {
             var binding = ResolvePrimaryWeaponRuntimeBinding(behaviorId, weaponDefinition);
@@ -64,6 +69,7 @@ public sealed partial class SimulationWorld
                 aimWorldX,
                 aimWorldY,
                 pelletSpawnDistance,
+                pelletCountMultiplier,
                 killFeedWeaponSpriteNameOverride,
                 resolvedKillFeedWeaponSpriteName);
         }
@@ -95,6 +101,7 @@ public sealed partial class SimulationWorld
             float aimWorldX,
             float aimWorldY,
             float pelletSpawnDistance,
+            int pelletCountMultiplier,
             string? killFeedWeaponSpriteNameOverride,
             string resolvedKillFeedWeaponSpriteName)
         {
@@ -122,7 +129,7 @@ public sealed partial class SimulationWorld
                     FireRocketLauncher(attacker, weaponDefinition, weaponClassId, aimWorldX, aimWorldY, resolvedKillFeedWeaponSpriteName);
                     return;
                 default:
-                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride, pelletSpawnDistance);
+                    FirePelletWeapon(attacker, weaponDefinition, aimWorldX, aimWorldY, weaponClassId, killFeedWeaponSpriteNameOverride, pelletSpawnDistance, pelletCountMultiplier);
                     return;
             }
         }

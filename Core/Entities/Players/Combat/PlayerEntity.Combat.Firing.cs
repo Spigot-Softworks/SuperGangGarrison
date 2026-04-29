@@ -168,6 +168,38 @@ public sealed partial class PlayerEntity
         return true;
     }
 
+    public bool TryFireExperimentalSoldierThundergunner(int cooldownTicks)
+    {
+        if (!IsAlive
+            || ClassId != PlayerClass.Soldier
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || PrimaryCooldownTicks > 0)
+        {
+            return false;
+        }
+
+        PrimaryCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, cooldownTicks));
+        return true;
+    }
+
+    public bool TryDeployExperimentalSoldierCivilDefenseTurret(int cooldownTicks)
+    {
+        if (!IsAlive
+            || ClassId != PlayerClass.Soldier
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || PrimaryCooldownTicks > 0)
+        {
+            return false;
+        }
+
+        PrimaryCooldownTicks = ApplyExperimentalWeaponCycleMultiplier(Math.Max(1, cooldownTicks));
+        return true;
+    }
+
     public bool CanFirePyroAirblast()
     {
         return IsAlive

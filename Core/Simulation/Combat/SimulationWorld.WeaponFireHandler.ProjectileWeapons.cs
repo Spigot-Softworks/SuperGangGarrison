@@ -52,7 +52,8 @@ public sealed partial class SimulationWorld
             float aimWorldY,
             PlayerClass weaponClassId,
             string? killFeedWeaponSpriteNameOverride = null,
-            float pelletSpawnDistance = 15f)
+            float pelletSpawnDistance = 15f,
+            int pelletCountMultiplier = 1)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
@@ -63,7 +64,10 @@ public sealed partial class SimulationWorld
             }
 
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
-            for (var pelletIndex = 0; pelletIndex < weaponDefinition.ProjectilesPerShot; pelletIndex += 1)
+            var projectileCount = GetExperimentalProjectilesPerShot(
+                attacker,
+                weaponDefinition.ProjectilesPerShot * Math.Max(1, pelletCountMultiplier));
+            for (var pelletIndex = 0; pelletIndex < projectileCount; pelletIndex += 1)
             {
                 var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
                 var pelletAngle = baseAngle + spreadRadians;
@@ -119,23 +123,30 @@ public sealed partial class SimulationWorld
             var experimentalSoldierPerkOwner = _world.IsExperimentalPracticePowerOwner(attacker)
                 && attacker.ClassId == PlayerClass.Soldier;
             var rocketCombat = _world.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);
-            SpawnRocket(
-                attacker,
-                spawnX,
-                spawnY,
-                _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
-                directionRadians,
-                rocketCombat,
-                weaponDefinition.DirectHitHealAmount ?? 0f,
-                explodeImmediately,
-                canGrantExperimentalInstantReloadOnHit: experimentalSoldierPerkOwner
-                    && _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
-                knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
-                    ? 0.75f
-                    : 1f,
-                canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
-                enableExperimentalStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
-                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+            var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
+            for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
+            {
+                var spreadOffset = projectileCount == 1
+                    ? 0f
+                    : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 7.5f);
+                SpawnRocket(
+                    attacker,
+                    spawnX,
+                    spawnY,
+                    _world.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
+                    directionRadians + spreadOffset,
+                    rocketCombat,
+                    weaponDefinition.DirectHitHealAmount ?? 0f,
+                    explodeImmediately,
+                    canGrantExperimentalInstantReloadOnHit: experimentalSoldierPerkOwner
+                        && _world.ExperimentalGameplaySettings.EnableSoldierInstantReload,
+                    knockbackScale: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets
+                        ? 0.75f
+                        : 1f,
+                    canIgniteTargets: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierNapalmRockets,
+                    enableExperimentalStingerTracking: experimentalSoldierPerkOwner && _world.ExperimentalGameplaySettings.EnableSoldierStingerRockets,
+                    killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+            }
 
             if (experimentalSoldierPerkOwner
                 && _world.ExperimentalGameplaySettings.EnableSoldierFinalClipRocketBurst
@@ -191,18 +202,26 @@ public sealed partial class SimulationWorld
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
             var bulletAngle = directionRadians + spreadRadians;
-            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
-                attacker,
-                MathF.Cos(bulletAngle) * weaponDefinition.MinShotSpeed,
-                MathF.Sin(bulletAngle) * weaponDefinition.MinShotSpeed);
-            SpawnRevolverShot(
-                attacker,
-                weaponOrigin.BaseX,
-                shotOriginY,
-                launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
-                launchedVelocityY,
-                weaponDefinition.DirectHitDamage ?? RevolverProjectileEntity.DamagePerHit,
-                killFeedWeaponSpriteNameOverride);
+            var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
+            for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
+            {
+                var spreadOffset = projectileCount == 1
+                    ? 0f
+                    : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 6f);
+                var finalAngle = bulletAngle + spreadOffset;
+                var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                    attacker,
+                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                SpawnRevolverShot(
+                    attacker,
+                    weaponOrigin.BaseX,
+                    shotOriginY,
+                    finalVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
+                    finalVelocityY,
+                    weaponDefinition.DirectHitDamage ?? RevolverProjectileEntity.DamagePerHit,
+                    killFeedWeaponSpriteNameOverride);
+            }
         }
 
         private void FireMineLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
@@ -240,17 +259,25 @@ public sealed partial class SimulationWorld
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
             var spawnX = weaponOrigin.BaseX + MathF.Cos(directionRadians) * 10f;
             var spawnY = weaponOrigin.BaseY + MathF.Sin(directionRadians) * 10f;
-            var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
-                attacker,
-                MathF.Cos(directionRadians) * weaponDefinition.MinShotSpeed,
-                MathF.Sin(directionRadians) * weaponDefinition.MinShotSpeed);
-            SpawnMine(
-                attacker,
-                spawnX,
-                spawnY,
-                launchedVelocityX,
-                launchedVelocityY,
-                killFeedWeaponSpriteNameOverride);
+            var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
+            for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
+            {
+                var spreadOffset = projectileCount == 1
+                    ? 0f
+                    : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 7.5f);
+                var finalAngle = directionRadians + spreadOffset;
+                var (finalVelocityX, finalVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
+                    attacker,
+                    MathF.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
+                    MathF.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
+                SpawnMine(
+                    attacker,
+                    spawnX,
+                    spawnY,
+                    finalVelocityX,
+                    finalVelocityY,
+                    killFeedWeaponSpriteNameOverride);
+            }
         }
     }
 }

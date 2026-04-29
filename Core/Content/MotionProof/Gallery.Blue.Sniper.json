@@ -1,0 +1,63 @@
+{
+  "Version": 1,
+  "Map": "Gallery",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Blue",
+  "Class": "Sniper",
+  "AttackTicks": 273,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 36
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    }
+  ],
+  "Return": []
+}

@@ -315,6 +315,66 @@ public partial class Game1
         return true;
     }
 
+    private void DrawCivilDefenseTurret(CivilDefenseTurretEntity turret, Vector2 cameraPosition)
+    {
+        var renderPosition = RoundToSourcePixels(GetRenderPosition(turret.Id, turret.X, turret.Y));
+        var teamColor = turret.Team == PlayerTeam.Blue
+            ? new Color(90, 180, 255)
+            : new Color(235, 125, 95);
+        var bodyColor = turret.IsBuilt ? teamColor : teamColor * 0.72f;
+        var bodyRectangle = new Rectangle(
+            (int)(renderPosition.X - CivilDefenseTurretEntity.Width / 2f - cameraPosition.X),
+            (int)(renderPosition.Y - CivilDefenseTurretEntity.Height / 2f - cameraPosition.Y),
+            (int)CivilDefenseTurretEntity.Width,
+            (int)CivilDefenseTurretEntity.Height);
+        _spriteBatch.Draw(_pixel, bodyRectangle, bodyColor);
+
+        var directionRadians = MathF.PI * turret.AimDirectionDegrees / 180f;
+        var muzzleX = renderPosition.X + MathF.Cos(directionRadians) * 10f;
+        var muzzleY = renderPosition.Y + MathF.Sin(directionRadians) * 10f - 2f;
+        DrawWorldLine(
+            renderPosition.X,
+            renderPosition.Y - 2f,
+            muzzleX,
+            muzzleY,
+            cameraPosition,
+            new Color(255, 245, 150, 210),
+            3f);
+
+        DrawCivilDefenseTurretHealthBar(turret, renderPosition, cameraPosition);
+        if (turret.IsBuilt && turret.IsShotTraceVisible)
+        {
+            DrawWorldLine(
+                muzzleX,
+                muzzleY,
+                turret.LastShotTargetX,
+                turret.LastShotTargetY,
+                cameraPosition,
+                new Color(255, 232, 90, 170),
+                2f);
+        }
+    }
+
+    private void DrawCivilDefenseTurretHealthBar(CivilDefenseTurretEntity turret, Vector2 renderPosition, Vector2 cameraPosition)
+    {
+        const int barWidth = 18;
+        var backRectangle = new Rectangle(
+            (int)(renderPosition.X - barWidth / 2f - cameraPosition.X),
+            (int)(renderPosition.Y - 28f - cameraPosition.Y),
+            barWidth,
+            3);
+        _spriteBatch.Draw(_pixel, backRectangle, Color.Black);
+
+        var fillWidth = Math.Clamp((int)MathF.Round(barWidth * (turret.Health / (float)CivilDefenseTurretEntity.MaxHealth)), 0, barWidth);
+        if (fillWidth <= 0)
+        {
+            return;
+        }
+
+        var fillRectangle = new Rectangle(backRectangle.X, backRectangle.Y, fillWidth, backRectangle.Height);
+        _spriteBatch.Draw(_pixel, fillRectangle, Color.Lerp(Color.Red, Color.LimeGreen, turret.Health / (float)CivilDefenseTurretEntity.MaxHealth));
+    }
+
     private void DrawHealthPack(HealthPackEntity healthPack, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(healthPack.Id, healthPack.X, healthPack.Y);

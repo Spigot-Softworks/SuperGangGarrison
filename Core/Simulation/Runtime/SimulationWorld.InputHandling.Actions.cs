@@ -180,6 +180,16 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (TryHandleExperimentalSoldierCivilDefenseTurret(player))
+        {
+            return;
+        }
+
+        if (TryHandleExperimentalSoldierThundergunner(player, input))
+        {
+            return;
+        }
+
         if (player.IsExperimentalDemoknightEnabled)
         {
             if (ExperimentalGameplaySettings.EnableDemoknightGhostDash)
@@ -323,6 +333,47 @@ public sealed partial class SimulationWorld
         }
 
         return detonatedAnyRocket;
+    }
+
+    private bool TryHandleExperimentalSoldierCivilDefenseTurret(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Soldier
+            || !ExperimentalGameplaySettings.EnableSoldierCivilDefenseTurret
+            || !IsExperimentalPracticePowerOwner(player))
+        {
+            return false;
+        }
+
+        foreach (var turret in _civilDefenseTurrets)
+        {
+            if (turret.OwnerPlayerId == player.Id)
+            {
+                return false;
+            }
+        }
+
+        if (!player.TryDeployExperimentalSoldierCivilDefenseTurret(
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierCivilDefenseTurretDeployCooldownTicks))
+        {
+            return false;
+        }
+
+        return TryDeployCivilDefenseTurret(player);
+    }
+
+    private bool TryHandleExperimentalSoldierThundergunner(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (player.ClassId != PlayerClass.Soldier
+            || !ExperimentalGameplaySettings.EnableSoldierThundergunner
+            || !IsExperimentalPracticePowerOwner(player)
+            || !player.TryFireExperimentalSoldierThundergunner(
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierThundergunnerCooldownTicks))
+        {
+            return false;
+        }
+
+        TriggerExperimentalSoldierThundergunner(player, input.AimWorldX, input.AimWorldY);
+        return true;
     }
 
     private void TryHandleNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)

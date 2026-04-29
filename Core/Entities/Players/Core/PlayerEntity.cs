@@ -432,9 +432,9 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float Gravity => ClassDefinition.Gravity;
 
-    public float JumpSpeed => ClassDefinition.JumpSpeed;
+    public float JumpSpeed => ClassDefinition.JumpSpeed * GetExperimentalJumpHeightMultiplier();
 
-    public int MaxAirJumps => ClassDefinition.MaxAirJumps;
+    public int MaxAirJumps => Math.Max(0, ClassDefinition.MaxAirJumps + GetExperimentalBonusAirJumps());
 
     public void SetPlayerScale(float scale)
     {

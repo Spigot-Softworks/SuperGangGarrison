@@ -1,0 +1,69 @@
+{
+  "schema": "mlbot-v5-scout-ctf-slice-matrix",
+  "scenarios": [
+    {
+      "name": "twod_red_scout_attack_pickup",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "twod_red_scout_return_score_from_enemy_intel",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "ReturnIntel",
+      "ticks": 2400,
+      "start_x": 3106.1824,
+      "start_y": 702,
+      "start_vx": -236.15306,
+      "start_vy": 0,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "twod_red_scout_full_score",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "None",
+      "ticks": 3600,
+      "success_criterion": "full_score"
+    },
+    {
+      "name": "waterway_blue_scout_attack_pickup",
+      "level_name": "Waterway",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800,
+      "success_criterion": "attack_pickup"
+    },
+    {
+      "name": "waterway_blue_scout_return_score_from_pickup",
+      "level_name": "Waterway",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "ReturnIntel",
+      "ticks": 2400,
+      "start_x": 984.7464,
+      "start_y": 991.60004,
+      "start_vx": 233.17345,
+      "start_vy": -177,
+      "carrying_intel": true,
+      "success_criterion": "return_score"
+    },
+    {
+      "name": "waterway_blue_scout_full_score",
+      "level_name": "Waterway",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "None",
+      "ticks": 4200,
+      "success_criterion": "full_score"
+    }
+  ]
+}

@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "aa702321f6851b7726e0cd27be8a75a12685319049fb66dcee9b8e3b24175c6d",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-22T16:39:01.177416Z",
+  "BuiltUtc": "2026-04-28T23:57:12.5554821Z",
   "Stats": {
     "SurfaceCount": 772,
     "CandidateNodeCount": 454,
@@ -14,16 +14,16 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 454,
-    "EdgeCount": 1009,
+    "EdgeCount": 1116,
     "WalkEdgeCount": 704,
-    "JumpEdgeCount": 305,
+    "JumpEdgeCount": 412,
     "DropEdgeCount": 0,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 4669.361,
-    "SurfaceSamplingMilliseconds": 31.1862,
-    "AutoAnchorMilliseconds": 1.5484,
+    "BuildMilliseconds": 1107.0188,
+    "SurfaceSamplingMilliseconds": 21.2331,
+    "AutoAnchorMilliseconds": 0.8941,
     "HintNodeMilliseconds": 0,
-    "AutomaticEdgeMilliseconds": 4636.6235,
+    "AutomaticEdgeMilliseconds": 1084.8904,
     "HintEdgeMilliseconds": 0,
     "DropEdgeMilliseconds": 0
   },
@@ -12107,6 +12107,755 @@
       "ToNodeId": 441,
       "Kind": "Jump",
       "Cost": 440.0091,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 2,
+      "ToNodeId": 40,
+      "Kind": "Jump",
+      "Cost": 189.70767,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 5,
+      "ToNodeId": 41,
+      "Kind": "Jump",
+      "Cost": 189.70767,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 9,
+      "ToNodeId": 40,
+      "Kind": "Jump",
+      "Cost": 133.54025,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 10,
+      "ToNodeId": 177,
+      "Kind": "Jump",
+      "Cost": 257.7693,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 38,
+      "ToNodeId": 41,
+      "Kind": "Jump",
+      "Cost": 138.52075,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 44,
+      "ToNodeId": 42,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 47,
+      "ToNodeId": 43,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 110,
+      "Kind": "Jump",
+      "Cost": 162.99693,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 49,
+      "ToNodeId": 350,
+      "Kind": "Jump",
+      "Cost": 356.78564,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 56,
+      "ToNodeId": 111,
+      "Kind": "Jump",
+      "Cost": 62.641838,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 59,
+      "ToNodeId": 128,
+      "Kind": "Jump",
+      "Cost": 62.641838,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 66,
+      "ToNodeId": 129,
+      "Kind": "Jump",
+      "Cost": 162.99693,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 69,
+      "ToNodeId": 157,
+      "Kind": "Jump",
+      "Cost": 147.09181,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 68,
+      "ToNodeId": 264,
+      "Kind": "Jump",
+      "Cost": 133.22162,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 70,
+      "ToNodeId": 260,
+      "Kind": "Jump",
+      "Cost": 119.096596,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 73,
+      "ToNodeId": 261,
+      "Kind": "Jump",
+      "Cost": 111.01801,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 74,
+      "ToNodeId": 272,
+      "Kind": "Jump",
+      "Cost": 184.25255,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 76,
+      "ToNodeId": 281,
+      "Kind": "Jump",
+      "Cost": 247.5096,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 78,
+      "ToNodeId": 293,
+      "Kind": "Jump",
+      "Cost": 311.3278,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 84,
+      "ToNodeId": 247,
+      "Kind": "Jump",
+      "Cost": 143.12233,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 262,
+      "Kind": "Jump",
+      "Cost": 111.60645,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 87,
+      "ToNodeId": 263,
+      "Kind": "Jump",
+      "Cost": 114.6342,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 88,
+      "ToNodeId": 265,
+      "Kind": "Jump",
+      "Cost": 139.94641,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 96,
+      "ToNodeId": 158,
+      "Kind": "Jump",
+      "Cost": 147.09181,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 109,
+      "ToNodeId": 48,
+      "Kind": "Jump",
+      "Cost": 157.03503,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 112,
+      "ToNodeId": 57,
+      "Kind": "Jump",
+      "Cost": 62.641838,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 112,
+      "ToNodeId": 308,
+      "Kind": "Jump",
+      "Cost": 304.5472,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 124,
+      "ToNodeId": 323,
+      "Kind": "Jump",
+      "Cost": 338.1198,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 126,
+      "ToNodeId": 310,
+      "Kind": "Jump",
+      "Cost": 324.72296,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 127,
+      "ToNodeId": 58,
+      "Kind": "Jump",
+      "Cost": 62.641838,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 130,
+      "ToNodeId": 67,
+      "Kind": "Jump",
+      "Cost": 157.03503,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 156,
+      "ToNodeId": 68,
+      "Kind": "Jump",
+      "Cost": 141.22322,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 159,
+      "ToNodeId": 97,
+      "Kind": "Jump",
+      "Cost": 141.22322,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 181,
+      "ToNodeId": 253,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 184,
+      "ToNodeId": 285,
+      "Kind": "Jump",
+      "Cost": 194.14685,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 188,
+      "ToNodeId": 318,
+      "Kind": "Jump",
+      "Cost": 263.45398,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 192,
+      "ToNodeId": 270,
+      "Kind": "Jump",
+      "Cost": 93.723,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 210,
+      "ToNodeId": 254,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 210,
+      "ToNodeId": 287,
+      "Kind": "Jump",
+      "Cost": 220.10225,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 213,
+      "ToNodeId": 272,
+      "Kind": "Jump",
+      "Cost": 172.72232,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 225,
+      "ToNodeId": 296,
+      "Kind": "Jump",
+      "Cost": 237.96638,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 228,
+      "ToNodeId": 266,
+      "Kind": "Jump",
+      "Cost": 93.914856,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 231,
+      "ToNodeId": 269,
+      "Kind": "Jump",
+      "Cost": 89.470665,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 235,
+      "ToNodeId": 355,
+      "Kind": "Jump",
+      "Cost": 285.04736,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 237,
+      "ToNodeId": 356,
+      "Kind": "Jump",
+      "Cost": 287.60562,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 242,
+      "ToNodeId": 294,
+      "Kind": "Jump",
+      "Cost": 226.41554,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 246,
+      "ToNodeId": 273,
+      "Kind": "Jump",
+      "Cost": 177.27943,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 246,
+      "ToNodeId": 282,
+      "Kind": "Jump",
+      "Cost": 166.81726,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 249,
+      "ToNodeId": 267,
+      "Kind": "Jump",
+      "Cost": 103.46497,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 249,
+      "ToNodeId": 299,
+      "Kind": "Jump",
+      "Cost": 217.883,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 249,
+      "ToNodeId": 304,
+      "Kind": "Jump",
+      "Cost": 220.48357,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 249,
+      "ToNodeId": 312,
+      "Kind": "Jump",
+      "Cost": 226.17693,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 252,
+      "ToNodeId": 180,
+      "Kind": "Jump",
+      "Cost": 72.99315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 255,
+      "ToNodeId": 211,
+      "Kind": "Jump",
+      "Cost": 72.99315,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 256,
+      "ToNodeId": 315,
+      "Kind": "Jump",
+      "Cost": 244.387,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 257,
+      "ToNodeId": 300,
+      "Kind": "Jump",
+      "Cost": 229.65192,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 257,
+      "ToNodeId": 305,
+      "Kind": "Jump",
+      "Cost": 231.52538,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 258,
+      "ToNodeId": 268,
+      "Kind": "Jump",
+      "Cost": 108.16654,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 258,
+      "ToNodeId": 301,
+      "Kind": "Jump",
+      "Cost": 254.46611,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 261,
+      "ToNodeId": 264,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 262,
+      "ToNodeId": 265,
+      "Kind": "Jump",
+      "Cost": 79.07591,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 276,
+      "ToNodeId": 274,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 279,
+      "ToNodeId": 275,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 289,
+      "ToNodeId": 297,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 288,
+      "ToNodeId": 298,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 291,
+      "ToNodeId": 301,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 290,
+      "ToNodeId": 302,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 299,
+      "ToNodeId": 289,
+      "Kind": "Jump",
+      "Cost": 67.08204,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 300,
+      "ToNodeId": 290,
+      "Kind": "Jump",
+      "Cost": 67.08204,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 299,
+      "ToNodeId": 312,
+      "Kind": "Jump",
+      "Cost": 26.172504,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 300,
+      "ToNodeId": 315,
+      "Kind": "Jump",
+      "Cost": 26.172504,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 307,
+      "ToNodeId": 316,
+      "Kind": "Jump",
+      "Cost": 32.31099,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 310,
+      "ToNodeId": 323,
+      "Kind": "Jump",
+      "Cost": 32.31099,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 317,
+      "ToNodeId": 308,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 316,
+      "ToNodeId": 352,
+      "Kind": "Jump",
+      "Cost": 86.40023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 323,
+      "ToNodeId": 357,
+      "Kind": "Jump",
+      "Cost": 86.40023,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 322,
+      "ToNodeId": 309,
+      "Kind": "Jump",
+      "Cost": 49.47727,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 329,
+      "ToNodeId": 313,
+      "Kind": "Jump",
+      "Cost": 75.89466,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 329,
+      "ToNodeId": 392,
+      "Kind": "Jump",
+      "Cost": 169.67322,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 328,
+      "ToNodeId": 318,
+      "Kind": "Jump",
+      "Cost": 360.4497,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 328,
+      "ToNodeId": 393,
+      "Kind": "Jump",
+      "Cost": 318.41638,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 331,
+      "ToNodeId": 321,
+      "Kind": "Jump",
+      "Cost": 360.4497,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 331,
+      "ToNodeId": 394,
+      "Kind": "Jump",
+      "Cost": 318.41638,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 330,
+      "ToNodeId": 314,
+      "Kind": "Jump",
+      "Cost": 75.89466,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 330,
+      "ToNodeId": 395,
+      "Kind": "Jump",
+      "Cost": 169.67322,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 378,
+      "ToNodeId": 317,
+      "Kind": "Jump",
+      "Cost": 57.45433,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 354,
+      "ToNodeId": 293,
+      "Kind": "Jump",
+      "Cost": 110.145355,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 354,
+      "ToNodeId": 408,
+      "Kind": "Jump",
+      "Cost": 630.4007,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 353,
+      "ToNodeId": 409,
+      "Kind": "Jump",
+      "Cost": 248.57393,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 356,
+      "ToNodeId": 410,
+      "Kind": "Jump",
+      "Cost": 248.57393,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 355,
+      "ToNodeId": 294,
+      "Kind": "Jump",
+      "Cost": 115.41231,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 355,
+      "ToNodeId": 411,
+      "Kind": "Jump",
+      "Cost": 630.4007,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 381,
+      "ToNodeId": 322,
+      "Kind": "Jump",
+      "Cost": 57.45433,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 422,
+      "ToNodeId": 420,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 425,
+      "ToNodeId": 421,
+      "Kind": "Jump",
+      "Cost": 140.07141,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 439,
+      "ToNodeId": 446,
+      "Kind": "Jump",
+      "Cost": 480.8378,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 438,
+      "ToNodeId": 442,
+      "Kind": "Jump",
+      "Cost": 295.52664,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 438,
+      "ToNodeId": 447,
+      "Kind": "Jump",
+      "Cost": 290.0569,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 441,
+      "ToNodeId": 445,
+      "Kind": "Jump",
+      "Cost": 289.5583,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 441,
+      "ToNodeId": 452,
+      "Kind": "Jump",
+      "Cost": 284.12146,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 440,
+      "ToNodeId": 453,
+      "Kind": "Jump",
+      "Cost": 480.8378,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 443,
+      "ToNodeId": 439,
+      "Kind": "Jump",
+      "Cost": 325.38593,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 443,
+      "ToNodeId": 447,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 442,
+      "ToNodeId": 448,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 445,
+      "ToNodeId": 451,
+      "Kind": "Jump",
+      "Cost": 78.91768,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 444,
+      "ToNodeId": 440,
+      "Kind": "Jump",
+      "Cost": 319.41196,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 444,
+      "ToNodeId": 452,
+      "Kind": "Jump",
+      "Cost": 78.91768,
       "InputTape": []
     }
   ]

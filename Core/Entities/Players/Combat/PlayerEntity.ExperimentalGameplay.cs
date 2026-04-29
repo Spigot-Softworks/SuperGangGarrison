@@ -28,6 +28,10 @@ public sealed partial class PlayerEntity
 
     private float ExperimentalPassiveMovementSpeedMultiplierValue { get; set; } = 1f;
 
+    private float ExperimentalJumpHeightMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalBonusAirJumpsValue { get; set; }
+
     private float ExperimentalDemoknightSwordRangeMultiplierValue { get; set; } = 1f;
 
     private int ExperimentalDemoknightSwordBaseDamageValue { get; set; } = 42;
@@ -42,9 +46,23 @@ public sealed partial class PlayerEntity
 
     private bool ExperimentalDemoknightChargeWantsLift { get; set; }
 
+    private int ExperimentalLuckyBastardTicksRemaining { get; set; }
+
+    private int ExperimentalLuckyBastardReviveHealth { get; set; }
+
+    private int ExperimentalFogOfWarTicksRemaining { get; set; }
+
+    private float ExperimentalFogOfWarEvasionChanceValue { get; set; }
+
     public float ServerMovementSpeedScale => ServerMovementSpeedScaleValue;
 
     public float ServerGravityScale => ServerGravityScaleValue;
+
+    public bool IsExperimentalLuckyBastardActive => ExperimentalLuckyBastardTicksRemaining > 0;
+
+    public bool IsExperimentalFogOfWarActive => ExperimentalFogOfWarTicksRemaining > 0;
+
+    public float ExperimentalFogOfWarEvasionChance => ExperimentalFogOfWarTicksRemaining > 0 ? ExperimentalFogOfWarEvasionChanceValue : 0f;
 
     public void SetExperimentalDemoknightEnabled(bool enabled)
     {
@@ -129,6 +147,21 @@ public sealed partial class PlayerEntity
     public void SetExperimentalPassiveMovementSpeedMultiplier(float multiplier)
     {
         ExperimentalPassiveMovementSpeedMultiplierValue = MathF.Max(1f, multiplier);
+    }
+
+    public void SetExperimentalJumpHeightMultiplier(float multiplier)
+    {
+        ExperimentalJumpHeightMultiplierValue = MathF.Max(1f, multiplier);
+    }
+
+    public void SetExperimentalBonusAirJumps(int bonusAirJumps)
+    {
+        var previousMaxAirJumps = MaxAirJumps;
+        ExperimentalBonusAirJumpsValue = Math.Max(0, bonusAirJumps);
+        var currentMaxAirJumps = MaxAirJumps;
+        RemainingAirJumps = currentMaxAirJumps > previousMaxAirJumps
+            ? Math.Min(currentMaxAirJumps, RemainingAirJumps + (currentMaxAirJumps - previousMaxAirJumps))
+            : Math.Min(RemainingAirJumps, currentMaxAirJumps);
     }
 
     public void SetServerMovementSpeedScale(float multiplier)
@@ -261,6 +294,33 @@ public sealed partial class PlayerEntity
 
         ExperimentalGhostDashTicksRemaining = Math.Max(ExperimentalGhostDashTicksRemaining, ticks);
         ExperimentalGhostDashVisibilityTicksRemaining = Math.Max(ExperimentalGhostDashVisibilityTicksRemaining, ticks);
+    }
+
+    public void TriggerExperimentalLuckyBastard(int invulnerabilityTicks, int reviveHealth)
+    {
+        if (!IsAlive || invulnerabilityTicks <= 0 || reviveHealth <= 0)
+        {
+            return;
+        }
+
+        ExperimentalLuckyBastardTicksRemaining = Math.Max(ExperimentalLuckyBastardTicksRemaining, invulnerabilityTicks);
+        ExperimentalLuckyBastardReviveHealth = Math.Clamp(reviveHealth, 1, MaxHealth);
+        Health = 1;
+        RefreshUber(invulnerabilityTicks);
+        ConsumeKillStreak();
+    }
+
+    public void RefreshExperimentalFogOfWar(int durationTicks, float initialChance)
+    {
+        if (!IsAlive || durationTicks <= 0 || initialChance <= 0f)
+        {
+            return;
+        }
+
+        ExperimentalFogOfWarEvasionChanceValue = ExperimentalFogOfWarTicksRemaining > 0
+            ? MathF.Min(1f, ExperimentalFogOfWarEvasionChanceValue * 2f)
+            : MathF.Min(1f, initialChance);
+        ExperimentalFogOfWarTicksRemaining = durationTicks;
     }
 
     public float ConsumeExperimentalNextAttackDamageMultiplier()
@@ -429,6 +489,31 @@ public sealed partial class PlayerEntity
             }
         }
 
+        if (ExperimentalLuckyBastardTicksRemaining > 0)
+        {
+            ExperimentalLuckyBastardTicksRemaining -= 1;
+            if (ExperimentalLuckyBastardTicksRemaining <= 0)
+            {
+                ExperimentalLuckyBastardTicksRemaining = 0;
+                if (IsAlive && ExperimentalLuckyBastardReviveHealth > Health)
+                {
+                    ForceSetHealth(ExperimentalLuckyBastardReviveHealth);
+                }
+
+                ExperimentalLuckyBastardReviveHealth = 0;
+            }
+        }
+
+        if (ExperimentalFogOfWarTicksRemaining > 0)
+        {
+            ExperimentalFogOfWarTicksRemaining -= 1;
+            if (ExperimentalFogOfWarTicksRemaining <= 0)
+            {
+                ExperimentalFogOfWarTicksRemaining = 0;
+                ExperimentalFogOfWarEvasionChanceValue = 0f;
+            }
+        }
+
         if (ExperimentalMovementBoostTicksRemaining > 0)
         {
             ExperimentalMovementBoostTicksRemaining -= 1;
@@ -455,6 +540,8 @@ public sealed partial class PlayerEntity
         ExperimentalMovementBoostTicksRemaining = 0;
         ExperimentalPrimaryCooldownBuffTicksRemaining = 0;
         ExperimentalMovementSpeedMultiplierValue = 1f;
+        ExperimentalJumpHeightMultiplierValue = 1f;
+        ExperimentalBonusAirJumpsValue = 0;
         ExperimentalPrimaryCooldownMultiplierValue = 1f;
         ExperimentalSoldierSwappedOutAmmoRegenAccumulator = 0f;
         ExperimentalDemoknightPostRageRegenTicksRemaining = 0;
@@ -464,6 +551,10 @@ public sealed partial class PlayerEntity
         ExperimentalGhostDashDistanceRemaining = 0f;
         ExperimentalGhostDashSpeedPerSecondValue = 0f;
         ExperimentalGhostDashNextAttackDamageMultiplierValue = 1f;
+        ExperimentalLuckyBastardTicksRemaining = 0;
+        ExperimentalLuckyBastardReviveHealth = 0;
+        ExperimentalFogOfWarTicksRemaining = 0;
+        ExperimentalFogOfWarEvasionChanceValue = 0f;
         IsExperimentalDemoknightCharging = false;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
         ExperimentalDemoknightChargeTicksRemaining = IsExperimentalDemoknightEnabled
@@ -483,6 +574,16 @@ public sealed partial class PlayerEntity
         }
 
         return multiplier;
+    }
+
+    private float GetExperimentalJumpHeightMultiplier()
+    {
+        return ExperimentalJumpHeightMultiplierValue;
+    }
+
+    private int GetExperimentalBonusAirJumps()
+    {
+        return ExperimentalBonusAirJumpsValue;
     }
 
     private float GetServerHorizontalSpeedClampPerTick()

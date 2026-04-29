@@ -14,6 +14,11 @@ public sealed partial class SimulationWorld
         bool createDeathCam = true,
         bool spawnRemains = true)
     {
+        if (player.IsAlive && player.IsExperimentalLuckyBastardActive)
+        {
+            return;
+        }
+
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
             ? ResolveAssistPlayer(player, killer)
             : null;
