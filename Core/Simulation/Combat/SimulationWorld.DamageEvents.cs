@@ -15,7 +15,7 @@ public sealed partial class SimulationWorld
         PlayerEntity? playerTarget = null,
         DamageEventFlags flags = DamageEventFlags.None)
     {
-        if (amount <= 0)
+        if (amount <= 0 && !flags.HasFlag(DamageEventFlags.Evaded))
         {
             return;
         }
@@ -62,6 +62,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        damage = ApplyExperimentalOutgoingDamageMultiplier(attacker, target, damage);
         damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
         damage = ScaleConfiguredDamage(damage);
         if (damage <= 0)
@@ -75,6 +76,26 @@ public sealed partial class SimulationWorld
         }
 
         var healthBefore = target.Health;
+        if (TryEvadeExperimentalDamage(target, attacker, damage, damageFlags))
+        {
+            return false;
+        }
+
+        if (TryPreventExperimentalFatalDamage(target, damage))
+        {
+            RegisterDamageEvent(
+                attacker,
+                DamageTargetKind.Player,
+                target.Id,
+                target.X,
+                target.Y,
+                Math.Max(0, healthBefore - target.Health),
+                wasFatal: false,
+                target,
+                damageFlags);
+            return false;
+        }
+
         var died = target.ApplyDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, attacker, appliedDamage);
@@ -106,6 +127,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        damage = ApplyExperimentalOutgoingDamageMultiplier(attacker, target, damage);
         damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
         damage = ScaleConfiguredDamage(damage);
         if (damage <= 0f)
@@ -119,6 +141,26 @@ public sealed partial class SimulationWorld
         }
 
         var healthBefore = target.Health;
+        if (TryEvadeExperimentalDamage(target, attacker, damage, damageFlags))
+        {
+            return false;
+        }
+
+        if (TryPreventExperimentalFatalDamage(target, (int)MathF.Ceiling(damage)))
+        {
+            RegisterDamageEvent(
+                attacker,
+                DamageTargetKind.Player,
+                target.Id,
+                target.X,
+                target.Y,
+                Math.Max(0, healthBefore - target.Health),
+                wasFatal: false,
+                target,
+                damageFlags);
+            return false;
+        }
+
         var died = target.ApplyContinuousDamage(damage, spyRevealAlpha);
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         RegisterPlayerDamageDealer(target, attacker, appliedDamage);

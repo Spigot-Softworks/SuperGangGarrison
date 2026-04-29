@@ -25,6 +25,7 @@ public partial class Game1
         AirshotDamageMultiplier,
         EnemyHealthPackDrops,
         EnemyDroppedWeapons,
+        PracticeBotsPrioritizeKills,
     }
 
     private readonly record struct ClientPowerToggleEntry(
@@ -55,6 +56,7 @@ public partial class Game1
         new(ClientPowerToggleKind.AirshotDamageMultiplier, "Airshot damage +25%", "Direct projectile airshots deal bonus damage and show yellow hit numbers."),
         new(ClientPowerToggleKind.EnemyHealthPackDrops, "Enemies drop health packs", "10% chance for enemy kills to drop a temporary small or large health pack."),
         new(ClientPowerToggleKind.EnemyDroppedWeapons, "Enemies drop weapons", "50% chance for enemy bot kills to drop a temporary primary weapon for Soldier to pick up with Q."),
+        new(ClientPowerToggleKind.PracticeBotsPrioritizeKills, "Bots prioritize kills", "Enemy bots chase live targets before objectives."),
     ];
 
     private void OpenClientPowersMenu(bool fromGameplay)
@@ -337,6 +339,7 @@ public partial class Game1
             ClientPowerToggleKind.AirshotDamageMultiplier => _practiceExperimentalGameplaySettings.EnableAirshotDamageMultiplier,
             ClientPowerToggleKind.EnemyHealthPackDrops => _practiceExperimentalGameplaySettings.EnableEnemyHealthPackDrops,
             ClientPowerToggleKind.EnemyDroppedWeapons => _practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
+            ClientPowerToggleKind.PracticeBotsPrioritizeKills => _practiceExperimentalGameplaySettings.EnablePracticeBotsPrioritizeKills,
             _ => false,
         };
     }
@@ -424,6 +427,12 @@ public partial class Game1
                 _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
                 {
                     EnableEnemyDroppedWeapons = !_practiceExperimentalGameplaySettings.EnableEnemyDroppedWeapons,
+                };
+                break;
+            case ClientPowerToggleKind.PracticeBotsPrioritizeKills:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnablePracticeBotsPrioritizeKills = !_practiceExperimentalGameplaySettings.EnablePracticeBotsPrioritizeKills,
                 };
                 break;
         }

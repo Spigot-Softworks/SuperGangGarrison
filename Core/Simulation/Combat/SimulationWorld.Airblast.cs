@@ -15,6 +15,9 @@ public sealed partial class SimulationWorld
     private const float PyroAirblastPlayerLift = -2f * LegacyMovementModel.SourceTicksPerSecond;
     private const float PyroSelfAirblastHorizontalStrengthScale = 1f / 3f;
     private const float PyroSelfAirblastVerticalStrengthScale = 1f / 3f;
+    private const float SoldierThundergunnerDistance = 170f;
+    private const float SoldierThundergunnerPlayerImpulse = 24f * LegacyMovementModel.SourceTicksPerSecond;
+    private const float SoldierThundergunnerPlayerLift = -4f * LegacyMovementModel.SourceTicksPerSecond;
 
     private void TriggerPyroSelfAirblast(PlayerEntity player, float aimWorldX, float aimWorldY, bool fireFlare)
     {
@@ -47,6 +50,27 @@ public sealed partial class SimulationWorld
         ReflectEnemyFlares(player, aimRadians, poofX, poofY);
         PushEnemyMines(player.Team, aimRadians, poofX, poofY);
         ApplyAirblastToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY);
+        PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
+    }
+
+    private void TriggerExperimentalSoldierThundergunner(PlayerEntity player, float aimWorldX, float aimWorldY)
+    {
+        var emptyClip = player.CurrentShells <= 0;
+        var forceScale = emptyClip
+            ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierThundergunnerEmptyClipForceMultiplier
+            : 1f;
+        var (sourceX, sourceY, aimRadians) = emptyClip
+            ? (player.X, player.Y, PointDirectionRadians(player.X, player.Y, aimWorldX, aimWorldY, player.FacingDirectionX))
+            : WeaponHandler.GetSoldierRocketLauncherTip(player, aimWorldX, aimWorldY);
+        var aimDegrees = aimRadians * (180f / MathF.PI);
+        var poofX = sourceX + MathF.Cos(aimRadians) * 25f;
+        var poofY = sourceY + MathF.Sin(aimRadians) * 25f;
+
+        RegisterSoundEvent(player, "CompressionBlastSnd");
+        RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        ReflectEnemyExplosiveProjectiles(player, aimRadians, poofX, poofY, emptyClip, SoldierThundergunnerDistance);
+        ReflectEnemyBulletLikeProjectiles(player, aimRadians, poofX, poofY, emptyClip, SoldierThundergunnerDistance);
+        ApplyThundergunnerToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY, emptyClip, forceScale);
         PushLooseBodies(sourceX, sourceY, aimRadians, poofX, poofY);
     }
 
@@ -233,6 +257,63 @@ public sealed partial class SimulationWorld
         return MathF.Max(0f, 1f - (distance / PyroAirblastDistance));
     }
 
+    private static float GetThundergunnerScale(float sourceX, float sourceY, float targetX, float targetY)
+    {
+        var distance = DistanceBetween(sourceX, sourceY, targetX, targetY);
+        return MathF.Max(0f, 1f - (distance / SoldierThundergunnerDistance));
+    }
+
+    private void ApplyThundergunnerToPlayers(
+        PlayerEntity player,
+        float sourceX,
+        float sourceY,
+        float aimRadians,
+        float poofX,
+        float poofY,
+        bool radial,
+        float forceScale)
+    {
+        foreach (var target in EnumerateSimulatedPlayers())
+        {
+            if (!target.IsAlive || target.Id == player.Id)
+            {
+                continue;
+            }
+
+            var targetDirectionRadians = radial
+                ? MathF.Atan2(target.Y - sourceY, target.X - sourceX)
+                : aimRadians;
+            if (!radial && !IsWithinAirblastMask(poofX, poofY, aimRadians, target.X, target.Y, PyroAirblastTargetRadius))
+            {
+                continue;
+            }
+
+            if (radial && DistanceBetween(sourceX, sourceY, target.X, target.Y) > SoldierThundergunnerDistance)
+            {
+                continue;
+            }
+
+            if (target.Team == player.Team)
+            {
+                SpawnAirblastExtinguishFlames(player, target, targetDirectionRadians);
+                target.ExtinguishAfterburn();
+                continue;
+            }
+
+            var scale = GetThundergunnerScale(sourceX, sourceY, target.X, target.Y) * forceScale;
+            if (scale <= 0f)
+            {
+                continue;
+            }
+
+            target.RegisterDamageDealer(player.Id, GetSimulationTicksFromSourceTicks(AssistTrackingSourceTicks));
+            target.AddImpulse(
+                MathF.Cos(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale,
+                MathF.Sin(targetDirectionRadians) * SoldierThundergunnerPlayerImpulse * scale + SoldierThundergunnerPlayerLift * forceScale);
+            target.SetMovementState(LegacyMovementState.Airblast);
+        }
+    }
+
     private static bool IsWithinAirblastMask(float poofX, float poofY, float aimRadians, float targetX, float targetY, float radius)
     {
         var deltaX = targetX - poofX;
@@ -250,6 +331,18 @@ public sealed partial class SimulationWorld
             PyroAirblastMaskTop,
             PyroAirblastMaskRight,
             PyroAirblastMaskBottom);
+    }
+
+    private static float PointDirectionRadians(float x1, float y1, float x2, float y2, float fallbackDirectionX)
+    {
+        var deltaX = x2 - x1;
+        var deltaY = y2 - y1;
+        if (deltaX == 0f && deltaY == 0f)
+        {
+            deltaX = fallbackDirectionX == 0f ? 1f : fallbackDirectionX;
+        }
+
+        return MathF.Atan2(deltaY, deltaX);
     }
 
     private bool TryGetAirblastMineSurfaceNormal(float x, float y, out float normalX, out float normalY)

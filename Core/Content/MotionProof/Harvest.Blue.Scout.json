@@ -1,0 +1,43 @@
+{
+  "Version": 1,
+  "Map": "Harvest",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Blue",
+  "Class": "Scout",
+  "AttackTicks": 210,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 33
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 21
+    }
+  ],
+  "Return": []
+}

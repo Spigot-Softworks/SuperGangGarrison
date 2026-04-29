@@ -12,6 +12,7 @@ Gang-Garrison-2/
 .dotnet/
 /.tmp*/
 %TEMP%/
+.mlbot-data/
 Tests/**/TestResults/
 test-results/
 *.log
@@ -36,4 +37,21 @@ Tests/BrowserSmoke/node_modules/
 **/Build/
 **/Content/bin/
 **/Content/obj/
+
+# === ML bot generated artifacts - keep source scripts, ignore training bulk ===
+/Training/mlbot/.venv/
+/Training/mlbot/out/
+/Training/mlbot/**/__pycache__/
+/Training/mlbot/**/*.pyc
+/Training/mlbot/**/*.pt
+/Training/mlbot/**/*.onnx
+/Training/mlbot/**/*.onnx.data
+/Training/mlbot/**/*.npz
+/Training/mlbot/**/*.npy
+/Training/mlbot/**/*.jsonl
+/Training/mlbot/**/events.out.tfevents*
+
+# MotionProof bake scratch outputs
+/MotionProof.Tools/candidates/
+/MotionProof.Tools/logs/
 

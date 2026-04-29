@@ -1,0 +1,32 @@
+{
+  "description": "Accepted refined Scout CTF hybrid. TwodFortTwo uses the learned selector hierarchy with a freshly retrained H8 route chunk and the existing H4 local finalizer. Waterway Blue Scout ReturnIntel uses the distilled one-tick MLP return head.",
+  "base_model": "Training/mlbot/out/v5-waterway-return-targetselected-20260425/model.onnx",
+  "scenario_file": "Training/mlbot/config/v5_scout_ctf_slice_matrix.json",
+  "disable_policy_overrides": true,
+  "packed_hierarchical_chunk_model": "Training/mlbot/out/v6-return-hierchunk-packed-refinedtwod-20260425/hierarchical_chunk_model.onnx",
+  "packed_hierarchical_chunk_commit_ticks": [
+    8,
+    4,
+    4
+  ],
+  "packed_from": {
+    "selector_checkpoint": "Training/mlbot/out/v6-return-option-selector-scout-ctf-closedloop-20260425/selector_model.pt",
+    "chunk_checkpoints": [
+      "Training/mlbot/out/v6-return-chunk-twod-h8-hybridteacher-20260425/chunk_model.pt",
+      "Training/mlbot/out/v6-return-chunk-twod-finalizer-h4-20260425/chunk_model.pt",
+      "Training/mlbot/out/v6-return-chunk-waterway-split-finalizer-h4-20260425/chunk_model.pt"
+    ]
+  },
+  "waterway_return_finalizer": {
+    "model": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-distill-20260425/model.onnx",
+    "engage_distance": 9999,
+    "map": "Waterway",
+    "team": "Blue",
+    "class": "Scout",
+    "after_options": true
+  },
+  "strict_matrix_result": "Training/mlbot/out/v6-return-hierchunk-packed-refinedtwod-20260425/hybrid-matrix/matrix-summary.json",
+  "teacher_rollout_export": ".mlbot-data/v6-refinedtwod-hybrid-scout-ctf-20260425/teacher-export-summary.json",
+  "closed_loop_intervention_export": "Training/mlbot/out/v6-closedloop-refinedtwod-hybrid-teacher-20260425/interventions/intervention-export-summary.json",
+  "result": "6/6 strict Scout CTF slice with replay disabled and policy overrides disabled. TwodFortTwo return improves from tick 1311 to 1282 and TwodFortTwo full score improves from tick 1912 to 1899 versus the previous packed hybrid. Waterway keeps the distilled return head at return tick 782/full tick 1596."
+}

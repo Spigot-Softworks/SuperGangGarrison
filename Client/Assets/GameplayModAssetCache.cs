@@ -86,7 +86,7 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         return sprite;
     }
 
-    public IReadOnlyList<string> GetBrowserAtlasPagePaths()
+    public static IReadOnlyList<string> GetBrowserAtlasPagePaths()
     {
         if (!OperatingSystem.IsBrowser())
         {

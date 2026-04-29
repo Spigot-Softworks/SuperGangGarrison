@@ -61,7 +61,7 @@ public partial class Game1
         return false;
     }
 
-    private (string TexturePath, string MetadataPath)[] GetBrowserSpriteFontAtlasCandidates(string assetName)
+    private static (string TexturePath, string MetadataPath)[] GetBrowserSpriteFontAtlasCandidates(string assetName)
     {
         return assetName switch
         {

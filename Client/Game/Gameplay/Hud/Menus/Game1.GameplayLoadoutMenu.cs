@@ -21,7 +21,8 @@ public partial class Game1
             return false;
         }
 
-        return GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
+        return IsLastToDieSessionActive
+            || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
     }
 
     private void LoadGameplayLoadoutMenuTextures()
@@ -35,6 +36,8 @@ public partial class Game1
         _gameplayLoadoutScrollerTexture = TryLoadGameplayLoadoutMenuTexture("ScrollerS.png");
         _gameplayLoadoutPageTexture = TryLoadGameplayLoadoutMenuTexture("PageS.png");
         _gameplayLoadoutBackButtonTexture = TryLoadGameplayLoadoutMenuTexture("BackS.png");
+        _gameplayLoadoutHelmetTexture = TryLoadGameplayLoadoutMenuTexture("HelmetS2.png");
+        _gameplayLoadoutDogTagsTexture = TryLoadGameplayLoadoutMenuTexture("DogTagsS2.png");
     }
 
     private LoadedSpriteFrame? TryLoadGameplayLoadoutMenuTexture(string fileName)
@@ -185,33 +188,40 @@ public partial class Game1
                 classId));
         }
 
-        var (leftOptions, rightOptions) = GameplayLoadoutMenuModel.GetVisualColumns(selectedLoadout, loadouts);
-        for (var optionIndex = 0; optionIndex < leftOptions.Count; optionIndex += 1)
+        if (ShouldUseLastToDieAccessoryLoadoutColumn(viewedClass))
         {
-            var option = leftOptions[optionIndex];
-            var bounds = GameplayLoadoutMenuPresentation.GetColumnOptionBounds(layout.LeftColumnBounds, optionIndex);
-            var capturedOption = option;
-            buttons.Add(new GameplayLoadoutMenuButton(
-                bounds,
-                () => OnGameplayLoadoutMenuOptionSelected(viewedClass, capturedOption),
-                GameplayLoadoutMenuButtonKind.ItemOption,
-                viewedClass,
-                capturedOption.Slot,
-                capturedOption.Item.Id));
+            AddLastToDieAccessoryLoadoutButtons(layout, buttons);
         }
-
-        for (var optionIndex = 0; optionIndex < rightOptions.Count; optionIndex += 1)
+        else
         {
-            var option = rightOptions[optionIndex];
-            var bounds = GameplayLoadoutMenuPresentation.GetColumnOptionBounds(layout.RightColumnBounds, optionIndex);
-            var capturedOption = option;
-            buttons.Add(new GameplayLoadoutMenuButton(
-                bounds,
-                () => OnGameplayLoadoutMenuOptionSelected(viewedClass, capturedOption),
-                GameplayLoadoutMenuButtonKind.ItemOption,
-                viewedClass,
-                capturedOption.Slot,
-                capturedOption.Item.Id));
+            var (leftOptions, rightOptions) = GameplayLoadoutMenuModel.GetVisualColumns(selectedLoadout, loadouts);
+            for (var optionIndex = 0; optionIndex < leftOptions.Count; optionIndex += 1)
+            {
+                var option = leftOptions[optionIndex];
+                var bounds = GameplayLoadoutMenuPresentation.GetColumnOptionBounds(layout.LeftColumnBounds, optionIndex);
+                var capturedOption = option;
+                buttons.Add(new GameplayLoadoutMenuButton(
+                    bounds,
+                    () => OnGameplayLoadoutMenuOptionSelected(viewedClass, capturedOption),
+                    GameplayLoadoutMenuButtonKind.ItemOption,
+                    viewedClass,
+                    capturedOption.Slot,
+                    capturedOption.Item.Id));
+            }
+
+            for (var optionIndex = 0; optionIndex < rightOptions.Count; optionIndex += 1)
+            {
+                var option = rightOptions[optionIndex];
+                var bounds = GameplayLoadoutMenuPresentation.GetColumnOptionBounds(layout.RightColumnBounds, optionIndex);
+                var capturedOption = option;
+                buttons.Add(new GameplayLoadoutMenuButton(
+                    bounds,
+                    () => OnGameplayLoadoutMenuOptionSelected(viewedClass, capturedOption),
+                    GameplayLoadoutMenuButtonKind.ItemOption,
+                    viewedClass,
+                    capturedOption.Slot,
+                    capturedOption.Item.Id));
+            }
         }
 
         buttons.Add(new GameplayLoadoutMenuButton(
@@ -275,6 +285,11 @@ public partial class Game1
 
     private PlayerClass GetGameplayLoadoutMenuSafeViewedClass()
     {
+        if (IsLastToDieSessionActive && _lastToDieRun?.SurvivorKind == LastToDieSurvivorKind.Soldier)
+        {
+            return PlayerClass.Soldier;
+        }
+
         return GameplayLoadoutMenuState.GetSafeViewedClass(_gameplayLoadoutMenuViewedClass, _world.LocalPlayer.ClassId);
     }
 
@@ -375,6 +390,12 @@ public partial class Game1
             _world.LocalPlayer.ClassId,
             _world.LocalPlayer.GameplayLoadoutState.LoadoutId,
             _world.LocalPlayer.OwnsGameplayItem);
+        if (ShouldUseLastToDieAccessoryLoadoutColumn(viewedClass))
+        {
+            DrawLastToDieAccessoryLoadoutColumn(layout, layout.LeftColumnBounds, buttons);
+            return;
+        }
+
         var (leftOptions, rightOptions) = GameplayLoadoutMenuModel.GetVisualColumns(selectedLoadout, loadouts);
         DrawGameplayLoadoutMenuOptionColumn(layout, layout.LeftColumnBounds, leftOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
         DrawGameplayLoadoutMenuOptionColumn(layout, layout.RightColumnBounds, rightOptions, buttons, viewedClass == _world.LocalPlayer.ClassId);
@@ -459,7 +480,13 @@ public partial class Game1
 
         var cursorY = layout.DescriptionBounds.Y + 38f * layout.Scale;
         var textX = layout.DescriptionBounds.X + 22f * layout.Scale;
-        foreach (var line in GameplayLoadoutMenuTextBuilder.BuildBoardLines(viewedClass, detailItem, _config.TicksPerSecond))
+        var detailLines = ShouldUseLastToDieAccessoryLoadoutColumn(viewedClass)
+            ? BuildLastToDieAccessoryLoadoutBoardLines(
+                hoveredButton.HasValue && hoveredButton.Value.Kind == GameplayLoadoutMenuButtonKind.AccessoryOption
+                    ? hoveredButton.Value.ItemId
+                    : null)
+            : GameplayLoadoutMenuTextBuilder.BuildBoardLines(viewedClass, detailItem, _config.TicksPerSecond);
+        foreach (var line in detailLines)
         {
             foreach (var wrapped in WrapMenuBitmapText(line.Text, layout.DescriptionBounds.Width - (44f * layout.Scale), 0.54f * layout.Scale))
             {

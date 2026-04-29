@@ -68,7 +68,7 @@ internal static class ClientPluginLoader
             .ToArray();
     }
 
-    private static IReadOnlyList<DiscoveredPlugin> DiscoverFromBrowserBundle(
+    private static DiscoveredPlugin[] DiscoverFromBrowserBundle(
         string pluginsDirectory,
         Action<string> log)
     {

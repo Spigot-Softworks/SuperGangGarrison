@@ -1,0 +1,43 @@
+{
+  "description": "Accepted faster Scout CTF hybrid. TwodFortTwo uses a learned selector retrained from a faster finalizer handoff discovery, packed with the refined H8 route chunk and existing H4 local finalizer. Waterway Blue Scout ReturnIntel keeps the distilled one-tick MLP return head.",
+  "base_model": "Training/mlbot/out/v5-waterway-return-targetselected-20260425/model.onnx",
+  "scenario_file": "Training/mlbot/config/v5_scout_ctf_slice_matrix.json",
+  "disable_policy_overrides": true,
+  "packed_hierarchical_chunk_model": "Training/mlbot/out/v6-return-hierchunk-packed-fasttwod-selector-20260425/hierarchical_chunk_model.onnx",
+  "packed_hierarchical_chunk_commit_ticks": [
+    8,
+    4,
+    4
+  ],
+  "packed_from": {
+    "selector_checkpoint": "Training/mlbot/out/v6-return-option-selector-fasttwod-20260425/selector_model.pt",
+    "chunk_checkpoints": [
+      "Training/mlbot/out/v6-return-chunk-twod-h8-hybridteacher-20260425/chunk_model.pt",
+      "Training/mlbot/out/v6-return-chunk-twod-finalizer-h4-20260425/chunk_model.pt",
+      "Training/mlbot/out/v6-return-chunk-waterway-split-finalizer-h4-20260425/chunk_model.pt"
+    ],
+    "selector_label_specs": [
+      "1|TwodFortTwo|Red|Scout|3000",
+      "2|TwodFortTwo|Red|Scout|360|220||-210|",
+      "3|Waterway|Blue|Scout|300"
+    ]
+  },
+  "waterway_return_finalizer": {
+    "model": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-distill-20260425/model.onnx",
+    "engage_distance": 9999,
+    "map": "Waterway",
+    "team": "Blue",
+    "class": "Scout",
+    "after_options": true
+  },
+  "strict_matrix_result": "Training/mlbot/out/v6-return-hierchunk-packed-fasttwod-selector-20260425/hybrid-matrix/matrix-summary.json",
+  "teacher_rollout_export": ".mlbot-data/v6-fasttwod-selector-hybrid-scout-ctf-20260425/teacher-export-summary.json",
+  "closed_loop_intervention_export": "Training/mlbot/out/v6-closedloop-fasttwod-selector-hybrid-teacher-20260425/interventions/intervention-export-summary.json",
+  "trigger_sweep": "Training/mlbot/out/v6-twod-finalizer-trigger-sweep-20260425/sweep-summary.json",
+  "strict_distillation_result": {
+    "path": "Training/mlbot/out/v6-closedloop-handfiltered-selector-distill-strict-20260425",
+    "result": "rejected",
+    "reason": "Compact one-tick scheduled-sampling candidate stayed at 2/6 and is no longer accepted without success-count improvement."
+  },
+  "result": "6/6 strict Scout CTF slice with replay disabled and policy overrides disabled. Versus the previous handfiltered-selector hybrid, TwodFortTwo return improves from tick 1236 to 963 and TwodFortTwo full score improves from tick 1853 to 1580. Waterway remains at return tick 782/full tick 1596."
+}

@@ -189,6 +189,8 @@ public partial class Game1 : Game
     private LoadedSpriteFrame? _gameplayLoadoutScrollerTexture;
     private LoadedSpriteFrame? _gameplayLoadoutPageTexture;
     private LoadedSpriteFrame? _gameplayLoadoutBackButtonTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutHelmetTexture;
+    private LoadedSpriteFrame? _gameplayLoadoutDogTagsTexture;
     private GameMakerRuntimeAssetCache _runtimeAssets = null!;
     private GameplayModAssetCache _gameplayModAssets = null!;
     private ClientRuntimeComposition? _runtimeComposition;
@@ -410,14 +412,14 @@ public partial class Game1 : Game
         _frameController.DrawGameplayWorldForCamera(cameraPosition, viewportWidth, viewportHeight, skippedDeadBodySourcePlayerId);
     }
 
-    private KeyboardState GetCurrentKeyboardState()
+    private static KeyboardState GetCurrentKeyboardState()
     {
         return OperatingSystem.IsBrowser()
             ? BrowserInputBridge.GetKeyboardState()
             : Keyboard.GetState();
     }
 
-    private MouseState GetCurrentMouseState()
+    private static MouseState GetCurrentMouseState()
     {
         return OperatingSystem.IsBrowser()
             ? BrowserInputBridge.GetMouseState()

@@ -1,0 +1,38 @@
+{
+  "description": "Closed-loop scheduled-sampling teacher configuration using the learned ReturnIntel chunk bank, not the replay bank.",
+  "base_model": "Training/mlbot/out/v5-waterway-return-targetselected-20260425/model.onnx",
+  "base_checkpoint": "Training/mlbot/out/v5-waterway-return-targetselected-20260425/model.pt",
+  "scenario_file": "Training/mlbot/config/v5_scout_ctf_slice_matrix.json",
+  "disable_policy_overrides": true,
+  "teacher_return_chunk_specs": [
+    {
+      "model": "Training/mlbot/out/v6-return-chunk-split-fullrange-h4-20260425/chunk_model.onnx",
+      "engage_distance": 3000,
+      "commit_ticks": 4,
+      "map": "TwodFortTwo",
+      "team": "Red",
+      "class": "Scout"
+    },
+    {
+      "model": "Training/mlbot/out/v6-return-chunk-twod-finalizer-h4-20260425/chunk_model.onnx",
+      "engage_distance": 360,
+      "commit_ticks": 4,
+      "map": "TwodFortTwo",
+      "team": "Red",
+      "class": "Scout",
+      "min_objective_relative_x": 220,
+      "max_objective_relative_y": -240
+    },
+    {
+      "model": "Training/mlbot/out/v6-return-chunk-waterway-split-finalizer-h4-20260425/chunk_model.onnx",
+      "engage_distance": 300,
+      "commit_ticks": 4,
+      "map": "Waterway",
+      "team": "Blue",
+      "class": "Scout"
+    }
+  ],
+  "verified_intervention_export": "Training/mlbot/out/v6-closedloop-chunkteacher-smoke-20260425/interventions/intervention-export-summary.json",
+  "teacher_rollout_export": "Training/mlbot/out/v6-scout-ctf-chunkbank-teacher-20260425/teacher-export-summary.json",
+  "result": "Exports verified terminal-success recovery docs for TwodFortTwo return/full and Waterway return/full using the learned chunk-bank teacher."
+}

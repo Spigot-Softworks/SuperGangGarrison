@@ -1,0 +1,43 @@
+{
+  "Version": 1,
+  "Map": "Corinth",
+  "Area": 1,
+  "Mode": "KingOfTheHill",
+  "Team": "Red",
+  "Class": "Scout",
+  "AttackTicks": 148,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 38
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 21
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 3
+    }
+  ],
+  "Return": []
+}

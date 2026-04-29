@@ -41,6 +41,7 @@ public sealed partial class SimulationWorld
     private readonly List<MineProjectileEntity> _mines = new();
     private readonly List<SentryEntity> _sentries = new();
     private readonly List<JumpPadEntity> _jumpPads = new();
+    private readonly List<CivilDefenseTurretEntity> _civilDefenseTurrets = new();
     private readonly HashSet<long> _jumpPadTriggerContacts = new();
     private readonly List<PlayerGibEntity> _playerGibs = new();
     private readonly List<BloodDropEntity> _bloodDrops = new();
@@ -224,6 +225,8 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<SentryEntity> Sentries => _sentries;
 
     public IReadOnlyList<JumpPadEntity> JumpPads => _jumpPads;
+
+    public IReadOnlyList<CivilDefenseTurretEntity> CivilDefenseTurrets => _civilDefenseTurrets;
 
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => _playerGibs;
 
@@ -516,6 +519,8 @@ public sealed partial class SimulationWorld
         {
             player.SetExperimentalDemoknightEnabled(false);
             player.SetExperimentalPassiveMovementSpeedMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveMovementSpeedMultiplier);
+            player.SetExperimentalJumpHeightMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultPassiveJumpHeightMultiplier);
+            player.SetExperimentalBonusAirJumps(0);
             player.SetExperimentalDemoknightSwordRangeMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordRangeMultiplier);
             player.SetExperimentalDemoknightSwordBaseDamage(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
             player.SetExperimentalDemoknightSwordDamageMultiplier(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
@@ -537,6 +542,8 @@ public sealed partial class SimulationWorld
             ExperimentalGameplaySettings.EnableDemoknightKit
             && player.ClassId == PlayerClass.Demoman);
         player.SetExperimentalPassiveMovementSpeedMultiplier(ExperimentalGameplaySettings.PassiveMovementSpeedMultiplier);
+        player.SetExperimentalJumpHeightMultiplier(ExperimentalGameplaySettings.PassiveJumpHeightMultiplier);
+        player.SetExperimentalBonusAirJumps(ExperimentalGameplaySettings.PassiveBonusAirJumps);
         player.SetExperimentalDemoknightSwordRangeMultiplier(ExperimentalGameplaySettings.DemoknightSwordRangeMultiplier);
         player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DemoknightSwordBaseDamage);
         player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DemoknightSwordDamageMultiplier);

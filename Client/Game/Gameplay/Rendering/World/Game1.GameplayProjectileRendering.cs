@@ -726,7 +726,7 @@ public partial class Game1
         _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
     }
 
-    private float GetFlameProjectileScale(FlameProjectileEntity flame)
+    private static float GetFlameProjectileScale(FlameProjectileEntity flame)
     {
         var flameLifetimeTicks = flame.IsAttached
             ? FlameProjectileEntity.AttachedLifetimeTicks
@@ -756,7 +756,7 @@ public partial class Game1
         return Math.Clamp(Math.Abs(flameAgeTicks) % frameCount, 0, frameCount - 1);
     }
 
-    private Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
+    private static Vector2 GetFlameScaledCenterOfMassWorldPosition(FlameProjectileEntity flame)
     {
         // Geometric centre-of-mass of the compound particle (base + 2 large horn + 2 small tip circles).
         // Weighted by circle area (∝ r²): base r=6, horn large r=4 ×2, horn small r=2.5 ×2.

@@ -197,7 +197,7 @@ public partial class Game1
                     continue;
                 }
 
-                var flameSmokeOrigin = _game.GetFlameScaledCenterOfMassWorldPosition(flame);
+                var flameSmokeOrigin = Game1.GetFlameScaledCenterOfMassWorldPosition(flame);
 
                 var proximityFactor = GetFlameWeaponProximityFactor(flame);
                 var mainSmokeProbability = GetFlameSmokeEmissionProbability(_game._particleMode, proximityFactor, secondary: false);

@@ -41,7 +41,7 @@ public partial class Game1
             return;
         }
 
-        foreach (var relativePath in _gameplayModAssets.GetBrowserAtlasPagePaths())
+        foreach (var relativePath in GameplayModAssetCache.GetBrowserAtlasPagePaths())
         {
             _browserGameplayAtlasWarmupQueue.Enqueue(new BrowserGameplayAtlasWarmupItem(relativePath, "stock gameplay atlas"));
         }

@@ -250,6 +250,7 @@ public sealed partial class SimulationWorld
         RemoveEntities(_mines);
         RemoveEntities(_sentries);
         RemoveEntities(_jumpPads);
+        RemoveEntities(_civilDefenseTurrets);
         RemoveEntities(_playerGibs);
         RemoveEntities(_bloodDrops);
         RemoveEntities(_healthPacks);

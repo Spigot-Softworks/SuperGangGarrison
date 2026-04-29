@@ -2,6 +2,8 @@
 
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
+using OpenGarrison.MLBot;
+using OpenGarrison.MLBot.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -39,8 +41,8 @@ public partial class Game1
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
-    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can depend on the dedicated Modern bot controller without leaking implementation details into the client plumbing.")]
-    private readonly IPracticeBotController _practiceBotController = new ModernPracticeBotController();
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can select MotionProof, Modern, or ML controllers without leaking implementation details into the client plumbing.")]
+    private readonly IPracticeBotController _practiceBotController = CreatePracticeBotController();
     private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
     [
         (PlayerClass.Medic, PlayerClass.Heavy),
@@ -221,10 +223,10 @@ public partial class Game1
         Dictionary<byte, PracticeBotSlotState> desiredSlots,
         byte startSlot,
         PlayerTeam team,
-        IReadOnlyList<PlayerClass> classes)
+        PlayerClass[] classes)
     {
         var nextSlot = startSlot;
-        for (var index = 0; index < classes.Count && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
+        for (var index = 0; index < classes.Length && nextSlot <= SimulationWorld.MaxPlayableNetworkPlayers; index += 1)
         {
             desiredSlots[nextSlot] = new PracticeBotSlotState(
                 nextSlot,
@@ -314,7 +316,7 @@ public partial class Game1
         return pool;
     }
 
-    private PlayerClass[] GetEligiblePracticeBotClassCycle()
+    private static PlayerClass[] GetEligiblePracticeBotClassCycle()
     {
         return PracticeBotClassCycle;
     }
@@ -457,7 +459,7 @@ public partial class Game1
     }
 
     private IReadOnlyDictionary<byte, PlayerInputSnapshot> GetPracticeBotInputs(
-        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+        Dictionary<byte, ControlledBotSlot> controlledSlots)
     {
         if (!OperatingSystem.IsBrowser())
         {
@@ -632,5 +634,32 @@ public partial class Game1
     private static string DescribeNavEditorScoreTrioClasses()
     {
         return string.Join("/", NavEditorScoreTrioClasses.Select(BotNavigationClasses.GetShortLabel));
+    }
+
+    private static IPracticeBotController CreatePracticeBotController()
+    {
+        var botController = Environment.GetEnvironmentVariable("OG_BOT_CONTROLLER");
+        if (string.Equals(botController, "motion_proof", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(botController, "MotionProof", StringComparison.OrdinalIgnoreCase))
+        {
+            return new MotionProofPracticeBotController();
+        }
+
+        if (string.Equals(botController, "modern", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(botController, "ModernGraphRoute", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ModernPracticeBotController();
+        }
+
+        if (string.Equals(botController, "objective_traversal", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(botController, "ObjectiveTraversal", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(botController, "lattice", StringComparison.OrdinalIgnoreCase))
+        {
+            return new MotionProofPracticeBotController();
+        }
+
+        return MLBotModeResolver.Resolve() is MLBotControllerMode.ML or MLBotControllerMode.Capture
+            ? new MLPracticeBotController()
+            : new MotionProofPracticeBotController();
     }
 }

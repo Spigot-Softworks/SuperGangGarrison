@@ -9,6 +9,11 @@ public sealed partial class SimulationWorld
         _localInput = input;
     }
 
+    public void SetLocalPreviousInput(PlayerInputSnapshot input)
+    {
+        _previousLocalInput = input;
+    }
+
     public void SetEnemyInput(PlayerInputSnapshot input)
     {
         _enemyInput = input;

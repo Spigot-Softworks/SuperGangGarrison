@@ -176,6 +176,11 @@ public partial class Game1
                         _game.OpenOptionsMenu(fromGameplay: true);
                         CloseInGameMenu();
                     }),
+                    new("Loadout", () =>
+                    {
+                        _game.OpenGameplayLoadoutMenu();
+                        CloseInGameMenu();
+                    }),
                     new("Leave Last To Die", () => _game.ReturnToLastToDieMenu("Last To Die ended.")),
                     new("Quit Game", _game.OpenQuitPrompt),
                 };

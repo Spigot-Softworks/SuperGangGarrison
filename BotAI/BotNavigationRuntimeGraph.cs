@@ -127,6 +127,40 @@ public sealed class BotNavigationRuntimeGraph
         return _edgeByNodePair.TryGetValue(GetPairKey(fromNodeId, toNodeId), out edge!);
     }
 
+    public bool TryAddRuntimeEdge(BotNavigationEdge edge)
+    {
+        if (!TryGetNode(edge.FromNodeId, out _)
+            || !TryGetNode(edge.ToNodeId, out _))
+        {
+            return false;
+        }
+
+        var key = GetPairKey(edge.FromNodeId, edge.ToNodeId);
+        if (_edgeByNodePair.ContainsKey(key))
+        {
+            return false;
+        }
+
+        if (!_edgesByFromNodeId.TryGetValue(edge.FromNodeId, out var outgoingEdges))
+        {
+            outgoingEdges = new List<BotNavigationEdge>();
+            _edgesByFromNodeId[edge.FromNodeId] = outgoingEdges;
+        }
+
+        outgoingEdges.Add(edge);
+        if (!_edgesByToNodeId.TryGetValue(edge.ToNodeId, out var incomingEdges))
+        {
+            incomingEdges = new List<BotNavigationEdge>();
+            _edgesByToNodeId[edge.ToNodeId] = incomingEdges;
+        }
+
+        incomingEdges.Add(edge);
+        _edgeByNodePair[key] = edge;
+        _routeCache.Clear();
+        _goalWeightCache.Clear();
+        return true;
+    }
+
     public bool TryGetOutgoingEdges(int fromNodeId, out IReadOnlyList<BotNavigationEdge> edges)
     {
         if (_edgesByFromNodeId.TryGetValue(fromNodeId, out var outgoingEdges))

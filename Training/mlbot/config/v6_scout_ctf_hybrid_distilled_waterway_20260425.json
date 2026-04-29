@@ -1,0 +1,24 @@
+{
+  "description": "Hybrid ReturnIntel stack: packed hierarchy remains the accepted TwodFortTwo sequence skill, while Waterway Blue Scout ReturnIntel uses the distilled one-tick MLP return head as a map/team-filtered specialist.",
+  "base_model": "Training/mlbot/out/v5-waterway-return-targetselected-20260425/model.onnx",
+  "scenario_file": "Training/mlbot/config/v5_scout_ctf_slice_matrix.json",
+  "disable_policy_overrides": true,
+  "packed_hierarchical_chunk_model": "Training/mlbot/out/v6-return-hierchunk-packed-selectorbank-20260425/hierarchical_chunk_model.onnx",
+  "packed_hierarchical_chunk_commit_ticks": [
+    8,
+    4,
+    4
+  ],
+  "waterway_return_finalizer": {
+    "model": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-distill-20260425/model.onnx",
+    "engage_distance": 9999,
+    "map": "Waterway",
+    "team": "Blue",
+    "class": "Scout",
+    "after_options": true
+  },
+  "strict_matrix_result": "Training/mlbot/out/v6-packed-hierchunk-waterway-distilled-hybrid-20260425/slice-matrix/matrix-summary.json",
+  "teacher_rollout_export": ".mlbot-data/v6-hybrid-waterway-distilled-scout-ctf-20260425/teacher-export-summary.json",
+  "closed_loop_intervention_export": "Training/mlbot/out/v6-closedloop-hybrid-waterway-distilled-teacher-20260425/interventions/intervention-export-summary.json",
+  "result": "6/6 strict Scout CTF slice with replay disabled and policy overrides disabled. TwodFortTwo still uses the packed sequence skill and preserves return tick 1311/full tick 1912. Waterway uses the distilled ReturnIntel head and improves return from tick 963 to tick 782; Waterway full scores at tick 1596."
+}

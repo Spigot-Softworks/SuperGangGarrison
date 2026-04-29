@@ -42,6 +42,22 @@ public sealed partial class SimulationWorld
                 Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierRageExtensionSecondsPerKill));
     }
 
+    private int GetExperimentalSoldierLuckyBastardInvulnerabilityTicks()
+    {
+        return Math.Max(
+            1,
+            (int)MathF.Round(
+                Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierLuckyBastardInvincibilityDurationSeconds));
+    }
+
+    private int GetExperimentalSoldierFogOfWarWindowTicks()
+    {
+        return Math.Max(
+            1,
+            (int)MathF.Round(
+                Config.TicksPerSecond * global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierFogOfWarWindowSeconds));
+    }
+
     private float GetExperimentalPassiveHealthRegenerationPerTick()
     {
         return ExperimentalGameplaySettings.PassiveHealthRegenerationPerSecond / Math.Max(1, Config.TicksPerSecond);
@@ -68,6 +84,13 @@ public sealed partial class SimulationWorld
             ApplyExperimentalHealingReward(attacker, appliedDamage * ExperimentalGameplaySettings.HealOnDamageFraction);
         }
 
+        if (attacker.AcquiredWeaponClassId.HasValue && ExperimentalGameplaySettings.AcquiredWeaponHealingMultiplier > 1f)
+        {
+            ApplyExperimentalHealingReward(
+                attacker,
+                appliedDamage * (ExperimentalGameplaySettings.AcquiredWeaponHealingMultiplier - 1f));
+        }
+
         if (ExperimentalGameplaySettings.EnableRage)
         {
             attacker.AddRageCharge(
@@ -92,7 +115,6 @@ public sealed partial class SimulationWorld
     {
         if (appliedDamage <= 0
             || attacker is null
-            || !ExperimentalGameplaySettings.EnableRage
             || !IsExperimentalPracticePowerOwner(target)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team)
@@ -100,9 +122,22 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        target.AddRageCharge(
-            appliedDamage * ExperimentalGameplaySettings.RageDamageReceivedChargeMultiplier,
-            ExperimentalGameplaySettings.RageMaxCharge);
+        if (ExperimentalGameplaySettings.EnableRage)
+        {
+            target.AddRageCharge(
+                appliedDamage * ExperimentalGameplaySettings.RageDamageReceivedChargeMultiplier,
+                ExperimentalGameplaySettings.RageMaxCharge);
+        }
+
+        if (ExperimentalGameplaySettings.EnableSoldierFogOfWar
+            && target.ClassId == PlayerClass.Soldier)
+        {
+            target.RefreshExperimentalFogOfWar(
+                GetExperimentalSoldierFogOfWarWindowTicks(),
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierFogOfWarInitialEvasionChance);
+        }
+
+        TryApplyExperimentalThornsDamage(target, attacker, appliedDamage);
     }
 
     private void ApplyExperimentalKillRewards(PlayerEntity? killer, PlayerEntity victim)
@@ -201,6 +236,7 @@ public sealed partial class SimulationWorld
 
     private RocketCombatDefinition ApplyExperimentalSoldierRocketCombat(PlayerEntity attacker, RocketCombatDefinition? rocketCombat)
     {
+        _ = Frame;
         _ = attacker;
         return rocketCombat ?? new RocketCombatDefinition();
     }
@@ -213,29 +249,183 @@ public sealed partial class SimulationWorld
     private int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, int damage)
     {
         if (damage <= 0
-            || !IsExperimentalPracticePowerOwner(target)
-            || !target.IsExperimentalDemoknightCharging)
+            || !IsExperimentalPracticePowerOwner(target))
         {
             return damage;
         }
 
-        return Math.Max(
-            1,
-            (int)MathF.Round(damage * ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier));
+        var multiplier = 1f;
+        if (target.IsExperimentalDemoknightCharging)
+        {
+            multiplier *= ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier;
+        }
+
+        multiplier *= 1f - Math.Clamp(ExperimentalGameplaySettings.PassiveDamageResistance, 0f, 0.95f);
+        return Math.Max(1, (int)MathF.Round(damage * multiplier));
     }
 
     private float ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, float damage)
     {
         if (damage <= 0f
-            || !IsExperimentalPracticePowerOwner(target)
-            || !target.IsExperimentalDemoknightCharging)
+            || !IsExperimentalPracticePowerOwner(target))
         {
             return damage;
         }
 
-        return MathF.Max(
-            0.01f,
-            damage * ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier);
+        var multiplier = 1f;
+        if (target.IsExperimentalDemoknightCharging)
+        {
+            multiplier *= ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier;
+        }
+
+        multiplier *= 1f - Math.Clamp(ExperimentalGameplaySettings.PassiveDamageResistance, 0f, 0.95f);
+        return MathF.Max(0.01f, damage * multiplier);
+    }
+
+    private int ApplyExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, int damage)
+    {
+        if (damage <= 0)
+        {
+            return damage;
+        }
+
+        var multiplier = GetExperimentalOutgoingDamageMultiplier(attacker, target);
+        return Math.Max(1, (int)MathF.Round(damage * multiplier));
+    }
+
+    private float ApplyExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target, float damage)
+    {
+        if (damage <= 0f)
+        {
+            return damage;
+        }
+
+        var multiplier = GetExperimentalOutgoingDamageMultiplier(attacker, target);
+        return MathF.Max(0.01f, damage * multiplier);
+    }
+
+    private float GetExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target)
+    {
+        if (attacker is null
+            || !IsExperimentalPracticePowerOwner(attacker)
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team)
+        {
+            return 1f;
+        }
+
+        var multiplier = ExperimentalGameplaySettings.PassiveDamageMultiplier;
+        if (ShouldApplyExperimentalSoldierBattleborn(attacker, target))
+        {
+            multiplier *= 1f + Math.Max(0, attacker.CurrentCombo) / 100f;
+        }
+
+        if (attacker.AcquiredWeaponClassId.HasValue)
+        {
+            multiplier *= ExperimentalGameplaySettings.AcquiredWeaponDamageMultiplier;
+        }
+
+        return MathF.Max(0.01f, multiplier);
+    }
+
+    private bool ShouldApplyExperimentalSoldierBattleborn(PlayerEntity? attacker, PlayerEntity target)
+    {
+        return attacker is not null
+            && ExperimentalGameplaySettings.EnableSoldierBattleborn
+            && IsExperimentalPracticePowerOwner(attacker)
+            && attacker.ClassId == PlayerClass.Soldier
+            && !ReferenceEquals(attacker, target)
+            && attacker.Team != target.Team
+            && attacker.CurrentCombo > 0;
+    }
+
+    private bool TryEvadeExperimentalDamage(
+        PlayerEntity target,
+        PlayerEntity? attacker,
+        float damage,
+        DamageEventFlags damageFlags)
+    {
+        if (damage <= 0f
+            || attacker is null
+            || !IsExperimentalPracticePowerOwner(target)
+            || target.ClassId != PlayerClass.Soldier
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team
+            || GetExperimentalTotalEvasionChance(target) <= 0f
+            || _random.NextDouble() >= GetExperimentalTotalEvasionChance(target))
+        {
+            return false;
+        }
+
+        RegisterDamageEvent(
+            attacker,
+            DamageTargetKind.Player,
+            target.Id,
+            target.X,
+            target.Y,
+            amount: 0,
+            wasFatal: false,
+            target,
+            damageFlags | DamageEventFlags.Evaded);
+        return true;
+    }
+
+    private float GetExperimentalTotalEvasionChance(PlayerEntity target)
+    {
+        if (!IsExperimentalPracticePowerOwner(target))
+        {
+            return 0f;
+        }
+
+        return Math.Clamp(
+            ExperimentalGameplaySettings.PassiveEvasionChance + target.ExperimentalFogOfWarEvasionChance,
+            0f,
+            0.95f);
+    }
+
+    private void TryApplyExperimentalThornsDamage(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
+    {
+        if (appliedDamage <= 0
+            || attacker is null
+            || !target.IsAlive
+            || !attacker.IsAlive
+            || !IsExperimentalPracticePowerOwner(target)
+            || ReferenceEquals(attacker, target)
+            || attacker.Team == target.Team
+            || ExperimentalGameplaySettings.PassiveThornsFraction <= 0f)
+        {
+            return;
+        }
+
+        var thornsDamage = Math.Max(1, (int)MathF.Round(appliedDamage * ExperimentalGameplaySettings.PassiveThornsFraction));
+        ApplyPlayerDamage(attacker, thornsDamage, target);
+    }
+
+    private bool TryPreventExperimentalFatalDamage(PlayerEntity target, int damage)
+    {
+        if (damage <= 0
+            || damage < target.Health
+            || !ExperimentalGameplaySettings.EnableSoldierLuckyBastard
+            || !IsExperimentalPracticePowerOwner(target)
+            || target.ClassId != PlayerClass.Soldier
+            || target.IsExperimentalLuckyBastardActive
+            || target.KillStreak < global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierLuckyBastardMinimumKills)
+        {
+            return false;
+        }
+
+        var reviveFraction = target.KillStreak switch
+        {
+            3 => 0.3f,
+            4 => 0.5f,
+            5 => 0.8f,
+            _ => 1f,
+        };
+        var reviveHealth = Math.Max(1, (int)MathF.Ceiling(target.MaxHealth * reviveFraction));
+        target.TriggerExperimentalLuckyBastard(
+            GetExperimentalSoldierLuckyBastardInvulnerabilityTicks(),
+            reviveHealth);
+        return true;
     }
 
     private void ApplyExperimentalPassivePlayerEffects(PlayerEntity player)

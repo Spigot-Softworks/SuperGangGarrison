@@ -1,0 +1,40 @@
+{
+  "schema": "mlbot-director-model-suite",
+  "models": [
+    {
+      "name": "old_attack_v78",
+      "path": "Training/mlbot/out/twodforttwo-red-scout-attack-v78-nooverrides-v3/model.onnx",
+      "notes": "Old Red Scout attack specialist; historically passed TwodFortTwo attack pickup."
+    },
+    {
+      "name": "old_return_node44",
+      "path": "Training/mlbot/out/twodforttwo-red-scout-return-node44-fastteacher-v1/model.onnx",
+      "notes": "Old Red Scout return specialist; historically scored in scout-regression-matrix-v1."
+    },
+    {
+      "name": "old_harvest_blue_scout",
+      "path": "Training/mlbot/out/harvest-blue-scout-capture-curriculum-v1/node-93-round-01/train/model.onnx",
+      "notes": "Old Harvest Blue Scout capture specialist."
+    },
+    {
+      "name": "old_merged_dagger_v2",
+      "path": "Training/mlbot/out/scout-merged-dagger-v2-tight/distill/model.onnx",
+      "notes": "Old merged Scout model with DAgger distillation."
+    },
+    {
+      "name": "old_merged_gated_v1",
+      "path": "Training/mlbot/out/scout-merged-gated-v1/distill/model.onnx",
+      "notes": "Old merged Scout gated model."
+    },
+    {
+      "name": "v5_seed_jumpweighted",
+      "path": "Training/mlbot/out/v5-unified-seed-jumpweighted-20260425/model.onnx",
+      "notes": "Best V5 seed behavior-cloning model before intervention mixing."
+    },
+    {
+      "name": "v5_intervention_curated",
+      "path": "Training/mlbot/out/v5-intervention-curated-up4-20260425/model.onnx",
+      "notes": "Current V5 intervention student; diagnostic only, not promoted."
+    }
+  ]
+}

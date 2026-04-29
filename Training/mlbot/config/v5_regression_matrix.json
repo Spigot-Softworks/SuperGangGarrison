@@ -1,0 +1,70 @@
+{
+  "schema": "mlbot-v5-world-truth-matrix",
+  "scenarios": [
+    {
+      "name": "ctf_twodforttwo_red_scout_attack",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800
+    },
+    {
+      "name": "ctf_twodforttwo_blue_scout_attack",
+      "level_name": "TwodFortTwo",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800
+    },
+    {
+      "name": "ctf_twodforttwo_red_scout_return",
+      "level_name": "TwodFortTwo",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "ReturnIntel",
+      "ticks": 1800,
+      "carrying_intel": true
+    },
+    {
+      "name": "ctf_waterway_blue_scout_attack",
+      "level_name": "Waterway",
+      "team": "Blue",
+      "class_id": "Scout",
+      "task": "AttackIntel",
+      "ticks": 1800
+    },
+    {
+      "name": "koth_harvest_red_scout_capture",
+      "level_name": "Harvest",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "koth_harvest_blue_soldier_capture",
+      "level_name": "Harvest",
+      "team": "Blue",
+      "class_id": "Soldier",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "dkoth_sixties_red_scout_capture",
+      "level_name": "Sixties",
+      "team": "Red",
+      "class_id": "Scout",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    },
+    {
+      "name": "dkoth_sixties_blue_demoman_capture",
+      "level_name": "Sixties",
+      "team": "Blue",
+      "class_id": "Demoman",
+      "task": "CaptureObjective",
+      "ticks": 1800
+    }
+  ]
+}

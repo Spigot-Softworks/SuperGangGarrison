@@ -30,6 +30,39 @@ public sealed partial class SimulationWorld
         _runtimeController.AdvanceLegacyControlPointMatchState();
     }
 
+    public bool IsPlayerInControlPointCaptureZone(PlayerEntity player, int controlPointIndex)
+    {
+        if (controlPointIndex <= 0 || controlPointIndex > _controlPoints.Count)
+        {
+            return false;
+        }
+
+        var zeroBasedControlPointIndex = controlPointIndex - 1;
+        var hasExplicitZone = false;
+        for (var zoneIndex = 0; zoneIndex < _controlPointZones.Count; zoneIndex += 1)
+        {
+            var zone = _controlPointZones[zoneIndex];
+            if (zone.ControlPointIndex != zeroBasedControlPointIndex)
+            {
+                continue;
+            }
+
+            hasExplicitZone = true;
+            if (player.IntersectsMarker(zone.Marker.CenterX, zone.Marker.CenterY, zone.Marker.Width, zone.Marker.Height))
+            {
+                return true;
+            }
+        }
+
+        if (hasExplicitZone)
+        {
+            return false;
+        }
+
+        var point = _controlPoints[zeroBasedControlPointIndex];
+        return player.IntersectsMarker(point.Marker.CenterX, point.Marker.CenterY, point.Marker.Width, point.Marker.Height);
+    }
+
     private void ApplySnapshotControlPoints(SnapshotMessage snapshot)
     {
         if (snapshot.ControlPoints.Count == 0)

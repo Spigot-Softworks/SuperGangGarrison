@@ -242,7 +242,7 @@ public partial class Game1
         }
     }
 
-    private int GetHostSetupContentHeight(HostSetupMenuLayout layout)
+    private static int GetHostSetupContentHeight(HostSetupMenuLayout layout)
     {
         var contentBottom = Math.Max(
             Math.Max(layout.MoveDownBounds.Bottom, layout.ListBounds.Bottom),
@@ -263,7 +263,7 @@ public partial class Game1
         return new Rectangle(bounds.X, bounds.Y - _hostSetupContentScrollOffset, bounds.Width, bounds.Height);
     }
 
-    private bool IsHostSetupContentBoundsVisible(HostSetupMenuLayout layout, Rectangle bounds)
+    private static bool IsHostSetupContentBoundsVisible(HostSetupMenuLayout layout, Rectangle bounds)
     {
         return bounds.Bottom > layout.ContentViewportBounds.Y && bounds.Y < layout.ContentViewportBounds.Bottom;
     }

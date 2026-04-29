@@ -193,6 +193,16 @@ public sealed partial class SimulationWorld
             return SimulationWorld.DegreesToRadians(degrees);
         }
 
+        private int GetExperimentalProjectilesPerShot(PlayerEntity attacker, int baseCount)
+        {
+            if (!_world.IsExperimentalPracticePowerOwner(attacker) || _world.ExperimentalGameplaySettings.BonusProjectilesPerShot <= 0)
+            {
+                return Math.Max(1, baseCount);
+            }
+
+            return Math.Max(1, baseCount + _world.ExperimentalGameplaySettings.BonusProjectilesPerShot);
+        }
+
         private static float PointDirectionDegrees(float x1, float y1, float x2, float y2)
         {
             return SimulationWorld.PointDirectionDegrees(x1, y1, x2, y2);
@@ -272,6 +282,23 @@ public sealed partial class SimulationWorld
                 : attacker.ClassId;
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             return (weaponOrigin.BaseX, GetPyroOriginY(weaponOrigin));
+        }
+
+        public (float X, float Y, float AimRadians) GetSoldierRocketLauncherTip(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        {
+            var weaponOrigin = GetSourceWeaponOrigin(attacker, PlayerClass.Soldier);
+            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
+            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
+            if (aimDeltaX == 0f && aimDeltaY == 0f)
+            {
+                aimDeltaX = attacker.FacingDirectionX == 0f ? 1f : attacker.FacingDirectionX;
+            }
+
+            var aimRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
+            return (
+                weaponOrigin.BaseX + MathF.Cos(aimRadians) * 20f,
+                weaponOrigin.BaseY + MathF.Sin(aimRadians) * 20f,
+                aimRadians);
         }
 
         private static float GetSourceWeaponYOffset(PlayerClass classId)

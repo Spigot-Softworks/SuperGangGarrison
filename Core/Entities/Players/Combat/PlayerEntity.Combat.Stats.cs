@@ -67,6 +67,13 @@ public sealed partial class PlayerEntity
         MultiKillTicksRemaining = Math.Max(0, multiKillWindowTicks);
     }
 
+    public void ConsumeKillStreak()
+    {
+        KillStreak = 0;
+        CurrentMultiKillCount = 0;
+        MultiKillTicksRemaining = 0;
+    }
+
     public void AdvanceCombatPerformanceTracking()
     {
         if (ComboTicksRemaining > 0)

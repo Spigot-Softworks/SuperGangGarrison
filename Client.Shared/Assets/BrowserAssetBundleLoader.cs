@@ -43,7 +43,7 @@ public static class BrowserAssetBundleLoader
         var assets = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in archive.Entries)
         {
-            if (string.IsNullOrWhiteSpace(entry.FullName) || entry.FullName.EndsWith("/", StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(entry.FullName) || entry.FullName.EndsWith('/'))
             {
                 continue;
             }

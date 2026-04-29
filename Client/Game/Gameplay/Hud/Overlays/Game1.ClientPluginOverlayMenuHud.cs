@@ -86,7 +86,7 @@ public partial class Game1
         }
     }
 
-    private List<ClientPluginOverlayMenuLine> BuildClientPluginOverlayMenuLines(ClientPluginOverlayMenuState menu)
+    private static List<ClientPluginOverlayMenuLine> BuildClientPluginOverlayMenuLines(ClientPluginOverlayMenuState menu)
     {
         var lines = new List<ClientPluginOverlayMenuLine>(menu.Entries.Count + 3);
         if (!string.IsNullOrWhiteSpace(menu.Title))

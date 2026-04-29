@@ -2746,14 +2746,14 @@ public partial class Game1
         ];
     }
 
-    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorFallbackTriggerMenuItems(IReadOnlyList<BotNavigationHintFallbackTrigger> currentTriggers)
+    private IReadOnlyList<NavEditorContextMenuItem> BuildNavEditorFallbackTriggerMenuItems(BotNavigationHintFallbackTrigger[] currentTriggers)
     {
         return
         [
             new NavEditorContextMenuItem
             {
                 Label = "No Next",
-                Active = currentTriggers.Count == 0 || currentTriggers.Contains(BotNavigationHintFallbackTrigger.NoNext),
+                Active = currentTriggers.Length == 0 || currentTriggers.Contains(BotNavigationHintFallbackTrigger.NoNext),
                 Action = () => SetNavEditorFallbackTrigger(BotNavigationHintFallbackTrigger.NoNext),
             },
             new NavEditorContextMenuItem
@@ -5206,7 +5206,7 @@ public partial class Game1
         }
     }
 
-    private IReadOnlyList<string> BuildNavEditorDetailLines()
+    private List<string> BuildNavEditorDetailLines()
     {
         var lines = new List<string>
         {
@@ -5747,9 +5747,9 @@ public partial class Game1
         };
     }
 
-    private static string DescribeNavEditorFallbackTriggers(IReadOnlyList<BotNavigationHintFallbackTrigger> triggers)
+    private static string DescribeNavEditorFallbackTriggers(BotNavigationHintFallbackTrigger[] triggers)
     {
-        return triggers.Count == 0
+        return triggers.Length == 0
             ? "NoNext"
             : string.Join("/", triggers.Select(DescribeNavEditorFallbackTrigger));
     }

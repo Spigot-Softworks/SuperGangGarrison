@@ -450,7 +450,7 @@ public partial class Game1
                 _game._hostSetupContentScrollOffset = Math.Clamp(
                     _game._hostSetupContentScrollOffset + (wheelDelta > 0 ? -(stepCount * 28) : (stepCount * 28)),
                     0,
-                    Math.Max(0, _game.GetHostSetupContentHeight(layout) - layout.ContentViewportBounds.Height));
+                    Math.Max(0, Game1.GetHostSetupContentHeight(layout) - layout.ContentViewportBounds.Height));
             }
         }
 

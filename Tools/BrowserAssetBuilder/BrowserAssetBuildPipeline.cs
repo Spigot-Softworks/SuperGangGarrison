@@ -363,7 +363,7 @@ internal static class BrowserAssetBuildPipeline
         return new AtlasFrameSource(spriteId, groupId, sourcePath, sourceImageIndex, sourceFrameIndex, image.Width, image.Height, pixels);
     }
 
-    private static IReadOnlyList<AtlasFrameSource> SliceGameplaySpriteFrames(
+    private static List<AtlasFrameSource> SliceGameplaySpriteFrames(
         GameplaySpriteAssetDefinition sprite,
         string relativePath,
         byte[] imageBytes,

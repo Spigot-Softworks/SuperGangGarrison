@@ -293,7 +293,7 @@ public partial class Game1
         return Math.Max(16f, MeasureBitmapFontHeight(1f) + 2f);
     }
 
-    private IReadOnlyList<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)
+    private List<ChatLine> GetVisibleChatLines(float maxPanelWidth, float maxChatHeight, bool includeHistory)
     {
         if (_chatLines.Count == 0)
         {

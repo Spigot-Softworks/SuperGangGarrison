@@ -56,11 +56,17 @@ public partial class Game1
     {
         UpdatePracticeBots();
         OnNavEditorTraversalCaptureBeforeTick();
+        OnScoreRouteRecorderBeforeTick();
+        OnMLBotDemonstrationRecorderBeforeTick();
+        OnMLBotDaggerAssistBeforeTick();
     }
 
     private void OnPracticeSimulationAfterTick()
     {
         OnNavEditorTraversalCaptureAfterTick();
+        OnScoreRouteRecorderAfterTick();
+        OnMLBotDemonstrationRecorderAfterTick();
+        OnMLBotDaggerAssistAfterTick();
         AdvanceLastToDieSimulationTick();
         UpdateLastToDieBotReactions();
     }

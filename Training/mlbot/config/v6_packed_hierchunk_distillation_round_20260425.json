@@ -1,0 +1,34 @@
+{
+  "description": "Distillation attempts from the packed hierarchical ReturnIntel teacher into smaller no-replay policies/heads. These are diagnostic and not promotion artifacts.",
+  "teacher_config": "Training/mlbot/config/v6_scout_ctf_packed_hierchunk_teacher_20260425.json",
+  "strict_scout_ctf_matrix": "Training/mlbot/config/v5_scout_ctf_slice_matrix.json",
+  "disable_policy_overrides": true,
+  "attempts": [
+    {
+      "name": "closed_loop_plain_task_heads",
+      "output_dir": "Training/mlbot/out/v6-closedloop-packed-hierchunk-distill-20260425",
+      "matrix": "Training/mlbot/out/v6-closedloop-packed-hierchunk-distill-20260425/round-01/candidate-matrix/matrix-summary.json",
+      "result": "Rejected. Candidate matched the baseline 2/6: both attack-pickup gates passed, all return/full gates failed."
+    },
+    {
+      "name": "waterway_return_mlp_head",
+      "output_dir": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-distill-20260425",
+      "matrix": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-distill-20260425/phase-wrapped-matrix/matrix-summary.json",
+      "result": "Partial diagnostic success only. When wrapped as a ReturnIntel specialist around the stable base policy, it passes 4/6: both attack gates, Waterway return, and Waterway full. It still fails TwodFortTwo return/full and is not promoted."
+    },
+    {
+      "name": "gated_mlp_head",
+      "output_dir": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-gated-20260425",
+      "matrix": "Training/mlbot/out/v6-packed-hierchunk-return-mlphead-gated-20260425/slice-matrix/matrix-summary.json",
+      "result": "Rejected. Regression-gated updates protected the baseline and final matrix remained 2/6."
+    },
+    {
+      "name": "twod_return_mlp_head",
+      "output_dir": "Training/mlbot/out/v6-packed-hierchunk-twod-return-mlphead-distill-20260425",
+      "matrix": "Training/mlbot/out/v6-packed-hierchunk-twod-return-mlphead-distill-20260425/phase-wrapped-matrix/matrix-summary.json",
+      "result": "Rejected. TwodFortTwo return did not score and plateaued far from cap; wrapping it around the base policy also broke Waterway return."
+    }
+  ],
+  "accepted_runtime_teacher": "Training/mlbot/out/v6-return-hierchunk-packed-selectorbank-20260425/hierarchical_chunk_model.onnx",
+  "director_conclusion": "Do not promote any distilled no-replay/no-option model from this round. The useful artifact is the Waterway ReturnIntel specialist behavior, but the accepted teacher remains the packed hierarchy until TwodFortTwo return can be distilled without losing route/finalizer separation."
+}

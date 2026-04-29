@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  bot-score-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build bot tools
+        run: dotnet build BotAI.Tools/OpenGarrison.BotAI.Tools.csproj --configuration Debug
+
+      - name: Run bot score matrix
+        run: >
+          dotnet BotAI.Tools/bin/Debug/net10.0/OpenGarrison.BotAI.Tools.dll
+          --stock-ctf-koth-matrix
+          --map Eiger
+          --map Valley
+          --map Harvest
+          --map TwodFortTwo
+          --map Gallery
+          --scenario-kind Score
+          --class Scout
+          --class Heavy
+          --class Pyro
+          --no-bot-diagnostics

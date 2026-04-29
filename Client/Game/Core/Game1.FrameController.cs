@@ -29,8 +29,8 @@ public partial class Game1
             var windowActive = OperatingSystem.IsBrowser()
                 ? BrowserInputBridge.IsFocused
                 : _game.IsActive;
-            var keyboard = windowActive ? _game.GetCurrentKeyboardState() : default;
-            var rawMouse = windowActive ? _game.GetConstrainedMouseState(_game.GetCurrentMouseState()) : default;
+            var keyboard = windowActive ? Game1.GetCurrentKeyboardState() : default;
+            var rawMouse = windowActive ? _game.GetConstrainedMouseState(Game1.GetCurrentMouseState()) : default;
             var mouse = windowActive ? _game.GetScaledMouseState(rawMouse) : default;
             if (!_game._wasWindowActive && windowActive)
             {
@@ -154,7 +154,7 @@ public partial class Game1
             _game._menuController.Draw();
             if (_game.ShouldDrawSoftwareMenuCursor())
             {
-                _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(_game.GetCurrentMouseState())));
+                _game.DrawSoftwareMenuCursor(_game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState())));
             }
 
             _game.EndLogicalFrame();
