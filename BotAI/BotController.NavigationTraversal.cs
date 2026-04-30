@@ -537,23 +537,6 @@ public sealed partial class ModernPracticeBotController
 
     private static void BlockRouteEdge(BotMemory memory, int fromNodeId, int toNodeId)
     {
-        var key = GetRouteEdgeKey(fromNodeId, toNodeId);
-        memory.RouteBlockedEdgeTicksByKey ??= new Dictionary<long, int>();
-        memory.RouteBlockedEdgeFailureCountsByKey ??= new Dictionary<long, int>();
-        var previousFailures = memory.RouteBlockedEdgeFailureCountsByKey.TryGetValue(key, out var count)
-            ? count
-            : 0;
-        var failureCount = Math.Min(previousFailures + 1, 5);
-        memory.RouteBlockedEdgeFailureCountsByKey[key] = failureCount;
-        if (failureCount <= 1)
-        {
-            memory.RouteBlockedEdgeTicksByKey.Remove(key);
-        }
-        else
-        {
-            var durationMultiplier = 1 << (failureCount - 2);
-            memory.RouteBlockedEdgeTicksByKey[key] = RouteBlockedEdgeTicksDefault * durationMultiplier;
-        }
         memory.NavigationIssueLabel = $"route_edge_block:{fromNodeId}->{toNodeId}";
         ResetRouteProgress(memory);
     }
@@ -667,6 +650,8 @@ public sealed partial class ModernPracticeBotController
         memory.ModernStuckTicks = 0;
         memory.ModernDropGapTicks = 0;
         memory.ModernPreviousTargetDistance = float.PositiveInfinity;
+        ClearModernChainExecutor(memory);
+        memory.ModernChainExecutorCooldownTicks = 0;
         memory.HasModernClosestPointTarget = false;
         memory.ModernClosestPointTargetX = 0f;
         memory.ModernClosestPointTargetY = 0f;

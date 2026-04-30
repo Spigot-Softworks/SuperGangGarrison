@@ -184,7 +184,7 @@ public sealed class ClientBotNavPoints
                 continue;
             }
 
-            if (sourcePointId >= 0 && IsReverseBlocked(branch, sourcePointId))
+            if (sourcePointId >= 0 && IsReverseBlocked(sourcePointId, branch))
             {
                 continue;
             }
