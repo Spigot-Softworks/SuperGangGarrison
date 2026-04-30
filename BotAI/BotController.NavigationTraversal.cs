@@ -28,15 +28,6 @@ public sealed partial class ModernPracticeBotController
             startToleranceY = MathF.Max(TraversalStartDistance, preferredSegment.StartToleranceY);
         }
 
-        if (traversalTape.Count == 0
-            && navigationGraph.TryGetNode(previousNodeId, out var sourceNodeForTraversalKind))
-        {
-            traversalKind = traversalKind == BotNavigationTraversalKind.Jump
-                && ShouldTreatUntapedJumpAsRouteDrop(sourceNodeForTraversalKind, nextNode, destination)
-                    ? BotNavigationTraversalKind.Drop
-                    : traversalKind;
-        }
-
         if (traversalTape.Count > 0)
         {
             if (!navigationGraph.TryGetNode(previousNodeId, out var sourceNode))
@@ -50,38 +41,6 @@ public sealed partial class ModernPracticeBotController
             if (!isExecutingTraversal)
             {
                 ClearTraversalExecution(memory);
-            }
-
-            if (!isExecutingTraversal
-                && BotNavigationMovementValidator.IsWithinTraversalLandingWindow(
-                    player.X,
-                    player.Bottom,
-                    player.IsGrounded,
-                    nextNode.X,
-                    nextNode.Y,
-                    requireGroundedArrival: false))
-            {
-                RememberTraversalCompletion(memory, previousNodeId, nextNode.Id, usedTape: true);
-                decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind, UsesTraversalTape: true);
-                return true;
-            }
-
-            if (!isExecutingTraversal && ShouldCorrectTapedTraversalOnLandingSurface(player, sourceNode, nextNode))
-            {
-                decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(player.X, nextNode.X), ForceJump: false, LocksMovement: true, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind, UsesTraversalTape: true);
-                return true;
-            }
-
-            if (!isExecutingTraversal
-                && memory.LastTraversalCompletionTicks > 0
-                && memory.LastTraversalUsedTape
-                && memory.LastTraversalFromNodeId == previousNodeId
-                && memory.LastTraversalToNodeId == nextNode.Id)
-            {
-                ClearNavigationRoute(memory);
-                BlockRouteEdge(memory, previousNodeId, nextNode.Id);
-                decision = new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "route-replan", TraversalKind: traversalKind, UsesTraversalTape: true);
-                return true;
             }
 
             if (!isExecutingTraversal
@@ -107,13 +66,7 @@ public sealed partial class ModernPracticeBotController
                     return true;
                 }
 
-                var executionTape = traversalTape;
-                if (TryBuildCurrentStateTraversalTape(world, player, nextNode, traversalKind, out var currentStateTape))
-                {
-                    executionTape = currentStateTape;
-                }
-
-                BeginTraversalExecution(memory, previousNodeId, nextNode.Id, traversalKind, executionTape);
+                BeginTraversalExecution(memory, previousNodeId, nextNode.Id, traversalKind, traversalTape);
             }
 
             if (BotNavigationMovementValidator.IsWithinTraversalLandingWindow(
@@ -135,9 +88,8 @@ public sealed partial class ModernPracticeBotController
                 return true;
             }
 
-            ClearNavigationRoute(memory);
-            BlockRouteEdge(memory, previousNodeId, nextNode.Id);
-            decision = new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "route-replan", TraversalKind: traversalKind, UsesTraversalTape: true);
+            ClearTraversalExecution(memory);
+            decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind, UsesTraversalTape: true);
             return true;
         }
 
@@ -148,32 +100,6 @@ public sealed partial class ModernPracticeBotController
             {
                 ClearNavigationRoute(memory);
                 decision = new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "drop-src");
-                return true;
-            }
-
-            var isAtDropLanding = BotNavigationMovementValidator.IsWithinTraversalLandingWindow(
-                player.X,
-                player.Bottom,
-                player.IsGrounded,
-                nextNode.X,
-                nextNode.Y,
-                requireGroundedArrival: false);
-            if (isAtDropLanding)
-            {
-                RememberTraversalCompletion(memory, previousNodeId, nextNode.Id, usedTape: false);
-                decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
-                return true;
-            }
-
-            if (HasDroppedBelowLanding(player, nextNode))
-            {
-                decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(player.X, nextNode.X), ForceJump: player.IsGrounded, LocksMovement: false, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
-                return true;
-            }
-
-            if (ShouldContinueDropAfterFallingPastSource(player, sourceNode, nextNode))
-            {
-                decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(player.X, nextNode.X), ForceJump: false, LocksMovement: true, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
                 return true;
             }
 
@@ -210,124 +136,11 @@ public sealed partial class ModernPracticeBotController
                 return true;
             }
 
-            if (player.IsGrounded
-                && DistanceSquared(player.X, player.Bottom, sourceNode.X, sourceNode.Y) > RouteNodeArrivalDistance * RouteNodeArrivalDistance)
-            {
-                var forceSourceRecoveryJump = sourceNode.Y < GetModernPlayerFeetY(player) - RouteWalkRecoveryJumpFeetDrop;
-                decision = new NavigationDecision((sourceNode.X, sourceNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(player.X, sourceNode.X), ForceJump: forceSourceRecoveryJump, LocksMovement: true, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
-                return true;
-            }
-
-            decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(sourceNode.X, nextNode.X), ForceJump: player.IsGrounded, LocksMovement: true, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
+            decision = new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: GetTraversalCommitDirection(sourceNode.X, nextNode.X), ForceJump: false, LocksMovement: true, Label: GetRouteLabel(memory, traversalKind), TraversalKind: traversalKind);
             return true;
         }
 
         decision = default;
-        return false;
-    }
-
-    private static bool ShouldTreatUntapedJumpAsRouteDrop(
-        BotNavigationNode sourceNode,
-        BotNavigationNode nextNode,
-        (float X, float Y) destination)
-    {
-        var segmentDrop = nextNode.Y - sourceNode.Y;
-        if (segmentDrop >= RouteJumpDropReclassifyDistance)
-        {
-            return true;
-        }
-
-        return segmentDrop >= ModernDropReclassifyDistance
-            && DistanceBetween(sourceNode.X, sourceNode.Y, destination.X, destination.Y) <= ObjectiveAssistCtfAttackFinalApproachDistance
-            && destination.Y >= nextNode.Y + ObjectiveAssistTargetBelowDistance;
-    }
-
-    private static bool ShouldContinueDropAfterFallingPastSource(
-        PlayerEntity player,
-        BotNavigationNode sourceNode,
-        BotNavigationNode nextNode)
-    {
-        if (!player.IsGrounded || nextNode.Y <= sourceNode.Y)
-        {
-            return false;
-        }
-
-        var playerFeetY = GetModernPlayerFeetY(player);
-        if (playerFeetY < sourceNode.Y + TraversalStartDistance)
-        {
-            return false;
-        }
-
-        var minCommittedX = MathF.Min(sourceNode.X, nextNode.X) - RouteNodeArrivalDistance;
-        var maxCommittedX = MathF.Max(sourceNode.X, nextNode.X) + RouteNodeArrivalDistance;
-        if (player.X >= minCommittedX && player.X <= maxCommittedX)
-        {
-            return true;
-        }
-
-        return MathF.Abs(playerFeetY - nextNode.Y) <= MathF.Abs(playerFeetY - sourceNode.Y);
-    }
-
-    private static bool ShouldCorrectTapedTraversalOnLandingSurface(
-        PlayerEntity player,
-        BotNavigationNode sourceNode,
-        BotNavigationNode nextNode)
-    {
-        if (!player.IsGrounded)
-        {
-            return false;
-        }
-
-        if (MathF.Abs(GetModernPlayerFeetY(player) - nextNode.Y) > RouteWalkArrivalFeetHeight)
-        {
-            return false;
-        }
-
-        var minCommittedX = MathF.Min(sourceNode.X, nextNode.X) - RouteNodeArrivalDistance;
-        var maxCommittedX = MathF.Max(sourceNode.X, nextNode.X) + RouteNodeArrivalDistance;
-        return player.X >= minCommittedX && player.X <= maxCommittedX;
-    }
-
-    private static bool HasDroppedBelowLanding(PlayerEntity player, BotNavigationNode nextNode)
-    {
-        return player.IsGrounded
-            && MathF.Abs(player.X - nextNode.X) <= ObjectiveAssistTargetBelowDistance
-            && GetModernPlayerFeetY(player) >= nextNode.Y + ObjectiveAssistTargetAboveDistance;
-    }
-
-    private static bool TryBuildCurrentStateTraversalTape(
-        SimulationWorld world,
-        PlayerEntity player,
-        BotNavigationNode nextNode,
-        BotNavigationTraversalKind traversalKind,
-        out IReadOnlyList<BotNavigationInputFrame> tape)
-    {
-        tape = Array.Empty<BotNavigationInputFrame>();
-        if (traversalKind != BotNavigationTraversalKind.Jump || !player.IsGrounded)
-        {
-            return false;
-        }
-
-        var classDefinition = BotNavigationClasses.GetDefinition(player.ClassId);
-        var profile = BotNavigationProfiles.GetProfileForClass(player.ClassId);
-        var sourceY = player.Bottom - classDefinition.CollisionBottom;
-        var targetY = nextNode.Y - classDefinition.CollisionBottom;
-        if (BotNavigationMovementValidator.TryBuildJumpTape(
-                world.Level,
-                classDefinition,
-                profile,
-                player.X,
-                sourceY,
-                nextNode.X,
-                targetY,
-                player.Team,
-                out tape,
-                out _)
-            && tape.Count > 0)
-        {
-            return true;
-        }
-
         return false;
     }
 
@@ -657,15 +470,18 @@ public sealed partial class ModernPracticeBotController
             && MathF.Abs(playerFeetY - destination.Y) <= ModernIntelReturnBlockedEdgeBypassDistanceY;
         var nearObjectiveFinish = MathF.Abs(player.X - destination.X) <= RouteGoalNodeSearchDistance
             && MathF.Abs(playerFeetY - destination.Y) <= RouteGoalNodeSearchDistance;
-        var objectiveDistance = DistanceBetween(player.X, playerFeetY, destination.X, destination.Y);
-        var lenientProgressChecks = player.IsCarryingIntel
-            || nearIntelReturnHome
-            || nearObjectiveFinish;
-        if (UpdateRouteEdgeDwell(memory, fromNodeId, nextNode.Id, objectiveDistance))
+        if (nearIntelReturnHome || nearObjectiveFinish)
         {
-            return true;
+            memory.RouteObjectiveBestDistance = MathF.Min(
+                memory.RouteObjectiveBestDistance,
+                DistanceBetween(player.X, playerFeetY, destination.X, destination.Y));
+            memory.RouteObjectiveNoProgressTicks = 0;
+            memory.RouteNoProgressTicks = 0;
+            return false;
         }
 
+        var lenientProgressChecks = nearIntelReturnHome
+            || nearObjectiveFinish;
         var progressTargetX = nextNode.X;
         var progressTargetY = nextNode.Y;
         var currentDistance = DistanceBetween(player.X, playerFeetY, progressTargetX, progressTargetY);
@@ -687,20 +503,6 @@ public sealed partial class ModernPracticeBotController
             memory.RouteNoProgressTicks += 1;
         }
 
-        if (memory.RouteNoProgressTicks >= RouteHardNoProgressTicksBeforeRecovery)
-        {
-            return true;
-        }
-
-        if (nearIntelReturnHome || nearObjectiveFinish)
-        {
-            memory.RouteObjectiveBestDistance = MathF.Min(
-                memory.RouteObjectiveBestDistance,
-                objectiveDistance);
-            memory.RouteObjectiveNoProgressTicks = 0;
-            return false;
-        }
-
         if (lenientProgressChecks)
         {
             // Near objective completion and partial-route execution can require
@@ -708,11 +510,12 @@ public sealed partial class ModernPracticeBotController
             // Keep edge progress checks, but avoid poisoning the graph with objective-distance stalls.
             memory.RouteObjectiveBestDistance = MathF.Min(
                 memory.RouteObjectiveBestDistance,
-                objectiveDistance);
+                DistanceBetween(player.X, playerFeetY, destination.X, destination.Y));
             memory.RouteObjectiveNoProgressTicks = 0;
         }
         else
         {
+            var objectiveDistance = DistanceBetween(player.X, playerFeetY, destination.X, destination.Y);
             if ((objectiveDistance + RouteObjectiveProgressImprovementDistance) < memory.RouteObjectiveBestDistance)
             {
                 memory.RouteObjectiveBestDistance = objectiveDistance;
@@ -732,49 +535,8 @@ public sealed partial class ModernPracticeBotController
                 && memory.RouteObjectiveNoProgressTicks >= RouteObjectiveNoProgressTicksBeforeReplan);
     }
 
-    private static bool UpdateRouteEdgeDwell(
-        BotMemory memory,
-        int fromNodeId,
-        int toNodeId,
-        float objectiveDistance)
-    {
-        if (memory.RouteDwellFromNodeId != fromNodeId
-            || memory.RouteDwellToNodeId != toNodeId)
-        {
-            memory.RouteDwellFromNodeId = fromNodeId;
-            memory.RouteDwellToNodeId = toNodeId;
-            memory.RouteDwellBestObjectiveDistance = objectiveDistance;
-            memory.RouteDwellTicks = 0;
-            return false;
-        }
-
-        if ((objectiveDistance + RouteEdgeDwellObjectiveProgressDistance) < memory.RouteDwellBestObjectiveDistance)
-        {
-            memory.RouteDwellBestObjectiveDistance = objectiveDistance;
-            memory.RouteDwellTicks = 0;
-            return false;
-        }
-
-        memory.RouteDwellTicks += 1;
-        return memory.RouteDwellTicks >= RouteEdgeHardDwellTicksBeforeRecovery;
-    }
-
     private static void BlockRouteEdge(BotMemory memory, int fromNodeId, int toNodeId)
     {
-        var key = GetRouteEdgeKey(fromNodeId, toNodeId);
-        memory.RouteBlockedEdgeTicksByKey ??= new Dictionary<long, int>();
-        memory.RouteBlockedEdgeFailureCountsByKey ??= new Dictionary<long, int>();
-        var previousFailures = memory.RouteBlockedEdgeFailureCountsByKey.TryGetValue(key, out var count)
-            ? count
-            : 0;
-        var failureCount = Math.Min(previousFailures + 1, 5);
-        memory.RouteBlockedEdgeFailureCountsByKey[key] = failureCount;
-        var blockTicks = failureCount == 1
-            ? RouteBlockedEdgeInitialTicks
-            : failureCount == 2
-                ? RouteBlockedEdgeRetryTicks
-                : RouteBlockedEdgeTicksDefault * (1 << (failureCount - 3));
-        memory.RouteBlockedEdgeTicksByKey[key] = blockTicks;
         memory.NavigationIssueLabel = $"route_edge_block:{fromNodeId}->{toNodeId}";
         ResetRouteProgress(memory);
     }
@@ -791,24 +553,6 @@ public sealed partial class ModernPracticeBotController
         return memory.RouteBlockedEdgeTicksByKey is not null
             && memory.RouteBlockedEdgeTicksByKey.TryGetValue(GetRouteEdgeKey(fromNodeId, toNodeId), out var ticks)
             && ticks > 0;
-    }
-
-    private static bool HasActiveRouteEdgeBlock(BotMemory memory)
-    {
-        if (memory.RouteBlockedEdgeTicksByKey is null)
-        {
-            return false;
-        }
-
-        foreach (var ticks in memory.RouteBlockedEdgeTicksByKey.Values)
-        {
-            if (ticks > 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static void DecayRouteBlockedEdges(BotMemory memory)
@@ -868,7 +612,6 @@ public sealed partial class ModernPracticeBotController
     private static void ResetRouteProgress(BotMemory memory)
     {
         ResetRouteEdgeProgress(memory);
-        ResetRouteDwell(memory);
         memory.RouteObjectiveBestDistance = float.PositiveInfinity;
         memory.RouteObjectiveNoProgressTicks = 0;
     }
@@ -879,14 +622,6 @@ public sealed partial class ModernPracticeBotController
         memory.RouteProgressToNodeId = -1;
         memory.RouteProgressBestDistance = float.PositiveInfinity;
         memory.RouteNoProgressTicks = 0;
-    }
-
-    private static void ResetRouteDwell(BotMemory memory)
-    {
-        memory.RouteDwellFromNodeId = -1;
-        memory.RouteDwellToNodeId = -1;
-        memory.RouteDwellBestObjectiveDistance = float.PositiveInfinity;
-        memory.RouteDwellTicks = 0;
     }
 
     private static void ResetModernNavigationState(BotMemory memory)
@@ -915,6 +650,8 @@ public sealed partial class ModernPracticeBotController
         memory.ModernStuckTicks = 0;
         memory.ModernDropGapTicks = 0;
         memory.ModernPreviousTargetDistance = float.PositiveInfinity;
+        ClearModernChainExecutor(memory);
+        memory.ModernChainExecutorCooldownTicks = 0;
         memory.HasModernClosestPointTarget = false;
         memory.ModernClosestPointTargetX = 0f;
         memory.ModernClosestPointTargetY = 0f;
@@ -1012,8 +749,7 @@ public sealed partial class ModernPracticeBotController
         BotMemory memory,
         double simulationTickSeconds,
         out int forcedHorizontalDirection,
-        out bool forceJump,
-        bool keepActiveAfterTapeEnd = false)
+        out bool forceJump)
     {
         forcedHorizontalDirection = 0;
         forceJump = false;
@@ -1034,29 +770,17 @@ public sealed partial class ModernPracticeBotController
         }
 
         var remainingSeconds = memory.ActiveTraversalFrameSecondsRemaining - Math.Max(0d, simulationTickSeconds);
-        if (remainingSeconds <= 0d)
+        while (remainingSeconds <= 0d)
         {
             memory.ActiveTraversalFrameIndex += 1;
             if (memory.ActiveTraversalTape is null
                 || memory.ActiveTraversalFrameIndex >= memory.ActiveTraversalTape.Count)
             {
-                if (keepActiveAfterTapeEnd)
-                {
-                    RememberTraversalCompletion(memory, memory.ActiveTraversalFromNodeId, memory.ActiveTraversalToNodeId, usedTape: true);
-                    memory.ActiveTraversalTape = Array.Empty<BotNavigationInputFrame>();
-                    memory.ActiveTraversalFrameIndex = 0;
-                    memory.ActiveTraversalFrameSecondsRemaining = 0d;
-                }
-                else
-                {
-                    ClearTraversalExecution(memory, rememberCompletion: true);
-                }
-
+                ClearTraversalExecution(memory, rememberCompletion: true);
                 return true;
             }
 
-            memory.ActiveTraversalFrameSecondsRemaining = GetFrameDurationSeconds(memory.ActiveTraversalTape[memory.ActiveTraversalFrameIndex]);
-            return true;
+            remainingSeconds += GetFrameDurationSeconds(memory.ActiveTraversalTape[memory.ActiveTraversalFrameIndex]);
         }
 
         memory.ActiveTraversalFrameSecondsRemaining = remainingSeconds;

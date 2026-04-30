@@ -28,29 +28,28 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float RoutePartialMinimumImprovementDistance = 18f;
     private const float RouteRepathDistance = 120f;
     private const float RouteStartNodeSearchDistance = 144f;
-    private const float RouteStartNodeMaximumFeetRise = 32f;
     private const float RouteGoalNodeSearchDistance = 220f;
-    private const float RuntimePhysicsLinkStartSearchDistance = 520f;
-    private const float RuntimePhysicsLinkGoalSearchDistance = 760f;
-    private const int RuntimePhysicsLinkMaximumCandidateNodes = 64;
-    private const int RuntimePhysicsRecoveryFromNodeId = -900001;
-    private const float RuntimePhysicsRecoveryCandidateDistance = 560f;
-    private const int RuntimePhysicsRecoveryBlockedTicks = 90;
-    private const int RuntimePhysicsRecoveryCoastTicks = 90;
     private const float RouteProgressImprovementDistance = 3f;
     private const float RouteObjectiveProgressImprovementDistance = 6f;
-    private const float RouteEdgeDwellObjectiveProgressDistance = RouteObjectiveProgressImprovementDistance;
     private const int RouteNoProgressTicksBeforeReplan = 600;
     private const int RouteObjectiveNoProgressTicksBeforeReplan = 1200;
-    private const int RouteHardNoProgressTicksBeforeRecovery = 180;
-    private const int RouteEdgeHardDwellTicksBeforeRecovery = 72;
-    private const int RouteBlockedEdgeInitialTicks = 180;
-    private const int RouteBlockedEdgeRetryTicks = 600;
     private const int RouteBlockedEdgeTicksDefault = 7200;
-    private const float ModernWeightedCurrentNodeSearchDistance = 220f;
     private const float ModernPointArrivalDistance = 34f;
+    private const float ModernChainExecutorArrivalDistanceX = 30f;
+    private const float ModernChainExecutorArrivalDistanceY = 28f;
+    private const float ModernChainExecutorSourceDistanceX = 52f;
+    private const float ModernChainExecutorSourceDistanceY = 30f;
+    private const float ModernChainExecutorMinimumRise = 20f;
+    private const float ModernChainExecutorMaximumRise = 120f;
+    private const float ModernChainExecutorMaximumRun = 220f;
+    private const int ModernChainExecutorDurationTicks = 90;
+    private const int ModernChainExecutorNoProgressTicks = 36;
+    private const int ModernChainExecutorCooldownTicks = 45;
     private const float ModernPointDirectDistance = 350f;
     private const float ModernPointVerticalDistance = 100f;
+    private const float ModernTerrainAssistedLiveRiseTolerance = 28f;
+    private const float ModernTerrainAssistedRampMaxSlope = 0.75f;
+    private const float ModernLiveVerticalShaftRejectRun = 48f;
     private const int ModernMaximumWeightDepth = 130;
     private const float ModernCandidatePreviousPointPenalty = 220f;
     private const float ModernCandidatePreviousNextBonus = 120f;
@@ -70,10 +69,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float ModernIntelReturnGraphReleaseDistanceX = 760f;
     private const float ModernIntelReturnGraphReleaseDistanceY = 760f;
     private const float ModernIntelReturnDirectArrivalDistance = 88f;
-    private const float ModernIntelReturnDirectAssistDistanceX = 240f;
-    private const float ModernIntelReturnDirectAssistDistanceY = 280f;
-    private const float ModernIntelReturnDirectAssistDistance = 300f;
-    private const float ModernIntelReturnDirectAssistShoulderReleaseHeight = 170f;
     private const float ModernIntelMarkerSize = 24f;
     private const int ModernIntelReturnDirectLatchTicks = 90;
     private const float ModernIntelReturnBlockedEdgeBypassDistanceX = 760f;
@@ -90,7 +85,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float ModernCaptureProgressRetainDistance = 220f;
     private const float ModernObstacleCellSize = 128f;
     private const float ModernDropReclassifyDistance = 18f;
-    private const float RouteJumpDropReclassifyDistance = 48f;
     private const int ModernJumpCooldownSourceTicks = 10;
     private const int ModernNoNextTicksBeforeForceNeighbor = 8;
     private const int ModernNoNextTicksBeforeReacquire = 24;
@@ -115,50 +109,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const float PreferredScoreRouteAcquireDistance = 320f;
     private const int PreferredScoreRouteMissBudget = 6;
     private const int PreferredScoreRouteMissCooldownTicksDefault = 240;
-    private const int ObjectiveAssistNoProgressTicks = 5;
-    private const int ObjectiveAssistStrongNoProgressTicks = 10;
-    private const int ObjectiveAssistActiveRouteNoProgressTicks = 90;
-    private const int ObjectiveAssistRouteRetryTicks = 24;
-    private const int ObjectiveAssistCooldownTicks = 2;
-    private const int ObjectiveAssistDirectTicks = 15;
-    private const int ObjectiveAssistCtfAttackDirectTicks = 60;
-    private const int ObjectiveAssistCtfAttackFinalDirectTicks = 300;
-    private const int ObjectiveAssistCaptureDirectTicks = 180;
-    private const int ObjectiveAssistDropTicks = 10;
-    private const float ObjectiveAssistProgressDistance = 12f;
-    private const float ObjectiveAssistHardProgressDistance = 48f;
-    private const int ObjectiveAssistHardNoProgressTicks = 180;
-    private const float ObjectiveAssistHorizontalImpulsePerTick = 2.2f;
-    private const float ObjectiveAssistVerticalImpulseScale = 0.85f;
-    private const float ObjectiveAssistCaptureVerticalImpulseScale = 1.35f;
-    private const float ObjectiveAssistTargetAboveDistance = 42f;
-    private const float ObjectiveAssistTargetBelowDistance = 96f;
-    private const float ObjectiveAssistCaptureMaxFallbackDistance = 6000f;
-    private const float ObjectiveAssistCtfAttackMaxFallbackDistance = 1200f;
-    private const float ObjectiveAssistCtfAttackFinalApproachDistance = 700f;
-    private const float ObjectiveAssistMaxFallbackDistance = 420f;
-    private const float ObjectiveAssistCarrierMaxFallbackDistance = 2200f;
-    private const float ObjectiveAssistCaptureRouteResumeDistance = 220f;
-    private const float ObjectiveAssistCtfAttackRouteResumeDistance = 520f;
-    private const float ObjectiveAssistCaptureStallDistance = 700f;
-    private const float ObjectiveAssistVerticalDetourHeight = 160f;
-    private const float ObjectiveAssistVerticalDetourHorizontalWindow = 420f;
-    private const float ObjectiveAssistVerticalDetourMaxHorizontalDistance = 560f;
-    private const float ObjectiveAssistVerticalDetourReturnDistance = 230f;
-    private const float ObjectiveAssistVerticalDetourReturnStopDistance = 90f;
-    private const float ObjectiveAssistVerticalDetourReleaseHeight = 190f;
-    private const float ObjectiveAssistActiveNavigationVerticalTolerance = 72f;
-    private const float ObjectiveAssistCapturePlatformTargetVerticalRange = 190f;
-    private const float ObjectiveAssistCapturePlatformTargetHorizontalRange = 260f;
-    private const float ObjectiveAssistVerticalShoulderHeight = 80f;
-    private const float ObjectiveAssistVerticalShoulderMaxHeight = 220f;
-    private const float ObjectiveAssistVerticalShoulderOffset = 210f;
-    private const float ObjectiveAssistVerticalShoulderDeadZone = 36f;
-    private const int ObjectiveAssistVerticalShoulderCommitTicks = 36;
-    private const int ObjectiveAssistVerticalDetourTicks = 30;
-    private const int ObjectiveAssistVerticalDetourReturnTicks = 10;
-    private const int ObjectiveAssistVerticalDetourMinCommitTicks = 10;
-    private const float ObjectiveAssistVerticalDetourSwitchDistance = 42f;
     private const float LowHealthRetreatFraction = 0.3f;
     private const float ModernEnemySeeDistance = 375f;
     private const int ModernSpyReactTimeSourceTicks = 35;
@@ -178,9 +128,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputsBuffer = new();
     private readonly Dictionary<byte, ControlledPlayerState> _controlledPlayersBuffer = new();
     private readonly Dictionary<string, BotNavigationRuntimeGraph> _navigationGraphsByKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ClientBotNavPoints> _clientBotNavPointsByGraphKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<BotNavigationInputFrame>?> _runtimeValidatedJumpTapeByKey = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _runtimeValidatedGroundWalkByKey = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _runtimePhysicsLinkGenerationKeys = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BotNavigationScoreRouteAsset?> _clientBotScoreRouteAssetsByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<PlayerClass, BotNavigationRuntimeGraph> _navigationGraphsByClassBuffer = new();
     private readonly object _navigationGraphLock = new();
@@ -203,16 +152,184 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
     public BotControllerDiagnosticsSnapshot LastDiagnostics { get; private set; } = BotControllerDiagnosticsSnapshot.Empty;
 
+    public static string DescribeModernEdgeProbe(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        int currentPointId,
+        int nextPointId,
+        int stuckTicks = 0)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(navPoints);
+
+        if (!navPoints.TryGetPoint(currentPointId, out var currentNode))
+        {
+            return $"missing_current_node:{currentPointId}";
+        }
+
+        if (!navPoints.TryGetPoint(nextPointId, out var nextNode))
+        {
+            return $"missing_next_node:{nextPointId}";
+        }
+
+        if (!navPoints.TryGetConnection(currentPointId, nextPointId, out var edge))
+        {
+            return $"missing_edge:{currentPointId}->{nextPointId}";
+        }
+
+        var target = (X: nextNode.X, Y: GetModernNodeFeetY(navPoints, nextNode));
+        var horizontal = MathF.Sign(target.X - player.X);
+        var horizontalInput = horizontal < 0f ? -1 : horizontal > 0f ? 1 : 0;
+        var feetY = player.Bottom;
+        var horizontalSpeed = player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+        var predicateHorizontalSpeed = GetModernBotPredicateHorizontalSpeed(world, player, horizontalInput, horizontalSpeed);
+        GetModernClassJumpProfile(player.ClassId, out var jumpRange, out var jumpHeight, out var jumpHeightTotal);
+
+        var canUseTraversal = CanUseModernTraversal(world, player, navPoints, currentNode, nextNode, edge);
+        var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
+        var nextFeetY = GetModernNodeFeetY(navPoints, nextNode);
+        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - nextFeetY);
+        var jumpDistanceNeeded = MathF.Abs(nextNode.X - currentNode.X);
+        var longJumpHasTerrain = LineHitsStaticSolid(world, currentNode.X, currentFeetY + 2f, nextNode.X, nextFeetY + 2f);
+        var liveLineHasTerrain = LineHitsStaticSolid(world, player.X, feetY + 2f, target.X, target.Y + 2f);
+        var liveAscendSupport = HasModernAscendingSupportTowardTarget(world, player, target, requiredRise: 18f);
+
+        var hasGroundContact = HasModernGroundContact(world, player);
+        var headClear = HasModernJumpHeadClear(world, player, jumpHeight);
+        var forwardFoot7 = horizontalInput != 0 && HasModernForwardFootBlock(world, player, horizontalInput, 7f);
+        var forwardFoot8 = horizontalInput != 0 && HasModernForwardFootBlock(world, player, horizontalInput, 8f);
+        var groundAhead15 = horizontalInput != 0 && HasModernGroundAhead(world, player, horizontalInput, 15f);
+        var waistAhead = horizontalInput != 0 && HasModernWaistObstacleAhead(world, player, horizontalInput);
+        var stairAhead = horizontalInput != 0 && IsModernStairStepAhead(world, player, horizontalInput, predicateHorizontalSpeed);
+        var obstacleJump = horizontalInput != 0 && TryShouldUseModernObstacleJump(
+            world,
+            player,
+            horizontalInput,
+            predicateHorizontalSpeed);
+        var interpJump = horizontalInput != 0 && TryShouldUseModernInterpolationJump(
+            world,
+            player,
+            currentNode.X,
+            currentFeetY,
+            nextNode.X,
+            nextFeetY,
+            player.X,
+            player.Y,
+            jumpHeight);
+        var lipJump = horizontalInput != 0 && TryShouldUseModernLipJump(world, player, target, target.Y, horizontalInput, stuckTicks, jumpHeight);
+        var slopeJump = horizontalInput != 0 && TryShouldUseModernSlopeJump(world, player, target, target.Y, horizontalInput, jumpRange, jumpHeight, jumpHeightTotal);
+        var hallJump = horizontalInput != 0 && TryShouldUseModernHallJump(world, player, target, target.Y, horizontalInput, jumpRange, jumpHeight);
+
+        var targetY = target.Y;
+        var holeUp = false;
+        var holeFlat = false;
+        if (horizontalInput != 0 && !groundAhead15)
+        {
+            var directJumpDistanceNeeded = MathF.Abs(target.X - player.X);
+            if (targetY < player.Y)
+            {
+                var directJumpRiseNeeded = feetY - targetY;
+                holeUp = directJumpRiseNeeded <= jumpHeightTotal
+                    && directJumpDistanceNeeded <= jumpRange
+                    && MathF.Sign(target.X - player.X) == horizontalInput
+                    && (MathF.Abs(horizontalSpeed) <= 0.25f || MathF.Sign(horizontalSpeed) == horizontalInput);
+            }
+            else
+            {
+                holeFlat = MathF.Abs(targetY - feetY) <= 18f
+                    && !LineHitsSolid(world, player, player.X + horizontalSpeed + (2f * horizontalInput), feetY, target.X - (3f * horizontalInput), targetY)
+                    && directJumpDistanceNeeded <= jumpRange
+                    && (MathF.Abs(horizontalSpeed) <= 0.25f || MathF.Sign(horizontalSpeed) == horizontalInput);
+            }
+        }
+
+        var jumpLength = predicateHorizontalSpeed * player.JumpStrength;
+        var platformJump = horizontalInput != 0
+            && LineHitsSolid(world, player, player.X + jumpLength, feetY - 18f, player.X + jumpLength, feetY - (jumpHeight + 4f))
+            && !PointHitsSolid(world, player, player.X + jumpLength, feetY - (jumpHeight + 12f))
+            && targetY < player.Y
+            && MathF.Abs(MathF.Sign(horizontalInput) - MathF.Sign(predicateHorizontalSpeed)) < 2f
+            && stairAhead;
+
+        return string.Join(
+            Environment.NewLine,
+            $"edge={currentPointId}->{nextPointId} class={player.ClassId} player=({player.X:0.0},{player.Y:0.0}) bottom={feetY:0.0} target=({target.X:0.0},{target.Y:0.0}) h={horizontalInput} hs={horizontalSpeed:0.00} phs={predicateHorizontalSpeed:0.00}",
+            $"graph current=({currentNode.X:0.0},{currentFeetY:0.0}) next=({nextNode.X:0.0},{nextFeetY:0.0}) canUse={canUseTraversal} riseNeeded={jumpRiseNeeded:0.0}/{jumpHeightTotal:0.0} runNeeded={jumpDistanceNeeded:0.0}/{jumpRange:0.0} longJumpTerrain={longJumpHasTerrain} liveLineTerrain={liveLineHasTerrain} liveAscendSupport={liveAscendSupport}",
+            $"collision ground={hasGroundContact} playerGrounded={player.IsGrounded} headClear={headClear} foot7={forwardFoot7} foot8={forwardFoot8} groundAhead15={groundAhead15} waistAhead={waistAhead} stairAhead={stairAhead}",
+            $"jumpPredicates obstacle={obstacleJump} interp={interpJump} lip(st{stuckTicks})={lipJump} slope={slopeJump} hall={hallJump} holeUp={holeUp} holeFlat={holeFlat} platform={platformJump}",
+            $"nojumpShape=g{hasGroundContact}:h{horizontalInput}:dx{target.X - player.X:0}:rise{feetY - targetY:0}:hs{horizontalSpeed:0.0}:st{stuckTicks}");
+    }
+
+    private static bool HasModernAscendingSupportTowardTarget(
+        SimulationWorld world,
+        PlayerEntity player,
+        (float X, float Y) target,
+        float requiredRise)
+    {
+        var dx = target.X - player.X;
+        var horizontal = MathF.Sign(dx);
+        if (horizontal == 0f)
+        {
+            return false;
+        }
+
+        var horizontalDistance = MathF.Abs(dx);
+        var sampleCount = Math.Clamp((int)(horizontalDistance / 24f), 2, 8);
+        var bestRise = 0f;
+        var previousSupportY = player.Bottom;
+        for (var sample = 1; sample <= sampleCount; sample += 1)
+        {
+            var x = player.X + (dx * sample / sampleCount);
+            if (!TryFindModernSupportY(world, player, x, player.Bottom - 96f, player.Bottom + 36f, out var supportY))
+            {
+                continue;
+            }
+
+            if (supportY < previousSupportY - 4f)
+            {
+                bestRise = MathF.Max(bestRise, player.Bottom - supportY);
+            }
+
+            previousSupportY = supportY;
+        }
+
+        return bestRise >= requiredRise;
+    }
+
+    private static bool TryFindModernSupportY(
+        SimulationWorld world,
+        PlayerEntity player,
+        float x,
+        float fromY,
+        float toY,
+        out float supportY)
+    {
+        var startY = MathF.Min(fromY, toY);
+        var endY = MathF.Max(fromY, toY);
+        for (var y = startY; y <= endY; y += 4f)
+        {
+            if (PointHitsStaticSolid(world, x, y))
+            {
+                supportY = y;
+                return true;
+            }
+        }
+
+        supportY = 0f;
+        return false;
+    }
+
     public void Reset()
     {
         _memoryBySlot.Clear();
         lock (_navigationGraphLock)
         {
             _navigationGraphsByKey.Clear();
+            _clientBotNavPointsByGraphKey.Clear();
             _clientBotScoreRouteAssetsByKey.Clear();
             _navigationGraphsByClassBuffer.Clear();
-            _runtimeValidatedJumpTapeByKey.Clear();
-            _runtimeValidatedGroundWalkByKey.Clear();
         }
         _modernSpyVisibleTicksByPlayerId.Clear();
         LastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
@@ -365,23 +482,18 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             medicBuddyTarget);
         var isSeekingCabinet = false;
         var destination = objectiveSelection.Destination;
-        UpdateObjectiveAssistProgress(player, objectiveSelection, memory);
-        var hasActiveRuntimeRecovery = memory.ActiveTraversalFromNodeId == RuntimePhysicsRecoveryFromNodeId
-            && memory.ActiveTraversalTape is not null;
-        var navigationDecision = !hasActiveRuntimeRecovery
-            && ShouldUseObjectiveAssistFallback(world, player, objectiveSelection, memory)
-            ? ResolveObjectiveAssistNavigationDecision(player, objectiveSelection, destination, memory)
-            : ResolveNavigationDecision(
-                world,
-                player,
-                controlledSlot.ClassId,
-                destination,
-                navigationGraph,
-                clientBotNavPoints: null,
-                memory,
-                timing,
-                allowModernDirectPath: false,
-                objectiveSelection);
+        var clientBotNavPoints = GetOrCreateClientBotNavPoints(navigationGraph, world.Level);
+        var navigationDecision = ResolveNavigationDecision(
+            world,
+            player,
+            controlledSlot.ClassId,
+            destination,
+            navigationGraph,
+            clientBotNavPoints,
+            memory,
+            timing,
+            allowModernDirectPath: objectiveSelection.AllowDirectPath,
+            objectiveSelection);
         var movementDestination = navigationDecision.MovementTarget;
         var enemyTarget = FindBestEnemyTarget(world, player, controlledSlot.Team, role, destination, allPlayers, memory, timing, useModernBehavior);
         var combatTarget = FindBestModernCombatTarget(world, player, controlledSlot.Team, allPlayers);
@@ -399,7 +511,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             hasVisibleEnemy,
             navigationDecision,
             navigationGraph,
-            clientBotNavPoints: null,
+            clientBotNavPoints,
             memory,
             timing);
         var jump = ResolveJump(
@@ -412,7 +524,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             hasVisibleEnemy,
             navigationDecision,
             navigationGraph,
-            clientBotNavPoints: null,
+            clientBotNavPoints,
             memory,
             timing);
         var firePrimary = ResolvePrimaryFire(world, player, combatTarget, healTarget, memory, useModernBehavior, isBeingHealed);
@@ -426,14 +538,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             fireSecondary);
         ApplyModernSoldierCloseRangeAdjustment(world, player, combatTarget, memory, firePrimary, timing, ref horizontal, ref jump);
         ApplyModernReloadDiscipline(player, memory, ref firePrimary, ref fireSecondary, ref fireSecondaryWeapon);
-        ApplyObjectiveNavigationAssist(world, player, objectiveSelection, memory, timing, ref horizontal, ref jump, ref navigationDecision);
         UpdateModernCombatMemory(player, memory);
         var buildSentry = ResolveBuildSentry(world, player, destination);
         var dropIntel = ResolveDropIntel(player, medicBuddyTarget);
-        var dropThroughPlatform = memory.ObjectiveAssistDropTicksRemaining > 0
-            || ShouldHoldRouteDropInput(player, navigationDecision);
 
-        CommitModernFrameState(useModernClientBotPath: false, memory);
+        CommitModernFrameState(useModernClientBotPath: clientBotNavPoints is not null, memory);
         memory.LastRequestedHorizontal = horizontal;
         _lastRequestedHorizontalForDiagnostics = horizontal;
         _lastMoveDebugForDiagnostics = memory.ModernMoveDebug;
@@ -456,7 +565,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             Left: horizontal < 0,
             Right: horizontal > 0,
             Up: jump,
-            Down: dropThroughPlatform,
+            Down: false,
             BuildSentry: buildSentry,
             DestroySentry: false,
             Taunt: false,
@@ -556,6 +665,20 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private BotNavigationRuntimeGraph? GetModernNavigationGraph(SimpleLevel level)
     {
         return GetOrCreateNavigationGraphFromGeneratedAsset(level, preferFreshModernGeneration: true);
+    }
+
+    private ClientBotNavPoints GetOrCreateClientBotNavPoints(BotNavigationRuntimeGraph navigationGraph, SimpleLevel level)
+    {
+        lock (_navigationGraphLock)
+        {
+            if (!_clientBotNavPointsByGraphKey.TryGetValue(navigationGraph.CacheKey, out var navPoints))
+            {
+                navPoints = ClientBotNavPoints.Build(navigationGraph.Asset, level);
+                _clientBotNavPointsByGraphKey[navigationGraph.CacheKey] = navPoints;
+            }
+
+            return navPoints;
+        }
     }
 
     private BotNavigationRuntimeGraph? GetOrCreateNavigationGraphFromGeneratedAsset(SimpleLevel level, bool preferFreshModernGeneration)
@@ -666,11 +789,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 Label: "intel_home_direct");
         }
 
-        if (TryContinueRuntimePhysicsRouteRecovery(player, navigationGraph, memory, timing.FixedDeltaSeconds, out var runtimeRecoveryDecision))
-        {
-            return runtimeRecoveryDecision;
-        }
-
         var playerFeet = GetModernPlayerFeetY(player);
         var hasStartNode = TryFindModernRouteStartNode(world, player, navigationGraph, destination, out var startNode);
 
@@ -686,34 +804,15 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         Func<BotNavigationEdge, bool> edgeFilter = edge => CanUseValidatedGraphRouteEdge(world, player, classId, navigationGraph, edge, memory);
-        var hasCurrentRouteNode = TryGetCurrentRouteNode(navigationGraph, memory, out var currentRouteNode);
-        var currentRouteDistanceExceeded = hasCurrentRouteNode
-            && DistanceSquared(player.X, playerFeet, currentRouteNode.X, currentRouteNode.Y) > RouteRepathDistance * RouteRepathDistance;
-        var canReanchorPartialRoute = player.IsCarryingIntel && currentRouteDistanceExceeded;
+        var hasCurrentRouteNode = TryGetCurrentRouteNode(navigationGraph, memory, out _);
         var holdCurrentGraphRoute = !player.IsGrounded
-            || (memory.RouteIsPartial && !canReanchorPartialRoute)
+            || memory.RouteIsPartial
             || memory.ActiveTraversalTape is not null;
         var deferRouteGoalRepath = holdCurrentGraphRoute
             && hasCurrentRouteNode
-            && ShouldDelayAirborneJumpChainHandoffForRoute(world, player, classId, objectiveSelection);
+            && ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection);
         if (!hasStartNode && !(holdCurrentGraphRoute && hasCurrentRouteNode))
         {
-            if ((player.IsCarryingIntel || HasActiveRouteEdgeBlock(memory))
-                && TryStartRuntimePhysicsRouteRecovery(
-                world,
-                player,
-                classId,
-                navigationGraph,
-                exactGoalNodeId,
-                destination,
-                edgeFilter,
-                memory,
-                timing.FixedDeltaSeconds,
-                out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
             ClearNavigationRoute(memory);
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "start-miss");
         }
@@ -723,28 +822,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
             || (!deferRouteGoalRepath && routeGoalChanged)
             || !hasCurrentRouteNode
-            || (!holdCurrentGraphRoute && currentRouteDistanceExceeded)
             || memory.RouteRefreshTicks <= 0;
         if (requiresRepath)
         {
             if (!hasStartNode)
             {
-                if ((player.IsCarryingIntel || HasActiveRouteEdgeBlock(memory))
-                    && TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-                {
-                    return startedRuntimeRecoveryDecision;
-                }
-
                 ClearNavigationRoute(memory);
                 return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "start-miss");
             }
@@ -753,56 +835,15 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 || memory.RouteNodeIds.Length <= 1
                 || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
                 || routeGoalChanged;
-            var routeBuilt = TryBuildValidatedRouteToDestination(
+            if (!TryBuildValidatedRouteToDestination(
                     navigationGraph,
                     startNode.Id,
                     exactGoalNodeId,
                     destination,
                     edgeFilter,
                     out var route,
-                    out var routeIsPartial);
-            if (!routeBuilt
-                && TryEnsureRuntimePhysicsLinksForRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    startNode.Id,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    edgeFilter,
-                    memory,
-                    out _))
+                    out var routeIsPartial))
             {
-                routeBuilt = TryBuildValidatedRouteToDestination(
-                    navigationGraph,
-                    startNode.Id,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    out route,
-                    out routeIsPartial);
-            }
-
-            if (!routeBuilt)
-            {
-                if (player.IsCarryingIntel
-                    && TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-                {
-                    return startedRuntimeRecoveryDecision;
-                }
-
                 ClearNavigationRoute(memory);
                 memory.NavigationGraphKey = navigationGraph.CacheKey;
                 memory.RouteGoalNodeId = exactGoalNodeId;
@@ -843,7 +884,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
         }
 
-        AdvanceRouteProgress(player, navigationGraph, memory, ShouldDelayAirborneJumpChainHandoffForRoute(world, player, classId, objectiveSelection));
+        AdvanceRouteProgress(player, navigationGraph, memory, ShouldDelayAirborneJumpChainHandoffForRoute(classId, objectiveSelection));
         if (!TryGetCurrentRouteNode(navigationGraph, memory, out var nextNode))
         {
             ClearNavigationRoute(memory);
@@ -857,7 +898,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, BotNavigationTraversalKind.Walk));
         }
 
-        if (!TryGetValidatedEdgeForExecution(world, player, classId, navigationGraph, memory, edge, destination, out var validatedEdge))
+        if (!TryGetValidatedEdgeForExecution(world, player, classId, navigationGraph, memory, edge, out var validatedEdge))
         {
             BlockRouteEdge(memory, previousNodeId, nextNode.Id);
             memory.NavigationGraphKey = navigationGraph.CacheKey;
@@ -865,23 +906,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             memory.RouteGoalX = destination.X;
             memory.RouteGoalY = destination.Y;
             memory.RouteRefreshTicks = Math.Max(1, timing.RouteRefreshTicks / 2);
-            if ((player.IsCarryingIntel || HasActiveRouteEdgeBlock(memory))
-                && TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    candidateEdge => (candidateEdge.FromNodeId != previousNodeId || candidateEdge.ToNodeId != nextNode.Id)
-                        && edgeFilter(candidateEdge),
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
             return new NavigationDecision(
                 destination,
                 HasRoute: false,
@@ -891,7 +915,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 Label: "route-replan");
         }
 
-        var executionEdge = validatedEdge;
+        TryGetValidatedEdgeForExecution(world, player, classId, navigationGraph, memory, edge, out var executionEdge);
 
         memory.CurrentPointId = previousNodeId;
         memory.NextPointId = nextNode.Id;
@@ -911,22 +935,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             memory.RouteGoalX = destination.X;
             memory.RouteGoalY = destination.Y;
             memory.RouteRefreshTicks = Math.Max(1, timing.RouteRefreshTicks / 2);
-            if (TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    candidateEdge => (candidateEdge.FromNodeId != previousNodeId || candidateEdge.ToNodeId != nextNode.Id)
-                        && edgeFilter(candidateEdge),
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
             return new NavigationDecision(
                 destination,
                 HasRoute: false,
@@ -1013,7 +1021,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         BotNavigationRuntimeGraph navigationGraph,
         BotMemory memory,
         BotNavigationEdge edge,
-        (float X, float Y) destination,
         out BotNavigationEdge validatedEdge)
     {
         validatedEdge = edge;
@@ -1022,87 +1029,45 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return true;
         }
 
-        if (ShouldTreatUntapedJumpAsStepWalk(navigationGraph, edge))
+        var requiresRuntimeProof = RequiresRuntimeJumpProof(world, player, navigationGraph, edge);
+        var routeEdgeFailureCount = memory.RouteBlockedEdgeFailureCountsByKey is not null
+            && memory.RouteBlockedEdgeFailureCountsByKey.TryGetValue(GetRouteEdgeKey(edge.FromNodeId, edge.ToNodeId), out var failureCount)
+                ? failureCount
+                : 0;
+        if (routeEdgeFailureCount <= 0 && !requiresRuntimeProof)
         {
-            validatedEdge = new BotNavigationEdge
-            {
-                FromNodeId = edge.FromNodeId,
-                ToNodeId = edge.ToNodeId,
-                Kind = BotNavigationTraversalKind.Walk,
-                Cost = edge.Cost,
-                InputTape = edge.InputTape,
-            };
             return true;
         }
 
-        if (navigationGraph.TryGetNode(edge.FromNodeId, out var fromNode)
-            && navigationGraph.TryGetNode(edge.ToNodeId, out var toNode)
-            && ShouldTreatUntapedJumpAsRouteDrop(fromNode, toNode, destination))
+        if (!TryGetRuntimeValidatedJumpTape(world, player, classId, navigationGraph, edge.FromNodeId, edge.ToNodeId, out var runtimeTape))
         {
-            validatedEdge = new BotNavigationEdge
-            {
-                FromNodeId = edge.FromNodeId,
-                ToNodeId = edge.ToNodeId,
-                Kind = BotNavigationTraversalKind.Drop,
-                Cost = edge.Cost,
-                InputTape = edge.InputTape,
-            };
-            return true;
-        }
-
-        if (!TryGetRuntimeValidatedJumpExecution(
-                world,
-                player,
-                classId,
-                navigationGraph,
-                edge.FromNodeId,
-                edge.ToNodeId,
-                out var runtimeTraversalKind,
-                out var runtimeTape))
-        {
-            if (player.IsGrounded
-                && navigationGraph.TryGetNode(edge.ToNodeId, out var currentTargetNode))
-            {
-                var classDefinition = BotNavigationClasses.GetDefinition(classId);
-                var profile = BotNavigationProfiles.GetProfileForClass(classId);
-                if (TryBuildRuntimePhysicsLinkEdgeFromPosition(
-                        world.Level,
-                        classDefinition,
-                        profile,
-                        player.Team,
-                        player.X,
-                        player.Y,
-                        currentTargetNode,
-                        out var currentStateEdge)
-                    && currentStateEdge.InputTape.Count > 0)
-                {
-                    validatedEdge = new BotNavigationEdge
-                    {
-                        FromNodeId = edge.FromNodeId,
-                        ToNodeId = edge.ToNodeId,
-                        Kind = currentStateEdge.Kind,
-                        Cost = edge.Cost,
-                        InputTape = currentStateEdge.InputTape,
-                    };
-                    return true;
-                }
-            }
-
             return false;
+        }
+
+        if (routeEdgeFailureCount <= 0)
+        {
+            return true;
+        }
+
+        if (!ShouldUseRuntimeValidatedJumpTape(player, navigationGraph, edge.FromNodeId, runtimeTape))
+        {
+            return true;
         }
 
         validatedEdge = new BotNavigationEdge
         {
             FromNodeId = edge.FromNodeId,
             ToNodeId = edge.ToNodeId,
-            Kind = runtimeTraversalKind,
+            Kind = edge.Kind,
             Cost = edge.Cost,
             InputTape = runtimeTape,
         };
         return true;
     }
 
-    private static bool ShouldTreatUntapedJumpAsStepWalk(
+    private static bool RequiresRuntimeJumpProof(
+        SimulationWorld world,
+        PlayerEntity player,
         BotNavigationRuntimeGraph navigationGraph,
         BotNavigationEdge edge)
     {
@@ -1112,32 +1077,69 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return false;
         }
 
-        return toNode.Y >= fromNode.Y - RouteWalkRecoveryFlatHeightDelta
-            && MathF.Abs(fromNode.Y - toNode.Y) <= RouteWalkArrivalFeetHeight
-            && MathF.Abs(fromNode.X - toNode.X) <= RouteWalkApproximateArrivalHeight * 2f;
-    }
-
-    private static bool ShouldDelayAirborneJumpChainHandoffForRoute(
-        SimulationWorld world,
-        PlayerEntity player,
-        PlayerClass classId,
-        ModernPathSelection objectiveSelection)
-    {
-        if (objectiveSelection.IsCaptureObjective)
-        {
-            return BotNavigationProfiles.GetProfileForClass(classId) != BotNavigationProfile.Light;
-        }
-
-        if (!IsObjectiveAssistCtfAttackObjective(world, player, objectiveSelection))
+        var fromFeetY = GetModernNodeFeetY(navigationGraph, fromNode);
+        var toFeetY = GetModernNodeFeetY(navigationGraph, toNode);
+        if (player.ClassId != PlayerClass.Scout
+            && LineHitsSolid(world, player, fromNode.X, fromFeetY + 2f, toNode.X, toFeetY + 2f))
         {
             return false;
         }
 
-        return DistanceBetween(
-            player.X,
-            GetModernPlayerFeetY(player),
-            objectiveSelection.Destination.X,
-            objectiveSelection.Destination.Y) <= ObjectiveAssistCtfAttackFinalApproachDistance;
+        return fromFeetY - toFeetY >= 64f;
+    }
+
+    private static bool ShouldDelayAirborneJumpChainHandoffForRoute(
+        PlayerClass classId,
+        ModernPathSelection objectiveSelection)
+    {
+        return objectiveSelection.IsCaptureObjective
+            && BotNavigationProfiles.GetProfileForClass(classId) != BotNavigationProfile.Light;
+    }
+
+    private static bool ShouldUseRuntimeValidatedJumpTape(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        int fromNodeId,
+        IReadOnlyList<BotNavigationInputFrame> runtimeTape)
+    {
+        if (runtimeTape.Count == 0)
+        {
+            return false;
+        }
+
+        if (!navigationGraph.TryGetNode(fromNodeId, out var sourceNode))
+        {
+            return false;
+        }
+
+        if (!HasReachedTraversalWindow(
+                player.X,
+                player.Bottom,
+                player.IsGrounded,
+                sourceNode.X,
+                sourceNode.Y,
+                TraversalStartDistance,
+                TraversalStartDistance,
+                requireGroundedArrival: true))
+        {
+            return true;
+        }
+
+        var preJumpTicks = 0;
+        for (var index = 0; index < runtimeTape.Count; index += 1)
+        {
+            var frame = runtimeTape[index];
+            if (frame.Up)
+            {
+                break;
+            }
+
+            preJumpTicks += frame.Ticks > 0
+                ? frame.Ticks
+                : Math.Max(1, (int)Math.Round(frame.DurationSeconds * SimulationConfig.DefaultTicksPerSecond));
+        }
+
+        return preJumpTicks <= 4;
     }
 
     private bool CanUseValidatedGraphRouteEdge(
@@ -1148,10 +1150,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         BotNavigationEdge edge,
         BotMemory memory)
     {
-        if ((!ShouldBypassIntelReturnRouteEdgeBlock(player, memory)
-                && IsRouteEdgeTemporarilyBlocked(memory, edge.FromNodeId, edge.ToNodeId))
-            || navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId)
-            || !navigationGraph.TryGetNode(edge.FromNodeId, out _)
+        if (!navigationGraph.TryGetNode(edge.FromNodeId, out _)
             || !navigationGraph.TryGetNode(edge.ToNodeId, out _))
         {
             return false;
@@ -1167,30 +1166,22 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return true;
         }
 
-        return !IsRuntimeValidatedJumpTapeKnownImpossible(navigationGraph, classId, player.Team, edge.FromNodeId, edge.ToNodeId);
+        return true;
     }
 
-    private bool TryGetRuntimeValidatedJumpExecution(
+    private bool TryGetRuntimeValidatedJumpTape(
         SimulationWorld world,
         PlayerEntity player,
         PlayerClass classId,
         BotNavigationRuntimeGraph navigationGraph,
         int fromNodeId,
         int toNodeId,
-        out BotNavigationTraversalKind traversalKind,
         out IReadOnlyList<BotNavigationInputFrame> tape)
     {
-        traversalKind = BotNavigationTraversalKind.Jump;
         tape = Array.Empty<BotNavigationInputFrame>();
         var cacheKey = BuildRuntimeValidatedJumpTapeKey(navigationGraph, classId, player.Team, fromNodeId, toNodeId);
         lock (_navigationGraphLock)
         {
-            if (_runtimeValidatedGroundWalkByKey.Contains(cacheKey))
-            {
-                traversalKind = BotNavigationTraversalKind.Walk;
-                return true;
-            }
-
             if (_runtimeValidatedJumpTapeByKey.TryGetValue(cacheKey, out var cachedTape))
             {
                 if (cachedTape is { Count: > 0 })
@@ -1218,7 +1209,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var profile = BotNavigationProfiles.GetProfileForClass(classId);
         var sourceY = fromNode.Y - classDefinition.CollisionBottom;
         var targetY = toNode.Y - classDefinition.CollisionBottom;
-        if (BotNavigationMovementValidator.TryBuildJumpTape(
+        if (!BotNavigationMovementValidator.TryBuildJumpTape(
                 world.Level,
                 classDefinition,
                 profile,
@@ -1229,44 +1220,23 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 player.Team,
                 out var generatedTape,
                 out _)
-            && generatedTape.Count > 0)
-        {
-            lock (_navigationGraphLock)
-            {
-                _runtimeValidatedJumpTapeByKey[cacheKey] = generatedTape;
-            }
-
-            tape = generatedTape;
-            return true;
-        }
-
-        if (BotNavigationMovementValidator.TryBuildGroundTape(
-                world.Level,
-                classDefinition,
-                fromNode.X,
-                sourceY,
-                toNode.X,
-                targetY,
-                player.Team,
-                out _,
-                out _))
+            || generatedTape.Count == 0)
         {
             lock (_navigationGraphLock)
             {
                 _runtimeValidatedJumpTapeByKey[cacheKey] = null;
-                _runtimeValidatedGroundWalkByKey.Add(cacheKey);
             }
 
-            traversalKind = BotNavigationTraversalKind.Walk;
-            return true;
+            return false;
         }
 
         lock (_navigationGraphLock)
         {
-            _runtimeValidatedJumpTapeByKey[cacheKey] = null;
+            _runtimeValidatedJumpTapeByKey[cacheKey] = generatedTape;
         }
 
-        return false;
+        tape = generatedTape;
+        return true;
     }
 
     private static string BuildRuntimeValidatedJumpTapeKey(
@@ -1277,536 +1247,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         int toNodeId)
     {
         return $"{navigationGraph.CacheKey}|{(int)classId}|{(int)team}|{fromNodeId}->{toNodeId}";
-    }
-
-    private bool IsRuntimeValidatedJumpTapeKnownImpossible(
-        BotNavigationRuntimeGraph navigationGraph,
-        PlayerClass classId,
-        PlayerTeam team,
-        int fromNodeId,
-        int toNodeId)
-    {
-        var cacheKey = BuildRuntimeValidatedJumpTapeKey(navigationGraph, classId, team, fromNodeId, toNodeId);
-        lock (_navigationGraphLock)
-        {
-            return !_runtimeValidatedGroundWalkByKey.Contains(cacheKey)
-                && _runtimeValidatedJumpTapeByKey.TryGetValue(cacheKey, out var cachedTape)
-                && cachedTape is null;
-        }
-    }
-
-    private bool TryEnsureRuntimePhysicsLinksForRouteRecovery(
-        SimulationWorld world,
-        PlayerEntity player,
-        PlayerClass classId,
-        BotNavigationRuntimeGraph navigationGraph,
-        int startNodeId,
-        int exactGoalNodeId,
-        (float X, float Y) destination,
-        Func<BotNavigationEdge, bool>? edgeFilter,
-        Func<BotNavigationEdge, bool>? fallbackEdgeFilter,
-        BotMemory memory,
-        out int addedCount)
-    {
-        addedCount = 0;
-        if (!navigationGraph.TryGetNode(startNodeId, out var startNode))
-        {
-            return false;
-        }
-
-        var failureStamp = memory.RouteBlockedEdgeFailureCountsByKey?.Count ?? 0;
-        var key = $"{navigationGraph.CacheKey}|{(int)classId}|{(int)player.Team}|{startNodeId}|{exactGoalNodeId}|{MathF.Round(destination.X / 16f)}:{MathF.Round(destination.Y / 16f)}|{failureStamp}";
-        lock (_navigationGraphLock)
-        {
-            if (!_runtimePhysicsLinkGenerationKeys.Add(key))
-            {
-                return false;
-            }
-        }
-
-        var classDefinition = BotNavigationClasses.GetDefinition(classId);
-        var profile = BotNavigationProfiles.GetProfileForClass(classId);
-        var envelope = BotNavigationMovementValidator.GetSearchEnvelope(profile, classDefinition);
-        var candidates = navigationGraph.Nodes
-            .Where(node => node.RequiresGroundSupport
-                && IsRuntimePhysicsLinkCandidateNode(node, startNode, destination, exactGoalNodeId))
-            .OrderBy(node => MathF.Min(
-                DistanceBetween(node.X, node.Y, startNode.X, startNode.Y),
-                DistanceBetween(node.X, node.Y, destination.X, destination.Y)))
-            .Take(RuntimePhysicsLinkMaximumCandidateNodes)
-            .ToArray();
-
-        for (var fromIndex = 0; fromIndex < candidates.Length; fromIndex += 1)
-        {
-            var fromNode = candidates[fromIndex];
-            for (var toIndex = 0; toIndex < candidates.Length; toIndex += 1)
-            {
-                var toNode = candidates[toIndex];
-                if (fromNode.Id == toNode.Id
-                    || navigationGraph.TryGetEdge(fromNode.Id, toNode.Id, out _)
-                    || navigationGraph.IsReverseOnlyTraversalBlocked(fromNode.Id, toNode.Id)
-                    || !IsRuntimePhysicsLinkCandidatePair(fromNode, toNode, envelope))
-                {
-                    continue;
-                }
-
-                if (!TryBuildRuntimePhysicsLinkEdge(
-                        world.Level,
-                        classDefinition,
-                        profile,
-                        player.Team,
-                        fromNode,
-                        toNode,
-                        out var runtimeEdge))
-                {
-                    continue;
-                }
-
-                if (navigationGraph.TryAddRuntimeEdge(runtimeEdge))
-                {
-                    addedCount += 1;
-                }
-            }
-        }
-
-        if (addedCount <= 0)
-        {
-            return false;
-        }
-
-        memory.NavigationIssueLabel = $"runtime_physics_links:{addedCount}";
-        return true;
-    }
-
-    private static bool IsRuntimePhysicsLinkCandidateNode(
-        BotNavigationNode node,
-        BotNavigationNode startNode,
-        (float X, float Y) destination,
-        int exactGoalNodeId)
-    {
-        if (node.Id == startNode.Id || node.Id == exactGoalNodeId)
-        {
-            return true;
-        }
-
-        return DistanceBetween(node.X, node.Y, startNode.X, startNode.Y) <= RuntimePhysicsLinkStartSearchDistance
-            || DistanceBetween(node.X, node.Y, destination.X, destination.Y) <= RuntimePhysicsLinkGoalSearchDistance;
-    }
-
-    private static bool IsRuntimePhysicsLinkCandidatePair(
-        BotNavigationNode fromNode,
-        BotNavigationNode toNode,
-        JumpSearchEnvelope envelope)
-    {
-        var horizontalDistance = MathF.Abs(toNode.X - fromNode.X);
-        if (horizontalDistance < 4f
-            || horizontalDistance > envelope.MaxHorizontalDistance + 48f)
-        {
-            return false;
-        }
-
-        var riseDistance = MathF.Max(0f, fromNode.Y - toNode.Y);
-        if (riseDistance > envelope.MaxRiseDistance + 24f)
-        {
-            return false;
-        }
-
-        var dropDistance = MathF.Max(0f, toNode.Y - fromNode.Y);
-        return dropDistance <= envelope.MaxDescentDistance + 48f;
-    }
-
-    private static bool TryBuildRuntimePhysicsLinkEdge(
-        SimpleLevel level,
-        CharacterClassDefinition classDefinition,
-        BotNavigationProfile profile,
-        PlayerTeam team,
-        BotNavigationNode fromNode,
-        BotNavigationNode toNode,
-        out BotNavigationEdge edge)
-    {
-        edge = default!;
-        var sourceY = fromNode.Y - classDefinition.CollisionBottom;
-        var targetY = toNode.Y - classDefinition.CollisionBottom;
-        var useGroundFirst = MathF.Abs(fromNode.Y - toNode.Y) <= RouteWalkArrivalFeetHeight;
-        if (useGroundFirst
-            && BotNavigationMovementValidator.TryBuildGroundTape(
-                level,
-                classDefinition,
-                fromNode.X,
-                sourceY,
-                toNode.X,
-                targetY,
-                team,
-                out var groundTape,
-                out var groundCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = fromNode.Id,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Walk,
-                Cost = groundCost,
-                InputTape = groundTape,
-            };
-            return true;
-        }
-
-        if (BotNavigationMovementValidator.TryBuildJumpTape(
-            level,
-            classDefinition,
-            profile,
-            fromNode.X,
-            sourceY,
-            toNode.X,
-            targetY,
-            team,
-            out var jumpTape,
-            out var jumpCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = fromNode.Id,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Jump,
-                Cost = jumpCost,
-                InputTape = jumpTape,
-            };
-            return true;
-        }
-
-        if (!useGroundFirst
-            && BotNavigationMovementValidator.TryBuildGroundTape(
-                level,
-                classDefinition,
-                fromNode.X,
-                sourceY,
-                toNode.X,
-                targetY,
-                team,
-                out groundTape,
-                out groundCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = fromNode.Id,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Walk,
-                Cost = groundCost,
-                InputTape = groundTape,
-            };
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryContinueRuntimePhysicsRouteRecovery(
-        PlayerEntity player,
-        BotNavigationRuntimeGraph navigationGraph,
-        BotMemory memory,
-        double simulationTickSeconds,
-        out NavigationDecision decision)
-    {
-        decision = default;
-        if (memory.ActiveTraversalFromNodeId != RuntimePhysicsRecoveryFromNodeId
-            || memory.ActiveTraversalTape is null
-            || !navigationGraph.TryGetNode(memory.ActiveTraversalToNodeId, out var targetNode))
-        {
-            return false;
-        }
-
-        if (BotNavigationMovementValidator.IsWithinTraversalLandingWindow(
-            player.X,
-            player.Bottom,
-            player.IsGrounded,
-            targetNode.X,
-            targetNode.Y,
-            requireGroundedArrival: false))
-        {
-            ClearTraversalExecution(memory, rememberCompletion: true);
-            if (memory.RuntimePhysicsRecoveryBlockedNodeId == targetNode.Id)
-            {
-                memory.RuntimePhysicsRecoveryBlockedNodeId = -1;
-                memory.RuntimePhysicsRecoveryBlockedTicks = 0;
-            }
-
-            SetModernClosestPointTarget(memory, targetNode.X, targetNode.Y);
-            decision = new NavigationDecision(
-                (targetNode.X, targetNode.Y),
-                HasRoute: true,
-                ForcedHorizontalDirection: 0,
-                ForceJump: false,
-                LocksMovement: false,
-                Label: "runtime-physics:land",
-                TraversalKind: BotNavigationTraversalKind.Walk,
-                UsesTraversalTape: true);
-            return true;
-        }
-
-        if (memory.ActiveTraversalTape.Count == 0)
-        {
-            if (player.IsGrounded || memory.ActiveTraversalFrameIndex >= RuntimePhysicsRecoveryCoastTicks)
-            {
-                memory.RuntimePhysicsRecoveryBlockedNodeId = targetNode.Id;
-                memory.RuntimePhysicsRecoveryBlockedTicks = RuntimePhysicsRecoveryBlockedTicks;
-                ClearTraversalExecution(memory);
-                return false;
-            }
-
-            memory.ActiveTraversalFrameIndex += 1;
-            SetModernClosestPointTarget(memory, targetNode.X, targetNode.Y);
-            memory.NavigationIssueLabel = "runtime_physics_recovery";
-            decision = new NavigationDecision(
-                (targetNode.X, targetNode.Y),
-                HasRoute: true,
-                ForcedHorizontalDirection: GetTraversalCommitDirection(player.X, targetNode.X),
-                ForceJump: false,
-                LocksMovement: true,
-                Label: "runtime-physics:coast",
-                TraversalKind: memory.ActiveTraversalKind,
-                UsesTraversalTape: true);
-            return true;
-        }
-
-        var targetNodeId = memory.ActiveTraversalToNodeId;
-        var traversalKind = memory.ActiveTraversalKind;
-        if (TryConsumeTraversalExecution(
-                memory,
-                simulationTickSeconds,
-                out var forcedHorizontalDirection,
-                out var forceJump,
-                keepActiveAfterTapeEnd: true))
-        {
-            if (memory.ActiveTraversalTape is null)
-            {
-                memory.RuntimePhysicsRecoveryBlockedNodeId = targetNodeId;
-                memory.RuntimePhysicsRecoveryBlockedTicks = RuntimePhysicsRecoveryBlockedTicks;
-            }
-
-            SetModernClosestPointTarget(memory, targetNode.X, targetNode.Y);
-            memory.NavigationIssueLabel = "runtime_physics_recovery";
-            decision = new NavigationDecision(
-                (targetNode.X, targetNode.Y),
-                HasRoute: true,
-                ForcedHorizontalDirection: forcedHorizontalDirection,
-                ForceJump: forceJump,
-                LocksMovement: true,
-                Label: "runtime-physics",
-                TraversalKind: traversalKind,
-                UsesTraversalTape: true);
-            return true;
-        }
-
-        ClearTraversalExecution(memory);
-        return false;
-    }
-
-    private static bool TryStartRuntimePhysicsRouteRecovery(
-        SimulationWorld world,
-        PlayerEntity player,
-        PlayerClass classId,
-        BotNavigationRuntimeGraph navigationGraph,
-        int exactGoalNodeId,
-        (float X, float Y) destination,
-        Func<BotNavigationEdge, bool>? routeFilter,
-        BotMemory memory,
-        double simulationTickSeconds,
-        out NavigationDecision decision)
-    {
-        decision = default;
-        if (!player.IsGrounded)
-        {
-            return false;
-        }
-
-        var classDefinition = BotNavigationClasses.GetDefinition(classId);
-        var profile = BotNavigationProfiles.GetProfileForClass(classId);
-        BotNavigationNode bestNode = default!;
-        BotNavigationEdge bestEdge = default!;
-        var bestScore = float.PositiveInfinity;
-
-        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
-        {
-            var candidate = navigationGraph.Nodes[index];
-            if (!candidate.RequiresGroundSupport
-                || (memory.RuntimePhysicsRecoveryBlockedTicks > 0
-                    && memory.RuntimePhysicsRecoveryBlockedNodeId == candidate.Id)
-                || DistanceBetween(player.X, GetModernPlayerFeetY(player), candidate.X, candidate.Y) > RuntimePhysicsRecoveryCandidateDistance
-                || !TryGetRuntimePhysicsRecoveryRouteScore(navigationGraph, candidate, exactGoalNodeId, destination, routeFilter, out var routeScore)
-                || !TryBuildRuntimePhysicsLinkEdgeFromPosition(
-                    world.Level,
-                    classDefinition,
-                    profile,
-                    player.Team,
-                    player.X,
-                    player.Y,
-                    candidate,
-                    out var recoveryEdge))
-            {
-                continue;
-            }
-
-            var playerDistance = DistanceBetween(player.X, GetModernPlayerFeetY(player), candidate.X, candidate.Y);
-            var score = routeScore + (playerDistance * 0.1f) + recoveryEdge.Cost;
-            if (score >= bestScore)
-            {
-                continue;
-            }
-
-            bestScore = score;
-            bestNode = candidate;
-            bestEdge = recoveryEdge;
-        }
-
-        if (!float.IsFinite(bestScore) || bestEdge.InputTape.Count == 0)
-        {
-            return false;
-        }
-
-        ClearNavigationRoute(memory);
-        BeginTraversalExecution(memory, RuntimePhysicsRecoveryFromNodeId, bestNode.Id, bestEdge.Kind, bestEdge.InputTape);
-        memory.NavigationIssueLabel = "runtime_physics_recovery";
-        return TryContinueRuntimePhysicsRouteRecovery(player, navigationGraph, memory, simulationTickSeconds, out decision);
-    }
-
-    private static bool TryGetRuntimePhysicsRecoveryRouteScore(
-        BotNavigationRuntimeGraph navigationGraph,
-        BotNavigationNode toNode,
-        int exactGoalNodeId,
-        (float X, float Y) destination,
-        Func<BotNavigationEdge, bool>? edgeFilter,
-        out float routeScore)
-    {
-        routeScore = float.PositiveInfinity;
-        if (toNode.Id == exactGoalNodeId)
-        {
-            routeScore = 0f;
-            return true;
-        }
-
-        if (exactGoalNodeId >= 0
-            && navigationGraph.FindRoute(toNode.Id, exactGoalNodeId, edgeFilter) is { Length: > 1 } exactRoute)
-        {
-            routeScore = GetRouteCost(navigationGraph, exactRoute) + DistanceBetween(toNode.X, toNode.Y, destination.X, destination.Y);
-            return true;
-        }
-
-        if (navigationGraph.TryFindRouteToGoalRadius(
-            toNode.Id,
-            destination.X,
-            destination.Y,
-            RouteGoalNodeSearchDistance,
-            edgeFilter,
-            out var route,
-            out _)
-            && route.Length > 1)
-        {
-            var routeEndpoint = navigationGraph.TryGetNode(route[^1], out var endpoint)
-                ? DistanceBetween(endpoint.X, endpoint.Y, destination.X, destination.Y)
-                : 0f;
-            routeScore = GetRouteCost(navigationGraph, route) + routeEndpoint;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static float GetRouteCost(BotNavigationRuntimeGraph navigationGraph, IReadOnlyList<int> routeNodeIds)
-    {
-        var cost = 0f;
-        for (var index = 1; index < routeNodeIds.Count; index += 1)
-        {
-            cost += navigationGraph.TryGetEdge(routeNodeIds[index - 1], routeNodeIds[index], out var edge)
-                ? MathF.Max(1f, edge.Cost)
-                : 1f;
-        }
-
-        return cost;
-    }
-
-    private static bool TryBuildRuntimePhysicsLinkEdgeFromPosition(
-        SimpleLevel level,
-        CharacterClassDefinition classDefinition,
-        BotNavigationProfile profile,
-        PlayerTeam team,
-        float sourceX,
-        float sourceY,
-        BotNavigationNode toNode,
-        out BotNavigationEdge edge)
-    {
-        edge = default!;
-        var targetY = toNode.Y - classDefinition.CollisionBottom;
-        var useGroundFirst = MathF.Abs((sourceY + classDefinition.CollisionBottom) - toNode.Y) <= RouteWalkArrivalFeetHeight;
-        if (useGroundFirst
-            && BotNavigationMovementValidator.TryBuildGroundTape(
-                level,
-                classDefinition,
-                sourceX,
-                sourceY,
-                toNode.X,
-                targetY,
-                team,
-                out var groundTape,
-                out var groundCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = RuntimePhysicsRecoveryFromNodeId,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Walk,
-                Cost = groundCost,
-                InputTape = groundTape,
-            };
-            return true;
-        }
-
-        if (BotNavigationMovementValidator.TryBuildJumpTape(
-            level,
-            classDefinition,
-            profile,
-            sourceX,
-            sourceY,
-            toNode.X,
-            targetY,
-            team,
-            out var jumpTape,
-            out var jumpCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = RuntimePhysicsRecoveryFromNodeId,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Jump,
-                Cost = jumpCost,
-                InputTape = jumpTape,
-            };
-            return true;
-        }
-
-        if (!useGroundFirst
-            && BotNavigationMovementValidator.TryBuildGroundTape(
-                level,
-                classDefinition,
-                sourceX,
-                sourceY,
-                toNode.X,
-                targetY,
-                team,
-                out groundTape,
-                out groundCost))
-        {
-            edge = new BotNavigationEdge
-            {
-                FromNodeId = RuntimePhysicsRecoveryFromNodeId,
-                ToNodeId = toNode.Id,
-                Kind = BotNavigationTraversalKind.Walk,
-                Cost = groundCost,
-                InputTape = groundTape,
-            };
-            return true;
-        }
-
-        return false;
     }
 
     private NavigationDecision ResolveNavigationDecision(
@@ -1828,1123 +1268,21 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return ResolveModernNavigationDecision(world, player, destination, clientBotNavPoints, memory, timing, allowModernDirectPath, objectiveSelection);
         }
 
-        var captureHoldState = ResolveModernCaptureHoldState(world, player, objectiveSelection, memory, timing.FixedDeltaSeconds);
-        if (captureHoldState.SuppressNavigation)
-        {
-            ClearTraversalExecution(memory);
-            ResetRouteProgress(memory);
-            SetModernClosestPointTarget(memory, captureHoldState.TargetX, captureHoldState.TargetY);
-            return new NavigationDecision(
-                (captureHoldState.TargetX, captureHoldState.TargetY),
-                HasRoute: true,
-                ForcedHorizontalDirection: 0,
-                ForceJump: false,
-                LocksMovement: false,
-                Label: "capture_zone_hold",
-                MovementTargetUsesFeetCoordinates: true,
-                CaptureHoldActive: true);
-        }
-
-        if (navigationGraph is null)
-        {
-            ClearNavigationRoute(memory);
-            return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
-        }
-
-        if (ShouldUseModernGraphIntelReturnFinishOverride(world, player, destination, memory))
-        {
-            ClearNavigationRoute(memory);
-            SetModernClosestPointTarget(memory, destination.X, destination.Y);
-            return new NavigationDecision(
-                destination,
-                HasRoute: false,
-                ForcedHorizontalDirection: 0,
-                ForceJump: false,
-                LocksMovement: false,
-                Label: "intel_home_direct");
-        }
-
-        if (TryContinueRuntimePhysicsRouteRecovery(player, navigationGraph, memory, timing.FixedDeltaSeconds, out var runtimeRecoveryDecision))
-        {
-            return runtimeRecoveryDecision;
-        }
-
-        var preferredScoreRouteActive = TryApplyPreferredScoreRoute(
-            world,
-            player,
-            classId,
-            navigationGraph,
-            objectiveSelection,
-            memory,
-            out var preferredScoreRouteEligible);
-        if (preferredScoreRouteActive)
-        {
-            ResetPreferredScoreRouteMissTracking(memory);
-        }
-
-        var playerFeet = GetModernPlayerFeetY(player);
-        var hasStartNode = TryFindModernRouteStartNode(world, player, navigationGraph, destination, out var startNode);
-
-        var hasExactGoalNode = TryFindModernRouteGoalNode(world, player, navigationGraph, destination, out var goalNode);
-        var exactGoalNodeId = hasExactGoalNode ? goalNode.Id : -1;
-        var goalMoved = destination.X != memory.RouteGoalX
-            || destination.Y != memory.RouteGoalY;
-        var routeGoalChanged = memory.RouteGoalNodeId != exactGoalNodeId
-            || goalMoved;
-        if (memory.RouteRefreshTicks > 0)
-        {
-            memory.RouteRefreshTicks -= 1;
-        }
-
-        Func<BotNavigationEdge, bool> edgeFilter = edge => CanUseUniversalGraphRouteEdge(player, classId, navigationGraph, edge, memory);
-        var hasCurrentRouteNode = TryGetCurrentRouteNode(navigationGraph, memory, out var currentRouteNode);
-        var hasCurrentRouteEdge = false;
-        BotNavigationEdge currentRouteEdge = default!;
-        if (hasCurrentRouteNode
-            && memory.RouteNodeIds is not null
-            && memory.RouteIndex > 0)
-        {
-            var currentRouteFromNodeId = memory.RouteNodeIds[Math.Max(0, memory.RouteIndex - 1)];
-            hasCurrentRouteEdge = navigationGraph.TryGetEdge(currentRouteFromNodeId, currentRouteNode.Id, out currentRouteEdge);
-        }
-
-        var currentRouteDistanceExceeded = hasCurrentRouteNode
-            && DistanceSquared(player.X, playerFeet, currentRouteNode.X, currentRouteNode.Y) > RouteRepathDistance * RouteRepathDistance;
-        var canReanchorPartialRoute = player.IsCarryingIntel && currentRouteDistanceExceeded;
-        var holdCurrentGraphRoute = !player.IsGrounded
-            || (memory.RouteIsPartial && !canReanchorPartialRoute)
-            || memory.ActiveTraversalTape is not null;
-        var deferRouteGoalRepath = holdCurrentGraphRoute
-            && hasCurrentRouteNode
-            && ShouldDelayAirborneJumpChainHandoffForRoute(world, player, classId, objectiveSelection);
-        if (!hasStartNode && !(holdCurrentGraphRoute && hasCurrentRouteNode))
-        {
-            if (player.IsCarryingIntel
-                && TryStartRuntimePhysicsRouteRecovery(
-                world,
-                player,
-                classId,
-                navigationGraph,
-                exactGoalNodeId,
-                destination,
-                edgeFilter,
-                memory,
-                timing.FixedDeltaSeconds,
-                out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
-            ClearNavigationRoute(memory);
-            return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "start-miss");
-        }
-
-        var requiresRepath = !preferredScoreRouteActive
-            && (memory.RouteNodeIds is null
-                || memory.RouteNodeIds.Length == 0
-                || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-                || (!deferRouteGoalRepath && routeGoalChanged)
-                || (!holdCurrentGraphRoute && memory.RouteRefreshTicks <= 0)
-                || !hasCurrentRouteNode
-                || (!holdCurrentGraphRoute && currentRouteDistanceExceeded));
-
-        if (requiresRepath)
-        {
-            if (!hasStartNode)
-            {
-                if ((player.IsCarryingIntel || HasActiveRouteEdgeBlock(memory))
-                    && TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-                {
-                    return startedRuntimeRecoveryDecision;
-                }
-
-                ClearNavigationRoute(memory);
-                return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "start-miss");
-            }
-
-            var resetObjectiveProgress = memory.RouteNodeIds is null
-                || memory.RouteNodeIds.Length == 0
-                || !string.Equals(memory.NavigationGraphKey, navigationGraph.CacheKey, StringComparison.Ordinal)
-                || routeGoalChanged;
-            var routeBuilt = TryBuildRouteToDestination(
-                    navigationGraph,
-                    startNode.Id,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    edge => CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, edge, memory),
-                    out var route,
-                    out var routeIsPartial);
-            if (!routeBuilt
-                && TryEnsureRuntimePhysicsLinksForRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    startNode.Id,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    edge => CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, edge, memory),
-                    memory,
-                    out _))
-            {
-                routeBuilt = TryBuildRouteToDestination(
-                    navigationGraph,
-                    startNode.Id,
-                    exactGoalNodeId,
-                    destination,
-                    edgeFilter,
-                    edge => CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, edge, memory),
-                    out route,
-                    out routeIsPartial);
-            }
-
-            if (!routeBuilt)
-            {
-                if (TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    edge => CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, edge, memory),
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-                {
-                    return startedRuntimeRecoveryDecision;
-                }
-
-                if (hasExactGoalNode && preferredScoreRouteEligible)
-                {
-                    RegisterPreferredScoreRouteMiss(memory);
-                }
-                ClearNavigationRoute(memory);
-                memory.NavigationGraphKey = navigationGraph.CacheKey;
-                memory.RouteGoalNodeId = exactGoalNodeId;
-                memory.RouteGoalX = destination.X;
-                memory.RouteGoalY = destination.Y;
-                memory.RouteRefreshTicks = routeIsPartial
-                    ? Math.Max(timing.RouteRefreshTicks, timing.RouteRefreshTicks * 4)
-                    : timing.RouteRefreshTicks;
-                return new NavigationDecision(
-                    destination,
-                    HasRoute: false,
-                    ForcedHorizontalDirection: 0,
-                    ForceJump: false,
-                    LocksMovement: false,
-                    Label: hasExactGoalNode ? "route-miss" : "goal-miss");
-            }
-
-            memory.NavigationGraphKey = navigationGraph.CacheKey;
-            memory.RouteNodeIds = route;
-            memory.RouteIndex = 1;
-            memory.RouteGoalNodeId = exactGoalNodeId;
-            memory.RouteGoalX = destination.X;
-            memory.RouteGoalY = destination.Y;
-            memory.RouteRefreshTicks = routeIsPartial
-                ? Math.Max(timing.RouteRefreshTicks, timing.RouteRefreshTicks * 4)
-                : timing.RouteRefreshTicks;
-            memory.RouteIsPartial = routeIsPartial;
-            ResetPreferredScoreRouteMissTracking(memory);
-            if (resetObjectiveProgress)
-            {
-                ResetRouteProgress(memory);
-            }
-            else
-            {
-                ResetRouteEdgeProgress(memory);
-            }
-        }
-
-        if (memory.RouteNodeIds is null || memory.RouteNodeIds.Length <= 1)
-        {
-            return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "direct");
-        }
-
-        AdvanceRouteProgress(player, navigationGraph, memory, ShouldDelayAirborneJumpChainHandoffForRoute(world, player, classId, objectiveSelection));
-        if (!TryGetCurrentRouteNode(navigationGraph, memory, out var nextNode))
-        {
-            ClearNavigationRoute(memory);
-            return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "route-end");
-        }
-
-        var previousNodeId = memory.RouteNodeIds[Math.Max(0, memory.RouteIndex - 1)];
-        if (!navigationGraph.TryGetEdge(previousNodeId, nextNode.Id, out var edge))
-        {
-            ClearTraversalExecution(memory);
-            return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: GetRouteLabel(memory, BotNavigationTraversalKind.Walk));
-        }
-
-        if (!TryGetValidatedEdgeForExecution(world, player, classId, navigationGraph, memory, edge, destination, out var executionEdge))
-        {
-            BlockRouteEdge(memory, previousNodeId, nextNode.Id);
-            memory.NavigationGraphKey = navigationGraph.CacheKey;
-            memory.RouteGoalNodeId = exactGoalNodeId;
-            memory.RouteGoalX = destination.X;
-            memory.RouteGoalY = destination.Y;
-            memory.RouteRefreshTicks = Math.Max(1, timing.RouteRefreshTicks / 2);
-            if (player.IsCarryingIntel
-                && TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    candidateEdge => (candidateEdge.FromNodeId != previousNodeId || candidateEdge.ToNodeId != nextNode.Id)
-                        && CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, candidateEdge, memory),
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
-            return new NavigationDecision(
-                destination,
-                HasRoute: false,
-                ForcedHorizontalDirection: 0,
-                ForceJump: false,
-                LocksMovement: false,
-                Label: "route-replan");
-        }
-
-        memory.CurrentPointId = previousNodeId;
-        memory.NextPointId = nextNode.Id;
-        memory.NextPoint2Id = memory.RouteNodeIds is not null && memory.RouteIndex + 1 < memory.RouteNodeIds.Length
-            ? memory.RouteNodeIds[memory.RouteIndex + 1]
-            : -1;
-        memory.NextPoint3Id = memory.RouteNodeIds is not null && memory.RouteIndex + 2 < memory.RouteNodeIds.Length
-            ? memory.RouteNodeIds[memory.RouteIndex + 2]
-            : -1;
-        SetModernClosestPointTarget(memory, nextNode.X, nextNode.Y);
-        UpdateModernTargetProgress(player, memory, (nextNode.X, nextNode.Y));
-        if (ShouldBlockCurrentRouteEdge(player, navigationGraph, memory, previousNodeId, nextNode, executionEdge, destination))
-        {
-            var blockedPreferredScoreRouteKey = memory.PreferredScoreRouteKey;
-            ClearNavigationRoute(memory);
-            var blockedByPreferredRoute = !string.IsNullOrWhiteSpace(blockedPreferredScoreRouteKey);
-            if (!string.IsNullOrWhiteSpace(blockedPreferredScoreRouteKey))
-            {
-                BlockPreferredScoreRoute(memory, blockedPreferredScoreRouteKey);
-            }
-            if (!blockedByPreferredRoute)
-            {
-                BlockRouteEdge(memory, previousNodeId, nextNode.Id);
-            }
-            memory.NavigationGraphKey = navigationGraph.CacheKey;
-            memory.RouteGoalNodeId = exactGoalNodeId;
-            memory.RouteGoalX = destination.X;
-            memory.RouteGoalY = destination.Y;
-            memory.RouteRefreshTicks = Math.Max(1, timing.RouteRefreshTicks / 2);
-            if (TryStartRuntimePhysicsRouteRecovery(
-                    world,
-                    player,
-                    classId,
-                    navigationGraph,
-                    exactGoalNodeId,
-                    destination,
-                    candidateEdge => (candidateEdge.FromNodeId != previousNodeId || candidateEdge.ToNodeId != nextNode.Id)
-                        && CanUseBroadFallbackGraphRouteEdge(player, classId, navigationGraph, candidateEdge, memory),
-                    memory,
-                    timing.FixedDeltaSeconds,
-                    out var startedRuntimeRecoveryDecision))
-            {
-                return startedRuntimeRecoveryDecision;
-            }
-
-            return new NavigationDecision(
-                destination,
-                HasRoute: false,
-                ForcedHorizontalDirection: 0,
-                ForceJump: false,
-                LocksMovement: false,
-                Label: "route-replan");
-        }
-
-        if (TryResolveTraversalDecision(
-                world,
-                player,
-                destination,
-                navigationGraph,
-                memory,
-                previousNodeId,
-                nextNode,
-                executionEdge,
-                timing.FixedDeltaSeconds,
-                out var traversalDecision))
-        {
-            return traversalDecision;
-        }
-
-        var forceWalkRecoveryJump = ShouldForceWalkRouteRecoveryJump(player, navigationGraph, previousNodeId, nextNode, executionEdge);
-        return new NavigationDecision((nextNode.X, nextNode.Y), HasRoute: true, ForcedHorizontalDirection: 0, ForceJump: forceWalkRecoveryJump, LocksMovement: false, Label: GetRouteLabel(memory, executionEdge.Kind), TraversalKind: executionEdge.Kind);
-    }
-
-    private static void UpdateObjectiveAssistProgress(
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection,
-        BotMemory memory)
-    {
-        if (!IsObjectiveAssistEligible(objectiveSelection))
-        {
-            ResetObjectiveAssist(memory);
-            return;
-        }
-
-        var destination = objectiveSelection.Destination;
-        var objectiveDistance = DistanceBetween(player.X, GetModernPlayerFeetY(player), destination.X, destination.Y);
-        var goalChangeTolerance = objectiveSelection.IsCaptureObjective
-            ? ObjectiveAssistActiveNavigationVerticalTolerance
-            : 0.5f;
-        if (MathF.Abs(memory.ObjectiveAssistGoalX - destination.X) > goalChangeTolerance
-            || MathF.Abs(memory.ObjectiveAssistGoalY - destination.Y) > goalChangeTolerance)
-        {
-            memory.ObjectiveAssistGoalX = destination.X;
-            memory.ObjectiveAssistGoalY = destination.Y;
-            memory.ObjectiveAssistBestDistance = objectiveDistance;
-            memory.ObjectiveAssistNoProgressTicks = 0;
-            memory.ObjectiveAssistDwellBestDistance = objectiveDistance;
-            memory.ObjectiveAssistDwellTicks = 0;
-            memory.ObjectiveAssistDirectTicksRemaining = 0;
-            memory.ObjectiveAssistRouteRetryTicksRemaining = 0;
-            memory.RouteNoProgressTicks = 0;
-            memory.RouteObjectiveNoProgressTicks = 0;
-            memory.ObjectiveAssistDetourDirection = 0;
-            memory.ObjectiveAssistDetourTicksRemaining = 0;
-            memory.ObjectiveAssistDetourReturnTicksRemaining = 0;
-            memory.ObjectiveAssistDetourBestDistance = float.PositiveInfinity;
-            memory.ObjectiveAssistShoulderSide = 0;
-            memory.ObjectiveAssistShoulderCommitTicksRemaining = 0;
-            return;
-        }
-
-        if ((objectiveDistance + ObjectiveAssistHardProgressDistance) < memory.ObjectiveAssistDwellBestDistance)
-        {
-            memory.ObjectiveAssistDwellBestDistance = objectiveDistance;
-            memory.ObjectiveAssistDwellTicks = 0;
-        }
-        else
-        {
-            memory.ObjectiveAssistDwellTicks += 1;
-        }
-
-        if ((objectiveDistance + ObjectiveAssistProgressDistance) < memory.ObjectiveAssistBestDistance)
-        {
-            memory.ObjectiveAssistBestDistance = objectiveDistance;
-            memory.ObjectiveAssistNoProgressTicks = 0;
-            return;
-        }
-
-        memory.ObjectiveAssistNoProgressTicks += 1;
-    }
-
-    private static bool ShouldUseObjectiveAssistFallback(
-        SimulationWorld world,
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection,
-        BotMemory memory)
-    {
-        var playerFeetY = GetModernPlayerFeetY(player);
-        var objectiveDistance = DistanceBetween(
-            player.X,
-            playerFeetY,
-            objectiveSelection.Destination.X,
-            objectiveSelection.Destination.Y);
-        if (!IsObjectiveAssistEligible(objectiveSelection)
-            || objectiveDistance <= ObjectiveArrivalDistance)
-        {
-            return false;
-        }
-
-        var isCtfAttackObjective = IsObjectiveAssistCtfAttackObjective(world, player, objectiveSelection);
-        var maxFallbackDistance = objectiveSelection.IsCaptureObjective
-            ? ObjectiveAssistCaptureMaxFallbackDistance
-            : isCtfAttackObjective
-                ? ObjectiveAssistCtfAttackMaxFallbackDistance
-            : player.IsCarryingIntel
-                ? ObjectiveAssistCarrierMaxFallbackDistance
-                : ObjectiveAssistMaxFallbackDistance;
-        if (objectiveDistance > maxFallbackDistance)
-        {
-            return false;
-        }
-
-        var direction = GetMoveDirection(objectiveSelection.Destination.X - player.X, RouteMovementDeadZone);
-        var directBlocked = direction != 0 && WouldMoveIntoObstacle(world, player, direction);
-        var objectiveIsBelow = objectiveSelection.Destination.Y > playerFeetY + ObjectiveAssistTargetBelowDistance;
-        var objectiveIsAbove = objectiveSelection.Destination.Y < playerFeetY - ObjectiveAssistTargetAboveDistance;
-        if (player.IsCarryingIntel
-            && objectiveDistance > ObjectiveAssistMaxFallbackDistance
-            && directBlocked)
-        {
-            return false;
-        }
-
-        var activeNavigation = HasObjectiveAssistActiveNavigation(player, memory);
-        var routeEdgeBlocked = memory.NavigationIssueLabel.StartsWith("route_edge_block:", StringComparison.Ordinal);
-        var routeNoProgressTicks = activeNavigation
-            ? ObjectiveAssistActiveRouteNoProgressTicks
-            : ObjectiveAssistStrongNoProgressTicks;
-        var nearCaptureStallPocket = !objectiveSelection.IsCaptureObjective
-            || objectiveDistance <= ObjectiveAssistCaptureStallDistance;
-        var routeObjectiveStalled = !activeNavigation
-            && memory.RouteObjectiveNoProgressTicks >= routeNoProgressTicks
-            && nearCaptureStallPocket;
-        var routeStalled = memory.RouteNoProgressTicks >= routeNoProgressTicks
-            || routeObjectiveStalled
-            || routeEdgeBlocked;
-        var objectiveStalled = objectiveSelection.IsCaptureObjective
-            && nearCaptureStallPocket
-            && memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistActiveRouteNoProgressTicks;
-        var objectiveHorizontalDistance = MathF.Abs(player.X - objectiveSelection.Destination.X);
-        var needsUnguidedVerticalAssist = !activeNavigation
-            && objectiveSelection.IsCaptureObjective
-            && memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistStrongNoProgressTicks
-            && objectiveHorizontalDistance <= ObjectiveAssistVerticalDetourMaxHorizontalDistance
-            && GetModernPlayerFeetY(player) - objectiveSelection.Destination.Y > ObjectiveAssistTargetAboveDistance;
-        if (memory.ObjectiveAssistDirectTicksRemaining > 0)
-        {
-            if (isCtfAttackObjective && directBlocked && !objectiveIsBelow)
-            {
-                memory.ObjectiveAssistDirectTicksRemaining = 0;
-                memory.ObjectiveAssistRouteRetryTicksRemaining = ObjectiveAssistRouteRetryTicks;
-                return false;
-            }
-
-            var canResumeActiveNavigation = objectiveSelection.IsCaptureObjective
-                ? objectiveDistance <= ObjectiveAssistCaptureRouteResumeDistance
-                : isCtfAttackObjective
-                    ? objectiveDistance <= ObjectiveAssistCtfAttackRouteResumeDistance
-                    : true;
-            if (activeNavigation && canResumeActiveNavigation && !routeStalled && !directBlocked)
-            {
-                memory.ObjectiveAssistDirectTicksRemaining = 0;
-                memory.ObjectiveAssistRouteRetryTicksRemaining = ObjectiveAssistRouteRetryTicks;
-                return false;
-            }
-
-            return true;
-        }
-
-        if (memory.ObjectiveAssistRouteRetryTicksRemaining > 0 && !routeEdgeBlocked && !needsUnguidedVerticalAssist)
-        {
-            return false;
-        }
-
-        var shouldUseFallback = routeStalled
-            || objectiveStalled
-            || needsUnguidedVerticalAssist
-            || (!activeNavigation && memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistNoProgressTicks);
-
-        if (!shouldUseFallback && !activeNavigation)
-        {
-            shouldUseFallback = directBlocked
-                && !isCtfAttackObjective
-                && memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistNoProgressTicks / 2;
-        }
-
-        var shouldDeferCtfAttackPathToRoute = isCtfAttackObjective
-            && ((directBlocked && !objectiveIsBelow) || objectiveIsAbove);
-        if (shouldUseFallback && shouldDeferCtfAttackPathToRoute)
-        {
-            memory.ObjectiveAssistDirectTicksRemaining = 0;
-            memory.ObjectiveAssistRouteRetryTicksRemaining = Math.Max(
-                memory.ObjectiveAssistRouteRetryTicksRemaining,
-                ObjectiveAssistRouteRetryTicks);
-            return false;
-        }
-
-        if (shouldUseFallback)
-        {
-            var directTicks = objectiveSelection.IsCaptureObjective
-                ? ObjectiveAssistCaptureDirectTicks
-                : isCtfAttackObjective
-                    ? objectiveDistance <= ObjectiveAssistCtfAttackFinalApproachDistance
-                        ? ObjectiveAssistCtfAttackFinalDirectTicks
-                        : ObjectiveAssistCtfAttackDirectTicks
-                    : ObjectiveAssistDirectTicks;
-            memory.ObjectiveAssistDirectTicksRemaining = Math.Max(
-                memory.ObjectiveAssistDirectTicksRemaining,
-                directTicks);
-            memory.ObjectiveAssistRouteRetryTicksRemaining = Math.Max(
-                memory.ObjectiveAssistRouteRetryTicksRemaining,
-                directTicks + ObjectiveAssistRouteRetryTicks);
-        }
-
-        return shouldUseFallback;
-    }
-
-    private static bool HasObjectiveAssistActiveNavigation(PlayerEntity player, BotMemory memory)
-    {
-        if (memory.CurrentPointId < 0)
-        {
-            return false;
-        }
-
-        if (memory.NextPointId >= 0 || memory.NextPoint2Id >= 0)
-        {
-            return true;
-        }
-
-        if (memory.RouteNodeIds is { Length: > 1 }
-            && memory.RouteIndex > 0
-            && memory.RouteIndex < memory.RouteNodeIds.Length)
-        {
-            return true;
-        }
-
-        return !memory.HasModernClosestPointTarget
-            || MathF.Abs(GetModernPlayerFeetY(player) - memory.ModernClosestPointTargetY) <= ObjectiveAssistActiveNavigationVerticalTolerance;
-    }
-
-    private static NavigationDecision ResolveObjectiveAssistNavigationDecision(
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection,
-        (float X, float Y) destination,
-        BotMemory memory)
-    {
-        var assistTarget = ResolveObjectiveAssistMovementTarget(player, objectiveSelection, destination, memory);
+        _ = world;
+        _ = player;
+        _ = classId;
+        _ = navigationGraph;
+        _ = timing;
+        _ = objectiveSelection;
         ClearNavigationRoute(memory);
-        SetModernClosestPointTarget(memory, assistTarget.X, assistTarget.Y);
-        memory.RouteGoalX = assistTarget.X;
-        memory.RouteGoalY = assistTarget.Y;
-        memory.NavigationIssueLabel = "objective_assist_direct";
-        var direction = GetMoveDirection(assistTarget.X - player.X, RouteMovementDeadZone);
+        SetModernClosestPointTarget(memory, destination.X, destination.Y);
         return new NavigationDecision(
-            assistTarget,
+            destination,
             HasRoute: false,
-            ForcedHorizontalDirection: direction,
+            ForcedHorizontalDirection: 0,
             ForceJump: false,
             LocksMovement: false,
-            Label: "assist:direct");
-    }
-
-    private static void ApplyObjectiveNavigationAssist(
-        SimulationWorld world,
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection,
-        BotMemory memory,
-        BotTimingProfile timing,
-        ref int horizontal,
-        ref bool jump,
-        ref NavigationDecision navigationDecision)
-    {
-        if (!IsObjectiveAssistEligible(objectiveSelection))
-        {
-            return;
-        }
-
-        if (navigationDecision.LocksMovement && navigationDecision.HasRoute)
-        {
-            return;
-        }
-
-        var destination = objectiveSelection.Destination;
-        var assistTarget = ResolveObjectiveAssistMovementTarget(player, objectiveSelection, destination, memory);
-        var playerFeetY = GetModernPlayerFeetY(player);
-        var objectiveDistance = DistanceBetween(player.X, playerFeetY, destination.X, destination.Y);
-        if (objectiveDistance <= ObjectiveArrivalDistance)
-        {
-            return;
-        }
-
-        var assistFallback = ShouldUseObjectiveAssistFallback(world, player, objectiveSelection, memory);
-        if (!assistFallback)
-        {
-            return;
-        }
-
-        var direction = GetMoveDirection(assistTarget.X - player.X, RouteMovementDeadZone);
-        if (direction != 0)
-        {
-            horizontal = direction;
-        }
-
-        var targetAbove = assistTarget.Y < playerFeetY - ObjectiveAssistTargetAboveDistance;
-        var targetBelow = assistTarget.Y > playerFeetY + ObjectiveAssistTargetBelowDistance;
-        var hasActiveVerticalDetour = memory.ObjectiveAssistDetourDirection != 0
-            && memory.ObjectiveAssistDetourTicksRemaining > 0;
-        var verticalDetourDirection = 0;
-        var isVerticalDetour = hasActiveVerticalDetour
-            && TryResolveObjectiveVerticalDetour(world, player, assistTarget, memory, out verticalDetourDirection);
-        var shoulderDirection = 0;
-        var isShoulderApproach = !isVerticalDetour
-            && TryResolveObjectiveShoulderDirection(world, player, assistTarget, memory, out shoulderDirection);
-        if (isShoulderApproach)
-        {
-            horizontal = shoulderDirection;
-            targetBelow = false;
-        }
-
-        if (!isVerticalDetour && !isShoulderApproach)
-        {
-            isVerticalDetour = TryResolveObjectiveVerticalDetour(world, player, assistTarget, memory, out verticalDetourDirection);
-        }
-
-        if (isVerticalDetour)
-        {
-            horizontal = verticalDetourDirection;
-            targetBelow = false;
-        }
-
-        var blockedAhead = horizontal != 0 && WouldMoveIntoObstacle(world, player, horizontal);
-        if (blockedAhead && targetAbove && horizontal != 0)
-        {
-            var escapeDirection = -horizontal;
-            if (!WouldMoveIntoObstacle(world, player, escapeDirection))
-            {
-                horizontal = escapeDirection;
-                blockedAhead = false;
-                isShoulderApproach = false;
-                isVerticalDetour = true;
-                memory.ObjectiveAssistDetourDirection = escapeDirection;
-                memory.ObjectiveAssistDetourTicksRemaining = Math.Max(
-                    memory.ObjectiveAssistDetourTicksRemaining,
-                    ObjectiveAssistVerticalDetourTicks);
-                memory.ObjectiveAssistDetourBestDistance = Math.Min(
-                    memory.ObjectiveAssistDetourBestDistance,
-                    objectiveDistance);
-            }
-        }
-
-        if (targetAbove
-            && horizontal != 0
-            && memory.ObjectiveAssistDwellTicks >= ObjectiveAssistHardNoProgressTicks)
-        {
-            var escapeDirection = -horizontal;
-            if (!WouldMoveIntoObstacle(world, player, escapeDirection))
-            {
-                horizontal = escapeDirection;
-                blockedAhead = false;
-                isShoulderApproach = false;
-                isVerticalDetour = true;
-                memory.ObjectiveAssistDetourDirection = escapeDirection;
-                memory.ObjectiveAssistDetourTicksRemaining = Math.Max(
-                    memory.ObjectiveAssistDetourTicksRemaining,
-                    ObjectiveAssistVerticalDetourTicks);
-                memory.ObjectiveAssistDetourBestDistance = objectiveDistance;
-                memory.ObjectiveAssistDwellBestDistance = objectiveDistance;
-                memory.ObjectiveAssistDwellTicks = 0;
-            }
-        }
-
-        var verticalDetourCommitted = memory.ObjectiveAssistDetourTicksRemaining
-            <= ObjectiveAssistVerticalDetourTicks - ObjectiveAssistVerticalDetourMinCommitTicks;
-        if (isVerticalDetour
-            && verticalDetourCommitted
-            && ShouldReleaseObjectiveVerticalDetour(player, assistTarget, horizontal, blockedAhead))
-        {
-            memory.ObjectiveAssistDetourDirection = 0;
-            memory.ObjectiveAssistDetourTicksRemaining = 0;
-            memory.ObjectiveAssistDetourReturnTicksRemaining = ObjectiveAssistVerticalDetourReturnTicks;
-            memory.ObjectiveAssistDetourBestDistance = float.PositiveInfinity;
-            isVerticalDetour = false;
-            var returnDirection = GetMoveDirection(assistTarget.X - player.X, RouteMovementDeadZone);
-            if (returnDirection != 0)
-            {
-                horizontal = returnDirection;
-            }
-
-            blockedAhead = horizontal != 0 && WouldMoveIntoObstacle(world, player, horizontal);
-        }
-
-        var horizontalSpeed = player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
-        var shouldDetourBlockedDrop = targetBelow
-            && blockedAhead
-            && horizontal != 0
-            && (MathF.Abs(horizontalSpeed) < 1.2f
-                || MathF.Sign(horizontalSpeed) != horizontal
-                || memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistStrongNoProgressTicks);
-        if (shouldDetourBlockedDrop)
-        {
-            var escapeDirection = memory.ObjectiveAssistDetourDirection != 0
-                && memory.ObjectiveAssistDetourTicksRemaining > 0
-                    ? memory.ObjectiveAssistDetourDirection
-                    : -horizontal;
-            if (!WouldMoveIntoObstacle(world, player, escapeDirection))
-            {
-                horizontal = escapeDirection;
-                blockedAhead = false;
-                isShoulderApproach = false;
-                isVerticalDetour = true;
-                memory.ObjectiveAssistDetourDirection = escapeDirection;
-                memory.ObjectiveAssistDetourTicksRemaining = Math.Max(
-                    memory.ObjectiveAssistDetourTicksRemaining,
-                    ObjectiveAssistVerticalDetourTicks);
-                memory.ObjectiveAssistDetourBestDistance = Math.Min(
-                    memory.ObjectiveAssistDetourBestDistance,
-                    objectiveDistance);
-            }
-            else
-            {
-                horizontal = 0;
-            }
-        }
-
-        var strongAssist = memory.ObjectiveAssistNoProgressTicks >= ObjectiveAssistStrongNoProgressTicks
-            || memory.RouteNoProgressTicks >= ObjectiveAssistStrongNoProgressTicks
-            || memory.RouteObjectiveNoProgressTicks >= ObjectiveAssistStrongNoProgressTicks;
-
-        if (targetBelow && player.IsGrounded)
-        {
-            memory.ObjectiveAssistDropTicksRemaining = ObjectiveAssistDropTicks;
-            memory.NavigationIssueLabel = blockedAhead
-                ? "objective_assist_drop_blocked"
-                : "objective_assist_drop";
-            navigationDecision = navigationDecision with { Label = "assist:drop" };
-            return;
-        }
-
-        if (targetBelow)
-        {
-            return;
-        }
-
-        if (!blockedAhead && !targetAbove && (horizontal == 0 || !strongAssist))
-        {
-            return;
-        }
-
-        jump = true;
-        memory.JumpCooldownTicks = Math.Max(memory.JumpCooldownTicks, Math.Max(1, timing.JumpCooldownTicks / 2));
-        memory.NavigationIssueLabel = isShoulderApproach
-            ? "objective_assist_shoulder"
-            : isVerticalDetour
-                ? "objective_assist_detour"
-                : blockedAhead
-                    ? "objective_assist_blocked"
-                    : targetAbove
-                        ? "objective_assist_rise"
-                        : "objective_assist_stall";
-
-        if (memory.ObjectiveAssistCooldownTicksRemaining <= 0)
-        {
-            var sourceTicksPerSecond = LegacyMovementModel.SourceTicksPerSecond;
-            var horizontalImpulse = horizontal * ObjectiveAssistHorizontalImpulsePerTick * sourceTicksPerSecond;
-            var verticalImpulseScale = objectiveSelection.IsCaptureObjective
-                ? ObjectiveAssistCaptureVerticalImpulseScale
-                : ObjectiveAssistVerticalImpulseScale;
-            var verticalImpulse = -player.JumpSpeed * verticalImpulseScale;
-            player.AddImpulse(horizontalImpulse, verticalImpulse);
-            memory.ObjectiveAssistCooldownTicksRemaining = ObjectiveAssistCooldownTicks;
-        }
-
-        navigationDecision = navigationDecision with { Label = isShoulderApproach ? "assist:shoulder" : isVerticalDetour ? "assist:detour" : "assist:boost" };
-    }
-
-    private static (float X, float Y) ResolveObjectiveAssistMovementTarget(
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection,
-        (float X, float Y) destination,
-        BotMemory memory)
-    {
-        if (!objectiveSelection.IsCaptureObjective || !memory.HasModernClosestPointTarget)
-        {
-            return destination;
-        }
-
-        var feetY = GetModernPlayerFeetY(player);
-        var verticalRise = feetY - memory.ModernClosestPointTargetY;
-        var horizontalDistance = MathF.Abs(player.X - memory.ModernClosestPointTargetX);
-        if (verticalRise > ObjectiveAssistActiveNavigationVerticalTolerance
-            && verticalRise <= ObjectiveAssistCapturePlatformTargetVerticalRange
-            && horizontalDistance <= ObjectiveAssistCapturePlatformTargetHorizontalRange)
-        {
-            return (memory.ModernClosestPointTargetX, memory.ModernClosestPointTargetY);
-        }
-
-        return destination;
-    }
-
-    private static bool ShouldHoldRouteDropInput(PlayerEntity player, NavigationDecision navigationDecision)
-    {
-        if (navigationDecision.TraversalKind != BotNavigationTraversalKind.Drop
-            || !player.IsGrounded)
-        {
-            return false;
-        }
-
-        return navigationDecision.MovementTarget.Y > GetModernPlayerFeetY(player) + ObjectiveAssistTargetBelowDistance;
-    }
-
-    private static bool TryResolveObjectiveShoulderDirection(
-        SimulationWorld world,
-        PlayerEntity player,
-        (float X, float Y) destination,
-        BotMemory memory,
-        out int direction)
-    {
-        direction = 0;
-
-        var playerFeetY = GetModernPlayerFeetY(player);
-        var verticalDistance = playerFeetY - destination.Y;
-        var horizontalDistance = MathF.Abs(player.X - destination.X);
-        if (player.IsCarryingIntel
-            && ShouldUseModernIntelReturnDirectAssist(player, destination)
-            && verticalDistance <= ModernIntelReturnDirectAssistShoulderReleaseHeight)
-        {
-            memory.ObjectiveAssistShoulderCommitTicksRemaining = 0;
-            memory.ObjectiveAssistShoulderSide = 0;
-            return false;
-        }
-
-        if (verticalDistance <= ObjectiveAssistVerticalShoulderHeight
-            || verticalDistance > ObjectiveAssistVerticalShoulderMaxHeight
-            || horizontalDistance > ObjectiveAssistVerticalDetourHorizontalWindow)
-        {
-            memory.ObjectiveAssistShoulderCommitTicksRemaining = 0;
-            memory.ObjectiveAssistShoulderSide = 0;
-            return false;
-        }
-
-        var directDirection = GetMoveDirection(destination.X - player.X, RouteMovementDeadZone);
-        var directBlocked = directDirection != 0 && WouldMoveIntoObstacle(world, player, directDirection);
-        if (directDirection != 0
-            && !directBlocked
-            && horizontalDistance >= ObjectiveAssistVerticalShoulderOffset * 0.75f)
-        {
-            return false;
-        }
-
-        var shoulderSide = ResolveObjectiveAssistShoulderSide(world, player, destination);
-        if (memory.ObjectiveAssistShoulderCommitTicksRemaining > 0)
-        {
-            if (memory.ObjectiveAssistShoulderSide == shoulderSide)
-            {
-                direction = -shoulderSide;
-                return true;
-            }
-
-            memory.ObjectiveAssistShoulderCommitTicksRemaining = 0;
-            memory.ObjectiveAssistShoulderSide = 0;
-        }
-
-        var shoulderX = destination.X + shoulderSide * ObjectiveAssistVerticalShoulderOffset;
-        var shoulderDelta = shoulderX - player.X;
-        if (shoulderSide * -shoulderDelta >= -ObjectiveAssistVerticalShoulderDeadZone)
-        {
-            memory.ObjectiveAssistShoulderSide = shoulderSide;
-            memory.ObjectiveAssistShoulderCommitTicksRemaining = ObjectiveAssistVerticalShoulderCommitTicks;
-            direction = -shoulderSide;
-            return true;
-        }
-
-        direction = GetMoveDirection(shoulderDelta, ObjectiveAssistVerticalShoulderDeadZone);
-        return true;
-    }
-
-    private static bool TryResolveObjectiveVerticalDetour(
-        SimulationWorld world,
-        PlayerEntity player,
-        (float X, float Y) destination,
-        BotMemory memory,
-        out int direction)
-    {
-        direction = 0;
-
-        var playerFeetY = GetModernPlayerFeetY(player);
-        var verticalDistance = playerFeetY - destination.Y;
-        var horizontalDistance = MathF.Abs(player.X - destination.X);
-        var objectiveDistance = DistanceBetween(player.X, playerFeetY, destination.X, destination.Y);
-        if (memory.ObjectiveAssistDetourReturnTicksRemaining > 0)
-        {
-            if (verticalDistance <= ObjectiveAssistVerticalDetourReleaseHeight
-                || horizontalDistance <= ObjectiveAssistVerticalDetourReturnStopDistance)
-            {
-                memory.ObjectiveAssistDetourReturnTicksRemaining = 0;
-            }
-            else
-            {
-                memory.ObjectiveAssistDetourDirection = 0;
-                memory.ObjectiveAssistDetourTicksRemaining = 0;
-                memory.ObjectiveAssistDetourBestDistance = float.PositiveInfinity;
-                return false;
-            }
-        }
-
-        if (memory.ObjectiveAssistDetourDirection != 0
-            && memory.ObjectiveAssistDetourTicksRemaining > 0
-            && horizontalDistance <= ObjectiveAssistVerticalDetourMaxHorizontalDistance)
-        {
-            if (float.IsPositiveInfinity(memory.ObjectiveAssistDetourBestDistance)
-                || (objectiveDistance + ObjectiveAssistProgressDistance) < memory.ObjectiveAssistDetourBestDistance)
-            {
-                memory.ObjectiveAssistDetourBestDistance = objectiveDistance;
-            }
-            else if (memory.ObjectiveAssistDetourTicksRemaining <= ObjectiveAssistVerticalDetourTicks - ObjectiveAssistVerticalDetourMinCommitTicks
-                && objectiveDistance > memory.ObjectiveAssistDetourBestDistance + ObjectiveAssistVerticalDetourSwitchDistance)
-            {
-                memory.ObjectiveAssistDetourDirection = -memory.ObjectiveAssistDetourDirection;
-                memory.ObjectiveAssistDetourTicksRemaining = ObjectiveAssistVerticalDetourTicks;
-                memory.ObjectiveAssistDetourBestDistance = objectiveDistance;
-            }
-
-            direction = memory.ObjectiveAssistDetourDirection;
-            return true;
-        }
-
-        if (verticalDistance <= ObjectiveAssistVerticalDetourReleaseHeight)
-        {
-            memory.ObjectiveAssistDetourDirection = 0;
-            memory.ObjectiveAssistDetourTicksRemaining = 0;
-            memory.ObjectiveAssistDetourBestDistance = float.PositiveInfinity;
-            return false;
-        }
-
-        if (verticalDistance < ObjectiveAssistVerticalDetourHeight
-            || horizontalDistance > ObjectiveAssistVerticalDetourHorizontalWindow)
-        {
-            return false;
-        }
-
-        direction = ResolveObjectiveAssistDetourSide(world, player, destination);
-        memory.ObjectiveAssistDetourDirection = direction;
-        memory.ObjectiveAssistDetourTicksRemaining = ObjectiveAssistVerticalDetourTicks;
-        memory.ObjectiveAssistDetourBestDistance = objectiveDistance;
-        return true;
-    }
-
-    private static int ResolveObjectiveAssistDetourSide(
-        SimulationWorld world,
-        PlayerEntity player,
-        (float X, float Y) destination)
-    {
-        if (player.IsCarryingIntel)
-        {
-            return player.Team == PlayerTeam.Blue ? 1 : -1;
-        }
-
-        var levelCenterX = world.Level.Bounds.Width * 0.5f;
-        var destinationSide = GetMoveDirection(destination.X - levelCenterX, ObjectiveAssistVerticalShoulderDeadZone);
-        if (destinationSide != 0)
-        {
-            return -destinationSide;
-        }
-
-        var objectiveDirection = GetMoveDirection(destination.X - player.X, ObjectiveAssistVerticalShoulderDeadZone);
-        if (objectiveDirection != 0)
-        {
-            return objectiveDirection;
-        }
-
-        var playerSide = GetMoveDirection(player.X - levelCenterX, ObjectiveAssistVerticalShoulderDeadZone);
-        if (playerSide != 0)
-        {
-            return playerSide;
-        }
-
-        return player.Team == PlayerTeam.Blue ? -1 : 1;
-    }
-
-    private static int ResolveObjectiveAssistShoulderSide(
-        SimulationWorld world,
-        PlayerEntity player,
-        (float X, float Y) destination)
-    {
-        if (player.IsCarryingIntel)
-        {
-            return player.Team == PlayerTeam.Blue ? 1 : -1;
-        }
-
-        var levelCenterX = world.Level.Bounds.Width * 0.5f;
-        var destinationSide = GetMoveDirection(destination.X - levelCenterX, ObjectiveAssistVerticalShoulderDeadZone);
-        if (destinationSide != 0)
-        {
-            return -destinationSide;
-        }
-
-        var playerSide = GetMoveDirection(player.X - levelCenterX, ObjectiveAssistVerticalShoulderDeadZone);
-        if (playerSide != 0)
-        {
-            return playerSide;
-        }
-
-        var objectiveDirection = GetMoveDirection(destination.X - player.X, ObjectiveAssistVerticalShoulderDeadZone);
-        if (objectiveDirection != 0)
-        {
-            return objectiveDirection;
-        }
-
-        return player.Team == PlayerTeam.Blue ? -1 : 1;
-    }
-
-    private static bool ShouldReleaseObjectiveVerticalDetour(
-        PlayerEntity player,
-        (float X, float Y) destination,
-        int direction,
-        bool blockedAhead)
-    {
-        if (direction == 0)
-        {
-            return false;
-        }
-
-        var horizontalDistance = MathF.Abs(player.X - destination.X);
-        if (horizontalDistance < ObjectiveAssistVerticalDetourReturnDistance)
-        {
-            return false;
-        }
-
-        var movingLaterally = MathF.Abs(player.HorizontalSpeed) > 0.1f;
-        return blockedAhead || (player.IsGrounded && !movingLaterally);
-    }
-
-    private static bool IsObjectiveAssistEligible(ModernPathSelection objectiveSelection)
-    {
-        return !objectiveSelection.AllowDirectPath;
-    }
-
-    private static bool IsObjectiveAssistCtfAttackObjective(
-        SimulationWorld world,
-        PlayerEntity player,
-        ModernPathSelection objectiveSelection)
-    {
-        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag
-            || player.IsCarryingIntel
-            || objectiveSelection.AllowDirectPath
-            || objectiveSelection.IsCaptureObjective)
-        {
-            return false;
-        }
-
-        var enemyIntel = GetTeamIntel(world, GetOpposingTeam(player.Team));
-        return enemyIntel is not null
-            && MathF.Abs(objectiveSelection.Destination.X - enemyIntel.X) <= ModernIntelMarkerSize
-            && MathF.Abs(objectiveSelection.Destination.Y - enemyIntel.Y) <= ModernIntelMarkerSize;
-    }
-
-    private static void ResetObjectiveAssist(BotMemory memory)
-    {
-        memory.ObjectiveAssistGoalX = 0f;
-        memory.ObjectiveAssistGoalY = 0f;
-        memory.ObjectiveAssistBestDistance = float.PositiveInfinity;
-        memory.ObjectiveAssistNoProgressTicks = 0;
-        memory.ObjectiveAssistDwellBestDistance = float.PositiveInfinity;
-        memory.ObjectiveAssistDwellTicks = 0;
-        memory.ObjectiveAssistDirectTicksRemaining = 0;
-        memory.ObjectiveAssistRouteRetryTicksRemaining = 0;
-        memory.ObjectiveAssistCooldownTicksRemaining = 0;
-        memory.ObjectiveAssistDropTicksRemaining = 0;
-        memory.ObjectiveAssistDetourDirection = 0;
-        memory.ObjectiveAssistDetourTicksRemaining = 0;
-        memory.ObjectiveAssistDetourReturnTicksRemaining = 0;
-        memory.ObjectiveAssistDetourBestDistance = float.PositiveInfinity;
-        memory.ObjectiveAssistShoulderSide = 0;
-        memory.ObjectiveAssistShoulderCommitTicksRemaining = 0;
+            Label: "clientbot-nav-missing");
     }
 
     private bool TryApplyPreferredScoreRoute(
@@ -3279,7 +1617,23 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 CaptureHoldActive: true);
         }
 
-        _ = allowModernDirectPath;
+        if (allowModernDirectPath && HasModernDirectPath(world, player, destination))
+        {
+            memory.NextPointId = -1;
+            memory.NextPoint2Id = -1;
+            memory.NextPoint3Id = -1;
+            memory.NoNextPointTicks = 0;
+            memory.StickyNextTicksRemaining = 0;
+            SetModernClosestPointTarget(memory, destination.X, destination.Y);
+            return new NavigationDecision(
+                destination,
+                HasRoute: false,
+                ForcedHorizontalDirection: 0,
+                ForceJump: false,
+                LocksMovement: false,
+                Label: "direct");
+        }
+
 
         var goalMoved = destination.X != memory.RouteGoalX
             || destination.Y != memory.RouteGoalY;
@@ -3295,6 +1649,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && navPoints.TryGetPoint(memory.RouteGoalNodeId, out goalNode))
         {
         }
+        else if (TryFindModernCtfObjectiveApproachPoint(world, player, navPoints, destination, out goalNode))
+        {
+        }
         else if (!navPoints.TryFindNearestPoint(destination.X, destination.Y, out goalNode))
         {
             ClearNavigationRoute(memory);
@@ -3307,13 +1664,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         memory.RouteGoalY = destination.Y;
 
         var maximumGoalWeightDepth = ModernMaximumWeightDepth;
-        var goalWeights = navPoints.GetGoalWeights(goalNode.Id, maximumGoalWeightDepth, player.ClassId);
+        var goalWeights = BuildModernRuntimeGoalWeights(world, player, navPoints, goalNode.Id, maximumGoalWeightDepth);
         if (goalWeights is null)
         {
             ClearNavigationRoute(memory);
             return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "mweight-miss");
         }
 
+        var routeMissReason = string.Empty;
         for (var attempt = 0; attempt < 3; attempt += 1)
         {
             if (!TryGetCurrentModernNode(navPoints, memory, out var currentNode))
@@ -3348,12 +1706,16 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
             if (currentWeight <= 0)
             {
-                memory.CurrentPointId = -1;
-                memory.NextPointId = -1;
-                memory.NextPoint2Id = -1;
-                memory.NextPoint3Id = -1;
-                memory.RouteGoalNodeId = -1;
-                continue;
+                routeMissReason = $"weight0:g{goalNode.Id}:cp{currentNode.Id}:try{attempt}:dest({destination.X:0},{destination.Y:0})";
+                memory.NavigationIssueLabel = routeMissReason;
+            }
+
+            var selectionReason = "nav_step";
+            var hasCurrentNode = TryGetCurrentModernNode(navPoints, memory, out currentNode);
+            if (hasCurrentNode
+                && TryReacquireBlockedModernCurrentPoint(world, player, navPoints, goalWeights, memory, destination, out selectionReason))
+            {
+                hasCurrentNode = TryGetCurrentModernNode(navPoints, memory, out currentNode);
             }
 
             var hasQueuedPoints = TryPopulateModernQueuedPoints(
@@ -3363,15 +1725,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                     navPoints,
                     goalWeights,
                     memory,
-                    out var selectionReason);
+                    out selectionReason);
 
-            var hasCurrentNode = TryGetCurrentModernNode(navPoints, memory, out currentNode);
-
-            if (hasCurrentNode
-                && TryReacquireBlockedModernCurrentPoint(world, player, navPoints, goalWeights, memory, destination, out selectionReason))
-            {
-                hasCurrentNode = TryGetCurrentModernNode(navPoints, memory, out currentNode);
-            }
+            hasCurrentNode = TryGetCurrentModernNode(navPoints, memory, out currentNode);
 
             if (!TryGetModernClosestPointTarget(memory, out var movementTarget))
             {
@@ -3394,7 +1750,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 hasQueuedPoints = false;
             }
 
-            if (TryPromoteModernQueuedPoints(player, navPoints, memory, out selectionReason))
+            if (TryPromoteModernQueuedPoints(world, player, navPoints, memory, out selectionReason))
             {
                 if (!TryGetCurrentModernNode(navPoints, memory, out currentNode))
                 {
@@ -3412,15 +1768,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 {
                     selectionReason = "missing_nextpoint";
                 }
-            }
-
-            var useIntelReturnFinalApproach = ShouldUseModernIntelReturnFinalApproach(world, player, destination);
-            if (useIntelReturnFinalApproach)
-            {
-                movementTarget = destination;
-                selectionReason = string.IsNullOrWhiteSpace(selectionReason)
-                    ? "intel_home_direct"
-                    : $"{selectionReason}:intel_home_direct";
             }
 
             var labelCurrentWeight = 0;
@@ -3444,11 +1791,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 LocksMovement: false,
                 Label: $"m{labelCurrentWeight}->{nextWeight}:{selectionReason}:nav",
                 TraversalKind: BotNavigationTraversalKind.Walk,
-                MovementTargetUsesFeetCoordinates: !useIntelReturnFinalApproach);
+                MovementTargetUsesFeetCoordinates: true);
         }
 
         ClearNavigationRoute(memory);
-        return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: "mroute-miss");
+        return new NavigationDecision(destination, HasRoute: false, ForcedHorizontalDirection: 0, ForceJump: false, LocksMovement: false, Label: string.IsNullOrEmpty(routeMissReason) ? "mroute-miss" : $"mroute-miss:{routeMissReason}");
     }
 
     private static bool TryGetCurrentModernNode(
@@ -3469,6 +1816,60 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         node = default!;
         return memory.CurrentPointId >= 0
             && navigationGraph.TryGetNode(memory.CurrentPointId, out node);
+    }
+
+    private static bool TryFindModernCtfObjectiveApproachPoint(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        (float X, float Y) destination,
+        out BotNavigationNode node)
+    {
+        node = default!;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag)
+        {
+            return false;
+        }
+
+        const float markerSize = 24f;
+        var markerLeft = destination.X - (markerSize * 0.5f);
+        var markerRight = destination.X + (markerSize * 0.5f);
+        var markerTop = destination.Y - (markerSize * 0.5f);
+        var markerBottom = destination.Y + (markerSize * 0.5f);
+        var bestScore = float.PositiveInfinity;
+
+        for (var index = 0; index < navPoints.Points.Count; index += 1)
+        {
+            var candidate = navPoints.Points[index];
+            var feetY = GetModernNodeFeetY(navPoints, candidate);
+            var candidateTop = feetY + player.CollisionTopOffset - player.CollisionBottomOffset;
+            var candidateBottom = feetY;
+            if (candidateTop >= markerBottom || candidateBottom <= markerTop)
+            {
+                continue;
+            }
+
+            var candidateLeft = candidate.X + player.CollisionLeftOffset;
+            var candidateRight = candidate.X + player.CollisionRightOffset;
+            var horizontalGap = candidateRight < markerLeft
+                ? markerLeft - candidateRight
+                : candidateLeft > markerRight
+                    ? candidateLeft - markerRight
+                    : 0f;
+            var verticalGap = MathF.Abs(feetY - destination.Y);
+            var score = (horizontalGap * 6f)
+                + verticalGap
+                + (DistanceBetween(candidate.X, feetY, destination.X, destination.Y) * 0.05f);
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            node = candidate;
+        }
+
+        return bestScore < float.PositiveInfinity;
     }
 
     private static bool ShouldReacquireModernCurrentNode(
@@ -3548,6 +1949,22 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         // GML clears nextPoint2/nextPoint3 at the top of every bot step before route selection.
         memory.NextPoint2Id = -1;
         memory.NextPoint3Id = -1;
+        if (memory.NextPointId >= 0)
+        {
+            var committedNextUsable = navPoints.TryGetPoint(memory.NextPointId, out var committedNextNode)
+                && navPoints.TryGetConnection(currentNode.Id, committedNextNode.Id, out _)
+                && !ShouldRejectModernLiveNextPoint(world, player, navPoints, currentNode, committedNextNode);
+            if (!committedNextUsable)
+            {
+                memory.NextPointId = -1;
+                memory.StickyNextTicksRemaining = 0;
+                memory.StickyCurrentPointId = -1;
+                memory.StickyNextPointId = -1;
+                memory.NavChurnLockTicksRemaining = 0;
+                memory.NavChurnLockPointId = -1;
+                selectionReason = "committed_next_blocked";
+            }
+        }
 
         var selectedFreshNextPoint = TrySelectModernNextEdges(
             world,
@@ -3564,9 +1981,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             out var secondNextWeight);
         if (!selectedFreshNextPoint)
         {
-            if (memory.NextPointId >= 0 && memory.NextPointId != memory.CurrentPointId)
+            if (memory.NextPointId >= 0
+                && memory.NextPointId != memory.CurrentPointId
+                && navPoints.TryGetPoint(memory.NextPointId, out var committedNextNode)
+                && navPoints.TryGetConnection(currentNode.Id, committedNextNode.Id, out _))
             {
                 memory.NoNextPointTicks = Math.Max(0, memory.NoNextPointTicks - ModernNoNextTickDecay);
+                SetModernClosestPointTarget(memory, committedNextNode.X, GetModernNodeFeetY(navPoints, committedNextNode));
+                PopulateModernLookaheadPoints(world, player, navPoints, goalWeights, memory, currentNode, committedNextNode);
                 return true;
             }
 
@@ -3603,39 +2025,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             }
             else if (memory.NoNextPointTicks > ModernNoNextTicksBeforeReacquire)
             {
-                if (TrySuppressModernNoNextBranch(world, player, navPoints, goalWeights, memory))
-                {
-                    selectionReason = "no_next_branch_block";
-                    if (!TryGetCurrentModernNode(navPoints, memory, out currentNode))
-                    {
-                        return false;
-                    }
-
-                    selectedFreshNextPoint = TrySelectModernNextEdges(
-                        world,
-                        player,
-                        destination,
-                        navPoints,
-                        goalWeights,
-                        memory,
-                        out nextNode,
-                        out nextEdge,
-                        out nextWeight,
-                        out secondNextNode,
-                        out secondNextEdge,
-                        out secondNextWeight);
-                    if (!selectedFreshNextPoint)
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    memory.CurrentPointId = -1;
-                    memory.RouteGoalNodeId = -1;
-                    memory.NoNextPointTicks = 0;
-                    return false;
-                }
+                memory.CurrentPointId = -1;
+                memory.RouteGoalNodeId = -1;
+                memory.NoNextPointTicks = 0;
+                selectionReason = "force_reacquire_nonp";
+                return false;
             }
             else
             {
@@ -3653,6 +2047,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         selectionReason = ApplyModernSelectionBiases(
+            world,
             player,
             navPoints,
             memory,
@@ -3692,42 +2087,39 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return true;
     }
 
-    private static bool TrySuppressModernNoNextBranch(
+    private static bool ShouldRejectModernLiveNextPoint(
         SimulationWorld world,
         PlayerEntity player,
         ClientBotNavPoints navPoints,
-        int[] goalWeights,
-        BotMemory memory)
+        BotNavigationNode currentNode,
+        BotNavigationNode nextNode)
     {
-        var failedPointId = memory.CurrentPointId;
-        if (failedPointId < 0)
+        GetModernClassJumpProfile(player.ClassId, out _, out _, out var jumpHeightTotal);
+        var nextTarget = (X: nextNode.X, Y: GetModernNodeFeetY(navPoints, nextNode));
+        var liveRiseNeeded = player.Bottom - nextTarget.Y;
+        var liveRunNeeded = MathF.Abs(nextTarget.X - player.X);
+        var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
+        var graphRiseNeeded = currentFeetY - nextTarget.Y;
+        if (liveRiseNeeded > jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && graphRiseNeeded > jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && liveRunNeeded < ModernLiveVerticalShaftRejectRun
+            && HasModernGroundContact(world, player))
+        {
+            return true;
+        }
+
+        if (liveRiseNeeded <= jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            || HasModernAscendingSupportTowardTarget(world, player, nextTarget, requiredRise: 18f))
         {
             return false;
         }
 
-        memory.SecondAnchorBlockPointId = failedPointId;
-        memory.SecondAnchorBlockTicksRemaining = Math.Max(memory.SecondAnchorBlockTicksRemaining, 72);
-        memory.SecondAnchorCooldownTicksRemaining = Math.Max(memory.SecondAnchorCooldownTicksRemaining, 72);
-        memory.CurrentPointId = -1;
-        memory.NextPointId = -1;
-        memory.NextPoint2Id = -1;
-        memory.NextPoint3Id = -1;
-        memory.StickyNextTicksRemaining = 0;
-        memory.NavChurnTicks = 0;
-        memory.NavChurnSwitchTicks = 0;
-        memory.NavChurnLockTicksRemaining = 0;
-        memory.NavChurnLockPointId = -1;
-        memory.NoNextPointTicks = 0;
-        memory.ModernPreviousTargetDistance = float.PositiveInfinity;
-
-        if (!TryAcquireModernWeightedCurrentNode(world, navPoints, player, goalWeights, memory, out var reacquiredNode)
-            && !TryAcquireNearestModernNode(navPoints, player, memory, honorSecondAnchorBlock: true, out reacquiredNode))
+        if (!HasModernGroundContact(world, player) && player.VerticalSpeed < 0f)
         {
             return false;
         }
 
-        memory.CurrentPointId = reacquiredNode.Id;
-        return memory.CurrentPointId != failedPointId;
+        return true;
     }
 
     private static void PopulateModernLookaheadPoints(
@@ -3922,6 +2314,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         out string selectionReason)
     {
         selectionReason = string.Empty;
+        if (IsModernChainExecutorActive(memory))
+        {
+            return false;
+        }
+
         var horizontalSpeed = player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
         var hasGroundContact = HasModernGroundContact(world, player);
         var currentNodeFeetY = GetModernNodeFeetY(navPoints, currentNode);
@@ -3937,12 +2334,26 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         var allowReanchor = memory.ReanchorTicksRemaining <= 0;
         var reanchorNeeded = false;
-        if (allowReanchor
+        var churnDistance = DistanceBetween(player.X, player.Y, memory.NavChurnStartX, memory.NavChurnStartY);
+        var selectedNextPointIsAboveCurrent = TryGetModernNextNode(navPoints, memory, out var selectedNextNodeForDrop)
+            && GetModernNodeFeetY(navPoints, selectedNextNodeForDrop) < currentNodeFeetY - 1f;
+        if (memory.ModernStuckTicks >= 10 || memory.ReanchorTicksRemaining > 0)
+        {
+            memory.NavigationIssueLabel =
+                $"sa_pre:allow{(allowReanchor ? 1 : 0)}:cd{memory.SecondAnchorCooldownTicksRemaining}:same{(memory.CurrentPointId == memory.NavChurnCurrentPointId ? 1 : 0)}:ch{memory.NavChurnTicks}:dist{churnDistance:0}:st{memory.ModernStuckTicks}:ra{memory.ReanchorTicksRemaining}";
+        }
+
+        var canonicalDropReanchor = hasGroundContact
             && (verticalGapToPoint > 104f
                 || (verticalGapToPoint > 52f
-                    && hasGroundContact
-                    && MathF.Abs(horizontalSpeed) < 0.35f
-                    && memory.ModernDropGapTicks > 12)))
+                && MathF.Abs(horizontalSpeed) < 0.35f
+                && memory.ModernDropGapTicks > 12));
+        var fastAboveDropReanchor = verticalGapToPoint > 52f
+            && hasGroundContact
+            && selectedNextPointIsAboveCurrent
+            && MathF.Abs(horizontalSpeed) >= 0.35f;
+        if (allowReanchor
+            && (canonicalDropReanchor || fastAboveDropReanchor))
         {
             reanchorNeeded = true;
             selectionReason = "drop_reanchor";
@@ -3962,10 +2373,15 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && memory.SecondAnchorCooldownTicksRemaining <= 0
             && memory.CurrentPointId == memory.NavChurnCurrentPointId
             && memory.NavChurnTicks > 12
-            && DistanceSquared(player.X, player.Y, memory.NavChurnStartX, memory.NavChurnStartY) < 60f * 60f
-            && memory.ModernStuckTicks > 10
-            && TryResolveModernSecondAnchorPoint(world, player, navPoints, goalWeights, memory, currentNode, out var secondAnchorPointId))
+            && churnDistance < 60f
+            && memory.ModernStuckTicks > 10)
         {
+            if (!TryResolveModernSecondAnchorPoint(world, player, navPoints, goalWeights, memory, currentNode, out var secondAnchorPointId))
+            {
+                memory.NavigationIssueLabel = $"sa_fail:cp{currentNode.Id}:np{memory.NextPointId}:np2{memory.NextPoint2Id}";
+            }
+            else
+            {
             var failedPointId = memory.CurrentPointId;
             memory.CurrentPointId = secondAnchorPointId;
             memory.NextPointId = -1;
@@ -3989,18 +2405,29 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             memory.ReanchorTicksRemaining = Math.Max(memory.ReanchorTicksRemaining, 20);
             memory.RouteGoalNodeId = -1;
             selectionReason = "second_anchor_backtrack";
+            memory.NavigationIssueLabel = $"sa_pick:{failedPointId}->{secondAnchorPointId}";
             return true;
+            }
         }
 
         if (!reanchorNeeded && allowReanchor && memory.ModernStuckTicks >= 28)
         {
             reanchorNeeded = true;
             selectionReason = "stuck_reanchor";
+            memory.NavigationIssueLabel = $"stuck_reanchor:cp{currentNode.Id}:np{memory.NextPointId}:ch{memory.NavChurnTicks}:dist{churnDistance:0}";
         }
 
         if (!reanchorNeeded)
         {
             return false;
+        }
+
+        BotNavigationNode? preselectedReacquiredNode = null;
+        if (!canonicalDropReanchor
+            && fastAboveDropReanchor
+            && TryAcquireNearestModernNode(navPoints, player, memory, honorSecondAnchorBlock: true, out var fastReacquiredNode))
+        {
+            preselectedReacquiredNode = fastReacquiredNode;
         }
 
         memory.CurrentPointId = -1;
@@ -4015,11 +2442,17 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         memory.ReanchorTicksRemaining = 45;
         memory.ModernPreviousTargetDistance = float.PositiveInfinity;
         memory.RouteGoalNodeId = -1;
-        if (TryAcquireNearestModernNode(navPoints, player, memory, honorSecondAnchorBlock: true, out var reacquiredNode))
+        if (preselectedReacquiredNode is not null)
+        {
+            memory.CurrentPointId = preselectedReacquiredNode.Id;
+        }
+        else if (TryAcquireNearestModernNode(navPoints, player, memory, honorSecondAnchorBlock: true, out var reacquiredNode))
         {
             memory.CurrentPointId = reacquiredNode.Id;
         }
 
+        memory.NavigationIssueLabel =
+            $"reanchor:{selectionReason}:from{currentNode.Id}:to{memory.CurrentPointId}:gap{verticalGapToPoint:0}:nextAbove{(selectedNextPointIsAboveCurrent ? 1 : 0)}:ground{(hasGroundContact ? 1 : 0)}:hs{horizontalSpeed:0.0}";
         return true;
     }
 
@@ -4090,6 +2523,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     }
 
     private static bool TryPromoteModernQueuedPoints(
+        SimulationWorld world,
         PlayerEntity player,
         ClientBotNavPoints navPoints,
         BotMemory memory,
@@ -4102,6 +2536,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         if (DistanceSquared(player.X, player.Y, nextNode.X, GetModernNodeFeetY(navPoints, nextNode)) >= ModernPointArrivalDistance * ModernPointArrivalDistance)
+        {
+            return false;
+        }
+
+        if (TryStartModernChainExecutorForQueuedPromotion(player, navPoints, memory, out selectionReason))
         {
             return false;
         }
@@ -4120,8 +2559,19 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         memory.SecondLastCommittedPointId = memory.LastCommittedPointId;
         memory.LastCommittedPointId = memory.CurrentPointId;
         memory.CurrentPointId = memory.NextPointId;
-        if (memory.NextPoint2Id >= 0)
+        memory.DoublebackActive = false;
+        if (memory.NextPoint2Id >= 0
+            && navPoints.TryGetPoint(memory.CurrentPointId, out var promotedCurrentNode)
+            && navPoints.TryGetPoint(memory.NextPoint2Id, out var queuedSecondNextNode)
+            && !ShouldRejectModernLateLookaheadPromotion(
+                world,
+                player,
+                navPoints,
+                promotedCurrentNode,
+                queuedSecondNextNode,
+                HasModernGroundContact(world, player)))
         {
+            var promotedCurrentPointId = memory.NextPointId;
             memory.NextPointId = memory.NextPoint2Id;
             memory.NextPoint2Id = memory.NextPoint3Id;
             memory.NextPoint3Id = -1;
@@ -4129,17 +2579,146 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             {
                 SetModernClosestPointTarget(memory, promotedNextNode.X, GetModernNodeFeetY(navPoints, promotedNextNode));
             }
-            selectionReason = "promote_np2";
+            selectionReason = "promote_np2:" + DescribeModernCommitProbe(
+                world,
+                player,
+                navPoints,
+                memory.CurrentPointId,
+                memory.NextPointId,
+                HasModernGroundContact(world, player));
         }
         else
         {
             memory.NextPointId = -1;
-            selectionReason = "promote_np";
+            selectionReason = "promote_np:" + DescribeModernCommitProbe(
+                world,
+                player,
+                navPoints,
+                memory.CurrentPointId,
+                memory.NextPointId,
+                HasModernGroundContact(world, player));
         }
 
         return true;
     }
 
+    private static bool TryStartModernChainExecutorForQueuedPromotion(
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotMemory memory,
+        out string selectionReason)
+    {
+        selectionReason = string.Empty;
+        if (memory.ModernChainExecutorCooldownTicks > 0
+            || !TryGetCurrentModernNode(navPoints, memory, out var currentNode)
+            || !TryGetModernNextNode(navPoints, memory, out var nextNode)
+            || !TryGetModernSecondNextNode(navPoints, memory, out var secondNextNode)
+            || !IsModernShortUpwardChain(navPoints, currentNode, nextNode, secondNextNode)
+            || !IsLiveNearModernChainSource(player, navPoints, currentNode))
+        {
+            return false;
+        }
+
+        var nextFeetY = GetModernNodeFeetY(navPoints, nextNode);
+        if (MathF.Abs(player.X - nextNode.X) <= ModernChainExecutorArrivalDistanceX
+            && MathF.Abs(player.Bottom - nextFeetY) <= ModernChainExecutorArrivalDistanceY)
+        {
+            return false;
+        }
+
+        BeginModernChainExecutor(memory, currentNode.Id, nextNode.Id);
+        SetModernClosestPointTarget(memory, nextNode.X, nextFeetY);
+        selectionReason = $"chain_hold:cp{currentNode.Id}:np{nextNode.Id}:feet{player.Bottom - nextFeetY:0}:dx{player.X - nextNode.X:0}";
+        return true;
+    }
+
+    private static bool IsModernShortUpwardChain(
+        ClientBotNavPoints navPoints,
+        BotNavigationNode currentNode,
+        BotNavigationNode nextNode,
+        BotNavigationNode secondNextNode)
+    {
+        var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
+        var nextFeetY = GetModernNodeFeetY(navPoints, nextNode);
+        var secondFeetY = GetModernNodeFeetY(navPoints, secondNextNode);
+        var firstRise = currentFeetY - nextFeetY;
+        var secondRise = nextFeetY - secondFeetY;
+        var firstRun = MathF.Abs(nextNode.X - currentNode.X);
+        var secondRun = MathF.Abs(secondNextNode.X - nextNode.X);
+        return currentNode.Id != nextNode.Id
+            && nextNode.Id != secondNextNode.Id
+            && currentNode.Id != secondNextNode.Id
+            && firstRise >= ModernChainExecutorMinimumRise
+            && firstRise <= ModernChainExecutorMaximumRise
+            && firstRun <= ModernChainExecutorMaximumRun
+            && secondRise > -ModernChainExecutorMinimumRise
+            && secondRise <= ModernChainExecutorMaximumRise
+            && secondRun <= ModernChainExecutorMaximumRun;
+    }
+
+    private static bool IsLiveNearModernChainSource(
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotNavigationNode currentNode)
+    {
+        return MathF.Abs(player.X - currentNode.X) <= ModernChainExecutorSourceDistanceX
+            && MathF.Abs(player.Bottom - GetModernNodeFeetY(navPoints, currentNode)) <= ModernChainExecutorSourceDistanceY;
+    }
+
+    private static void BeginModernChainExecutor(BotMemory memory, int currentPointId, int targetPointId)
+    {
+        memory.ModernChainExecutorCurrentPointId = currentPointId;
+        memory.ModernChainExecutorTargetPointId = targetPointId;
+        memory.ModernChainExecutorTicksRemaining = ModernChainExecutorDurationTicks;
+        memory.ModernChainExecutorNoProgressTicks = 0;
+        memory.ModernChainExecutorBestDistance = float.PositiveInfinity;
+    }
+
+    private static void ClearModernChainExecutor(BotMemory memory)
+    {
+        memory.ModernChainExecutorCurrentPointId = -1;
+        memory.ModernChainExecutorTargetPointId = -1;
+        memory.ModernChainExecutorTicksRemaining = 0;
+        memory.ModernChainExecutorNoProgressTicks = 0;
+        memory.ModernChainExecutorBestDistance = float.PositiveInfinity;
+    }
+
+    private static bool IsModernChainExecutorActive(BotMemory memory)
+    {
+        return memory.ModernChainExecutorTicksRemaining > 0
+            && memory.ModernChainExecutorCurrentPointId >= 0
+            && memory.ModernChainExecutorTargetPointId >= 0;
+    }
+
+    private static string DescribeModernCommitProbe(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        int currentPointId,
+        int nextPointId,
+        bool hasGroundContact)
+    {
+        if (!navPoints.TryGetPoint(currentPointId, out var currentNode))
+        {
+            return $"cp{currentPointId}:missing";
+        }
+
+        var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
+        var currentFeetDelta = player.Bottom - currentFeetY;
+        var verticalSpeed = player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+        if (nextPointId < 0 || !navPoints.TryGetPoint(nextPointId, out var nextNode))
+        {
+            return $"cp{currentPointId}:feet{currentFeetDelta:0}:np{nextPointId}:g{(hasGroundContact ? 1 : 0)}:vy{verticalSpeed:0.0}";
+        }
+
+        var nextFeetY = GetModernNodeFeetY(navPoints, nextNode);
+        var liveRise = player.Bottom - nextFeetY;
+        var graphRise = currentFeetY - nextFeetY;
+        var liveRun = MathF.Abs(nextNode.X - player.X);
+        var canUse = TryGetModernEdge(currentPointId, nextPointId, navPoints, out var edge)
+            && CanUseModernImmediateTraversal(world, player, navPoints, currentNode, nextNode, edge);
+        return $"cp{currentPointId}:feet{currentFeetDelta:0}:np{nextPointId}:lr{liveRise:0}:gr{graphRise:0}:run{liveRun:0}:cu{(canUse ? 1 : 0)}:g{(hasGroundContact ? 1 : 0)}:vy{verticalSpeed:0.0}";
+    }
     private static void ApplyModernClosestPointAnticipation(
         SimulationWorld world,
         PlayerEntity player,
@@ -4147,6 +2726,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         BotMemory memory,
         ref string selectionReason)
     {
+        if (IsModernChainExecutorActive(memory))
+        {
+            return;
+        }
+
         if (!TryGetModernNextNode(navPoints, memory, out var nextNode)
             || !TryGetModernSecondNextNode(navPoints, memory, out var secondNextNode))
         {
@@ -4306,152 +2890,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return true;
         }
 
-        var bestFallbackDistance = float.PositiveInfinity;
-        for (var index = 0; index < navPoints.Points.Count; index += 1)
-        {
-            var candidate = navPoints.Points[index];
-            if (honorSecondAnchorBlock
-                && memory.SecondAnchorBlockTicksRemaining > 0
-                && candidate.Id == memory.SecondAnchorBlockPointId)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(player.X, player.Y, candidate.X, GetModernNodeFeetY(navPoints, candidate));
-            if (distance >= bestFallbackDistance)
-            {
-                continue;
-            }
-
-            bestFallbackDistance = distance;
-            node = candidate;
-        }
-
-        return bestFallbackDistance < float.PositiveInfinity;
-    }
-
-    private static bool TryAcquireModernWeightedCurrentNode(
-        SimulationWorld world,
-        BotNavigationRuntimeGraph navigationGraph,
-        PlayerEntity player,
-        int[] goalWeights,
-        BotMemory memory,
-        out BotNavigationNode node)
-    {
-        node = default!;
-        var bestVisibleDistance = float.PositiveInfinity;
-        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
-        {
-            var candidate = navigationGraph.Nodes[index];
-            if (GetModernGoalWeight(goalWeights, candidate.Id) <= 0
-                || memory.SecondAnchorBlockTicksRemaining > 0 && candidate.Id == memory.SecondAnchorBlockPointId)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(player.X, player.Y, candidate.X, GetModernNodeFeetY(navigationGraph, candidate));
-            if (distance >= bestVisibleDistance || distance > ModernWeightedCurrentNodeSearchDistance)
-            {
-                continue;
-            }
-
-            if (!HasNodeLineOfSightToPlayer(world, player, navigationGraph, candidate))
-            {
-                continue;
-            }
-
-            bestVisibleDistance = distance;
-            node = candidate;
-        }
-
-        if (bestVisibleDistance < float.PositiveInfinity)
-        {
-            return true;
-        }
-
-        var bestFallbackDistance = float.PositiveInfinity;
-        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
-        {
-            var candidate = navigationGraph.Nodes[index];
-            if (GetModernGoalWeight(goalWeights, candidate.Id) <= 0
-                || memory.SecondAnchorBlockTicksRemaining > 0 && candidate.Id == memory.SecondAnchorBlockPointId)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(player.X, player.Y, candidate.X, GetModernNodeFeetY(navigationGraph, candidate));
-            if (distance >= bestFallbackDistance || distance > ModernWeightedCurrentNodeSearchDistance)
-            {
-                continue;
-            }
-
-            bestFallbackDistance = distance;
-            node = candidate;
-        }
-
-        return bestFallbackDistance < float.PositiveInfinity;
-    }
-
-    private static bool TryAcquireModernWeightedCurrentNode(
-        SimulationWorld world,
-        ClientBotNavPoints navPoints,
-        PlayerEntity player,
-        int[] goalWeights,
-        BotMemory memory,
-        out BotNavigationNode node)
-    {
-        node = default!;
-        var bestVisibleDistance = float.PositiveInfinity;
-        for (var index = 0; index < navPoints.Points.Count; index += 1)
-        {
-            var candidate = navPoints.Points[index];
-            if (GetModernGoalWeight(goalWeights, candidate.Id) <= 0
-                || memory.SecondAnchorBlockTicksRemaining > 0 && candidate.Id == memory.SecondAnchorBlockPointId)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(player.X, player.Y, candidate.X, GetModernNodeFeetY(navPoints, candidate));
-            if (distance >= bestVisibleDistance || distance > ModernWeightedCurrentNodeSearchDistance)
-            {
-                continue;
-            }
-
-            if (!HasNodeLineOfSightToPlayer(world, player, navPoints, candidate))
-            {
-                continue;
-            }
-
-            bestVisibleDistance = distance;
-            node = candidate;
-        }
-
-        if (bestVisibleDistance < float.PositiveInfinity)
-        {
-            return true;
-        }
-
-        var bestFallbackDistance = float.PositiveInfinity;
-        for (var index = 0; index < navPoints.Points.Count; index += 1)
-        {
-            var candidate = navPoints.Points[index];
-            if (GetModernGoalWeight(goalWeights, candidate.Id) <= 0
-                || memory.SecondAnchorBlockTicksRemaining > 0 && candidate.Id == memory.SecondAnchorBlockPointId)
-            {
-                continue;
-            }
-
-            var distance = DistanceBetween(player.X, player.Y, candidate.X, GetModernNodeFeetY(navPoints, candidate));
-            if (distance >= bestFallbackDistance || distance > ModernWeightedCurrentNodeSearchDistance)
-            {
-                continue;
-            }
-
-            bestFallbackDistance = distance;
-            node = candidate;
-        }
-
-        return bestFallbackDistance < float.PositiveInfinity;
+        return TryAcquireNearestModernNode(navPoints, player, memory, honorSecondAnchorBlock, out node);
     }
 
     private static bool TrySelectModernNextEdges(
@@ -4521,7 +2960,12 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (!CanUseModernTraversal(world, player, navPoints, currentNode, candidateNode, edge))
+            if (ShouldRejectModernLiveNextPoint(world, player, navPoints, currentNode, candidateNode))
+            {
+                continue;
+            }
+
+            if (!CanUseModernImmediateTraversal(world, player, navPoints, currentNode, candidateNode, edge))
             {
                 continue;
             }
@@ -4643,16 +3087,17 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (!CanUseModernTraversal(world, player, navPoints, currentNode, candidateNode, edge))
+            if (ShouldRejectModernLiveNextPoint(world, player, navPoints, currentNode, candidateNode))
+            {
+                continue;
+            }
+
+            if (!CanUseModernImmediateTraversal(world, player, navPoints, currentNode, candidateNode, edge))
             {
                 continue;
             }
 
             var candidateWeight = GetModernGoalWeight(goalWeights, candidateNode.Id);
-            if (candidateWeight <= 0)
-            {
-                continue;
-            }
 
             var candidateScore = DistanceBetween(candidateNode.X, GetModernNodeFeetY(navPoints, candidateNode), destination.X, destination.Y)
                 + (Math.Max(0, candidateWeight - currentWeight) * ModernForcedWeightPenalty);
@@ -4686,6 +3131,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     }
 
     private static string ApplyModernSelectionBiases(
+        SimulationWorld world,
         PlayerEntity player,
         ClientBotNavPoints navPoints,
         BotMemory memory,
@@ -4740,7 +3186,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && memory.NavChurnCurrentPointId == currentNode.Id
             && selectedNextNode.Id != memory.NavChurnLockPointId
             && TryGetModernEdge(currentNode.Id, memory.NavChurnLockPointId, navPoints, out var churnLockEdge)
-            && navPoints.TryGetPoint(memory.NavChurnLockPointId, out var churnLockNode))
+            && navPoints.TryGetPoint(memory.NavChurnLockPointId, out var churnLockNode)
+            && CanUseModernImmediateTraversal(world, player, navPoints, currentNode, churnLockNode, churnLockEdge))
         {
             nextNode = churnLockNode;
             nextEdge = churnLockEdge;
@@ -4754,7 +3201,10 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && (nextNode is null || nextNode.Id != memory.StickyNextPointId)
             && MathF.Abs(player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond) < 1.2f)
         {
-            if (secondNextNode is not null && secondNextNode.Id == memory.StickyNextPointId && secondNextEdge is not null)
+            if (secondNextNode is not null
+                && secondNextNode.Id == memory.StickyNextPointId
+                && secondNextEdge is not null
+                && CanUseModernImmediateTraversal(world, player, navPoints, currentNode, secondNextNode, secondNextEdge))
             {
                 nextNode = secondNextNode;
                 nextEdge = secondNextEdge;
@@ -4762,7 +3212,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 reason = "nav_step_sticky";
             }
             else if (TryGetModernEdge(currentNode.Id, memory.StickyNextPointId, navPoints, out var stickyEdge)
-                     && navPoints.TryGetPoint(memory.StickyNextPointId, out var stickyNode))
+                     && navPoints.TryGetPoint(memory.StickyNextPointId, out var stickyNode)
+                     && CanUseModernImmediateTraversal(world, player, navPoints, currentNode, stickyNode, stickyEdge))
             {
                 nextNode = stickyNode;
                 nextEdge = stickyEdge;
@@ -4855,6 +3306,81 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             : 0;
     }
 
+    private static int[]? BuildModernRuntimeGoalWeights(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        int goalPointId,
+        int maximumDepth)
+    {
+        if (!navPoints.TryGetPoint(goalPointId, out _))
+        {
+            return null;
+        }
+
+        var weightLength = 0;
+        for (var pointIndex = 0; pointIndex < navPoints.Points.Count; pointIndex += 1)
+        {
+            weightLength = Math.Max(weightLength, navPoints.Points[pointIndex].Id + 1);
+        }
+
+        var weights = new int[Math.Max(weightLength, goalPointId + 1)];
+        var pending = new Queue<(int PointId, int Depth, int SourcePointId)>();
+        pending.Enqueue((goalPointId, 1, -1));
+
+        while (pending.Count > 0)
+        {
+            var (pointId, depth, sourcePointId) = pending.Dequeue();
+            if (pointId < 0 || pointId >= weights.Length)
+            {
+                continue;
+            }
+
+            if (weights[pointId] != 0 && weights[pointId] <= depth)
+            {
+                continue;
+            }
+
+            if (sourcePointId >= 0 && navPoints.IsReverseBlocked(sourcePointId, pointId))
+            {
+                continue;
+            }
+
+            if (sourcePointId >= 0
+                && !navPoints.TryGetConnection(pointId, sourcePointId, out _))
+            {
+                continue;
+            }
+
+            if (sourcePointId >= 0
+                && (!navPoints.TryGetPoint(pointId, out var pointNode)
+                    || !navPoints.TryGetPoint(sourcePointId, out var sourceNode)
+                    || CrossesModernRuntimeBlockingGate(
+                        world,
+                        player,
+                        pointNode.X,
+                        GetModernNodeFeetY(navPoints, pointNode),
+                        sourceNode.X,
+                        GetModernNodeFeetY(navPoints, sourceNode))))
+            {
+                continue;
+            }
+
+            weights[pointId] = depth;
+            if (depth > maximumDepth || !navPoints.TryGetOutgoingConnections(pointId, out var outgoing))
+            {
+                continue;
+            }
+
+            for (var edgeIndex = 0; edgeIndex < outgoing.Count; edgeIndex += 1)
+            {
+                pending.Enqueue((outgoing[edgeIndex].ToNodeId, depth + 1, pointId));
+            }
+        }
+
+        return weights;
+    }
+
     private static bool TryResolveReachableModernGoalNode(
         BotNavigationRuntimeGraph navigationGraph,
         int currentNodeId,
@@ -4942,11 +3468,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         (float X, float Y) destination,
         out BotNavigationNode startNode)
     {
-        var hasDefaultStartNode = TryFindNearestReachableRouteStartNode(
-            navigationGraph,
+        var hasDefaultStartNode = navigationGraph.TryFindNearestNode(
             player.X,
             GetModernPlayerFeetY(player),
-            player.IsGrounded,
+            RouteStartNodeSearchDistance,
+            requireGroundSupport: true,
             out var defaultStartNode);
 
         if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
@@ -4966,40 +3492,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         startNode = defaultStartNode;
         return hasDefaultStartNode;
-    }
-
-    private static bool TryFindNearestReachableRouteStartNode(
-        BotNavigationRuntimeGraph navigationGraph,
-        float playerX,
-        float playerFeetY,
-        bool playerIsGrounded,
-        out BotNavigationNode startNode)
-    {
-        startNode = default!;
-        var bestDistanceSquared = RouteStartNodeSearchDistance * RouteStartNodeSearchDistance;
-        var found = false;
-        var maximumFeetRise = playerIsGrounded ? RouteStartNodeMaximumFeetRise : 0f;
-        for (var index = 0; index < navigationGraph.Nodes.Count; index += 1)
-        {
-            var candidate = navigationGraph.Nodes[index];
-            if (!candidate.RequiresGroundSupport
-                || candidate.Y < playerFeetY - maximumFeetRise)
-            {
-                continue;
-            }
-
-            var distanceSquared = DistanceSquared(playerX, playerFeetY, candidate.X, candidate.Y);
-            if (distanceSquared > bestDistanceSquared)
-            {
-                continue;
-            }
-
-            bestDistanceSquared = distanceSquared;
-            startNode = candidate;
-            found = true;
-        }
-
-        return found;
     }
 
     private static bool TryFindModernIntelReturnStartNode(
@@ -5137,16 +3629,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             && HasModernObstacleLineOfSight(world, player.X, player.Y, destination.X, destination.Y);
     }
 
-    private static bool ShouldUseModernIntelReturnDirectAssist(
-        PlayerEntity player,
-        (float X, float Y) destination)
-    {
-        return player.IsCarryingIntel
-            && MathF.Abs(player.X - destination.X) <= ModernIntelReturnDirectAssistDistanceX
-            && MathF.Abs(player.Bottom - destination.Y) <= ModernIntelReturnDirectAssistDistanceY
-            && DistanceBetween(player.X, player.Bottom, destination.X, destination.Y) <= ModernIntelReturnDirectAssistDistance;
-    }
-
     private static bool ShouldUseModernGraphIntelReturnFinishOverride(
         SimulationWorld world,
         PlayerEntity player,
@@ -5164,7 +3646,10 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var feetDistanceToHome = DistanceBetween(player.X, player.Bottom, destination.X, destination.Y);
         if (memory.IntelReturnDirectTicksRemaining > 0)
         {
-            if (ShouldUseModernIntelReturnDirectAssist(player, destination))
+            if (deltaX <= ModernIntelReturnFinalApproachDistanceX
+                && deltaY <= ModernIntelReturnFinalApproachDistanceY
+                && feetDistanceToHome <= ModernIntelReturnDirectArrivalDistance
+                && HasModernObstacleLineOfSight(world, player.X, player.Y, destination.X, destination.Y))
             {
                 return true;
             }
@@ -5173,12 +3658,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         if (ShouldUseModernIntelReturnFinalApproach(world, player, destination))
-        {
-            memory.IntelReturnDirectTicksRemaining = ModernIntelReturnDirectLatchTicks;
-            return true;
-        }
-
-        if (ShouldUseModernIntelReturnDirectAssist(player, destination))
         {
             memory.IntelReturnDirectTicksRemaining = ModernIntelReturnDirectLatchTicks;
             return true;
@@ -5258,20 +3737,82 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         GetModernClassJumpProfile(player.ClassId, out var jumpRange, out _, out var jumpHeightTotal);
         var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
         var candidateFeetY = GetModernNodeFeetY(navPoints, candidateNode);
-        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
-        if (jumpRiseNeeded > jumpHeightTotal)
+        var hasTerrainBetween = LineHitsStaticSolid(world, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f);
+        if (CrossesModernRuntimeBlockingGate(world, player, currentNode.X, currentFeetY, candidateNode.X, candidateFeetY))
         {
             return false;
         }
 
+        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
         var jumpDistanceNeeded = MathF.Abs(candidateNode.X - currentNode.X);
-        if (jumpDistanceNeeded > jumpRange
-            && !LineHitsSolid(world, player, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f))
+        var terrainAssistedRamp = IsModernTerrainAssistedRamp(jumpRiseNeeded, jumpDistanceNeeded, jumpHeightTotal, hasTerrainBetween);
+        if (jumpRiseNeeded > jumpHeightTotal && !terrainAssistedRamp)
+        {
+            return false;
+        }
+
+        if (IsModernTerrainAssistedClimbTooSteep(jumpRiseNeeded, jumpDistanceNeeded, hasTerrainBetween))
+        {
+            return false;
+        }
+
+        if (jumpDistanceNeeded > jumpRange && !hasTerrainBetween)
         {
             return false;
         }
 
         return true;
+    }
+
+    private static bool CanUseModernImmediateTraversal(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotNavigationNode currentNode,
+        BotNavigationNode candidateNode,
+        BotNavigationEdge edge)
+        => CanUseModernTraversal(world, player, navPoints, currentNode, candidateNode, edge)
+            || CanUseModernLiveSteepTraversal(world, player, navPoints, currentNode, candidateNode, edge);
+
+    private static bool CanUseModernLiveSteepTraversal(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotNavigationNode currentNode,
+        BotNavigationNode candidateNode,
+        BotNavigationEdge edge)
+    {
+        _ = edge;
+        GetModernClassJumpProfile(player.ClassId, out var jumpRange, out _, out var jumpHeightTotal);
+        var currentFeetY = GetModernNodeFeetY(navPoints, currentNode);
+        var candidateFeetY = GetModernNodeFeetY(navPoints, candidateNode);
+        var hasTerrainBetween = LineHitsStaticSolid(world, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f);
+        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
+        var jumpDistanceNeeded = MathF.Abs(candidateNode.X - currentNode.X);
+        if (!IsModernTerrainAssistedClimbTooSteep(jumpRiseNeeded, jumpDistanceNeeded, hasTerrainBetween)
+            || jumpRiseNeeded > jumpHeightTotal
+            || CrossesModernRuntimeBlockingGate(world, player, currentNode.X, currentFeetY, candidateNode.X, candidateFeetY))
+        {
+            return false;
+        }
+
+        var liveRiseNeeded = player.Bottom - candidateFeetY;
+        var liveRunNeeded = MathF.Abs(candidateNode.X - player.X);
+        if (liveRiseNeeded < 0f
+            || liveRiseNeeded > jumpHeightTotal
+            || liveRunNeeded < 20f
+            || liveRunNeeded > jumpRange)
+        {
+            return false;
+        }
+
+        var horizontal = MathF.Sign(candidateNode.X - player.X);
+        return horizontal != 0f
+            && LineHitsStaticSolid(world, player.X, player.Bottom + 2f, candidateNode.X, candidateFeetY + 2f)
+            && (HasModernWaistObstacleAhead(world, player, (int)horizontal)
+                || (player.ClassId == PlayerClass.Heavy
+                    && (HasModernForwardFootBlock(world, player, (int)horizontal, 7f)
+                        || HasModernGroundAhead(world, player, (int)horizontal, 15f))));
     }
 
     private static bool CanUseModernTraversal(
@@ -5285,15 +3826,26 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         GetModernClassJumpProfile(player.ClassId, out var jumpRange, out _, out var jumpHeightTotal);
         var currentFeetY = GetModernNodeFeetY(navigationGraph, currentNode);
         var candidateFeetY = GetModernNodeFeetY(navigationGraph, candidateNode);
-        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
-        if (jumpRiseNeeded > jumpHeightTotal)
+        var hasTerrainBetween = LineHitsStaticSolid(world, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f);
+        if (CrossesModernRuntimeBlockingGate(world, player, currentNode.X, currentFeetY, candidateNode.X, candidateFeetY))
         {
             return false;
         }
 
+        var jumpRiseNeeded = MathF.Max(0f, currentFeetY - candidateFeetY);
         var jumpDistanceNeeded = MathF.Abs(candidateNode.X - currentNode.X);
-        if (jumpDistanceNeeded > jumpRange
-            && !LineHitsSolid(world, player, currentNode.X, currentFeetY + 2f, candidateNode.X, candidateFeetY + 2f))
+        var terrainAssistedRamp = IsModernTerrainAssistedRamp(jumpRiseNeeded, jumpDistanceNeeded, jumpHeightTotal, hasTerrainBetween);
+        if (jumpRiseNeeded > jumpHeightTotal && !terrainAssistedRamp)
+        {
+            return false;
+        }
+
+        if (IsModernTerrainAssistedClimbTooSteep(jumpRiseNeeded, jumpDistanceNeeded, hasTerrainBetween))
+        {
+            return false;
+        }
+
+        if (jumpDistanceNeeded > jumpRange && !hasTerrainBetween)
         {
             return false;
         }
@@ -5301,9 +3853,9 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return true;
     }
 
-    private bool CanUseUniversalGraphRouteEdge(
+    private static bool CanUseUniversalGraphRouteEdge(
+        SimulationWorld world,
         PlayerEntity player,
-        PlayerClass classId,
         BotNavigationRuntimeGraph navigationGraph,
         BotNavigationEdge edge,
         BotMemory memory)
@@ -5311,8 +3863,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         if ((!ShouldBypassIntelReturnRouteEdgeBlock(player, memory)
                 && IsRouteEdgeTemporarilyBlocked(memory, edge.FromNodeId, edge.ToNodeId))
             || navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId)
-            || !navigationGraph.TryGetNode(edge.FromNodeId, out _)
-            || !navigationGraph.TryGetNode(edge.ToNodeId, out _))
+            || !navigationGraph.TryGetNode(edge.FromNodeId, out var fromNode)
+            || !navigationGraph.TryGetNode(edge.ToNodeId, out var toNode))
         {
             return false;
         }
@@ -5322,33 +3874,90 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return true;
         }
 
-        if (edge.Kind != BotNavigationTraversalKind.Jump)
-        {
-            return true;
-        }
-
-        return !IsRuntimeValidatedJumpTapeKnownImpossible(navigationGraph, classId, player.Team, edge.FromNodeId, edge.ToNodeId);
-    }
-
-    private bool CanUseBroadFallbackGraphRouteEdge(
-        PlayerEntity player,
-        PlayerClass classId,
-        BotNavigationRuntimeGraph navigationGraph,
-        BotNavigationEdge edge,
-        BotMemory memory)
-    {
-        if ((!ShouldBypassIntelReturnRouteEdgeBlock(player, memory)
-                && IsRouteEdgeTemporarilyBlocked(memory, edge.FromNodeId, edge.ToNodeId))
-            || navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId)
-            || !navigationGraph.TryGetNode(edge.FromNodeId, out _)
-            || !navigationGraph.TryGetNode(edge.ToNodeId, out _))
+        GetModernClassJumpProfile(player.ClassId, out var jumpRange, out _, out var jumpHeightTotal);
+        var fromFeetY = GetModernNodeFeetY(navigationGraph, fromNode);
+        var toFeetY = GetModernNodeFeetY(navigationGraph, toNode);
+        var hasTerrainBetween = LineHitsStaticSolid(world, fromNode.X, fromFeetY + 2f, toNode.X, toFeetY + 2f);
+        if (CrossesModernRuntimeBlockingGate(world, player, fromNode.X, fromFeetY, toNode.X, toFeetY))
         {
             return false;
         }
 
-        return edge.Kind != BotNavigationTraversalKind.Jump
-            || edge.InputTape.Count > 0
-            || !IsRuntimeValidatedJumpTapeKnownImpossible(navigationGraph, classId, player.Team, edge.FromNodeId, edge.ToNodeId);
+        var jumpRiseNeeded = MathF.Max(0f, fromFeetY - toFeetY);
+        var jumpDistanceNeeded = MathF.Abs(toNode.X - fromNode.X);
+        var terrainAssistedRamp = IsModernTerrainAssistedRamp(jumpRiseNeeded, jumpDistanceNeeded, jumpHeightTotal, hasTerrainBetween);
+        if (jumpRiseNeeded > jumpHeightTotal && !terrainAssistedRamp)
+        {
+            return false;
+        }
+
+        if (IsModernTerrainAssistedClimbTooSteep(jumpRiseNeeded, jumpDistanceNeeded, hasTerrainBetween))
+        {
+            return false;
+        }
+
+        if (jumpDistanceNeeded > jumpRange && !hasTerrainBetween)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool CrossesModernRuntimeBlockingGate(
+        SimulationWorld world,
+        PlayerEntity player,
+        float fromX,
+        float fromFeetY,
+        float toX,
+        float toFeetY)
+    {
+        var fromY = fromFeetY - player.CollisionBottomOffset;
+        var toY = toFeetY - player.CollisionBottomOffset;
+        var sweepLeft = MathF.Min(fromX + player.CollisionLeftOffset, toX + player.CollisionLeftOffset);
+        var sweepRight = MathF.Max(fromX + player.CollisionRightOffset, toX + player.CollisionRightOffset);
+        var sweepTop = MathF.Min(fromY + player.CollisionTopOffset, toY + player.CollisionTopOffset);
+        var sweepBottom = MathF.Max(fromY + player.CollisionBottomOffset, toY + player.CollisionBottomOffset);
+
+        foreach (var gate in world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
+        {
+            if (RectanglesOverlap(sweepLeft, sweepTop, sweepRight, sweepBottom, gate.Left, gate.Top, gate.Right, gate.Bottom))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsModernTerrainAssistedRamp(float rise, float run, float jumpHeightTotal, bool hasTerrainBetween)
+    {
+        return hasTerrainBetween
+            && rise > 0f
+            && run > 0f
+            && rise <= jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && (rise / run) <= ModernTerrainAssistedRampMaxSlope;
+    }
+
+    private static bool IsModernTerrainAssistedClimbTooSteep(float rise, float run, bool hasTerrainBetween)
+    {
+        return hasTerrainBetween
+            && rise > 0f
+            && run > 0f
+            && (rise / run) > ModernTerrainAssistedRampMaxSlope;
+    }
+
+    private static bool CanUseBroadFallbackGraphRouteEdge(
+        PlayerEntity player,
+        BotNavigationRuntimeGraph navigationGraph,
+        BotNavigationEdge edge,
+        BotMemory memory)
+    {
+        return (ShouldBypassIntelReturnRouteEdgeBlock(player, memory)
+                || !IsRouteEdgeTemporarilyBlocked(memory, edge.FromNodeId, edge.ToNodeId))
+            && !navigationGraph.IsReverseOnlyTraversalBlocked(edge.ToNodeId, edge.FromNodeId)
+            && navigationGraph.TryGetNode(edge.FromNodeId, out _)
+            && navigationGraph.TryGetNode(edge.ToNodeId, out _);
     }
 
 
@@ -5434,15 +4043,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (allyCarrier is not null)
             {
                 return (allyCarrier.X, allyCarrier.Y);
-            }
-        }
-
-        if (role == BotRole.HuntCarrier)
-        {
-            var enemyCarrier = FindEnemyCarrier(world, team);
-            if (enemyCarrier is not null)
-            {
-                return (enemyCarrier.X, enemyCarrier.Y);
             }
         }
 
@@ -5661,10 +4261,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return BotRole.EscortCarrier;
         }
 
-        var enemyCarrier = FindCarrier(allPlayers.Where(candidate => candidate.Team != team));
-        return enemyCarrier is not null
-            ? BotRole.HuntCarrier
-            : BotRole.None;
+        return BotRole.None;
     }
 
     private static ModernPathSelection ResolveModernPathSelection(
@@ -5681,8 +4278,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             GameModeKind.ControlPoint => ResolveModernControlPointPath(world, player, team),
             GameModeKind.Generator => ResolveModernGeneratorPath(world, team),
             GameModeKind.Arena => ResolveModernArenaPath(world, player),
-            GameModeKind.KingOfTheHill => ResolveModernKothPath(world, player, role),
-            GameModeKind.DoubleKingOfTheHill => ResolveModernKothPath(world, player, role),
+            GameModeKind.KingOfTheHill => ResolveModernKothPath(world, player),
+            GameModeKind.DoubleKingOfTheHill => ResolveModernKothPath(world, player),
             _ => new ModernPathSelection((player.X, player.Y), AllowDirectPath: true),
         };
 
@@ -5707,15 +4304,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (allyCarrier is not null)
             {
                 return new ModernPathSelection((allyCarrier.X, allyCarrier.Y), AllowDirectPath: true);
-            }
-        }
-
-        if (role == BotRole.HuntCarrier)
-        {
-            var enemyCarrier = FindCarrier(allPlayers.Where(candidate => candidate.Team != team));
-            if (enemyCarrier is not null)
-            {
-                return new ModernPathSelection((enemyCarrier.X, enemyCarrier.Y), AllowDirectPath: true);
             }
         }
 
@@ -5811,24 +4399,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
     private static ModernPathSelection ResolveModernKothPath(
         SimulationWorld world,
-        PlayerEntity player,
-        BotRole role)
+        PlayerEntity player)
     {
-        ControlPointState? bestPoint;
-        if (world.MatchRules.Mode == GameModeKind.DoubleKingOfTheHill)
-        {
-            var ownPoint = GetDualKothPoint(world, player.Team);
-            var enemyPoint = GetDualKothPoint(world, GetOpposingTeam(player.Team));
-            bestPoint = role == BotRole.DefendObjective
-                && ownPoint is not null
-                && (ownPoint.Team != player.Team || (ownPoint.CappingTeam.HasValue && ownPoint.CappingTeam.Value != player.Team))
-                    ? ownPoint
-                    : enemyPoint ?? ownPoint;
-        }
-        else
-        {
-            bestPoint = GetSingleKothPoint(world);
-        }
+        var bestPoint = world.MatchRules.Mode == GameModeKind.DoubleKingOfTheHill
+            ? GetDualKothPoint(world, player.Team)
+            : GetSingleKothPoint(world);
 
         if (bestPoint is not null)
         {
@@ -6205,7 +4780,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             var routeLength = 1f;
             if (candidateGoalNode.Id != currentNode.Id)
             {
-                var goalWeights = navPoints.GetGoalWeights(candidateGoalNode.Id, ModernMaximumWeightDepth, player.ClassId);
+                var goalWeights = BuildModernRuntimeGoalWeights(world, player, navPoints, candidateGoalNode.Id, ModernMaximumWeightDepth);
                 if (goalWeights is null)
                 {
                     continue;
@@ -6281,9 +4856,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return new ModernCaptureHoldState(SuppressNavigation: false, ActiveGroupId: -1, player.X, player.Bottom);
         }
 
-        var hadRecentCaptureHold = memory.CaptureHoldInsideMilliseconds > 0f
-            || memory.CaptureHoldRetainMilliseconds > 0f
-            || memory.CaptureActiveGroupId >= 0;
         var deltaMilliseconds = (float)(fixedDeltaSeconds * 1000.0);
         if (deltaMilliseconds <= 0f || deltaMilliseconds > 200f)
         {
@@ -6323,15 +4895,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         if (activeGroupId < 0 && actualCaptureGroupId >= 0)
         {
             activeGroupId = actualCaptureGroupId;
-        }
-
-        if (hadRecentCaptureHold && !insideZoneSquare && !insideActualCaptureZone)
-        {
-            ClearNavigationRoute(memory);
-            memory.ObjectiveAssistDirectTicksRemaining = Math.Max(
-                memory.ObjectiveAssistDirectTicksRemaining,
-                ObjectiveAssistCaptureDirectTicks);
-            memory.NavigationIssueLabel = "capture_displaced_recover";
         }
 
         var holdBufferMilliseconds = 500f;
@@ -6603,11 +5166,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
             score -= (1f - GetHealthFraction(candidate)) * 20_000f;
             score += DistanceSquared(candidate.X, candidate.Y, destination.X, destination.Y) * 0.15f;
-
-            if (role == BotRole.HuntCarrier && candidate.IsCarryingIntel)
-            {
-                score -= 200_000f;
-            }
 
             if (role == BotRole.DefendObjective)
             {
@@ -7086,6 +5644,16 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     {
         memory.ModernMoveDebug = "modern:start";
         var hasGroundContact = HasModernGroundContact(world, player);
+        if (memory.ModernChainExecutorCooldownTicks > 0)
+        {
+            memory.ModernChainExecutorCooldownTicks -= 1;
+        }
+
+        if (TryResolveModernChainExecutorMovement(player, navPoints, memory, out var chainHorizontal))
+        {
+            return chainHorizontal;
+        }
+
         if (objectiveSelection.IsCaptureObjective
             && objectiveSelection.CaptureObjective is ModernCaptureObjective captureObjective)
         {
@@ -7134,6 +5702,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 {
                     memory.DoublebackActive = false;
                 }
+                else if (MathF.Abs(horizontalSpeed) < 0.05f
+                         && MathF.Abs(player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond) < 0.05f)
+                {
+                    memory.DoublebackActive = false;
+                }
                 else
                 {
                     memory.ModernMoveDebug = "left_doubleback_wait";
@@ -7162,6 +5735,11 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 {
                     memory.DoublebackActive = false;
                 }
+                else if (MathF.Abs(horizontalSpeed) < 0.05f
+                         && MathF.Abs(player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond) < 0.05f)
+                {
+                    memory.DoublebackActive = false;
+                }
                 else
                 {
                     memory.ModernMoveDebug = "right_doubleback_wait";
@@ -7179,13 +5757,13 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             var movementDirection = 0;
             if (player.HorizontalSpeed > 0f && player.X < nextNode.X)
             {
-                movementDirection = 1;
                 memory.ModernMoveDebug = "reached_momentum_right";
+                movementDirection = 1;
             }
             else if (player.HorizontalSpeed < 0f && player.X > nextNode.X)
             {
-                movementDirection = -1;
                 memory.ModernMoveDebug = "reached_momentum_left";
+                movementDirection = -1;
             }
             else
             {
@@ -7195,6 +5773,37 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             memory.SecondLastCommittedPointId = memory.LastCommittedPointId;
             memory.LastCommittedPointId = memory.CurrentPointId;
             memory.CurrentPointId = memory.NextPointId;
+            if (memory.NextPoint2Id >= 0
+                && navPoints.TryGetPoint(memory.CurrentPointId, out var promotedCurrentNode)
+                && navPoints.TryGetPoint(memory.NextPoint2Id, out var promotedNextNode)
+                && !ShouldRejectModernLateLookaheadPromotion(world, player, navPoints, promotedCurrentNode, promotedNextNode, hasGroundContact))
+            {
+                memory.NextPointId = memory.NextPoint2Id;
+                memory.NextPoint2Id = memory.NextPoint3Id;
+                memory.NextPoint3Id = -1;
+                SetModernClosestPointTarget(memory, promotedNextNode.X, GetModernNodeFeetY(navPoints, promotedNextNode));
+                memory.ModernMoveDebug += ":np2:" + DescribeModernCommitProbe(
+                    world,
+                    player,
+                    navPoints,
+                    memory.CurrentPointId,
+                    memory.NextPointId,
+                    hasGroundContact);
+            }
+            else
+            {
+                memory.NextPointId = -1;
+                memory.NextPoint2Id = -1;
+                memory.NextPoint3Id = -1;
+                memory.ModernMoveDebug += ":np-1:" + DescribeModernCommitProbe(
+                    world,
+                    player,
+                    navPoints,
+                    memory.CurrentPointId,
+                    memory.NextPointId,
+                    hasGroundContact);
+            }
+
             return movementDirection;
         }
 
@@ -7205,6 +5814,138 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         memory.ModernMoveDebug = "no_next_stop";
         return 0;
+    }
+
+    private static bool TryResolveModernChainExecutorMovement(
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotMemory memory,
+        out int horizontal)
+    {
+        horizontal = 0;
+        if (!IsModernChainExecutorActive(memory))
+        {
+            return false;
+        }
+
+        if (memory.CurrentPointId != memory.ModernChainExecutorCurrentPointId
+            || memory.NextPointId != memory.ModernChainExecutorTargetPointId
+            || !TryGetModernNextNode(navPoints, memory, out var targetNode))
+        {
+            ClearModernChainExecutor(memory);
+            return false;
+        }
+
+        var targetFeetY = GetModernNodeFeetY(navPoints, targetNode);
+        var dx = player.X - targetNode.X;
+        var dy = player.Bottom - targetFeetY;
+        if (MathF.Abs(dx) <= ModernChainExecutorArrivalDistanceX
+            && MathF.Abs(dy) <= ModernChainExecutorArrivalDistanceY)
+        {
+            CompleteModernChainExecutorSegment(navPoints, memory, targetNode);
+            memory.DoublebackActive = false;
+            memory.ModernMoveDebug = $"chain_success:np{targetNode.Id}";
+            return true;
+        }
+
+        var distance = DistanceBetween(player.X, player.Bottom, targetNode.X, targetFeetY);
+        if (distance + 1f < memory.ModernChainExecutorBestDistance)
+        {
+            memory.ModernChainExecutorBestDistance = distance;
+            memory.ModernChainExecutorNoProgressTicks = 0;
+        }
+        else
+        {
+            memory.ModernChainExecutorNoProgressTicks += 1;
+        }
+
+        memory.ModernChainExecutorTicksRemaining -= 1;
+        if (memory.ModernChainExecutorTicksRemaining <= 0
+            || memory.ModernChainExecutorNoProgressTicks >= ModernChainExecutorNoProgressTicks)
+        {
+            var failedCurrentPointId = memory.CurrentPointId;
+            var failedTargetPointId = memory.NextPointId;
+            ClearModernChainExecutor(memory);
+            memory.ModernChainExecutorCooldownTicks = ModernChainExecutorCooldownTicks;
+            memory.CurrentPointId = -1;
+            memory.NextPointId = -1;
+            memory.NextPoint2Id = -1;
+            memory.NextPoint3Id = -1;
+            memory.DoublebackActive = false;
+            memory.NavigationIssueLabel = $"chain_fail:cp{failedCurrentPointId}:np{failedTargetPointId}:d{distance:0}";
+            memory.ModernMoveDebug = memory.NavigationIssueLabel;
+            return true;
+        }
+
+        var targetDirection = MathF.Sign(targetNode.X - player.X);
+        if (MathF.Abs(targetNode.X - player.X) <= ModernChainExecutorArrivalDistanceX
+            && TryGetModernSecondNextNode(navPoints, memory, out var secondNextNode))
+        {
+            targetDirection = MathF.Sign(secondNextNode.X - targetNode.X);
+        }
+
+        horizontal = targetDirection < 0f ? -1 : targetDirection > 0f ? 1 : 0;
+        memory.DoublebackActive = false;
+        memory.ModernMoveDebug = $"chain_exec:cp{memory.CurrentPointId}:np{targetNode.Id}:h{horizontal}:dx{-dx:0}:feet{dy:0}:t{memory.ModernChainExecutorTicksRemaining}";
+        return true;
+    }
+
+    private static void CompleteModernChainExecutorSegment(
+        ClientBotNavPoints navPoints,
+        BotMemory memory,
+        BotNavigationNode reachedNode)
+    {
+        memory.SecondLastCommittedPointId = memory.LastCommittedPointId;
+        memory.LastCommittedPointId = memory.CurrentPointId;
+        memory.CurrentPointId = reachedNode.Id;
+        memory.NextPointId = memory.NextPoint2Id;
+        memory.NextPoint2Id = memory.NextPoint3Id;
+        memory.NextPoint3Id = -1;
+        ClearModernChainExecutor(memory);
+        if (TryGetModernNextNode(navPoints, memory, out var nextNode))
+        {
+            SetModernClosestPointTarget(memory, nextNode.X, GetModernNodeFeetY(navPoints, nextNode));
+        }
+        else
+        {
+            memory.HasModernClosestPointTarget = false;
+        }
+    }
+
+    private static bool ShouldRejectModernLateLookaheadPromotion(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotNavigationNode promotedCurrentNode,
+        BotNavigationNode promotedNextNode,
+        bool hasGroundContact)
+    {
+        GetModernClassJumpProfile(player.ClassId, out _, out _, out var jumpHeightTotal);
+        var promotedTarget = (X: promotedNextNode.X, Y: GetModernNodeFeetY(navPoints, promotedNextNode));
+        var liveRiseNeeded = player.Bottom - promotedTarget.Y;
+        var liveRunNeeded = MathF.Abs(promotedTarget.X - player.X);
+        var currentFeetY = GetModernNodeFeetY(navPoints, promotedCurrentNode);
+        var graphRiseNeeded = currentFeetY - promotedTarget.Y;
+        if (liveRiseNeeded > jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && graphRiseNeeded > jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && liveRunNeeded < ModernLiveVerticalShaftRejectRun
+            && hasGroundContact)
+        {
+            return true;
+        }
+
+        if (liveRiseNeeded <= jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            || HasModernAscendingSupportTowardTarget(world, player, promotedTarget, requiredRise: 18f))
+        {
+            return false;
+        }
+
+        if (!hasGroundContact && player.VerticalSpeed < 0f)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private int ResolveCombatMovement(PlayerEntity player, PlayerEntity enemyTarget, BotMemory memory, BotTimingProfile timing)
@@ -7938,10 +6679,16 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         var hasGroundContact = HasModernGroundContact(world, player);
+        var canStartGroundJump = CanStartModernGroundJump(world, player);
+        if (TryResolveModernChainExecutorJump(world, player, navPoints, memory, timing, hasGroundContact, canStartGroundJump, out var chainJump))
+        {
+            return chainJump;
+        }
+
         if (memory.UnstickTicks > 0 && hasGroundContact)
         {
             memory.ModernJumpDebug = "unstick";
-            return TriggerModernBotJump(memory, timing);
+            return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
         }
 
         GetModernClassJumpProfile(player.ClassId, out var jumpRange, out var jumpHeight, out var jumpHeightTotal);
@@ -7949,6 +6696,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         var feetY = player.Bottom;
         var targetY = destination.Y;
         var horizontalSpeed = player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+        var predicateHorizontalSpeed = GetModernBotPredicateHorizontalSpeed(world, player, horizontal, horizontalSpeed);
         var modernStuckTicks = Math.Max(memory.ModernStuckTicks, memory.StuckTicks);
         var previousX = memory.PreviousObservedX;
         var previousY = memory.PreviousObservedY;
@@ -7960,28 +6708,12 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 && modernStuckTicks > 6
                 && hasPreviousPosition
                 && DistanceSquared(player.X, player.Y, previousX, previousY) <= 0.04f
-                && MathF.Abs(horizontalSpeed) > 0.6f
+                && MathF.Abs(predicateHorizontalSpeed) > 0.6f
                 && HasModernJumpHeadClear(world, player, jumpHeight)
                 && HasModernForwardFootBlock(world, player, horizontal, 7f))
             {
                 memory.ModernJumpDebug = "stuck_pulse";
-                return TriggerModernBotJump(memory, timing);
-            }
-
-            if (horizontal != 0
-                && ShouldDelayModernRouteJumpLaunch(
-                    world.Level,
-                    player,
-                    destination.X,
-                    targetY,
-                    horizontal,
-                    hasGroundContact,
-                    jumpRange,
-                    jumpHeightTotal,
-                    out var jumpDelayReason))
-            {
-                memory.ModernJumpDebug = jumpDelayReason;
-                return false;
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
             if (horizontal != 0
@@ -7999,40 +6731,47 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                     jumpHeight))
             {
                 memory.ModernJumpDebug = "interp";
-                return TriggerModernBotJump(memory, timing);
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
             if (horizontal != 0
                 && TryShouldUseModernLipJump(world, player, destination, targetY, horizontal, modernStuckTicks, jumpHeight))
             {
                 memory.ModernJumpDebug = "lip";
-                return TriggerModernBotJump(memory, timing);
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
             if (horizontal != 0
                 && TryShouldUseModernSlopeJump(world, player, destination, targetY, horizontal, jumpRange, jumpHeight, jumpHeightTotal))
             {
                 memory.ModernJumpDebug = "slope";
-                return TriggerModernBotJump(memory, timing);
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
             if (horizontal != 0
                 && TryShouldUseModernHallJump(world, player, destination, targetY, horizontal, jumpRange, jumpHeight))
             {
                 memory.ModernJumpDebug = "hall";
-                return TriggerModernBotJump(memory, timing);
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
-            if (horizontal != 0 && HasModernWaistObstacleAhead(world, player, horizontal))
+            if (player.ClassId == PlayerClass.Pyro
+                && horizontal != 0
+                && targetY < player.Y - 8f
+                && MathF.Abs(destination.X - player.X) <= jumpRange
+                && player.Y - targetY <= jumpHeightTotal
+                && MathF.Sign(destination.X - player.X) == horizontal
+                && (MathF.Abs(horizontalSpeed) <= 0.25f || MathF.Sign(horizontalSpeed) == horizontal)
+                && HasModernJumpHeadClear(world, player, jumpHeight))
             {
-                if (MathF.Sign(horizontalSpeed) == 0f || MathF.Abs(MathF.Sign(horizontal) - MathF.Sign(horizontalSpeed)) < 2f)
-                {
-                    if (IsModernStairStepAhead(world, player, horizontal, horizontalSpeed))
-                    {
-                        memory.ModernJumpDebug = "waist";
-                        return TriggerModernBotJump(memory, timing);
-                    }
-                }
+                memory.ModernJumpDebug = "route_up";
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
+            }
+
+            if (horizontal != 0 && TryShouldUseModernObstacleJump(world, player, horizontal, predicateHorizontalSpeed))
+            {
+                memory.ModernJumpDebug = "obstacle";
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
 
             if (horizontal != 0 && !HasModernGroundAhead(world, player, horizontal, 15f))
@@ -8041,13 +6780,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                 if (targetY < player.Y)
                 {
                     var jumpRiseNeeded = feetY - targetY;
+                    var uphillHoleJumpDistance = MathF.Min(jumpRange, MathF.Max(40f, jumpHeightTotal * 0.65f));
                     if (jumpRiseNeeded <= jumpHeightTotal
-                        && jumpDistanceNeeded <= jumpRange
+                        && jumpDistanceNeeded <= uphillHoleJumpDistance
                         && MathF.Sign(destination.X - player.X) == horizontal
                         && (MathF.Abs(horizontalSpeed) <= 0.25f || MathF.Sign(horizontalSpeed) == horizontal))
                     {
                         memory.ModernJumpDebug = "hole_up";
-                        return TriggerModernBotJump(memory, timing);
+                        return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
                     }
                 }
                 else if (MathF.Abs(targetY - feetY) <= 18f
@@ -8056,20 +6796,20 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
                     && (MathF.Abs(horizontalSpeed) <= 0.25f || MathF.Sign(horizontalSpeed) == horizontal))
                 {
                     memory.ModernJumpDebug = "hole_flat";
-                    return TriggerModernBotJump(memory, timing);
+                    return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
                 }
             }
 
-            var jumpLength = horizontalSpeed * player.JumpStrength;
-        if (LineHitsSolid(world, player, player.X + jumpLength, feetY - 18f, player.X + jumpLength, feetY - (jumpHeight + 4f))
-            && !PointHitsSolid(world, player, player.X + jumpLength, feetY - (jumpHeight + 12f))
+            var jumpLength = predicateHorizontalSpeed * player.JumpStrength;
+            if (LineHitsStaticSolid(world, player.X + jumpLength, feetY - 18f, player.X + jumpLength, feetY - (jumpHeight + 4f))
+                && !PointHitsStaticSolid(world, player.X + jumpLength, feetY - (jumpHeight + 12f))
                 && targetY < player.Y
                 && horizontal != 0
-                && MathF.Abs(MathF.Sign(horizontal) - MathF.Sign(horizontalSpeed)) < 2f
-                && IsModernStairStepAhead(world, player, horizontal, horizontalSpeed))
+                && MathF.Abs(MathF.Sign(horizontal) - MathF.Sign(predicateHorizontalSpeed)) < 2f
+                && TryShouldUseModernObstacleJump(world, player, horizontal, predicateHorizontalSpeed))
             {
                 memory.ModernJumpDebug = "platform";
-                return TriggerModernBotJump(memory, timing);
+                return TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
             }
         }
 
@@ -8082,6 +6822,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             if (jumpRiseNeeded <= jumpHeightTotal
                 && jumpDistanceNeeded <= jumpRange
                 && horizontal != 0
+                && player.RemainingAirJumps > 0
                 && MathF.Sign(destination.X - player.X) == horizontal)
             {
                 memory.ModernJumpDebug = "scout_air";
@@ -8091,6 +6832,57 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         memory.ModernJumpDebug = $"nojump:g{hasGroundContact}:h{horizontal}:dx{destination.X - player.X:0}:rise{feetY - targetY:0}:hs{horizontalSpeed:0.0}:st{modernStuckTicks}";
         return false;
+    }
+
+    private static bool TryResolveModernChainExecutorJump(
+        SimulationWorld world,
+        PlayerEntity player,
+        ClientBotNavPoints navPoints,
+        BotMemory memory,
+        BotTimingProfile timing,
+        bool hasGroundContact,
+        bool canStartGroundJump,
+        out bool jump)
+    {
+        jump = false;
+        if (!IsModernChainExecutorActive(memory))
+        {
+            return false;
+        }
+
+        if (!TryGetModernNextNode(navPoints, memory, out var targetNode)
+            || memory.NextPointId != memory.ModernChainExecutorTargetPointId)
+        {
+            memory.ModernJumpDebug = "chain_stale";
+            return true;
+        }
+
+        var targetFeetY = GetModernNodeFeetY(navPoints, targetNode);
+        var riseNeeded = player.Bottom - targetFeetY;
+        if (!hasGroundContact)
+        {
+            memory.ModernJumpDebug = $"chain_air:rise{riseNeeded:0}";
+            return true;
+        }
+
+        GetModernClassJumpProfile(player.ClassId, out _, out var jumpHeight, out var jumpHeightTotal);
+        var graphRiseNeeded = riseNeeded;
+        if (TryGetCurrentModernNode(navPoints, memory, out var currentNode))
+        {
+            graphRiseNeeded = GetModernNodeFeetY(navPoints, currentNode) - targetFeetY;
+        }
+
+        if (graphRiseNeeded > 8f
+            && graphRiseNeeded <= jumpHeightTotal + ModernTerrainAssistedLiveRiseTolerance
+            && HasModernJumpHeadClear(world, player, jumpHeight))
+        {
+            memory.ModernJumpDebug = $"chain_jump:rise{riseNeeded:0}:gr{graphRiseNeeded:0}";
+            jump = TriggerModernGroundBotJump(memory, timing, canStartGroundJump);
+            return true;
+        }
+
+        memory.ModernJumpDebug = $"chain_wait:rise{riseNeeded:0}:gr{graphRiseNeeded:0}";
+        return true;
     }
 
     private static bool HasModernQueuedLowerDropContinuation(ClientBotNavPoints navPoints, BotMemory memory, float feetY)
@@ -8123,69 +6915,15 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return true;
     }
 
-    private static bool ShouldDelayModernRouteJumpLaunch(
-        SimpleLevel level,
-        PlayerEntity player,
-        float targetX,
-        float targetFeetY,
-        int horizontal,
-        bool hasGroundContact,
-        float jumpRange,
-        float jumpHeightTotal,
-        out string delayReason)
+    private static bool TriggerModernGroundBotJump(BotMemory memory, BotTimingProfile timing, bool canStartGroundJump)
     {
-        delayReason = string.Empty;
-        if (!hasGroundContact || horizontal == 0)
+        if (!canStartGroundJump)
         {
+            memory.ModernJumpDebug += ":wait_ground";
             return false;
         }
 
-        var run = MathF.Abs(targetX - player.X);
-        var rise = player.Bottom - targetFeetY;
-        if (rise < 14f
-            || rise > jumpHeightTotal + 8f
-            || run < 24f
-            || run > jumpRange + 36f
-            || MathF.Sign(targetX - player.X) != horizontal)
-        {
-            return false;
-        }
-
-        var classDefinition = BotNavigationClasses.GetDefinition(player.ClassId);
-        var profile = BotNavigationProfiles.GetProfileForClass(player.ClassId);
-        var targetY = targetFeetY - classDefinition.CollisionBottom;
-        if (!BotNavigationMovementValidator.TryBuildJumpTape(
-                level,
-                classDefinition,
-                profile,
-                player.X,
-                player.Y,
-                targetX,
-                targetY,
-                player.Team,
-                out var tape,
-                out _)
-            || tape.Count == 0)
-        {
-            return false;
-        }
-
-        var firstFrame = tape[0];
-        if (firstFrame.Up)
-        {
-            return false;
-        }
-
-        var waitTicks = firstFrame.Ticks > 0
-            ? firstFrame.Ticks
-            : (int)Math.Ceiling(firstFrame.DurationSeconds * SimulationConfig.DefaultTicksPerSecond);
-        if (waitTicks <= 1)
-        {
-            return false;
-        }
-
-        delayReason = $"jump_wait:{waitTicks}:dx{targetX - player.X:0}:rise{rise:0}";
-        return true;
+        return TriggerModernBotJump(memory, timing);
     }
 
     private static bool TriggerBotJump(BotMemory memory, BotTimingProfile timing)
@@ -8222,6 +6960,68 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         nextNode = default!;
         return memory.NextPointId >= 0
             && navigationGraph.TryGetNode(memory.NextPointId, out nextNode);
+    }
+
+    private static float GetModernBotPredicateHorizontalSpeed(
+        SimulationWorld world,
+        PlayerEntity player,
+        int horizontal,
+        float horizontalSpeed)
+    {
+        if (horizontal == 0 || MathF.Abs(horizontalSpeed) > 0.0001f)
+        {
+            return horizontalSpeed;
+        }
+
+        // GameMaker botStep predicates read object.hspeed before our C# contact solver
+        // can erase blocked horizontal intent. Preserve only the sign-level signal when
+        // the bot is pressing into the same kind of forward obstruction those predicates test.
+        if (HasModernForwardFootBlock(world, player, horizontal, 7f)
+            || HasModernWaistObstacleAhead(world, player, horizontal))
+        {
+            return horizontal;
+        }
+
+        return 0f;
+    }
+
+    private static bool TryShouldUseModernObstacleJump(
+        SimulationWorld world,
+        PlayerEntity player,
+        int horizontal,
+        float horizontalSpeed)
+    {
+        if (horizontal == 0)
+        {
+            return false;
+        }
+
+        var speedDirection = MathF.Sign(horizontalSpeed);
+        if (speedDirection == 0f || MathF.Abs(MathF.Sign(horizontal) - speedDirection) >= 2f)
+        {
+            return false;
+        }
+
+        var feetY = player.Bottom;
+        var waistX = player.X + (15f * horizontal);
+        if (!LineHitsStaticSolid(
+                world,
+                waistX,
+                player.Y - player.CollisionBottomOffset + 6f,
+                waistX,
+                player.Y + player.CollisionBottomOffset - 12f))
+        {
+            return false;
+        }
+
+        var x = player.X;
+        while (!PointHitsStaticSolid(world, x, feetY - 1f) && MathF.Abs(player.X - x) < 60f)
+        {
+            x += speedDirection;
+        }
+
+        return PointHitsStaticSolid(world, x + (5f * speedDirection), feetY - 7f)
+            || PointHitsStaticSolid(world, x + (11f * speedDirection), feetY - 13f);
     }
 
     private static bool TryShouldUseModernInterpolationJump(
@@ -8374,6 +7174,17 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return LineHitsSolid(world, player, player.X - 6f, feetY + 3f, player.X + 6f, feetY + 3f);
     }
 
+    private static bool CanStartModernGroundJump(SimulationWorld world, PlayerEntity player)
+    {
+        if (player.IsGrounded)
+        {
+            return true;
+        }
+
+        var feetY = player.Bottom;
+        return LineHitsSolid(world, player, player.X - 6f, feetY + 1f, player.X + 6f, feetY + 1f);
+    }
+
     private static bool HasModernForwardFootBlock(SimulationWorld world, PlayerEntity player, int horizontal, float probeDistance)
     {
         var feetY = player.Bottom;
@@ -8397,12 +7208,14 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
     private static bool IsModernStairStepAhead(SimulationWorld world, PlayerEntity player, int horizontal, float horizontalSpeed)
     {
-        if (horizontal == 0 || MathF.Abs(horizontalSpeed) <= 0.0001f)
+        if (horizontal == 0)
         {
             return false;
         }
 
-        var stepDirection = MathF.Sign(horizontalSpeed);
+        var stepDirection = MathF.Abs(horizontalSpeed) > 0.0001f
+            ? MathF.Sign(horizontalSpeed)
+            : horizontal;
         var x = player.X;
         while (!PointHitsSolid(world, player, x, player.Bottom - 1f) && MathF.Abs(player.X - x) < 60f)
         {
@@ -8830,11 +7643,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return "escort carrier";
         }
 
-        if (role == BotRole.HuntCarrier)
-        {
-            return "hunt carrier";
-        }
-
         return world.MatchRules.Mode switch
         {
             GameModeKind.CaptureTheFlag => role == BotRole.DefendObjective ? "defend intel" : "enemy intel",
@@ -8916,16 +7724,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             memory.LastTraversalCompletionTicks -= 1;
         }
 
-        if (memory.RuntimePhysicsRecoveryBlockedTicks > 0)
-        {
-            memory.RuntimePhysicsRecoveryBlockedTicks -= 1;
-            if (memory.RuntimePhysicsRecoveryBlockedTicks <= 0)
-            {
-                memory.RuntimePhysicsRecoveryBlockedTicks = 0;
-                memory.RuntimePhysicsRecoveryBlockedNodeId = -1;
-            }
-        }
-
         if (memory.NavChurnLockTicksRemaining > 0)
         {
             memory.NavChurnLockTicksRemaining -= 1;
@@ -8939,41 +7737,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         if (memory.IntelReturnDirectTicksRemaining > 0)
         {
             memory.IntelReturnDirectTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistCooldownTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistCooldownTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistDirectTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistDirectTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistRouteRetryTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistRouteRetryTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistDropTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistDropTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistDetourTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistDetourTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistDetourReturnTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistDetourReturnTicksRemaining -= 1;
-        }
-
-        if (memory.ObjectiveAssistShoulderCommitTicksRemaining > 0)
-        {
-            memory.ObjectiveAssistShoulderCommitTicksRemaining -= 1;
         }
 
         if (!player.IsCarryingIntel)
@@ -9062,7 +7825,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         memory.PreferredScoreRouteMissCooldownTicks = 0;
         memory.RouteBlockedEdgeTicksByKey?.Clear();
         memory.RouteBlockedEdgeFailureCountsByKey?.Clear();
-        ResetObjectiveAssist(memory);
     }
 
     private static bool WouldMoveIntoObstacle(SimulationWorld world, PlayerEntity player, int horizontalDirection)
@@ -9228,6 +7990,27 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         }
 
         return GetModernObstacleGrid(world.Level, player.Team, player.IsCarryingIntel).LineHitsObstacle(originX, originY, targetX, targetY);
+    }
+
+    private static bool LineHitsStaticSolid(
+        SimulationWorld world,
+        float originX,
+        float originY,
+        float targetX,
+        float targetY)
+    {
+        var distance = DistanceBetween(originX, originY, targetX, targetY);
+        if (distance <= 0.0001f)
+        {
+            return PointHitsStaticSolid(world, originX, originY);
+        }
+
+        return GetModernObstacleGrid(world.Level).LineHitsObstacle(originX, originY, targetX, targetY);
+    }
+
+    private static bool PointHitsStaticSolid(SimulationWorld world, float x, float y)
+    {
+        return GetModernObstacleGrid(world.Level).ContainsPoint(x, y);
     }
 
     private static bool HasModernObstacleLineOfSight(
@@ -9587,6 +8370,18 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         public float ModernPreviousTargetDistance { get; set; } = float.PositiveInfinity;
 
+        public int ModernChainExecutorCurrentPointId { get; set; } = -1;
+
+        public int ModernChainExecutorTargetPointId { get; set; } = -1;
+
+        public int ModernChainExecutorTicksRemaining { get; set; }
+
+        public int ModernChainExecutorNoProgressTicks { get; set; }
+
+        public int ModernChainExecutorCooldownTicks { get; set; }
+
+        public float ModernChainExecutorBestDistance { get; set; } = float.PositiveInfinity;
+
         public bool HasModernClosestPointTarget { get; set; }
 
         public float ModernClosestPointTargetX { get; set; }
@@ -9619,38 +8414,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
 
         public int DirectTargetNoProgressTicks { get; set; }
 
-        public float ObjectiveAssistGoalX { get; set; }
-
-        public float ObjectiveAssistGoalY { get; set; }
-
-        public float ObjectiveAssistBestDistance { get; set; } = float.PositiveInfinity;
-
-        public int ObjectiveAssistNoProgressTicks { get; set; }
-
-        public float ObjectiveAssistDwellBestDistance { get; set; } = float.PositiveInfinity;
-
-        public int ObjectiveAssistDwellTicks { get; set; }
-
-        public int ObjectiveAssistDirectTicksRemaining { get; set; }
-
-        public int ObjectiveAssistRouteRetryTicksRemaining { get; set; }
-
-        public int ObjectiveAssistCooldownTicksRemaining { get; set; }
-
-        public int ObjectiveAssistDropTicksRemaining { get; set; }
-
-        public int ObjectiveAssistDetourDirection { get; set; }
-
-        public int ObjectiveAssistDetourTicksRemaining { get; set; }
-
-        public int ObjectiveAssistDetourReturnTicksRemaining { get; set; }
-
-        public float ObjectiveAssistDetourBestDistance { get; set; } = float.PositiveInfinity;
-
-        public int ObjectiveAssistShoulderSide { get; set; }
-
-        public int ObjectiveAssistShoulderCommitTicksRemaining { get; set; }
-
         public float CaptureHoldInsideMilliseconds { get; set; }
 
         public float CaptureHoldRetainMilliseconds { get; set; }
@@ -9680,14 +8443,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         public float RouteProgressBestDistance { get; set; } = float.PositiveInfinity;
 
         public int RouteNoProgressTicks { get; set; }
-
-        public int RouteDwellFromNodeId { get; set; } = -1;
-
-        public int RouteDwellToNodeId { get; set; } = -1;
-
-        public float RouteDwellBestObjectiveDistance { get; set; } = float.PositiveInfinity;
-
-        public int RouteDwellTicks { get; set; }
 
         public float RouteObjectiveBestDistance { get; set; } = float.PositiveInfinity;
 
@@ -9732,10 +8487,6 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         public bool LastTraversalUsedTape { get; set; }
 
         public int LastTraversalCompletionTicks { get; set; }
-
-        public int RuntimePhysicsRecoveryBlockedNodeId { get; set; } = -1;
-
-        public int RuntimePhysicsRecoveryBlockedTicks { get; set; }
 
     }
 

@@ -36,6 +36,26 @@ if (options.ProbeOrangeBranch)
     return RunOrangeBranchProbe();
 }
 
+if (options.ProbeModernEdge)
+{
+    return RunModernEdgeProbe(options);
+}
+
+if (options.ProbeModernChain)
+{
+    return RunModernChainProbe(options);
+}
+
+if (options.ProbeCollisionWindow)
+{
+    return RunCollisionWindowProbe(options);
+}
+
+if (options.ProbeGmlLink)
+{
+    return RunGmlLinkProbe(options);
+}
+
 if (options.BuildScoreRoutes)
 {
     return BuildScoreRoutes(options);
@@ -204,6 +224,12 @@ static int RunBotScenarioHarness(NavBuildOptions options)
         var progress = result.StartObjectiveDistance - result.BestObjectiveDistance;
         Console.WriteLine(
             $"result status={(result.Passed ? "pass" : result.TimedOut ? "timeout" : "fail")} map={scenario.LevelName} team={scenario.Team} class={scenario.ClassId} mode={controllerMode} elapsedMs={result.WallMilliseconds} start={result.StartObjectiveDistance:0.0} best={result.BestObjectiveDistance:0.0} progress={progress:0.0} maxSpawn={result.MaxDistanceFromSpawn:0.0} longestNoProgress={result.LongestNoProgressSeconds:0.0}s maxStuck={result.MaxStuckTicks} satisfied={result.SatisfiedScenario} completed={result.CompletedObjective} reason={result.FailureReason} objective={CompactScoreRouteLogValue(result.ObjectiveSummary, 320)}");
+        var failureBucket = ClassifyBotScenarioFailure(result);
+        if (!string.IsNullOrWhiteSpace(failureBucket))
+        {
+            Console.WriteLine($"  failure-bucket: {failureBucket}");
+        }
+
         if (!string.IsNullOrWhiteSpace(result.RouteSummary))
         {
             Console.WriteLine($"  routes: {result.RouteSummary}");
@@ -2020,6 +2046,211 @@ static string FormatScoreRouteAttemptResult(BotScenarioResult result)
     return details;
 }
 
+static string ClassifyBotScenarioFailure(BotScenarioResult result)
+{
+    if (result.Passed)
+    {
+        return string.Empty;
+    }
+
+    var combined = string.IsNullOrWhiteSpace(result.RouteSummary)
+        ? result.TraceSummary ?? string.Empty
+        : result.RouteSummary + " | " + (result.TraceSummary ?? string.Empty);
+    var promotions = ExtractModernPromotions(combined);
+    var verticalCu0 = promotions
+        .Where(entry => entry.CanUse == 0 && Math.Max(entry.LiveRise, entry.GraphRise) >= 70f)
+        .DistinctBy(entry => entry.Label)
+        .Take(4)
+        .ToArray();
+    var earlyPromotions = promotions
+        .Where(entry => Math.Abs(entry.Feet) >= 45f)
+        .DistinctBy(entry => entry.Label)
+        .Take(4)
+        .ToArray();
+    var traceSummary = result.TraceSummary ?? string.Empty;
+    var doublebackNoJump = CountTraceFrames(traceSummary, "doubleback", "jump=nojump", ":h0");
+    var committedNextBlocked = CountTraceFrames(traceSummary, "committed_next_blocked");
+    var reanchors = ExtractTraceLabels(traceSummary, "reanchor:").Take(3).ToArray();
+    var branchReturns = ExtractTraceLabels(traceSummary, "second_anchor_block_return").Take(3).ToArray();
+    var routeMiss = CountTraceFrames(traceSummary, "mroute-miss") + CountTraceFrames(result.RouteSummary ?? string.Empty, "mroute-miss");
+
+    var primary = "unknown";
+    if (verticalCu0.Length > 0 && doublebackNoJump > 0)
+    {
+        primary = "vertical_continuation_executor";
+    }
+    else if (committedNextBlocked > 0)
+    {
+        primary = "selection_live_filter";
+    }
+    else if (earlyPromotions.Length > 0)
+    {
+        primary = "promotion_arrival_early";
+    }
+    else if (reanchors.Length > 0 || branchReturns.Length > 0)
+    {
+        primary = "reanchor_backtrack_churn";
+    }
+    else if (routeMiss > 0 || result.FailureReason.Contains("goal", StringComparison.OrdinalIgnoreCase))
+    {
+        primary = "objective_target_or_route_choice";
+    }
+
+    return
+        $"primary={primary} verticalCu0={FormatPromotionList(verticalCu0)} earlyPromotions={FormatPromotionList(earlyPromotions)} doublebackNoJump={doublebackNoJump} committedNextBlocked={committedNextBlocked} reanchor={FormatStringList(reanchors)} backtrack={FormatStringList(branchReturns)} routeMiss={routeMiss}";
+}
+
+static IReadOnlyList<ModernPromotionTrace> ExtractModernPromotions(string value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return Array.Empty<ModernPromotionTrace>();
+    }
+
+    var result = new List<ModernPromotionTrace>();
+    foreach (var part in EnumerateTraceParts(value))
+    {
+        if (!part.Contains("promote_np", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        TryReadTraceMetric(part, ":cp", out var currentPoint);
+        TryReadTraceMetric(part, ":np", out var nextPoint);
+        TryReadTraceMetric(part, ":np2", out var lookaheadPoint);
+        TryReadTraceMetric(part, ":feet", out var feet);
+        TryReadTraceMetric(part, ":lr", out var liveRise);
+        TryReadTraceMetric(part, ":gr", out var graphRise);
+        TryReadTraceMetric(part, ":run", out var run);
+        TryReadTraceMetric(part, ":cu", out var canUse);
+        result.Add(new ModernPromotionTrace(
+            CompactScoreRouteLogValue(part, 140),
+            currentPoint,
+            nextPoint,
+            lookaheadPoint,
+            feet,
+            liveRise,
+            graphRise,
+            run,
+            canUse));
+    }
+
+    return result;
+}
+
+static int CountTraceFrames(string value, params string[] requiredTokens)
+{
+    if (string.IsNullOrWhiteSpace(value) || requiredTokens.Length == 0)
+    {
+        return 0;
+    }
+
+    var count = 0;
+    var frames = value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var frame in frames)
+    {
+        var hasAllTokens = true;
+        foreach (var token in requiredTokens)
+        {
+            if (!frame.Contains(token, StringComparison.Ordinal))
+            {
+                hasAllTokens = false;
+                break;
+            }
+        }
+
+        if (hasAllTokens)
+        {
+            count += 1;
+        }
+    }
+
+    return count;
+}
+
+static IEnumerable<string> ExtractTraceLabels(string value, string marker)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        yield break;
+    }
+
+    foreach (var part in EnumerateTraceParts(value))
+    {
+        if (part.Contains(marker, StringComparison.Ordinal))
+        {
+            yield return CompactScoreRouteLogValue(part, 140);
+        }
+    }
+}
+
+static IEnumerable<string> EnumerateTraceParts(string value)
+{
+    var start = 0;
+    for (var index = 0; index <= value.Length; index += 1)
+    {
+        if (index < value.Length && value[index] != ' ' && value[index] != ',' && value[index] != '|' && value[index] != ';')
+        {
+            continue;
+        }
+
+        if (index > start)
+        {
+            var part = value[start..index].Trim();
+            if (part.Length > 0)
+            {
+                yield return part;
+            }
+        }
+
+        start = index + 1;
+    }
+}
+
+static bool TryReadTraceMetric(string text, string key, out float value)
+{
+    value = 0f;
+    var start = text.IndexOf(key, StringComparison.Ordinal);
+    if (start < 0)
+    {
+        return false;
+    }
+
+    start += key.Length;
+    var end = start;
+    while (end < text.Length)
+    {
+        var current = text[end];
+        if (!char.IsDigit(current) && current != '-' && current != '.')
+        {
+            break;
+        }
+
+        end += 1;
+    }
+
+    return end > start
+        && float.TryParse(text.AsSpan(start, end - start), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+}
+
+static string FormatPromotionList(IReadOnlyList<ModernPromotionTrace> promotions)
+{
+    if (promotions.Count == 0)
+    {
+        return "none";
+    }
+
+    return string.Join(
+        ";",
+        promotions.Select(entry =>
+            $"cp{entry.CurrentPoint:0}->np{entry.NextPoint:0}/np2{entry.LookaheadPoint:0}:feet{entry.Feet:0}:lr{entry.LiveRise:0}:gr{entry.GraphRise:0}:run{entry.Run:0}:cu{entry.CanUse:0}"));
+}
+
+static string FormatStringList(IReadOnlyList<string> values)
+{
+    return values.Count == 0 ? "none" : string.Join(";", values.Select(value => CompactScoreRouteLogValue(value, 140)));
+}
+
 static string ExtractLatestTraceToken(string traceSummary, string tokenPrefix)
 {
     if (string.IsNullOrWhiteSpace(traceSummary))
@@ -2199,6 +2430,639 @@ static IReadOnlyList<ScoreRouteProfilePlan> GetScoreRouteProfilePlans()
         new ScoreRouteProfilePlan(BotNavigationProfile.Standard, PlayerClass.Pyro),
         new ScoreRouteProfilePlan(BotNavigationProfile.Heavy, PlayerClass.Heavy),
     ];
+}
+
+static int RunModernEdgeProbe(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (string.IsNullOrWhiteSpace(levelName))
+    {
+        Console.Error.WriteLine("--probe-modern-edge requires exactly one --map.");
+        return 2;
+    }
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        Console.Error.WriteLine($"failed_to_load_level {levelName}");
+        return 2;
+    }
+
+    var asset = BotNavigationModernPointGraphBuilder.Build(
+        world.Level,
+        BotNavigationLevelFingerprint.Compute(world.Level),
+        validateTraversals: false);
+    var navPoints = ClientBotNavPoints.Build(asset, world.Level);
+    if (!navPoints.TryGetPoint(options.ProbeFromNodeId, out var fromNode)
+        || !navPoints.TryGetPoint(options.ProbeToNodeId, out var toNode))
+    {
+        Console.Error.WriteLine($"missing_probe_node {options.ProbeFromNodeId}->{options.ProbeToNodeId}");
+        return 2;
+    }
+
+    var hasProbeEdge = navPoints.TryGetConnection(options.ProbeFromNodeId, options.ProbeToNodeId, out _);
+    var startX = options.ProbeStartX ?? fromNode.X;
+    var startBottom = options.ProbeStartBottom ?? fromNode.Y;
+    var targetX = toNode.X;
+    var targetBottom = toNode.Y;
+    Console.WriteLine(
+        $"modern_edge_probe map={levelName} team={options.ScenarioTeam} class={options.ScenarioClasses[0]} edge={options.ProbeFromNodeId}->{options.ProbeToNodeId} exists={hasProbeEdge} start=({startX:0.0},{startBottom:0.0}) from=({fromNode.X:0.0},{fromNode.Y:0.0}) to=({toNode.X:0.0},{toNode.Y:0.0}) nodes={asset.Nodes.Count} edges={asset.Edges.Count}");
+
+    foreach (var policy in new[] { ModernEdgeProbePolicy.HorizontalOnly, ModernEdgeProbePolicy.JumpWhenGrounded, ModernEdgeProbePolicy.JumpWhenBlockedOrAbove })
+    {
+        var result = RunModernEdgeProbePolicy(
+            levelName,
+            options.ScenarioTeam,
+            options.ScenarioClasses[0],
+            navPoints,
+            options.ProbeFromNodeId,
+            options.ProbeToNodeId,
+            startX,
+            startBottom,
+            targetX,
+            targetBottom,
+            policy,
+            seconds: Math.Max(1, options.GetEffectiveScenarioSeconds()));
+        Console.WriteLine(result);
+    }
+
+    return 0;
+}
+
+static int RunModernChainProbe(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (string.IsNullOrWhiteSpace(levelName))
+    {
+        Console.Error.WriteLine("--probe-modern-chain requires exactly one --map.");
+        return 2;
+    }
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        Console.Error.WriteLine($"failed_to_load_level {levelName}");
+        return 2;
+    }
+
+    var asset = BotNavigationModernPointGraphBuilder.Build(
+        world.Level,
+        BotNavigationLevelFingerprint.Compute(world.Level),
+        validateTraversals: false);
+    var navPoints = ClientBotNavPoints.Build(asset, world.Level);
+    var chain = options.ProbeChainNodeIds;
+    var nodes = new BotNavigationNode[chain.Count];
+    for (var index = 0; index < chain.Count; index += 1)
+    {
+        if (!navPoints.TryGetPoint(chain[index], out nodes[index]))
+        {
+            Console.Error.WriteLine($"missing_chain_node {chain[index]}");
+            return 2;
+        }
+    }
+
+    var startX = options.ProbeStartX ?? nodes[0].X;
+    var startBottom = options.ProbeStartBottom ?? nodes[0].Y;
+    Console.WriteLine(
+        $"modern_chain_probe map={levelName} team={options.ScenarioTeam} class={options.ScenarioClasses[0]} chain={string.Join("->", chain)} start=({startX:0.0},{startBottom:0.0}) nodes={asset.Nodes.Count} edges={asset.Edges.Count}");
+
+    for (var index = 0; index < chain.Count - 1; index += 1)
+    {
+        Console.WriteLine(
+            $"chain_edge {chain[index]}->{chain[index + 1]} exists={navPoints.TryGetConnection(chain[index], chain[index + 1], out _)} from=({nodes[index].X:0.0},{nodes[index].Y:0.0}) to=({nodes[index + 1].X:0.0},{nodes[index + 1].Y:0.0})");
+    }
+
+    foreach (var policy in new[]
+             {
+                 ModernChainProbePolicy.TrackTargetJumpWhenGrounded,
+                 ModernChainProbePolicy.TrackTargetNextDirectionGate,
+                 ModernChainProbePolicy.HoldEdgeJumpWhenGrounded,
+                 ModernChainProbePolicy.HoldEdgeJumpWhenBlockedOrAbove,
+                 ModernChainProbePolicy.HoldEdgeSingleJumpPerSegment,
+             })
+    {
+        Console.WriteLine(RunModernChainProbePolicy(
+            levelName,
+            options.ScenarioTeam,
+            options.ScenarioClasses[0],
+            navPoints,
+            chain,
+            nodes,
+            startX,
+            startBottom,
+            policy,
+            seconds: Math.Max(1, options.GetEffectiveScenarioSeconds())));
+    }
+
+    return 0;
+}
+
+static string RunModernChainProbePolicy(
+    string levelName,
+    PlayerTeam team,
+    PlayerClass classId,
+    ClientBotNavPoints navPoints,
+    IReadOnlyList<int> chain,
+    IReadOnlyList<BotNavigationNode> nodes,
+    float startX,
+    float startBottom,
+    ModernChainProbePolicy policy,
+    int seconds)
+{
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        return $"policy={policy} failed_to_load_level";
+    }
+
+    world.PrepareLocalPlayerJoin();
+    const byte botSlot = 2;
+    if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+        || !world.TrySetNetworkPlayerTeam(botSlot, team)
+        || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+        || !world.TryGetNetworkPlayer(botSlot, out var player))
+    {
+        return $"policy={policy} failed_to_spawn_player";
+    }
+
+    if (!TrySpawnPlayerResolvedForScenario(world, player, team, startX, startBottom - player.CollisionBottomOffset))
+    {
+        return $"policy={policy} failed_to_place_player";
+    }
+
+    player.TeleportTo(startX, startBottom - player.CollisionBottomOffset);
+    player.ResolveBlockingOverlap(world.Level, team);
+
+    var lines = new List<string> { $"policy={policy}" };
+    var segmentIndex = 0;
+    var segmentJumpUsed = false;
+    var jumpCooldownTicks = 0;
+    var bestDistance = float.PositiveInfinity;
+    var bestSegment = 0;
+    var bestTick = 0;
+    var completeTick = -1;
+    var totalTicks = Math.Max(1, seconds) * world.Config.TicksPerSecond;
+
+    for (var tick = 0; tick < totalTicks && segmentIndex < nodes.Count - 1; tick += 1)
+    {
+        var fromNode = nodes[segmentIndex];
+        var targetNode = nodes[segmentIndex + 1];
+        var targetX = targetNode.X;
+        var targetBottom = targetNode.Y;
+        var horizontal = policy switch
+        {
+            ModernChainProbePolicy.TrackTargetJumpWhenGrounded or ModernChainProbePolicy.TrackTargetNextDirectionGate => MathF.Sign(targetX - player.X),
+            _ => MathF.Sign(targetNode.X - fromNode.X),
+        };
+        var left = horizontal < 0f;
+        var right = horizontal > 0f;
+        var targetAbove = targetBottom < player.Bottom - 8f;
+        var slowHorizontal = MathF.Abs(player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond) < 0.25f;
+        var jump = policy switch
+        {
+            ModernChainProbePolicy.HoldEdgeSingleJumpPerSegment => player.IsGrounded && !segmentJumpUsed && targetAbove,
+            ModernChainProbePolicy.HoldEdgeJumpWhenBlockedOrAbove => player.IsGrounded && jumpCooldownTicks <= 0 && (targetAbove || slowHorizontal),
+            _ => player.IsGrounded && jumpCooldownTicks <= 0 && targetAbove,
+        };
+
+        if (jump)
+        {
+            jumpCooldownTicks = 8;
+            segmentJumpUsed = true;
+        }
+        else if (jumpCooldownTicks > 0)
+        {
+            jumpCooldownTicks -= 1;
+        }
+
+        var input = new PlayerInputSnapshot(
+            Left: left,
+            Right: right,
+            Up: jump,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: targetX,
+            AimWorldY: targetBottom,
+            DebugKill: false);
+        if (!world.TrySetNetworkPlayerInput(botSlot, input))
+        {
+            return $"policy={policy} failed_to_apply_input";
+        }
+
+        world.AdvanceOneTick();
+
+        var distance = DistanceBetween(player.X, player.Bottom, targetX, targetBottom);
+        if (distance < bestDistance || segmentIndex > bestSegment)
+        {
+            bestDistance = distance;
+            bestSegment = segmentIndex;
+            bestTick = tick + 1;
+        }
+
+        var reachedSegment = MathF.Abs(player.X - targetX) <= 18f && MathF.Abs(player.Bottom - targetBottom) <= 36f;
+        var advanceAllowed = reachedSegment
+            && (policy != ModernChainProbePolicy.TrackTargetNextDirectionGate
+                || segmentIndex + 2 >= nodes.Count
+                || IsModernChainNextDirectionReady(player, targetNode, nodes[segmentIndex + 2]));
+        if ((tick < 12 || tick % 10 == 9 || reachedSegment) && lines.Count < 44)
+        {
+            lines.Add(
+                $"t={(tick + 1) / (float)world.Config.TicksPerSecond:0.00} seg={segmentIndex}:{chain[segmentIndex]}->{chain[segmentIndex + 1]} pos=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) input=L{left}/R{right}/J{jump} d={distance:0.0} reached={reachedSegment} advance={advanceAllowed} grounded={player.IsGrounded}");
+        }
+
+        if (advanceAllowed)
+        {
+            lines.Add(
+                $"advance t={(tick + 1) / (float)world.Config.TicksPerSecond:0.00} reached={chain[segmentIndex + 1]} bottomDelta={player.Bottom - targetBottom:0.0} xDelta={player.X - targetX:0.0} grounded={player.IsGrounded}");
+            segmentIndex += 1;
+            segmentJumpUsed = false;
+            bestDistance = float.PositiveInfinity;
+            if (segmentIndex >= nodes.Count - 1)
+            {
+                completeTick = tick + 1;
+                break;
+            }
+        }
+    }
+
+    var finalTarget = nodes[^1];
+    var finalDistance = DistanceBetween(player.X, player.Bottom, finalTarget.X, finalTarget.Y);
+    lines.Add(
+        $"summary policy={policy} completeTick={FormatProbeTick(completeTick, world.Config.TicksPerSecond)} reachedSegment={segmentIndex}/{nodes.Count - 1} bestSegment={bestSegment} best={bestDistance:0.0}@{bestTick / (float)world.Config.TicksPerSecond:0.00}s final=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} finalDistance={finalDistance:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) grounded={player.IsGrounded}");
+    if (segmentIndex < nodes.Count - 1)
+    {
+        lines.Add(ModernPracticeBotController.DescribeModernEdgeProbe(
+            world,
+            player,
+            navPoints,
+            chain[segmentIndex],
+            chain[segmentIndex + 1],
+            stuckTicks: Math.Min(totalTicks, 120)));
+    }
+
+    return string.Join(Environment.NewLine, lines);
+}
+
+static bool IsModernChainNextDirectionReady(PlayerEntity player, BotNavigationNode reachedNode, BotNavigationNode nextNode)
+{
+    var nextDirection = MathF.Sign(nextNode.X - reachedNode.X);
+    var horizontalSpeed = player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
+    return nextDirection == 0f
+        || player.IsGrounded
+        || MathF.Abs(horizontalSpeed) <= 0.25f
+        || MathF.Sign(horizontalSpeed) == nextDirection;
+}
+
+static string RunModernEdgeProbePolicy(
+    string levelName,
+    PlayerTeam team,
+    PlayerClass classId,
+    ClientBotNavPoints navPoints,
+    int fromNodeId,
+    int toNodeId,
+    float startX,
+    float startBottom,
+    float targetX,
+    float targetBottom,
+    ModernEdgeProbePolicy policy,
+    int seconds)
+{
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        return $"policy={policy} failed_to_load_level";
+    }
+
+    world.PrepareLocalPlayerJoin();
+    const byte botSlot = 2;
+    if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+        || !world.TrySetNetworkPlayerTeam(botSlot, team)
+        || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+        || !world.TryGetNetworkPlayer(botSlot, out var player))
+    {
+        return $"policy={policy} failed_to_spawn_player";
+    }
+
+    if (!TrySpawnPlayerResolvedForScenario(world, player, team, startX, startBottom - player.CollisionBottomOffset))
+    {
+        return $"policy={policy} failed_to_place_player";
+    }
+
+    player.TeleportTo(startX, startBottom - player.CollisionBottomOffset);
+    player.ResolveBlockingOverlap(world.Level, team);
+
+    var lines = new List<string>
+    {
+        $"policy={policy}",
+        ModernPracticeBotController.DescribeModernEdgeProbe(world, player, navPoints, fromNodeId, toNodeId, stuckTicks: 0),
+    };
+
+    var bestDistance = DistanceBetween(player.X, player.Bottom, targetX, targetBottom);
+    var bestTick = 0;
+    var successTick = -1;
+    var jumpCooldownTicks = 0;
+    var totalTicks = Math.Max(1, seconds) * world.Config.TicksPerSecond;
+    for (var tick = 0; tick < totalTicks; tick += 1)
+    {
+        var horizontal = MathF.Sign(targetX - player.X);
+        var left = horizontal < 0f;
+        var right = horizontal > 0f;
+        var jump = policy switch
+        {
+            ModernEdgeProbePolicy.JumpWhenGrounded => player.IsGrounded && jumpCooldownTicks <= 0,
+            ModernEdgeProbePolicy.JumpWhenBlockedOrAbove => player.IsGrounded
+                && jumpCooldownTicks <= 0
+                && (targetBottom < player.Bottom - 8f || MathF.Abs(player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond) < 0.25f),
+            _ => false,
+        };
+
+        if (jump)
+        {
+            jumpCooldownTicks = 8;
+        }
+        else if (jumpCooldownTicks > 0)
+        {
+            jumpCooldownTicks -= 1;
+        }
+
+        var input = new PlayerInputSnapshot(
+            Left: left,
+            Right: right,
+            Up: jump,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: targetX,
+            AimWorldY: targetBottom,
+            DebugKill: false);
+        if (!world.TrySetNetworkPlayerInput(botSlot, input))
+        {
+            return $"policy={policy} failed_to_apply_input";
+        }
+
+        world.AdvanceOneTick();
+
+        var distance = DistanceBetween(player.X, player.Bottom, targetX, targetBottom);
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            bestTick = tick + 1;
+        }
+
+        if ((tick < 10 || tick % 15 == 14) && lines.Count < 18)
+        {
+            lines.Add(
+                $"t={(tick + 1) / (float)world.Config.TicksPerSecond:0.00} pos=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) input=L{left}/R{right}/J{jump} d={distance:0.0} grounded={player.IsGrounded}");
+        }
+
+        if (MathF.Abs(player.X - targetX) <= 18f && MathF.Abs(player.Bottom - targetBottom) <= 36f)
+        {
+            successTick = tick + 1;
+            break;
+        }
+    }
+
+    lines.Add(ModernPracticeBotController.DescribeModernEdgeProbe(world, player, navPoints, fromNodeId, toNodeId, stuckTicks: Math.Min(totalTicks, 120)));
+    lines.Add(
+        $"summary policy={policy} successTick={FormatProbeTick(successTick, world.Config.TicksPerSecond)} best={bestDistance:0.0}@{bestTick / (float)world.Config.TicksPerSecond:0.00}s final=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) grounded={player.IsGrounded}");
+    return string.Join(Environment.NewLine, lines);
+}
+
+static string FormatProbeTick(int tick, int ticksPerSecond)
+{
+    return tick < 0 ? "n/a" : $"{tick / (float)Math.Max(1, ticksPerSecond):0.00}s";
+}
+
+static int RunCollisionWindowProbe(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (string.IsNullOrWhiteSpace(levelName))
+    {
+        Console.Error.WriteLine("--probe-collision-window requires exactly one --map.");
+        return 2;
+    }
+
+    if (!options.ProbeStartX.HasValue || !options.ProbeStartBottom.HasValue)
+    {
+        Console.Error.WriteLine("--probe-collision-window requires --start-x and --start-bottom.");
+        return 2;
+    }
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        Console.Error.WriteLine($"failed_to_load_level {levelName}");
+        return 2;
+    }
+
+    world.PrepareLocalPlayerJoin();
+    const byte botSlot = 2;
+    var team = options.ScenarioTeam;
+    var classId = options.ScenarioClasses[0];
+    if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+        || !world.TrySetNetworkPlayerTeam(botSlot, team)
+        || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+        || !world.TryGetNetworkPlayer(botSlot, out var player))
+    {
+        Console.Error.WriteLine("failed_to_spawn_player");
+        return 2;
+    }
+
+    var startX = options.ProbeStartX.Value;
+    var startBottom = options.ProbeStartBottom.Value;
+    player.TeleportTo(startX, startBottom - player.CollisionBottomOffset);
+    player.ResolveBlockingOverlap(world.Level, team);
+
+    Console.WriteLine(
+        $"collision_window map={levelName} team={team} class={classId} requested=({startX:0.0},{startBottom:0.0}) resolved=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} bounds={FormatCollisionBounds(player, player.X, player.Y)} solids={world.Level.Solids.Count}");
+    Console.WriteLine(DescribeNearbyRoomObjects(world.Level, player.X, player.Bottom, radius: 220f));
+    Console.WriteLine(DescribeCollisionOccupancy(world.Level, player, team, player.X, player.Y, "current"));
+
+    foreach (var (dx, dy, label) in new[]
+    {
+        (1f, 0f, "x+1"),
+        (2f, 0f, "x+2"),
+        (4f, 0f, "x+4"),
+        (8f, 0f, "x+8"),
+        (1f, -6f, "x+1_y-6_step"),
+        (1f, -12f, "x+1_y-12"),
+        (1f, 6f, "x+1_y+6"),
+        (-1f, 0f, "x-1"),
+        (-8f, 0f, "x-8"),
+    })
+    {
+        Console.WriteLine(DescribeCollisionOccupancy(world.Level, player, team, player.X + dx, player.Y + dy, label));
+    }
+
+    Console.WriteLine(DescribeNearestOccupiableOffsets(world.Level, player, team, player.X, player.Y));
+    Console.WriteLine(DescribeHorizontalWallProfile(world.Level, player, team, player.X, player.Y, direction: 1));
+
+    return 0;
+}
+
+static int RunGmlLinkProbe(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (string.IsNullOrWhiteSpace(levelName))
+    {
+        Console.Error.WriteLine("--probe-gml-link requires exactly one --map.");
+        return 2;
+    }
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        Console.Error.WriteLine($"failed_to_load_level {levelName}");
+        return 2;
+    }
+
+    var asset = BotNavigationModernPointGraphBuilder.Build(
+        world.Level,
+        BotNavigationLevelFingerprint.Compute(world.Level),
+        validateTraversals: false);
+    Console.WriteLine(GmlClientBotPointGraphBuilder.DescribeConnection(world.Level, asset, options.ProbeFromNodeId, options.ProbeToNodeId));
+    return 0;
+}
+
+static string FormatCollisionBounds(PlayerEntity player, float x, float y)
+{
+    player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+    return $"[{left:0.0},{top:0.0},{right:0.0},{bottom:0.0}]";
+}
+
+static string DescribeNearbyRoomObjects(SimpleLevel level, float x, float y, float radius)
+{
+    var nearby = level.RoomObjects
+        .Where(roomObject => MathF.Abs(roomObject.CenterX - x) <= radius && MathF.Abs(roomObject.CenterY - y) <= radius)
+        .OrderBy(roomObject => DistanceBetween(roomObject.CenterX, roomObject.CenterY, x, y))
+        .Take(16)
+        .Select(roomObject => $"{roomObject.Type}:team{FormatNullableTeam(roomObject.Team)}:{roomObject.SourceName}[{roomObject.Left:0},{roomObject.Top:0},{roomObject.Right:0},{roomObject.Bottom:0}]")
+        .ToArray();
+    return nearby.Length == 0
+        ? $"nearby_room_objects none radius={radius:0}"
+        : $"nearby_room_objects {string.Join(" | ", nearby)}";
+}
+
+static string DescribeCollisionOccupancy(SimpleLevel level, PlayerEntity player, PlayerTeam team, float x, float y, string label)
+{
+    player.GetCollisionBoundsAt(x, y, out var left, out var top, out var right, out var bottom);
+    var blockers = GetCollisionBlockers(level, player, team, left, top, right, bottom);
+    return blockers.Count == 0
+        ? $"{label} pos=({x:0.0},{y:0.0}) bottom={y + player.CollisionBottomOffset:0.0} bounds=[{left:0.0},{top:0.0},{right:0.0},{bottom:0.0}] occupy=True"
+        : $"{label} pos=({x:0.0},{y:0.0}) bottom={y + player.CollisionBottomOffset:0.0} bounds=[{left:0.0},{top:0.0},{right:0.0},{bottom:0.0}] occupy=False blockers={string.Join(" | ", blockers.Take(8))}";
+}
+
+static IReadOnlyList<string> GetCollisionBlockers(SimpleLevel level, PlayerEntity player, PlayerTeam team, float left, float top, float right, float bottom)
+{
+    var blockers = new List<string>();
+    for (var index = 0; index < level.Solids.Count; index += 1)
+    {
+        var solid = level.Solids[index];
+        if (left < solid.Right && right > solid.Left && top < solid.Bottom && bottom > solid.Top)
+        {
+            blockers.Add($"solid#{index}[{solid.Left:0},{solid.Top:0},{solid.Right:0},{solid.Bottom:0}]");
+        }
+    }
+
+    foreach (var gate in level.GetBlockingTeamGates(team, player.IsCarryingIntel))
+    {
+        if (left < gate.Right && right > gate.Left && top < gate.Bottom && bottom > gate.Top)
+        {
+            blockers.Add($"gate:{gate.Type}:team{FormatNullableTeam(gate.Team)}:{gate.SourceName}[{gate.Left:0},{gate.Top:0},{gate.Right:0},{gate.Bottom:0}]");
+        }
+    }
+
+    foreach (var wall in level.GetRoomObjects(RoomObjectType.PlayerWall))
+    {
+        if (left < wall.Right && right > wall.Left && top < wall.Bottom && bottom > wall.Top)
+        {
+            blockers.Add($"wall:{wall.Type}:{wall.SourceName}[{wall.Left:0},{wall.Top:0},{wall.Right:0},{wall.Bottom:0}]");
+        }
+    }
+
+    return blockers;
+}
+
+static string FormatNullableTeam(PlayerTeam? team)
+{
+    return team.HasValue ? team.Value.ToString() : "None";
+}
+
+static string DescribeNearestOccupiableOffsets(SimpleLevel level, PlayerEntity player, PlayerTeam team, float originX, float originY)
+{
+    var hits = new List<string>();
+    for (var radius = 1; radius <= 40 && hits.Count < 12; radius += 1)
+    {
+        for (var dy = -radius; dy <= radius && hits.Count < 12; dy += 1)
+        {
+            foreach (var dx in new[] { radius, -radius })
+            {
+                if (Math.Abs(dy) != radius && Math.Abs(dx) != radius)
+                {
+                    continue;
+                }
+
+                player.GetCollisionBoundsAt(originX + dx, originY + dy, out var left, out var top, out var right, out var bottom);
+                if (GetCollisionBlockers(level, player, team, left, top, right, bottom).Count == 0)
+                {
+                    hits.Add($"dx{dx:+0;-0;0}/dy{dy:+0;-0;0}->bottom{originY + dy + player.CollisionBottomOffset:0.0}");
+                }
+            }
+        }
+    }
+
+    return hits.Count == 0
+        ? "nearest_occupiable_offsets none_within_40"
+        : $"nearest_occupiable_offsets {string.Join(", ", hits)}";
+}
+
+static string DescribeHorizontalWallProfile(SimpleLevel level, PlayerEntity player, PlayerTeam team, float originX, float originY, int direction)
+{
+    var samples = new List<string>();
+    for (var dx = 0; dx <= 96; dx += 4)
+    {
+        var x = originX + (dx * direction);
+        var firstFreeUp = int.MinValue;
+        for (var dy = 0; dy >= -48; dy -= 2)
+        {
+            player.GetCollisionBoundsAt(x, originY + dy, out var left, out var top, out var right, out var bottom);
+            if (GetCollisionBlockers(level, player, team, left, top, right, bottom).Count == 0)
+            {
+                firstFreeUp = dy;
+                break;
+            }
+        }
+
+        if (firstFreeUp == int.MinValue)
+        {
+            samples.Add($"dx{dx}:blocked>48");
+        }
+        else if (firstFreeUp == 0)
+        {
+            samples.Add($"dx{dx}:free");
+        }
+        else
+        {
+            samples.Add($"dx{dx}:up{-firstFreeUp}");
+        }
+    }
+
+    return $"right_profile {string.Join(" ", samples)}";
 }
 
 static int RunOrangeLipProbe()
@@ -4555,7 +5419,7 @@ internal enum BotControllerMode
 internal sealed class NavBuildOptions
 {
     public const string Usage =
-        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch]";
+        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch] [--probe-modern-edge --from-node N --to-node N [--start-x X --start-bottom Y]] [--probe-modern-chain --chain-nodes N,N,N [--start-x X --start-bottom Y]] [--probe-collision-window --start-x X --start-bottom Y] [--probe-gml-link --from-node N --to-node N]";
 
     public HashSet<string> MapNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -4601,6 +5465,24 @@ internal sealed class NavBuildOptions
 
     public bool ProbeOrangeBranch { get; private set; }
 
+    public bool ProbeModernEdge { get; private set; }
+
+    public bool ProbeModernChain { get; private set; }
+
+    public bool ProbeCollisionWindow { get; private set; }
+
+    public bool ProbeGmlLink { get; private set; }
+
+    public int ProbeFromNodeId { get; private set; } = -1;
+
+    public int ProbeToNodeId { get; private set; } = -1;
+
+    public IReadOnlyList<int> ProbeChainNodeIds => _probeChainNodeIds;
+
+    public float? ProbeStartX { get; private set; }
+
+    public float? ProbeStartBottom { get; private set; }
+
     public bool RunStockScoreMatrix { get; private set; }
 
     public bool RunStockCtfKothMatrix { get; private set; }
@@ -4630,6 +5512,8 @@ internal sealed class NavBuildOptions
     public bool FailFast { get; private set; }
 
     private readonly List<PlayerClass> _scenarioClasses = [PlayerClass.Scout];
+
+    private readonly List<int> _probeChainNodeIds = [];
 
     private bool _hasExplicitScenarioClasses;
 
@@ -4816,6 +5700,90 @@ internal sealed class NavBuildOptions
                 continue;
             }
 
+            if (arg.Equals("--probe-modern-edge", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ProbeModernEdge = true;
+                continue;
+            }
+
+            if (arg.Equals("--probe-modern-chain", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ProbeModernChain = true;
+                continue;
+            }
+
+            if (arg.Equals("--probe-collision-window", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ProbeCollisionWindow = true;
+                continue;
+            }
+
+            if (arg.Equals("--probe-gml-link", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ProbeGmlLink = true;
+                continue;
+            }
+
+            if (arg.Equals("--from-node", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var fromNodeId))
+                {
+                    throw new ArgumentException($"Invalid from-node value '{args[index]}'.");
+                }
+
+                options.ProbeFromNodeId = fromNodeId;
+                continue;
+            }
+
+            if (arg.Equals("--to-node", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var toNodeId))
+                {
+                    throw new ArgumentException($"Invalid to-node value '{args[index]}'.");
+                }
+
+                options.ProbeToNodeId = toNodeId;
+                continue;
+            }
+
+            if (arg.Equals("--chain-nodes", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options._probeChainNodeIds.Clear();
+                foreach (var token in args[++index].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nodeId))
+                    {
+                        throw new ArgumentException($"Invalid chain node value '{token}'.");
+                    }
+
+                    options._probeChainNodeIds.Add(nodeId);
+                }
+
+                continue;
+            }
+
+            if (arg.Equals("--start-x", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!float.TryParse(args[++index].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var startX))
+                {
+                    throw new ArgumentException($"Invalid start-x value '{args[index]}'.");
+                }
+
+                options.ProbeStartX = startX;
+                continue;
+            }
+
+            if (arg.Equals("--start-bottom", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!float.TryParse(args[++index].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var startBottom))
+                {
+                    throw new ArgumentException($"Invalid start-bottom value '{args[index]}'.");
+                }
+
+                options.ProbeStartBottom = startBottom;
+                continue;
+            }
+
             if (arg.Equals("--no-bot-diagnostics", StringComparison.OrdinalIgnoreCase))
             {
                 options.CollectBotDiagnostics = false;
@@ -4973,6 +5941,78 @@ internal sealed class NavBuildOptions
     public bool IsValid(out string message)
     {
         message = string.Empty;
+        if (ProbeModernEdge)
+        {
+            if (MapNames.Count != 1)
+            {
+                message = "--probe-modern-edge requires exactly one --map.";
+                return false;
+            }
+
+            if (ProbeFromNodeId < 0 || ProbeToNodeId < 0)
+            {
+                message = "--probe-modern-edge requires --from-node and --to-node.";
+                return false;
+            }
+
+            if (GetEffectiveScenarioSeconds() <= 0)
+            {
+                message = "--seconds must be greater than zero.";
+                return false;
+            }
+        }
+
+        if (ProbeModernChain)
+        {
+            if (MapNames.Count != 1)
+            {
+                message = "--probe-modern-chain requires exactly one --map.";
+                return false;
+            }
+
+            if (_probeChainNodeIds.Count < 2)
+            {
+                message = "--probe-modern-chain requires --chain-nodes with at least two node ids.";
+                return false;
+            }
+
+            if (GetEffectiveScenarioSeconds() <= 0)
+            {
+                message = "--seconds must be greater than zero.";
+                return false;
+            }
+        }
+
+        if (ProbeCollisionWindow)
+        {
+            if (MapNames.Count != 1)
+            {
+                message = "--probe-collision-window requires exactly one --map.";
+                return false;
+            }
+
+            if (!ProbeStartX.HasValue || !ProbeStartBottom.HasValue)
+            {
+                message = "--probe-collision-window requires --start-x and --start-bottom.";
+                return false;
+            }
+        }
+
+        if (ProbeGmlLink)
+        {
+            if (MapNames.Count != 1)
+            {
+                message = "--probe-gml-link requires exactly one --map.";
+                return false;
+            }
+
+            if (ProbeFromNodeId < 0 || ProbeToNodeId < 0)
+            {
+                message = "--probe-gml-link requires --from-node and --to-node.";
+                return false;
+            }
+        }
+
         if (RunBotScenarioHarness)
         {
             if (!RunStockScoreMatrix && !RunStockCtfKothMatrix && MapNames.Count == 0)
@@ -5251,6 +6291,22 @@ internal enum BotScenarioKind
     Combat = 4,
 }
 
+internal enum ModernEdgeProbePolicy
+{
+    HorizontalOnly,
+    JumpWhenGrounded,
+    JumpWhenBlockedOrAbove,
+}
+
+internal enum ModernChainProbePolicy
+{
+    TrackTargetJumpWhenGrounded,
+    TrackTargetNextDirectionGate,
+    HoldEdgeJumpWhenGrounded,
+    HoldEdgeJumpWhenBlockedOrAbove,
+    HoldEdgeSingleJumpPerSegment,
+}
+
 internal readonly record struct BotScenarioCase(
     string LevelName,
     PlayerTeam Team,
@@ -5281,6 +6337,17 @@ internal readonly record struct ScoreRouteTraversalProofResult(
     int TotalJumpEdgeCount);
 
 internal readonly record struct BotObjectiveProbe(GameModeKind Mode, float X, float Y, int ControlPointIndex);
+
+internal readonly record struct ModernPromotionTrace(
+    string Label,
+    float CurrentPoint,
+    float NextPoint,
+    float LookaheadPoint,
+    float Feet,
+    float LiveRise,
+    float GraphRise,
+    float Run,
+    float CanUse);
 
 internal readonly record struct BotScenarioResult(
     bool Passed,
