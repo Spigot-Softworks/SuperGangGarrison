@@ -77,6 +77,7 @@ public partial class Game1
                 _game._practiceTimeLimitMinutes,
                 _game._practiceCapLimit,
                 _game._practiceRespawnSeconds,
+                enableInstantRedTeamIntelCaptureWin: false,
                 openJoinMenus: true,
                 consoleSessionName: "practice");
         }
@@ -89,14 +90,16 @@ public partial class Game1
             }
 
             var settings = Game1.BuildLastToDieExperimentalGameplaySettings(_game._lastToDieRun);
+            var stageRules = Game1.ResolveLastToDieStageRuleProfile(_game._lastToDieRun.SurvivorKind, levelName);
             if (!TryBeginOfflineBotSession(
                     levelName,
                     GameplaySessionKind.LastToDie,
                     _game._practiceTickRate,
                     settings,
                     LastToDieMatchTimeLimitMinutes,
-                    LastToDieCapLimit,
+                    stageRules.CapLimit,
                     LastToDieRespawnSeconds,
+                    stageRules.EndMatchOnRedTeamIntelCapture,
                     openJoinMenus: false,
                     consoleSessionName: "last to die"))
             {
@@ -138,6 +141,7 @@ public partial class Game1
             int timeLimitMinutes,
             int capLimit,
             int respawnSeconds,
+            bool enableInstantRedTeamIntelCaptureWin,
             bool openJoinMenus,
             string consoleSessionName)
         {
@@ -189,6 +193,7 @@ public partial class Game1
             _game.ReinitializeSimulationForTickRate(tickRate);
             _game.ResetGameplayRuntimeState();
             _game._world.ConfigureExperimentalGameplaySettings(experimentalSettings);
+            _game._world.ConfigureSpecialCaptureTheFlagRules(enableInstantRedTeamIntelCaptureWin);
             _game._world.ConfigureMatchDefaults(
                 timeLimitMinutes: timeLimitMinutes,
                 capLimit: capLimit,
@@ -202,9 +207,13 @@ public partial class Game1
             }
             LogBrowserPracticeStartupStep("load-level");
 
-            _game._world.Level.ForcedBlockingTeamGates = sessionKind == GameplaySessionKind.LastToDie
-                ? TeamGateLockMask.Red
-                : TeamGateLockMask.None;
+            var forcedBlockingTeamGates = TeamGateLockMask.None;
+            if (sessionKind == GameplaySessionKind.LastToDie && _game._lastToDieRun is not null)
+            {
+                forcedBlockingTeamGates = Game1.ResolveLastToDieStageRuleProfile(_game._lastToDieRun.SurvivorKind, levelName).ForcedBlockingTeamGates;
+            }
+
+            _game._world.Level.ForcedBlockingTeamGates = forcedBlockingTeamGates;
 
             _game._world.AutoRestartOnMapChange = sessionKind != GameplaySessionKind.LastToDie;
             LogBrowserPracticeStartupStep("configure-level");

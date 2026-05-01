@@ -27,6 +27,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
+    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.MotionProof;
+
     public bool IngameMusicEnabled
     {
         get => MusicMode is MusicMode.MenuAndInGame or MusicMode.InGameOnly;
@@ -91,6 +93,7 @@ public sealed class OpenGarrisonPreferencesDocument
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
             IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
             MusicMode = LoadMusicMode(ini),
+            BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.MotionProof.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
@@ -129,6 +132,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "HostingPort", HostSettings.Port);
         ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
         ini.SetInt(SettingsSection, "Music", (int)NormalizeMusicMode(MusicMode));
+        ini.SetString(SettingsSection, "Bot Mode", NormalizeBotMode(BotMode).ToString());
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
@@ -193,6 +197,22 @@ public sealed class OpenGarrisonPreferencesDocument
             MusicMode.InGameOnly => MusicMode.InGameOnly,
             MusicMode.None => MusicMode.None,
             _ => MusicMode.MenuAndInGame,
+        };
+    }
+
+    private static OfflineBotControllerMode ParseBotMode(string value)
+    {
+        return Enum.TryParse<OfflineBotControllerMode>(value, ignoreCase: true, out var mode)
+            ? NormalizeBotMode(mode)
+            : OfflineBotControllerMode.MotionProof;
+    }
+
+    private static OfflineBotControllerMode NormalizeBotMode(OfflineBotControllerMode mode)
+    {
+        return mode switch
+        {
+            OfflineBotControllerMode.ModernGraphRoute => OfflineBotControllerMode.ModernGraphRoute,
+            _ => OfflineBotControllerMode.MotionProof,
         };
     }
 

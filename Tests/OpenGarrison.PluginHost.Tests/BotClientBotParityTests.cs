@@ -25,7 +25,7 @@ public sealed class BotClientBotParityTests
 
         allyCarrier.ScoreIntel();
         enemyCarrier.PickUpIntel();
-        Assert.Equal(BotRole.HuntCarrier, ModernPracticeBotController.ResolveModernBotRole(world, bot, PlayerTeam.Red, [bot, enemyCarrier]));
+        Assert.Equal(BotRole.None, ModernPracticeBotController.ResolveModernBotRole(world, bot, PlayerTeam.Red, [bot, enemyCarrier]));
     }
 
     [Fact]

@@ -114,6 +114,7 @@ public partial class Game1
             int timeLimitMinutes,
             int capLimit,
             int respawnSeconds,
+            bool enableInstantRedTeamIntelCaptureWin,
             bool openJoinMenus,
             string consoleSessionName)
         {
@@ -125,6 +126,7 @@ public partial class Game1
                 timeLimitMinutes,
                 capLimit,
                 respawnSeconds,
+                enableInstantRedTeamIntelCaptureWin,
                 openJoinMenus,
                 consoleSessionName);
         }

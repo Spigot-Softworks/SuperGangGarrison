@@ -3,6 +3,7 @@ using OpenGarrison.Core;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Text.Json;
 
 NavBuildOptions options;
 try
@@ -54,6 +55,16 @@ if (options.ProbeCollisionWindow)
 if (options.ProbeGmlLink)
 {
     return RunGmlLinkProbe(options);
+}
+
+if (options.ProbeWaterwayTerminalTape)
+{
+    return RunWaterwayTerminalTapeProbe(options);
+}
+
+if (options.DumpMotionProofArtifact)
+{
+    return RunMotionProofArtifactStateDump(options);
 }
 
 if (options.BuildScoreRoutes)
@@ -2913,6 +2924,428 @@ static int RunCollisionWindowProbe(NavBuildOptions options)
     return 0;
 }
 
+static int RunWaterwayTerminalTapeProbe(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (!string.Equals(levelName, "Waterway", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.Error.WriteLine("--probe-waterway-terminal-tape requires --map Waterway.");
+        return 2;
+    }
+
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        Console.Error.WriteLine($"failed_to_load_level {levelName}");
+        return 2;
+    }
+
+    var asset = BotNavigationModernPointGraphBuilder.Build(
+        world.Level,
+        BotNavigationLevelFingerprint.Compute(world.Level),
+        validateTraversals: false);
+    var navPoints = ClientBotNavPoints.Build(asset, world.Level);
+    if (!navPoints.TryGetPoint(29, out var goalNode))
+    {
+        Console.Error.WriteLine("missing_waterway_goal_node 29");
+        return 2;
+    }
+
+    var team = options.ScenarioTeam;
+    var classId = options.ScenarioClasses[0];
+    var startX = options.ProbeStartX ?? 995.8f;
+    var startBottom = options.ProbeStartBottom ?? 1194f;
+    var targetX = 996f;
+    var targetBottom = 1014f;
+
+    Console.WriteLine(
+        $"waterway_terminal_tape_probe map={levelName} team={team} class={classId} start=({startX:0.0},{startBottom:0.0}) objectiveTarget=({targetX:0.0},{targetBottom:0.0}) node29=({goalNode.X:0.0},{goalNode.Y:0.0})");
+
+    var bestResult = default(TerminalTapeProbeResult);
+    var hasBestResult = false;
+    var winningTape = Array.Empty<BotNavigationInputFrame>();
+    var attemptCount = 0;
+    var runBeamOnly = options.ProbeStartX.HasValue || options.ProbeStartBottom.HasValue;
+    if (!runBeamOnly)
+    {
+        for (var runUpTicks = 0; runUpTicks <= 6; runUpTicks += 1)
+        {
+            for (var firstAirTicks = 0; firstAirTicks <= 18; firstAirTicks += 1)
+            {
+                for (var settleDirection = -1; settleDirection <= 1; settleDirection += 1)
+                {
+                    for (var settleTicks = 0; settleTicks <= 24; settleTicks += 1)
+                    {
+                        attemptCount += 1;
+                        var tape = BuildTerminalRecoveryTape(runUpTicks, firstAirTicks, settleDirection, settleTicks);
+                        var result = SimulateTerminalTapeCandidate(
+                            levelName,
+                            team,
+                            classId,
+                            startX,
+                            startBottom,
+                            targetX,
+                            targetBottom,
+                            tape,
+                            seconds: Math.Max(2, options.GetEffectiveScenarioSeconds()));
+                        if (!hasBestResult || result.BestDistance < bestResult.BestDistance)
+                        {
+                            hasBestResult = true;
+                            bestResult = result;
+                            winningTape = tape;
+                        }
+
+                        if (result.Success)
+                        {
+                            winningTape = tape;
+                            bestResult = result;
+                            Console.WriteLine(
+                                $"winning_tape attempts={attemptCount} runUp={runUpTicks} firstAir={firstAirTicks} settleDir={settleDirection} settleTicks={settleTicks} successTick={FormatProbeTick(result.SuccessTick, 60)} best={result.BestDistance:0.0}");
+                            PrintTerminalTape("tape", winningTape);
+                            Console.WriteLine(result.TraceSummary);
+                            return 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (hasBestResult)
+        {
+            Console.WriteLine(
+                $"no_success attempts={attemptCount} best={bestResult.BestDistance:0.0}@{FormatProbeTick(bestResult.BestTick, 60)} final=({bestResult.FinalX:0.0},{bestResult.FinalBottom:0.0}) grounded={bestResult.IsGrounded}");
+            PrintTerminalTape("best_tape", winningTape);
+            Console.WriteLine(bestResult.TraceSummary);
+        }
+    }
+
+    var beamSearchResult = SearchWaterwayObjectiveBeam(
+        levelName,
+        team,
+        classId,
+        startX,
+        startBottom,
+        targetX,
+        targetBottom,
+        maxTicks: 32,
+        beamWidth: 48);
+    if (beamSearchResult.Success)
+    {
+        Console.WriteLine(
+            $"beam_success ticks={beamSearchResult.Ticks} expanded={beamSearchResult.ExpandedCandidates} successTick={FormatProbeTick(beamSearchResult.Result.SuccessTick, 60)} best={beamSearchResult.Result.BestDistance:0.0}");
+        PrintTerminalTape("beam_tape", beamSearchResult.Tape);
+        Console.WriteLine(beamSearchResult.Result.TraceSummary);
+        return 0;
+    }
+
+    Console.WriteLine(
+        $"beam_no_success ticks={beamSearchResult.Ticks} expanded={beamSearchResult.ExpandedCandidates} best={beamSearchResult.Result.BestDistance:0.0}@{FormatProbeTick(beamSearchResult.Result.BestTick, 60)} final=({beamSearchResult.Result.FinalX:0.0},{beamSearchResult.Result.FinalBottom:0.0}) grounded={beamSearchResult.Result.IsGrounded}");
+    PrintTerminalTape("beam_best_tape", beamSearchResult.Tape);
+    Console.WriteLine(beamSearchResult.Result.TraceSummary);
+
+    return 0;
+}
+
+static BotNavigationInputFrame CreateProbeDirectionalFrame(int direction, bool jump, int ticks)
+{
+    return new BotNavigationInputFrame
+    {
+        Left = direction < 0,
+        Right = direction > 0,
+        Up = jump,
+        DurationSeconds = ticks / 60d,
+        Ticks = ticks,
+    };
+}
+
+static BotNavigationInputFrame[] BuildTerminalRecoveryTape(int runUpTicks, int firstAirTicks, int settleDirection, int settleTicks)
+{
+    var tape = new List<BotNavigationInputFrame>(4);
+    if (runUpTicks > 0)
+    {
+        tape.Add(CreateProbeDirectionalFrame(direction: 1, jump: false, runUpTicks));
+    }
+
+    tape.Add(CreateProbeDirectionalFrame(direction: 1, jump: true, ticks: 1));
+    if (firstAirTicks > 0)
+    {
+        tape.Add(CreateProbeDirectionalFrame(direction: 1, jump: false, firstAirTicks));
+    }
+
+    tape.Add(CreateProbeDirectionalFrame(direction: 1, jump: true, ticks: 1));
+    if (settleTicks > 0)
+    {
+        tape.Add(CreateProbeDirectionalFrame(settleDirection, jump: false, settleTicks));
+    }
+
+    return tape.ToArray();
+}
+
+static TerminalTapeProbeResult SimulateTerminalTapeCandidate(
+    string levelName,
+    PlayerTeam team,
+    PlayerClass classId,
+    float startX,
+    float startBottom,
+    float targetX,
+    float targetBottom,
+    IReadOnlyList<BotNavigationInputFrame> tape,
+    int seconds)
+{
+    var world = new SimulationWorld();
+    if (!world.TryLoadLevel(levelName))
+    {
+        return new TerminalTapeProbeResult(false, -1, float.PositiveInfinity, 0, 0f, 0f, false, "failed_to_load_level");
+    }
+
+    world.PrepareLocalPlayerJoin();
+    const byte botSlot = 2;
+    if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+        || !world.TrySetNetworkPlayerTeam(botSlot, team)
+        || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+        || !world.TryGetNetworkPlayer(botSlot, out var player))
+    {
+        return new TerminalTapeProbeResult(false, -1, float.PositiveInfinity, 0, 0f, 0f, false, "failed_to_spawn_player");
+    }
+
+    if (!TrySpawnPlayerResolvedForScenario(world, player, team, startX, startBottom - player.CollisionBottomOffset))
+    {
+        return new TerminalTapeProbeResult(false, -1, float.PositiveInfinity, 0, 0f, 0f, false, "failed_to_place_player");
+    }
+
+    player.TeleportTo(startX, startBottom - player.CollisionBottomOffset);
+    player.ResolveBlockingOverlap(world.Level, team);
+    SetPrivateInstanceProperty(player, nameof(PlayerEntity.IsGrounded), true);
+    SetPrivateInstanceProperty(player, nameof(PlayerEntity.RemainingAirJumps), player.MaxAirJumps);
+
+    var totalTicks = Math.Max(1, seconds) * world.Config.TicksPerSecond;
+    var bestDistance = DistanceBetween(player.X, player.Bottom, targetX, targetBottom);
+    var bestTick = 0;
+    var successTick = -1;
+    var trace = new List<string>();
+    var tapeIndex = 0;
+    var frameTicksRemaining = tape.Count > 0 ? Math.Max(1, tape[0].Ticks) : 0;
+    for (var tick = 0; tick < totalTicks; tick += 1)
+    {
+        var left = false;
+        var right = false;
+        var jump = false;
+        if (tapeIndex < tape.Count)
+        {
+            var frame = tape[tapeIndex];
+            left = frame.Left;
+            right = frame.Right;
+            jump = frame.Up;
+        }
+
+        var input = new PlayerInputSnapshot(
+            Left: left,
+            Right: right,
+            Up: jump,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: targetX,
+            AimWorldY: targetBottom,
+            DebugKill: false);
+        if (!world.TrySetNetworkPlayerInput(botSlot, input))
+        {
+            return new TerminalTapeProbeResult(false, -1, float.PositiveInfinity, 0, 0f, 0f, false, "failed_to_apply_input");
+        }
+
+        world.AdvanceOneTick();
+        var distance = DistanceBetween(player.X, player.Bottom, targetX, targetBottom);
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            bestTick = tick + 1;
+        }
+
+        if ((tick < 18 || tick % 6 == 5) && trace.Count < 36)
+        {
+            trace.Add(
+                $"t={(tick + 1) / 60f:0.00} idx={tapeIndex} pos=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) input=L{left}/R{right}/J{jump} air={player.RemainingAirJumps} d={distance:0.0} grounded={player.IsGrounded}");
+        }
+
+        if (MathF.Abs(player.X - targetX) <= 18f
+            && MathF.Abs(player.Bottom - targetBottom) <= 36f)
+        {
+            successTick = tick + 1;
+            break;
+        }
+
+        if (tapeIndex < tape.Count)
+        {
+            frameTicksRemaining -= 1;
+            if (frameTicksRemaining <= 0)
+            {
+                tapeIndex += 1;
+                frameTicksRemaining = tapeIndex < tape.Count
+                    ? Math.Max(1, tape[tapeIndex].Ticks)
+                    : 0;
+            }
+        }
+    }
+
+    trace.Add(
+        $"summary successTick={FormatProbeTick(successTick, 60)} best={bestDistance:0.0}@{FormatProbeTick(bestTick, 60)} final=({player.X:0.0},{player.Y:0.0}) bottom={player.Bottom:0.0} vel=({player.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00},{player.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.00}) air={player.RemainingAirJumps} grounded={player.IsGrounded}");
+    return new TerminalTapeProbeResult(
+        successTick >= 0,
+        successTick,
+        bestDistance,
+        bestTick,
+        player.X,
+        player.Bottom,
+        player.IsGrounded,
+        string.Join(Environment.NewLine, trace));
+}
+
+static void PrintTerminalTape(string label, IReadOnlyList<BotNavigationInputFrame> tape)
+{
+    var parts = tape
+        .Select((frame, index) =>
+            $"#{index}:dir={(frame.Right ? "R" : frame.Left ? "L" : "0")} jump={(frame.Up ? 1 : 0)} ticks={frame.Ticks}")
+        .ToArray();
+    Console.WriteLine($"{label} {string.Join(" | ", parts)}");
+}
+
+static WaterwayBeamSearchResult SearchWaterwayObjectiveBeam(
+    string levelName,
+    PlayerTeam team,
+    PlayerClass classId,
+    float startX,
+    float startBottom,
+    float targetX,
+    float targetBottom,
+    int maxTicks,
+    int beamWidth)
+{
+    var actions = new[]
+    {
+        new TerminalProbeAction(-1, false),
+        new TerminalProbeAction(0, false),
+        new TerminalProbeAction(1, false),
+        new TerminalProbeAction(-1, true),
+        new TerminalProbeAction(0, true),
+        new TerminalProbeAction(1, true),
+    };
+
+    var beam = new List<TerminalProbeCandidate>
+    {
+        new(Array.Empty<TerminalProbeAction>(), float.PositiveInfinity)
+    };
+
+    var bestOverall = default(TerminalTapeProbeResult);
+    var bestTape = Array.Empty<BotNavigationInputFrame>();
+    var hasBest = false;
+    var expandedCandidates = 0;
+
+    for (var tick = 1; tick <= maxTicks; tick += 1)
+    {
+        var nextBeam = new Dictionary<string, TerminalProbeCandidate>(StringComparer.Ordinal);
+        foreach (var candidate in beam)
+        {
+            foreach (var action in actions)
+            {
+                expandedCandidates += 1;
+                var actionSequence = new TerminalProbeAction[candidate.Actions.Length + 1];
+                if (candidate.Actions.Length > 0)
+                {
+                    Array.Copy(candidate.Actions, actionSequence, candidate.Actions.Length);
+                }
+
+                actionSequence[^1] = action;
+                var tape = BuildTerminalRecoveryTapeFromActions(actionSequence);
+                var result = SimulateTerminalTapeCandidate(
+                    levelName,
+                    team,
+                    classId,
+                    startX,
+                    startBottom,
+                    targetX,
+                    targetBottom,
+                    tape,
+                    seconds: 1);
+                if (!hasBest || result.BestDistance < bestOverall.BestDistance)
+                {
+                    hasBest = true;
+                    bestOverall = result;
+                    bestTape = tape;
+                }
+
+                if (result.Success)
+                {
+                    return new WaterwayBeamSearchResult(true, tick, expandedCandidates, result, tape);
+                }
+
+                var score = result.BestDistance
+                    + (MathF.Abs(result.FinalX - targetX) * 0.20f)
+                    + (MathF.Abs(result.FinalBottom - targetBottom) * 0.05f)
+                    + (result.IsGrounded ? 6f : 0f);
+                var key = BuildBeamStateKey(result.FinalX, result.FinalBottom, result.IsGrounded, actionSequence.Length > 0 ? actionSequence[^1].Direction : 0);
+                if (!nextBeam.TryGetValue(key, out var existing) || score < existing.Score)
+                {
+                    nextBeam[key] = new TerminalProbeCandidate(actionSequence, score);
+                }
+            }
+        }
+
+        beam = nextBeam.Values
+            .OrderBy(candidate => candidate.Score)
+            .Take(beamWidth)
+            .ToList();
+
+        if (beam.Count == 0)
+        {
+            break;
+        }
+    }
+
+    return new WaterwayBeamSearchResult(false, maxTicks, expandedCandidates, bestOverall, bestTape);
+}
+
+static string BuildBeamStateKey(float finalX, float finalBottom, bool grounded, int direction)
+{
+    var quantizedX = MathF.Round(finalX / 4f);
+    var quantizedBottom = MathF.Round(finalBottom / 4f);
+    return $"{quantizedX}:{quantizedBottom}:{(grounded ? 1 : 0)}:{direction}";
+}
+
+static BotNavigationInputFrame[] BuildTerminalRecoveryTapeFromActions(IReadOnlyList<TerminalProbeAction> actions)
+{
+    if (actions.Count == 0)
+    {
+        return Array.Empty<BotNavigationInputFrame>();
+    }
+
+    var frames = new List<BotNavigationInputFrame>();
+    var currentDirection = actions[0].Direction;
+    var currentJump = actions[0].Jump;
+    var currentTicks = 1;
+    for (var index = 1; index < actions.Count; index += 1)
+    {
+        var action = actions[index];
+        if (action.Direction == currentDirection && action.Jump == currentJump)
+        {
+            currentTicks += 1;
+            continue;
+        }
+
+        frames.Add(CreateProbeDirectionalFrame(currentDirection, currentJump, currentTicks));
+        currentDirection = action.Direction;
+        currentJump = action.Jump;
+        currentTicks = 1;
+    }
+
+    frames.Add(CreateProbeDirectionalFrame(currentDirection, currentJump, currentTicks));
+    return frames.ToArray();
+}
+
 static int RunGmlLinkProbe(NavBuildOptions options)
 {
     var levelName = options.MapNames.Count == 1
@@ -5409,6 +5842,180 @@ static IReadOnlyList<string> GetStockScoreMaps()
     ];
 }
 
+int RunMotionProofArtifactStateDump(NavBuildOptions options)
+{
+    var levelName = options.MapNames.Count == 1
+        ? options.MapNames.Single()
+        : string.Empty;
+    if (string.IsNullOrWhiteSpace(levelName))
+    {
+        Console.Error.WriteLine("--dump-motionproof-artifact requires exactly one --map.");
+        return 2;
+    }
+
+    if (options.ScenarioClasses.Count != 1)
+    {
+        Console.Error.WriteLine("--dump-motionproof-artifact accepts exactly one --class.");
+        return 2;
+    }
+
+    var classId = options.ScenarioClasses[0];
+    var artifactPath = Path.Combine(ContentRoot.Path, "MotionProof", $"{levelName}.{options.ScenarioTeam}.{classId}.json");
+    if (!File.Exists(artifactPath))
+    {
+        Console.Error.WriteLine($"missing_motionproof_artifact:{artifactPath}");
+        return 2;
+    }
+
+    using var stream = File.OpenRead(artifactPath);
+    var artifact = JsonSerializer.Deserialize<ToolMotionProofArtifact>(stream);
+    if (artifact is null)
+    {
+        Console.Error.WriteLine($"failed_to_read_motionproof_artifact:{artifactPath}");
+        return 2;
+    }
+
+    var actions = options.MotionProofArtifactPhase.Equals("return", StringComparison.OrdinalIgnoreCase)
+        ? artifact.Return
+        : artifact.Attack;
+    if (actions.Count == 0)
+    {
+        Console.Error.WriteLine($"empty_motionproof_phase:{options.MotionProofArtifactPhase}");
+        return 2;
+    }
+
+    if (!TryCreateScoreRouteProbeWorld(levelName, artifact.Area, options.ScenarioTeam, classId, out var world, out var bot, out var failureReason))
+    {
+        Console.Error.WriteLine(failureReason);
+        return 2;
+    }
+
+    const byte botSlot = 2;
+    var sliceStart = Math.Clamp(options.MotionProofArtifactStartAction, 0, Math.Max(0, actions.Count - 1));
+    var sliceEnd = options.MotionProofArtifactEndAction >= 0
+        ? Math.Clamp(options.MotionProofArtifactEndAction, sliceStart, actions.Count - 1)
+        : actions.Count - 1;
+    var sliceSteps = new List<LocalMotionStep>();
+    var sliceStartX = float.NaN;
+    var sliceStartBottom = float.NaN;
+    var sliceEndX = float.NaN;
+    var sliceEndBottom = float.NaN;
+
+    Console.WriteLine(
+        $"motionproof_artifact map={artifact.Map} area={artifact.Area} team={artifact.Team} class={artifact.Class} phase={options.MotionProofArtifactPhase} actions={actions.Count} artifact={artifactPath}");
+    for (var index = 0; index < actions.Count; index += 1)
+    {
+        var action = actions[index];
+        var startX = bot.X;
+        var startBottom = bot.Bottom;
+        var startCarry = bot.IsCarryingIntel;
+        if (index == sliceStart)
+        {
+            sliceStartX = startX;
+            sliceStartBottom = startBottom;
+        }
+
+        for (var tick = 0; tick < Math.Max(1, action.Ticks); tick += 1)
+        {
+            var input = BuildMotionProofArtifactInput(action, tick, bot);
+            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            {
+                Console.Error.WriteLine("failed_to_apply_motionproof_artifact_input");
+                return 2;
+            }
+
+            world.AdvanceOneTick();
+        }
+
+        var endX = bot.X;
+        var endBottom = bot.Bottom;
+        var endCarry = bot.IsCarryingIntel;
+        Console.WriteLine(
+            $"a{index}: {action.Kind} dir={action.Direction} ticks={action.Ticks} start=({startX:0.0},{startBottom:0.0}) carry={startCarry} end=({endX:0.0},{endBottom:0.0}) carry={endCarry}");
+        if (index >= sliceStart && index <= sliceEnd && TryConvertMotionProofActionToLocalMotionStep(action, out var step))
+        {
+            sliceSteps.Add(step);
+            sliceEndX = endX;
+            sliceEndBottom = endBottom;
+        }
+    }
+
+    if (sliceSteps.Count > 0)
+    {
+        var program = new LocalMotionProgram(
+            $"{levelName}:{options.ScenarioTeam}:{classId}:{options.MotionProofArtifactPhase}:a{sliceStart}-{sliceEnd}",
+            sliceSteps,
+            DurationTicks: sliceSteps.Sum(step => Math.Max(1, step.Ticks)),
+            NoProgressTicks: Math.Max(30, sliceSteps.Sum(step => Math.Max(1, step.Ticks)) / 2),
+            CooldownTicks: 45,
+            AllowInertFastForward: true,
+            GoalWindow: new LocalMotionGoalWindow(sliceEndX, sliceEndBottom, 24f, 24f, "artifact_tail_end"));
+        Console.WriteLine($"slice_start action={sliceStart} x={sliceStartX:0.0} bottom={sliceStartBottom:0.0}");
+        Console.WriteLine($"slice_end action={sliceEnd} x={sliceEndX:0.0} bottom={sliceEndBottom:0.0}");
+        Console.WriteLine("local_motion_program_json=" + JsonSerializer.Serialize(program));
+    }
+
+    return 0;
+}
+
+PlayerInputSnapshot BuildMotionProofArtifactInput(ToolMotionProofAction action, int tick, PlayerEntity player)
+{
+    var left = action.Direction < 0;
+    var right = action.Direction > 0;
+    var up = action.Kind.Equals("Jump", StringComparison.OrdinalIgnoreCase) && tick == 0;
+    var down = action.Kind.Equals("Drop", StringComparison.OrdinalIgnoreCase);
+    var aimDirection = action.Direction == 0 ? 1 : action.Direction;
+    return new PlayerInputSnapshot(
+        Left: left,
+        Right: right,
+        Up: up,
+        Down: down,
+        BuildSentry: false,
+        DestroySentry: false,
+        Taunt: false,
+        FirePrimary: false,
+        FireSecondary: false,
+        AimWorldX: player.X + (aimDirection * 160f),
+        AimWorldY: player.Y,
+        DebugKill: false);
+}
+
+bool TryConvertMotionProofActionToLocalMotionStep(ToolMotionProofAction action, out LocalMotionStep step)
+{
+    var kind = action.Kind switch
+    {
+        var value when value.Equals("Idle", StringComparison.OrdinalIgnoreCase) => LocalMotionStepKind.Idle,
+        var value when value.Equals("Run", StringComparison.OrdinalIgnoreCase) => LocalMotionStepKind.Run,
+        var value when value.Equals("Jump", StringComparison.OrdinalIgnoreCase) => LocalMotionStepKind.Jump,
+        var value when value.Equals("Drop", StringComparison.OrdinalIgnoreCase) => LocalMotionStepKind.Drop,
+        var value when value.Equals("Fall", StringComparison.OrdinalIgnoreCase) => LocalMotionStepKind.Fall,
+        _ => (LocalMotionStepKind?)null,
+    };
+
+    if (!kind.HasValue)
+    {
+        step = default!;
+        return false;
+    }
+
+    step = new LocalMotionStep(kind.Value, Direction: action.Direction, Ticks: Math.Max(1, action.Ticks));
+    return true;
+}
+
+internal sealed record ToolMotionProofArtifact(
+    int Version,
+    string Map,
+    int Area,
+    string Mode,
+    string Team,
+    string Class,
+    int AttackTicks,
+    int ReturnTicks,
+    IReadOnlyList<ToolMotionProofAction> Attack,
+    IReadOnlyList<ToolMotionProofAction> Return);
+
+internal sealed record ToolMotionProofAction(string Kind, int Direction, int Ticks);
+
 internal enum BotControllerMode
 {
     ModernGraphRoute = 0,
@@ -5419,7 +6026,7 @@ internal enum BotControllerMode
 internal sealed class NavBuildOptions
 {
     public const string Usage =
-        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch] [--probe-modern-edge --from-node N --to-node N [--start-x X --start-bottom Y]] [--probe-modern-chain --chain-nodes N,N,N [--start-x X --start-bottom Y]] [--probe-collision-window --start-x X --start-bottom Y] [--probe-gml-link --from-node N --to-node N]";
+        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch] [--probe-modern-edge --from-node N --to-node N [--start-x X --start-bottom Y]] [--probe-modern-chain --chain-nodes N,N,N [--start-x X --start-bottom Y]] [--probe-collision-window --start-x X --start-bottom Y] [--probe-gml-link --from-node N --to-node N] [--probe-waterway-terminal-tape [--start-x X --start-bottom Y]] [--dump-motionproof-artifact [--artifact-phase Attack|Return] [--artifact-start-action N] [--artifact-end-action N]]";
 
     public HashSet<string> MapNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -5472,6 +6079,16 @@ internal sealed class NavBuildOptions
     public bool ProbeCollisionWindow { get; private set; }
 
     public bool ProbeGmlLink { get; private set; }
+
+    public bool ProbeWaterwayTerminalTape { get; private set; }
+
+    public bool DumpMotionProofArtifact { get; private set; }
+
+    public string MotionProofArtifactPhase { get; private set; } = "Attack";
+
+    public int MotionProofArtifactStartAction { get; private set; }
+
+    public int MotionProofArtifactEndAction { get; private set; } = -1;
 
     public int ProbeFromNodeId { get; private set; } = -1;
 
@@ -5721,6 +6338,46 @@ internal sealed class NavBuildOptions
             if (arg.Equals("--probe-gml-link", StringComparison.OrdinalIgnoreCase))
             {
                 options.ProbeGmlLink = true;
+                continue;
+            }
+
+            if (arg.Equals("--probe-waterway-terminal-tape", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ProbeWaterwayTerminalTape = true;
+                continue;
+            }
+
+            if (arg.Equals("--dump-motionproof-artifact", StringComparison.OrdinalIgnoreCase))
+            {
+                options.DumpMotionProofArtifact = true;
+                continue;
+            }
+
+            if (arg.Equals("--artifact-phase", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.MotionProofArtifactPhase = args[++index].Trim();
+                continue;
+            }
+
+            if (arg.Equals("--artifact-start-action", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var artifactStartAction))
+                {
+                    throw new ArgumentException($"Invalid artifact-start-action value '{args[index]}'.");
+                }
+
+                options.MotionProofArtifactStartAction = artifactStartAction;
+                continue;
+            }
+
+            if (arg.Equals("--artifact-end-action", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                if (!int.TryParse(args[++index].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var artifactEndAction))
+                {
+                    throw new ArgumentException($"Invalid artifact-end-action value '{args[index]}'.");
+                }
+
+                options.MotionProofArtifactEndAction = artifactEndAction;
                 continue;
             }
 
@@ -5994,6 +6651,49 @@ internal sealed class NavBuildOptions
             if (!ProbeStartX.HasValue || !ProbeStartBottom.HasValue)
             {
                 message = "--probe-collision-window requires --start-x and --start-bottom.";
+                return false;
+            }
+        }
+
+        if (ProbeWaterwayTerminalTape)
+        {
+            if (MapNames.Count != 1 || !MapNames.Contains("Waterway"))
+            {
+                message = "--probe-waterway-terminal-tape requires exactly one --map Waterway.";
+                return false;
+            }
+
+            if (_scenarioClasses.Count != 1)
+            {
+                message = "--probe-waterway-terminal-tape accepts exactly one --class.";
+                return false;
+            }
+
+            if (GetEffectiveScenarioSeconds() <= 0)
+            {
+                message = "--seconds must be greater than zero.";
+                return false;
+            }
+        }
+
+        if (DumpMotionProofArtifact)
+        {
+            if (MapNames.Count != 1)
+            {
+                message = "--dump-motionproof-artifact requires exactly one --map.";
+                return false;
+            }
+
+            if (_scenarioClasses.Count != 1)
+            {
+                message = "--dump-motionproof-artifact accepts exactly one --class.";
+                return false;
+            }
+
+            if (!MotionProofArtifactPhase.Equals("Attack", StringComparison.OrdinalIgnoreCase)
+                && !MotionProofArtifactPhase.Equals("Return", StringComparison.OrdinalIgnoreCase))
+            {
+                message = "--artifact-phase must be Attack or Return.";
                 return false;
             }
         }
@@ -6348,6 +7048,31 @@ internal readonly record struct ModernPromotionTrace(
     float GraphRise,
     float Run,
     float CanUse);
+
+internal readonly record struct TerminalTapeProbeResult(
+    bool Success,
+    int SuccessTick,
+    float BestDistance,
+    int BestTick,
+    float FinalX,
+    float FinalBottom,
+    bool IsGrounded,
+    string TraceSummary);
+
+internal readonly record struct TerminalProbeAction(
+    int Direction,
+    bool Jump);
+
+internal readonly record struct TerminalProbeCandidate(
+    TerminalProbeAction[] Actions,
+    float Score);
+
+internal readonly record struct WaterwayBeamSearchResult(
+    bool Success,
+    int Ticks,
+    int ExpandedCandidates,
+    TerminalTapeProbeResult Result,
+    BotNavigationInputFrame[] Tape);
 
 internal readonly record struct BotScenarioResult(
     bool Passed,

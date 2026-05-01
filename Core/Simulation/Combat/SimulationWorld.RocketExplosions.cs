@@ -189,6 +189,17 @@ public sealed partial class SimulationWorld
                 rocket.CurrentKnockback,
                 distanceFactor,
                 useMineVectorProfile: false);
+            if (player.Id == rocket.OwnerId
+                && player.Team == rocket.Team
+                && rocket.EnableExperimentalStingerTracking
+                && string.Equals(
+                    rocket.DelayedExplosionReason,
+                    RocketProjectileEntity.DelayedExplosionReasonManualDetonation,
+                    StringComparison.Ordinal))
+            {
+                impulse *= global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerManualDetonationSelfKnockbackMultiplier;
+            }
+
             SimulationWorld.ApplyExplosionImpulse(player, rocket.X, rocket.Y, impulse);
         }
 

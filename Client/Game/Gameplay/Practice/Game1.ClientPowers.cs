@@ -15,6 +15,8 @@ public partial class Game1
         StickyGibBlood,
         HealOnDamage,
         HealOnKill,
+        SoldierStingerRockets,
+        SelfDamageHealing,
         RateOfFireOnDamage,
         SoldierInstantReload,
         SpeedOnDamage,
@@ -46,6 +48,8 @@ public partial class Game1
         new(ClientPowerToggleKind.StickyGibBlood, "Sticky gib blood", "Gib blood coats nearby players for 10s, then fades out."),
         new(ClientPowerToggleKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
         new(ClientPowerToggleKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),
+        new(ClientPowerToggleKind.SoldierStingerRockets, "STINGER rockets", "Soldier rockets steer harder, burst to double speed on primary fire, and detonate on right click."),
+        new(ClientPowerToggleKind.SelfDamageHealing, "Shrapnel Junkie", "Self damage heals instead of damaging."),
         new(ClientPowerToggleKind.RateOfFireOnDamage, "Rate of fire on hit", "Landing a hit instantly requeues primary fire if it is still cooling down."),
         new(ClientPowerToggleKind.SoldierInstantReload, "Soldier instant reload on hit", "Landing a hit instantly refills 1 Soldier rocket."),
         new(ClientPowerToggleKind.SpeedOnDamage, "Speed on damage", "20% movement boost for 2.5s after dealing damage."),
@@ -329,6 +333,8 @@ public partial class Game1
             ClientPowerToggleKind.StickyGibBlood => _practiceStickyGibBloodEnabled,
             ClientPowerToggleKind.HealOnDamage => _practiceExperimentalGameplaySettings.EnableHealOnDamage,
             ClientPowerToggleKind.HealOnKill => _practiceExperimentalGameplaySettings.EnableHealOnKill,
+            ClientPowerToggleKind.SoldierStingerRockets => _practiceExperimentalGameplaySettings.EnableSoldierStingerRockets,
+            ClientPowerToggleKind.SelfDamageHealing => _practiceExperimentalGameplaySettings.EnableSelfDamageHealing,
             ClientPowerToggleKind.RateOfFireOnDamage => _practiceExperimentalGameplaySettings.EnableRateOfFireMultiplierOnDamage,
             ClientPowerToggleKind.SoldierInstantReload => _practiceExperimentalGameplaySettings.EnableSoldierInstantReload,
             ClientPowerToggleKind.SpeedOnDamage => _practiceExperimentalGameplaySettings.EnableSpeedOnDamage,
@@ -367,6 +373,18 @@ public partial class Game1
                 _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
                 {
                     EnableHealOnKill = !_practiceExperimentalGameplaySettings.EnableHealOnKill,
+                };
+                break;
+            case ClientPowerToggleKind.SoldierStingerRockets:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSoldierStingerRockets = !_practiceExperimentalGameplaySettings.EnableSoldierStingerRockets,
+                };
+                break;
+            case ClientPowerToggleKind.SelfDamageHealing:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                {
+                    EnableSelfDamageHealing = !_practiceExperimentalGameplaySettings.EnableSelfDamageHealing,
                 };
                 break;
             case ClientPowerToggleKind.RateOfFireOnDamage:

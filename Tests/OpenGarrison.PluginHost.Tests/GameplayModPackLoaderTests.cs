@@ -31,6 +31,7 @@ public sealed class GameplayModPackLoaderTests
                 Rewards = "rocketjumper,marketgardener",
                 Fullscreen = true,
                 VSync = true,
+                BotMode = OfflineBotControllerMode.ModernGraphRoute,
                 DisableLegacyGameplaySpriteFallback = true,
                 RecentConnection = new ClientRecentConnectionSettings
                 {
@@ -49,6 +50,7 @@ public sealed class GameplayModPackLoaderTests
             Assert.Equal("rocketjumper,marketgardener", loaded.Rewards);
             Assert.True(loaded.Fullscreen);
             Assert.True(loaded.VSync);
+            Assert.Equal(OfflineBotControllerMode.ModernGraphRoute, loaded.BotMode);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
             Assert.Equal("example.invalid", loaded.RecentConnection.Host);
             Assert.Equal(9001, loaded.RecentConnection.Port);

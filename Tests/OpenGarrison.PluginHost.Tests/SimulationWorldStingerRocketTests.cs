@@ -62,6 +62,53 @@ public sealed class SimulationWorldStingerRocketTests
     }
 
     [Fact]
+    public void ManualStingerDetonationTriplesOwnerSelfKnockback()
+    {
+        var baselineWorld = CreateSoldierWorld(new ExperimentalGameplaySettings());
+        var baselineOwner = baselineWorld.LocalPlayer;
+        baselineOwner.TeleportTo(100f, 100f);
+        var baselineRocket = new RocketProjectileEntity(
+            id: 1,
+            team: baselineOwner.Team,
+            ownerId: baselineOwner.Id,
+            x: baselineOwner.X,
+            y: baselineOwner.Y,
+            speed: 0f,
+            directionRadians: 0f,
+            rangeAnchorOwnerId: baselineOwner.Id,
+            lastKnownRangeOriginX: baselineOwner.X,
+            lastKnownRangeOriginY: baselineOwner.Y);
+
+        InvokeRocketExplosion(baselineWorld, baselineRocket);
+        var baselineImpulseSpeed = GetPlayerSpeedMagnitude(baselineOwner);
+
+        var stingerWorld = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierStingerRockets: true));
+        var stingerOwner = stingerWorld.LocalPlayer;
+        stingerOwner.TeleportTo(100f, 100f);
+        var stingerRocket = new RocketProjectileEntity(
+            id: 1,
+            team: stingerOwner.Team,
+            ownerId: stingerOwner.Id,
+            x: stingerOwner.X,
+            y: stingerOwner.Y,
+            speed: 0f,
+            directionRadians: 0f,
+            rangeAnchorOwnerId: stingerOwner.Id,
+            lastKnownRangeOriginX: stingerOwner.X,
+            lastKnownRangeOriginY: stingerOwner.Y,
+            enableExperimentalStingerTracking: true);
+        stingerRocket.ArmExperimentalManualDetonation();
+
+        InvokeRocketExplosion(stingerWorld, stingerRocket);
+        var stingerImpulseSpeed = GetPlayerSpeedMagnitude(stingerOwner);
+
+        AssertApproximately(
+            baselineImpulseSpeed * ExperimentalGameplaySettings.DefaultSoldierStingerManualDetonationSelfKnockbackMultiplier,
+            stingerImpulseSpeed,
+            tolerance: 0.01f);
+    }
+
+    [Fact]
     public void DangerCloseChainExplosionDrainsQueueWithoutLeavingReentrantState()
     {
         var world = CreateSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierDangerClose: true));
@@ -142,6 +189,20 @@ public sealed class SimulationWorldStingerRocketTests
         var result = method!.Invoke(world, [attacker, launchSpeed]);
         Assert.IsType<float>(result);
         return (float)result!;
+    }
+
+    private static float GetPlayerSpeedMagnitude(PlayerEntity player)
+    {
+        return MathF.Sqrt((player.HorizontalSpeed * player.HorizontalSpeed) + (player.VerticalSpeed * player.VerticalSpeed));
+    }
+
+    private static void InvokeRocketExplosion(SimulationWorld world, RocketProjectileEntity rocket)
+    {
+        var method = typeof(SimulationWorld).GetMethod(
+            "ExplodeRocket",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(world, [rocket, null, null, null]);
     }
 
     private static void AssertApproximately(float expected, float actual, float tolerance = 0.001f)

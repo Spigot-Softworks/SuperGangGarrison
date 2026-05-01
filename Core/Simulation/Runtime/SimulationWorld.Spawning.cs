@@ -18,6 +18,24 @@ public sealed partial class SimulationWorld
         return true;
     }
 
+    public bool TryMoveLocalPlayerToIntelSpawn()
+    {
+        if (LocalPlayerAwaitingJoin || !LocalPlayer.IsAlive)
+        {
+            return false;
+        }
+
+        var ownIntelBase = Level.GetIntelBase(LocalPlayer.Team);
+        if (!ownIntelBase.HasValue
+            || !TryFindSafeObjectiveSpawnPosition(LocalPlayer, LocalPlayer.Team, ownIntelBase.Value.X, ownIntelBase.Value.Y, out var spawnX, out var spawnY))
+        {
+            return false;
+        }
+
+        SpawnPlayerResolved(LocalPlayer, LocalPlayer.Team, spawnX, spawnY, clearMedicHealingTarget: false);
+        return true;
+    }
+
     private void SpawnPlayerResolved(PlayerEntity player, PlayerTeam team, float x, float y, bool clearMedicHealingTarget = true)
     {
         player.Spawn(team, x, y);
@@ -191,8 +209,11 @@ public sealed partial class SimulationWorld
 
     private bool TryFindSafeControlPointSpawnPosition(PlayerEntity player, PlayerTeam team, RoomObjectMarker marker, out float spawnX, out float spawnY)
     {
-        var markerCenterX = marker.CenterX;
-        var markerCenterY = marker.CenterY;
+        return TryFindSafeObjectiveSpawnPosition(player, team, marker.CenterX, marker.CenterY, out spawnX, out spawnY);
+    }
+
+    private bool TryFindSafeObjectiveSpawnPosition(PlayerEntity player, PlayerTeam team, float objectiveX, float objectiveY, out float spawnX, out float spawnY)
+    {
         var horizontalOffsets = new[] { 0f, -16f, 16f, -32f, 32f, -48f, 48f, -64f, 64f };
         const float verticalStartOffset = -96f;
         const float verticalEndOffset = 96f;
@@ -200,9 +221,9 @@ public sealed partial class SimulationWorld
 
         for (var horizontalIndex = 0; horizontalIndex < horizontalOffsets.Length; horizontalIndex += 1)
         {
-            var candidateX = markerCenterX + horizontalOffsets[horizontalIndex];
+            var candidateX = objectiveX + horizontalOffsets[horizontalIndex];
             float? nearestOpenCandidateY = null;
-            for (var candidateY = markerCenterY + verticalStartOffset; candidateY <= markerCenterY + verticalEndOffset; candidateY += verticalStep)
+            for (var candidateY = objectiveY + verticalStartOffset; candidateY <= objectiveY + verticalEndOffset; candidateY += verticalStep)
             {
                 if (!player.CanOccupy(Level, team, candidateX, candidateY))
                 {

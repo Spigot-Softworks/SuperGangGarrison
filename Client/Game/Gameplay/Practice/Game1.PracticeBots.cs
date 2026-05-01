@@ -42,7 +42,8 @@ public partial class Game1
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
     [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can select MotionProof, Modern, or ML controllers without leaking implementation details into the client plumbing.")]
-    private readonly IPracticeBotController _practiceBotController = CreatePracticeBotController();
+    private IPracticeBotController _practiceBotController = new MotionProofPracticeBotController();
+    private string _practiceBotControllerSelectionKey = nameof(OfflineBotControllerMode.MotionProof);
     private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
     [
         (PlayerClass.Medic, PlayerClass.Heavy),
@@ -90,14 +91,7 @@ public partial class Game1
         }
 
         _practiceBotSlots.Clear();
-        _browserPracticeBotInputCache.Clear();
-        _browserPracticeBotThinkTick = 0;
-        _browserPracticeBotPerfSamples = 0;
-        _browserPracticeBotPerfBuildInputTotalMilliseconds = 0d;
-        _browserPracticeBotPerfBuildInputMaxMilliseconds = 0d;
-        _browserPracticeBotPerfSetInputTotalMilliseconds = 0d;
-        _browserPracticeBotPerfSetInputMaxMilliseconds = 0d;
-        _practiceBotController.Reset();
+        ResetPracticeBotControllerState();
     }
 
     private void SyncPracticeBotRoster(PlayerTeam localTeam)
@@ -636,30 +630,71 @@ public partial class Game1
         return string.Join("/", NavEditorScoreTrioClasses.Select(BotNavigationClasses.GetShortLabel));
     }
 
-    private static IPracticeBotController CreatePracticeBotController()
+    private void ResetPracticeBotControllerState()
     {
+        _browserPracticeBotInputCache.Clear();
+        _browserPracticeBotThinkTick = 0;
+        _browserPracticeBotPerfSamples = 0;
+        _browserPracticeBotPerfBuildInputTotalMilliseconds = 0d;
+        _browserPracticeBotPerfBuildInputMaxMilliseconds = 0d;
+        _browserPracticeBotPerfSetInputTotalMilliseconds = 0d;
+        _browserPracticeBotPerfSetInputMaxMilliseconds = 0d;
+        _practiceBotController.Reset();
+    }
+
+    private void ApplyConfiguredPracticeBotController(bool respawnActiveBots)
+    {
+        var (selectionKey, controller) = CreatePracticeBotController();
+        if (string.Equals(_practiceBotControllerSelectionKey, selectionKey, StringComparison.Ordinal)
+            && _practiceBotController.GetType() == controller.GetType())
+        {
+            return;
+        }
+
+        _practiceBotController = controller;
+        _practiceBotControllerSelectionKey = selectionKey;
+        _botDiagnosticLatestSnapshot = BotControllerDiagnosticsSnapshot.Empty;
+        ResetBotDiagnosticSample();
+
+        if (respawnActiveBots && IsOfflineBotSessionActive)
+        {
+            ResetPracticeBotManagerState(releaseWorldSlots: true);
+            SyncPracticeBotRoster(_world.LocalPlayerTeam);
+            return;
+        }
+
+        ResetPracticeBotControllerState();
+    }
+
+    private (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
+    {
+        if (MLBotModeResolver.Resolve() is MLBotControllerMode.ML or MLBotControllerMode.Capture)
+        {
+            return ("ML", new MLPracticeBotController());
+        }
+
         var botController = Environment.GetEnvironmentVariable("OG_BOT_CONTROLLER");
         if (string.Equals(botController, "motion_proof", StringComparison.OrdinalIgnoreCase)
             || string.Equals(botController, "MotionProof", StringComparison.OrdinalIgnoreCase))
         {
-            return new MotionProofPracticeBotController();
+            return (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
         }
 
         if (string.Equals(botController, "modern", StringComparison.OrdinalIgnoreCase)
             || string.Equals(botController, "ModernGraphRoute", StringComparison.OrdinalIgnoreCase))
         {
-            return new ModernPracticeBotController();
+            return (nameof(OfflineBotControllerMode.ModernGraphRoute), new ModernPracticeBotController());
         }
 
         if (string.Equals(botController, "objective_traversal", StringComparison.OrdinalIgnoreCase)
             || string.Equals(botController, "ObjectiveTraversal", StringComparison.OrdinalIgnoreCase)
             || string.Equals(botController, "lattice", StringComparison.OrdinalIgnoreCase))
         {
-            return new MotionProofPracticeBotController();
+            return (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
         }
 
-        return MLBotModeResolver.Resolve() is MLBotControllerMode.ML or MLBotControllerMode.Capture
-            ? new MLPracticeBotController()
-            : new MotionProofPracticeBotController();
+        return _clientSettings.BotMode == OfflineBotControllerMode.ModernGraphRoute
+            ? (nameof(OfflineBotControllerMode.ModernGraphRoute), new ModernPracticeBotController())
+            : (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
     }
 }

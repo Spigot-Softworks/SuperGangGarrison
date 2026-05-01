@@ -1,4 +1,5 @@
 using System.Collections;
+using System;
 using System.Reflection;
 using OpenGarrison.Client;
 using OpenGarrison.Core;
@@ -23,13 +24,48 @@ public sealed class OfflinePracticeSelectionTests
     }
 
     [Fact]
-    public void LastToDieRotationIncludesConflictAfterNavigationRepair()
+    public void DefaultLastToDieRotationRemainsKingOfTheHillOnly()
     {
-        var conflictEntry = CreatePracticeMapEntry("Conflict", GameModeKind.KingOfTheHill);
-        var method = typeof(Game1).GetMethod("IsEligibleLastToDieRotationMap", BindingFlags.NonPublic | BindingFlags.Static);
+        var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);
+        var conflictEntry = CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag);
+        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var method = typeof(Game1).GetMethod(
+            "IsEligibleLastToDieRotationMap",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: [practiceMapEntryType!],
+            modifiers: null);
 
+        Assert.NotNull(practiceMapEntryType);
         Assert.NotNull(method);
-        Assert.True((bool)method.Invoke(null, [conflictEntry])!);
+        Assert.True((bool)method.Invoke(null, [harvestEntry])!);
+        Assert.False((bool)method.Invoke(null, [conflictEntry])!);
+    }
+
+    [Fact]
+    public void EngineerLastToDieRotationUsesConfiguredMixedMapPool()
+    {
+        var engineerKind = GetLastToDieSurvivorKind("Engineer");
+        var practiceMapEntryType = typeof(Game1).GetNestedType("PracticeMapEntry", BindingFlags.NonPublic);
+        var eligibilityMethod = typeof(Game1).GetMethod(
+            "IsEligibleLastToDieRotationMap",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types:
+            [
+                engineerKind.GetType(),
+                practiceMapEntryType!
+            ],
+            modifiers: null);
+
+        Assert.NotNull(practiceMapEntryType);
+        Assert.NotNull(eligibilityMethod);
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill)));
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Gallery", GameModeKind.KingOfTheHill)));
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("TwodFortTwo", GameModeKind.CaptureTheFlag)));
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Conflict", GameModeKind.CaptureTheFlag)));
+        Assert.True(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Eiger", GameModeKind.CaptureTheFlag)));
+        Assert.False(InvokeLastToDieRotationEligibility(eligibilityMethod, engineerKind, CreatePracticeMapEntry("Valley", GameModeKind.KingOfTheHill)));
     }
 
     private static IEnumerable<object> BuildPracticeMapEntries()
@@ -60,5 +96,18 @@ public sealed class OfflinePracticeSelectionTests
 
         Assert.NotNull(property);
         return (string)property.GetValue(entry)!;
+    }
+
+    private static object GetLastToDieSurvivorKind(string name)
+    {
+        var enumType = typeof(Game1).GetNestedType("LastToDieSurvivorKind", BindingFlags.NonPublic);
+
+        Assert.NotNull(enumType);
+        return Enum.Parse(enumType, name);
+    }
+
+    private static bool InvokeLastToDieRotationEligibility(MethodInfo method, object survivorKind, object entry)
+    {
+        return (bool)method.Invoke(null, [survivorKind, entry])!;
     }
 }
