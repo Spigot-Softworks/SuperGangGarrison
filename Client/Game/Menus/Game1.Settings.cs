@@ -29,6 +29,7 @@ public partial class Game1
         }
 
         _musicMode = _clientSettings.MusicMode;
+        ApplyConfiguredPracticeBotController(respawnActiveBots: false);
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);

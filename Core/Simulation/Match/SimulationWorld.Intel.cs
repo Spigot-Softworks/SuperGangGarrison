@@ -114,6 +114,11 @@ public sealed partial class SimulationWorld
         else
         {
             RedCaps += 1;
+            if (ShouldEndMatchOnRedTeamIntelCapture())
+            {
+                MatchState = MatchState with { Phase = MatchPhase.Ended, WinnerTeam = PlayerTeam.Red };
+                QueuePendingMapChange();
+            }
         }
     }
 

@@ -280,7 +280,6 @@ public partial class Game1
         {
             BotRole.DefendObjective => "defend",
             BotRole.EscortCarrier => "escort",
-            BotRole.HuntCarrier => "hunt",
             BotRole.ReturnWithIntel => "return",
             BotRole.ContestArena => "arena",
             _ => "attack",

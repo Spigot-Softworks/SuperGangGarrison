@@ -39,6 +39,7 @@ public partial class Game1
     {
         Soldier,
         Demoknight,
+        Engineer,
     }
 
     private enum LastToDiePerkKind
@@ -137,6 +138,12 @@ public partial class Game1
         string Label,
         string Description);
 
+    private readonly record struct LastToDieStageRuleProfile(
+        int CapLimit,
+        bool SpawnLocalPlayerAtOwnIntel,
+        bool EndMatchOnRedTeamIntelCapture,
+        TeamGateLockMask ForcedBlockingTeamGates);
+
     private readonly record struct LastToDieChoiceMenuLayout(
         Rectangle Panel,
         Rectangle[] CardBounds);
@@ -193,7 +200,27 @@ public partial class Game1
             LastToDieSurvivorKind.Demoknight,
             "Demoknight",
             string.Empty),
+        new(
+            LastToDieSurvivorKind.Engineer,
+            "Engineer",
+            string.Empty),
     ];
+
+    private static readonly HashSet<string> LastToDieEngineerRotationMapNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Harvest",
+        "Gallery",
+        "TwodFortTwo",
+        "Conflict",
+        "Eiger",
+    };
+
+    private static readonly HashSet<string> LastToDieEngineerCaptureTheFlagMapNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "TwodFortTwo",
+        "Conflict",
+        "Eiger",
+    };
 
     private static readonly LastToDiePerkDefinition[] LastToDieSoldierPerkCatalog =
     [
@@ -545,6 +572,7 @@ public partial class Game1
         return survivorKind switch
         {
             LastToDieSurvivorKind.Demoknight => PlayerClass.Demoman,
+            LastToDieSurvivorKind.Engineer => PlayerClass.Engineer,
             _ => PlayerClass.Soldier,
         };
     }
@@ -557,10 +585,18 @@ public partial class Game1
         }
 
         var playerClass = GetLastToDieSurvivorPlayerClass(_lastToDieRun.SurvivorKind);
+        var stageRules = ResolveLastToDieStageRuleProfile(_lastToDieRun.SurvivorKind, _lastToDieRun.CurrentLevelName);
         _world.PrepareLocalPlayerJoin();
         _world.SetLocalPlayerTeam(PlayerTeam.Red);
         _world.CompleteLocalPlayerJoin(playerClass);
-        _world.TryMoveLocalPlayerToControlPointSpawn();
+        if (stageRules.SpawnLocalPlayerAtOwnIntel)
+        {
+            _world.TryMoveLocalPlayerToIntelSpawn();
+        }
+        else
+        {
+            _world.TryMoveLocalPlayerToControlPointSpawn();
+        }
     }
 
     private bool TryBeginOfflineBotSession(
@@ -571,6 +607,7 @@ public partial class Game1
         int timeLimitMinutes,
         int capLimit,
         int respawnSeconds,
+        bool enableInstantRedTeamIntelCaptureWin,
         bool openJoinMenus,
         string consoleSessionName)
     {
@@ -582,6 +619,7 @@ public partial class Game1
             timeLimitMinutes,
             capLimit,
             respawnSeconds,
+            enableInstantRedTeamIntelCaptureWin,
             openJoinMenus,
             consoleSessionName);
     }
@@ -845,6 +883,7 @@ public partial class Game1
         return survivorKind switch
         {
             LastToDieSurvivorKind.Demoknight => LastToDieDemoknightPerkCatalog,
+            LastToDieSurvivorKind.Engineer => [],
             _ => LastToDieSoldierPerkCatalog,
         };
     }
@@ -863,14 +902,14 @@ public partial class Game1
             _lastToDieRun.StageDurationMinutes + LastToDieStageMinuteIncrement);
         _lastToDieRun.PendingRewardChoices = [];
 
-        var nextMap = SelectRandomLastToDieMap(_lastToDieRun.CurrentLevelName);
+        var nextMap = SelectRandomLastToDieMap(_lastToDieRun.SurvivorKind, _lastToDieRun.CurrentLevelName);
         if (nextMap is null || !BeginLastToDieStage(nextMap.LevelName))
         {
             ReturnToLastToDieMenu("Failed to start the next Last To Die stage.");
         }
     }
 
-    private PracticeMapEntry? SelectRandomLastToDieMap(string? excludedLevelName)
+    private PracticeMapEntry? SelectRandomLastToDieMap(LastToDieSurvivorKind survivorKind, string? excludedLevelName)
     {
         if (_practiceMapEntries.Count == 0)
         {
@@ -883,7 +922,7 @@ public partial class Game1
         }
 
         var rotationEntries = _practiceMapEntries
-            .Where(IsEligibleLastToDieRotationMap)
+            .Where(entry => IsEligibleLastToDieRotationMap(survivorKind, entry))
             .ToList();
         if (rotationEntries.Count == 0)
         {
@@ -910,12 +949,81 @@ public partial class Game1
             _practiceMapEntries = BuildPracticeMapEntries();
         }
 
-        return SelectRandomLastToDieMap(excludedLevelName: null);
+        return SelectRandomLastToDieMap(LastToDieSurvivorKind.Soldier, excludedLevelName: null);
     }
 
     private static bool IsEligibleLastToDieRotationMap(PracticeMapEntry entry)
     {
-        return entry.Mode == GameModeKind.KingOfTheHill;
+        return IsEligibleLastToDieRotationMap(LastToDieSurvivorKind.Soldier, entry);
+    }
+
+    private static bool IsEligibleLastToDieRotationMap(LastToDieSurvivorKind survivorKind, PracticeMapEntry entry)
+    {
+        return survivorKind switch
+        {
+            LastToDieSurvivorKind.Engineer => LastToDieEngineerRotationMapNames.Contains(entry.LevelName),
+            _ => entry.Mode == GameModeKind.KingOfTheHill,
+        };
+    }
+
+    private static LastToDieStageRuleProfile ResolveLastToDieStageRuleProfile(
+        LastToDieSurvivorKind survivorKind,
+        string? levelName)
+    {
+        if (survivorKind == LastToDieSurvivorKind.Engineer
+            && !string.IsNullOrWhiteSpace(levelName)
+            && LastToDieEngineerCaptureTheFlagMapNames.Contains(levelName))
+        {
+            return new LastToDieStageRuleProfile(
+                CapLimit: 3,
+                SpawnLocalPlayerAtOwnIntel: true,
+                EndMatchOnRedTeamIntelCapture: true,
+                ForcedBlockingTeamGates: TeamGateLockMask.None);
+        }
+
+        return new LastToDieStageRuleProfile(
+            CapLimit: LastToDieCapLimit,
+            SpawnLocalPlayerAtOwnIntel: false,
+            EndMatchOnRedTeamIntelCapture: false,
+            ForcedBlockingTeamGates: TeamGateLockMask.Red);
+    }
+
+    private PracticeMapEntry? FindLastToDieMapEntry(string? levelName)
+    {
+        if (string.IsNullOrWhiteSpace(levelName))
+        {
+            return null;
+        }
+
+        if (_practiceMapEntries.Count == 0)
+        {
+            _practiceMapEntries = BuildPracticeMapEntries();
+        }
+
+        return _practiceMapEntries.FirstOrDefault(entry => string.Equals(entry.LevelName, levelName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool TryAlignOpeningLastToDieStageToSelectedSurvivor()
+    {
+        if (_lastToDieRun is null)
+        {
+            return false;
+        }
+
+        var currentMap = FindLastToDieMapEntry(_lastToDieRun.CurrentLevelName);
+        if (currentMap is not null && IsEligibleLastToDieRotationMap(_lastToDieRun.SurvivorKind, currentMap))
+        {
+            return true;
+        }
+
+        var replacementMap = SelectRandomLastToDieMap(_lastToDieRun.SurvivorKind, excludedLevelName: null);
+        if (replacementMap is null || !BeginLastToDieStage(replacementMap.LevelName))
+        {
+            ReturnToLastToDieMenu("Failed to start Last To Die.");
+            return false;
+        }
+
+        return true;
     }
 
     private static void ShuffleLastToDiePerks(List<LastToDiePerkDefinition> definitions)
@@ -1169,6 +1277,11 @@ public partial class Game1
         _lastToDieRun.AwaitingOpeningSurvivorSelection = false;
         _lastToDieSurvivorMenuOpen = false;
         _lastToDieSurvivorHoverIndex = -1;
+        if (!TryAlignOpeningLastToDieStageToSelectedSurvivor())
+        {
+            return;
+        }
+
         SuppressPrimaryFireUntilMouseRelease();
         ApplySelectedLastToDieSurvivorToCurrentStage();
         OpenLastToDiePerkMenu();

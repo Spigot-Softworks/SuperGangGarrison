@@ -99,6 +99,7 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultSoldierStingerDamageMultiplier = 2f;
     public const float DefaultSoldierStingerBlastRadiusMultiplier = 1.6f;
     public const float DefaultSoldierStingerBurstSpeedMultiplier = 2f;
+    public const float DefaultSoldierStingerManualDetonationSelfKnockbackMultiplier = 3f;
     public const float DefaultSoldierRageExtensionSecondsPerKill = 2f;
     public const float DefaultDangerCloseBlastRadius = 72f;
     public const float DefaultDangerCloseExplosionDamage = 34f;

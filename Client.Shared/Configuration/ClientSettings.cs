@@ -24,6 +24,8 @@ public sealed class ClientSettings
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
+    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.MotionProof;
+
     public bool IngameMusicEnabled
     {
         get => MusicMode is MusicMode.MenuAndInGame or MusicMode.InGameOnly;
@@ -121,6 +123,7 @@ public sealed class ClientSettings
             Rewards = document.Rewards,
             Fullscreen = document.Fullscreen,
             MusicMode = document.MusicMode,
+            BotMode = document.BotMode,
             IngameResolution = document.IngameResolution,
             ParticleMode = document.ParticleMode,
             GibLevel = document.GibLevel,
@@ -153,6 +156,7 @@ public sealed class ClientSettings
         preferences.VSync = VSync;
         preferences.IngameResolution = IngameResolution;
         preferences.MusicMode = MusicMode;
+        preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;
         preferences.ParticleMode = ParticleMode;
         preferences.GibLevel = GibLevel;

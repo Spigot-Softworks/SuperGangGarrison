@@ -12,6 +12,15 @@ namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private static OfflineBotControllerMode GetNextBotMode(OfflineBotControllerMode botMode)
+    {
+        return botMode switch
+        {
+            OfflineBotControllerMode.MotionProof => OfflineBotControllerMode.ModernGraphRoute,
+            _ => OfflineBotControllerMode.MotionProof,
+        };
+    }
+
     private static MusicMode GetNextMusicMode(MusicMode musicMode)
     {
         return musicMode switch
@@ -47,6 +56,13 @@ public partial class Game1
         StopFaucetMusic();
         StopIngameMusic();
         PersistClientSettings();
+    }
+
+    private void CycleBotModeSetting()
+    {
+        _clientSettings.BotMode = GetNextBotMode(_clientSettings.BotMode);
+        PersistClientSettings();
+        ApplyConfiguredPracticeBotController(respawnActiveBots: true);
     }
 
     private void CycleIngameResolutionSetting()

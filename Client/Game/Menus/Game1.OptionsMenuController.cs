@@ -259,6 +259,7 @@ public partial class Game1
                 new("Player Name", _game._editingPlayerName ? _game._playerNameEditBuffer + "_" : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName),
                 new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting),
                 new("Music", GetMusicModeLabel(_game._musicMode), _game.CycleMusicModeSetting),
+                new("Bot Mode", GetBotModeLabel(_game._clientSettings.BotMode), _game.CycleBotModeSetting),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting),
@@ -352,6 +353,15 @@ public partial class Game1
                 MusicMode.MenuOnly => "Menu Only",
                 MusicMode.InGameOnly => "In-Game Only",
                 _ => "Menu and In-Game",
+            };
+        }
+
+        private static string GetBotModeLabel(OfflineBotControllerMode botMode)
+        {
+            return botMode switch
+            {
+                OfflineBotControllerMode.ModernGraphRoute => "ModernGraphRoute",
+                _ => "MotionProof",
             };
         }
 

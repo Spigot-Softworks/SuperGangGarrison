@@ -63,6 +63,11 @@ internal static class MotionProofRunner
             return RunGraphProof(world, bot, options, stopwatch);
         }
 
+        if (options.SolvePrimitivePath)
+        {
+            return RunPrimitiveSolve(world, bot, options, stopwatch);
+        }
+
         if (IsKothMode(world.MatchRules.Mode))
         {
             return RunKothProof(world, bot, options, stopwatch);
@@ -261,6 +266,49 @@ internal static class MotionProofRunner
             Console.WriteLine($"motion-proof mirror artifact={Path.GetFullPath(options.OutputPath!)}");
         }
 
+        return completed ? 0 : 3;
+    }
+
+    private static int RunPrimitiveSolve(
+        SimulationWorld world,
+        PlayerEntity bot,
+        MotionProofOptions options,
+        Stopwatch stopwatch)
+    {
+        if (!options.GoalX.HasValue || !options.GoalY.HasValue)
+        {
+            Console.Error.WriteLine("primitive_solve_requires_goal");
+            return 2;
+        }
+
+        var start = MotionState.FromPlayer(bot);
+        var goal = new MotionGoal(options.GoalX.Value, options.GoalY.Value, options.GoalRadius, options.GoalRadius, "local_goal");
+        if (!TryFindPrimitivePath(
+                world.Level,
+                options.Team,
+                options.ClassId,
+                carryingIntel: bot.IsCarryingIntel,
+                start,
+                goal,
+                options,
+                searchBudgetMillisecondsOverride: null,
+                out var path,
+                out var stats))
+        {
+            Console.WriteLine($"motion-proof primitive status=fail {stats}");
+            return 3;
+        }
+
+        Console.WriteLine($"motion-proof primitive status=found actions={path.Actions.Count} ticks={path.TotalTicks} {stats}");
+        Console.WriteLine($"motion-proof primitive tape={FormatActionSequence(path)}");
+        Console.WriteLine(
+            "motion-proof primitive actions-json="
+            + JsonSerializer.Serialize(path.Actions.Select(MotionProofAction.From).ToArray(), ArtifactJsonOptions));
+        ReplayPath(world, bot, options.Team, path, "primitive");
+        var distance = Distance(bot.X, bot.Bottom, options.GoalX.Value, options.GoalY.Value);
+        var completed = distance <= options.GoalRadius;
+        Console.WriteLine(
+            $"motion-proof primitive result status={(completed ? "pass" : "fail")} distance={distance:0.0} radius={options.GoalRadius:0.0} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         return completed ? 0 : 3;
     }
 
@@ -3887,7 +3935,7 @@ internal static class MotionProofRunner
 internal sealed class MotionProofOptions
 {
     public const string Usage =
-        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y]";
+        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y]";
 
     public string MapName { get; private set; } = "Truefort";
     public int MapAreaIndex { get; private set; } = 1;
@@ -3902,6 +3950,7 @@ internal sealed class MotionProofOptions
     public bool BakeGraph { get; private set; }
     public bool WriteFailedGraph { get; private set; }
     public bool ProveGraph { get; private set; }
+    public bool SolvePrimitivePath { get; private set; }
     public bool CombatSmoke { get; private set; }
     public string? GraphPath { get; private set; }
     public float? GoalX { get; private set; }
@@ -4037,6 +4086,12 @@ internal sealed class MotionProofOptions
             if (arg.Equals("--prove-graph", StringComparison.OrdinalIgnoreCase))
             {
                 options.ProveGraph = true;
+                continue;
+            }
+
+            if (arg.Equals("--solve-primitive", StringComparison.OrdinalIgnoreCase))
+            {
+                options.SolvePrimitivePath = true;
                 continue;
             }
 

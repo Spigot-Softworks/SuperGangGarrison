@@ -1,61 +1,387 @@
-OpenGarrison Bot Work Failure Handoff
+OpenGarrison ModernPracticeBotController highwater handoff
 
-This document intentionally replaces the prior MLBot handoff content. The ML training direction and the later deterministic-oracle pivot did not produce a releasable bot fix.
+Scope
 
-What failed
+This handoff describes the useful bot-navigation work that led to the current good baseline on MotionProofBots:
 
-- Broad ML/IL/RL work did not produce reliable scoring across TwodFortTwo. The bots remained brittle around traversal, especially the alternating stair/final-intel approach.
-- Unified/class-general training regressed previously working cases. Blue Scout and other classes still got caught or failed to complete full score chains.
-- Extra V5/V6 data, DAgger/intervention clips, staged chunks, reward tweaks, and traversal affordance ideas did not create a proven headless self-improving loop.
-- The local movement oracle search was too slow and incomplete. It could solve some isolated pockets but failed the mirrored/right-side TwodFortTwo staircase case.
-- The mirror fallback was invalid. The opposite-side tape replayed to the right x position but stayed on the lower platform, so it was rejected.
-- A runtime bridge-edge attempt made Blue Scout worse: after adding bridge edges from lower-right nodes into upper stair nodes, Blue Scout failed before pickup.
-- No model or deterministic bot patch from this effort should be promoted.
+- 7-map canary subset: 28/42 Score passes.
+- Full stock CTF+KOTH Score matrix: 38/84 Score passes.
+- Build: BotAI.Tools builds with 0 errors and existing warnings only.
 
-Concrete failed evidence
+This intentionally documents only the productive path to the current highwater: the useful work, the fixes that bought real wins, the experiments that did not buy wins or regressed, and the shape of the next fixes.
 
-- Red Pyro TwodFortTwo Score did pass once, but that did not generalize.
-- Blue Pyro TwodFortTwo Score passed once after direct route-miss fallback, but the path remained fragile and not a general fix.
-- Blue Scout TwodFortTwo Score failed after pickup before the last pass, with return progress stuck around the home staircase.
-- Blue Scout local movement oracle right-side climb failed:
-  - start `(2784,930)` goal `(3096,690)` radius `96`
-  - best result approximately `(2993,856)` with final distance about `195`
-  - failure reason `timeout`
-- Reflected/mirrored fallback failed validation:
-  - final approximately `(3091.6,930.0)`
-  - final distance about `240`
-  - reason `mirrored_validation_fail`
-- Runtime bridge attempt failed:
-  - Blue Scout TwodFortTwo Score timed out
-  - `carryFirst=n/a`
-  - `ctfAttackBest=325.7`
-  - not releasable
+Current verified state
 
-Code cleanup performed after failure
+- Branch: MotionProofBots.
+- Highwater merge commit: 65b4fb0 Merge restored canon bot baseline.
+- Restored canon baseline commit merged into this branch: ae1a02a Restore canon bot highwater baseline.
+- Working baseline after merge:
+  - `dotnet build .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+  - `dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --run-bot-scenario --stock-ctf-koth-matrix --scenario-kind Score --map Eiger --map TwodFortTwo --map Waterway --map Conflict --map Valley --map Corinth --map Classicwell --class Scout --class Heavy --class Pyro --seconds 120 --wall-timeout-ms 300000`
+    - Expected summary: `summary total=42 passed=28 failed=14 timedOut=0`
+  - `dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --run-bot-scenario --stock-ctf-koth-matrix --scenario-kind Score --class Scout --class Heavy --class Pyro --seconds 120 --wall-timeout-ms 300000`
+    - Expected summary: `summary total=84 passed=38 failed=46 timedOut=0`
 
-- Reverted tracked experimental changes in:
-  - `BotAI.Tools/Program.cs`
-  - `BotAI/BotController.cs`
-  - `BotAI/BotController.NavigationTraversal.cs`
-  - `BotAI/BotNavigationAsset.cs`
-  - `BotAI/BotNavigationMovementValidator.cs`
-  - `BotAI/BotNavigationRuntimeGraph.cs`
-  - `Core/Entities/Players/Movement/PlayerEntity.Movement.cs`
-- Removed untracked experimental files:
-  - `BotAI/BotNavigationMovementOracle.cs`
-  - `BotAI/BotNavigationPlatformGraphBuilder.cs`
-  - `Core/Entities/Players/Movement/PlayerEntity.MovementProbe.cs`
+Hard floor
 
-Recommended next direction
+Do not land a bot-navigation change that drops below the current floor unless the user explicitly asks to keep a diagnostic regression:
 
-- Do not continue broad ML model promotion.
-- Do not rely on the failed local movement oracle as implemented.
-- Treat TwodFortTwo bot release readiness as unresolved.
-- The next engineer should start from source/runtime proof, not from these failed assumptions.
-- If a release must ship soon, use narrow deterministic route/behavior fixes with end-to-end score proof per class/team/map, or disable unsupported bot claims for release.
+- 7-map subset floor: 28/42.
+- Full matrix floor: 38/84.
 
-Current acceptance bar
+Use small probes to discover, but every candidate runtime fix needs:
 
-- Do not claim success from graph reachability or local route progress.
-- A valid fix must pass full scenario scoring, not just pickup or arrival.
-- Minimum proof for TwodFortTwo should include full `Score` for both teams and held-out classes, with no hidden deterministic ML-policy overrides.
+1. A targeted failing case/probe showing the intended mechanism changed.
+2. The 7-map subset.
+3. The full 84-case Score matrix before it is considered keepable.
+
+Runtime shape now
+
+The default ModernPracticeBotController path is still the mature bot brain:
+
+- It keeps combat/objective/role behavior in `ModernPracticeBotController`.
+- It uses GG2/clientbot-style point graphs for navigation intent.
+- It does not use MotionProof as the default controller unless explicitly selected through `--bot-controller MotionProof`.
+- It has diagnostic harness support in BotAI.Tools for ModernGraphRoute, ObjectiveTraversal, and MotionProof.
+
+The important design direction is:
+
+- Keep the mature bot brain.
+- Keep graph intent crude and clientbot-like.
+- Do not trust point promotion/reanchor as proof that the actor physically reached vertical chains.
+- Patch only the exact C# runtime assumptions that are stronger than GML at the moment of movement, promotion, reanchor, or target selection.
+- Avoid broad graph pruning, class filtering, or route validator edits unless the score gates prove they are safe.
+
+Files changed by the useful highwater work
+
+- `BotAI/BotNavigationModernPointGraphBuilder.cs`
+  - Now delegates to `GmlClientBotPointGraphBuilder.Build(...)`.
+  - This gutted the old over-engineered C# modern builder path and made the generated asset shape much closer to the GML clientbot point builder.
+
+- `BotAI/GmlClientBotPointGraphBuilder.cs`
+  - New source-backed builder intended to mirror the crude GML point discovery and link rules.
+  - Uses 6px scan grid, headroom probes, flat-edge lookahead/lookback, drop probes, interior-corner points, connection clearance, support checks, and redundancy checks.
+  - Emits a class-neutral `ModernClientBotPointGraph` asset with raw point links represented as walk edges.
+  - Includes diagnostic explanation for GML link decisions through `DescribeLink(...)`.
+
+- `BotAI/ClientBotNavPoints.cs`
+  - Fixed reverse-block direction in goal-weight expansion.
+  - Retains optional class-aware weight expansion support, but the modern runtime path now builds its own runtime weights.
+
+- `BotAI/BotController.cs`
+  - The main runtime fixes live here: canon-ish point stepping, runtime goal weights, stricter live rejection for bad vertical shafts, grounded drop reanchor, short upward chain executor, movement/jump diagnostics, and targeted jump improvements.
+
+- `BotAI/BotController.NavigationTraversal.cs`
+  - Route/traversal progress handling changed so airborne jump chains and taped traversal landings are not prematurely advanced or sent backward.
+
+- `BotAI.Tools/Program.cs`
+  - Added failure buckets and probes for concrete investigation:
+    - `--probe-modern-edge`
+    - `--probe-modern-chain`
+    - `--probe-collision-window`
+    - `--probe-gml-link`
+  - Added `--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof`.
+  - Score harness prints richer per-case output and failure buckets.
+
+- `BotAI/BotRole.cs`
+  - Removed the unused/non-canon `HuntCarrier` role from this path.
+
+Real wins that should be preserved
+
+1. Canon builder rewrite
+
+The old `BotNavigationModernPointGraphBuilder` had too much C# interpretation:
+
+- typed Walk/Jump/Drop generation
+- validator/tape hooks
+- shortcut edges
+- class-sensitive assumptions
+- traversal costs that were not in the original GML point builder
+
+The current builder delegates to `GmlClientBotPointGraphBuilder`. This was necessary because the experiment was to get as close as practical to `clientbot_2020_update` point building. It is not by itself the whole fix; the runtime controller still matters more than the graph. But this gives the next engineer a cleaner baseline and stops treating generated graph structure as the only suspect.
+
+Do not casually reintroduce typed edge generation, shortcut edges, validator pruning, or class-specific asset generation into this path. Those were exactly the C# divergences this pass was trying to remove.
+
+2. Runtime goal weights instead of stale/class-filtered graph weights
+
+The modern runtime now uses `BuildModernRuntimeGoalWeights(...)` in `BotController.cs` for the clientbot navpoint path. This walks the live clientbot point graph with runtime blocking checks instead of leaning on stronger graph reachability assumptions.
+
+Why it matters:
+
+- The GML builder is crude; it does not prove physical traversal for a class.
+- Class-filtered goal weighting can reject the canon branch before movement logic gets a chance to execute it.
+- This was one of the poison-pill areas around objective/capture target choice.
+
+Keep this direction. If future work changes objective selection or capture candidate ranking, test KOTH and CTF canaries immediately because selection and executor behavior are coupled.
+
+3. Reverse-block direction fix
+
+`ClientBotNavPoints.ProcessPoints(...)` now checks reverse-blocked pairs in the corrected direction:
+
+- Current code: `IsReverseBlocked(sourcePointId, branch)`.
+
+This matters because wrong reverse-block interpretation can poison weight propagation and make a valid branch appear unusable or vice versa. Treat this as a keepable correctness fix.
+
+4. Short upward chain executor
+
+The confirmed mechanism was that GG2-style vertical chains can be physically valid, but normal C# promotion/reanchor can poison the attempt mid-chain. The fix was not to replace the whole bot with MotionProof. The fix was a narrow chain-level executor:
+
+- Starts only around short upward chains.
+- Requires current, next, and next2 points.
+- Requires the live actor to be near the source point.
+- Owns movement for a short bounded window.
+- Drives horizontal movement toward the target point, or toward the next segment direction once close enough in X.
+- Owns jump timing through `TryResolveModernChainExecutorJump(...)`.
+- Completes only when the actor reaches a target window.
+- Fails by clearing only the live attempt and applying a short cooldown.
+
+Important constants in `BotController.cs`:
+
+- `ModernChainExecutorArrivalDistanceX = 30`
+- `ModernChainExecutorArrivalDistanceY = 28`
+- `ModernChainExecutorSourceDistanceX = 52`
+- `ModernChainExecutorSourceDistanceY = 30`
+- `ModernChainExecutorMinimumRise = 20`
+- `ModernChainExecutorMaximumRise = 120`
+- `ModernChainExecutorMaximumRun = 220`
+- `ModernChainExecutorDurationTicks = 90`
+- `ModernChainExecutorNoProgressTicks = 36`
+- `ModernChainExecutorCooldownTicks = 45`
+
+Why it bought a real win:
+
+- It validated the theory that some failures were not bad graph generation. They were live execution/progress failures.
+- It bought a full-matrix pass while preserving Twod/Conflict/Eiger.
+- It helped the Valley-style short vertical chain bucket.
+
+Future expansion should be staged, not broad. Extend this from short upward chains to medium staged chains only after proving the exact chain with `--probe-modern-chain`, then rerun the score gates.
+
+5. Grounded-only drop reanchor
+
+`TryApplyModernReanchor(...)` now only lets drop reanchor fire while the actor has real ground contact.
+
+Why it bought a real win:
+
+- Corinth was visibly losing progress because the controller reanchored/drop-reset while the actor was still in a vertical continuation.
+- GML backtracking exists, but the C# timing and anchor selection were different enough to churn instead of escaping.
+- Grounded-only drop reanchor preserved Twod/Valley and lifted Corinth.
+
+This was one of the two concrete Corinth wins. Keep it.
+
+6. Graph-rise-qualified vertical shaft rejection
+
+`ShouldRejectModernLiveNextPoint(...)` rejects only the dangerous case where:
+
+- live rise exceeds class jump budget plus terrain-assisted tolerance,
+- graph rise also exceeds class jump budget plus tolerance,
+- target is nearly overhead,
+- and the bot has ground contact.
+
+The key is that it is both live-rise and graph-rise qualified. A strict live-rise-only rejection proved the diagnosis but was not keepable.
+
+Why it bought a real win:
+
+- Corinth improved meaningfully after this and grounded-only drop reanchor.
+- It avoids rejecting Valley's legitimate short chain while still preventing huge impossible overhead promotions.
+- It helped Corinth Scout/Pyro cases that were failing through early promotion/vertical continuation churn.
+
+This was the other concrete Corinth win. Keep it.
+
+7. ResolveModernJump improvements
+
+The useful jump work was to make jump predicates less brittle around GML-style ledge traversal:
+
+- preserve sign-level horizontal intent when the C# solver has zeroed horizontal speed while the bot is pressing into an obstruction;
+- add/keep route-up behavior for Pyro-sized upward route targets;
+- let Scout use air jump when the upward target is within class range and in the intended horizontal direction;
+- let the chain executor own jump decisions while active.
+
+Why it matters:
+
+- The GML botStep is opportunistic and crude; it jumps when local predicates say "blocked/up/gap" rather than requiring a typed planner to prove a jump edge.
+- The C# actor often had `hs=0` while pinned against a ledge, causing older predicates to refuse the exact jump needed to continue.
+
+This did not solve all vertical movement, but it is part of the current passing baseline.
+
+8. Traversal progress and airborne handoff changes
+
+`BotController.NavigationTraversal.cs` contains important progress changes:
+
+- airborne jump chain handoff can be delayed for non-light capture routes;
+- taped traversal landing windows are accepted after the tape finishes instead of sending the bot back to the source node;
+- drop and tape arrival checks use tighter start/landing windows where appropriate;
+- objective-distance no-progress checks do not poison edge progress near objective completion or partial-route execution.
+
+Why it matters:
+
+- Route progress was being treated as stronger proof than the original bot had.
+- Early promotion/handoff made the bot think it was done with a node before the physics actor was actually in a useful state.
+
+Do not simplify this back to pure graph-distance promotion unless the full matrix proves it.
+
+Important non-score diagnostic additions
+
+These did not directly score by themselves, but they are how future fixes should be proven cheaply before running the matrix:
+
+- `--probe-modern-edge --from-node N --to-node N`
+  - Executes a single edge using real actor physics and prints jump/move predicates.
+
+- `--probe-modern-chain --chain-nodes N,N,N`
+  - Executes a chain using simple policies and real actor physics.
+  - Use this before changing chain executor logic.
+
+- `--probe-collision-window --start-x X --start-bottom Y`
+  - Helps inspect local obstacle/collision geometry around a live stuck location.
+
+- `--probe-gml-link --from-node N --to-node N`
+  - Explains whether the canon-style builder would link two points and why.
+
+- Failure bucket output in score harness.
+  - Use the bucket to avoid treating every failing class/map as bespoke tuning.
+
+Known experiments and change shapes that did not buy wins
+
+1. Movement validator / pruning / tape-first graph fixes
+
+These repeatedly made graph quality worse or failed to improve scoring. The core issue was not simply "bad edge exists, prune it." Pruning can remove ugly-but-needed GG2-style links and strand the bot. Do not return to broad movement-validator pruning without a fresh, narrow, matrix-backed reason.
+
+2. Strict rise rejection
+
+Strictly rejecting over-class-rise next points proved that some failures were impossible vertical promotions, but it was not keepable:
+
+- It helped one Twod Scout case.
+- It regressed Conflict Scout/Heavy hard.
+
+The keepable version is the current graph-rise-qualified/live-rise-qualified vertical shaft rejection. Do not reapply strict live-rise rejection globally.
+
+3. Broad builder strictness
+
+Making the builder "cleaner" or stricter can look source-backed and still destroy the score matrix. The original GML graph is crude. Some crude links are useful because botStep resolves them opportunistically.
+
+Future builder changes should use this order:
+
+1. Prove a concrete GML mismatch with `--probe-gml-link`.
+2. Regenerate or inspect only the relevant map/edge.
+3. Run affected canaries immediately.
+4. Run the 7-map subset.
+5. Run the full matrix before keeping.
+
+Do not assume a more physically plausible graph is better.
+
+4. Class reachability filtering as a route-selection fix
+
+Filtering routes harder by class often hides the canon branch and forces worse branches. The controller and executor are coupled: if the executor cannot honor the selected branch, route filtering alone does not fix it; if the filter removes the branch, the executor never gets a chance.
+
+The current direction is to keep route intent closer to GML and improve movement/progress around exact failing pockets.
+
+5. Objective-distance no-progress as a graph poison signal
+
+Objective distance can temporarily get worse while the bot performs lateral or vertical movement needed to score. Blocking graph edges because objective distance did not improve can poison valid routes. Keep edge/progress checks local, not purely objective-distance-based.
+
+6. Treating MotionProof as the whole navigation replacement
+
+MotionProof can work as a fallback controller, but it should not replace the mature bot brain for this path:
+
+- It does not own mature combat/objective behavior.
+- It is brittle and hard to reason about globally.
+- The useful lesson from MotionProof is local physics-authoritative execution, not global replanning.
+
+If borrowing from MotionProof, borrow only a tiny local executor primitive for a specific edge/chain, then hand control back to ModernPracticeBotController.
+
+Current read on remaining failures
+
+The remaining failures are not one single builder bug. They cluster into shared buckets:
+
+1. Medium/long vertical continuation executor failures
+   - Similar to the solved short-chain bucket, but longer, more offset, or with bigger vertical staging.
+   - Examples observed during investigation included Corinth heavy verticals and ClassicWell-style early promotion cases.
+   - Fix shape: staged chain executor, not stricter graph filtering.
+
+2. Promotion arrival too early
+   - The bot promotes a point because it is inside a radius, but the actor is not physically in the state needed for the next edge.
+   - Fix shape: make promotion state-aware for vertical chains: grounded/contact, graph rise, live rise, outgoing edge shape, and maybe next2 direction.
+
+3. Reanchor/backtrack churn
+   - Reanchor can be valid in GML but wrong in C# timing.
+   - Fix shape: only narrow reanchor eligibility; do not globally disable backtracking.
+
+4. Objective/capture target selection coupled to reachability
+   - Especially KOTH/capture selection.
+   - Fix shape: inspect selected goal and route weights for a failing case; avoid adding class filters unless a score gate proves it.
+
+5. Collision/obstacle geometry mismatches
+   - GML uses `collision_line(..., Obstacle, 1, 0)`.
+   - C# uses extracted static geometry plus runtime helper predicates.
+   - Fix shape: for a suspect edge, compare `--probe-gml-link`, `--probe-collision-window`, and actual actor movement. Do not edit geometry broadly without score proof.
+
+Recommended next work
+
+Next target should be a staged chain executor for one concrete remaining bucket, not another broad graph rewrite.
+
+Suggested approach:
+
+1. Pick one failing map/class/team from the current matrix.
+2. Collect the exact current -> next -> next2 route around the failure from diagnostics.
+3. Run `--probe-modern-chain` on that exact chain with the live start position if known.
+4. Classify the failure:
+   - executor cannot move a canon-valid edge;
+   - selection rejects the canon branch and picks worse;
+   - promotion claims arrival too early;
+   - reanchor/backtrack churn resets progress;
+   - objective/capture target choice is wrong.
+5. Patch only that bucket.
+6. Run the affected case.
+7. Run the 7-map subset.
+8. Run the full 84-case Score matrix.
+
+Likely next fix shape
+
+Extend the current short-chain executor into a staged chain executor:
+
+- It should still only own short local movement windows.
+- It should start from the live actor state, not clean node coordinates.
+- It should support a small chain of subgoals rather than one current -> next hop.
+- It should require physical subgoal arrival before point promotion.
+- It should fail locally and hand back to normal ModernPracticeBotController.
+- It must not choose objectives, routes, combat behavior, or global movement policy.
+
+Useful commands
+
+Build:
+
+`dotnet build .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+
+7-map canary:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --run-bot-scenario --stock-ctf-koth-matrix --scenario-kind Score --map Eiger --map TwodFortTwo --map Waterway --map Conflict --map Valley --map Corinth --map Classicwell --class Scout --class Heavy --class Pyro --seconds 120 --wall-timeout-ms 300000`
+
+Full matrix:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --run-bot-scenario --stock-ctf-koth-matrix --scenario-kind Score --class Scout --class Heavy --class Pyro --seconds 120 --wall-timeout-ms 300000`
+
+Single case:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --run-bot-scenario --stock-ctf-koth-matrix --scenario-kind Score --map Corinth --class Heavy --seconds 120 --wall-timeout-ms 300000`
+
+Edge probe:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --map Conflict --team Red --class Scout --probe-modern-edge --from-node 110 --to-node 109`
+
+Chain probe:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --map Valley --team Red --class Heavy --probe-modern-chain --chain-nodes 134,128,122,97`
+
+GML link probe:
+
+`dotnet run --project .\BotAI.Tools\OpenGarrison.BotAI.Tools.csproj --no-build -- --map Conflict --probe-gml-link --from-node 81 --to-node 80`
+
+Rules for the next agent
+
+- Treat `38/84` as the floor.
+- Do not make broad graph changes without proving they preserve canaries and full matrix.
+- Do not remove "ugly" GG2-style links just because they look physically suspicious.
+- Do not add class filters as a first response to vertical failures.
+- Do not call a route proof a score proof.
+- Do not trust build success alone.
+- Use the probes for diagnosis, then use the matrix for acceptance.
+- If a source-backed change fixes one case and regresses another, keep the evidence but revert or narrow the change until it preserves the floor.

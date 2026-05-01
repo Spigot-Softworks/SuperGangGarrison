@@ -539,6 +539,14 @@ public sealed partial class ModernPracticeBotController
     {
         memory.NavigationIssueLabel = $"route_edge_block:{fromNodeId}->{toNodeId}";
         ResetRouteProgress(memory);
+        var key = GetRouteEdgeKey(fromNodeId, toNodeId);
+        memory.RouteBlockedEdgeTicksByKey ??= new Dictionary<long, int>();
+        memory.RouteBlockedEdgeFailureCountsByKey ??= new Dictionary<long, int>();
+        memory.RouteBlockedEdgeTicksByKey[key] = RouteBlockedEdgeTicksDefault;
+        memory.RouteBlockedEdgeFailureCountsByKey[key] =
+            memory.RouteBlockedEdgeFailureCountsByKey.TryGetValue(key, out var failureCount)
+                ? failureCount + 1
+                : 1;
     }
 
     private static void ClearRouteEdgeFailure(BotMemory memory, int fromNodeId, int toNodeId)
