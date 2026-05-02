@@ -3,8 +3,6 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
-using OpenGarrison.MLBot;
-using OpenGarrison.MLBot.Contracts;
 
 namespace OpenGarrison.Server;
 
@@ -141,10 +139,9 @@ internal static class ServerRuntimeBootstrapFactory
             outboundMessaging.SendMessage,
             log);
 
-        // Create the server bot manager with the modern practice bot controller
-        IPracticeBotController botController = MLBotModeResolver.Resolve() == MLBotControllerMode.ML
-            ? new MLPracticeBotController()
-            : new ModernPracticeBotController();
+        IPracticeBotController botController = new AdaptiveMapPracticeBotController(
+            new MotionProofPracticeBotController(),
+            new ModernPracticeBotController());
         botManager = new ServerBotManager(
             world,
             config,

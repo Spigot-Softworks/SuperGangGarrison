@@ -10,7 +10,7 @@ public sealed class BloodDropEntity : SimulationEntity
     public const float DefaultScale = 1f;
     public const float MaxScale = 2f;
 
-    public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY, float scale = DefaultScale) : base(id)
+    public BloodDropEntity(int id, float x, float y, float velocityX, float velocityY, float scale = DefaultScale, bool experimentalCryoTinted = false) : base(id)
     {
         X = x;
         Y = y;
@@ -18,6 +18,7 @@ public sealed class BloodDropEntity : SimulationEntity
         VelocityY = velocityY;
         TicksRemaining = LifetimeTicks;
         Scale = float.Clamp(scale, DefaultScale, MaxScale);
+        ExperimentalCryoTinted = experimentalCryoTinted;
     }
 
     public float X { get; private set; }
@@ -35,6 +36,8 @@ public sealed class BloodDropEntity : SimulationEntity
     public bool IsExpired => TicksRemaining <= 0;
 
     public float Scale { get; private set; }
+
+    public bool ExperimentalCryoTinted { get; }
 
     public float Alpha => float.Clamp(TicksRemaining / (float)LifetimeTicks, 0f, 1f);
 

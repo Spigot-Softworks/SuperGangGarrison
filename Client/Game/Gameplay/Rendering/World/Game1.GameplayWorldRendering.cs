@@ -286,8 +286,7 @@ public partial class Game1
         var ids = new System.Collections.Generic.HashSet<int>();
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (player.ClassId == PlayerClass.Medic
-                && player.IsMedicHealing
+            if (player.IsMedicHealing
                 && player.MedicHealTargetId.HasValue)
             {
                 ids.Add(player.Id);
@@ -361,6 +360,7 @@ public partial class Game1
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
+        DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         DrawChatBubble(_world.LocalPlayer, cameraPosition);
         DrawLastToDieMissPopup(_world.LocalPlayer, cameraPosition);

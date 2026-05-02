@@ -48,7 +48,9 @@ public partial class Game1
             }
 
             var player = _game._world.LocalPlayer;
-            var activeWeaponKind = player.IsAcquiredWeaponPresented
+            var activeWeaponKind = IsMedigunPresentationUser(player)
+                ? PrimaryWeaponKind.Medigun
+                : player.IsAcquiredWeaponPresented
                 ? player.AcquiredWeapon?.Kind
                 : player.PrimaryWeapon.Kind;
             if (_game._world.LocalPlayerAwaitingJoin

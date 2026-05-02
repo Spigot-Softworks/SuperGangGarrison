@@ -110,7 +110,8 @@ public sealed partial class GameplayRuntimeRegistry
             return true;
         }
 
-        return SupportsExperimentalAcquiredWeapon(playerClass)
+        return (SupportsExperimentalAcquiredWeapon(playerClass)
+            || playerClass == PlayerClass.Engineer)
             && TryGetItem(secondaryItemId, out var secondaryItem)
             && secondaryItem.Slot == GameplayEquipmentSlot.Primary;
     }

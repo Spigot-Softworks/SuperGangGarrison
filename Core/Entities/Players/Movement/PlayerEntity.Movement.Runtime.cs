@@ -146,7 +146,8 @@ public sealed partial class PlayerEntity
 
         canMove = !IsHeavyEating
             && (!IsTaunting || IsRaging)
-            && !IsSpyBackstabAnimating;
+            && !IsSpyBackstabAnimating
+            && !IsExperimentalCryoFrozen;
 
         var isDemoknightChargeDriving = IsExperimentalDemoknightCharging && canMove;
         var allowChargeFullControl = isDemoknightChargeDriving && ExperimentalDemoknightChargeFullControlEnabled;
@@ -245,7 +246,7 @@ public sealed partial class PlayerEntity
             && ExperimentalDemoknightChargeFullControlEnabled
             && ExperimentalDemoknightChargeWantsLift
             && IsGrounded;
-        if (!IsAlive || !canMove || (!jumpPressed && !allowHeldChargeJump))
+        if (!IsAlive || !canMove || IsExperimentalCryoFrozen || (!jumpPressed && !allowHeldChargeJump))
         {
             return false;
         }

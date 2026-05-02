@@ -21,6 +21,11 @@ public partial class Game1
         return _gameplayEngineerHudController.GetLocalOwnedSentry();
     }
 
+    private int GetLocalOwnedSentryCount()
+    {
+        return _gameplayEngineerHudController.GetLocalOwnedSentryCount();
+    }
+
     private static int GetCharacterHudFrameIndex(PlayerEntity player)
     {
         return GameplayLocalStatusHudController.GetCharacterHudFrameIndex(player);

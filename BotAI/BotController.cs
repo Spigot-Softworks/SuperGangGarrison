@@ -5373,7 +5373,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var candidate = allPlayers[index];
-            if (!candidate.IsAlive || candidate.Team == team || ShouldIgnoreEnemyTarget(candidate))
+            var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(player, candidate);
+            if (!candidate.IsAlive || (candidate.Team == team && !treatAsFriendlyFireTarget) || ShouldIgnoreEnemyTarget(candidate))
             {
                 continue;
             }
@@ -5435,7 +5436,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var candidate = allPlayers[index];
-            if (!candidate.IsAlive || candidate.Team == team || ShouldIgnoreModernEnemyTarget(candidate))
+            var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(player, candidate);
+            if (!candidate.IsAlive || (candidate.Team == team && !treatAsFriendlyFireTarget) || ShouldIgnoreModernEnemyTarget(candidate))
             {
                 continue;
             }
@@ -5497,7 +5499,8 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var candidate = allPlayers[index];
-            if (!candidate.IsAlive || candidate.Team == team || ShouldIgnoreModernEnemyTarget(candidate))
+            var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(player, candidate);
+            if (!candidate.IsAlive || (candidate.Team == team && !treatAsFriendlyFireTarget) || ShouldIgnoreModernEnemyTarget(candidate))
             {
                 continue;
             }

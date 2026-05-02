@@ -1,6 +1,7 @@
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text.Json;
 
 namespace OpenGarrison.BotAI;
@@ -10,6 +11,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float GraphGoalRadius = 160f;
     private const float GraphCtfGoalRadius = 64f;
     private const float GraphAttachRadius = 192f;
+    private const float GraphGroundedAttachVerticalTolerance = 96f;
+    private const float GraphOpeningActionAttachDistance = 72f;
+    private const float GraphOpeningActionHorizontalTolerance = 28f;
     private const float StaticGoalQuantization = 64f;
     private const float DynamicGoalQuantization = 256f;
     private const float NoProgressDistance = 0.1f;
@@ -20,7 +24,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const int DynamicGraphLineOfSightCandidateCount = 48;
     private const float DynamicGraphGoalDistanceCostScale = 6f;
     private const int DynamicGraphNoLineOfSightPenaltyTicks = 20_000;
-    private const float ObjectiveTapeFastForwardSeconds = 0.3f;
+    private const float ObjectiveTapeFastForwardSeconds = 0.1f;
     private const int ObjectiveNavigationRescueJumpTicks = NoProgressTickLimit - 2;
     private const float ObstacleProbeDistance = 10f;
     private const int MaxRouteMapCacheEntries = 128;
@@ -61,11 +65,115 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float ObjectiveTerminalDirectRadius = 480f;
     private const float ObjectiveTerminalTightRadius = 96f;
     private const float CtfIntelPickupMarkerSize = 24f;
+    private const float TapeReattachStartRadiusX = 40f;
+    private const float TapeReattachStartRadiusBottom = 40f;
+    private const float TapeReattachWindowRadiusX = 28f;
+    private const float TapeReattachWindowRadiusBottom = 28f;
+    private const float TapeReattachDuplicateDistance = 24f;
+    private const float TapeReattachSearchDistance = 960f;
     private const float ObjectiveHoldStrafeHalfWidth = 44f;
     private const float ObjectiveCaptureStrafeHalfWidth = 18f;
     private const int ObjectiveHoldStrafePeriodTicks = 32;
     private const int ObjectiveHoldHopPeriodTicks = 54;
     private const int ObjectiveHoldHopPulseTicks = 4;
+    private const float ConflictReturnSeamStartX = 845f;
+    private const float ConflictReturnSeamStartBottom = 642f;
+    private const float ConflictReturnSeamToleranceX = 28f;
+    private const float ConflictReturnSeamToleranceBottom = 36f;
+    private const float ConflictReturnSeamGoalX = 3252f;
+    private const float ConflictReturnSeamGoalBottom = 444f;
+    private const float ConflictReturnSeamGoalRadius = 96f;
+    private const float ConflictHeavyReturnSeamStartX = 2940f;
+    private const float ConflictHeavyReturnSeamStartBottom = 897f;
+    private const float ConflictHeavyReturnSeamToleranceX = 2f;
+    private const float ConflictHeavyReturnSeamToleranceBottom = 2f;
+    private const float ConflictHeavyReturnSeamGoalX = 3252f;
+    private const float ConflictHeavyReturnSeamGoalBottom = 444f;
+    private const float ConflictHeavyReturnSeamGoalRadius = 96f;
+    private const float ConflictQuoteReturnSeamStartX = 709f;
+    private const float ConflictQuoteReturnSeamStartBottom = 558f;
+    private const float ConflictQuoteReturnSeamToleranceX = 40f;
+    private const float ConflictQuoteReturnSeamToleranceBottom = 48f;
+    private const float ConflictQuoteReturnSeamGoalX = 3252f;
+    private const float ConflictQuoteReturnSeamGoalBottom = 444f;
+    private const float ConflictQuoteReturnSeamGoalRadius = 96f;
+    private const float ConflictHeavyAttackSeamStartX = 1119f;
+    private const float ConflictHeavyAttackSeamStartBottom = 654f;
+    private const float ConflictHeavyAttackSeamToleranceX = 32f;
+    private const float ConflictHeavyAttackSeamToleranceBottom = 40f;
+    private const float ConflictHeavyAttackSeamGoalX = 538f;
+    private const float ConflictHeavyAttackSeamGoalBottom = 468f;
+    private const float ConflictHeavyAttackSeamGoalRadius = 96f;
+    private const float ConflictQuoteFinalReturnSeamStartX = 3234f;
+    private const float ConflictQuoteFinalReturnSeamStartBottom = 809f;
+    private const float ConflictQuoteFinalReturnSeamToleranceX = 96f;
+    private const float ConflictQuoteFinalReturnSeamToleranceBottom = 144f;
+    private const float ConflictQuoteFinalReturnSeamGoalX = 3252f;
+    private const float ConflictQuoteFinalReturnSeamGoalBottom = 444f;
+    private const float ConflictQuoteFinalReturnSeamGoalRadius = 96f;
+    private const float ConflictQuoteLateReturnSeamStartX = 2572f;
+    private const float ConflictQuoteLateReturnSeamStartBottom = 654f;
+    private const float ConflictQuoteLateReturnSeamToleranceX = 24f;
+    private const float ConflictQuoteLateReturnSeamToleranceBottom = 24f;
+    private const float ConflictQuoteLateReturnSeamGoalX = 3252f;
+    private const float ConflictQuoteLateReturnSeamGoalBottom = 444f;
+    private const float ConflictQuoteLateReturnSeamGoalRadius = 96f;
+    private const float ConflictHeavyFinalReturnSeamStartX = 2570f;
+    private const float ConflictHeavyFinalReturnSeamStartBottom = 654f;
+    private const float ConflictHeavyFinalReturnSeamToleranceX = 2f;
+    private const float ConflictHeavyFinalReturnSeamToleranceBottom = 2f;
+    private const float ConflictHeavyFinalReturnSeamGoalX = 3252f;
+    private const float ConflictHeavyFinalReturnSeamGoalBottom = 444f;
+    private const float ConflictHeavyFinalReturnSeamGoalRadius = 96f;
+    private const float ConflictHeavyLateReturnSeamStartX = 3356f;
+    private const float ConflictHeavyLateReturnSeamStartBottom = 840f;
+    private const float ConflictHeavyLateReturnSeamToleranceX = 48f;
+    private const float ConflictHeavyLateReturnSeamToleranceBottom = 56f;
+    private const float ConflictHeavyLateReturnSeamGoalX = 3252f;
+    private const float ConflictHeavyLateReturnSeamGoalBottom = 444f;
+    private const float ConflictHeavyLateReturnSeamGoalRadius = 96f;
+    private const float TwodFortTwoScoutAttackSeamStartX = 239f;
+    private const float TwodFortTwoScoutAttackSeamStartBottom = 849f;
+    private const float TwodFortTwoScoutAttackSeamToleranceX = 24f;
+    private const float TwodFortTwoScoutAttackSeamToleranceBottom = 40f;
+    private const float TwodFortTwoScoutAttackSeamGoalX = 330f;
+    private const float TwodFortTwoScoutAttackSeamGoalBottom = 690f;
+    private const float TwodFortTwoScoutAttackSeamGoalRadius = 96f;
+    private const float TwodFortTwoScoutReturnSeamStartX = 2753f;
+    private const float TwodFortTwoScoutReturnSeamStartBottom = 1164f;
+    private const float TwodFortTwoScoutReturnSeamToleranceX = 24f;
+    private const float TwodFortTwoScoutReturnSeamToleranceBottom = 24f;
+    private const float TwodFortTwoScoutReturnSeamGoalX = 3096f;
+    private const float TwodFortTwoScoutReturnSeamGoalBottom = 726f;
+    private const float TwodFortTwoScoutReturnSeamGoalRadius = 128f;
+    private const float TwodFortTwoScoutReturnRecoverySeamStartX = 1259f;
+    private const float TwodFortTwoScoutReturnRecoverySeamStartBottom = 798f;
+    private const float TwodFortTwoScoutReturnRecoverySeamToleranceX = 8f;
+    private const float TwodFortTwoScoutReturnRecoverySeamToleranceBottom = 12f;
+    private const float TwodFortTwoScoutReturnRecoverySeamGoalX = 1749f;
+    private const float TwodFortTwoScoutReturnRecoverySeamGoalBottom = 924f;
+    private const float TwodFortTwoScoutReturnRecoverySeamGoalRadius = 80f;
+    private const float TwodFortTwoScoutDeepRecoverySeamStartX = 1320f;
+    private const float TwodFortTwoScoutDeepRecoverySeamStartBottom = 1041f;
+    private const float TwodFortTwoScoutDeepRecoverySeamToleranceX = 2f;
+    private const float TwodFortTwoScoutDeepRecoverySeamToleranceBottom = 2f;
+    private const float TwodFortTwoScoutDeepRecoverySeamGoalX = 1749f;
+    private const float TwodFortTwoScoutDeepRecoverySeamGoalBottom = 924f;
+    private const float TwodFortTwoScoutDeepRecoverySeamGoalRadius = 80f;
+    private const float TwodFortTwoScoutUpperRecoverySeamStartX = 1543f;
+    private const float TwodFortTwoScoutUpperRecoverySeamStartBottom = 1109f;
+    private const float TwodFortTwoScoutUpperRecoverySeamToleranceX = 8f;
+    private const float TwodFortTwoScoutUpperRecoverySeamToleranceBottom = 12f;
+    private const float TwodFortTwoScoutUpperRecoverySeamGoalX = 3096f;
+    private const float TwodFortTwoScoutUpperRecoverySeamGoalBottom = 726f;
+    private const float TwodFortTwoScoutUpperRecoverySeamGoalRadius = 128f;
+    private const float TwodFortTwoScoutLateReturnSeamStartX = 3365f;
+    private const float TwodFortTwoScoutLateReturnSeamStartBottom = 939f;
+    private const float TwodFortTwoScoutLateReturnSeamToleranceX = 80f;
+    private const float TwodFortTwoScoutLateReturnSeamToleranceBottom = 80f;
+    private const float TwodFortTwoScoutLateReturnSeamGoalX = 3096f;
+    private const float TwodFortTwoScoutLateReturnSeamGoalBottom = 726f;
+    private const float TwodFortTwoScoutLateReturnSeamGoalRadius = 128f;
     private const float HealTargetSeekDistance = 360f;
     private const float MedicHealFireDistance = 300f;
     private const float MedicNeedleRange = 420f;
@@ -89,14 +197,241 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         PropertyNameCaseInsensitive = true,
     };
 
+    private static readonly ObjectiveSeamProgram ConflictBlueEngineerReturnSeamProgram = new(
+        "conflict_engineer_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Run", -1, 8), new("Run", -1, 8), new("Jump", -1, 17),
+            new("Drop", -1, 9), new("Jump", 1, 20), new("Run", 1, 8), new("Run", 1, 22),
+            new("Run", 1, 34), new("Run", 1, 34), new("Run", 1, 52), new("Jump", 1, 23),
+            new("Run", 1, 22), new("Jump", 1, 21), new("Run", 1, 8), new("Jump", 1, 32),
+            new("Run", 1, 14), new("Jump", 1, 33), new("Run", 1, 14), new("Jump", 1, 27),
+            new("Run", 1, 34), new("Run", 1, 52), new("Jump", 1, 28), new("Run", 1, 40),
+        },
+        GoalX: ConflictReturnSeamGoalX,
+        GoalBottom: ConflictReturnSeamGoalBottom,
+        GoalRadius: ConflictReturnSeamGoalRadius,
+        DurationTicks: 628,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueMedicReturnSeamProgram = new(
+        "conflict_medic_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 22), new("Jump", -1, 17), new("Drop", -1, 7), new("Jump", 0, 7),
+            new("Jump", 1, 21), new("Run", 1, 8), new("Jump", 1, 17), new("Run", 1, 22),
+            new("Run", 1, 14), new("Run", 1, 34), new("Run", 1, 34), new("Jump", 1, 23),
+            new("Run", 1, 14), new("Jump", 1, 21), new("Run", 1, 8), new("Run", 1, 34),
+            new("Run", 1, 52), new("Jump", 1, 28), new("Run", 1, 22), new("Run", 1, 34),
+            new("Run", 1, 22), new("Jump", 1, 28), new("Run", 1, 35),
+        },
+        GoalX: ConflictReturnSeamGoalX,
+        GoalBottom: ConflictReturnSeamGoalBottom,
+        GoalRadius: ConflictReturnSeamGoalRadius,
+        DurationTicks: 584,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueSpyReturnSeamProgram = new(
+        "conflict_spy_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 22), new("Jump", -1, 17), new("Run", -1, 8), new("Jump", 1, 17),
+            new("Run", 1, 22), new("Run", 1, 34), new("Run", 1, 52), new("Run", 1, 34),
+            new("Jump", 1, 23), new("Run", 1, 14), new("Run", 1, 14), new("Jump", 1, 23),
+            new("Run", 1, 52), new("Run", 1, 34), new("Jump", 1, 26), new("Run", 1, 22),
+            new("Run", 1, 52), new("Jump", 1, 28), new("Run", 1, 35),
+        },
+        GoalX: ConflictReturnSeamGoalX,
+        GoalBottom: ConflictReturnSeamGoalBottom,
+        GoalRadius: ConflictReturnSeamGoalRadius,
+        DurationTicks: 589,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueQuoteReturnSeamProgram = new(
+        "conflict_quote_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Jump", 1, 20), new("Run", 1, 8), new("Run", 1, 22),
+            new("Run", 1, 8), new("Drop", 1, 17), new("Run", 1, 52), new("Jump", 1, 28),
+            new("Jump", 1, 24), new("Run", 1, 22), new("Run", 1, 8), new("Jump", 1, 21),
+            new("Jump", 1, 34), new("Run", 1, 8), new("Jump", 1, 7), new("Run", 1, 34),
+            new("Jump", 1, 31), new("Jump", 1, 23), new("Run", 1, 52), new("Jump", 1, 29),
+            new("Run", 1, 37),
+        },
+        GoalX: ConflictQuoteReturnSeamGoalX,
+        GoalBottom: ConflictQuoteReturnSeamGoalBottom,
+        GoalRadius: ConflictQuoteReturnSeamGoalRadius,
+        DurationTicks: 493,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueHeavyReturnSeamProgram = new(
+        "conflict_heavy_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 22), new("Drop", 1, 18), new("Drop", 1, 7), new("Run", 1, 52),
+        },
+        GoalX: ConflictHeavyLateReturnSeamStartX,
+        GoalBottom: ConflictHeavyLateReturnSeamStartBottom,
+        GoalRadius: 64f,
+        DurationTicks: 99,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueQuoteFinalReturnSeamProgram = new(
+        "conflict_quote_final_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 8), new("Run", 1, 8), new("Run", 1, 52), new("Jump", -1, 18), new("Run", -1, 43),
+        },
+        GoalX: ConflictQuoteFinalReturnSeamGoalX,
+        GoalBottom: ConflictQuoteFinalReturnSeamGoalBottom,
+        GoalRadius: ConflictQuoteFinalReturnSeamGoalRadius,
+        DurationTicks: 169,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueQuoteLateReturnSeamProgram = new(
+        "conflict_quote_late_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 14), new("Drop", -1, 7), new("Run", -1, 14), new("Jump", 1, 19),
+            new("Drop", 1, 12), new("Run", 1, 8), new("Run", 1, 52), new("Jump", 1, 28),
+            new("Run", 1, 37),
+        },
+        GoalX: ConflictQuoteLateReturnSeamGoalX,
+        GoalBottom: ConflictQuoteLateReturnSeamGoalBottom,
+        GoalRadius: ConflictQuoteLateReturnSeamGoalRadius,
+        DurationTicks: 191,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueHeavyLateReturnSeamProgram = new(
+        "conflict_heavy_late_return_seam",
+        new MotionProofAction[]
+        {
+            new("Drop", 1, 10), new("Run", 1, 14), new("Run", 1, 34),
+            new("Jump", -1, 18), new("Drop", -1, 7), new("Run", -1, 51),
+        },
+        GoalX: ConflictHeavyLateReturnSeamGoalX,
+        GoalBottom: ConflictHeavyLateReturnSeamGoalBottom,
+        GoalRadius: ConflictHeavyLateReturnSeamGoalRadius,
+        DurationTicks: 134,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueHeavyFinalReturnSeamProgram = new(
+        "conflict_heavy_final_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Run", -1, 34), new("Jump", 1, 19), new("Run", 1, 14),
+            new("Run", 1, 22), new("Run", 1, 34), new("Run", 1, 14), new("Jump", 1, 31),
+            new("Jump", 1, 28), new("Run", 1, 48),
+        },
+        GoalX: ConflictHeavyFinalReturnSeamGoalX,
+        GoalBottom: ConflictHeavyFinalReturnSeamGoalBottom,
+        GoalRadius: ConflictHeavyFinalReturnSeamGoalRadius,
+        DurationTicks: 252,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram ConflictBlueHeavyAttackSeamProgram = new(
+        "conflict_heavy_attack_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 14), new("Drop", 1, 7), new("Jump", 1, 17), new("Jump", -1, 17),
+            new("Drop", -1, 37), new("Run", -1, 52), new("Run", -1, 52),
+        },
+        GoalX: ConflictHeavyAttackSeamGoalX,
+        GoalBottom: ConflictHeavyAttackSeamGoalBottom,
+        GoalRadius: ConflictHeavyAttackSeamGoalRadius,
+        DurationTicks: 256,
+        NoMovementTicks: 20);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutAttackSeamProgram = new(
+        "twodforttwo_scout_attack_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Jump", -1, 15), new("Jump", 1, 18), new("Run", 1, 16),
+        },
+        GoalX: TwodFortTwoScoutAttackSeamGoalX,
+        GoalBottom: TwodFortTwoScoutAttackSeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutAttackSeamGoalRadius,
+        DurationTicks: 97,
+        NoMovementTicks: 12);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutReturnSeamProgram = new(
+        "twodforttwo_scout_return_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", 1, 29), new("Jump", 1, 28), new("Jump", 1, 18), new("Jump", 1, 17),
+            new("Jump", -1, 17), new("Run", -1, 8), new("Run", 1, 8), new("Jump", 1, 17),
+            new("Jump", -1, 18), new("Run", -1, 16),
+        },
+        GoalX: TwodFortTwoScoutReturnSeamGoalX,
+        GoalBottom: TwodFortTwoScoutReturnSeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutReturnSeamGoalRadius,
+        DurationTicks: 176,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutReturnRecoverySeamProgram = new(
+        "twodforttwo_scout_return_recovery_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", 1, 41), new("Run", 1, 29),
+        },
+        GoalX: TwodFortTwoScoutReturnRecoverySeamGoalX,
+        GoalBottom: TwodFortTwoScoutReturnRecoverySeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutReturnRecoverySeamGoalRadius,
+        DurationTicks: 70,
+        NoMovementTicks: 14);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutDeepRecoverySeamProgram = new(
+        "twodforttwo_scout_deep_recovery_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 8), new("Run", -1, 8), new("Run", -1, 8), new("Run", -1, 34),
+            new("Run", -1, 52), new("Jump", 0, 22), new("Jump", 1, 17), new("Run", 1, 22),
+            new("Jump", 1, 21), new("Jump", 1, 18), new("Jump", 1, 23), new("Jump", 1, 43),
+            new("Run", 1, 11),
+        },
+        GoalX: TwodFortTwoScoutDeepRecoverySeamGoalX,
+        GoalBottom: TwodFortTwoScoutDeepRecoverySeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutDeepRecoverySeamGoalRadius,
+        DurationTicks: 287,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutUpperRecoverySeamProgram = new(
+        "twodforttwo_scout_upper_recovery_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Jump", -1, 32), new("Run", -1, 34), new("Run", -1, 52),
+            new("Jump", 0, 21), new("Jump", 1, 17), new("Run", 1, 22), new("Jump", 1, 21),
+            new("Jump", 1, 17), new("Jump", 1, 21), new("Jump", 1, 43), new("Run", 1, 15),
+        },
+        GoalX: TwodFortTwoScoutUpperRecoverySeamGoalX,
+        GoalBottom: TwodFortTwoScoutUpperRecoverySeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutUpperRecoverySeamGoalRadius,
+        DurationTicks: 303,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TwodFortTwoBlueScoutLateReturnSeamProgram = new(
+        "twodforttwo_scout_late_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8), new("Jump", -1, 15), new("Jump", 1, 17),
+            new("Run", 1, 8), new("Jump", -1, 23), new("Run", -1, 14),
+        },
+        GoalX: TwodFortTwoScoutLateReturnSeamGoalX,
+        GoalBottom: TwodFortTwoScoutLateReturnSeamGoalBottom,
+        GoalRadius: TwodFortTwoScoutLateReturnSeamGoalRadius,
+        DurationTicks: 85,
+        NoMovementTicks: 18);
+
     private readonly Dictionary<byte, ReplayState> _statesBySlot = new();
-    private readonly Dictionary<string, MotionProofArtifact?> _artifactsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PreparedMotionProofArtifact?> _artifactsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PreparedMotionGraph?> _graphsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GraphRouteMap> _routeMapsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<byte, GraphReplayState> _graphStatesBySlot = new();
     private readonly Dictionary<byte, DirectSeekState> _directSeekStatesBySlot = new();
+    private readonly Dictionary<byte, ObjectiveSeamState> _objectiveSeamStatesBySlot = new();
     private readonly Dictionary<byte, int> _objectiveHoldPointBySlot = new();
     private readonly Dictionary<byte, int> _localObjectiveDirectPointBySlot = new();
+    private readonly Dictionary<byte, bool> _spawnReattachEligibleBySlot = new();
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputs = new();
     private readonly Dictionary<byte, bool> _aliveBySlot = new();
     private readonly Random _random = new(1337);
@@ -110,8 +445,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         _statesBySlot.Clear();
         _graphStatesBySlot.Clear();
         _directSeekStatesBySlot.Clear();
+        _objectiveSeamStatesBySlot.Clear();
         _objectiveHoldPointBySlot.Clear();
         _localObjectiveDirectPointBySlot.Clear();
+        _spawnReattachEligibleBySlot.Clear();
         _inputs.Clear();
         _aliveBySlot.Clear();
         _routeMapsByKey.Clear();
@@ -142,7 +479,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             {
                 ResetSlotState(slot);
                 _aliveBySlot[slot] = false;
-                var idleInput = BuildIdleInput(player);
+                var idleInput = BuildIdleInput(world, player);
                 _inputs[slot] = idleInput;
                 diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, new GraphGoal("respawning", player.X, player.Bottom, GraphGoalRadius), idleInput));
                 continue;
@@ -151,6 +488,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             if (_aliveBySlot.TryGetValue(slot, out var wasAlive) && !wasAlive)
             {
                 ResetSlotState(slot);
+                _spawnReattachEligibleBySlot[slot] = true;
             }
             else if (ShouldResetSlotStateForTeleport(slot, player))
             {
@@ -184,6 +522,14 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             var graph = GetGraph(world, controlledSlot);
             GraphGoal graphGoal = default;
             var hasGraphGoal = graph is not null && TryGetGraphGoal(world, controlledSlot.Team, player, out graphGoal);
+
+            if (hasGraphGoal
+                && TryBuildObjectiveSeamInput(slot, world, controlledSlot, player, graphGoal, out var seamInput, out var seamGoal))
+            {
+                _inputs[slot] = ApplyCombatInput(world, player, seamInput, allPlayers);
+                diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, seamGoal, _inputs[slot]));
+                continue;
+            }
 
             if (hasGraphGoal
                 && TryBuildObjectiveTerminalInput(slot, world, controlledSlot.Team, player, graphGoal, out var terminalInput))
@@ -228,7 +574,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             {
                 var tapeInput = BuildTapeInput(slot, world, controlledSlot, objectiveArtifact, player, out var tapeGoal);
                 if (hasGraphGoal
-                    && ShouldRecoverObjectiveTapeWithGraph(slot, world, player)
+                    && ShouldRecoverObjectiveTapeWithGraph(slot, world, player, objectiveArtifact)
                     && TryBuildGraphInput(slot, world, controlledSlot, graph!, graphGoal, player, out var recoveryGraphInput))
                 {
                     _inputs[slot] = ApplyCombatInput(world, player, recoveryGraphInput, allPlayers);
@@ -259,7 +605,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
             if (artifact is null)
             {
-                _inputs[slot] = BuildIdleInput(player);
+                _inputs[slot] = BuildIdleInput(world, player);
                 continue;
             }
 
@@ -285,16 +631,17 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         byte slot,
         SimulationWorld world,
         ControlledBotSlot controlledSlot,
-        MotionProofArtifact artifact,
+        PreparedMotionProofArtifact artifact,
         PlayerEntity player,
         out GraphGoal diagnosticGoal)
     {
         var phase = SelectPhase(world, player);
-        var tape = phase == ReplayPhase.Return ? artifact.Return : artifact.Attack;
+        var phaseData = phase == ReplayPhase.Return ? artifact.ReturnPhase : artifact.AttackPhase;
+        var tape = phaseData.Actions;
         diagnosticGoal = new GraphGoal($"tape_{phase}", player.X, player.Bottom, GraphGoalRadius);
         if (tape.Count == 0)
         {
-            return BuildIdleInput(player);
+            return BuildIdleInput(world, player);
         }
 
         var state = GetReplayState(slot, world, controlledSlot, artifact, phase);
@@ -323,7 +670,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                     return holdInput;
                 }
 
-                return BuildIdleInput(player);
+                return BuildIdleInput(world, player);
             }
 
             _statesBySlot[slot] = state;
@@ -343,7 +690,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 return holdInput;
             }
 
-            return BuildIdleInput(player);
+            return BuildIdleInput(world, player);
         }
 
         var hasObjectiveGoal = TryGetGraphGoal(world, controlledSlot.Team, player, out var objectiveGoal);
@@ -402,7 +749,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         var input = BuildActionInput(action, state.ActionTick, player);
-        input = ApplyNavigationRescueInput(
+        input = ApplyObjectiveTapeRescueInput(
             world,
             controlledSlot.Team,
             player,
@@ -413,6 +760,91 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             rescueJumpTicks: ObjectiveNavigationRescueJumpTicks);
         _statesBySlot[slot] = AdvanceReplayState(state, tape) with { LastX = player.X, LastBottom = player.Bottom };
         return input;
+    }
+
+    private bool TryBuildTapeReattachInput(
+        byte slot,
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        ReplayPhase phase,
+        TapePhaseData phaseData,
+        ref ReplayState state,
+        GraphGoal? objectiveGoal,
+        float objectiveDistance,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        if (phaseData.ReattachPoints.Count == 0)
+        {
+            state = state with { ReattachResumeActionIndex = -1 };
+            return false;
+        }
+
+        var reattachResumeActionIndex = state.ReattachResumeActionIndex;
+        if (reattachResumeActionIndex < 0)
+        {
+            var spawnReattachEligible = _spawnReattachEligibleBySlot.TryGetValue(slot, out var isEligible) && isEligible;
+            TapeReattachPoint reattachPoint;
+            var startedFromSpawnOrPhase = false;
+            if (ShouldStartTapeReattach(player, phaseData, state, spawnReattachEligible))
+            {
+                if (!TryFindTapePhaseStartReattachPoint(phase, phaseData, player, objectiveGoal, objectiveDistance, out reattachPoint))
+                {
+                    return false;
+                }
+
+                startedFromSpawnOrPhase = true;
+            }
+            else
+            {
+                if (!ShouldStartTapeRecoveryReattach(state)
+                    || !TryFindForwardTapeReattachPoint(phase, phaseData.ReattachPoints, player, state.ActionIndex, objectiveGoal, objectiveDistance, out reattachPoint))
+                {
+                    return false;
+                }
+            }
+
+            reattachResumeActionIndex = reattachPoint.ResumeActionIndex;
+            state = state with { ReattachResumeActionIndex = reattachResumeActionIndex };
+            if (startedFromSpawnOrPhase)
+            {
+                _spawnReattachEligibleBySlot[slot] = false;
+            }
+        }
+
+        if (!TryResolveTapeReattachPoint(phaseData, reattachResumeActionIndex, out var activePoint))
+        {
+            state = state with { ReattachResumeActionIndex = -1 };
+            return false;
+        }
+
+        if (IsWithinTapeReattachWindow(player, activePoint))
+        {
+            state = state with
+            {
+                ActionIndex = activePoint.ResumeActionIndex,
+                ActionTick = 0,
+                LastX = player.X,
+                LastBottom = player.Bottom,
+                NoProgressTicks = 0,
+                NoHorizontalProgressTicks = 0,
+                BestGoalDistance = float.NaN,
+                NoGoalProgressTicks = 0,
+                ReattachResumeActionIndex = -1,
+            };
+            return false;
+        }
+
+        diagnosticGoal = new GraphGoal(
+            $"tape_reattach_{activePoint.ResumeActionIndex}",
+            activePoint.X,
+            activePoint.Bottom,
+            MathF.Max(activePoint.RadiusX, activePoint.RadiusBottom));
+        input = BuildDirectSeekInput(slot, world, team, player, diagnosticGoal);
+        return true;
     }
 
     private static bool HasCompletedTapePhase(
@@ -537,6 +969,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var hasGraphState = _graphStatesBySlot.TryGetValue(slot, out var graphState);
         var hasDirectState = _directSeekStatesBySlot.TryGetValue(slot, out var directState)
             && directState.GoalKey.Equals(BuildDirectSeekGoalKey(goal), StringComparison.OrdinalIgnoreCase);
+        var hasReplayState = _statesBySlot.TryGetValue(slot, out var replayState);
+        var hasSeamState = _objectiveSeamStatesBySlot.TryGetValue(slot, out var seamState);
         var actionCount = graphState.Actions?.Count ?? 0;
         var actionTicks = graphState.Actions is not null && graphState.ActionIndex < actionCount
             ? graphState.Actions[graphState.ActionIndex].Ticks
@@ -545,7 +979,32 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             ? $"motion_proof:{goal.Label}:direct:{directState.NoProgressTicks}:{directState.BackupTicksRemaining}"
             : actionCount > 0
             ? $"motion_proof:{goal.Label}:s{graphState.StartNodeIndex}:g{graphState.GoalNodeIndex}:{graphState.ActionIndex}/{actionCount}:{graphState.ActionTick}"
+            : hasSeamState
+            ? $"motion_proof:{goal.Label}:seam:{seamState.Program.Label}:{seamState.ActionIndex}:{seamState.ActionTick}:{seamState.NoMovementTicks}"
+            : hasReplayState
+            ? $"motion_proof:{goal.Label}:tape:{replayState.Phase}:{replayState.ActionIndex}:{replayState.ActionTick}:{replayState.NoProgressTicks}:{replayState.NoGoalProgressTicks}:{replayState.ReattachResumeActionIndex}"
             : $"motion_proof:{goal.Label}:idle";
+        var currentPointId = hasGraphState
+            ? graphState.ActionIndex
+            : hasSeamState
+                ? seamState.ActionIndex
+            : hasReplayState
+                ? replayState.ActionIndex
+                : -1;
+        var nextPointId = hasGraphState
+            ? actionTicks
+            : hasSeamState
+                ? seamState.ActionTick
+            : hasReplayState
+                ? replayState.ActionTick
+                : -1;
+        var nextPoint2Id = hasGraphState
+            ? actionCount
+            : hasSeamState
+                ? seamState.NoMovementTicks
+            : hasReplayState
+                ? replayState.NoProgressTicks
+                : -1;
         return new BotControllerDiagnosticsEntry(
             slot,
             player.DisplayName,
@@ -562,9 +1021,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             StuckTicks: 0,
             ModernStuckTicks: 0,
             UnstickTicks: 0,
-            CurrentPointId: graphState.ActionIndex,
-            NextPointId: actionTicks,
-            NextPoint2Id: actionCount,
+            CurrentPointId: currentPointId,
+            NextPointId: nextPointId,
+            NextPoint2Id: nextPoint2Id,
             MovementTargetX: hasGraphState && graphState.GoalNodeIndex >= 0 ? graphState.GoalNodeX : goal.X,
             MovementTargetY: hasGraphState && graphState.GoalNodeIndex >= 0 ? graphState.GoalNodeBottom : goal.Bottom,
             RequestedHorizontal: input.Right ? 1 : input.Left ? -1 : 0,
@@ -592,7 +1051,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             DirectTargetNoProgressTicks: hasDirectState ? directState.NoProgressTicks : 0);
     }
 
-    private MotionProofArtifact? GetArtifact(SimulationWorld world, ControlledBotSlot controlledSlot)
+    private PreparedMotionProofArtifact? GetArtifact(SimulationWorld world, ControlledBotSlot controlledSlot)
     {
         var key = $"{world.Level.Name}.a{world.Level.MapAreaIndex}.{controlledSlot.Team}.{controlledSlot.ClassId}";
         if (_artifactsByKey.TryGetValue(key, out var cached))
@@ -609,9 +1068,160 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             return null;
         }
 
-        var artifact = ReadJsonArtifact<MotionProofArtifact>(path);
+        var rawArtifact = ReadJsonArtifact<MotionProofArtifact>(path);
+        var artifact = rawArtifact is null
+            ? null
+            : PrepareMotionProofArtifact(world, controlledSlot, rawArtifact);
         _artifactsByKey[key] = artifact;
         return artifact;
+    }
+
+    private static PreparedMotionProofArtifact PrepareMotionProofArtifact(
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        MotionProofArtifact artifact)
+    {
+        var attackPhase = PrepareTapePhaseData(artifact.Map, artifact.Area, controlledSlot.Team, controlledSlot.ClassId, artifact.Attack);
+        var returnPhase = artifact.Return.Count > 0
+            ? PrepareTapePhaseData(
+                artifact.Map,
+                artifact.Area,
+                controlledSlot.Team,
+                controlledSlot.ClassId,
+                artifact.Return,
+                leadInActions: artifact.Attack,
+                requireCarryingIntelStart: true)
+            : TapePhaseData.Empty(artifact.Return);
+        return new PreparedMotionProofArtifact(artifact, attackPhase, returnPhase);
+    }
+
+    private static TapePhaseData PrepareTapePhaseData(
+        string map,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        IReadOnlyList<MotionProofAction> actions,
+        IReadOnlyList<MotionProofAction>? leadInActions = null,
+        bool requireCarryingIntelStart = false)
+    {
+        if (actions.Count == 0
+            || OperatingSystem.IsBrowser()
+            || !TryCreateArtifactProbeWorld(map, area, team, classId, out var world, out var bot))
+        {
+            return TapePhaseData.Empty(actions);
+        }
+
+        const byte botSlot = 2;
+        if (leadInActions is { Count: > 0 }
+            && !TryReplayArtifactActions(world, botSlot, bot, leadInActions, stopWhenCarryingIntel: requireCarryingIntelStart))
+        {
+            return TapePhaseData.Empty(actions);
+        }
+
+        if (requireCarryingIntelStart && !bot.IsCarryingIntel)
+        {
+            return TapePhaseData.Empty(actions);
+        }
+
+        var startX = bot.X;
+        var startBottom = bot.Bottom;
+        var points = new List<TapeReattachPoint>();
+        var lastAddedX = startX;
+        var lastAddedBottom = startBottom;
+        for (var actionIndex = 0; actionIndex < actions.Count; actionIndex += 1)
+        {
+            var action = actions[actionIndex];
+            for (var tick = 0; tick < Math.Max(1, action.Ticks); tick += 1)
+            {
+                if (!world.TrySetNetworkPlayerInput(botSlot, BuildActionInput(action, tick, bot)))
+                {
+                    return new TapePhaseData(startX, startBottom, actions, points, points.ToDictionary(point => point.ResumeActionIndex));
+                }
+
+                world.AdvanceOneTick();
+            }
+
+            var resumeActionIndex = actionIndex + 1;
+            if (resumeActionIndex >= actions.Count)
+            {
+                break;
+            }
+
+            var endX = bot.X;
+            var endBottom = bot.Bottom;
+            if (points.Count > 0
+                && Distance(endX, endBottom, lastAddedX, lastAddedBottom) < TapeReattachDuplicateDistance)
+            {
+                continue;
+            }
+
+            points.Add(new TapeReattachPoint(
+                resumeActionIndex,
+                endX,
+                endBottom,
+                TapeReattachWindowRadiusX,
+                TapeReattachWindowRadiusBottom,
+                bot.IsInSpawnRoom));
+            lastAddedX = endX;
+            lastAddedBottom = endBottom;
+        }
+
+        return new TapePhaseData(startX, startBottom, actions, points, points.ToDictionary(point => point.ResumeActionIndex));
+    }
+
+    private static bool TryReplayArtifactActions(
+        SimulationWorld world,
+        byte botSlot,
+        PlayerEntity bot,
+        IReadOnlyList<MotionProofAction> actions,
+        bool stopWhenCarryingIntel)
+    {
+        foreach (var action in actions)
+        {
+            for (var tick = 0; tick < Math.Max(1, action.Ticks); tick += 1)
+            {
+                if (!world.TrySetNetworkPlayerInput(botSlot, BuildActionInput(action, tick, bot)))
+                {
+                    return false;
+                }
+
+                world.AdvanceOneTick();
+                if (stopWhenCarryingIntel && bot.IsCarryingIntel)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return !stopWhenCarryingIntel || bot.IsCarryingIntel;
+    }
+
+    private static bool TryCreateArtifactProbeWorld(
+        string map,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        out SimulationWorld world,
+        out PlayerEntity bot)
+    {
+        world = new SimulationWorld(new SimulationConfig
+        {
+            EnableLocalDummies = false,
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        bot = null!;
+        if (!world.TryLoadLevel(map, area, preservePlayerStats: false))
+        {
+            return false;
+        }
+
+        world.PrepareLocalPlayerJoin();
+        const byte botSlot = 2;
+        return world.TryPrepareNetworkPlayerJoin(botSlot)
+            && world.TrySetNetworkPlayerTeam(botSlot, team)
+            && world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            && world.TryGetNetworkPlayer(botSlot, out bot);
     }
 
     private static string ResolveMotionProofContentRoot()
@@ -637,7 +1247,11 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && !HasExplicitGraphGoalOverride();
     }
 
-    private bool ShouldRecoverObjectiveTapeWithGraph(byte slot, SimulationWorld world, PlayerEntity player)
+    private bool ShouldRecoverObjectiveTapeWithGraph(
+        byte slot,
+        SimulationWorld world,
+        PlayerEntity player,
+        PreparedMotionProofArtifact artifact)
     {
         if (!_statesBySlot.TryGetValue(slot, out var state))
         {
@@ -646,7 +1260,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
-            return state.NoProgressTicks >= ObjectiveGraphRecoveryTicks;
+            return false;
         }
 
         return state.NoProgressTicks >= ObjectiveGraphRecoveryTicks
@@ -779,6 +1393,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                     graph,
                     controlledSlot.Team,
                     player.IsCarryingIntel,
+                    player,
                     player.X,
                     player.Bottom,
                     player.IsGrounded,
@@ -809,12 +1424,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 plan.PathNodeIndices,
                 LastX: player.X,
                 LastBottom: player.Bottom,
-                NoProgressTicks: 0);
+                NoProgressTicks: 0,
+                NoHorizontalProgressTicks: 0);
         }
         else
         {
             state = TrackGraphProgress(state, player);
-            if (state.NoProgressTicks >= GetGraphNoProgressTickLimit(goal.Label))
+            if (Math.Max(state.NoProgressTicks, state.NoHorizontalProgressTicks) >= GetGraphNoProgressTickLimit(goal.Label))
             {
                 _graphStatesBySlot.Remove(slot);
                 return false;
@@ -837,7 +1453,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var action = state.Actions[state.ActionIndex];
         if (IsGroundedIdleAction(action, player))
         {
-            state = AdvanceGraphReplayState(state) with { LastX = player.X, LastBottom = player.Bottom, NoProgressTicks = 0 };
+            state = AdvanceGraphReplayState(state) with { LastX = player.X, LastBottom = player.Bottom, NoProgressTicks = 0, NoHorizontalProgressTicks = 0 };
             if (state.ActionIndex < state.Actions.Count)
             {
                 action = state.Actions[state.ActionIndex];
@@ -852,8 +1468,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             action,
             input,
             state.NoProgressTicks,
+            state.NoHorizontalProgressTicks,
+            noGoalProgressTicks: 0,
             allowObstacleJump: true,
-            rescueJumpTicks: GetGraphRescueJumpTicks(goal.Label));
+            rescueJumpTicks: GetGraphRescueJumpTicks(goal.Label),
+            allowDirectionReverse: true);
+        _directSeekStatesBySlot.Remove(slot);
         _graphStatesBySlot[slot] = AdvanceGraphReplayState(state) with { LastX = player.X, LastBottom = player.Bottom };
         return true;
     }
@@ -885,6 +1505,298 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         goal = default;
+        return false;
+    }
+
+    private bool TryBuildObjectiveSeamInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PlayerEntity player,
+        GraphGoal goal,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+
+        if (_objectiveSeamStatesBySlot.TryGetValue(slot, out var seamState))
+        {
+            if (!IsObjectiveSeamGoalReached(player, seamState.Program))
+            {
+                return TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal);
+            }
+
+            _objectiveSeamStatesBySlot.Remove(slot);
+        }
+
+        if (!TrySelectObjectiveSeamProgram(world, controlledSlot, player, goal, out var program))
+        {
+            return false;
+        }
+
+        seamState = new ObjectiveSeamState(
+            program,
+            ActionIndex: 0,
+            ActionTick: 0,
+            TicksRemaining: Math.Max(program.DurationTicks, program.Actions.Sum(action => Math.Max(1, action.Ticks))),
+            NoMovementTicks: 0,
+            LastX: player.X,
+            LastBottom: player.Bottom);
+        _statesBySlot.Remove(slot);
+        _graphStatesBySlot.Remove(slot);
+        _directSeekStatesBySlot.Remove(slot);
+        _objectiveSeamStatesBySlot[slot] = seamState;
+        return TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal);
+    }
+
+    private bool TryContinueObjectiveSeamInput(
+        byte slot,
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        ref ObjectiveSeamState state,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        if (IsObjectiveSeamGoalReached(player, state.Program)
+            || state.ActionIndex < 0
+            || state.ActionIndex >= state.Program.Actions.Count
+            || state.TicksRemaining <= 0)
+        {
+            _objectiveSeamStatesBySlot.Remove(slot);
+            return false;
+        }
+
+        var moved = Distance(player.X, player.Bottom, state.LastX, state.LastBottom);
+        var noMovementTicks = moved >= NoProgressDistance ? 0 : state.NoMovementTicks + 1;
+        if (noMovementTicks >= state.Program.NoMovementTicks)
+        {
+            _objectiveSeamStatesBySlot.Remove(slot);
+            return false;
+        }
+
+        var action = state.Program.Actions[state.ActionIndex];
+        input = BuildActionInput(action, state.ActionTick, player);
+        diagnosticGoal = new GraphGoal(state.Program.Label, state.Program.GoalX, state.Program.GoalBottom, state.Program.GoalRadius);
+        state = AdvanceObjectiveSeamState(state, player, noMovementTicks);
+        _objectiveSeamStatesBySlot[slot] = state;
+        return true;
+    }
+
+    private static ObjectiveSeamState AdvanceObjectiveSeamState(ObjectiveSeamState state, PlayerEntity player, int noMovementTicks)
+    {
+        var nextActionTick = state.ActionTick + 1;
+        var nextActionIndex = state.ActionIndex;
+        var currentAction = state.Program.Actions[state.ActionIndex];
+        if (nextActionTick >= Math.Max(1, currentAction.Ticks))
+        {
+            nextActionIndex += 1;
+            nextActionTick = 0;
+        }
+
+        return state with
+        {
+            ActionIndex = nextActionIndex,
+            ActionTick = nextActionTick,
+            TicksRemaining = state.TicksRemaining - 1,
+            NoMovementTicks = noMovementTicks,
+            LastX = player.X,
+            LastBottom = player.Bottom,
+        };
+    }
+
+    private static bool IsObjectiveSeamGoalReached(PlayerEntity player, ObjectiveSeamProgram program)
+    {
+        return Distance(player.X, player.Bottom, program.GoalX, program.GoalBottom) <= program.GoalRadius;
+    }
+
+    private static bool TrySelectObjectiveSeamProgram(
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PlayerEntity player,
+        GraphGoal goal,
+        out ObjectiveSeamProgram program)
+    {
+        program = default!;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag)
+        {
+            return false;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout)
+        {
+            return false;
+        }
+
+        if (string.Equals(world.Level.Name, "Conflict", StringComparison.OrdinalIgnoreCase))
+        {
+            if (false
+                && !player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Heavy
+                && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictHeavyAttackSeamStartX) <= ConflictHeavyAttackSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictHeavyAttackSeamStartBottom) <= ConflictHeavyAttackSeamToleranceBottom)
+            {
+                program = ConflictBlueHeavyAttackSeamProgram;
+                return true;
+            }
+
+            if (false
+                && player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Heavy
+                && MathF.Abs(player.X - ConflictHeavyFinalReturnSeamStartX) <= ConflictHeavyFinalReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictHeavyFinalReturnSeamStartBottom) <= ConflictHeavyFinalReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueHeavyFinalReturnSeamProgram;
+                return true;
+            }
+
+            if (false
+                && player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Heavy
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictHeavyLateReturnSeamStartX) <= ConflictHeavyLateReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictHeavyLateReturnSeamStartBottom) <= ConflictHeavyLateReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueHeavyLateReturnSeamProgram;
+                return true;
+            }
+
+            if (false
+                && player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Heavy
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictHeavyReturnSeamStartX) <= ConflictHeavyReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictHeavyReturnSeamStartBottom) <= ConflictHeavyReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueHeavyReturnSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Quote
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictQuoteLateReturnSeamStartX) <= ConflictQuoteLateReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictQuoteLateReturnSeamStartBottom) <= ConflictQuoteLateReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueQuoteLateReturnSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Quote
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictQuoteReturnSeamStartX) <= ConflictQuoteReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictQuoteReturnSeamStartBottom) <= ConflictQuoteReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueQuoteReturnSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && controlledSlot.ClassId == PlayerClass.Quote
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictQuoteFinalReturnSeamStartX) <= ConflictQuoteFinalReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictQuoteFinalReturnSeamStartBottom) <= ConflictQuoteFinalReturnSeamToleranceBottom)
+            {
+                program = ConflictBlueQuoteFinalReturnSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - ConflictReturnSeamStartX) <= ConflictReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - ConflictReturnSeamStartBottom) <= ConflictReturnSeamToleranceBottom)
+            {
+                program = controlledSlot.ClassId switch
+                {
+                    PlayerClass.Engineer => ConflictBlueEngineerReturnSeamProgram,
+                    PlayerClass.Medic => ConflictBlueMedicReturnSeamProgram,
+                    PlayerClass.Spy => ConflictBlueSpyReturnSeamProgram,
+                    _ => null!,
+                };
+                return program is not null;
+            }
+
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && player.IsCarryingIntel
+            && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutUpperRecoverySeamStartX) <= TwodFortTwoScoutUpperRecoverySeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutUpperRecoverySeamStartBottom) <= TwodFortTwoScoutUpperRecoverySeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutUpperRecoverySeamProgram;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && player.IsCarryingIntel
+            && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutDeepRecoverySeamStartX) <= TwodFortTwoScoutDeepRecoverySeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutDeepRecoverySeamStartBottom) <= TwodFortTwoScoutDeepRecoverySeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutDeepRecoverySeamProgram;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && player.IsCarryingIntel
+            && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutReturnRecoverySeamStartX) <= TwodFortTwoScoutReturnRecoverySeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutReturnRecoverySeamStartBottom) <= TwodFortTwoScoutReturnRecoverySeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutReturnRecoverySeamProgram;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && player.IsCarryingIntel
+            && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutLateReturnSeamStartX) <= TwodFortTwoScoutLateReturnSeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutLateReturnSeamStartBottom) <= TwodFortTwoScoutLateReturnSeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutLateReturnSeamProgram;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && player.IsCarryingIntel
+            && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutReturnSeamStartX) <= TwodFortTwoScoutReturnSeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutReturnSeamStartBottom) <= TwodFortTwoScoutReturnSeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutReturnSeamProgram;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "TwodFortTwo", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Scout
+            && !player.IsCarryingIntel
+            && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+            && MathF.Abs(player.X - TwodFortTwoScoutAttackSeamStartX) <= TwodFortTwoScoutAttackSeamToleranceX
+            && MathF.Abs(player.Bottom - TwodFortTwoScoutAttackSeamStartBottom) <= TwodFortTwoScoutAttackSeamToleranceBottom)
+        {
+            program = TwodFortTwoBlueScoutAttackSeamProgram;
+            return true;
+        }
+
         return false;
     }
 
@@ -1114,6 +2026,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var targetBelow = deltaBottom > DirectSeekVerticalDropThreshold;
         var goalCenterY = goal.Bottom - (player.Height * 0.5f);
         var isDynamicEnemyGoal = IsDynamicGraphGoal(goal.Label);
+        var isTapeReattachGoal = goal.Label.StartsWith("tape_reattach_", StringComparison.OrdinalIgnoreCase);
         var hasGoalLineOfSight = !isDynamicEnemyGoal
             || HasLineOfSight(world, player.X, player.Y, goal.X, goalCenterY, team, player.IsCarryingIntel);
         var targetDirection = MathF.Abs(deltaX) > DirectSeekHorizontalDeadZone
@@ -1131,6 +2044,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var shouldSearchVertically = (MathF.Abs(deltaBottom) >= DirectSeekVerticalSearchThreshold
                 && (MathF.Abs(deltaX) <= GraphAttachRadius || shouldUseWideVerticalSearch || verticalSearchDirection != 0))
             || shouldSearchForLineOfSight;
+        if (isTapeReattachGoal
+            && targetAbove
+            && MathF.Abs(deltaX) > GraphAttachRadius)
+        {
+            shouldSearchVertically = false;
+            verticalSearchDirection = 0;
+        }
         if (shouldSearchVertically)
         {
             if (verticalSearchDirection == 0
@@ -1202,6 +2122,17 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 state.NoHorizontalProgressTicks,
                 state.NoGoalProgressTicks,
                 state.TotalTicks);
+        var belowObstacleClearJump = targetBelow
+            && direction != 0
+            && obstacleAhead
+            && HasJumpableVerticalAccessAhead(world, team, player, direction);
+        var belowLipRecoveryJump = targetBelow
+            && direction != 0
+            && player.IsGrounded
+            && state.NoHorizontalProgressTicks >= 4
+            && MathF.Abs(deltaBottom) <= 160f
+            && HasDirectSeekForwardFootBlock(world, team, player, direction, probeDistance: 8f)
+            && HasDirectSeekJumpHeadClear(world, team, player);
         var dynamicRescueJumpPulse = isDynamicEnemyGoal
             && !targetBelow
             && direction != 0
@@ -1214,6 +2145,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && state.BackupTicksRemaining >= DirectSeekBackupTicks - DirectSeekBackupJumpPulseTicks;
         var groundJump = (!targetBelow && obstacleAhead)
             || verticalClimbJump
+            || belowObstacleClearJump
+            || belowLipRecoveryJump
             || (targetAbove && hasGoalLineOfSight && MathF.Abs(deltaX) <= 260f)
             || (targetBelow && shouldSearchVertically && obstacleAhead)
             || dynamicRescueJumpPulse
@@ -1419,6 +2352,27 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         return false;
     }
 
+    private static bool HasDirectSeekForwardFootBlock(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        int direction,
+        float probeDistance)
+    {
+        var feetY = player.Bottom;
+        var probeX = player.X + (Math.Sign(direction) * probeDistance);
+        return IntersectsMovementBlocker(world, team, player, probeX - 1f, feetY - 1f, probeX + 1f, feetY + 4f);
+    }
+
+    private static bool HasDirectSeekJumpHeadClear(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player)
+    {
+        var feetY = player.Bottom;
+        return !IntersectsMovementBlocker(world, team, player, player.X - 1f, feetY - (DirectSeekClimbClearance + 2f), player.X + 1f, feetY - 2f);
+    }
+
     private static bool IsJumpableVerticalAccessProbe(
         SimulationWorld world,
         PlayerTeam team,
@@ -1478,6 +2432,49 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         return true;
+    }
+
+    private static bool IntersectsMovementBlocker(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        float left,
+        float top,
+        float right,
+        float bottom)
+    {
+        if (IsOutsideLevelBounds(world, left, top, right, bottom))
+        {
+            return true;
+        }
+
+        if (world.Level.IntersectsSolid(left, top, right, bottom))
+        {
+            return true;
+        }
+
+        foreach (var gate in world.Level.GetBlockingTeamGates(team, player.IsCarryingIntel))
+        {
+            if (RectanglesOverlap(left, top, right, bottom, gate.Left, gate.Top, gate.Right, gate.Bottom))
+            {
+                return true;
+            }
+        }
+
+        foreach (var wall in world.Level.RoomObjects)
+        {
+            if (wall.Type != RoomObjectType.PlayerWall)
+            {
+                continue;
+            }
+
+            if (RectanglesOverlap(left, top, right, bottom, wall.Left, wall.Top, wall.Right, wall.Bottom))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static float EstimateDropClearance(SimulationWorld world, PlayerTeam team, PlayerEntity player, float offsetX)
@@ -1766,6 +2763,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         PreparedMotionGraph graph,
         PlayerTeam team,
         bool carryingIntel,
+        PlayerEntity player,
         float startX,
         float startBottom,
         bool startGrounded,
@@ -1780,14 +2778,19 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         out GraphPlan plan)
     {
         plan = default;
-        var startCandidates = FindStartGraphNodesWithinRadius(graph.Nodes, startX, startBottom, startGrounded, startHorizontalSpeed, startVerticalSpeed, GraphAttachRadius, 64);
+        var traversableNodes = BuildTraversableGraphNodeMask(graph, world, team, player);
+        var startCandidates = FindStartGraphNodesWithinRadius(graph.Nodes, startX, startBottom, startGrounded, startHorizontalSpeed, startVerticalSpeed, GraphAttachRadius, 64)
+            .Where(index => index >= 0 && index < traversableNodes.Length && traversableNodes[index])
+            .ToArray();
         if (startCandidates.Length == 0)
         {
             return false;
         }
 
         var isDynamicGoal = IsDynamicGraphGoal(goalLabel);
-        var goalCandidates = FindGraphNodesWithinRadius(graph.Nodes, goalX, goalBottom, goalRadius, 32);
+        var goalCandidates = FindGraphNodesWithinRadius(graph.Nodes, goalX, goalBottom, goalRadius, 32)
+            .Where(index => index >= 0 && index < traversableNodes.Length && traversableNodes[index])
+            .ToArray();
         if (goalCandidates.Length == 0)
         {
             if (!isDynamicGoal)
@@ -1795,7 +2798,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 return false;
             }
 
-            goalCandidates = FindNearestGraphNodes(graph.Nodes, goalX, goalBottom, 4, preferStable: false);
+            goalCandidates = FindNearestGraphNodes(graph.Nodes, goalX, goalBottom, 4, preferStable: false)
+                .Where(index => index >= 0 && index < traversableNodes.Length && traversableNodes[index])
+                .ToArray();
         }
 
         if (isDynamicGoal)
@@ -1827,7 +2832,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             return false;
         }
 
-        var fallbackGoalCandidates = FindNearestGraphNodes(graph.Nodes, goalX, goalBottom, DynamicGraphGoalCandidateCount, preferStable: false);
+        var fallbackGoalCandidates = FindNearestGraphNodes(graph.Nodes, goalX, goalBottom, DynamicGraphGoalCandidateCount, preferStable: false)
+            .Where(index => index >= 0 && index < traversableNodes.Length && traversableNodes[index])
+            .ToArray();
         var lineOfSightFallbackCandidates = SelectDynamicGraphGoalCandidates(
             graph,
             world,
@@ -1866,7 +2873,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             }
 
             var routeMap = useCache
-                ? GetOrBuildRouteMap(graph, team, carryingIntel, candidateGoalNodes, goalX, goalBottom, goalRadius, goalLabel)
+                ? GetOrBuildRouteMap(graph, team, carryingIntel, candidateGoalNodes, goalX, goalBottom, goalRadius, goalLabel, traversableNodes)
                 : BuildReverseRouteMap(
                     graph,
                     team,
@@ -1874,6 +2881,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                     candidateGoalNodes,
                     goalX,
                     goalBottom,
+                    traversableNodes,
                     isDynamicGoal
                         ? BuildDynamicGraphGoalSeedCosts(graph, world, team, carryingIntel, candidateGoalNodes, goalX, goalBottom, playerHeight)
                         : null);
@@ -1882,6 +2890,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             foreach (var startIndex in startCandidates)
             {
                 if (!TryBuildGraphPlanFromRouteMap(graph, routeMap, startIndex, out var candidateActions, out var reachedGoalIndex, out var pathNodeIndices))
+                {
+                    continue;
+                }
+
+                if (!IsCtfTerminalGoal(goalLabel)
+                    && !IsAdmissibleGraphStartCandidate(world, team, player, graph.Nodes[startIndex], candidateActions, goalX))
                 {
                     continue;
                 }
@@ -1959,6 +2973,74 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             .ToArray();
     }
 
+    private static bool IsAdmissibleGraphStartCandidate(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        MotionGraphNode startNode,
+        IReadOnlyList<MotionProofAction> actions,
+        float goalX)
+    {
+        var attachDeltaX = startNode.X - player.X;
+        var attachDeltaBottom = startNode.Bottom - player.Bottom;
+        var attachDistance = Distance(player.X, player.Bottom, startNode.X, startNode.Bottom);
+        if (player.IsGrounded
+            && startNode.IsGrounded
+            && MathF.Abs(attachDeltaBottom) > GraphGroundedAttachVerticalTolerance)
+        {
+            return false;
+        }
+
+        var openingActionIndex = FindFirstActiveGraphActionIndex(actions);
+        if (openingActionIndex < 0)
+        {
+            return true;
+        }
+
+        var openingAction = actions[openingActionIndex];
+        if (openingAction.Direction == 0)
+        {
+            return attachDistance <= GraphOpeningActionAttachDistance
+                || MathF.Abs(attachDeltaX) <= GraphOpeningActionHorizontalTolerance;
+        }
+
+        var attachDirection = Math.Sign(attachDeltaX);
+        if (attachDistance > GraphOpeningActionAttachDistance
+            && attachDirection != 0
+            && attachDirection != openingAction.Direction
+            && MathF.Abs(attachDeltaX) > GraphOpeningActionHorizontalTolerance)
+        {
+            return false;
+        }
+
+        if (!WouldMoveIntoObstacle(world, team, player, openingAction.Direction, DirectSeekObstacleProbeDistance))
+        {
+            return true;
+        }
+
+        var reverseClear = !WouldMoveIntoObstacle(world, team, player, -openingAction.Direction, DirectSeekObstacleProbeDistance);
+        if (reverseClear)
+        {
+            return false;
+        }
+
+        var goalDirection = Math.Sign(goalX - player.X);
+        return goalDirection == 0 || goalDirection == openingAction.Direction;
+    }
+
+    private static int FindFirstActiveGraphActionIndex(IReadOnlyList<MotionProofAction> actions)
+    {
+        for (var index = 0; index < actions.Count; index += 1)
+        {
+            if (!IsInertTapeAction(actions[index]))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     private static Dictionary<int, int> BuildDynamicGraphGoalSeedCosts(
         PreparedMotionGraph graph,
         SimulationWorld world,
@@ -1998,7 +3080,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         float goalX,
         float goalBottom,
         float goalRadius,
-        string goalLabel)
+        string goalLabel,
+        bool[] traversableNodes)
     {
         var key = BuildRouteMapKey(graph, team, carryingIntel, goalX, goalBottom, goalRadius, goalLabel);
         if (_routeMapsByKey.TryGetValue(key, out var cached))
@@ -2011,7 +3094,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             _routeMapsByKey.Clear();
         }
 
-        var routeMap = BuildReverseRouteMap(graph, team, carryingIntel, goalCandidates, goalX, goalBottom, goalSeedCosts: null);
+        var routeMap = BuildReverseRouteMap(graph, team, carryingIntel, goalCandidates, goalX, goalBottom, traversableNodes, goalSeedCosts: null);
         _routeMapsByKey[key] = routeMap;
         return routeMap;
     }
@@ -2023,6 +3106,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         int[] goalCandidates,
         float goalX,
         float goalBottom,
+        bool[] traversableNodes,
         Dictionary<int, int>? goalSeedCosts)
     {
         var goalSet = goalCandidates.ToHashSet();
@@ -2034,6 +3118,11 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         foreach (var goalIndex in goalCandidates)
         {
             if (goalIndex < 0 || goalIndex >= costByNode.Length)
+            {
+                continue;
+            }
+
+            if (goalIndex >= traversableNodes.Length || !traversableNodes[goalIndex])
             {
                 continue;
             }
@@ -2068,6 +3157,15 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                     continue;
                 }
 
+                if (edge.From < 0
+                    || edge.From >= traversableNodes.Length
+                    || !traversableNodes[edge.From]
+                    || current >= traversableNodes.Length
+                    || !traversableNodes[current])
+                {
+                    continue;
+                }
+
                 var nextCost = currentCost + edge.CostTicks;
                 if (nextCost >= costByNode[edge.From])
                 {
@@ -2081,6 +3179,22 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         return new GraphRouteMap(goalSet, costByNode, nextEdgeByNode);
+    }
+
+    private static bool[] BuildTraversableGraphNodeMask(
+        PreparedMotionGraph graph,
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player)
+    {
+        var traversable = new bool[graph.Nodes.Count];
+        for (var index = 0; index < graph.Nodes.Count; index += 1)
+        {
+            var node = graph.Nodes[index];
+            traversable[index] = IsCollisionClearAt(world, team, player, node.X, node.Y);
+        }
+
+        return traversable;
     }
 
     private bool TryBuildDynamicGraphWaypointInput(
@@ -2293,11 +3407,14 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                     ? 128f
                     : 0f;
                 var groundedPenalty = node.IsGrounded == grounded ? 0f : 32f;
+                var groundedVerticalPenalty = grounded && node.IsGrounded
+                    ? MathF.Max(0f, MathF.Abs(node.Bottom - bottom) - GraphOpeningActionHorizontalTolerance)
+                    : 0f;
                 return new
                 {
                     Index = index,
                     Distance = distance,
-                    Score = distance + speedMismatch + stationaryPenalty + groundedPenalty,
+                    Score = distance + speedMismatch + stationaryPenalty + groundedPenalty + groundedVerticalPenalty,
                 };
             })
             .Where(entry => entry.Distance <= radius)
@@ -2352,10 +3469,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         byte slot,
         SimulationWorld world,
         ControlledBotSlot controlledSlot,
-        MotionProofArtifact artifact,
+        PreparedMotionProofArtifact artifact,
         ReplayPhase phase)
     {
-        var mapKey = $"{world.Level.Name}.a{world.Level.MapAreaIndex}.{controlledSlot.Team}.{controlledSlot.ClassId}.{artifact.Version}";
+        var mapKey = $"{world.Level.Name}.a{world.Level.MapAreaIndex}.{controlledSlot.Team}.{controlledSlot.ClassId}.{artifact.Artifact.Version}";
         if (_statesBySlot.TryGetValue(slot, out var state) && state.MapKey == mapKey)
         {
             return state;
@@ -2369,8 +3486,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             LastX: float.NaN,
             LastBottom: float.NaN,
             NoProgressTicks: 0,
+            NoHorizontalProgressTicks: 0,
             BestGoalDistance: float.NaN,
-            NoGoalProgressTicks: 0);
+            NoGoalProgressTicks: 0,
+            ReattachResumeActionIndex: -1);
     }
 
     private static ReplayPhase SelectPhase(SimulationWorld world, PlayerEntity player)
@@ -2397,6 +3516,254 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         return state with { ActionIndex = state.ActionIndex + 1, ActionTick = 0 };
+    }
+
+    private static bool ShouldStartTapeReattach(PlayerEntity player, TapePhaseData phaseData, ReplayState state, bool spawnReattachEligible)
+    {
+        if (state.ActionIndex != 0)
+        {
+            return false;
+        }
+
+        if (!player.IsInSpawnRoom || !spawnReattachEligible)
+        {
+            return false;
+        }
+
+        return IsFarFromTapePhaseStart(player, phaseData);
+    }
+
+    private static bool IsFarFromTapePhaseStart(PlayerEntity player, TapePhaseData phaseData)
+    {
+        return MathF.Abs(player.X - phaseData.StartX) > TapeReattachStartRadiusX
+            || MathF.Abs(player.Bottom - phaseData.StartBottom) > TapeReattachStartRadiusBottom;
+    }
+
+    private static bool ShouldStartTapeRecoveryReattach(ReplayState state)
+    {
+        return false;
+    }
+
+    private static bool TryFindNearestTapeReattachPoint(TapePhaseData phaseData, PlayerEntity player, out TapeReattachPoint point)
+    {
+        point = default;
+        if (player.IsInSpawnRoom && TryFindNearestTapeReattachPoint(phaseData.ReattachPoints, player, requireOutsideSpawnRoom: true, out point))
+        {
+            return true;
+        }
+
+        return TryFindNearestTapeReattachPoint(phaseData.ReattachPoints, player, requireOutsideSpawnRoom: false, out point);
+    }
+
+    private static bool TryFindTapePhaseStartReattachPoint(
+        ReplayPhase phase,
+        TapePhaseData phaseData,
+        PlayerEntity player,
+        GraphGoal? objectiveGoal,
+        float objectiveDistance,
+        out TapeReattachPoint point)
+    {
+        if (phase == ReplayPhase.Return
+            && objectiveGoal is { } returnGoal
+            && TryFindBestObjectiveTapeReattachPoint(
+                phaseData.ReattachPoints,
+                player,
+                requireOutsideSpawnRoom: player.IsInSpawnRoom,
+                currentActionIndex: -1,
+                objectiveGoal: returnGoal,
+                currentObjectiveDistance: objectiveDistance,
+                out point))
+        {
+            return true;
+        }
+
+        if (player.IsInSpawnRoom
+            && !HasOutsideSpawnRoomReattachPoint(phaseData.ReattachPoints)
+            && !float.IsNaN(phaseData.StartX)
+            && !float.IsNaN(phaseData.StartBottom))
+        {
+            point = new TapeReattachPoint(
+                ResumeActionIndex: 0,
+                X: phaseData.StartX,
+                Bottom: phaseData.StartBottom,
+                RadiusX: TapeReattachStartRadiusX,
+                RadiusBottom: TapeReattachStartRadiusBottom,
+                IsInSpawnRoom: true);
+            return true;
+        }
+
+        return TryFindNearestTapeReattachPoint(phaseData, player, out point);
+    }
+
+    private static bool TryResolveTapeReattachPoint(
+        TapePhaseData phaseData,
+        int resumeActionIndex,
+        out TapeReattachPoint point)
+    {
+        if (resumeActionIndex == 0
+            && !float.IsNaN(phaseData.StartX)
+            && !float.IsNaN(phaseData.StartBottom))
+        {
+            point = new TapeReattachPoint(
+                ResumeActionIndex: 0,
+                X: phaseData.StartX,
+                Bottom: phaseData.StartBottom,
+                RadiusX: TapeReattachStartRadiusX,
+                RadiusBottom: TapeReattachStartRadiusBottom,
+                IsInSpawnRoom: true);
+            return true;
+        }
+
+        return phaseData.ReattachPointsByResumeIndex.TryGetValue(resumeActionIndex, out point);
+    }
+
+    private static bool HasOutsideSpawnRoomReattachPoint(IReadOnlyList<TapeReattachPoint> points)
+    {
+        foreach (var point in points)
+        {
+            if (!point.IsInSpawnRoom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindForwardTapeReattachPoint(
+        ReplayPhase phase,
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        int currentActionIndex,
+        GraphGoal? objectiveGoal,
+        float objectiveDistance,
+        out TapeReattachPoint point)
+    {
+        if (phase == ReplayPhase.Return
+            && objectiveGoal is { } returnGoal
+            && TryFindBestObjectiveTapeReattachPoint(
+                points,
+                player,
+                requireOutsideSpawnRoom: false,
+                currentActionIndex,
+                returnGoal,
+                objectiveDistance,
+                out point))
+        {
+            return true;
+        }
+
+        point = default;
+        var bestDistance = float.MaxValue;
+        var hasPoint = false;
+        foreach (var candidate in points)
+        {
+            if (candidate.ResumeActionIndex <= currentActionIndex)
+            {
+                continue;
+            }
+
+            var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
+            if (distance > TapeReattachSearchDistance
+                || distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            point = candidate;
+            hasPoint = true;
+        }
+
+        return hasPoint;
+    }
+
+    private static bool TryFindBestObjectiveTapeReattachPoint(
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        bool requireOutsideSpawnRoom,
+        int currentActionIndex,
+        GraphGoal objectiveGoal,
+        float currentObjectiveDistance,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        var bestScore = float.MaxValue;
+        var hasPoint = false;
+        foreach (var candidate in points)
+        {
+            if (requireOutsideSpawnRoom && candidate.IsInSpawnRoom)
+            {
+                continue;
+            }
+
+            if (currentActionIndex >= 0 && candidate.ResumeActionIndex <= currentActionIndex)
+            {
+                continue;
+            }
+
+            var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
+            if (distance > TapeReattachSearchDistance)
+            {
+                continue;
+            }
+
+            var candidateGoalDistance = Distance(candidate.X, candidate.Bottom, objectiveGoal.X, objectiveGoal.Bottom);
+            if (!float.IsNaN(currentObjectiveDistance)
+                && candidateGoalDistance > currentObjectiveDistance + 64f)
+            {
+                continue;
+            }
+
+            var score = candidateGoalDistance * 6f + distance;
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            point = candidate;
+            hasPoint = true;
+        }
+
+        return hasPoint;
+    }
+
+    private static bool TryFindNearestTapeReattachPoint(
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        bool requireOutsideSpawnRoom,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        var bestDistance = float.MaxValue;
+        var hasPoint = false;
+        foreach (var candidate in points)
+        {
+            if (requireOutsideSpawnRoom && candidate.IsInSpawnRoom)
+            {
+                continue;
+            }
+
+            var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
+            if (distance > TapeReattachSearchDistance
+                || distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            point = candidate;
+            hasPoint = true;
+        }
+
+        return hasPoint;
+    }
+
+    private static bool IsWithinTapeReattachWindow(PlayerEntity player, TapeReattachPoint point)
+    {
+        return MathF.Abs(player.X - point.X) <= point.RadiusX
+            && MathF.Abs(player.Bottom - point.Bottom) <= point.RadiusBottom;
     }
 
     private static ReplayState TrackReplayProgress(ReplayState state, PlayerEntity player, float objectiveDistance)
@@ -2427,10 +3794,18 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static GraphReplayState TrackGraphProgress(GraphReplayState state, PlayerEntity player)
     {
+        if (float.IsNaN(state.LastX) || float.IsNaN(state.LastBottom))
+        {
+            return state with { LastX = player.X, LastBottom = player.Bottom, NoProgressTicks = 0, NoHorizontalProgressTicks = 0 };
+        }
+
         var moved = Distance(player.X, player.Bottom, state.LastX, state.LastBottom);
-        return moved >= NoProgressDistance
-            ? state with { NoProgressTicks = 0 }
-            : state with { NoProgressTicks = state.NoProgressTicks + 1 };
+        var movedHorizontally = MathF.Abs(player.X - state.LastX);
+        return state with
+        {
+            NoProgressTicks = moved >= NoProgressDistance ? 0 : state.NoProgressTicks + 1,
+            NoHorizontalProgressTicks = movedHorizontally >= NoProgressDistance ? 0 : state.NoHorizontalProgressTicks + 1,
+        };
     }
 
     private static DirectSeekState TrackDirectSeekProgress(DirectSeekState state, PlayerEntity player, float currentGoalDistance)
@@ -2497,6 +3872,22 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && IsInertTapeAction(actions[currentIndex]);
     }
 
+    private static bool ShouldForceFastForwardInertTapeAction(
+        IReadOnlyList<MotionProofAction> actions,
+        int currentIndex,
+        int actionTick,
+        int fastForwardTicks)
+    {
+        if (currentIndex < 0
+            || currentIndex >= actions.Count
+            || !IsInertTapeAction(actions[currentIndex]))
+        {
+            return false;
+        }
+
+        return actionTick >= Math.Max(1, fastForwardTicks);
+    }
+
     private static int FindNextActiveTapeActionIndex(IReadOnlyList<MotionProofAction> actions, int currentIndex)
     {
         for (var index = Math.Min(currentIndex + 1, actions.Count - 1); index < actions.Count; index += 1)
@@ -2556,6 +3947,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 && !action.Kind.Equals("Drop", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool IsTapeDirectionalRecoveryCandidate(MotionProofAction action)
+    {
+        return IsInertTapeAction(action)
+            || action.Kind.Equals("Run", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsGroundedIdleAction(MotionProofAction action, PlayerEntity player)
     {
         return player.IsGrounded
@@ -2585,6 +3982,66 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     }
 
     private static PlayerInputSnapshot ApplyNavigationRescueInput(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        MotionProofAction action,
+        PlayerInputSnapshot input,
+        int noProgressTicks,
+        int noHorizontalProgressTicks,
+        int noGoalProgressTicks,
+        bool allowObstacleJump,
+        int rescueJumpTicks,
+        bool allowDirectionReverse)
+    {
+        var direction = input.Right ? 1 : input.Left ? -1 : action.Direction;
+        if (direction == 0)
+        {
+            return input;
+        }
+
+        var blockedAhead = player.IsGrounded
+            && WouldMoveIntoObstacle(world, team, player, direction);
+        var frontFootBlocked = allowObstacleJump
+            && player.IsGrounded
+            && HasDirectSeekForwardFootBlock(world, team, player, direction, probeDistance: 8f)
+            && HasDirectSeekJumpHeadClear(world, team, player);
+        var obstacleAhead = allowObstacleJump && blockedAhead;
+        var goalStallTicks = Math.Max(0, noGoalProgressTicks - rescueJumpTicks);
+        var blockedHorizontalStall = (blockedAhead || frontFootBlocked)
+            && noHorizontalProgressTicks >= rescueJumpTicks;
+        var blockedGoalStall = blockedAhead
+            && noGoalProgressTicks >= rescueJumpTicks;
+        var jumpableLipStall = frontFootBlocked
+            && noHorizontalProgressTicks >= 2
+            && action.Kind.Equals("Run", StringComparison.OrdinalIgnoreCase);
+        var shouldJump = noProgressTicks >= rescueJumpTicks
+            || blockedHorizontalStall
+            || blockedGoalStall
+            || jumpableLipStall
+            || (obstacleAhead && action.Kind.Equals("Run", StringComparison.OrdinalIgnoreCase));
+        if (!shouldJump)
+        {
+            return input;
+        }
+
+        if (allowDirectionReverse
+            && (noProgressTicks >= rescueJumpTicks || blockedHorizontalStall || blockedGoalStall)
+            && blockedAhead
+            && !WouldMoveIntoObstacle(world, team, player, -direction, probeDistance: DirectSeekObstacleProbeDistance))
+        {
+            direction = -direction;
+        }
+
+        return input with
+        {
+            Up = player.IsGrounded || noProgressTicks >= rescueJumpTicks || noHorizontalProgressTicks >= rescueJumpTicks || goalStallTicks > 0,
+            Left = direction < 0,
+            Right = direction > 0,
+        };
+    }
+
+    private static PlayerInputSnapshot ApplyObjectiveTapeRescueInput(
         SimulationWorld world,
         PlayerTeam team,
         PlayerEntity player,
@@ -2676,8 +4133,16 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             || bottom > world.Level.Bounds.Height;
     }
 
-    private static PlayerInputSnapshot BuildIdleInput(PlayerEntity player)
+    private static (float X, float Y) ResolveIdleAimTarget(SimulationWorld world, PlayerEntity player)
     {
+        var gunspinDegrees = (float)((world.SimulationTimeSeconds * 360d) % 360d);
+        var radians = gunspinDegrees * (MathF.PI / 180f);
+        return (player.X + (MathF.Cos(radians) * 96f), player.Y + (MathF.Sin(radians) * 96f));
+    }
+
+    private static PlayerInputSnapshot BuildIdleInput(SimulationWorld world, PlayerEntity player)
+    {
+        var aimTarget = ResolveIdleAimTarget(world, player);
         return new PlayerInputSnapshot(
             Left: false,
             Right: false,
@@ -2688,8 +4153,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             Taunt: false,
             FirePrimary: false,
             FireSecondary: false,
-            AimWorldX: player.X + 160f,
-            AimWorldY: player.Y,
+            AimWorldX: aimTarget.X,
+            AimWorldY: aimTarget.Y,
             DebugKill: false);
     }
 
@@ -2713,8 +4178,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var firePrimary = false;
         var fireSecondary = false;
         var fireSecondaryWeapon = false;
-        var aimX = movementInput.AimWorldX;
-        var aimY = movementInput.AimWorldY;
+        var idleAimTarget = ResolveIdleAimTarget(world, player);
+        var aimX = idleAimTarget.X;
+        var aimY = idleAimTarget.Y;
         if (targetPlayer is not null)
         {
             movementInput = ApplyCombatSpacingInput(movementInput, player, targetPlayer);
@@ -2799,6 +4265,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 return movementInput with
                 {
                     FireSecondary = player.IsSniperScoped,
+                    AimWorldX = aimX,
+                    AimWorldY = aimY,
                 };
             }
 
@@ -2825,6 +4293,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 return movementInput with
                 {
                     FireSecondary = player.IsSpyCloaked,
+                    AimWorldX = aimX,
+                    AimWorldY = aimY,
                 };
             }
 
@@ -2836,9 +4306,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 : player.IsSpyCloaked
                     ? spyDistance > 96f && !player.IsSpyBackstabAnimating
                     : false;
-            firePrimary = target.Kind == CombatTargetKind.Player
-                && player.IsSpyCloaked
-                && spyDistance <= 64f;
+            firePrimary = player.IsSpyCloaked
+                ? target.Kind == CombatTargetKind.Player && spyDistance <= 64f
+                : ShouldFirePrimaryAtTarget(player, target);
             return movementInput with
             {
                 FirePrimary = firePrimary,
@@ -2850,12 +4320,18 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         if (!hasCombatTarget)
         {
-            return movementInput;
+            return movementInput with
+            {
+                AimWorldX = aimX,
+                AimWorldY = aimY,
+            };
         }
 
         var distance = Distance(player.X, player.Y, target.X, target.Y);
         firePrimary = ShouldFirePrimaryAtTarget(player, target);
-        fireSecondary = player.ClassId == PlayerClass.Quote
+        fireSecondary = player.ClassId == PlayerClass.Demoman
+            ? ShouldDetonateOwnedMinesAtTarget(world, player, target)
+            : player.ClassId == PlayerClass.Quote
             && distance is > QuoteBladeMinimumDistance and <= QuoteBladeMaximumDistance;
         fireSecondaryWeapon = ShouldFireSecondaryWeaponAtTarget(player, target, firePrimary, fireSecondary);
         return movementInput with
@@ -2940,9 +4416,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var candidate = allPlayers[index];
+            var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(player, candidate);
             if (candidate.Id == player.Id
                 || !candidate.IsAlive
-                || candidate.Team == player.Team)
+                || (candidate.Team == player.Team && !treatAsFriendlyFireTarget))
             {
                 continue;
             }
@@ -3005,6 +4482,39 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             PrimaryWeaponKind.Medigun => false,
             _ => distance <= GetMaximumFireRange(player.ClassId),
         };
+    }
+
+    private static bool ShouldDetonateOwnedMinesAtTarget(
+        SimulationWorld world,
+        PlayerEntity player,
+        CombatTarget target)
+    {
+        if (player.ClassId != PlayerClass.Demoman
+            || player.IsExperimentalDemoknightEnabled)
+        {
+            return false;
+        }
+
+        var detonationRadius = MineProjectileEntity.BlastRadius + 18f;
+        var detonationRadiusSquared = detonationRadius * detonationRadius;
+        for (var mineIndex = 0; mineIndex < world.Mines.Count; mineIndex += 1)
+        {
+            var mine = world.Mines[mineIndex];
+            if (mine.OwnerId != player.Id
+                || mine.Team != player.Team
+                || !mine.IsStickied
+                || mine.IsDestroyed)
+            {
+                continue;
+            }
+
+            if (DistanceSquared(mine.X, mine.Y, target.X, target.Y) <= detonationRadiusSquared)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ShouldFireSecondaryWeaponAtTarget(
@@ -3366,6 +4876,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         _statesBySlot.Remove(slot);
         _graphStatesBySlot.Remove(slot);
         _directSeekStatesBySlot.Remove(slot);
+        _objectiveSeamStatesBySlot.Remove(slot);
         _objectiveHoldPointBySlot.Remove(slot);
         _localObjectiveDirectPointBySlot.Remove(slot);
         _aliveBySlot.Remove(slot);
@@ -3385,10 +4896,30 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         float LastX,
         float LastBottom,
         int NoProgressTicks,
+        int NoHorizontalProgressTicks,
         float BestGoalDistance,
-        int NoGoalProgressTicks);
+        int NoGoalProgressTicks,
+        int ReattachResumeActionIndex);
 
     private readonly record struct GraphGoal(string Label, float X, float Bottom, float Radius);
+
+    private sealed record ObjectiveSeamProgram(
+        string Label,
+        IReadOnlyList<MotionProofAction> Actions,
+        float GoalX,
+        float GoalBottom,
+        float GoalRadius,
+        int DurationTicks,
+        int NoMovementTicks);
+
+    private readonly record struct ObjectiveSeamState(
+        ObjectiveSeamProgram Program,
+        int ActionIndex,
+        int ActionTick,
+        int TicksRemaining,
+        int NoMovementTicks,
+        float LastX,
+        float LastBottom);
 
     private enum CombatTargetKind
     {
@@ -3434,7 +4965,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         IReadOnlyList<int> PathNodeIndices,
         float LastX,
         float LastBottom,
-        int NoProgressTicks);
+        int NoProgressTicks,
+        int NoHorizontalProgressTicks);
 
     private readonly record struct GraphPlan(
         IReadOnlyList<MotionProofAction> Actions,
@@ -3528,4 +5060,28 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         IReadOnlyList<MotionProofAction> Return);
 
     private sealed record MotionProofAction(string Kind, int Direction, int Ticks);
+
+    private sealed record PreparedMotionProofArtifact(
+        MotionProofArtifact Artifact,
+        TapePhaseData AttackPhase,
+        TapePhaseData ReturnPhase);
+
+    private sealed record TapePhaseData(
+        float StartX,
+        float StartBottom,
+        IReadOnlyList<MotionProofAction> Actions,
+        IReadOnlyList<TapeReattachPoint> ReattachPoints,
+        IReadOnlyDictionary<int, TapeReattachPoint> ReattachPointsByResumeIndex)
+    {
+        public static TapePhaseData Empty(IReadOnlyList<MotionProofAction> actions) =>
+            new(float.NaN, float.NaN, actions, Array.Empty<TapeReattachPoint>(), new Dictionary<int, TapeReattachPoint>());
+    }
+
+    private readonly record struct TapeReattachPoint(
+        int ResumeActionIndex,
+        float X,
+        float Bottom,
+        float RadiusX,
+        float RadiusBottom,
+        bool IsInSpawnRoom);
 }

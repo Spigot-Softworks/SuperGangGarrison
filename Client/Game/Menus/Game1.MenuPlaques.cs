@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using OpenGarrison.Core;
 
@@ -62,6 +63,8 @@ public partial class Game1
         _menuTextBoxMiddleTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxMiddle.png");
         _menuTextBoxBottomTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxBottom.png");
         _menuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "MenuTextBoxSolo.png");
+        _lastToDieMenuPlaqueTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuPlaque.png");
+        _lastToDieMenuTextBoxSoloTexture = LoadMenuTexture("Sprites", "Menu", "Plaques", "LTD_MenuTextBoxSolo.png");
     }
 
     private void LoadMenuBitmapFont()
@@ -147,6 +150,11 @@ public partial class Game1
         if (string.IsNullOrWhiteSpace(path))
         {
             return null;
+        }
+
+        if (!OperatingSystem.IsBrowser() && File.Exists(path))
+        {
+            return new LoadedSpriteFrame(TextureDecodeUtility.LoadTexture(GraphicsDevice, File.ReadAllBytes(path), applyLegacyChromaKey: false));
         }
 
         return LoadSpriteFrameFromPath(path);

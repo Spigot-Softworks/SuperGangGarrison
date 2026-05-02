@@ -48,6 +48,8 @@ public partial class Game1
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }
 
+            _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+            _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
             _game.DrawChatBubble(player, cameraPosition);

@@ -60,7 +60,7 @@ public sealed partial class SimulationWorld
                 player.Y,
                 healthBeforeTick - player.Health,
                 afterburn.IsFatal);
-            ApplyExperimentalDamageRewards(burner, player, healthBeforeTick - player.Health);
+            ApplyExperimentalDamageRewards(burner, player, healthBeforeTick - player.Health, allowOsmosisHealOwnedSentries: false);
         }
 
         if (afterburn.IsFatal)

@@ -21,7 +21,8 @@ public sealed class PlayerGibEntity : SimulationEntity
         float horizontalFriction,
         float rotationFriction,
         int lifetimeTicks,
-        float bloodChance = DefaultBloodChance) : base(id)
+        float bloodChance = DefaultBloodChance,
+        bool experimentalCryoTinted = false) : base(id)
     {
         SpriteName = spriteName;
         FrameIndex = frameIndex;
@@ -34,6 +35,7 @@ public sealed class PlayerGibEntity : SimulationEntity
         RotationFriction = rotationFriction;
         TicksRemaining = lifetimeTicks;
         BloodChance = bloodChance;
+        ExperimentalCryoTinted = experimentalCryoTinted;
     }
 
     public string SpriteName { get; }
@@ -59,6 +61,8 @@ public sealed class PlayerGibEntity : SimulationEntity
     public int TicksRemaining { get; private set; }
 
     public float BloodChance { get; }
+
+    public bool ExperimentalCryoTinted { get; }
 
     public bool IsExpired => TicksRemaining <= 0;
 

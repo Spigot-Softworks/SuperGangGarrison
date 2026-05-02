@@ -103,9 +103,10 @@ public sealed partial class SimulationWorld
             float velocityX,
             float velocityY,
             float damagePerHit = ShotProjectileEntity.DamagePerHit,
+            bool forceGibOnKill = false,
             string? killFeedWeaponSpriteNameOverride = null)
         {
-            _world.SpawnShot(owner, x, y, velocityX, velocityY, damagePerHit, killFeedWeaponSpriteNameOverride);
+            _world.SpawnShot(owner, x, y, velocityX, velocityY, damagePerHit, forceGibOnKill, killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
@@ -148,6 +149,9 @@ public sealed partial class SimulationWorld
             float knockbackScale = 1f,
             bool canIgniteTargets = false,
             bool enableExperimentalStingerTracking = false,
+            bool enableExperimentalCaveatTracking = false,
+            float experimentalVisualScale = 1f,
+            int experimentalTrackingLockTicksRemaining = 0,
             string? killFeedWeaponSpriteNameOverride = null)
         {
             _world.SpawnRocket(
@@ -156,14 +160,17 @@ public sealed partial class SimulationWorld
                 y,
                 speed,
                 directionRadians,
-                rocketCombat,
-                directHitHealAmount,
-                explodeImmediately,
-                canGrantExperimentalInstantReloadOnHit,
-                knockbackScale,
-                canIgniteTargets,
-                enableExperimentalStingerTracking,
-                killFeedWeaponSpriteNameOverride);
+                rocketCombat: rocketCombat,
+                directHitHealAmount: directHitHealAmount,
+                explodeImmediately: explodeImmediately,
+                canGrantExperimentalInstantReloadOnHit: canGrantExperimentalInstantReloadOnHit,
+                knockbackScale: knockbackScale,
+                canIgniteTargets: canIgniteTargets,
+                enableExperimentalStingerTracking: enableExperimentalStingerTracking,
+                enableExperimentalCaveatTracking: enableExperimentalCaveatTracking,
+                experimentalVisualScale: experimentalVisualScale,
+                experimentalTrackingLockTicksRemaining: experimentalTrackingLockTicksRemaining,
+                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
 
         private void SpawnRevolverShot(

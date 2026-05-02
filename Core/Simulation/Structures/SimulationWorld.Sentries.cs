@@ -54,6 +54,8 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            ApplyExperimentalEngineerSentryPassiveEffects(sentry, owner);
+
             var target = AcquireSentryTarget(sentry);
             var previousTargetId = sentry.CurrentTargetPlayerId;
             sentry.SetTarget(
@@ -77,29 +79,10 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            sentry.FireAt(target.Value.X, target.Value.Y);
+            var reloadTicks = GetExperimentalSentryReloadTicks(owner, sentry);
+            var idleResetTicks = GetExperimentalSentryIdleResetTicks();
             RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
-            var ownerPlayer = FindPlayerById(sentry.OwnerPlayerId);
-            var distance = DistanceBetween(sentry.X, sentry.Y, target.Value.X, target.Value.Y);
-            RegisterCombatTrace(
-                sentry.X,
-                sentry.Y,
-                (target.Value.X - sentry.X) / distance,
-                (target.Value.Y - sentry.Y) / distance,
-                distance,
-                target.Value.Player is not null);
-            if (target.Value.Player is not null)
-            {
-                RegisterBloodEffect(target.Value.Player.X, target.Value.Player.Y, sentry.AimDirectionDegrees - 180f, 2);
-                if (ApplyPlayerDamage(target.Value.Player, SentryEntity.HitDamage, ownerPlayer, PlayerEntity.SpyDamageRevealAlpha))
-                {
-                    KillPlayer(target.Value.Player, killer: ownerPlayer, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
-                }
-            }
-            else if (target.Value.Generator is not null)
-            {
-                TryDamageGenerator(target.Value.Generator.Team, SentryEntity.HitDamage, ownerPlayer);
-            }
+            FireExperimentalSentry(sentry, owner, target.Value, reloadTicks, idleResetTicks);
         }
     }
 
@@ -139,6 +122,9 @@ public sealed partial class SimulationWorld
 
     private SentryTarget? AcquireSentryTarget(SentryEntity sentry)
     {
+        var owner = FindPlayerById(sentry.OwnerPlayerId);
+        SentryTarget? preferredTarget = null;
+        var preferredDistance = float.MaxValue;
         SentryTarget? nearestTarget = null;
         var nearestDistance = float.MaxValue;
         foreach (var player in EnumerateSimulatedPlayers())
@@ -149,7 +135,7 @@ public sealed partial class SimulationWorld
             }
 
             var distance = DistanceBetween(sentry.X, sentry.Y, player.X, player.Y);
-            if (distance > SentryEntity.TargetRange || distance >= nearestDistance)
+            if (distance > (owner is not null ? GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange))
             {
                 continue;
             }
@@ -168,8 +154,20 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(player, null, player.X, player.Y, player.Id);
-            nearestDistance = distance;
+            var candidate = new SentryTarget(player, null, player.X, player.Y, player.Id);
+            if (owner is not null
+                && IsExperimentalEngineerPriorityTarget(owner, player)
+                && distance < preferredDistance)
+            {
+                preferredTarget = candidate;
+                preferredDistance = distance;
+            }
+
+            if (distance < nearestDistance)
+            {
+                nearestTarget = candidate;
+                nearestDistance = distance;
+            }
         }
 
         for (var index = 0; index < _generators.Count; index += 1)
@@ -181,7 +179,8 @@ public sealed partial class SimulationWorld
             }
 
             var distance = DistanceBetween(sentry.X, sentry.Y, generator.Marker.CenterX, generator.Marker.CenterY);
-            if (distance > SentryEntity.TargetRange || distance >= nearestDistance)
+            var range = owner is not null ? GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
+            if (distance > range || distance >= nearestDistance)
             {
                 continue;
             }
@@ -204,7 +203,7 @@ public sealed partial class SimulationWorld
             nearestDistance = distance;
         }
 
-        return nearestTarget;
+        return preferredTarget ?? nearestTarget;
     }
 
     private void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null)
@@ -300,13 +299,13 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (GetExperimentalOwnedSentryCount(player.Id) >= GetExperimentalMaxOwnedSentries(player))
+        {
+            return false;
+        }
+
         foreach (var sentry in _sentries)
         {
-            if (sentry.OwnerPlayerId == player.Id)
-            {
-                return false;
-            }
-
             if (sentry.IsNear(player.X, player.Y, SentryBuildProximityRadius))
             {
                 return false;
@@ -318,13 +317,19 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var aimRadians = player.AimDirectionDegrees * (MathF.PI / 180f);
+        var aimDirectionX = MathF.Cos(aimRadians);
+        var startDirectionX = MathF.Abs(aimDirectionX) > 0.001f
+            ? (aimDirectionX >= 0f ? 1f : -1f)
+            : player.FacingDirectionX;
         var sentryEntity = new SentryEntity(
             AllocateEntityId(),
             player.Id,
             player.Team,
             player.X,
             player.Y,
-            player.FacingDirectionX);
+            startDirectionX,
+            GetExperimentalSentryMaxHealth(player));
         _sentries.Add(sentryEntity);
         _entities.Add(sentryEntity.Id, sentryEntity);
         return true;

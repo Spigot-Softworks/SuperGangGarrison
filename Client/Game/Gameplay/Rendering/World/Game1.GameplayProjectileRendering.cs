@@ -21,8 +21,7 @@ public partial class Game1
 
     private void DrawMedicBeamForPlayer(PlayerEntity medic, Vector2 cameraPosition)
     {
-        if (medic.ClassId != PlayerClass.Medic
-            || !medic.IsMedicHealing
+        if (!medic.IsMedicHealing
             || !medic.MedicHealTargetId.HasValue)
         {
             return;
@@ -37,40 +36,76 @@ public partial class Game1
         var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
         var aimDirection = new Vector2(MathF.Cos(aimRadians), MathF.Sin(aimRadians));
         var beamOrigin = GetMedicBeamOrigin(medic);
-        var beamColor = healTarget.Team == PlayerTeam.Blue
-            ? new Color(0, 20, 180, 90)
-            : new Color(120, 5, 5, 90);
-        var beamStartColor = healTarget.Team == PlayerTeam.Blue
-            ? new Color(80, 160, 255, 240)
-            : new Color(255, 95, 95, 245);
-        // Helix uses an even lighter start to distinguish it from the main beam
-        var helixStartColor = healTarget.Team == PlayerTeam.Blue
-            ? new Color(140, 195, 255, 190)
-            : new Color(255, 175, 175, 200);
+        var isFreezeRayBeam = medic.IsExperimentalEngineerFreezeRayPresented;
+        var isEssenceExtractorBeam = medic.IsExperimentalEngineerEssenceExtractorPresented && !isFreezeRayBeam;
+        var beamColor = isFreezeRayBeam
+            ? new Color(44, 118, 255, 94)
+            : isEssenceExtractorBeam
+                ? new Color(150, 8, 8, 92)
+                : healTarget.Team == PlayerTeam.Blue
+                    ? new Color(0, 20, 180, 90)
+                    : new Color(120, 5, 5, 90);
+        var beamStartColor = isFreezeRayBeam
+            ? new Color(160, 225, 255, 240)
+            : isEssenceExtractorBeam
+                ? new Color(255, 72, 72, 245)
+                : healTarget.Team == PlayerTeam.Blue
+                    ? new Color(80, 160, 255, 240)
+                    : new Color(255, 95, 95, 245);
+        var helixStartColor = isFreezeRayBeam
+            ? new Color(208, 242, 255, 196)
+            : isEssenceExtractorBeam
+                ? new Color(255, 140, 140, 200)
+                : healTarget.Team == PlayerTeam.Blue
+                    ? new Color(140, 195, 255, 190)
+                    : new Color(255, 175, 175, 200);
         var beamStartX = beamOrigin.X + aimDirection.X * 24f;
         var beamStartY = beamOrigin.Y + aimDirection.Y * 24f;
-        DrawCurvedWorldLine(
-            beamStartX,
-            beamStartY,
-            healTarget.X,
-            healTarget.Y,
-            cameraPosition,
-            beamStartColor,
-            beamColor,
-            nozzleThickness: 4f,
-            maxThickness: 8f,
-            tailThickness: 2f,
-            rampDistPixels: 8f,
-            aimDirection);
-        DrawMedicBeamHelix(
-            beamStartX,
-            beamStartY,
-            healTarget.X,
-            healTarget.Y,
-            cameraPosition,
-            aimDirection,
-            helixStartColor,
-            beamColor);
+        DrawMedicBeamSegment(healTarget);
+        TryDrawAdditionalMedicBeamSegment(medic.ExperimentalAdditionalMedicBeamTargetPlayerId1);
+        TryDrawAdditionalMedicBeamSegment(medic.ExperimentalAdditionalMedicBeamTargetPlayerId2);
+
+        void TryDrawAdditionalMedicBeamSegment(int? targetPlayerId)
+        {
+            if (!targetPlayerId.HasValue)
+            {
+                return;
+            }
+
+            var target = FindPlayerById(targetPlayerId.Value);
+            if (target is null || !target.IsAlive)
+            {
+                return;
+            }
+
+            DrawMedicBeamSegment(target);
+        }
+
+        void DrawMedicBeamSegment(PlayerEntity target)
+        {
+            DrawCurvedWorldLine(
+                beamStartX,
+                beamStartY,
+                target.X,
+                target.Y,
+                cameraPosition,
+                beamStartColor,
+                beamColor,
+                nozzleThickness: 4f,
+                maxThickness: 8f,
+                tailThickness: 2f,
+                rampDistPixels: 8f,
+                aimDirection);
+            DrawMedicBeamHelix(
+                beamStartX,
+                beamStartY,
+                target.X,
+                target.Y,
+                cameraPosition,
+                aimDirection,
+                helixStartColor,
+                beamColor);
+        }
     }
 
     private void DrawMedicBeamHelix(
@@ -845,7 +880,7 @@ public partial class Game1
             ? new Color(120, 180, 255)
             : new Color(255, 110, 90);
         var rocketFrame = rocket.Team == PlayerTeam.Blue ? 0 : 1;
-        var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
+        var rocketScale = rocket.ExperimentalVisualScale;
         if (!TryDrawSprite("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocketColor, rocket.DirectionRadians, scale: rocketScale))
         {
             var halfWidth = (int)MathF.Round(5f * rocketScale);

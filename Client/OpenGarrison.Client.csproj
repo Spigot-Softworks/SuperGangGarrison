@@ -58,8 +58,6 @@
     <ProjectReference Include="..\Plugins\OpenGarrison.PluginHost.Abstractions\OpenGarrison.PluginHost.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\GameplayModding.Abstractions\OpenGarrison.GameplayModding.Abstractions.csproj" />
-    <ProjectReference Include="..\MLBot.Contracts\OpenGarrison.MLBot.Contracts.csproj" />
-    <ProjectReference Include="..\MLBot\OpenGarrison.MLBot.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">

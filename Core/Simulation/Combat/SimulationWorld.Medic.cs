@@ -1,4 +1,5 @@
 using OpenGarrison.GameplayModding;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace OpenGarrison.Core;
@@ -53,6 +54,61 @@ public sealed partial class SimulationWorld
         ApplyMedicHealing(medic, newTarget);
     }
 
+    private void UpdateExperimentalEngineerEssenceExtractor(PlayerEntity engineer, float aimWorldX, float aimWorldY)
+    {
+        var existingTarget = engineer.MedicHealTargetId.HasValue
+            ? FindPlayerById(engineer.MedicHealTargetId.Value)
+            : null;
+        if (existingTarget is not null && CanExperimentalEngineerEssenceExtractorTarget(engineer, existingTarget))
+        {
+            ApplyExperimentalEngineerEssenceExtractor(engineer, existingTarget);
+            return;
+        }
+
+        FlushExperimentalEngineerEssenceExtractorHealing(engineer);
+        engineer.ClearMedicHealingTarget();
+        var newTarget = AcquireExperimentalEngineerEssenceExtractorTarget(engineer, aimWorldX, aimWorldY);
+        if (newTarget is null)
+        {
+            return;
+        }
+
+        ApplyExperimentalEngineerEssenceExtractor(engineer, newTarget);
+    }
+
+    private void UpdateExperimentalEngineerFreezeRay(PlayerEntity engineer, float aimWorldX, float aimWorldY)
+    {
+        var primaryTarget = engineer.MedicHealTargetId.HasValue
+            ? FindPlayerById(engineer.MedicHealTargetId.Value)
+            : null;
+        if (primaryTarget is not null && !CanExperimentalEngineerFreezeRayTarget(engineer, primaryTarget))
+        {
+            primaryTarget = null;
+        }
+
+        if (primaryTarget is null)
+        {
+            engineer.ClearMedicHealingTarget();
+            primaryTarget = AcquireExperimentalEngineerFreezeRayPrimaryTarget(engineer, aimWorldX, aimWorldY);
+            if (primaryTarget is null)
+            {
+                return;
+            }
+        }
+
+        var chainedTargets = AcquireExperimentalEngineerFreezeRayAdditionalTargets(engineer, primaryTarget);
+        ApplyExperimentalEngineerFreezeRay(engineer, primaryTarget);
+        for (var index = 0; index < chainedTargets.Length; index += 1)
+        {
+            ApplyExperimentalEngineerFreezeRay(engineer, chainedTargets[index]);
+        }
+
+        engineer.SetMedicHealingTarget(primaryTarget.IsAlive ? primaryTarget : null);
+        engineer.SetExperimentalAdditionalMedicBeamTargets(
+            chainedTargets.Length > 0 && chainedTargets[0].IsAlive ? chainedTargets[0] : null,
+            chainedTargets.Length > 1 && chainedTargets[1].IsAlive ? chainedTargets[1] : null);
+    }
+
     private bool CanMedicHealTarget(PlayerEntity medic, PlayerEntity target)
     {
         if (!target.IsAlive || target.Team != medic.Team || target.Id == medic.Id)
@@ -66,6 +122,26 @@ public sealed partial class SimulationWorld
         }
 
         return HasMedicHealingLineOfSight(medic, target);
+    }
+
+    private bool CanExperimentalEngineerEssenceExtractorTarget(PlayerEntity engineer, PlayerEntity target)
+    {
+        if (!target.IsAlive || target.Team == engineer.Team || target.Id == engineer.Id)
+        {
+            return false;
+        }
+
+        if (DistanceBetween(engineer.X, engineer.Y, target.X, target.Y) > 300f)
+        {
+            return false;
+        }
+
+        return HasMedicHealingLineOfSight(engineer, target);
+    }
+
+    private bool CanExperimentalEngineerFreezeRayTarget(PlayerEntity engineer, PlayerEntity target)
+    {
+        return CanExperimentalEngineerEssenceExtractorTarget(engineer, target);
     }
 
     private void ApplyMedicHealing(PlayerEntity medic, PlayerEntity target)
@@ -102,6 +178,61 @@ public sealed partial class SimulationWorld
         medic.SetMedicHealingTarget(target);
     }
 
+    private void ApplyExperimentalEngineerEssenceExtractor(PlayerEntity engineer, PlayerEntity target)
+    {
+        var healthBefore = target.Health;
+        var damagePerTick = GetContinuousPerTickRate(
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorDrainPerSecond);
+        if (ApplyPlayerContinuousDamage(target, damagePerTick, engineer, PlayerEntity.SpyDamageRevealAlpha))
+        {
+            KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL");
+        }
+
+        var appliedDamage = Math.Max(0, healthBefore - target.Health);
+        if (appliedDamage > 0)
+        {
+            var appliedHealing = engineer.ApplyContinuousHealingAndGetAmount(appliedDamage);
+            engineer.AddHealPoints(appliedHealing);
+            var chunkHealing = engineer.AccumulateExperimentalEngineerEssenceExtractorHealing(
+                appliedHealing,
+                global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorHealingChunkSize);
+            if (chunkHealing > 0)
+            {
+                RegisterHealingFeedbackOnly(engineer, chunkHealing);
+            }
+        }
+
+        target.RefreshExperimentalDamageTakenDebuff(
+            GetExperimentalEngineerEssenceExtractorDebuffTicks(),
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorVulnerabilityMultiplier);
+        target.RefreshExperimentalEngineerEssenceExtractorSlow(
+            GetExperimentalEngineerEssenceExtractorSlowTicks(),
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorSlowMovementMultiplier);
+        engineer.SetMedicHealingTarget(target);
+        engineer.ClearExperimentalAdditionalMedicBeamTargets();
+    }
+
+    private void ApplyExperimentalEngineerFreezeRay(PlayerEntity engineer, PlayerEntity target)
+    {
+        var damagePerTick = GetContinuousPerTickRate(
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayDamagePerSecond);
+        if (ApplyPlayerContinuousDamage(target, damagePerTick, engineer, PlayerEntity.SpyDamageRevealAlpha))
+        {
+            KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL", gibbed: target.IsExperimentalCryoFrozen);
+        }
+        target.AccumulateExperimentalCryoExposure(
+            engineer.Id,
+            freezeThresholdTicks: GetExperimentalEngineerFreezeRayFreezeThresholdTicks(),
+            exposureWindowTicks: GetExperimentalEngineerFreezeRayExposureWindowTicks(),
+            freezeDurationTicks: GetExperimentalEngineerCryoFreezeDurationTicks(),
+            slowMovementMultiplier: global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRaySlowMovementMultiplier,
+            slowTicks: GetExperimentalEngineerFreezeRaySlowTicks());
+        target.RefreshExperimentalFreezeRayCombatDebuff(
+            GetExperimentalEngineerFreezeRaySlowTicks(),
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayAttackCycleMultiplier,
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayOutgoingDamageMultiplier);
+    }
+
     private void AdvanceMedicUberEffects()
     {
         foreach (var player in EnumerateSimulatedPlayers())
@@ -126,6 +257,53 @@ public sealed partial class SimulationWorld
     }
 
     private PlayerEntity? AcquireMedicHealingTarget(PlayerEntity medic, float aimWorldX, float aimWorldY)
+    {
+        return AcquireMedicBeamTarget(medic, aimWorldX, aimWorldY, requireSameTeam: true);
+    }
+
+    private PlayerEntity? AcquireExperimentalEngineerEssenceExtractorTarget(PlayerEntity engineer, float aimWorldX, float aimWorldY)
+    {
+        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false);
+    }
+
+    private PlayerEntity? AcquireExperimentalEngineerFreezeRayPrimaryTarget(PlayerEntity engineer, float aimWorldX, float aimWorldY)
+    {
+        return AcquireMedicBeamTarget(engineer, aimWorldX, aimWorldY, requireSameTeam: false);
+    }
+
+    private PlayerEntity[] AcquireExperimentalEngineerFreezeRayAdditionalTargets(PlayerEntity engineer, PlayerEntity primaryTarget)
+    {
+        var maxAdditionalTargets = Math.Max(0, global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayTargetCount - 1);
+        if (maxAdditionalTargets <= 0)
+        {
+            return [];
+        }
+
+        var candidateTargets = new List<PlayerEntity>(maxAdditionalTargets);
+        var chainRadius = global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayChainRadius;
+        foreach (var candidate in EnumerateSimulatedPlayers())
+        {
+            if (!candidate.IsAlive
+                || candidate.Id == engineer.Id
+                || candidate.Id == primaryTarget.Id
+                || candidate.Team == engineer.Team
+                || DistanceBetween(primaryTarget.X, primaryTarget.Y, candidate.X, candidate.Y) > chainRadius
+                || DistanceBetween(engineer.X, engineer.Y, candidate.X, candidate.Y) > 340f)
+            {
+                continue;
+            }
+
+            candidateTargets.Add(candidate);
+            if (candidateTargets.Count >= maxAdditionalTargets)
+            {
+                break;
+            }
+        }
+
+        return [.. candidateTargets];
+    }
+
+    private PlayerEntity? AcquireMedicBeamTarget(PlayerEntity medic, float aimWorldX, float aimWorldY, bool requireSameTeam)
     {
         const float maxDistance = 300f;
         const float maxMouseSelectDistance = 150f;
@@ -153,7 +331,9 @@ public sealed partial class SimulationWorld
         var bestScore = 0f;
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (!player.IsAlive || player.Id == medic.Id || player.Team != medic.Team)
+            if (!player.IsAlive
+                || player.Id == medic.Id
+                || (requireSameTeam ? player.Team != medic.Team : player.Team == medic.Team))
             {
                 continue;
             }
@@ -217,6 +397,31 @@ public sealed partial class SimulationWorld
     private static float GetMedicTargetFocusY(PlayerEntity target)
     {
         return target.Y - MathF.Min(8f, target.Height * 0.25f);
+    }
+
+    private void FlushExperimentalEngineerEssenceExtractorHealing(PlayerEntity engineer)
+    {
+        var pendingHealing = engineer.FlushExperimentalEngineerEssenceExtractorHealing();
+        if (pendingHealing <= 0)
+        {
+            return;
+        }
+
+        var appliedHealing = ApplyHealingWithFeedback(engineer, pendingHealing);
+        engineer.AddHealPoints(appliedHealing);
+    }
+
+    private int GetExperimentalEngineerEssenceExtractorSlowTicks()
+    {
+        return Math.Max(
+            1,
+            (int)MathF.Ceiling(global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorSlowRefreshSeconds * Config.TicksPerSecond));
+    }
+
+    private float GetContinuousPerTickRate(float perSecond)
+    {
+        var ticksPerSecond = Math.Max(1, Config.TicksPerSecond);
+        return MathF.BitIncrement(perSecond / ticksPerSecond);
     }
 
     private bool HasMedicHealingLineOfSight(PlayerEntity medic, PlayerEntity target)

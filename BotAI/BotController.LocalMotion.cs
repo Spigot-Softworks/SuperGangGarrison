@@ -39,6 +39,22 @@ public sealed partial class ModernPracticeBotController
     private const float WaterwayPyroCapProgramStartBottom = 1188f;
     private const float WaterwayPyroCapProgramStartToleranceX = 18f;
     private const float WaterwayPyroCapProgramStartToleranceY = 24f;
+    private const float ClassicWellLipProgramStartX = 4823f;
+    private const float ClassicWellLipProgramStartBottom = 1170f;
+    private const float ClassicWellLipProgramStartToleranceX = 64f;
+    private const float ClassicWellLipProgramStartToleranceY = 18f;
+    private const float ClassicWellLipProgramGoalX = 3860f;
+    private const float ClassicWellLipProgramGoalBottom = 1193f;
+    private const float CorinthHeavyObjectiveProgramStartX = 2954.5f;
+    private const float CorinthHeavyObjectiveProgramStartBottom = 1116f;
+    private const float CorinthHeavyObjectiveProgramStartToleranceX = 24f;
+    private const float CorinthHeavyObjectiveProgramStartToleranceY = 18f;
+    private const float CorinthHeavyObjectiveProgramGoalX = 1797f;
+    private const float CorinthHeavyObjectiveProgramGoalBottom = 729f;
+    private const float CorinthHeavyRecoveryProgramStartX = 1950.5f;
+    private const float CorinthHeavyRecoveryProgramStartBottom = 1140f;
+    private const float CorinthHeavyRecoveryProgramStartToleranceX = 28f;
+    private const float CorinthHeavyRecoveryProgramStartToleranceY = 18f;
 
     private static readonly LocalMotionProgram WaterwayBlueScoutTerminalProgram = new(
         "waterway_terminal_probe",
@@ -159,6 +175,108 @@ public sealed partial class ModernPracticeBotController
         CooldownTicks: 60,
         AllowInertFastForward: true,
         GoalWindow: new LocalMotionGoalWindow(WaterwayCapProgramGoalX, WaterwayCapProgramGoalBottom, 24f, 24f, "waterway_pyro_cap_probe_goal"));
+
+    private static readonly LocalMotionProgram ClassicWellBlueScoutAttackLipProgram = new(
+        "classicwell_scout_attack_lip_probe",
+        new[]
+        {
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: 0, Ticks: 32),
+        },
+        DurationTicks: 176,
+        NoProgressTicks: 64,
+        CooldownTicks: 90,
+        AllowInertFastForward: true,
+        GoalWindow: new LocalMotionGoalWindow(ClassicWellLipProgramGoalX, ClassicWellLipProgramGoalBottom, 40f, 28f, "classicwell_scout_attack_lip_probe_goal"));
+
+    private static readonly LocalMotionProgram ClassicWellBluePyroAttackLipProgram = new(
+        "classicwell_pyro_attack_lip_probe",
+        new[]
+        {
+            new LocalMotionStep(LocalMotionStepKind.Drop, Direction: -1, Ticks: 64),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 32),
+        },
+        DurationTicks: 184,
+        NoProgressTicks: 64,
+        CooldownTicks: 90,
+        AllowInertFastForward: true,
+        GoalWindow: new LocalMotionGoalWindow(ClassicWellLipProgramGoalX, ClassicWellLipProgramGoalBottom, 40f, 28f, "classicwell_pyro_attack_lip_probe_goal"));
+
+    private static readonly LocalMotionProgram ClassicWellBlueHeavyAttackLipProgram = new(
+        "classicwell_heavy_attack_lip_probe",
+        new[]
+        {
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 32),
+        },
+        DurationTicks: 244,
+        NoProgressTicks: 64,
+        CooldownTicks: 90,
+        AllowInertFastForward: true,
+        GoalWindow: new LocalMotionGoalWindow(ClassicWellLipProgramGoalX, ClassicWellLipProgramGoalBottom, 40f, 28f, "classicwell_heavy_attack_lip_probe_goal"));
+
+
+    private static readonly LocalMotionProgram CorinthBlueHeavyObjectiveProgram = new(
+        "corinth_heavy_objective_probe",
+        new[]
+        {
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 17),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 17),
+            new LocalMotionStep(LocalMotionStepKind.Drop, Direction: -1, Ticks: 7),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 17),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 22),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 52),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 21),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 32),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 9),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 23),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 32),
+        },
+        DurationTicks: 300,
+        NoProgressTicks: 120,
+        CooldownTicks: 90,
+        AllowInertFastForward: true,
+        GoalWindow: new LocalMotionGoalWindow(CorinthHeavyObjectiveProgramGoalX, CorinthHeavyObjectiveProgramGoalBottom, 48f, 48f, "corinth_heavy_objective_probe_goal"));
+
+    private static readonly LocalMotionProgram CorinthBlueHeavyRecoveryProgram = new(
+        "corinth_heavy_recovery_probe",
+        new[]
+        {
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: 1, Ticks: 18),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: 1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: 1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: 1, Ticks: 11),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: 1, Ticks: 22),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: 1, Ticks: 22),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 17),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 14),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 7),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: 0, Ticks: 7),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: 1, Ticks: 12),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 21),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 8),
+            new LocalMotionStep(LocalMotionStepKind.Jump, Direction: -1, Ticks: 21),
+            new LocalMotionStep(LocalMotionStepKind.Run, Direction: -1, Ticks: 32),
+        },
+        DurationTicks: 300,
+        NoProgressTicks: 120,
+        CooldownTicks: 90,
+        AllowInertFastForward: true,
+        GoalWindow: new LocalMotionGoalWindow(CorinthHeavyObjectiveProgramGoalX, CorinthHeavyObjectiveProgramGoalBottom, 48f, 48f, "corinth_heavy_recovery_probe_goal"));
 
     private static void ResetLocalMotionFrameState(BotMemory memory)
     {
@@ -354,10 +472,74 @@ public sealed partial class ModernPracticeBotController
 
         if (IsLocalMotionProgramActive(memory)
             || memory.LocalMotionProgramCooldownTicks > 0
-            || !string.Equals(world.Level.Name, "Waterway", StringComparison.OrdinalIgnoreCase)
             || (player.ClassId != PlayerClass.Scout
                 && player.ClassId != PlayerClass.Pyro
                 && player.ClassId != PlayerClass.Heavy))
+        {
+            return false;
+        }
+
+        if (string.Equals(world.Level.Name, "ClassicWell", StringComparison.OrdinalIgnoreCase))
+        {
+            if (player.IsCarryingIntel
+                || MathF.Abs(player.X - ClassicWellLipProgramStartX) > ClassicWellLipProgramStartToleranceX
+                || MathF.Abs(player.Bottom - ClassicWellLipProgramStartBottom) > ClassicWellLipProgramStartToleranceY)
+            {
+                return false;
+            }
+
+            var program = player.ClassId switch
+            {
+                PlayerClass.Scout => ClassicWellBlueScoutAttackLipProgram,
+                PlayerClass.Pyro => ClassicWellBluePyroAttackLipProgram,
+                PlayerClass.Heavy => ClassicWellBlueHeavyAttackLipProgram,
+                _ => null,
+            };
+            if (program is null)
+            {
+                return false;
+            }
+
+            BeginLocalMotionProgram(memory, program);
+            memory.ModernMoveDebug = $"{program.Label}:start";
+            memory.ModernJumpDebug = memory.ModernMoveDebug;
+            return true;
+        }
+
+        if (string.Equals(world.Level.Name, "Corinth", StringComparison.OrdinalIgnoreCase))
+        {
+            if (player.ClassId != PlayerClass.Heavy
+                || player.IsCarryingIntel)
+            {
+                return false;
+            }
+
+            if (memory.CurrentPointId == 107
+                && memory.NextPointId == 89
+                && MathF.Abs(player.X - CorinthHeavyRecoveryProgramStartX) <= CorinthHeavyRecoveryProgramStartToleranceX
+                && MathF.Abs(player.Bottom - CorinthHeavyRecoveryProgramStartBottom) <= CorinthHeavyRecoveryProgramStartToleranceY)
+            {
+                BeginLocalMotionProgram(memory, CorinthBlueHeavyRecoveryProgram);
+                memory.ModernMoveDebug = "corinth_heavy_recovery_probe:start";
+                memory.ModernJumpDebug = "corinth_heavy_recovery_probe:start";
+                return true;
+            }
+
+            if (memory.CurrentPointId != 105
+                || memory.NextPointId != 30
+                || MathF.Abs(player.X - CorinthHeavyObjectiveProgramStartX) > CorinthHeavyObjectiveProgramStartToleranceX
+                || MathF.Abs(player.Bottom - CorinthHeavyObjectiveProgramStartBottom) > CorinthHeavyObjectiveProgramStartToleranceY)
+            {
+                return false;
+            }
+
+            BeginLocalMotionProgram(memory, CorinthBlueHeavyObjectiveProgram);
+            memory.ModernMoveDebug = "corinth_heavy_objective_probe:start";
+            memory.ModernJumpDebug = "corinth_heavy_objective_probe:start";
+            return true;
+        }
+
+        if (!string.Equals(world.Level.Name, "Waterway", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

@@ -36,10 +36,15 @@ public partial class Game1
                 return;
             }
 
-            _game.DrawScreenHealthBar(new Rectangle(45, viewportHeight - 123, 42, 38), localSentry.Health, SentryEntity.MaxHealth, false, fillDirection: HudFillDirection.VerticalBottomToTop);
+            _game.DrawScreenHealthBar(new Rectangle(45, viewportHeight - 123, 42, 38), localSentry.Health, localSentry.MaxHealth, false, fillDirection: HudFillDirection.VerticalBottomToTop);
             _game.TryDrawScreenSprite("SentryHUD", hudFrameIndex, new Vector2(5f, viewportHeight - 145f), Color.White, new Vector2(2f, 2f));
-            var sentryHpColor = localSentry.Health > (SentryEntity.MaxHealth / 3.5f) ? Color.White : Color.Red;
+            var sentryHpColor = localSentry.Health > (localSentry.MaxHealth / 3.5f) ? Color.White : Color.Red;
             _game.DrawHudTextCentered(Math.Max(localSentry.Health, 0).ToString(CultureInfo.InvariantCulture), new Vector2(69f, viewportHeight - 105f), sentryHpColor, 1f);
+            var ownedCount = GetLocalOwnedSentryCount();
+            if (ownedCount > 1)
+            {
+                _game.DrawHudTextCentered($"x{ownedCount}", new Vector2(69f, viewportHeight - 88f), new Color(214, 214, 214), 0.8f);
+            }
         }
 
         public SentryEntity? GetLocalOwnedSentry()
@@ -53,6 +58,20 @@ public partial class Game1
             }
 
             return null;
+        }
+
+        public int GetLocalOwnedSentryCount()
+        {
+            var ownedCount = 0;
+            foreach (var sentry in _game._world.Sentries)
+            {
+                if (sentry.OwnerPlayerId == _game.GetPlayerStateKey(_game._world.LocalPlayer))
+                {
+                    ownedCount += 1;
+                }
+            }
+
+            return ownedCount;
         }
     }
 }

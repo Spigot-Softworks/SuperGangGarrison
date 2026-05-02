@@ -124,6 +124,7 @@ public partial class Game1
             _game.ObserveLastToDieBotReactionState();
             _game.ObserveLastToDieCombatFeedbackState();
             _game._lastToDieRun.ObservedStageKills = 0;
+            _game._lastToDieRun.ObservedStageHealingReceived = 0;
 
             _game._lastToDieRun.StageRemainingTicks = _game._lastToDieRun.StageDurationMinutes * 60 * _game._config.TicksPerSecond;
             _game._lastToDieRun.StageIntroTicksRemaining = _game.GetLastToDieStageIntroDurationTicks();

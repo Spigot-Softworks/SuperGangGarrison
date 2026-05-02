@@ -115,8 +115,6 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after clientpluginhud");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
-        DrawMLBotCaptureOverlay();
-        WriteGameplayRenderTrace("hud after mlbotcapture");
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }
 

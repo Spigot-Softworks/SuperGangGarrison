@@ -52,7 +52,7 @@ public partial class Game1
                 var forwardY = MathF.Sin(rocket.DirectionRadians);
                 var rightX = -forwardY;
                 var rightY = forwardX;
-                var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
+                var rocketScale = rocket.ExperimentalVisualScale;
                 var tailDistance = 5f * rocketScale;
                 var rocketRenderPosition = _game.GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
                 var anchorX = rocketRenderPosition.X;

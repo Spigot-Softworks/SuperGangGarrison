@@ -31,10 +31,13 @@ public sealed class JumpPadEntity : SimulationEntity
 
     public int Health { get; private set; }
 
+    public int LifetimeTicks { get; private set; }
+
     public bool IsDead => Health <= 0;
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
+        LifetimeTicks += 1;
         if (!HasLanded)
         {
             VerticalSpeed = float.Min(MaxFallSpeed, VerticalSpeed + GravityPerTick);

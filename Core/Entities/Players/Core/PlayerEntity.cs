@@ -133,12 +133,12 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int Health { get; private set; }
 
-    public int MaxHealth => ClassDefinition.MaxHealth;
+    public int MaxHealth => ClassDefinition.MaxHealth + ExperimentalMaxHealthBonusValue;
 
     public float Metal { get; private set; } = 100f;
 
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Kept as an instance property to preserve the public player API.")]
-    public float MaxMetal => 100f;
+    public float MaxMetal => ExperimentalMetalCapacityValue;
 
     public bool IsCarryingIntel { get; private set; }
 
@@ -158,7 +158,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public float AimDirectionDegrees { get; private set; }
 
-    public PrimaryWeaponDefinition PrimaryWeapon => ClassDefinition.PrimaryWeapon;
+    public PrimaryWeaponDefinition PrimaryWeapon => ExperimentalPrimaryWeaponOverride ?? ClassDefinition.PrimaryWeapon;
 
     public int CurrentShells { get; private set; }
 
@@ -374,6 +374,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int HealPoints { get; private set; }
 
+    public int HealingReceived { get; private set; }
+
     public int CurrentCombo { get; private set; }
 
     public int HighestCombo { get; private set; }
@@ -409,6 +411,12 @@ public sealed partial class PlayerEntity : SimulationEntity
     internal int SecondToLastDamageDealerAssistTicksRemaining { get; private set; }
 
     private bool SpyBackstabHitboxPending { get; set; }
+
+    private PrimaryWeaponDefinition? ExperimentalPrimaryWeaponOverride { get; set; }
+
+    private int ExperimentalMaxHealthBonusValue { get; set; }
+
+    private float ExperimentalHealthPackHealingMultiplierValue { get; set; } = 1f;
 
     private int PyroPrimaryFuelScaledValue { get; set; }
 

@@ -15,7 +15,10 @@ public sealed class ShotProjectileEntity : SimulationEntity
         float velocityX,
         float velocityY,
         float damagePerHit = DamagePerHit,
-        string? killFeedWeaponSpriteNameOverride = null) : base(id)
+        bool forceGibOnKill = false,
+        string? killFeedWeaponSpriteNameOverride = null,
+        int? sourceSentryId = null,
+        bool applyExperimentalEngineerSentryPerkEffects = false) : base(id)
     {
         Team = team;
         OwnerId = ownerId;
@@ -24,7 +27,10 @@ public sealed class ShotProjectileEntity : SimulationEntity
         VelocityX = velocityX;
         VelocityY = velocityY;
         DamageValue = damagePerHit;
+        ForceGibOnKill = forceGibOnKill;
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
+        SourceSentryId = sourceSentryId;
+        ApplyExperimentalEngineerSentryPerkEffects = applyExperimentalEngineerSentryPerkEffects;
         TicksRemaining = LifetimeTicks;
     }
 
@@ -46,7 +52,13 @@ public sealed class ShotProjectileEntity : SimulationEntity
 
     public float DamageValue { get; private set; }
 
+    public bool ForceGibOnKill { get; }
+
     public string? KillFeedWeaponSpriteNameOverride { get; }
+
+    public int? SourceSentryId { get; }
+
+    public bool ApplyExperimentalEngineerSentryPerkEffects { get; }
 
     public int TicksRemaining { get; private set; }
 

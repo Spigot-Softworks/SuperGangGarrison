@@ -148,6 +148,7 @@ public sealed partial class SimulationWorld
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
         SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
+        SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
 

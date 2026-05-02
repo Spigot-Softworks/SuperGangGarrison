@@ -528,6 +528,11 @@ public partial class Game1
             return CharacterClassCatalog.ExperimentalDemoknightEyelander;
         }
 
+        if (ShouldPresentExperimentalEngineerEssenceExtractor(player))
+        {
+            return CharacterClassCatalog.Medigun;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeapon ?? player.PrimaryWeapon;
@@ -540,6 +545,11 @@ public partial class Game1
 
     private static PlayerClass GetRenderWeaponPresentationClassId(PlayerEntity player)
     {
+        if (ShouldPresentExperimentalEngineerEssenceExtractor(player))
+        {
+            return PlayerClass.Medic;
+        }
+
         if (ShouldPresentAcquiredWeapon(player))
         {
             return player.AcquiredWeaponClassId ?? player.ClassId;
@@ -553,6 +563,20 @@ public partial class Game1
     private static bool ShouldPresentAcquiredWeapon(PlayerEntity player)
     {
         return player.IsAcquiredWeaponPresented;
+    }
+
+    private static bool ShouldPresentExperimentalEngineerEssenceExtractor(PlayerEntity player)
+    {
+        return player.ClassId == PlayerClass.Engineer
+            && (player.IsExperimentalEngineerEssenceExtractorPresented
+                || player.IsExperimentalEngineerFreezeRayPresented);
+    }
+
+    private static bool IsMedigunPresentationUser(PlayerEntity player)
+    {
+        return ShouldPresentExperimentalEngineerEssenceExtractor(player)
+            || (player.ClassId == PlayerClass.Medic && player.PrimaryWeapon.Kind == PrimaryWeaponKind.Medigun)
+            || (ShouldPresentAcquiredWeapon(player) && player.AcquiredWeaponClassId == PlayerClass.Medic);
     }
 
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)

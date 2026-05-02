@@ -27,12 +27,14 @@ public partial class Game1
 
     private void AdvancePredictedEngineerState(PlayerEntity player)
     {
-        if (player.ClassId != PlayerClass.Engineer || _predictedLocalActionState.Metal >= player.MaxMetal)
+        var maxMetal = player.MaxMetal;
+        _predictedLocalActionState.Metal = float.Min(_predictedLocalActionState.Metal, maxMetal);
+        if (player.ClassId != PlayerClass.Engineer || _predictedLocalActionState.Metal >= maxMetal)
         {
             return;
         }
 
-        _predictedLocalActionState.Metal = float.Min(player.MaxMetal, _predictedLocalActionState.Metal + 0.1f);
+        _predictedLocalActionState.Metal = float.Min(maxMetal, _predictedLocalActionState.Metal + player.PassiveMetalRegenerationPerTick);
     }
 
     private void AdvancePredictedWeaponState(PlayerEntity player)

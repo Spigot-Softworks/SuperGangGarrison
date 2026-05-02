@@ -2,8 +2,6 @@
 
 using OpenGarrison.BotAI;
 using OpenGarrison.Core;
-using OpenGarrison.MLBot;
-using OpenGarrison.MLBot.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -666,13 +664,8 @@ public partial class Game1
         ResetPracticeBotControllerState();
     }
 
-    private (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
+    private static (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
     {
-        if (MLBotModeResolver.Resolve() is MLBotControllerMode.ML or MLBotControllerMode.Capture)
-        {
-            return ("ML", new MLPracticeBotController());
-        }
-
         var botController = Environment.GetEnvironmentVariable("OG_BOT_CONTROLLER");
         if (string.Equals(botController, "motion_proof", StringComparison.OrdinalIgnoreCase)
             || string.Equals(botController, "MotionProof", StringComparison.OrdinalIgnoreCase))
@@ -693,8 +686,8 @@ public partial class Game1
             return (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
         }
 
-        return _clientSettings.BotMode == OfflineBotControllerMode.ModernGraphRoute
-            ? (nameof(OfflineBotControllerMode.ModernGraphRoute), new ModernPracticeBotController())
-            : (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
+        return ("AdaptiveMapPolicy", new AdaptiveMapPracticeBotController(
+            new MotionProofPracticeBotController(),
+            new ModernPracticeBotController()));
     }
 }

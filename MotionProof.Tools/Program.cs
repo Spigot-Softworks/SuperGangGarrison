@@ -2821,6 +2821,11 @@ internal static class MotionProofRunner
             SetPrivateInstanceProperty(bot, nameof(PlayerEntity.RemainingAirJumps), bot.MaxAirJumps);
         }
 
+        if (options.StartCarryingIntel && !bot.IsCarryingIntel)
+        {
+            bot.PickUpIntel(0f);
+        }
+
         failureReason = string.Empty;
         return world;
     }
@@ -3935,7 +3940,7 @@ internal static class MotionProofRunner
 internal sealed class MotionProofOptions
 {
     public const string Usage =
-        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y]";
+        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel]]";
 
     public string MapName { get; private set; } = "Truefort";
     public int MapAreaIndex { get; private set; } = 1;
@@ -3959,6 +3964,7 @@ internal sealed class MotionProofOptions
     public float GraphAttachRadius { get; private set; } = 192f;
     public float? StartX { get; private set; }
     public float? StartBottom { get; private set; }
+    public bool StartCarryingIntel { get; private set; }
     public int SmokeTrials { get; private set; } = 1;
     public int SmokeSeed { get; private set; } = 1337;
     public int SmokeCombatTicks { get; private set; } = 420;
@@ -4140,6 +4146,12 @@ internal sealed class MotionProofOptions
             if (arg.Equals("--start-bottom", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
             {
                 options.StartBottom = float.Parse(args[++index], CultureInfo.InvariantCulture);
+                continue;
+            }
+
+            if (arg.Equals("--start-carrying-intel", StringComparison.OrdinalIgnoreCase))
+            {
+                options.StartCarryingIntel = true;
                 continue;
             }
 

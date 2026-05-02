@@ -295,6 +295,8 @@ public partial class Game1
             _game._menuTextBoxMiddleTexture?.Dispose();
             _game._menuTextBoxBottomTexture?.Dispose();
             _game._menuTextBoxSoloTexture?.Dispose();
+            _game._lastToDieMenuPlaqueTexture?.Dispose();
+            _game._lastToDieMenuTextBoxSoloTexture?.Dispose();
             _game._gameplayLoadoutClassStripTexture?.Dispose();
             _game._gameplayLoadoutClassSelectionTexture?.Dispose();
             _game._gameplayLoadoutBackgroundBarTexture?.Dispose();
@@ -327,6 +329,8 @@ public partial class Game1
             _game._menuTextBoxMiddleTexture = null;
             _game._menuTextBoxBottomTexture = null;
             _game._menuTextBoxSoloTexture = null;
+            _game._lastToDieMenuPlaqueTexture = null;
+            _game._lastToDieMenuTextBoxSoloTexture = null;
             _game._gameplayLoadoutClassStripTexture = null;
             _game._gameplayLoadoutClassSelectionTexture = null;
             _game._gameplayLoadoutBackgroundBarTexture = null;

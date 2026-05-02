@@ -20,6 +20,11 @@ public partial class Game1
             return 0.42f * bodyVisibilityScale;
         }
 
+        if (_world.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(player))
+        {
+            return 0.72f * bodyVisibilityScale;
+        }
+
         if (!GetPlayerIsSpyCloaked(player))
         {
             return bodyVisibilityScale;

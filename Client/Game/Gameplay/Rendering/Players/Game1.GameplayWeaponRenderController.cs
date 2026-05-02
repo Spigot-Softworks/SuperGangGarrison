@@ -191,12 +191,13 @@ public partial class Game1
 
             if (weaponAnimationMode == WeaponAnimationMode.Idle)
             {
-                if (player.ClassId == PlayerClass.Medic && player.IsMedicHealing && frameCount >= 4)
+                var useBlueTeamMedigunFrames = ShouldUseBlueTeamMedigunFrames(player);
+                if (IsMedigunPresentationUser(player) && player.IsMedicHealing && frameCount >= 4)
                 {
-                    return player.Team == PlayerTeam.Blue ? 3 : 2;
+                    return useBlueTeamMedigunFrames ? 3 : 2;
                 }
 
-                return System.Math.Clamp(player.Team == PlayerTeam.Blue ? 1 : 0, 0, frameCount - 1);
+                return System.Math.Clamp(useBlueTeamMedigunFrames ? 1 : 0, 0, frameCount - 1);
             }
 
             if (!_game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var renderState))
@@ -210,7 +211,7 @@ public partial class Game1
             var animationFrame = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.LoopRecoilWhileActive
                 ? System.Math.Clamp((int)System.MathF.Floor(WrapAnimationImage(animationPosition, perTeamFrames)), 0, perTeamFrames - 1)
                 : System.Math.Clamp((int)System.MathF.Floor(animationPosition), 0, perTeamFrames - 1);
-            var teamOffset = player.Team == PlayerTeam.Blue ? perTeamFrames : 0;
+            var teamOffset = ShouldUseBlueTeamMedigunFrames(player) ? perTeamFrames : 0;
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
         }
 
@@ -246,6 +247,11 @@ public partial class Game1
             if (player.IsExperimentalDemoknightEnabled)
             {
                 return StockGameplayModCatalog.GetExperimentalDemoknightEyelanderItem().Presentation;
+            }
+
+            if (ShouldPresentExperimentalEngineerEssenceExtractor(player))
+            {
+                return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(PlayerClass.Medic).Presentation;
             }
 
             var equippedItemId = player.GameplayLoadoutState.EquippedItemId;
@@ -310,7 +316,12 @@ public partial class Game1
                 return 0;
             }
 
-            return Math.Clamp(player.Team == PlayerTeam.Blue ? 1 : 0, 0, frameCount - 1);
+            return Math.Clamp(ShouldUseBlueTeamMedigunFrames(player) ? 1 : 0, 0, frameCount - 1);
+        }
+
+        private static bool ShouldUseBlueTeamMedigunFrames(PlayerEntity player)
+        {
+            return player.IsExperimentalEngineerFreezeRayPresented || player.Team == PlayerTeam.Blue;
         }
     }
 }

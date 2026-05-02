@@ -23,9 +23,10 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
+                var healAmount = healthPack.GetHealAmount(player) * player.ExperimentalHealthPackHealingMultiplier;
                 if (ApplyHealingWithFeedback(
                         player,
-                        healthPack.GetHealAmount(player),
+                        healAmount,
                         soundName: "CbntHealSnd",
                         soundX: player.X,
                         soundY: player.Y) <= 0)
