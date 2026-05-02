@@ -540,7 +540,7 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowExperimentalSoldierFallback: false));
+            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
             player.SetAcquiredWeapon(null);
             return;
         }
@@ -583,7 +583,8 @@ public sealed partial class SimulationWorld
         }
         player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(
             player,
-            allowExperimentalSoldierFallback: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon));
+            allowSoldierShotgun: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
+            allowSoldierShotgunLtd: ExperimentalGameplaySettings.EnableSoldierShotgunLtdPerk));
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
             || player.ClassId != PlayerClass.Soldier)
         {
@@ -593,7 +594,8 @@ public sealed partial class SimulationWorld
 
     private static PrimaryWeaponDefinition? ResolveGameplaySecondaryWeapon(
         PlayerEntity player,
-        bool allowExperimentalSoldierFallback)
+        bool allowSoldierShotgun,
+        bool allowSoldierShotgunLtd)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
@@ -606,7 +608,12 @@ public sealed partial class SimulationWorld
             }
         }
 
-        return allowExperimentalSoldierFallback && player.ClassId == PlayerClass.Soldier
+        if (allowSoldierShotgunLtd && player.ClassId == PlayerClass.Soldier)
+        {
+            return CharacterClassCatalog.SoldierShotgunLtd;
+        }
+
+        return allowSoldierShotgun && player.ClassId == PlayerClass.Soldier
             ? CharacterClassCatalog.SoldierShotgun
             : null;
     }

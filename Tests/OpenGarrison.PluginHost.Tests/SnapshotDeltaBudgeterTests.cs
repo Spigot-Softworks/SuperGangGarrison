@@ -416,6 +416,97 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildBudgetedSnapshotForcesAllLocalPlayerUpdates()
+    {
+        var localPlayer = CreatePlayerState(1, 861, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var correctedLocalPlayer = localPlayer with
+        {
+            X = localPlayer.X + 10f,
+            Health = (short)Math.Max(1, localPlayer.Health - 5),
+        };
+        var baseline = CreateSnapshot(860) with
+        {
+            Players = [localPlayer],
+        };
+        var current = CreateSnapshot(861) with
+        {
+            Players = [correctedLocalPlayer],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 1800,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(correctedLocalPlayer)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+            new(
+                Priority: 950,
+                DistanceSquared: 0f,
+                EstimatedBytes: 180,
+                Apply: builder => builder.Players.Add(correctedLocalPlayer),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Contains(result.Message.PlayerMovementStates, player => player.Slot == localPlayer.Slot);
+        Assert.Contains(result.Message.Players, player => player.Slot == localPlayer.Slot);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == localPlayer.Slot);
+        Assert.Equal(correctedLocalPlayer.Health, mergedLocalPlayer.Health);
+    }
+
+    [Fact]
+    public void BuildContributionsKeepsLocalHealthUpdateUnderBudgetPressure()
+    {
+        var localPlayer = CreatePlayerState(1, 871, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var remoteBot = CreatePlayerState(2, 872, "Remote Bot");
+        var baseline = CreateSnapshot(870) with
+        {
+            Players = [localPlayer, remoteBot],
+        };
+        var current = CreateSnapshot(871) with
+        {
+            Players =
+            [
+                localPlayer with { Health = (short)75 },
+                remoteBot with { X = remoteBot.X + 24f },
+            ],
+            SoundEvents = Enumerable.Range(0, 80)
+                .Select(index => new SnapshotSoundEvent(
+                    $"pressure-sound-{index:D3}",
+                    X: index,
+                    Y: index,
+                    EventId: (ulong)index,
+                    SourceFrame: 871))
+                .ToArray(),
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 900);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 900);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Equal(75, mergedLocalPlayer.Health);
+    }
+
+    [Fact]
     public void BuildBudgetedFirstSnapshotKeepsPlayableLocalPlayerWithinUdpBudget()
     {
         var currentPlayers = Enumerable.Range(0, 20)
@@ -681,6 +772,9 @@ public sealed class SnapshotDeltaBudgeterTests
             player.RemainingAirJumps,
             player.FacingDirectionX,
             player.AimDirectionDegrees,
-            player.MovementState);
+            player.MovementState,
+            player.IsTaunting,
+            player.TauntFrameIndex,
+            player.BurnIntensity);
     }
 }

@@ -430,6 +430,9 @@ public static partial class ProtocolCodec
             writer.Write(state.FacingDirectionX);
             writer.Write(state.AimDirectionDegrees);
             writer.Write(state.MovementState);
+            writer.Write(state.IsTaunting);
+            writer.Write(state.TauntFrameIndex);
+            writer.Write(state.BurnIntensity);
         }
     }
 
@@ -449,7 +452,10 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadByte()));
+                reader.ReadByte(),
+                reader.ReadBoolean(),
+                reader.ReadSingle(),
+                reader.ReadSingle()));
         }
 
         return states;

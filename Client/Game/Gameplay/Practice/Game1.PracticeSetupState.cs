@@ -26,6 +26,7 @@ public partial class Game1
         public int RespawnSeconds { get; set; } = 5;
         public int EnemyBotCount { get; set; }
         public int FriendlyBotCount { get; set; }
+        public bool SpecialAbilitiesEnabled { get; set; } = true;
 
         public void Normalize()
         {
@@ -287,5 +288,17 @@ public partial class Game1
     private static string GetPracticeBotCountLabel(int count)
     {
         return count <= 0 ? "Off" : count.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private bool _practiceSpecialAbilitiesEnabled
+    {
+        get => _practiceSetupState.SpecialAbilitiesEnabled;
+        set => _practiceSetupState.SpecialAbilitiesEnabled = value;
+    }
+
+    private void TogglePracticeSpecialAbilities()
+    {
+        _practiceSetupState.SpecialAbilitiesEnabled = !_practiceSetupState.SpecialAbilitiesEnabled;
+        ApplyPracticeExperimentalGameplaySettings();
     }
 }
