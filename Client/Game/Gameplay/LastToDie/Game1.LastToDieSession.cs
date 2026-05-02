@@ -637,7 +637,7 @@ public partial class Game1
         {
             settings = perk switch
             {
-                LastToDiePerkKind.SoldierShotgun => settings with { EnableSoldierShotgunSecondaryWeapon = true },
+                LastToDiePerkKind.SoldierShotgun => settings with { EnableSoldierShotgunLtdPerk = true },
                 LastToDiePerkKind.HealOnDamage => settings with { EnableHealOnDamage = true },
                 LastToDiePerkKind.HealOnKill => settings with { EnableHealOnKill = true, HealOnKillAmount = 75 },
                 LastToDiePerkKind.RateOfFireOnDamage => settings with { EnableRateOfFireMultiplierOnDamage = true },

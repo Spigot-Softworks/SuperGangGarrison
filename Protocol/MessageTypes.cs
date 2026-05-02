@@ -302,7 +302,10 @@ public sealed record SnapshotPlayerMovementState(
     int RemainingAirJumps,
     float FacingDirectionX,
     float AimDirectionDegrees,
-    byte MovementState);
+    byte MovementState,
+    bool IsTaunting,
+    float TauntFrameIndex,
+    float BurnIntensity);
 
 public sealed record SnapshotIntelState(
     byte Team,

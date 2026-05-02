@@ -166,6 +166,7 @@ public partial class Game1
     {
         for (var tick = 0; tick < ticks; tick += 1)
         {
+            AdvancePredictedAfterburnVisuals();
             AdvanceChatHud();
             UpdateNoticeState();
             AdvanceExplosionVisuals();
@@ -191,6 +192,30 @@ public partial class Game1
 
             AdvanceBackstabVisuals();
         }
+    }
+
+    private void AdvancePredictedAfterburnVisuals()
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return;
+        }
+
+        AdvancePredictedAfterburnVisual(_world.LocalPlayer);
+        for (var index = 0; index < _world.RemoteSnapshotPlayers.Count; index += 1)
+        {
+            AdvancePredictedAfterburnVisual(_world.RemoteSnapshotPlayers[index]);
+        }
+    }
+
+    private static void AdvancePredictedAfterburnVisual(PlayerEntity player)
+    {
+        if (!player.IsAlive || !player.IsBurning)
+        {
+            return;
+        }
+
+        player.AdvanceAfterburnVisual((float)ClientUpdateStepSeconds);
     }
 
     private void AdvanceGameplayGoreEffects()

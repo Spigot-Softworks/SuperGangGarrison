@@ -83,7 +83,7 @@ internal static class SnapshotDeltaBudgeter
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.PlayerRemoval,
             ref remainingBudget);
-        ApplyRequiredRosterContribution(
+        ApplyRequiredContributions(
             builder,
             orderedContributions,
             appliedContributions,
@@ -281,8 +281,6 @@ internal static class SnapshotDeltaBudgeter
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
-            IsTaunting = false,
-            TauntFrameIndex = 0f,
         };
     }
 
@@ -304,8 +302,6 @@ internal static class SnapshotDeltaBudgeter
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
-            IsTaunting = false,
-            TauntFrameIndex = 0f,
             Points = 0f,
             HealPoints = 0,
             ActiveDominationCount = 0,

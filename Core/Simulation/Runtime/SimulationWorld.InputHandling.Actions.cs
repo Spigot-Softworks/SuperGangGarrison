@@ -429,7 +429,7 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
     }
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
