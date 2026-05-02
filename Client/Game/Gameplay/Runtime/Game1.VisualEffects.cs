@@ -25,7 +25,35 @@ public partial class Game1
     private readonly List<PendingWeaponShellVisual> _pendingWeaponShellVisuals = new();
     private readonly List<ShellVisual> _shellVisuals = new();
     private readonly List<RocketSmokeVisual> _rocketSmokeVisuals = new();
+    private readonly Dictionary<int, FrozenSpyFrameState> _lastVisibleEnemySpyFrameStates = new();
+    private readonly List<FrozenSpyVisual> _frozenSpyVisuals = new();
     private float _medigunBeamHelixPhase;
+
+    private readonly record struct FrozenSpyFrameState(
+        string SpriteName,
+        int FrameIndex,
+        Vector2 RenderPosition,
+        Vector2 Scale,
+        Vector2 Origin,
+        float BodyYOffset,
+        Color Tint,
+        bool DrawIntelOverlay);
+
+    private sealed class FrozenSpyVisual
+    {
+        public FrozenSpyVisual(int playerId, FrozenSpyFrameState frameState, int lifetimeTicks)
+        {
+            PlayerId = playerId;
+            FrameState = frameState;
+            TicksRemaining = lifetimeTicks;
+            LifetimeTicks = lifetimeTicks;
+        }
+
+        public int PlayerId { get; }
+        public FrozenSpyFrameState FrameState { get; }
+        public int TicksRemaining { get; set; }
+        public int LifetimeTicks { get; }
+    }
 
     private void AdvanceMedigunBeamHelixPhase()
     {
@@ -60,6 +88,8 @@ public partial class Game1
         _flameSmokeSecondaryVisuals.Clear();
         _pendingNetworkVisualEvents.Clear();
         _pendingNetworkDamageEvents.Clear();
+        _frozenSpyVisuals.Clear();
+        _lastVisibleEnemySpyFrameStates.Clear();
     }
 
     private bool TryCreateExplosionVisual(WorldSoundEvent soundEvent, out ExplosionVisual? explosion)
@@ -80,6 +110,18 @@ public partial class Game1
     private void AdvanceLooseSheetVisuals()
     {
         _gameplayMaterialEffectsController.AdvanceLooseSheetVisuals();
+    }
+
+    private void AdvanceFrozenSpyVisuals()
+    {
+        for (var index = _frozenSpyVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            _frozenSpyVisuals[index].TicksRemaining -= 1;
+            if (_frozenSpyVisuals[index].TicksRemaining <= 0)
+            {
+                _frozenSpyVisuals.RemoveAt(index);
+            }
+        }
     }
 
     private void AdvanceBloodVisuals()
@@ -130,6 +172,33 @@ public partial class Game1
     private void DrawBlastJumpFlameVisuals(Vector2 cameraPosition)
     {
         _gameplaySmokeEffectsController.DrawBlastJumpFlameVisuals(cameraPosition);
+    }
+
+    private void DrawFrozenSpyVisuals(Vector2 cameraPosition)
+    {
+        for (var index = 0; index < _frozenSpyVisuals.Count; index += 1)
+        {
+            var frozenVisual = _frozenSpyVisuals[index];
+            var alpha = frozenVisual.TicksRemaining / (float)frozenVisual.LifetimeTicks;
+            var frameState = frozenVisual.FrameState;
+            var sprite = GetResolvedSprite(frameState.SpriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                continue;
+            }
+
+            var finalTint = frameState.Tint * alpha;
+            var position = new Vector2(
+                MathF.Round(frameState.RenderPosition.X) - cameraPosition.X,
+                MathF.Round(frameState.RenderPosition.Y + frameState.BodyYOffset) - cameraPosition.Y);
+            DrawSpriteFrameWithOptionalShadow(
+                sprite.Frames[frameState.FrameIndex],
+                position,
+                finalTint,
+                0f,
+                frameState.Origin,
+                frameState.Scale);
+        }
     }
 
     private void DrawRocketSmokeVisuals(Vector2 cameraPosition)
@@ -210,6 +279,55 @@ public partial class Game1
     private void SpawnLooseSheetVisual(float x, float y, float initialHorizontalSpeed)
     {
         _gameplayMaterialEffectsController.SpawnLooseSheetVisual(x, y, initialHorizontalSpeed);
+    }
+
+    private void RecordLastVisibleEnemySpyFrame(
+        PlayerEntity player,
+        string spriteName,
+        int frameIndex,
+        Vector2 renderPosition,
+        Vector2 origin,
+        Vector2 scale,
+        float bodyYOffset,
+        Color tint,
+        bool drawIntelOverlay)
+    {
+        _lastVisibleEnemySpyFrameStates[player.Id] = new FrozenSpyFrameState(
+            spriteName,
+            frameIndex,
+            renderPosition,
+            scale,
+            origin,
+            bodyYOffset,
+            tint,
+            drawIntelOverlay);
+    }
+
+    private void SpawnFrozenSpyVisual(int playerId)
+    {
+        if (!_lastVisibleEnemySpyFrameStates.TryGetValue(playerId, out var frameState))
+        {
+            return;
+        }
+
+        _frozenSpyVisuals.Add(new FrozenSpyVisual(playerId, frameState, lifetimeTicks: 30));
+    }
+
+    private void RemoveFrozenSpyVisualsForPlayer(int playerId)
+    {
+        for (var index = _frozenSpyVisuals.Count - 1; index >= 0; index -= 1)
+        {
+            if (_frozenSpyVisuals[index].PlayerId == playerId)
+            {
+                _frozenSpyVisuals.RemoveAt(index);
+            }
+        }
+    }
+
+    private void ResetFrozenSpyStateForPlayer(int playerId)
+    {
+        _lastVisibleEnemySpyFrameStates.Remove(playerId);
+        RemoveFrozenSpyVisualsForPlayer(playerId);
     }
 
     private void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)

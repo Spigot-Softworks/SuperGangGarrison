@@ -34,6 +34,7 @@ sealed class ServerLaunchOptions
     public int MaxSpectatorClients { get; private init; }
     public bool AutoBalanceEnabled { get; private init; }
     public bool SecondaryAbilitiesEnabled { get; private init; }
+    public bool RandomSpreadEnabled { get; private init; }
     public int? TimeLimitMinutesOverride { get; private init; }
     public int? CapLimitOverride { get; private init; }
     public int? RespawnSecondsOverride { get; private init; }
@@ -94,6 +95,7 @@ sealed class ServerLaunchOptions
         int? respawnSecondsOverride = settings.RespawnSeconds >= 0 ? Math.Clamp(settings.RespawnSeconds, 0, 255) : null;
         var autoBalanceEnabled = settings.AutoBalanceEnabled;
         var secondaryAbilitiesEnabled = settings.SecondaryAbilitiesEnabled;
+        var randomSpreadEnabled = settings.RandomSpreadEnabled;
         var webSocketPort = port;
         var webSocketPortExplicitlySet = false;
         string? webSocketCertificatePath = null;
@@ -260,6 +262,20 @@ sealed class ServerLaunchOptions
                 continue;
             }
 
+            if (string.Equals(arg, "--random-spread", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--randomspread", StringComparison.OrdinalIgnoreCase))
+            {
+                randomSpreadEnabled = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--no-random-spread", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--no-randomspread", StringComparison.OrdinalIgnoreCase))
+            {
+                randomSpreadEnabled = false;
+                continue;
+            }
+
             if (string.Equals(arg, "--lobby", StringComparison.OrdinalIgnoreCase))
             {
                 useLobbyServer = true;
@@ -405,6 +421,7 @@ sealed class ServerLaunchOptions
             MaxSpectatorClients = maxSpectatorClients,
             AutoBalanceEnabled = autoBalanceEnabled,
             SecondaryAbilitiesEnabled = secondaryAbilitiesEnabled,
+            RandomSpreadEnabled = randomSpreadEnabled,
             TimeLimitMinutesOverride = timeLimitMinutesOverride,
             CapLimitOverride = capLimitOverride,
             RespawnSecondsOverride = respawnSecondsOverride,

@@ -35,9 +35,27 @@ public partial class Game1
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
         var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();
-        DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
-        DrawMedicBeams(cameraPosition);
-        DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamPlayerIds);
+        var medicBeamTargetIds = GetActiveMedicBeamTargetIds();
+        var medicBeamMedicIds = GetActiveMedicBeamMedicIds();
+        var localPlayerInActiveMedicBeam = IsLocalPlayerInActiveMedicBeam();
+
+        if (localPlayerInActiveMedicBeam)
+        {
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
+            DrawMedicBeams(cameraPosition);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+            DrawLocalPlayer(cameraPosition, playerRectangle);
+        }
+        else
+        {
+            DrawMedicBeams(cameraPosition);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+            DrawLocalPlayer(cameraPosition, playerRectangle);
+        }
+        DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
@@ -298,6 +316,64 @@ public partial class Game1
         return ids;
     }
 
+    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamMedicIds()
+    {
+        var ids = new System.Collections.Generic.HashSet<int>();
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (player.ClassId == PlayerClass.Medic
+                && player.IsMedicHealing
+                && player.MedicHealTargetId.HasValue)
+            {
+                ids.Add(player.Id);
+            }
+        }
+        return ids;
+    }
+
+    private System.Collections.Generic.HashSet<int> GetActiveMedicBeamTargetIds()
+    {
+        var ids = new System.Collections.Generic.HashSet<int>();
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (player.ClassId == PlayerClass.Medic
+                && player.IsMedicHealing
+                && player.MedicHealTargetId.HasValue)
+            {
+                var target = FindPlayerById(player.MedicHealTargetId.Value);
+                if (target is not null && target.IsAlive)
+                    ids.Add(target.Id);
+            }
+        }
+        return ids;
+    }
+
+    private bool IsLocalPlayerInActiveMedicBeam()
+    {
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer.ClassId == PlayerClass.Medic && localPlayer.IsMedicHealing && localPlayer.MedicHealTargetId.HasValue)
+        {
+            return true;
+        }
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (player.ClassId != PlayerClass.Medic
+                || !player.IsMedicHealing
+                || !player.MedicHealTargetId.HasValue)
+            {
+                continue;
+            }
+
+            if (player.MedicHealTargetId.Value == localPlayer.Id)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void DrawGameplayPlayers(
         Vector2 cameraPosition,
         Rectangle playerRectangle,
@@ -309,12 +385,7 @@ public partial class Game1
             var playerId = renderPlayer.Id;
             if (skipPlayerIds is not null && skipPlayerIds.Contains(playerId)) continue;
             if (onlyPlayerIds is not null && !onlyPlayerIds.Contains(playerId)) continue;
-
-            if (ReferenceEquals(renderPlayer, _world.LocalPlayer))
-            {
-                DrawLocalPlayer(cameraPosition, playerRectangle);
-                continue;
-            }
+            if (ReferenceEquals(renderPlayer, _world.LocalPlayer)) continue;
 
             var aliveColor = renderPlayer.Team == PlayerTeam.Blue
                 ? new Color(80, 150, 240)
@@ -348,6 +419,7 @@ public partial class Game1
         var renderPosition = GetRenderPosition(_world.LocalPlayer, allowInterpolation: false);
         DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+        TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         if (!TryDrawPlayerSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, bodySelection))
         {
             _spriteBatch.Draw(_pixel, playerRectangle, playerFallbackColor * visibilityAlpha);

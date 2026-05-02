@@ -33,6 +33,8 @@ sealed class ServerSettings
 
     public bool SecondaryAbilitiesEnabled { get; set; } = true;
 
+    public bool RandomSpreadEnabled { get; set; } = true;
+
     public int TimeLimitMinutes { get; set; } = 15;
 
     public int CapLimit { get; set; } = 5;
@@ -116,6 +118,7 @@ sealed class ServerSettings
             MaxSpectatorClients = maxSpectatorClients,
             AutoBalanceEnabled = hostDefaults.AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled,
+            RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled,
             TimeLimitMinutes = hostDefaults.TimeLimitMinutes,
             CapLimit = hostDefaults.CapLimit,
             RespawnSeconds = hostDefaults.RespawnSeconds,
@@ -138,6 +141,7 @@ sealed class ServerSettings
         hostDefaults.MapRotationFile = MapRotationFile;
         hostDefaults.AutoBalanceEnabled = AutoBalanceEnabled;
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
+        hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
         hostDefaults.TimeLimitMinutes = TimeLimitMinutes;
         hostDefaults.CapLimit = CapLimit;
         hostDefaults.RespawnSeconds = RespawnSeconds;

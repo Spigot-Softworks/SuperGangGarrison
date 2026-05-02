@@ -60,6 +60,31 @@ public partial class Game1
         DrawBitmapFontText(text, new Vector2(position.X - (width / 2f), position.Y - (height / 2f)), color, scale);
     }
 
+    private void DrawMenuTextCentered(string text, Vector2 position, Color color, float scale)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        if (_menuBitmapFontTexture is not null && _menuBitmapFontGlyphs.Count > 0)
+        {
+            var width = MeasureMenuBitmapFontWidth(text, scale);
+            var height = MeasureMenuBitmapFontHeight(scale);
+            var drawPosition = new Vector2(
+                MathF.Round(position.X - (width / 2f)),
+                MathF.Round(position.Y - (height / 2f)));
+            DrawMenuBitmapFontText(text, drawPosition, color, scale);
+            return;
+        }
+
+        var scaledSize = _menuFont.MeasureString(text) * scale;
+        var fallbackPosition = new Vector2(
+            MathF.Round(position.X - (scaledSize.X / 2f)),
+            MathF.Round(position.Y - (scaledSize.Y / 2f)));
+        _spriteBatch.DrawString(_menuFont, text, fallbackPosition, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    }
+
     private void DrawHudTextLeftAligned(string text, Vector2 position, Color color, float scale)
     {
         DrawBitmapFontText(text, position, color, scale);

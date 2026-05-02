@@ -23,6 +23,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool VSync { get; set; }
 
+    public int FrameRateLimit { get; set; }
+
     public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
@@ -51,7 +53,19 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowUberOutlinesEnabled { get; set; } = true;
+
+    public bool AudioMuted { get; set; }
+
+    public int MenuMusicVolumePercent { get; set; } = 70;
+
+    public int IngameMusicVolumePercent { get; set; } = 70;
+
+    public int SoundEffectsVolumePercent { get; set; } = 70;
+
     public bool ShowPersistentSelfNameEnabled { get; set; }
+
+    public bool PositionSmoothingEnabled { get; set; } = false;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -91,6 +105,7 @@ public sealed class OpenGarrisonPreferencesDocument
             Rewards = ini.GetString(SettingsSection, "Rewards", string.Empty),
             Fullscreen = ini.GetBool(SettingsSection, "Fullscreen", false),
             VSync = ini.GetBool(SettingsSection, "Monitor Sync", false),
+            FrameRateLimit = ini.GetInt(SettingsSection, "Frame Rate Limit", 0),
             IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
             MusicMode = LoadMusicMode(ini),
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.MotionProof.ToString())),
@@ -102,7 +117,13 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealerEnabled = ini.GetBool(SettingsSection, "Show Healer", true),
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
+            ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
+            AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
+            MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
+            IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
+            SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
+            PositionSmoothingEnabled = false,
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
@@ -139,10 +160,16 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);
         ini.SetBool(SettingsSection, "Monitor Sync", VSync);
+        ini.SetInt(SettingsSection, "Frame Rate Limit", FrameRateLimit);
         ini.SetBool(SettingsSection, "Healer Radar", HealerRadarEnabled);
         ini.SetBool(SettingsSection, "Show Healer", ShowHealerEnabled);
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
+        ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
+        ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
+        ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
+        ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
+        ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
@@ -263,6 +290,8 @@ public sealed class OpenGarrisonHostSettings
 
     public bool SecondaryAbilitiesEnabled { get; set; } = true;
 
+    public bool RandomSpreadEnabled { get; set; } = true;
+
     public bool DedicatedModeEnabled { get; set; }
 
     public string MapRotationFile { get; set; } = string.Empty;
@@ -333,6 +362,7 @@ public sealed class OpenGarrisonHostSettings
             LobbyAnnounceEnabled = LobbyAnnounceEnabled,
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
+            RandomSpreadEnabled = RandomSpreadEnabled,
             DedicatedModeEnabled = DedicatedModeEnabled,
             MapRotationFile = MapRotationFile,
             StockMapRotation = StockMapRotation.Select(entry => entry.Clone()).ToList(),

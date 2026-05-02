@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
 
@@ -141,12 +142,19 @@ public partial class Game1
 
         private List<DebugMenuRow> BuildDebugMenuRows()
         {
+            var localPlayer = _game._world.LocalPlayer;
+            var canFillUber = localPlayer.IsAlive && localPlayer.ClassId == PlayerClass.Medic;
+            var fillUberValue = canFillUber
+                ? $"{localPlayer.MedicUberCharge:F0}/{PlayerEntity.MedicUberMaxCharge:F0}"
+                : "Medic only";
+
             var rows = new List<DebugMenuRow>
             {
                 new("Rocket Collisions", _game._debugRocketCollisionsEnabled ? "Enabled" : "Disabled", () =>
                 {
                     _game._debugRocketCollisionsEnabled = !_game._debugRocketCollisionsEnabled;
                 }),
+                new("Fill Ubercharge", fillUberValue, canFillUber ? () => localPlayer.FillMedicUberCharge() : null),
                 new("Back", string.Empty, CloseDebugMenu),
             };
 

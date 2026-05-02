@@ -35,6 +35,7 @@ internal static class ServerRuntimeBootstrapFactory
         int autoBalanceNewPlayerGraceSeconds,
         bool autoBalanceEnabled,
         bool secondaryAbilitiesEnabled,
+        bool randomSpreadEnabled,
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
@@ -64,6 +65,7 @@ internal static class ServerRuntimeBootstrapFactory
         }
 
         var world = new SimulationWorld(config);
+        world.RandomSpreadEnabled = randomSpreadEnabled;
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: secondaryAbilitiesEnabled,
             EnableSoldierShotgunSecondaryWeapon: secondaryAbilitiesEnabled));

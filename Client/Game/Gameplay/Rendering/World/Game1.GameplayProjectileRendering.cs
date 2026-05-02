@@ -273,7 +273,6 @@ public partial class Game1
         if (_particleMode != 1)
         {
             DrawRocketSmokeVisuals(cameraPosition);
-            DrawMineTrailVisuals(cameraPosition);
             DrawWallspinDustVisuals(cameraPosition);
             DrawBlastJumpFlameVisuals(cameraPosition);
             DrawFlameSmokeVisuals(cameraPosition);
@@ -331,6 +330,11 @@ public partial class Game1
         foreach (var rocket in _world.Rockets)
         {
             DrawRocketProjectile(rocket, cameraPosition);
+        }
+
+        if (_particleMode != 1)
+        {
+            DrawMineTrailVisuals(cameraPosition);
         }
 
         foreach (var mine in _world.Mines)
@@ -440,7 +444,8 @@ public partial class Game1
     private void DrawProceduralFlameCells(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         Vector2 cameraPosition,
-        bool topOutlineOnly = false)
+        bool topOutlineOnly = false,
+        bool useFlareColors = false)
     {
         const float cellSize = 2f;
 
@@ -480,16 +485,32 @@ public partial class Game1
                 ? IsTopBoundaryCell(cells, gx, gy)
                 : IsBoundaryCell(cells, gx, gy);
             Color pixelColor;
-            if (hasOutline)
-                pixelColor = new Color(255,  75,   0);  // deep orange outline
-            else if (retainedAlpha < 0.75f)
-                pixelColor = new Color(255,  75,   0);  // deep orange
-            else if (retainedAlpha < 1.30f)
-                pixelColor = new Color(255, 145,   5);  // orange-yellow
-            else if (retainedAlpha < 2.10f)
-                pixelColor = new Color(255, 210,  25);  // yellow
+            if (useFlareColors)
+            {
+                if (hasOutline)
+                    pixelColor = new Color(255,  40,  10);  // deep red outline
+                else if (retainedAlpha < 0.75f)
+                    pixelColor = new Color(255,  90,  55);  // red-orange
+                else if (retainedAlpha < 1.30f)
+                    pixelColor = new Color(255, 130,  90);  // orange-pink
+                else if (retainedAlpha < 2.10f)
+                    pixelColor = new Color(255, 200, 150);  // warm yellow-orange
+                else
+                    pixelColor = new Color(255, 245, 190);  // yellow-white core
+            }
             else
-                pixelColor = new Color(255, 242, 130);  // near-white (overlap core)
+            {
+                if (hasOutline)
+                    pixelColor = new Color(255,  75,   0);  // deep orange outline
+                else if (retainedAlpha < 0.75f)
+                    pixelColor = new Color(255,  75,   0);  // deep orange
+                else if (retainedAlpha < 1.30f)
+                    pixelColor = new Color(255, 145,   5);  // orange-yellow
+                else if (retainedAlpha < 2.10f)
+                    pixelColor = new Color(255, 210,  25);  // yellow
+                else
+                    pixelColor = new Color(255, 242, 130);  // near-white (overlap core)
+            }
 
             var rect = new Rectangle(
                 (int)MathF.Round((gx * cellSize) - cameraPosition.X),
@@ -535,7 +556,8 @@ public partial class Game1
         float alphaScale,
         float motionX = 0f,
         float motionY = 0f,
-        float trajectoryStretch = 1f)
+        float trajectoryStretch = 1f,
+        bool includeHornAccent = false)
     {
         const float cellSize = 2f;
 
@@ -581,34 +603,83 @@ public partial class Game1
             hornPerpendicular.Normalize();
         }
 
-        // Per-flame random: which horn (left=1, right=2) is the big one.
-        var bigOnLeft = GetDeterministicUnitFloat(seed, salt: 151) < 0.5f;
-        var hornBigR   = 5.5f * scale;
-        var hornSmallLargeR = 2.8f * scale;
-        var h1LargeR = bigOnLeft ? hornBigR : hornSmallLargeR;
-        var h2LargeR = bigOnLeft ? hornSmallLargeR : hornBigR;
+        float accentCircleRadius = 0f;
+        float accentCircleCx = 0f;
+        float accentCircleCy = 0f;
+        float h1LargeR = 0f;
+        float h2LargeR = 0f;
+        float h1lCx = 0f;
+        float h1lCy = 0f;
+        float h2lCx = 0f;
+        float h2lCy = 0f;
+        float h3LargeR = 0f;
+        float h3Cx = 0f;
+        float h3Cy = 0f;
 
-        // Horn base circles stay biased upward, but their axis tilts backward against motion.
-        // Perpendicular separation stays asymmetric so the big horn sits more central.
-        var h1SepX  = (bigOnLeft ? 2.5f : 3.5f) * scale;
-        var h2SepX  = (bigOnLeft ? 3.5f : 2.5f) * scale;
-        var hornRiseY = 5f * scale;
-        var hornWaveX = hornPerpendicular.X * hornSway;
-        var hornWaveY = hornPerpendicular.Y * hornSway;
-        var h1lCx = cx + hornAxis.X * hornRiseY - hornPerpendicular.X * h1SepX + hornWaveX;
-        var h1lCy = cy + hornAxis.Y * hornRiseY - hornPerpendicular.Y * h1SepX + hornWaveY;
-        var h2lCx = cx + hornAxis.X * hornRiseY + hornPerpendicular.X * h2SepX + hornWaveX;
-        var h2lCy = cy + hornAxis.Y * hornRiseY + hornPerpendicular.Y * h2SepX + hornWaveY;
+        if (includeHornAccent)
+        {
+            accentCircleRadius = 4.0f * scale;
+            var accentOffset = (baseR * 0.9f) + (accentCircleRadius * 0.35f);
+            accentCircleCx = cx + oppositeMotionDirection.X * accentOffset;
+            accentCircleCy = cy + oppositeMotionDirection.Y * accentOffset;
+        }
+        else
+        {
+            // Per-flame random: which horn (left=1, right=2) is the big one.
+            var bigOnLeft = GetDeterministicUnitFloat(seed, salt: 151) < 0.5f;
+            var hornBigR   = 5.5f * scale;
+            var hornSmallLargeR = 2.8f * scale;
+            h1LargeR = bigOnLeft ? hornBigR : hornSmallLargeR;
+            h2LargeR = bigOnLeft ? hornSmallLargeR : hornBigR;
+
+            // Horn base circles stay biased upward, but their axis tilts backward against motion.
+            // Perpendicular separation stays asymmetric so the big horn sits more central.
+            var h1SepX  = (bigOnLeft ? 2.5f : 3.5f) * scale;
+            var h2SepX  = (bigOnLeft ? 3.5f : 2.5f) * scale;
+            var hornRiseY = 5f * scale;
+            var hornWaveX = hornPerpendicular.X * hornSway;
+            var hornWaveY = hornPerpendicular.Y * hornSway;
+            h1lCx = cx + hornAxis.X * hornRiseY - hornPerpendicular.X * h1SepX + hornWaveX;
+            h1lCy = cy + hornAxis.Y * hornRiseY - hornPerpendicular.Y * h1SepX + hornWaveY;
+            h2lCx = cx + hornAxis.X * hornRiseY + hornPerpendicular.X * h2SepX + hornWaveX;
+            h2lCy = cy + hornAxis.Y * hornRiseY + hornPerpendicular.Y * h2SepX + hornWaveY;
+
+            h3LargeR = 2.6f * scale;
+            h3Cx = cx + hornAxis.X * (hornRiseY + (2.0f * scale));
+            h3Cy = cy + hornAxis.Y * (hornRiseY + (2.0f * scale));
+        }
 
         // noiseRadius: how far outside the hard boundary the edge fuzz extends.
         var noiseRadius = 2f * scale;
 
-        var maxCircleRadius = MathF.Max(baseR, MathF.Max(h1LargeR, h2LargeR));
+        var maxCircleRadius = includeHornAccent
+            ? MathF.Max(baseR, accentCircleRadius)
+            : MathF.Max(baseR, MathF.Max(h1LargeR, h2LargeR));
         var extraStretchRadius = (clampedStretch - 1f) * maxCircleRadius;
-        var minX = MathF.Min(cx - baseR, MathF.Min(h1lCx - h1LargeR, h2lCx - h2LargeR)) - noiseRadius - extraStretchRadius;
-        var maxX = MathF.Max(cx + baseR, MathF.Max(h1lCx + h1LargeR, h2lCx + h2LargeR)) + noiseRadius + extraStretchRadius;
-        var minY = MathF.Min(cy - baseR, MathF.Min(h1lCy - h1LargeR, h2lCy - h2LargeR)) - noiseRadius - extraStretchRadius;
-        var maxY = MathF.Max(cy + baseR, MathF.Max(h1lCy + h1LargeR, h2lCy + h2LargeR)) + noiseRadius + extraStretchRadius;
+        var minX = cx - baseR;
+        var maxX = cx + baseR;
+        var minY = cy - baseR;
+        var maxY = cy + baseR;
+
+        if (includeHornAccent)
+        {
+            minX = MathF.Min(minX, accentCircleCx - accentCircleRadius);
+            maxX = MathF.Max(maxX, accentCircleCx + accentCircleRadius);
+            minY = MathF.Min(minY, accentCircleCy - accentCircleRadius);
+            maxY = MathF.Max(maxY, accentCircleCy + accentCircleRadius);
+        }
+        else
+        {
+            minX = MathF.Min(minX, MathF.Min(h1lCx - h1LargeR, h2lCx - h2LargeR));
+            maxX = MathF.Max(maxX, MathF.Max(h1lCx + h1LargeR, h2lCx + h2LargeR));
+            minY = MathF.Min(minY, MathF.Min(h1lCy - h1LargeR, h2lCy - h2LargeR));
+            maxY = MathF.Max(maxY, MathF.Max(h1lCy + h1LargeR, h2lCy + h2LargeR));
+        }
+
+        minX -= noiseRadius + extraStretchRadius;
+        maxX += noiseRadius + extraStretchRadius;
+        minY -= noiseRadius + extraStretchRadius;
+        maxY += noiseRadius + extraStretchRadius;
 
         var minGX = (int)MathF.Floor(minX / cellSize);
         var maxGX = (int)MathF.Floor(maxX / cellSize);
@@ -649,9 +720,13 @@ public partial class Game1
                 // Minimum signed distance to the compound shape.
                 var sdf = MathF.Min(
                     CircleSDF(cellCX, cellCY, cx,    cy,    baseR, trajectoryDirection, clampedStretch),
-                    MathF.Min(
-                        CircleSDF(cellCX, cellCY, h1lCx, h1lCy, h1LargeR, trajectoryDirection, clampedStretch),
-                            CircleSDF(cellCX, cellCY, h2lCx, h2lCy, h2LargeR, trajectoryDirection, clampedStretch)));
+                    includeHornAccent
+                        ? CircleSDF(cellCX, cellCY, accentCircleCx, accentCircleCy, accentCircleRadius, trajectoryDirection, clampedStretch)
+                        : MathF.Min(
+                            CircleSDF(cellCX, cellCY, h1lCx, h1lCy, h1LargeR, trajectoryDirection, clampedStretch),
+                            MathF.Min(
+                                CircleSDF(cellCX, cellCY, h2lCx, h2lCy, h2LargeR, trajectoryDirection, clampedStretch),
+                                CircleSDF(cellCX, cellCY, h3Cx, h3Cy, h3LargeR, trajectoryDirection, clampedStretch))));
 
                 // Skip cells well outside the fuzz zone.
                 if (sdf > noiseRadius)
@@ -861,6 +936,12 @@ public partial class Game1
 
     private void DrawFlareProjectile(FlareProjectileEntity flare, Vector2 cameraPosition)
     {
+        if (_flameRenderMode == 0)
+        {
+            DrawFlareProjectileAsParticle(flare, cameraPosition);
+            return;
+        }
+
         var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y);
         if (!TryDrawSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, GetVelocityRotation(flare.VelocityX, flare.VelocityY)))
         {
@@ -871,6 +952,46 @@ public partial class Game1
                 4);
             _spriteBatch.Draw(_pixel, flareRectangle, Color.White);
         }
+    }
+
+    private void DrawFlareProjectileAsParticle(FlareProjectileEntity flare, Vector2 cameraPosition)
+    {
+        var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
+        AccumulateFlareParticle(cells, flare);
+        DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: true);
+    }
+
+    private void AccumulateFlareParticle(
+        System.Collections.Generic.Dictionary<(int, int), float> cells,
+        FlareProjectileEntity flare)
+    {
+        var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y);
+        var scale = GetFlareProjectileScale(flare);
+        AccumulateProceduralFlameParticle(
+            cells,
+            flare.Id,
+            renderPosition.X,
+            renderPosition.Y,
+            scale,
+            alphaScale: 1f,
+            motionX: flare.VelocityX,
+            motionY: flare.VelocityY,
+            trajectoryStretch: 1.65f,
+            includeHornAccent: true);
+    }
+
+    private float GetFlareProjectileScale(FlareProjectileEntity flare)
+    {
+        var lifeProgress = Math.Clamp(
+            (FlareProjectileEntity.LifetimeTicks - flare.TicksRemaining) / (float)Math.Max(1, FlareProjectileEntity.LifetimeTicks),
+            0f,
+            1f);
+
+        var randomGrowthRate = MathHelper.Lerp(0.9f, 1.1f, GetDeterministicUnitFloat(flare.Id, salt: 19));
+        var startScale = MathHelper.Lerp(0.78f, 0.92f, GetDeterministicUnitFloat(flare.Id, salt: 23));
+        var maxScale = MathHelper.Lerp(1.00f, 1.16f, GetDeterministicUnitFloat(flare.Id, salt: 29));
+        var growthProgress = MathF.Pow(lifeProgress, randomGrowthRate);
+        return MathHelper.Lerp(startScale, maxScale, growthProgress);
     }
 
     private void DrawRocketProjectile(RocketProjectileEntity rocket, Vector2 cameraPosition)

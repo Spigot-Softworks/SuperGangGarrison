@@ -25,6 +25,9 @@ public partial class Game1
             var cameraPosition = _game.GetCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition);
+            _game._latestLocalAimWorldX = cameraPosition.X + mouse.X;
+            _game._latestLocalAimWorldY = cameraPosition.Y + mouse.Y;
+            _game._hasLatestLocalAimWorldPosition = true;
             _game.SetNavEditorTraversalCaptureInput(gameplayInput);
             _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
             var localGameplayInput = _game.ResolveNavEditorGameplayInput(gameplayInput);

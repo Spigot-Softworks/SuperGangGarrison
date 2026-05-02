@@ -92,6 +92,14 @@ public partial class Game1
         {
             _game._editingConnectHost = editHost;
             _game._editingConnectPort = !editHost;
+            if (editHost)
+            {
+                _game.InitializeConnectHostCursor();
+            }
+            else
+            {
+                _game.InitializeConnectPortCursor();
+            }
         }
 
         public void DisableManualConnectEditing()
@@ -197,6 +205,7 @@ public partial class Game1
         {
             _game._passwordPromptOpen = true;
             _game._passwordEditBuffer = string.Empty;
+            _game.InitializePasswordEditCursor();
             _game._passwordPromptMessage = message;
             _game._consoleOpen = false;
             _game._inGameMenuOpen = false;

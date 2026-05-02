@@ -3,12 +3,24 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly Dictionary<LoadedSpriteFrame, Texture2D> _spriteFrameAlphaMaskCache = new();
+    private static readonly BlendState _multiplyColorBlendState = new()
+    {
+        ColorSourceBlend = Blend.DestinationColor,
+        ColorDestinationBlend = Blend.InverseSourceAlpha,
+        ColorBlendFunction = BlendFunction.Add,
+        AlphaSourceBlend = Blend.Zero,
+        AlphaDestinationBlend = Blend.One,
+        AlphaBlendFunction = BlendFunction.Add,
+    };
+
     private static float RoundToSourcePixel(float value)
     {
         return MathF.Round(value, MidpointRounding.AwayFromZero);
@@ -360,6 +372,166 @@ public partial class Game1
             scale,
             effects,
             0f);
+    }
+
+    private void DrawSpriteFrame(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        _spriteBatch.Draw(
+            frame.Texture,
+            position,
+            frame.SourceRectangle,
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            0f);
+    }
+
+    private void DrawSpriteFrameShadow(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        if (!OperatingSystem.IsBrowser() && _spriteDropShadowEnabled && tint.A > 0)
+        {
+            var shadowAlpha = ((tint.A / 255f) * 0.32f);
+            var shadowTint = new Color(0, 0, 0) * shadowAlpha;
+            _spriteBatch.Draw(
+                frame.Texture,
+                position + new Vector2(1f, 1f),
+                frame.SourceRectangle,
+                shadowTint,
+                rotation,
+                origin,
+                scale,
+                effects,
+                0f);
+        }
+    }
+
+    private void DrawSpriteFrameOutline(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color outlineTint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        var mask = GetSpriteFrameAlphaMask(frame);
+        var outlineOffsets = new[]
+        {
+            new Vector2(0f, -2f),
+            new Vector2(0f, 2f),
+            new Vector2(-2f, 0f),
+            new Vector2(2f, 0f),
+            new Vector2(-2f, -2f),
+            new Vector2(-2f, 2f),
+            new Vector2(2f, -2f),
+            new Vector2(2f, 2f),
+        };
+
+        foreach (var offset in outlineOffsets)
+        {
+            _spriteBatch.Draw(
+                mask,
+                position + offset,
+                null,
+                outlineTint,
+                rotation,
+                origin,
+                scale,
+                effects,
+                0f);
+        }
+    }
+
+    private void DrawSpriteFrameFlatColor(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        var mask = GetSpriteFrameAlphaMask(frame);
+        _spriteBatch.Draw(
+            mask,
+            position,
+            null,
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            0f);
+    }
+
+    private void DrawSpriteFrameMultiplyColor(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        var mask = GetSpriteFrameAlphaMask(frame);
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            _multiplyColorBlendState,
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone);
+        _spriteBatch.Draw(
+            mask,
+            position,
+            null,
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            0f);
+        _spriteBatch.End();
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+    }
+
+    private Texture2D GetSpriteFrameAlphaMask(LoadedSpriteFrame frame)
+    {
+        if (_spriteFrameAlphaMaskCache.TryGetValue(frame, out var cachedMask))
+        {
+            return cachedMask;
+        }
+
+        var sourceRectangle = frame.SourceRectangle ?? new Rectangle(0, 0, frame.Texture.Width, frame.Texture.Height);
+        var mask = new Texture2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height);
+        var pixels = new Color[sourceRectangle.Width * sourceRectangle.Height];
+        frame.Texture.GetData(0, sourceRectangle, pixels, 0, pixels.Length);
+
+        for (var i = 0; i < pixels.Length; i += 1)
+        {
+            pixels[i] = pixels[i].A == byte.MaxValue
+                ? new Color(byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue)
+                : Color.Transparent;
+        }
+
+        mask.SetData(pixels);
+        _spriteFrameAlphaMaskCache[frame] = mask;
+        return mask;
     }
 
     private void DrawLoadedSpriteFrame(

@@ -34,18 +34,58 @@ public partial class Game1
         public HostSetupEditField EditField { get; set; }
         public HostSetupTab Tab { get; set; }
         public string ServerNameBuffer { get; set; } = "My Server";
+        public int ServerNameCursorIndex { get; set; }
+        public int ServerNameSelectionStart { get; set; }
         public string PortBuffer { get; set; } = "8190";
+        public int PortCursorIndex { get; set; }
+        public int PortSelectionStart { get; set; }
         public string SlotsBuffer { get; set; } = "10";
+        public int SlotsCursorIndex { get; set; }
+        public int SlotsSelectionStart { get; set; }
         public string PasswordBuffer { get; set; } = string.Empty;
+        public int PasswordCursorIndex { get; set; }
+        public int PasswordSelectionStart { get; set; }
         public string RconPasswordBuffer { get; set; } = string.Empty;
+        public int RconPasswordCursorIndex { get; set; }
+        public int RconPasswordSelectionStart { get; set; }
         public string MapRotationFileBuffer { get; set; } = string.Empty;
+        public int MapRotationFileCursorIndex { get; set; }
+        public int MapRotationFileSelectionStart { get; set; }
         public string TimeLimitBuffer { get; set; } = "15";
+        public int TimeLimitCursorIndex { get; set; }
+        public int TimeLimitSelectionStart { get; set; }
         public string CapLimitBuffer { get; set; } = "5";
+        public int CapLimitCursorIndex { get; set; }
+        public int CapLimitSelectionStart { get; set; }
         public string RespawnSecondsBuffer { get; set; } = "5";
+        public int RespawnSecondsCursorIndex { get; set; }
+        public int RespawnSecondsSelectionStart { get; set; }
         public bool LobbyAnnounceEnabled { get; set; } = true;
         public bool AutoBalanceEnabled { get; set; } = true;
         public bool SecondaryAbilitiesEnabled { get; set; } = true;
         public List<OpenGarrisonMapRotationEntry> MapEntries { get; set; } = new();
+
+        public void InitializeFieldCursorStates()
+        {
+            ServerNameCursorIndex = ServerNameBuffer.Length;
+            ServerNameSelectionStart = ServerNameCursorIndex;
+            PortCursorIndex = PortBuffer.Length;
+            PortSelectionStart = PortCursorIndex;
+            SlotsCursorIndex = SlotsBuffer.Length;
+            SlotsSelectionStart = SlotsCursorIndex;
+            PasswordCursorIndex = PasswordBuffer.Length;
+            PasswordSelectionStart = PasswordCursorIndex;
+            RconPasswordCursorIndex = RconPasswordBuffer.Length;
+            RconPasswordSelectionStart = RconPasswordCursorIndex;
+            MapRotationFileCursorIndex = MapRotationFileBuffer.Length;
+            MapRotationFileSelectionStart = MapRotationFileCursorIndex;
+            TimeLimitCursorIndex = TimeLimitBuffer.Length;
+            TimeLimitSelectionStart = TimeLimitCursorIndex;
+            CapLimitCursorIndex = CapLimitBuffer.Length;
+            CapLimitSelectionStart = CapLimitCursorIndex;
+            RespawnSecondsCursorIndex = RespawnSecondsBuffer.Length;
+            RespawnSecondsSelectionStart = RespawnSecondsCursorIndex;
+        }
 
         public void LoadFrom(OpenGarrisonHostSettings hostDefaults)
         {
@@ -70,6 +110,7 @@ public partial class Game1
             if (MapEntries.Count == 0)
             {
                 MapIndex = 0;
+                InitializeFieldCursorStates();
                 return;
             }
 
@@ -78,6 +119,8 @@ public partial class Game1
             {
                 MapIndex = FindDefaultMapIndex();
             }
+
+            InitializeFieldCursorStates();
         }
 
         public void PrepareForOpen(OpenGarrisonHostSettings hostDefaults)
@@ -119,6 +162,8 @@ public partial class Game1
             {
                 RespawnSecondsBuffer = "5";
             }
+
+            InitializeFieldCursorStates();
 
             MapEntries = BuildMapEntries(hostDefaults);
             if (MapEntries.Count == 0)

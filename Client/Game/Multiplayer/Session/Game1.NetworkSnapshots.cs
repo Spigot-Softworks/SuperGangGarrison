@@ -5,12 +5,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
 public partial class Game1
 {
+    private readonly HashSet<int> _lastVisibleEnemySpyIds = new();
+
     private bool TryHandleSnapshotMessage(
         SnapshotMessage snapshot,
         ref ulong latestBufferedSnapshotFrame,
@@ -154,6 +157,8 @@ public partial class Game1
             return;
         }
 
+        CaptureSmoothingTrackForLocalPlayer(snapshot);
+        DetectFrozenSpyVisualsForMissingEnemySpies(snapshot);
         _lastAppliedSnapshotFrame = snapshot.Frame;
         if (_queuedAuthoritativeSnapshots.Count == 0)
         {
@@ -176,6 +181,99 @@ public partial class Game1
         }
 
         ReopenJoinMenusAfterMapTransition(previousLevelName, previousMapAreaIndex, wasAwaitingJoin);
+    }
+
+    private void CaptureSmoothingTrackForLocalPlayer(SnapshotMessage snapshot)
+    {
+        if (!_networkClient.IsConnected || !_world.LocalPlayerAwaitingJoin || !_world.LocalPlayer.IsAlive)
+        {
+            return;
+        }
+
+        var localPlayerStateKey = GetResolvedLocalPlayerId();
+        var currentRenderPosition = GetRenderPosition(localPlayerStateKey, _world.LocalPlayer.X, _world.LocalPlayer.Y, allowInterpolation: true);
+        var targetPosition = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        if (Vector2.DistanceSquared(currentRenderPosition, targetPosition) <= 0.0001f)
+        {
+            return;
+        }
+
+        var tickDurationSeconds = snapshot.TickRate > 0
+            ? 1f / snapshot.TickRate
+            : 1f / SimulationConfig.DefaultTicksPerSecond;
+        var durationSeconds = Math.Clamp(tickDurationSeconds, 1f / SimulationConfig.DefaultTicksPerSecond, 0.25f);
+        _entityInterpolationTracks[localPlayerStateKey] = new InterpolationTrack(
+            currentRenderPosition,
+            targetPosition,
+            _networkInterpolationClockSeconds,
+            durationSeconds,
+            Vector2.Zero,
+            0f,
+            0f);
+    }
+
+    private void DetectFrozenSpyVisualsForMissingEnemySpies(SnapshotMessage snapshot)
+    {
+        if (!_networkClient.IsConnected || _networkClient.IsSpectator || !_world.LocalPlayer.IsAlive)
+        {
+            _lastVisibleEnemySpyIds.Clear();
+            return;
+        }
+
+        var currentVisibleEnemySpyIds = new HashSet<int>();
+        var explicitDeathOrRemovalSpyIds = new HashSet<int>(snapshot.RemovedPlayerIds);
+        for (var playerIndex = 0; playerIndex < snapshot.Players.Count; playerIndex += 1)
+        {
+            var player = snapshot.Players[playerIndex];
+            if (player.Slot >= SimulationWorld.FirstSpectatorSlot
+                || player.IsSpectator
+                || player.ClassId != (byte)PlayerClass.Spy
+                || (PlayerTeam)player.Team == _world.LocalPlayer.Team)
+            {
+                continue;
+            }
+
+            if (!player.IsAlive)
+            {
+                explicitDeathOrRemovalSpyIds.Add(player.PlayerId);
+                continue;
+            }
+
+            if (player.IsSpyCloaked && player.SpyCloakAlpha > 0f && player.SpyCloakAlpha < 0.99f)
+            {
+                currentVisibleEnemySpyIds.Add(player.PlayerId);
+                continue;
+            }
+
+            if (IsSpyHiddenFromLocalViewer(player.PlayerId, (PlayerTeam)player.Team, player.X))
+            {
+                continue;
+            }
+
+            currentVisibleEnemySpyIds.Add(player.PlayerId);
+        }
+
+        foreach (var lastSpyId in _lastVisibleEnemySpyIds)
+        {
+            if (currentVisibleEnemySpyIds.Contains(lastSpyId))
+            {
+                continue;
+            }
+
+            if (explicitDeathOrRemovalSpyIds.Contains(lastSpyId))
+            {
+                ResetFrozenSpyStateForPlayer(lastSpyId);
+                continue;
+            }
+
+            SpawnFrozenSpyVisual(lastSpyId);
+        }
+
+        _lastVisibleEnemySpyIds.Clear();
+        foreach (var spyId in currentVisibleEnemySpyIds)
+        {
+            _lastVisibleEnemySpyIds.Add(spyId);
+        }
     }
 
     private void ReopenJoinMenusAfterMapTransition(string previousLevelName, int previousMapAreaIndex, bool wasAwaitingJoin)

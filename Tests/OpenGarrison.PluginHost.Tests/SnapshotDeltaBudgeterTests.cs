@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
@@ -85,6 +86,26 @@ public sealed class SnapshotDeltaBudgeterTests
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
         Assert.Equal(players.Length, merged.Players.Count);
         Assert.Contains(merged.Players, player => player.Name == "Bot Player 00");
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesCloakedSpyStateWhenReducingPlayerStateAggressively()
+    {
+        var spy = CreatePlayerState(1, 900, "Cloaked Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            IsSpyCloaked = true,
+            SpyCloakAlpha = 0f,
+        };
+
+        var method = typeof(SnapshotDeltaBudgeter).GetMethod(
+            "ReducePlayerStateAggressivelyForBudget",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var reduced = (SnapshotPlayerState)method.Invoke(null, new object[] { spy })!;
+        Assert.True(reduced.IsSpyCloaked);
+        Assert.Equal(0f, reduced.SpyCloakAlpha);
     }
 
     [Fact]

@@ -30,12 +30,14 @@ public partial class Game1
             return bodyVisibilityScale;
         }
 
+        var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
         if (_networkClient.IsSpectator)
         {
-            return bodyVisibilityScale;
+            var allyAlpha = GetPlayerIsSpyBackstabReady(player)
+                ? Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha)
+                : cloakAlpha;
+            return allyAlpha * bodyVisibilityScale;
         }
-
-        var cloakAlpha = Math.Clamp(GetPlayerSpyCloakAlpha(player), 0f, 1f);
         if (ReferenceEquals(player, _world.LocalPlayer))
         {
             return Math.Max(cloakAlpha, PlayerEntity.SpyMinAllyCloakAlpha) * bodyVisibilityScale;
@@ -49,7 +51,7 @@ public partial class Game1
             return allyAlpha * bodyVisibilityScale;
         }
 
-        if (IsSpyHiddenFromLocalViewer(player))
+        if (IsSpyHiddenFromLocalViewer(player) && !GetPlayerIsSpyVisibleToEnemies(player))
         {
             return 0f;
         }
@@ -110,7 +112,6 @@ public partial class Game1
             || ReferenceEquals(player, _world.LocalPlayer)
             || player.ClassId != PlayerClass.Spy
             || player.Team == _world.LocalPlayer.Team
-            || !GetPlayerIsSpyCloaked(player)
             || !_world.LocalPlayer.IsAlive)
         {
             return false;

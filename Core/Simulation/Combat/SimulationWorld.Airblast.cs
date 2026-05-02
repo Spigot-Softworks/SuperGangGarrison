@@ -85,7 +85,7 @@ public sealed partial class SimulationWorld
         player.AddImpulse(
             -MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastHorizontalStrengthScale,
             -MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale * PyroSelfAirblastVerticalStrengthScale + (PyroAirblastPlayerLift * PyroSelfAirblastVerticalStrengthScale));
-        player.SetMovementState(LegacyMovementState.Airblast);
+        player.SetMovementStateIfAirborne(LegacyMovementState.Airblast);
     }
 
     private void TryFirePyroFlare(PlayerEntity player, float aimRadians, float sourceX, float sourceY, bool fireFlare)
@@ -205,7 +205,7 @@ public sealed partial class SimulationWorld
             target.AddImpulse(
                 MathF.Cos(aimRadians) * PyroAirblastPlayerImpulse * scale,
                 MathF.Sin(aimRadians) * PyroAirblastPlayerImpulse * scale + PyroAirblastPlayerLift);
-            target.SetMovementState(LegacyMovementState.Airblast);
+            target.SetMovementStateIfAirborne(LegacyMovementState.Airblast);
         }
     }
 

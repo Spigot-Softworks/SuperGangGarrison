@@ -64,6 +64,8 @@ public sealed partial class SimulationWorld
             snapshotPlayer.SniperChargeTicks,
             snapshotPlayer.FacingDirectionX,
             snapshotPlayer.AimDirectionDegrees,
+            snapshotPlayer.AimWorldX,
+            snapshotPlayer.AimWorldY,
             snapshotPlayer.IsTaunting,
             snapshotPlayer.TauntFrameIndex,
             snapshotPlayer.IsChatBubbleVisible,
@@ -351,7 +353,21 @@ public sealed partial class SimulationWorld
                 state.VelocityY,
                 state.IsStuck,
                 state.TicksRemaining,
-                state.Scale));
+                state.Scale),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        state.IsStuck,
+                        state.TicksRemaining,
+                        state.Scale);
+                }
+            });
     }
 
     private void ApplySnapshotMines(IReadOnlyList<SnapshotMineState> mines)
@@ -430,7 +446,17 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.ApplyNetworkState(
                 state.X,
                 state.Y,
-                state.TicksRemaining));
+                state.TicksRemaining),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.TicksRemaining);
+                }
+            });
     }
 
     private void ApplySnapshotPlayerGibs(IReadOnlyList<SnapshotPlayerGibState> playerGibs)
@@ -463,7 +489,21 @@ public sealed partial class SimulationWorld
                 state.VelocityY,
                 state.RotationDegrees,
                 state.RotationSpeedDegrees,
-                state.TicksRemaining));
+                state.TicksRemaining),
+            static (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        state.RotationDegrees,
+                        state.RotationSpeedDegrees,
+                        state.TicksRemaining);
+                }
+            });
     }
 
     private void SyncRemoteSnapshotPlayers(IEnumerable<SnapshotPlayerState> snapshotPlayers)
@@ -513,6 +553,19 @@ public sealed partial class SimulationWorld
         Action<TEntity, TState> applyState)
         where TEntity : SimulationEntity
     {
+        SyncSnapshotEntities(snapshotStates, target, idSelector, canReuse, factory, applyState, (entity, state, isNew) => applyState(entity, state));
+    }
+
+    private void SyncSnapshotEntities<TState, TEntity>(
+        IReadOnlyList<TState> snapshotStates,
+        List<TEntity> target,
+        Func<TState, int> idSelector,
+        Func<TEntity, TState, bool> canReuse,
+        Func<TState, TEntity> factory,
+        Action<TEntity, TState> applyState,
+        Action<TEntity, TState, bool> applyStateForNewEntity)
+        where TEntity : SimulationEntity
+    {
         _snapshotSeenEntityIds.Clear();
         for (var index = 0; index < snapshotStates.Count; index += 1)
         {
@@ -537,6 +590,7 @@ public sealed partial class SimulationWorld
             ReserveEntityId(entityId);
 
             TEntity entity;
+            var isNewEntity = false;
             if (_entities.TryGetValue(entityId, out var existingEntity)
                 && existingEntity is TEntity typedEntity
                 && canReuse(typedEntity, state))
@@ -551,9 +605,18 @@ public sealed partial class SimulationWorld
                 }
 
                 entity = factory(state);
+                isNewEntity = true;
             }
 
-            applyState(entity, state);
+            if (isNewEntity)
+            {
+                applyStateForNewEntity(entity, state, true);
+            }
+            else
+            {
+                applyStateForNewEntity(entity, state, false);
+            }
+
             target.Add(entity);
             _entities[entityId] = entity;
         }

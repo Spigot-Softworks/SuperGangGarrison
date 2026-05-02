@@ -32,10 +32,24 @@ public partial class Game1
         };
     }
 
+    private static string GetFrameRateLimitLabel(int frameRateLimit)
+    {
+        return frameRateLimit switch
+        {
+            0 => "Off",
+            30 => "30 FPS",
+            60 => "60 FPS",
+            75 => "75 FPS",
+            120 => "120 FPS",
+            _ => "Off",
+        };
+    }
+
     private void BeginEditingPlayerName()
     {
         _editingPlayerName = true;
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
+        InitializePlayerNameEditCursor();
     }
 
     private void ToggleFullscreenSetting()
@@ -47,6 +61,24 @@ public partial class Game1
 
         _clientSettings.Fullscreen = !_clientSettings.Fullscreen;
         ApplyGraphicsSettings();
+
+        if (!OperatingSystem.IsBrowser())
+        {
+            Window.AllowUserResizing = !_graphics.IsFullScreen;
+        }
+    }
+
+    private void ResetWindowSize()
+    {
+        if (_graphics.IsFullScreen || OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        var defaultDimensions = GetPreferredBackBufferDimensions(fullscreen: false, _ingameResolution);
+        _graphics.PreferredBackBufferWidth = defaultDimensions.X;
+        _graphics.PreferredBackBufferHeight = defaultDimensions.Y;
+        _graphics.ApplyChanges();
     }
 
     private void CycleMusicModeSetting()
@@ -69,6 +101,22 @@ public partial class Game1
     {
         _clientSettings.IngameResolution = GetNextIngameResolution(_clientSettings.IngameResolution);
         ApplyGraphicsSettings();
+    }
+
+    private void CycleFrameRateLimitSetting()
+    {
+        var current = NormalizeFrameRateLimit(_frameRateLimit);
+        var next = current switch
+        {
+            0 => 30,
+            30 => 60,
+            60 => 75,
+            75 => 120,
+            _ => 0,
+        };
+
+        _frameRateLimit = next;
+        PersistClientSettings();
     }
 
     private void CycleParticleModeSetting()
@@ -141,6 +189,39 @@ public partial class Game1
     private void ToggleSpriteDropShadowSetting()
     {
         _spriteDropShadowEnabled = !_spriteDropShadowEnabled;
+        PersistClientSettings();
+    }
+
+    private void ToggleAudioMuteSetting()
+    {
+        _audioMuted = !_audioMuted;
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustMenuMusicVolume(int deltaPercent)
+    {
+        _menuMusicVolumePercent = Math.Clamp(_menuMusicVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustIngameMusicVolume(int deltaPercent)
+    {
+        _ingameMusicVolumePercent = Math.Clamp(_ingameMusicVolumePercent + deltaPercent, 0, 100);
+        ApplyAudioVolumeState();
+        PersistClientSettings();
+    }
+
+    private void AdjustSoundEffectsVolume(int deltaPercent)
+    {
+        _soundEffectsVolumePercent = Math.Clamp(_soundEffectsVolumePercent + deltaPercent, 0, 100);
+        PersistClientSettings();
+    }
+
+    private void ToggleUberOutlinesSetting()
+    {
+        _uberOutlineEnabled = !_uberOutlineEnabled;
         PersistClientSettings();
     }
 

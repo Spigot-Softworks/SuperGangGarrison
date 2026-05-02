@@ -16,7 +16,14 @@ public partial class Game1
             _suppressPrimaryFireUntilMouseRelease = false;
         }
 
-        var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(_inputBindings, keyboard, mouse, cameraPosition.X, cameraPosition.Y);
+        var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
+            _inputBindings,
+            keyboard,
+            mouse,
+            cameraPosition.X,
+            cameraPosition.Y,
+            _world.LocalPlayer.X,
+            _world.LocalPlayer.Y);
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = fullInput with
@@ -87,18 +94,20 @@ public partial class Game1
         _suppressPrimaryFireUntilMouseRelease = true;
     }
 
-    private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard)
+    private void UpdateSpectatorTrackingHotkeys(KeyboardState keyboard, MouseState mouse)
     {
         if (!CanUseSpectatorTrackingHotkeys())
         {
             return;
         }
 
-        if (IsKeyPressed(keyboard, Keys.Add) || IsKeyPressed(keyboard, Keys.OemPlus))
+        if (IsKeyPressed(keyboard, Keys.Add) || IsKeyPressed(keyboard, Keys.OemPlus) ||
+            (mouse.RightButton == ButtonState.Pressed && _previousMouse.RightButton != ButtonState.Pressed))
         {
             CycleSpectatorTracking(forward: true);
         }
-        else if (IsKeyPressed(keyboard, Keys.Subtract) || IsKeyPressed(keyboard, Keys.OemMinus))
+        else if (IsKeyPressed(keyboard, Keys.Subtract) || IsKeyPressed(keyboard, Keys.OemMinus) ||
+            (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton != ButtonState.Pressed))
         {
             CycleSpectatorTracking(forward: false);
         }

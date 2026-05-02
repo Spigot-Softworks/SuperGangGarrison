@@ -44,8 +44,17 @@ public partial class Game1
         _activeInterpolatedEntityIds.Clear();
         var remotePlayerRenderTimeSeconds = GetRemotePlayerRenderTimeSeconds();
         var entityRenderTimeSeconds = GetEntityRenderTimeSeconds();
-        var localPlayerStateKey = GetPlayerStateKey(_world.LocalPlayer);
-        _interpolatedEntityPositions[localPlayerStateKey] = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        var localPlayerStateKey = GetResolvedLocalPlayerId();
+        if (_remotePlayerSnapshotHistories.TryGetValue(localPlayerStateKey, out var localHistory)
+            && localHistory.Count > 0)
+        {
+            UpdateInterpolatedRemotePlayerPosition(_world.LocalPlayer, remotePlayerRenderTimeSeconds);
+        }
+        else
+        {
+            _interpolatedEntityPositions[localPlayerStateKey] = new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
+        }
+
         _activeInterpolatedEntityIds.Add(localPlayerStateKey);
         foreach (var player in EnumerateRemotePlayersForView())
         {
@@ -156,7 +165,7 @@ public partial class Game1
     {
         if (_entitySnapshotHistories.TryGetValue(entityId, out var history) && history.Count > 0)
         {
-            _interpolatedEntityPositions[entityId] = EvaluateEntitySnapshotHistory(history, renderTimeSeconds);
+            _interpolatedEntityPositions[entityId] = EvaluateEntitySnapshotHistory(history, renderTimeSeconds, entityId);
             return;
         }
 
@@ -199,11 +208,6 @@ public partial class Game1
         {
             var player = snapshot.Players[playerIndex];
             if (player.Slot >= SimulationWorld.FirstSpectatorSlot || player.IsSpectator)
-            {
-                continue;
-            }
-
-            if (!_networkClient.IsSpectator && player.Slot == localPlayerSlot)
             {
                 continue;
             }
@@ -278,18 +282,6 @@ public partial class Game1
             CaptureProjectileInterpolationTarget(mine.Id, mine.X, mine.Y, new Vector2(mine.VelocityX, mine.VelocityY), 18f, snapshotServerTimeSeconds);
         }
 
-        for (var gibIndex = 0; gibIndex < snapshot.PlayerGibs.Count; gibIndex += 1)
-        {
-            var gib = snapshot.PlayerGibs[gibIndex];
-            CaptureEntityInterpolationTarget(true, gib.Id, gib.X, gib.Y, new Vector2(gib.VelocityX, gib.VelocityY), 0.03f, 12f, snapshotServerTimeSeconds);
-        }
-
-        for (var bloodDropIndex = 0; bloodDropIndex < snapshot.BloodDrops.Count; bloodDropIndex += 1)
-        {
-            var bloodDrop = snapshot.BloodDrops[bloodDropIndex];
-            CaptureEntityInterpolationTarget(true, bloodDrop.Id, bloodDrop.X, bloodDrop.Y, new Vector2(bloodDrop.VelocityX, bloodDrop.VelocityY), 0.03f, 8f, snapshotServerTimeSeconds);
-        }
-
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.RedIntel.Team, snapshot.RedIntel.X, snapshot.RedIntel.Y, snapshotServerTimeSeconds);
         CaptureIntelInterpolationTarget((PlayerTeam)snapshot.BlueIntel.Team, snapshot.BlueIntel.X, snapshot.BlueIntel.Y, snapshotServerTimeSeconds);
     }
@@ -360,21 +352,38 @@ public partial class Game1
 
     private void UpdateInterpolatedRemotePlayerPosition(PlayerEntity player, double renderTimeSeconds)
     {
-        if (!_remotePlayerSnapshotHistories.TryGetValue(player.Id, out var history) || history.Count == 0)
+        var playerStateKey = ReferenceEquals(player, _world.LocalPlayer)
+            ? GetResolvedLocalPlayerId()
+            : player.Id;
+
+        if (!_remotePlayerSnapshotHistories.TryGetValue(playerStateKey, out var history) || history.Count == 0)
         {
-            _interpolatedEntityPositions[player.Id] = new Vector2(player.X, player.Y);
+            _interpolatedEntityPositions[playerStateKey] = new Vector2(player.X, player.Y);
+            return;
+        }
+
+        if (!_positionSmoothingEnabled)
+        {
+            var latest = history[^1];
+            if (renderTimeSeconds <= latest.TimeSeconds)
+            {
+                _interpolatedEntityPositions[playerStateKey] = latest.Position;
+                return;
+            }
+
+            _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(latest, renderTimeSeconds);
             return;
         }
 
         if (history.Count == 1)
         {
-            _interpolatedEntityPositions[player.Id] = EvaluateRemotePlayerExtrapolation(history[0], renderTimeSeconds);
+            _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(history[0], renderTimeSeconds);
             return;
         }
 
         if (renderTimeSeconds <= history[0].TimeSeconds)
         {
-            _interpolatedEntityPositions[player.Id] = history[0].Position;
+            _interpolatedEntityPositions[playerStateKey] = history[0].Position;
             return;
         }
 
@@ -387,11 +396,11 @@ public partial class Game1
             }
 
             var older = history[index - 1];
-            _interpolatedEntityPositions[player.Id] = InterpolateRemotePlayerSample(older, newer, renderTimeSeconds);
+            _interpolatedEntityPositions[playerStateKey] = InterpolateRemotePlayerSample(older, newer, renderTimeSeconds);
             return;
         }
 
-        _interpolatedEntityPositions[player.Id] = EvaluateRemotePlayerExtrapolation(history[^1], renderTimeSeconds);
+        _interpolatedEntityPositions[playerStateKey] = EvaluateRemotePlayerExtrapolation(history[^1], renderTimeSeconds);
     }
 
     private void AppendRemotePlayerSnapshot(PlayerEntity player, double snapshotTimeSeconds)
@@ -401,6 +410,7 @@ public partial class Game1
             new PlayerSnapshotSample(
                 new Vector2(player.X, player.Y),
                 new Vector2(player.HorizontalSpeed, player.VerticalSpeed),
+                new Vector2(player.AimWorldX, player.AimWorldY),
                 snapshotTimeSeconds,
                 player.Team,
                 player.ClassId,
@@ -414,6 +424,7 @@ public partial class Game1
             new PlayerSnapshotSample(
                 new Vector2(player.X, player.Y),
                 new Vector2(player.HorizontalSpeed, player.VerticalSpeed),
+                new Vector2(player.AimWorldX, player.AimWorldY),
                 snapshotTimeSeconds,
                 (PlayerTeam)player.Team,
                 (PlayerClass)player.ClassId,
@@ -521,6 +532,40 @@ public partial class Game1
         // through raw network velocities that can change abruptly.
         var alpha = float.Clamp((float)((renderTimeSeconds - older.TimeSeconds) / durationSeconds), 0f, 1f);
         return Vector2.Lerp(older.Position, newer.Position, alpha);
+    }
+
+    private static Vector2 EvaluateRemotePlayerAimHistory(List<PlayerSnapshotSample> history, double renderTimeSeconds)
+    {
+        if (history.Count == 1)
+        {
+            return history[0].AimWorldPosition;
+        }
+
+        if (renderTimeSeconds <= history[0].TimeSeconds)
+        {
+            return history[0].AimWorldPosition;
+        }
+
+        for (var index = 1; index < history.Count; index += 1)
+        {
+            var newer = history[index];
+            if (renderTimeSeconds > newer.TimeSeconds)
+            {
+                continue;
+            }
+
+            var older = history[index - 1];
+            var durationSeconds = newer.TimeSeconds - older.TimeSeconds;
+            if (durationSeconds <= 0.0001d)
+            {
+                return newer.AimWorldPosition;
+            }
+
+            var alpha = float.Clamp((float)((renderTimeSeconds - older.TimeSeconds) / durationSeconds), 0f, 1f);
+            return Vector2.Lerp(older.AimWorldPosition, newer.AimWorldPosition, alpha);
+        }
+
+        return history[^1].AimWorldPosition;
     }
 
     private static Vector2 EvaluateRemotePlayerExtrapolation(PlayerSnapshotSample sample, double renderTimeSeconds)
@@ -747,6 +792,11 @@ public partial class Game1
 
     private Vector2 EvaluateEntitySnapshotHistory(List<EntitySnapshotSample> history, double renderTimeSeconds)
     {
+        return EvaluateEntitySnapshotHistory(history, renderTimeSeconds, -1);
+    }
+
+    private Vector2 EvaluateEntitySnapshotHistory(List<EntitySnapshotSample> history, double renderTimeSeconds, int entityId)
+    {
         if (history.Count == 0)
         {
             return Vector2.Zero;
@@ -754,12 +804,12 @@ public partial class Game1
 
         if (history.Count == 1)
         {
-            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds, entityId);
         }
 
         if (renderTimeSeconds <= history[0].TimeSeconds)
         {
-            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds);
+            return EvaluateEntityHistoryStartupSample(history[0], renderTimeSeconds, entityId);
         }
 
         for (var index = 1; index < history.Count; index += 1)
@@ -774,10 +824,10 @@ public partial class Game1
             return InterpolateEntitySnapshotSample(older, newer, renderTimeSeconds);
         }
 
-        return EvaluateEntitySampleExtrapolation(history[^1], renderTimeSeconds);
+        return EvaluateEntitySampleExtrapolation(history[^1], renderTimeSeconds, entityId);
     }
 
-    private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds)
+    private Vector2 EvaluateEntityHistoryStartupSample(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
         var evaluationTimeSeconds = renderTimeSeconds;
         if (sample.Velocity != Vector2.Zero)
@@ -785,7 +835,7 @@ public partial class Game1
             evaluationTimeSeconds = Math.Max(renderTimeSeconds, GetEstimatedServerTimeSeconds());
         }
 
-        return EvaluateEntitySampleExtrapolation(sample, evaluationTimeSeconds);
+        return EvaluateEntitySampleExtrapolation(sample, evaluationTimeSeconds, entityId);
     }
 
     private static Vector2 InterpolateEntitySnapshotSample(EntitySnapshotSample older, EntitySnapshotSample newer, double renderTimeSeconds)
@@ -800,7 +850,7 @@ public partial class Game1
         return Vector2.Lerp(older.Position, newer.Position, alpha);
     }
 
-    private static Vector2 EvaluateEntitySampleExtrapolation(EntitySnapshotSample sample, double renderTimeSeconds)
+    private Vector2 EvaluateEntitySampleExtrapolation(EntitySnapshotSample sample, double renderTimeSeconds, int entityId)
     {
         var extrapolationSeconds = float.Clamp(
             (float)(renderTimeSeconds - sample.TimeSeconds),
@@ -811,14 +861,62 @@ public partial class Game1
             return sample.Position;
         }
 
-        var offset = sample.Velocity * extrapolationSeconds;
-        var distance = offset.Length();
-        if (sample.MaxExtrapolationDistance > 0f && distance > sample.MaxExtrapolationDistance)
+        if (TryGetMineById(entityId, out var mine) && !mine.IsStickied)
         {
-            offset *= sample.MaxExtrapolationDistance / distance;
+            var predictedPosition = EvaluateMineProjectileExtrapolation(sample.Position, sample.Velocity, extrapolationSeconds, _world.ConfiguredGravityScale);
+            var distance = Vector2.Distance(sample.Position, predictedPosition);
+            if (sample.MaxExtrapolationDistance > 0f && distance > sample.MaxExtrapolationDistance)
+            {
+                predictedPosition = sample.Position + (predictedPosition - sample.Position) * (sample.MaxExtrapolationDistance / distance);
+            }
+
+            return predictedPosition;
+        }
+
+        var offset = sample.Velocity * extrapolationSeconds;
+        var distanceLinear = offset.Length();
+        if (sample.MaxExtrapolationDistance > 0f && distanceLinear > sample.MaxExtrapolationDistance)
+        {
+            offset *= sample.MaxExtrapolationDistance / distanceLinear;
         }
 
         return sample.Position + offset;
+    }
+
+    private Vector2 EvaluateMineProjectileExtrapolation(Vector2 position, Vector2 velocityPerSecond, float extrapolationSeconds, float gravityScale)
+    {
+        var currentVelocityX = velocityPerSecond.X;
+        var currentVelocityY = velocityPerSecond.Y;
+        var stepSeconds = 1f / _config.TicksPerSecond;
+        var gravityPerSecond = MineProjectileEntity.GravityPerTick * gravityScale * _config.TicksPerSecond;
+        var maxFallSpeedPerSecond = MineProjectileEntity.MaxFallSpeed * _config.TicksPerSecond;
+        var remainingSeconds = extrapolationSeconds;
+
+        while (remainingSeconds > 0f)
+        {
+            var dt = Math.Min(stepSeconds, remainingSeconds);
+            currentVelocityY = MathF.Min(maxFallSpeedPerSecond, currentVelocityY + gravityPerSecond * dt);
+            position.X += currentVelocityX * dt;
+            position.Y += currentVelocityY * dt;
+            remainingSeconds -= dt;
+        }
+
+        return position;
+    }
+
+    private bool TryGetMineById(int entityId, out MineProjectileEntity mine)
+    {
+        foreach (var candidate in _world.Mines)
+        {
+            if (candidate.Id == entityId)
+            {
+                mine = candidate;
+                return true;
+            }
+        }
+
+        mine = default!;
+        return false;
     }
 
     private double GetEntityRenderTimeSeconds()

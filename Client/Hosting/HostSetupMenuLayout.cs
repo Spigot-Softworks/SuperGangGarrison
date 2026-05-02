@@ -124,7 +124,7 @@ internal static class HostSetupMenuLayoutCalculator
             var rowHeight = 20;
             var listWidth = Math.Min(288, Math.Max(248, (panel.Width - (padding * 2) - 20) / 2));
             var listX = panel.X + padding;
-            var contentTop = panel.Y + (isServerLauncherMode ? 92 : 58);
+            var contentTop = panel.Y + (isServerLauncherMode ? 102 : 68);
             var availableListHeight = Math.Max(156, panel.Bottom - 170 - contentTop);
             var maxListHeight = listHeaderHeight + (Math.Max(1, mapCount) * rowHeight);
             var listHeight = Math.Min(Math.Min(220, maxListHeight), availableListHeight);
@@ -214,7 +214,7 @@ internal static class HostSetupMenuLayoutCalculator
             roomyListWidth = Math.Max(320, roomyMaxListWidth);
         }
 
-        var roomyContentTop = panel.Y + (isServerLauncherMode ? 96 : 64);
+        var roomyContentTop = panel.Y + (isServerLauncherMode ? 106 : 74);
         var roomyListBounds = new Rectangle(panel.X + roomyPadding, roomyContentTop, roomyListWidth, 328);
         var roomyToggleBounds = new Rectangle(roomyListBounds.X, roomyListBounds.Bottom + 14, 116, 34);
         var roomyMoveUpBounds = new Rectangle(roomyToggleBounds.Right + 12, roomyToggleBounds.Y, 116, 34);

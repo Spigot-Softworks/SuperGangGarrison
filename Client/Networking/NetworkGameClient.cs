@@ -42,6 +42,8 @@ internal sealed class NetworkGameClient : IDisposable
     private readonly Queue<PendingMessage> _pendingInboundMessages = new();
     private readonly Queue<TrackedInputRoundTrip> _trackedInputRoundTrips = new();
     private readonly Dictionary<uint, long> _trackedInputRoundTripTimes = new();
+    private readonly Queue<PendingDelayedInput> _pendingDelayedInputs = new();
+    private ulong _networkInputTick;
     private string? _pendingHelloPlayerName;
     private ulong _pendingHelloBadgeMask;
     private long _connectStartedAtMilliseconds = -1;
@@ -50,6 +52,10 @@ internal sealed class NetworkGameClient : IDisposable
     private string? _lastDisconnectReason;
 
     public bool CollectDiagnostics { get; set; }
+
+    // Delay outbound input by a small number of fixed gameplay ticks on remote connections
+    // to give the remote server a chance to catch up and reduce visible position correction.
+    public int NetworkInputDelayTicks { get; set; } = 2;
     public bool IsConnected => _transport is not null;
     public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
@@ -73,6 +79,7 @@ internal sealed class NetworkGameClient : IDisposable
             }
 
             _transport = transport;
+            NetworkInputDelayTicks = transport.IsLoopbackConnection ? 0 : 2;
             _pendingHelloPlayerName = playerName;
             _pendingHelloBadgeMask = badgeMask;
             _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
@@ -100,8 +107,10 @@ internal sealed class NetworkGameClient : IDisposable
         _pendingControlCommands.Clear();
         _pendingOutboundPackets.Clear();
         _pendingInboundMessages.Clear();
+        _pendingDelayedInputs.Clear();
         _trackedInputRoundTrips.Clear();
         _trackedInputRoundTripTimes.Clear();
+        _networkInputTick = 0;
         LocalPlayerSlot = 0;
         ServerDescription = null;
         _pendingHelloPlayerName = null;
@@ -254,8 +263,17 @@ internal sealed class NetworkGameClient : IDisposable
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;
-        TrackInputRoundTrip(sequence);
-        Send(new InputStateMessage(sequence, buttons, input.AimWorldX, input.AimWorldY, _pendingChatBubbleFrameIndex));
+        var inputMessage = new InputStateMessage(sequence, buttons, input.AimWorldX, input.AimWorldY, _pendingChatBubbleFrameIndex);
+        if (NetworkInputDelayTicks > 0 && !IsLoopbackConnection())
+        {
+            _pendingDelayedInputs.Enqueue(new PendingDelayedInput(_networkInputTick + (ulong)NetworkInputDelayTicks, inputMessage, sequence));
+        }
+        else
+        {
+            TrackInputRoundTrip(sequence);
+            Send(inputMessage);
+        }
+
         _pendingChatBubbleFrameIndex = -1;
         return sequence;
     }
@@ -300,6 +318,21 @@ internal sealed class NetworkGameClient : IDisposable
 
         Send(new SnapshotAckMessage(frame));
     }
+
+    // Advance the input send cadence and flush any input packets that were delayed
+    // long enough to match the configured input lag buffer.
+    public void AdvanceNetworkInputTick()
+    {
+        _networkInputTick += 1;
+        while (_pendingDelayedInputs.Count > 0 && _pendingDelayedInputs.Peek().DueTick <= _networkInputTick)
+        {
+            var pending = _pendingDelayedInputs.Dequeue();
+            TrackInputRoundTrip(pending.Sequence);
+            Send(pending.Message);
+        }
+    }
+
+    private sealed record PendingDelayedInput(ulong DueTick, IProtocolMessage Message, uint Sequence);
 
     public IEnumerable<IProtocolMessage> ReceiveMessages()
     {

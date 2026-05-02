@@ -23,6 +23,88 @@ public partial class Game1
             return TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, tint, visibilityAlpha, bodySelection);
         }
 
+        public bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
+        {
+            if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
+            {
+                return false;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player, allowInterpolation: !ReferenceEquals(player, _game._world.LocalPlayer));
+            var weaponDefinition = GetWeaponRenderDefinition(player);
+            if (weaponDefinition.NormalSpriteName is null)
+            {
+                return false;
+            }
+
+            var weaponAnimationMode = GetPlayerWeaponAnimationMode(player);
+            var spriteName = weaponAnimationMode switch
+            {
+                WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
+                WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
+                _ => weaponDefinition.NormalSpriteName,
+            };
+            if (spriteName is null)
+            {
+                return false;
+            }
+
+            var sprite = _game.GetResolvedSprite(spriteName);
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            if (!player.IsUbered)
+            {
+                return false;
+            }
+
+            var facingScale = GetRenderFacingScale(player);
+            var playerScale = player.PlayerScale;
+            var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
+            var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
+            var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
+            var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+            var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+            var rotation = GetRenderWeaponRotation(player);
+
+            if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
+            {
+                var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+                var desiredFacingScale = facingScale;
+                var aimDeltaX = aimWorldX - drawX;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
+                }
+                if (desiredFacingScale != facingScale)
+                {
+                    facingScale = desiredFacingScale;
+                    drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+                    aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
+                }
+
+                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
+            }
+
+            if (!_game._uberOutlineEnabled)
+            {
+                return false;
+            }
+
+            var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
+            var scale = new Vector2(facingScale * playerScale, playerScale);
+            var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+            var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+            _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+            _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), scale);
+            return true;
+        }
+
         public bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
             if (_game.GetPlayerIsSpyCloaked(player) && visibilityAlpha <= PlayerEntity.SpyCloakToggleThreshold)
@@ -69,7 +151,12 @@ public partial class Game1
             if (TryGetLocalFlamethrowerAimWorldPosition(player, cameraPosition, out var aimWorldX, out var aimWorldY))
             {
                 var aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
-                var desiredFacingScale = System.MathF.Cos(aimRadians) < 0f ? -1f : 1f;
+                var desiredFacingScale = facingScale;
+                var aimDeltaX = aimWorldX - drawX;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    desiredFacingScale = aimDeltaX < 0f ? -1f : 1f;
+                }
                 if (desiredFacingScale != facingScale)
                 {
                     facingScale = desiredFacingScale;
@@ -77,15 +164,20 @@ public partial class Game1
                     aimRadians = System.MathF.Atan2(aimWorldY - drawY, aimWorldX - drawX);
                 }
 
-                rotation = facingScale < 0f ? aimRadians + System.MathF.PI : aimRadians;
+                rotation = GetWeaponRotationFromAim(aimRadians, facingScale);
             }
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
             var scale = new Vector2(facingScale * playerScale, playerScale);
-            _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
             if (player.IsUbered)
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team) * 0.7f, rotation, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                _game.DrawSpriteFrameFlatColor(sprite.Frames[frameIndex], position, teamColor * 0.45f, rotation, sprite.Origin.ToVector2(), scale);
+            }
+            else
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);
             }
 
             DrawWeaponAnimationOverlay(player, weaponAnimationMode, weaponDefinition, roundedOrigin, cameraPosition, tint, bodySelection, facingScale);
@@ -101,8 +193,19 @@ public partial class Game1
 
         public static float GetWeaponRotation(PlayerEntity player)
         {
-            var radians = System.MathF.PI * player.AimDirectionDegrees / 180f;
-            return GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player) ? radians + System.MathF.PI : radians;
+            var fallbackRadians = System.MathF.PI * player.AimDirectionDegrees / 180f;
+            var facingScale = GameplayPlayerSpriteRenderController.IsFacingLeftByAim(player) ? -1f : 1f;
+            return GetWeaponRotationFromAim(fallbackRadians, facingScale);
+        }
+
+        private static float GetWeaponRotationFromAim(float aimRadians, float facingScale)
+        {
+            if (facingScale >= 0f)
+            {
+                return aimRadians;
+            }
+
+            return aimRadians + System.MathF.PI;
         }
 
         private float GetRenderFacingScale(PlayerEntity player)
@@ -113,6 +216,17 @@ public partial class Game1
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
 
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game._hasLatestLocalAimWorldPosition)
+            {
+                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
+                if (System.MathF.Abs(aimDeltaX) > 0.001f)
+                {
+                    return aimDeltaX < 0f ? -1f : 1f;
+                }
+                return player.FacingDirectionX < 0f ? -1f : 1f;
+            }
+
             return GameplayPlayerSpriteRenderController.GetPlayerFacingScale(player);
         }
 
@@ -121,7 +235,19 @@ public partial class Game1
             if (_game.IsBackstabReplacementRenderActive(player))
             {
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
-                return GetRenderFacingScale(player) < 0f ? radians + System.MathF.PI : radians;
+                return GetRenderFacingScale(player) < 0f ? System.MathF.PI - radians : radians;
+            }
+
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game._hasLatestLocalAimWorldPosition)
+            {
+                var aimDeltaX = _game._latestLocalAimWorldX - player.X;
+                var aimDeltaY = _game._latestLocalAimWorldY - player.Y;
+                var aimRadians = System.MathF.Atan2(aimDeltaY, aimDeltaX);
+                var facingScale = System.MathF.Abs(aimDeltaX) > 0.001f
+                    ? (aimDeltaX < 0f ? -1f : 1f)
+                    : (player.FacingDirectionX < 0f ? -1f : 1f);
+                return GetWeaponRotationFromAim(aimRadians, facingScale);
             }
 
             return GetWeaponRotation(player);

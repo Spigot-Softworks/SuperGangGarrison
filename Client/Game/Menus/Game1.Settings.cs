@@ -30,6 +30,7 @@ public partial class Game1
 
         _musicMode = _clientSettings.MusicMode;
         ApplyConfiguredPracticeBotController(respawnActiveBots: false);
+        _frameRateLimit = NormalizeFrameRateLimit(_clientSettings.FrameRateLimit);
         _killCamEnabled = _clientSettings.KillCamEnabled;
         _particleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _flameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
@@ -40,7 +41,14 @@ public partial class Game1
         _showHealingEnabled = _clientSettings.ShowHealingEnabled;
         _showHealthBarEnabled = _clientSettings.ShowHealthBarEnabled;
         _showPersistentSelfNameEnabled = _clientSettings.ShowPersistentSelfNameEnabled;
+        _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
+        _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
+        _audioMuted = _clientSettings.AudioMuted;
+        _menuMusicVolumePercent = Math.Clamp(_clientSettings.MenuMusicVolumePercent, 0, 100);
+        _ingameMusicVolumePercent = Math.Clamp(_clientSettings.IngameMusicVolumePercent, 0, 100);
+        _soundEffectsVolumePercent = Math.Clamp(_clientSettings.SoundEffectsVolumePercent, 0, 100);
+        ApplyAudioVolumeState();
 
         _world.SetLocalPlayerName(_clientSettings.PlayerName);
         _world.SetLocalPlayerBadgeMask(BadgeCatalog.ParseRewardString(_clientSettings.Rewards));
@@ -72,12 +80,32 @@ public partial class Game1
         _clientSettings.ShowHealingEnabled = _showHealingEnabled;
         _clientSettings.ShowHealthBarEnabled = _showHealthBarEnabled;
         _clientSettings.ShowPersistentSelfNameEnabled = _showPersistentSelfNameEnabled;
+        _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
+        _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
+        _clientSettings.AudioMuted = _audioMuted;
+        _clientSettings.MenuMusicVolumePercent = _menuMusicVolumePercent;
+        _clientSettings.IngameMusicVolumePercent = _ingameMusicVolumePercent;
+        _clientSettings.SoundEffectsVolumePercent = _soundEffectsVolumePercent;
+        _clientSettings.FrameRateLimit = _frameRateLimit;
         _clientSettings.RecentConnection.Host = SanitizeHost(_connectHostBuffer);
         _clientSettings.RecentConnection.Port = ParsePortOrDefault(_connectPortBuffer, 8190);
         _hostSetupState.ApplyTo(_clientSettings);
 
         _clientSettings.Save();
+    }
+
+    private static int NormalizeFrameRateLimit(int frameRateLimit)
+    {
+        return frameRateLimit switch
+        {
+            0 => 0,
+            30 => 30,
+            60 => 60,
+            75 => 75,
+            120 => 120,
+            _ => 0,
+        };
     }
 
     private void PersistInputBindings()

@@ -21,6 +21,11 @@ public partial class Game1
             return false;
         }
 
+        if (_networkClient.IsConnected && !IsLastToDieSessionActive)
+        {
+            return false;
+        }
+
         return IsLastToDieSessionActive
             || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
     }
@@ -637,7 +642,7 @@ public partial class Game1
             return;
         }
 
-        _gameplayLoadoutPortraitAnimationFrame = MathF.Min(maxFrame, _gameplayLoadoutPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance());
+        _gameplayLoadoutPortraitAnimationFrame = MathF.Min(maxFrame, _gameplayLoadoutPortraitAnimationFrame + GetClassSelectPortraitAnimationAdvance(_clientUpdateElapsedSeconds));
     }
 
     private bool TryDrawGameplayLoadoutMenuPortraitAnimation(PlayerClass viewedClass, Vector2 position, Color tint, float scale)

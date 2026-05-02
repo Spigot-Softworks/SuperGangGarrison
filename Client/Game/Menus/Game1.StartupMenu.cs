@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
 
@@ -15,14 +16,19 @@ public partial class Game1
         EnsureFaucetMusicPlaying();
 
         _startupSplashTicks += 1;
-        if (_startupSplashTicks >= 30 && _startupSplashFrame < 21f)
+        if (_startupSplashTicks >= (int)Math.Round(30f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond)
+            && _startupSplashFrame < 21f)
         {
-            _startupSplashFrame = MathF.Min(21f, _startupSplashFrame + 0.2f);
+            _startupSplashFrame = MathF.Min(
+                21f,
+                _startupSplashFrame + (0.2f * (LegacyMovementModel.SourceTicksPerSecond / ClientUpdateTicksPerSecond)));
         }
 
         var anyKeyPressed = keyboard.GetPressedKeys().Length > 0;
         var leftClickPressed = mouse.LeftButton == ButtonState.Pressed;
-        var requiredSplashTicks = OperatingSystem.IsBrowser() ? 30 : 240;
+        var requiredSplashTicks = OperatingSystem.IsBrowser()
+            ? 30
+            : (int)Math.Round(240f * ClientUpdateTicksPerSecond / LegacyMovementModel.SourceTicksPerSecond);
         if (_bootstrapController.IsMenuBootstrapComplete
             && (_startupSplashTicks >= requiredSplashTicks || anyKeyPressed || leftClickPressed))
         {

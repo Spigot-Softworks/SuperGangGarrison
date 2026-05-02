@@ -14,11 +14,16 @@ public partial class Game1
     private double _clientTickAccumulatorSeconds;
     private double _networkInputAccumulatorSeconds;
     private float _clientUpdateElapsedSeconds;
+    private float _goreSourceTickAccumulator;
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
     private bool _pendingPredictedSecondaryWeaponPress;
     private uint _latchedJumpPressSequence;
+
+    private bool _hasLatestLocalAimWorldPosition;
+    private float _latestLocalAimWorldX;
+    private float _latestLocalAimWorldY;
 
     private int ConsumeClientTickCount(GameTime gameTime)
     {
@@ -40,11 +45,15 @@ public partial class Game1
     {
         _clientTickAccumulatorSeconds = 0d;
         _networkInputAccumulatorSeconds = 0d;
+        _goreSourceTickAccumulator = 0f;
         _pendingPredictedJumpPress = false;
         _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
         _pendingPredictedSecondaryWeaponPress = false;
         _latchedJumpPressSequence = 0;
+        _hasLatestLocalAimWorldPosition = false;
+        _latestLocalAimWorldX = 0f;
+        _latestLocalAimWorldY = 0f;
     }
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
@@ -97,6 +106,7 @@ public partial class Game1
         _networkInputAccumulatorSeconds += _clientUpdateElapsedSeconds;
         while (_networkInputAccumulatorSeconds >= _config.FixedDeltaSeconds)
         {
+            _networkClient.AdvanceNetworkInputTick();
             _networkInputAccumulatorSeconds -= _config.FixedDeltaSeconds;
             var outboundNetworkInput = networkInput;
             if (_latchedJumpPressSequence != 0 && !outboundNetworkInput.Up)
@@ -160,13 +170,14 @@ public partial class Game1
             UpdateNoticeState();
             AdvanceExplosionVisuals();
             AdvanceImpactVisuals();
-            AdvanceBloodVisuals();
+            AdvanceGoreSourceTicks();
             AdvanceExperimentalHealingHudIndicators();
             AdvanceShellVisuals();
             AdvanceRocketSmokeVisuals();
             AdvanceMineTrailVisuals();
             AdvanceFlameSmokeVisuals();
             AdvanceLooseSheetVisuals();
+            AdvanceFrozenSpyVisuals();
             AdvanceMedigunBeamHelixPhase();
 
             if (_autoBalanceNoticeTicks > 0)
@@ -177,9 +188,45 @@ public partial class Game1
                     _autoBalanceNoticeText = string.Empty;
                 }
             }
+
+            AdvanceBackstabVisuals();
+        }
+    }
+
+    private void AdvanceGameplayGoreEffects()
+    {
+        if (!_networkClient.IsConnected)
+        {
+            return;
         }
 
-        AdvanceBackstabVisuals();
+        if (_world.PlayerGibs.Count == 0 && _world.BloodDrops.Count == 0)
+        {
+            return;
+        }
+
+        var level = _world.Level;
+        var bounds = _world.Bounds;
+        foreach (var gib in _world.PlayerGibs)
+        {
+            gib.Advance(level, bounds);
+        }
+
+        foreach (var drop in _world.BloodDrops)
+        {
+            drop.Advance(level, bounds);
+        }
+    }
+
+    private void AdvanceGoreSourceTicks()
+    {
+        _goreSourceTickAccumulator += (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
+        while (_goreSourceTickAccumulator >= 1f)
+        {
+            _goreSourceTickAccumulator -= 1f;
+            AdvanceBloodVisuals();
+            AdvanceGameplayGoreEffects();
+        }
     }
 
     private float GetLegacyUiStepCount()
@@ -216,5 +263,19 @@ public partial class Game1
     private float ScaleLegacyUiDistance(float distancePerTick)
     {
         return distancePerTick * GetLegacyUiStepCount();
+    }
+
+    private bool TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees)
+    {
+        if (!ReferenceEquals(player, _world.LocalPlayer) || !_hasLatestLocalAimWorldPosition)
+        {
+            aimDirectionDegrees = 0f;
+            return false;
+        }
+
+        var aimDeltaX = _latestLocalAimWorldX - player.X;
+        var aimDeltaY = _latestLocalAimWorldY - player.Y;
+        aimDirectionDegrees = MathF.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI);
+        return true;
     }
 }
