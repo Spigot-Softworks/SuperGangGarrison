@@ -417,9 +417,9 @@ internal static class SnapshotContributionPlanner
             player.RemainingAirJumps,
             player.FacingDirectionX,
             player.AimDirectionDegrees,
-                player.MovementState,
-                player.IsTaunting,
-                player.TauntFrameIndex,
+            player.MovementState,
+            player.IsTaunting,
+            player.TauntFrameIndex,
             player.BurnIntensity);
     }
 
