@@ -257,4 +257,26 @@ public sealed class PlayerEntityNetworkStateTests
         Assert.Equal("round_wins", entry.Key);
         Assert.Equal(4, entry.IntValue);
     }
+
+    [Fact]
+    public void ExperimentalMetalConfigurationUpdatesCapacityAndPassiveRegeneration()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Engineer, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        Assert.True(player.SpendMetal(70f));
+
+        player.ConfigureExperimentalMetal(150f, 0.25f);
+        Assert.Equal(150f, player.MaxMetal);
+        Assert.Equal(0.25f, player.PassiveMetalRegenerationPerTick);
+
+        player.AdvanceEngineerResources();
+        Assert.Equal(30.25f, player.Metal, 3);
+
+        player.AddMetal(500f);
+        Assert.Equal(player.MaxMetal, player.Metal);
+
+        player.ConfigureExperimentalMetal(80f, 0.1f);
+        Assert.Equal(80f, player.MaxMetal);
+        Assert.Equal(80f, player.Metal);
+    }
 }

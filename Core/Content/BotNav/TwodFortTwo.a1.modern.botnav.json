@@ -6,7 +6,7 @@
   "Profile": "Standard",
   "LevelFingerprint": "51dc7db01af9626947a3ffa1e294078326d75eeb66f1dfd52fd01ec350176783",
   "BuildStrategy": "ModernClientBotPointGraph",
-  "BuiltUtc": "2026-04-28T23:57:13.1981519Z",
+  "BuiltUtc": "2026-05-02T02:06:38.9726606Z",
   "Stats": {
     "SurfaceCount": 387,
     "CandidateNodeCount": 109,
@@ -14,16 +14,16 @@
     "AutoAnchorNodeCount": 0,
     "HintNodeCount": 0,
     "NodeCount": 109,
-    "EdgeCount": 220,
-    "WalkEdgeCount": 76,
-    "JumpEdgeCount": 144,
+    "EdgeCount": 238,
+    "WalkEdgeCount": 238,
+    "JumpEdgeCount": 0,
     "DropEdgeCount": 0,
     "HintEdgeCount": 0,
-    "BuildMilliseconds": 24.7949,
-    "SurfaceSamplingMilliseconds": 7.7386,
-    "AutoAnchorMilliseconds": 0.1963,
+    "BuildMilliseconds": 389.0607,
+    "SurfaceSamplingMilliseconds": 389.0607,
+    "AutoAnchorMilliseconds": 0,
     "HintNodeMilliseconds": 0,
-    "AutomaticEdgeMilliseconds": 16.8592,
+    "AutomaticEdgeMilliseconds": 0,
     "HintEdgeMilliseconds": 0,
     "DropEdgeMilliseconds": 0
   },
@@ -81,7 +81,9 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": []
+      "ReverseOnlyBlockedFromNodeIds": [
+        17
+      ]
     },
     {
       "Id": 5,
@@ -414,7 +416,8 @@
       "Label": "",
       "RequiresGroundSupport": true,
       "ReverseOnlyBlockedFromNodeIds": [
-        50
+        50,
+        78
       ]
     },
     {
@@ -624,7 +627,9 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": []
+      "ReverseOnlyBlockedFromNodeIds": [
+        85
+      ]
     },
     {
       "Id": 54,
@@ -635,7 +640,9 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": []
+      "ReverseOnlyBlockedFromNodeIds": [
+        86
+      ]
     },
     {
       "Id": 55,
@@ -646,7 +653,9 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": []
+      "ReverseOnlyBlockedFromNodeIds": [
+        87
+      ]
     },
     {
       "Id": 56,
@@ -657,7 +666,9 @@
       "Team": null,
       "Label": "",
       "RequiresGroundSupport": true,
-      "ReverseOnlyBlockedFromNodeIds": []
+      "ReverseOnlyBlockedFromNodeIds": [
+        88
+      ]
     },
     {
       "Id": 57,
@@ -1254,7 +1265,7 @@
     {
       "FromNodeId": 4,
       "ToNodeId": 17,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 458.65128,
       "InputTape": []
     },
@@ -1268,7 +1279,7 @@
     {
       "FromNodeId": 5,
       "ToNodeId": 9,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 373.2077,
       "InputTape": []
     },
@@ -1282,7 +1293,7 @@
     {
       "FromNodeId": 6,
       "ToNodeId": 14,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 110.145355,
       "InputTape": []
     },
@@ -1303,63 +1314,63 @@
     {
       "FromNodeId": 8,
       "ToNodeId": 10,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 379.1886,
       "InputTape": []
     },
     {
       "FromNodeId": 9,
       "ToNodeId": 5,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 373.2077,
       "InputTape": []
     },
     {
       "FromNodeId": 9,
       "ToNodeId": 11,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 205.23158,
       "InputTape": []
     },
     {
       "FromNodeId": 10,
       "ToNodeId": 8,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 379.1886,
       "InputTape": []
     },
     {
       "FromNodeId": 10,
       "ToNodeId": 12,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 205.23158,
       "InputTape": []
     },
     {
       "FromNodeId": 11,
       "ToNodeId": 9,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 205.23158,
       "InputTape": []
     },
     {
       "FromNodeId": 11,
       "ToNodeId": 21,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 12,
       "ToNodeId": 10,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 205.23158,
       "InputTape": []
     },
     {
       "FromNodeId": 12,
       "ToNodeId": 22,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -1373,7 +1384,7 @@
     {
       "FromNodeId": 14,
       "ToNodeId": 6,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 110.145355,
       "InputTape": []
     },
@@ -1387,7 +1398,7 @@
     {
       "FromNodeId": 14,
       "ToNodeId": 28,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 98.40732,
       "InputTape": []
     },
@@ -1401,7 +1412,7 @@
     {
       "FromNodeId": 15,
       "ToNodeId": 33,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 98.40732,
       "InputTape": []
     },
@@ -1414,6 +1425,13 @@
     },
     {
       "FromNodeId": 17,
+      "ToNodeId": 4,
+      "Kind": "Walk",
+      "Cost": 458.65128,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 17,
       "ToNodeId": 18,
       "Kind": "Walk",
       "Cost": 17,
@@ -1422,7 +1440,7 @@
     {
       "FromNodeId": 17,
       "ToNodeId": 23,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
@@ -1450,63 +1468,63 @@
     {
       "FromNodeId": 20,
       "ToNodeId": 24,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
     {
       "FromNodeId": 21,
       "ToNodeId": 11,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 21,
       "ToNodeId": 26,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
     {
       "FromNodeId": 22,
       "ToNodeId": 12,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 22,
       "ToNodeId": 35,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 106.320274,
       "InputTape": []
     },
     {
       "FromNodeId": 23,
       "ToNodeId": 17,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
     {
       "FromNodeId": 23,
       "ToNodeId": 30,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 34.655445,
       "InputTape": []
     },
     {
       "FromNodeId": 24,
       "ToNodeId": 20,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
     {
       "FromNodeId": 24,
       "ToNodeId": 31,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 34.655445,
       "InputTape": []
     },
@@ -1520,7 +1538,7 @@
     {
       "FromNodeId": 26,
       "ToNodeId": 21,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
@@ -1534,7 +1552,7 @@
     {
       "FromNodeId": 26,
       "ToNodeId": 36,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -1548,14 +1566,14 @@
     {
       "FromNodeId": 27,
       "ToNodeId": 49,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 129.0155,
       "InputTape": []
     },
     {
       "FromNodeId": 28,
       "ToNodeId": 14,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 98.40732,
       "InputTape": []
     },
@@ -1569,7 +1587,7 @@
     {
       "FromNodeId": 28,
       "ToNodeId": 40,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 102.53292,
       "InputTape": []
     },
@@ -1583,14 +1601,14 @@
     {
       "FromNodeId": 29,
       "ToNodeId": 37,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 30,
       "ToNodeId": 23,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 34.655445,
       "InputTape": []
     },
@@ -1604,7 +1622,7 @@
     {
       "FromNodeId": 31,
       "ToNodeId": 24,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 34.655445,
       "InputTape": []
     },
@@ -1625,14 +1643,14 @@
     {
       "FromNodeId": 32,
       "ToNodeId": 38,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 33,
       "ToNodeId": 15,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 98.40732,
       "InputTape": []
     },
@@ -1646,7 +1664,7 @@
     {
       "FromNodeId": 33,
       "ToNodeId": 43,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 102.53292,
       "InputTape": []
     },
@@ -1660,91 +1678,105 @@
     {
       "FromNodeId": 34,
       "ToNodeId": 50,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 129.0155,
       "InputTape": []
     },
     {
       "FromNodeId": 34,
       "ToNodeId": 78,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 306.64636,
       "InputTape": []
     },
     {
       "FromNodeId": 35,
       "ToNodeId": 22,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 106.320274,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 35,
+      "ToNodeId": 39,
+      "Kind": "Walk",
+      "Cost": 102.41582,
       "InputTape": []
     },
     {
       "FromNodeId": 36,
       "ToNodeId": 26,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 36,
       "ToNodeId": 44,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
     {
       "FromNodeId": 37,
       "ToNodeId": 29,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 37,
       "ToNodeId": 41,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 79.9062,
       "InputTape": []
     },
     {
       "FromNodeId": 37,
       "ToNodeId": 67,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 94.86833,
       "InputTape": []
     },
     {
       "FromNodeId": 38,
       "ToNodeId": 32,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 38,
       "ToNodeId": 42,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
     {
       "FromNodeId": 38,
       "ToNodeId": 70,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 94.86833,
       "InputTape": []
     },
     {
       "FromNodeId": 39,
+      "ToNodeId": 35,
+      "Kind": "Walk",
+      "Cost": 102.41582,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 39,
       "ToNodeId": 47,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
     {
       "FromNodeId": 40,
       "ToNodeId": 28,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 102.53292,
       "InputTape": []
     },
@@ -1758,14 +1790,14 @@
     {
       "FromNodeId": 40,
       "ToNodeId": 60,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 150,
       "InputTape": []
     },
     {
       "FromNodeId": 41,
       "ToNodeId": 37,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 79.9062,
       "InputTape": []
     },
@@ -1779,14 +1811,14 @@
     {
       "FromNodeId": 41,
       "ToNodeId": 67,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 92.11406,
       "InputTape": []
     },
     {
       "FromNodeId": 42,
       "ToNodeId": 38,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
@@ -1800,14 +1832,14 @@
     {
       "FromNodeId": 42,
       "ToNodeId": 70,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.06739,
       "InputTape": []
     },
     {
       "FromNodeId": 43,
       "ToNodeId": 33,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 102.53292,
       "InputTape": []
     },
@@ -1821,14 +1853,14 @@
     {
       "FromNodeId": 43,
       "ToNodeId": 61,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 150,
       "InputTape": []
     },
     {
       "FromNodeId": 44,
       "ToNodeId": 36,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
@@ -1842,7 +1874,7 @@
     {
       "FromNodeId": 44,
       "ToNodeId": 66,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -1863,7 +1895,7 @@
     {
       "FromNodeId": 47,
       "ToNodeId": 39,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
@@ -1877,7 +1909,7 @@
     {
       "FromNodeId": 47,
       "ToNodeId": 71,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -1891,14 +1923,14 @@
     {
       "FromNodeId": 48,
       "ToNodeId": 59,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
     {
       "FromNodeId": 49,
       "ToNodeId": 27,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 129.0155,
       "InputTape": []
     },
@@ -1912,14 +1944,14 @@
     {
       "FromNodeId": 49,
       "ToNodeId": 60,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
     {
       "FromNodeId": 50,
       "ToNodeId": 34,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 129.0155,
       "InputTape": []
     },
@@ -1933,7 +1965,7 @@
     {
       "FromNodeId": 50,
       "ToNodeId": 61,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
@@ -1947,7 +1979,7 @@
     {
       "FromNodeId": 51,
       "ToNodeId": 62,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
@@ -1961,7 +1993,7 @@
     {
       "FromNodeId": 52,
       "ToNodeId": 64,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
@@ -1975,7 +2007,7 @@
     {
       "FromNodeId": 53,
       "ToNodeId": 85,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 209.0287,
       "InputTape": []
     },
@@ -1989,7 +2021,7 @@
     {
       "FromNodeId": 54,
       "ToNodeId": 86,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 215.47389,
       "InputTape": []
     },
@@ -2003,7 +2035,7 @@
     {
       "FromNodeId": 55,
       "ToNodeId": 87,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 217.91054,
       "InputTape": []
     },
@@ -2017,7 +2049,7 @@
     {
       "FromNodeId": 56,
       "ToNodeId": 88,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 209.0287,
       "InputTape": []
     },
@@ -2031,7 +2063,7 @@
     {
       "FromNodeId": 57,
       "ToNodeId": 65,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
@@ -2045,7 +2077,7 @@
     {
       "FromNodeId": 59,
       "ToNodeId": 48,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
@@ -2059,70 +2091,70 @@
     {
       "FromNodeId": 59,
       "ToNodeId": 72,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 60,
       "ToNodeId": 40,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 150,
       "InputTape": []
     },
     {
       "FromNodeId": 60,
       "ToNodeId": 49,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
     {
       "FromNodeId": 60,
       "ToNodeId": 72,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 145.9075,
       "InputTape": []
     },
     {
       "FromNodeId": 60,
       "ToNodeId": 77,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 212.13203,
       "InputTape": []
     },
     {
       "FromNodeId": 61,
       "ToNodeId": 43,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 150,
       "InputTape": []
     },
     {
       "FromNodeId": 61,
       "ToNodeId": 50,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
     {
       "FromNodeId": 61,
       "ToNodeId": 73,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 145.9075,
       "InputTape": []
     },
     {
       "FromNodeId": 61,
       "ToNodeId": 78,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 212.13203,
       "InputTape": []
     },
     {
       "FromNodeId": 62,
       "ToNodeId": 51,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 73.97973,
       "InputTape": []
     },
@@ -2136,7 +2168,7 @@
     {
       "FromNodeId": 62,
       "ToNodeId": 73,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -2150,56 +2182,56 @@
     {
       "FromNodeId": 64,
       "ToNodeId": 52,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
     {
       "FromNodeId": 64,
       "ToNodeId": 68,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 43.13931,
       "InputTape": []
     },
     {
       "FromNodeId": 65,
       "ToNodeId": 57,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 32.31099,
       "InputTape": []
     },
     {
       "FromNodeId": 65,
       "ToNodeId": 69,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 43.13931,
       "InputTape": []
     },
     {
       "FromNodeId": 66,
       "ToNodeId": 44,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 66,
       "ToNodeId": 75,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
     {
       "FromNodeId": 67,
       "ToNodeId": 37,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 94.86833,
       "InputTape": []
     },
     {
       "FromNodeId": 67,
       "ToNodeId": 41,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 92.11406,
       "InputTape": []
     },
@@ -2213,7 +2245,7 @@
     {
       "FromNodeId": 68,
       "ToNodeId": 64,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 43.13931,
       "InputTape": []
     },
@@ -2227,7 +2259,7 @@
     {
       "FromNodeId": 69,
       "ToNodeId": 65,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 43.13931,
       "InputTape": []
     },
@@ -2241,14 +2273,14 @@
     {
       "FromNodeId": 70,
       "ToNodeId": 38,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 94.86833,
       "InputTape": []
     },
     {
       "FromNodeId": 70,
       "ToNodeId": 42,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.06739,
       "InputTape": []
     },
@@ -2262,42 +2294,42 @@
     {
       "FromNodeId": 71,
       "ToNodeId": 47,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 71,
       "ToNodeId": 76,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 106.320274,
       "InputTape": []
     },
     {
       "FromNodeId": 72,
       "ToNodeId": 59,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
     {
       "FromNodeId": 72,
       "ToNodeId": 60,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 145.9075,
       "InputTape": []
     },
     {
       "FromNodeId": 73,
       "ToNodeId": 61,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 145.9075,
       "InputTape": []
     },
     {
       "FromNodeId": 73,
       "ToNodeId": 62,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.85281,
       "InputTape": []
     },
@@ -2309,9 +2341,16 @@
       "InputTape": []
     },
     {
+      "FromNodeId": 74,
+      "ToNodeId": 91,
+      "Kind": "Walk",
+      "Cost": 288.0625,
+      "InputTape": []
+    },
+    {
       "FromNodeId": 75,
       "ToNodeId": 66,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 84.50444,
       "InputTape": []
     },
@@ -2325,35 +2364,77 @@
     {
       "FromNodeId": 75,
       "ToNodeId": 79,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 140.75865,
       "InputTape": []
     },
     {
       "FromNodeId": 76,
       "ToNodeId": 71,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 106.320274,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 76,
+      "ToNodeId": 81,
+      "Kind": "Walk",
+      "Cost": 195.68597,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 76,
+      "ToNodeId": 82,
+      "Kind": "Walk",
+      "Cost": 157.49286,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 76,
+      "ToNodeId": 96,
+      "Kind": "Walk",
+      "Cost": 283.21017,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 77,
+      "ToNodeId": 60,
+      "Kind": "Walk",
+      "Cost": 212.13203,
       "InputTape": []
     },
     {
       "FromNodeId": 77,
       "ToNodeId": 84,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.97321,
       "InputTape": []
     },
     {
       "FromNodeId": 78,
+      "ToNodeId": 34,
+      "Kind": "Walk",
+      "Cost": 306.64636,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 78,
+      "ToNodeId": 61,
+      "Kind": "Walk",
+      "Cost": 212.13203,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 78,
       "ToNodeId": 89,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.97321,
       "InputTape": []
     },
     {
       "FromNodeId": 79,
       "ToNodeId": 75,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 140.75865,
       "InputTape": []
     },
@@ -2374,8 +2455,15 @@
     {
       "FromNodeId": 80,
       "ToNodeId": 91,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.87213,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 81,
+      "ToNodeId": 76,
+      "Kind": "Walk",
+      "Cost": 195.68597,
       "InputTape": []
     },
     {
@@ -2388,8 +2476,15 @@
     {
       "FromNodeId": 81,
       "ToNodeId": 96,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.87213,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 82,
+      "ToNodeId": 76,
+      "Kind": "Walk",
+      "Cost": 157.49286,
       "InputTape": []
     },
     {
@@ -2409,14 +2504,14 @@
     {
       "FromNodeId": 83,
       "ToNodeId": 91,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 338.61484,
       "InputTape": []
     },
     {
       "FromNodeId": 84,
       "ToNodeId": 77,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.97321,
       "InputTape": []
     },
@@ -2430,8 +2525,15 @@
     {
       "FromNodeId": 84,
       "ToNodeId": 92,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 85,
+      "ToNodeId": 53,
+      "Kind": "Walk",
+      "Cost": 209.0287,
       "InputTape": []
     },
     {
@@ -2444,8 +2546,15 @@
     {
       "FromNodeId": 85,
       "ToNodeId": 93,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 434.03687,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 86,
+      "ToNodeId": 54,
+      "Kind": "Walk",
+      "Cost": 215.47389,
       "InputTape": []
     },
     {
@@ -2464,6 +2573,13 @@
     },
     {
       "FromNodeId": 87,
+      "ToNodeId": 55,
+      "Kind": "Walk",
+      "Cost": 217.91054,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 87,
       "ToNodeId": 86,
       "Kind": "Walk",
       "Cost": 583,
@@ -2478,6 +2594,13 @@
     },
     {
       "FromNodeId": 88,
+      "ToNodeId": 56,
+      "Kind": "Walk",
+      "Cost": 209.0287,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 88,
       "ToNodeId": 87,
       "Kind": "Walk",
       "Cost": 41,
@@ -2486,14 +2609,14 @@
     {
       "FromNodeId": 88,
       "ToNodeId": 94,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 428.06543,
       "InputTape": []
     },
     {
       "FromNodeId": 89,
       "ToNodeId": 78,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.97321,
       "InputTape": []
     },
@@ -2507,7 +2630,7 @@
     {
       "FromNodeId": 89,
       "ToNodeId": 95,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
       "InputTape": []
     },
@@ -2521,28 +2644,28 @@
     {
       "FromNodeId": 90,
       "ToNodeId": 96,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 344.5693,
       "InputTape": []
     },
     {
       "FromNodeId": 91,
       "ToNodeId": 80,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.87213,
       "InputTape": []
     },
     {
       "FromNodeId": 91,
       "ToNodeId": 83,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 338.61484,
       "InputTape": []
     },
     {
       "FromNodeId": 92,
       "ToNodeId": 84,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
       "InputTape": []
     },
@@ -2556,14 +2679,14 @@
     {
       "FromNodeId": 92,
       "ToNodeId": 101,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 217.11057,
       "InputTape": []
     },
     {
       "FromNodeId": 93,
       "ToNodeId": 85,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 434.03687,
       "InputTape": []
     },
@@ -2577,7 +2700,7 @@
     {
       "FromNodeId": 94,
       "ToNodeId": 88,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 428.06543,
       "InputTape": []
     },
@@ -2591,7 +2714,7 @@
     {
       "FromNodeId": 95,
       "ToNodeId": 89,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
       "InputTape": []
     },
@@ -2605,21 +2728,21 @@
     {
       "FromNodeId": 95,
       "ToNodeId": 104,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 217.11057,
       "InputTape": []
     },
     {
       "FromNodeId": 96,
       "ToNodeId": 81,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 89.87213,
       "InputTape": []
     },
     {
       "FromNodeId": 96,
       "ToNodeId": 90,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 344.5693,
       "InputTape": []
     },
@@ -2633,7 +2756,7 @@
     {
       "FromNodeId": 97,
       "ToNodeId": 101,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 243.6473,
       "InputTape": []
     },
@@ -2647,7 +2770,7 @@
     {
       "FromNodeId": 98,
       "ToNodeId": 102,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
       "InputTape": []
     },
@@ -2661,7 +2784,7 @@
     {
       "FromNodeId": 99,
       "ToNodeId": 103,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 202.40553,
       "InputTape": []
     },
@@ -2675,84 +2798,98 @@
     {
       "FromNodeId": 100,
       "ToNodeId": 104,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 237.73935,
       "InputTape": []
     },
     {
       "FromNodeId": 101,
+      "ToNodeId": 92,
+      "Kind": "Walk",
+      "Cost": 217.11057,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 101,
       "ToNodeId": 97,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 243.6473,
       "InputTape": []
     },
     {
       "FromNodeId": 102,
       "ToNodeId": 98,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 196.54007,
       "InputTape": []
     },
     {
       "FromNodeId": 102,
       "ToNodeId": 105,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 103,
       "ToNodeId": 99,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 202.40553,
       "InputTape": []
     },
     {
       "FromNodeId": 103,
       "ToNodeId": 106,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 104,
+      "ToNodeId": 95,
+      "Kind": "Walk",
+      "Cost": 217.11057,
+      "InputTape": []
+    },
+    {
+      "FromNodeId": 104,
       "ToNodeId": 100,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 237.73935,
       "InputTape": []
     },
     {
       "FromNodeId": 105,
       "ToNodeId": 102,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 105,
       "ToNodeId": 107,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 106,
       "ToNodeId": 103,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 106,
       "ToNodeId": 108,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
     {
       "FromNodeId": 107,
       "ToNodeId": 105,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },
@@ -2766,7 +2903,7 @@
     {
       "FromNodeId": 108,
       "ToNodeId": 106,
-      "Kind": "Jump",
+      "Kind": "Walk",
       "Cost": 55.31727,
       "InputTape": []
     },

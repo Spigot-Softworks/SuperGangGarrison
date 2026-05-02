@@ -146,6 +146,13 @@ public sealed partial class SimulationWorld
                         rangeAnchorPlayer.AimDirectionDegrees * (MathF.PI / 180f),
                         SimulationWorld.GetExperimentalSoldierStingerTurnRateRadians());
                 }
+                else if (rocket.EnableExperimentalCaveatTracking
+                    && world.TryResolveExperimentalEngineerRocketTrackingDirection(rocket, rangeAnchorPlayer, out var engineerTrackingDirection))
+                {
+                    rocket.TrackExperimentalStingerTarget(
+                        engineerTrackingDirection,
+                        SimulationWorld.GetExperimentalEngineerCaveatTurnRateRadians());
+                }
             }
 
             if (rocket.IsFading)

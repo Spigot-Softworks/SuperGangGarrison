@@ -2,7 +2,17 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
-    private void SpawnShot(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float damagePerHit = ShotProjectileEntity.DamagePerHit, string? killFeedWeaponSpriteNameOverride = null)
+    private void SpawnShot(
+        PlayerEntity owner,
+        float x,
+        float y,
+        float velocityX,
+        float velocityY,
+        float damagePerHit = ShotProjectileEntity.DamagePerHit,
+        bool forceGibOnKill = false,
+        string? killFeedWeaponSpriteNameOverride = null,
+        int? sourceSentryId = null,
+        bool applyExperimentalEngineerSentryPerkEffects = false)
     {
         var shot = new ShotProjectileEntity(
             AllocateEntityId(),
@@ -13,7 +23,10 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             damagePerHit,
-            killFeedWeaponSpriteNameOverride);
+            forceGibOnKill,
+            killFeedWeaponSpriteNameOverride,
+            sourceSentryId,
+            applyExperimentalEngineerSentryPerkEffects);
         _shots.Add(shot);
         _entities.Add(shot.Id, shot);
     }
@@ -165,6 +178,9 @@ public sealed partial class SimulationWorld
         float knockbackScale = 1f,
         bool canIgniteTargets = false,
         bool enableExperimentalStingerTracking = false,
+        bool enableExperimentalCaveatTracking = false,
+        float experimentalVisualScale = 1f,
+        int experimentalTrackingLockTicksRemaining = 0,
         string? killFeedWeaponSpriteNameOverride = null)
     {
         var rocket = new RocketProjectileEntity(
@@ -184,6 +200,9 @@ public sealed partial class SimulationWorld
             knockbackScale: knockbackScale,
             canIgniteTargets: canIgniteTargets,
             enableExperimentalStingerTracking: enableExperimentalStingerTracking,
+            enableExperimentalCaveatTracking: enableExperimentalCaveatTracking,
+            experimentalVisualScale: experimentalVisualScale,
+            experimentalTrackingLockTicksRemaining: experimentalTrackingLockTicksRemaining,
             killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         if (explodeImmediately)
         {

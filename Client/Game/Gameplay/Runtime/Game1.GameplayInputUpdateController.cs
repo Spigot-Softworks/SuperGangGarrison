@@ -24,15 +24,10 @@ public partial class Game1
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
             var cameraPosition = _game.GetCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
-            _game.HandleMLBotDemonstrationRecorderHotkeys(keyboard);
-            _game.HandleMLBotDaggerAssistHotkeys(keyboard);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition);
             _game.SetNavEditorTraversalCaptureInput(gameplayInput);
             _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
-            _game.SetMLBotDemonstrationCaptureInput(gameplayInput);
-            _game.SetMLBotDaggerHumanInput(gameplayInput);
             var localGameplayInput = _game.ResolveNavEditorGameplayInput(gameplayInput);
-            localGameplayInput = _game.ResolveMLBotDaggerGameplayInput(localGameplayInput);
             _game.CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
             _game._world.SetLocalInput(localGameplayInput);
             _game.UpdateBubbleMenuState(keyboard, mouse);

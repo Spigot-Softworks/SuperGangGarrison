@@ -4363,7 +4363,7 @@ static BotScenarioResult RunBotScenarioCase(
                 ? $" fire=P{input.FirePrimary}/S{input.FireSecondary} aim=({input.AimWorldX:0.0},{input.AimWorldY:0.0}) enemy=({combatEnemy.X:0.0},{combatEnemy.Y:0.0}) ehp={combatEnemy.Health}/{combatEnemy.MaxHealth} shells={bot.CurrentShells} cd={bot.PrimaryCooldownTicks} reload={bot.ReloadTicksUntilNextShell}"
                 : string.Empty;
             routeTrace!.Add(
-                $"t={tick / (float)world.Config.TicksPerSecond:0.0} pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0} vel=({bot.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0},{bot.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0}) target=({diagnostic.MovementTargetX:0.0},{diagnostic.MovementTargetY:0.0}) input=L{input.Left}/R{input.Right}/J{input.Up}{combatTrace} req={diagnostic.RequestedHorizontal}/{diagnostic.RequestedJump} move={diagnostic.MoveDebug} jump={diagnostic.JumpDebug} g={diagnostic.IsGrounded}/{diagnostic.ProbeGrounded} st={diagnostic.StuckTicks}/{diagnostic.ModernStuckTicks} d={objectiveDistance:0.0} route={diagnostic.RouteLabel} cp={diagnostic.CurrentPointId} np={diagnostic.NextPointId} np2={diagnostic.NextPoint2Id} prev={diagnostic.PreviousCurrentPointId}->{diagnostic.PreviousNextPointId} goal={diagnostic.RouteGoalNodeId}@({diagnostic.RouteGoalX:0.0},{diagnostic.RouteGoalY:0.0}) nn={diagnostic.NoNextPointTicks} sab={diagnostic.SecondAnchorBlockPointId}/{diagnostic.SecondAnchorBlockTicksRemaining} issue={diagnostic.NavigationIssueLabel} br={diagnostic.BranchFromPointId}->{diagnostic.BranchToPointId}:{diagnostic.BranchTicks}/{diagnostic.BranchNoProgressTicks} dt={diagnostic.DirectTargetTicks}/{diagnostic.DirectTargetNoProgressTicks}");
+                $"t={tick / (float)world.Config.TicksPerSecond:0.0} pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0} vel=({bot.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0},{bot.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0}) mrs={bot.MaxRunSpeed / LegacyMovementModel.SourceTicksPerSecond:0.0} rp={bot.RunPower / LegacyMovementModel.SourceTicksPerSecond:0.0} cryo={bot.IsExperimentalCryoFrozen}/{bot.IsExperimentalCryoSlowed} target=({diagnostic.MovementTargetX:0.0},{diagnostic.MovementTargetY:0.0}) input=L{input.Left}/R{input.Right}/J{input.Up}{combatTrace} req={diagnostic.RequestedHorizontal}/{diagnostic.RequestedJump} move={diagnostic.MoveDebug} jump={diagnostic.JumpDebug} g={diagnostic.IsGrounded}/{diagnostic.ProbeGrounded} st={diagnostic.StuckTicks}/{diagnostic.ModernStuckTicks} d={objectiveDistance:0.0} route={diagnostic.RouteLabel} cp={diagnostic.CurrentPointId} np={diagnostic.NextPointId} np2={diagnostic.NextPoint2Id} prev={diagnostic.PreviousCurrentPointId}->{diagnostic.PreviousNextPointId} goal={diagnostic.RouteGoalNodeId}@({diagnostic.RouteGoalX:0.0},{diagnostic.RouteGoalY:0.0}) nn={diagnostic.NoNextPointTicks} sab={diagnostic.SecondAnchorBlockPointId}/{diagnostic.SecondAnchorBlockTicksRemaining} issue={diagnostic.NavigationIssueLabel} br={diagnostic.BranchFromPointId}->{diagnostic.BranchToPointId}:{diagnostic.BranchTicks}/{diagnostic.BranchNoProgressTicks} dt={diagnostic.DirectTargetTicks}/{diagnostic.DirectTargetNoProgressTicks}");
             if (routeTrace.Count > 120)
             {
                 routeTrace.RemoveAt(0);
@@ -5875,7 +5875,8 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
         return 2;
     }
 
-    var actions = options.MotionProofArtifactPhase.Equals("return", StringComparison.OrdinalIgnoreCase)
+    var dumpReturnPhase = options.MotionProofArtifactPhase.Equals("return", StringComparison.OrdinalIgnoreCase);
+    var actions = dumpReturnPhase
         ? artifact.Return
         : artifact.Attack;
     if (actions.Count == 0)
@@ -5891,6 +5892,20 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
     }
 
     const byte botSlot = 2;
+    if (dumpReturnPhase
+        && artifact.Attack.Count > 0
+        && !TryReplayMotionProofArtifactActions(world, botSlot, bot, artifact.Attack, stopWhenCarryingIntel: true))
+    {
+        Console.Error.WriteLine("failed_to_replay_attack_leadin_for_return_dump");
+        return 2;
+    }
+
+    if (dumpReturnPhase && !bot.IsCarryingIntel)
+    {
+        Console.Error.WriteLine("return_dump_missing_intel_after_attack_leadin");
+        return 2;
+    }
+
     var sliceStart = Math.Clamp(options.MotionProofArtifactStartAction, 0, Math.Max(0, actions.Count - 1));
     var sliceEnd = options.MotionProofArtifactEndAction >= 0
         ? Math.Clamp(options.MotionProofArtifactEndAction, sliceStart, actions.Count - 1)
@@ -5900,9 +5915,13 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
     var sliceStartBottom = float.NaN;
     var sliceEndX = float.NaN;
     var sliceEndBottom = float.NaN;
+    var reattachPoints = new List<ToolTapeReattachPoint>();
+    var lastReattachX = bot.X;
+    var lastReattachBottom = bot.Bottom;
 
     Console.WriteLine(
         $"motionproof_artifact map={artifact.Map} area={artifact.Area} team={artifact.Team} class={artifact.Class} phase={options.MotionProofArtifactPhase} actions={actions.Count} artifact={artifactPath}");
+    Console.WriteLine($"phase_start x={bot.X:0.0} bottom={bot.Bottom:0.0} carry={bot.IsCarryingIntel}");
     for (var index = 0; index < actions.Count; index += 1)
     {
         var action = actions[index];
@@ -5938,6 +5957,33 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
             sliceEndX = endX;
             sliceEndBottom = endBottom;
         }
+
+        var resumeActionIndex = index + 1;
+        if (resumeActionIndex >= actions.Count)
+        {
+            continue;
+        }
+
+        if (reattachPoints.Count > 0
+            && MathF.Sqrt(MathF.Pow(endX - lastReattachX, 2f) + MathF.Pow(endBottom - lastReattachBottom, 2f)) < 24f)
+        {
+            continue;
+        }
+
+        var point = new ToolTapeReattachPoint(
+            ResumeActionIndex: resumeActionIndex,
+            X: endX,
+            Bottom: endBottom,
+            IsInSpawnRoom: bot.IsInSpawnRoom);
+        reattachPoints.Add(point);
+        lastReattachX = endX;
+        lastReattachBottom = endBottom;
+    }
+
+    foreach (var point in reattachPoints)
+    {
+        Console.WriteLine(
+            $"r{point.ResumeActionIndex}: x={point.X:0.0} bottom={point.Bottom:0.0} spawn={point.IsInSpawnRoom}");
     }
 
     if (sliceSteps.Count > 0)
@@ -5956,6 +6002,34 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
     }
 
     return 0;
+}
+
+bool TryReplayMotionProofArtifactActions(
+    SimulationWorld world,
+    byte botSlot,
+    PlayerEntity bot,
+    IReadOnlyList<ToolMotionProofAction> actions,
+    bool stopWhenCarryingIntel)
+{
+    foreach (var action in actions)
+    {
+        for (var tick = 0; tick < Math.Max(1, action.Ticks); tick += 1)
+        {
+            var input = BuildMotionProofArtifactInput(action, tick, bot);
+            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            {
+                return false;
+            }
+
+            world.AdvanceOneTick();
+            if (stopWhenCarryingIntel && bot.IsCarryingIntel)
+            {
+                return true;
+            }
+        }
+    }
+
+    return !stopWhenCarryingIntel || bot.IsCarryingIntel;
 }
 
 PlayerInputSnapshot BuildMotionProofArtifactInput(ToolMotionProofAction action, int tick, PlayerEntity player)
@@ -6015,6 +6089,8 @@ internal sealed record ToolMotionProofArtifact(
     IReadOnlyList<ToolMotionProofAction> Return);
 
 internal sealed record ToolMotionProofAction(string Kind, int Direction, int Ticks);
+
+internal sealed record ToolTapeReattachPoint(int ResumeActionIndex, float X, float Bottom, bool IsInSpawnRoom);
 
 internal enum BotControllerMode
 {

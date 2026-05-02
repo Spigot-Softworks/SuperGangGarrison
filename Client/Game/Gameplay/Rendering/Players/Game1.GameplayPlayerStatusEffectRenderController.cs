@@ -94,6 +94,81 @@ public partial class Game1
             }
         }
 
+        public void DrawExperimentalCryoOverlays(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
+        {
+            if (!player.IsAlive
+                || visibilityAlpha <= 0.05f
+                || (!player.IsExperimentalCryoSlowed && !player.IsExperimentalCryoFrozen))
+            {
+                return;
+            }
+
+            var cryoProgress = player.IsExperimentalCryoFrozen
+                ? 1f
+                : Math.Clamp(player.ExperimentalCryoExposureFraction, 0f, 1f);
+            var overlayAlpha = player.IsExperimentalCryoFrozen
+                ? 0.72f
+                : MathHelper.Lerp(0.3f, 0.62f, cryoProgress);
+            var overlayTint = Color.Lerp(new Color(142, 212, 255), new Color(186, 234, 255), cryoProgress)
+                * (visibilityAlpha * overlayAlpha);
+            _game.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, bodySelection, drawIntelOverlay: false);
+            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
+            {
+                _game.TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, 1f, bodySelection);
+            }
+
+            if (!player.IsExperimentalCryoFrozen)
+            {
+                return;
+            }
+
+            var frozenBounds = Game1.GetPlayerScreenBounds(player, renderPosition, cameraPosition);
+            frozenBounds.Inflate(4, 6);
+            _game._spriteBatch.Draw(_game._pixel, frozenBounds, new Color(118, 198, 255, 184) * visibilityAlpha);
+        }
+
+        public void DrawExperimentalEssenceExtractorOverlay(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
+        {
+            if (!player.IsAlive
+                || visibilityAlpha <= 0.05f
+                || (!player.IsExperimentalEngineerEssenceExtractorAffected && !player.IsExperimentalGravitonAffected))
+            {
+                return;
+            }
+
+            if (player.IsExperimentalEngineerEssenceExtractorAffected)
+            {
+                DrawExperimentalStatusOverlayPass(
+                    player,
+                    renderPosition,
+                    cameraPosition,
+                    new Color(220, 220, 220) * (visibilityAlpha * 0.78f),
+                    bodySelection);
+                return;
+            }
+
+            DrawExperimentalStatusOverlayPass(
+                player,
+                renderPosition,
+                cameraPosition,
+                new Color(88, 88, 104) * (visibilityAlpha * 0.42f),
+                bodySelection);
+        }
+
+        private void DrawExperimentalStatusOverlayPass(
+            PlayerEntity player,
+            Vector2 renderPosition,
+            Vector2 cameraPosition,
+            Color overlayTint,
+            PlayerBodySpriteSelection bodySelection)
+        {
+            _game.TryDrawPlayerSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, bodySelection, drawIntelOverlay: false);
+            if (!_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
+            {
+                _game.TryDrawWeaponSpriteAtPosition(player, renderPosition, cameraPosition, overlayTint, 1f, bodySelection);
+            }
+        }
+
         public Color GetPlayerColor(PlayerEntity player, Color baseColor)
         {
             return baseColor * _game.GetPlayerVisibilityAlpha(player);

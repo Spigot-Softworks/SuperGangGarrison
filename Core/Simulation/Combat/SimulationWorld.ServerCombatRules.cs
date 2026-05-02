@@ -19,9 +19,20 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        var attacker = FindPlayerById(attackerId);
         return attackerId == target.Id
             || attackerTeam != target.Team
-            || IsRoundEndFriendlyFireActive();
+            || IsRoundEndFriendlyFireActive()
+            || (attacker is not null && IsExperimentalConfusionFriendlyFireAllowed(attacker, target));
+    }
+
+    private bool IsExperimentalConfusionFriendlyFireAllowed(PlayerEntity attacker, PlayerEntity target)
+    {
+        return ExperimentalGameplaySettings.EnableEngineerConfusionField
+            && attacker.Team == target.Team
+            && attacker.Id != target.Id
+            && (attacker.ExperimentalConfusedAttackTargetPlayerId == target.Id
+                || target.IsExperimentalConfusionRetaliationMarked);
     }
 
     private int ScaleConfiguredDamage(int damage)

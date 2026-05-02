@@ -71,6 +71,32 @@ public partial class Game1
         SoldierThundergunner,
         SoldierBattleborn,
         SoldierFogOfWar,
+        EngineerGuardianMatrix,
+        EngineerIncendiaryEnhancements,
+        EngineerCryonicMunitions,
+        EngineerAutonomousPhaseEngine,
+        EngineerOutputInducer,
+        EngineerEssenceExtractor,
+        EngineerCooperativeTargetingHarness,
+        EngineerRegenerativeDiode,
+        EngineerOsmosisConductor,
+        EngineerAmperageAccelerator,
+        EngineerHardwareHardener,
+        EngineerCaveatInjector,
+        EngineerPrecisionInstantiator,
+        EngineerBuckshotConversion,
+        EngineerIntegrityProjector,
+        EngineerMisdirectionField,
+        EngineerConfusionField,
+        EngineerGravitonAffixer,
+        EngineerAuraEnergizer,
+        EngineerEntanglementTraverser,
+        EngineerAlchemicalAnode,
+        EngineerExperimentalOverkillAugment,
+        EngineerEfficiencyStabilizer,
+        EngineerMateriaRecycler,
+        EngineerDestinyPunctuator,
+        EngineerFreezeRay,
         DemoknightMeleeRange,
         DemoknightLifesteal,
         DemoknightMoveSpeed,
@@ -128,9 +154,12 @@ public partial class Game1
 
     private readonly record struct LastToDieRewardChoice(
         LastToDiePerkDefinition? Perk,
-        LastToDieAccessoryDefinition? Accessory)
+        LastToDieAccessoryDefinition? Accessory,
+        bool IsDisabled = false)
     {
         public bool IsAccessory => Accessory.HasValue;
+
+        public bool IsSelectable => !IsDisabled;
     }
 
     private readonly record struct LastToDieSurvivorDefinition(
@@ -187,7 +216,15 @@ public partial class Game1
 
         public int TotalDamageDealt { get; set; }
 
+        public int TotalHealingReceived { get; set; }
+
+        public int HighestCombo { get; set; }
+
         public int ObservedStageKills { get; set; }
+
+        public int ObservedStageHealingReceived { get; set; }
+
+        public int RunElapsedTicks { get; set; }
     }
 
     private static readonly LastToDieSurvivorDefinition[] LastToDieSurvivorCatalog =
@@ -220,6 +257,11 @@ public partial class Game1
         "TwodFortTwo",
         "Conflict",
         "Eiger",
+    };
+
+    private static readonly HashSet<string> LastToDieClassicRotationExcludedMapNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Corinth",
     };
 
     private static readonly LastToDiePerkDefinition[] LastToDieSoldierPerkCatalog =
@@ -266,6 +308,36 @@ public partial class Game1
         new(LastToDiePerkKind.DemoknightPostRageRegeneration, "Meditation", "Regenerate health for 10 seconds after rage."),
         new(LastToDiePerkKind.DemoknightFullControlDuringCharge, "Full Control", "Keep full turn and jump control while charging."),
         new(LastToDiePerkKind.DemoknightGhostDash, "Naught Spectre", "Right-click dashes through danger with a boosted next hit."),
+    ];
+
+    private static readonly LastToDiePerkDefinition[] LastToDieEngineerPerkCatalog =
+    [
+        new(LastToDiePerkKind.EngineerGuardianMatrix, "Guardian Matrix", "+100 sentry health. Nearby sentries project a 200hp shield onto you."),
+        new(LastToDiePerkKind.EngineerIncendiaryEnhancements, "Incendiary Enhancements", "Sentry bullets ignite targets, and nearby enemies get washed with flames."),
+        new(LastToDiePerkKind.EngineerCryonicMunitions, "Cryonic Munitions", "Sentry bullets slow targets and freeze them solid after sustained fire."),
+        new(LastToDiePerkKind.EngineerAutonomousPhaseEngine, "Autonomous Phase Engine", "Built sentries float and follow you instead of staying planted."),
+        new(LastToDiePerkKind.EngineerOutputInducer, "Output Inducer", "Place an additional sentry."),
+        new(LastToDiePerkKind.EngineerEssenceExtractor, "Essence Extractor", "Press Q to equip the Essence Extractor, a beamgun that steals enemy HP and amplifies damage taken."),
+        new(LastToDiePerkKind.EngineerCooperativeTargetingHarness, "Cooperative Targeting Harness", "Sentries prioritize enemies you recently damaged and deal bonus damage to them."),
+        new(LastToDiePerkKind.EngineerRegenerativeDiode, "Regenerative Diode", "You and your sentries regenerate 5 health per second."),
+        new(LastToDiePerkKind.EngineerOsmosisConductor, "Osmosis Conductor", "Sentry damage heals you, and your damage heals your sentries."),
+        new(LastToDiePerkKind.EngineerAmperageAccelerator, "Amperage Accelerator", "Sentries ramp their rate of fire up to 300% until they go idle."),
+        new(LastToDiePerkKind.EngineerHardwareHardener, "Hardware Hardener", "+200 sentry health. Above 50% health, sentries resist 30% of incoming damage."),
+        new(LastToDiePerkKind.EngineerCaveatInjector, "C.A.V.E.A.T. Injector", "Every 5th sentry shot launches 3 scrambling mini-rockets."),
+        new(LastToDiePerkKind.EngineerPrecisionInstantiator, "Precision Instantiator", "Sentries fire slower, but shoot fully charged rifle rounds across the whole map."),
+        new(LastToDiePerkKind.EngineerBuckshotConversion, "Buckshot Conversion", "Sentries fire slower but blast out oversized scattergun volleys."),
+        new(LastToDiePerkKind.EngineerIntegrityProjector, "Integrity Projector", "Sentries automatically reflect rockets and stickies around them."),
+        new(LastToDiePerkKind.EngineerMisdirectionField, "Misdirection Field", "Nearby sentries ghost you slightly and grant 60% evasion."),
+        new(LastToDiePerkKind.EngineerConfusionField, "Confusion Field", "Nearby sentries scramble enemy judgement and can turn them on each other."),
+        new(LastToDiePerkKind.EngineerGravitonAffixer, "Graviton Affixer", "Jump pads slow enemies that walk through them and pull nearby enemies inward after placement."),
+        new(LastToDiePerkKind.EngineerAuraEnergizer, "Aura Energizer", "Jump pads radiate speed, grant a burst when crossed, and launch lower."),
+        new(LastToDiePerkKind.EngineerEntanglementTraverser, "Entanglement Traverser", "Jump pads teleport you to your sentry instead of launching you upward."),
+        new(LastToDiePerkKind.EngineerAlchemicalAnode, "Alchemical Anode", "Sentries self-repair for 20% of the damage they deal."),
+        new(LastToDiePerkKind.EngineerExperimentalOverkillAugment, "Experimental Overkill Augment", "Your shotgun also spits out two C.A.V.E.A.T. rockets per shot."),
+        new(LastToDiePerkKind.EngineerEfficiencyStabilizer, "Efficiency Stabilizer", "Gain 1% movement speed for every NutsNBolts you currently hold."),
+        new(LastToDiePerkKind.EngineerMateriaRecycler, "Materia Recycler", "+100 max NutsNBolts and recover metal when dealing damage."),
+        new(LastToDiePerkKind.EngineerDestinyPunctuator, "Destiny Punctuator", "Sacrifices sentries for a brutal double-barrel and enhanced stats."),
+        new(LastToDiePerkKind.EngineerFreezeRay, "Freeze Ray", "Press Q to equip the Freeze Ray, a beamgun that slows enemies, weakens their attacks, and freezes them after enough exposure."),
     ];
 
     private LastToDieRunState? _lastToDieRun;
@@ -520,6 +592,7 @@ public partial class Game1
     private void ResetLastToDieState()
     {
         StopLastToDieGameOverSound();
+        PersistLastToDieRunStatsIfNeeded(_lastToDieRun);
         _lastToDieRun = null;
         _lastToDieSurvivorMenuOpen = false;
         _lastToDieSurvivorHoverIndex = -1;
@@ -640,6 +713,8 @@ public partial class Game1
         {
             _lastToDieRun.StageRemainingTicks -= 1;
         }
+
+        _lastToDieRun.RunElapsedTicks += 1;
 
         if (_lastToDieRun.StageIntroTicksRemaining > 0)
         {
@@ -823,10 +898,21 @@ public partial class Game1
             .Where(definition => !run.ChosenPerks.Contains(definition.Kind))
             .ToList();
         ShuffleLastToDiePerks(available);
-        var choices = available
-            .Take(Math.Min(LastToDiePerkChoiceCount, available.Count))
+        var selectableChoices = available
+            .Where(perk => !ShouldDisableLastToDiePerkChoice(run, perk.Kind))
+            .Take(LastToDiePerkChoiceCount)
             .Select(perk => new LastToDieRewardChoice(perk, null))
-            .ToArray();
+            .ToList();
+        if (selectableChoices.Count < LastToDiePerkChoiceCount)
+        {
+            selectableChoices.AddRange(
+                available
+                    .Where(perk => ShouldDisableLastToDiePerkChoice(run, perk.Kind))
+                    .Take(LastToDiePerkChoiceCount - selectableChoices.Count)
+                    .Select(perk => new LastToDieRewardChoice(perk, null, IsDisabled: true)));
+        }
+
+        var choices = selectableChoices.ToArray();
         if (choices.Length > 0
             && run.SurvivorKind == LastToDieSurvivorKind.Soldier
             && RandomNumberGenerator.GetInt32(100) < (int)(LastToDieAccessoryChoiceChance * 100f))
@@ -836,6 +922,36 @@ public partial class Game1
         }
 
         return choices;
+    }
+
+    private static bool ShouldDisableLastToDiePerkChoice(LastToDieRunState run, LastToDiePerkKind perkKind)
+    {
+        return run.SurvivorKind == LastToDieSurvivorKind.Engineer
+            && run.ChosenPerks.Contains(LastToDiePerkKind.EngineerDestinyPunctuator)
+            && IsLastToDieSentryRelatedEngineerPerk(perkKind);
+    }
+
+    private static bool IsLastToDieSentryRelatedEngineerPerk(LastToDiePerkKind perkKind)
+    {
+        return perkKind is
+            LastToDiePerkKind.EngineerGuardianMatrix or
+            LastToDiePerkKind.EngineerIncendiaryEnhancements or
+            LastToDiePerkKind.EngineerCryonicMunitions or
+            LastToDiePerkKind.EngineerAutonomousPhaseEngine or
+            LastToDiePerkKind.EngineerOutputInducer or
+            LastToDiePerkKind.EngineerCooperativeTargetingHarness or
+            LastToDiePerkKind.EngineerRegenerativeDiode or
+            LastToDiePerkKind.EngineerOsmosisConductor or
+            LastToDiePerkKind.EngineerAmperageAccelerator or
+            LastToDiePerkKind.EngineerHardwareHardener or
+            LastToDiePerkKind.EngineerCaveatInjector or
+            LastToDiePerkKind.EngineerPrecisionInstantiator or
+            LastToDiePerkKind.EngineerBuckshotConversion or
+            LastToDiePerkKind.EngineerIntegrityProjector or
+            LastToDiePerkKind.EngineerMisdirectionField or
+            LastToDiePerkKind.EngineerConfusionField or
+            LastToDiePerkKind.EngineerAlchemicalAnode or
+            LastToDiePerkKind.EngineerEntanglementTraverser;
     }
 
     private static LastToDieAccessoryDefinition CreateRandomLastToDieAccessory()
@@ -883,7 +999,7 @@ public partial class Game1
         return survivorKind switch
         {
             LastToDieSurvivorKind.Demoknight => LastToDieDemoknightPerkCatalog,
-            LastToDieSurvivorKind.Engineer => [],
+            LastToDieSurvivorKind.Engineer => LastToDieEngineerPerkCatalog,
             _ => LastToDieSoldierPerkCatalog,
         };
     }
@@ -962,7 +1078,8 @@ public partial class Game1
         return survivorKind switch
         {
             LastToDieSurvivorKind.Engineer => LastToDieEngineerRotationMapNames.Contains(entry.LevelName),
-            _ => entry.Mode == GameModeKind.KingOfTheHill,
+            _ => entry.Mode == GameModeKind.KingOfTheHill
+                && !LastToDieClassicRotationExcludedMapNames.Contains(entry.LevelName),
         };
     }
 
@@ -1083,6 +1200,37 @@ public partial class Game1
                 LastToDiePerkKind.SoldierThundergunner => settings with { EnableSoldierThundergunner = true },
                 LastToDiePerkKind.SoldierBattleborn => settings with { EnableSoldierBattleborn = true },
                 LastToDiePerkKind.SoldierFogOfWar => settings with { EnableSoldierFogOfWar = true },
+                LastToDiePerkKind.EngineerGuardianMatrix => settings with { EnableEngineerGuardianMatrix = true },
+                LastToDiePerkKind.EngineerIncendiaryEnhancements => settings with { EnableEngineerIncendiaryEnhancements = true },
+                LastToDiePerkKind.EngineerCryonicMunitions => settings with { EnableEngineerCryonicMunitions = true },
+                LastToDiePerkKind.EngineerAutonomousPhaseEngine => settings with { EnableEngineerAutonomousPhaseEngine = true },
+                LastToDiePerkKind.EngineerOutputInducer => settings with { EnableEngineerOutputInducer = true },
+                LastToDiePerkKind.EngineerEssenceExtractor => settings with { EnableEngineerEssenceExtractor = true },
+                LastToDiePerkKind.EngineerCooperativeTargetingHarness => settings with { EnableEngineerCooperativeTargetingHarness = true },
+                LastToDiePerkKind.EngineerRegenerativeDiode => settings with { EnableEngineerRegenerativeDiode = true },
+                LastToDiePerkKind.EngineerOsmosisConductor => settings with { EnableEngineerOsmosisConductor = true },
+                LastToDiePerkKind.EngineerAmperageAccelerator => settings with { EnableEngineerAmperageAccelerator = true },
+                LastToDiePerkKind.EngineerHardwareHardener => settings with { EnableEngineerHardwareHardener = true },
+                LastToDiePerkKind.EngineerCaveatInjector => settings with { EnableEngineerCaveatInjector = true },
+                LastToDiePerkKind.EngineerPrecisionInstantiator => settings with { EnableEngineerPrecisionInstantiator = true },
+                LastToDiePerkKind.EngineerBuckshotConversion => settings with { EnableEngineerBuckshotConversion = true },
+                LastToDiePerkKind.EngineerIntegrityProjector => settings with { EnableEngineerIntegrityProjector = true },
+                LastToDiePerkKind.EngineerMisdirectionField => settings with { EnableEngineerMisdirectionField = true },
+                LastToDiePerkKind.EngineerConfusionField => settings with { EnableEngineerConfusionField = true },
+                LastToDiePerkKind.EngineerGravitonAffixer => settings with { EnableEngineerGravitonAffixer = true },
+                LastToDiePerkKind.EngineerAuraEnergizer => settings with { EnableEngineerAuraEnergizer = true },
+                LastToDiePerkKind.EngineerEntanglementTraverser => settings with { EnableEngineerEntanglementTraverser = true },
+                LastToDiePerkKind.EngineerAlchemicalAnode => settings with { EnableEngineerAlchemicalAnode = true },
+                LastToDiePerkKind.EngineerExperimentalOverkillAugment => settings with { EnableEngineerExperimentalOverkillAugment = true },
+                LastToDiePerkKind.EngineerEfficiencyStabilizer => settings with { EnableEngineerEfficiencyStabilizer = true },
+                LastToDiePerkKind.EngineerMateriaRecycler => settings with { EnableEngineerMateriaRecycler = true },
+                LastToDiePerkKind.EngineerDestinyPunctuator => settings with
+                {
+                    EnableEngineerDestinyPunctuator = true,
+                    PassiveMovementSpeedMultiplier = settings.PassiveMovementSpeedMultiplier * 1.3f,
+                    PassiveJumpHeightMultiplier = settings.PassiveJumpHeightMultiplier * 1.3f,
+                },
+                LastToDiePerkKind.EngineerFreezeRay => settings with { EnableEngineerFreezeRay = true },
                 LastToDiePerkKind.DemoknightMeleeRange => settings with { DemoknightSwordRangeMultiplier = 1.5f },
                 LastToDiePerkKind.DemoknightLifesteal => settings with { EnableHealOnDamage = true, HealOnDamageFraction = 0.6f },
                 LastToDiePerkKind.DemoknightMoveSpeed => settings with { PassiveMovementSpeedMultiplier = 1.3f },
@@ -1123,8 +1271,10 @@ public partial class Game1
             switch (item.StatKind)
             {
                 case LastToDieAccessoryStatKind.ExplosiveDamage:
+                    settings = settings with { PassiveExplosiveDamageMultiplier = settings.PassiveExplosiveDamageMultiplier * percentMultiplier };
+                    break;
                 case LastToDieAccessoryStatKind.BulletDamage:
-                    settings = settings with { PassiveDamageMultiplier = settings.PassiveDamageMultiplier * percentMultiplier };
+                    settings = settings with { PassiveBulletDamageMultiplier = settings.PassiveBulletDamageMultiplier * percentMultiplier };
                     break;
                 case LastToDieAccessoryStatKind.MovementSpeed:
                     settings = settings with { PassiveMovementSpeedMultiplier = settings.PassiveMovementSpeedMultiplier * percentMultiplier };
@@ -1142,8 +1292,14 @@ public partial class Game1
                     settings = settings with { PassiveThornsFraction = settings.PassiveThornsFraction + (item.Value / 100f) };
                     break;
                 case LastToDieAccessoryStatKind.BulletResist:
+                    settings = settings with { PassiveBulletResistance = CombineLastToDieResistance(settings.PassiveBulletResistance, item.Value / 100f) };
+                    break;
                 case LastToDieAccessoryStatKind.ExplosiveResist:
+                    settings = settings with { PassiveExplosiveResistance = CombineLastToDieResistance(settings.PassiveExplosiveResistance, item.Value / 100f) };
+                    break;
                 case LastToDieAccessoryStatKind.FireResist:
+                    settings = settings with { PassiveFireResistance = CombineLastToDieResistance(settings.PassiveFireResistance, item.Value / 100f) };
+                    break;
                 case LastToDieAccessoryStatKind.DamageResist:
                     settings = settings with { PassiveDamageResistance = CombineLastToDieResistance(settings.PassiveDamageResistance, item.Value / 100f) };
                     break;
@@ -1161,7 +1317,11 @@ public partial class Game1
                     settings = settings with { AcquiredWeaponHealingMultiplier = settings.AcquiredWeaponHealingMultiplier * percentMultiplier };
                     break;
                 case LastToDieAccessoryStatKind.DamageToClass:
-                    settings = settings with { PassiveDamageMultiplier = settings.PassiveDamageMultiplier * percentMultiplier };
+                    settings = settings with
+                    {
+                        PassiveDamageTargetClassId = item.TargetClass,
+                        PassiveDamageToTargetClassMultiplier = settings.PassiveDamageToTargetClassMultiplier * percentMultiplier,
+                    };
                     break;
                 case LastToDieAccessoryStatKind.ProjectilesPerShot:
                     settings = settings with { BonusProjectilesPerShot = Math.Max(settings.BonusProjectilesPerShot, item.Value - 1) };
@@ -1297,6 +1457,11 @@ public partial class Game1
         }
 
         var selected = _lastToDieRun.PendingRewardChoices[selectedIndex];
+        if (!selected.IsSelectable)
+        {
+            return;
+        }
+
         if (selected.Accessory.HasValue)
         {
             EquipLastToDieAccessory(_lastToDieRun, selected.Accessory.Value);
@@ -1565,18 +1730,25 @@ public partial class Game1
         {
             var choice = _lastToDieRun.PendingRewardChoices[index];
             var bounds = layout.CardBounds[index];
-            var isHovered = index == _lastToDiePerkHoverIndex;
-            var backColor = isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232);
-            var accentColor = isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140);
+            var isDisabled = !choice.IsSelectable;
+            var isHovered = index == _lastToDiePerkHoverIndex && !isDisabled;
+            var backColor = isDisabled
+                ? new Color(28, 30, 35, 220)
+                : isHovered ? new Color(70, 38, 38, 240) : new Color(34, 37, 43, 232);
+            var accentColor = isDisabled
+                ? new Color(82, 86, 94)
+                : isHovered ? new Color(210, 78, 78) : new Color(118, 126, 140);
             _spriteBatch.Draw(_pixel, bounds, backColor);
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Y, bounds.Width, 3), accentColor);
             _spriteBatch.Draw(_pixel, new Rectangle(bounds.X, bounds.Bottom - 3, bounds.Width, 3), new Color(14, 16, 19));
 
-            DrawBitmapFontText($"{index + 1}", new Vector2(bounds.X + 14f, bounds.Y + 12f), new Color(236, 224, 198), 1f);
+            DrawBitmapFontText($"{index + 1}", new Vector2(bounds.X + 14f, bounds.Y + 12f), isDisabled ? new Color(148, 148, 148) : new Color(236, 224, 198), 1f);
             var label = GetLastToDieRewardChoiceLabel(choice);
             var description = GetLastToDieRewardChoiceDescription(choice);
-            var labelColor = choice.IsAccessory ? new Color(255, 214, 82) : Color.White;
-            if (choice.IsAccessory)
+            var labelColor = isDisabled
+                ? new Color(166, 166, 166)
+                : choice.IsAccessory ? new Color(255, 214, 82) : Color.White;
+            if (choice.IsAccessory && !isDisabled)
             {
                 DrawBitmapFontText(label, new Vector2(bounds.X + 13f, bounds.Y + 43f), new Color(255, 160, 28) * 0.55f, 1.02f);
                 DrawBitmapFontText(label, new Vector2(bounds.X + 15f, bounds.Y + 45f), new Color(255, 244, 160) * 0.35f, 1.02f);
@@ -1588,7 +1760,11 @@ public partial class Game1
             var lineY = bounds.Y + 84f;
             for (var lineIndex = 0; lineIndex < descriptionLines.Length; lineIndex += 1)
             {
-                DrawBitmapFontText(descriptionLines[lineIndex], new Vector2(bounds.X + 14f, lineY), new Color(214, 214, 214), 0.88f);
+                DrawBitmapFontText(
+                    descriptionLines[lineIndex],
+                    new Vector2(bounds.X + 14f, lineY),
+                    isDisabled ? new Color(140, 140, 140) : new Color(214, 214, 214),
+                    0.88f);
                 lineY += 20f;
             }
         }
@@ -1752,6 +1928,19 @@ public partial class Game1
             _lastToDieRun.ObservedStageKills = currentKills;
             ReduceLastToDieTimerForKills(killCountDelta);
         }
+
+        var currentHealingReceived = Math.Max(0, _world.LocalPlayer.HealingReceived);
+        if (currentHealingReceived < _lastToDieRun.ObservedStageHealingReceived)
+        {
+            _lastToDieRun.ObservedStageHealingReceived = currentHealingReceived;
+        }
+        else if (currentHealingReceived > _lastToDieRun.ObservedStageHealingReceived)
+        {
+            _lastToDieRun.TotalHealingReceived += currentHealingReceived - _lastToDieRun.ObservedStageHealingReceived;
+            _lastToDieRun.ObservedStageHealingReceived = currentHealingReceived;
+        }
+
+        _lastToDieRun.HighestCombo = Math.Max(_lastToDieRun.HighestCombo, Math.Max(0, _world.LocalPlayer.HighestCombo));
     }
 
     private void ReduceLastToDieTimerForKills(int killCountDelta)
@@ -1776,6 +1965,33 @@ public partial class Game1
         }
 
         _lastToDieRun.TotalDamageDealt += amount;
+    }
+
+    private void PersistLastToDieRunStatsIfNeeded(LastToDieRunState? run)
+    {
+        if (run is null || !ShouldPersistLastToDieRunStats(run))
+        {
+            return;
+        }
+
+        _lastToDieStats.HasRecordedRun = true;
+        _lastToDieStats.HighestRoundCompleted = Math.Max(_lastToDieStats.HighestRoundCompleted, run.LevelsCompleted);
+        _lastToDieStats.MostDamageSingleRun = Math.Max(_lastToDieStats.MostDamageSingleRun, run.TotalDamageDealt);
+        _lastToDieStats.MostHealingSingleRun = Math.Max(_lastToDieStats.MostHealingSingleRun, run.TotalHealingReceived);
+        _lastToDieStats.LongestComboSingleRun = Math.Max(_lastToDieStats.LongestComboSingleRun, run.HighestCombo);
+        _lastToDieStats.TotalDamageLifetime = Math.Max(0, _lastToDieStats.TotalDamageLifetime + run.TotalDamageDealt);
+        _lastToDieStats.LastRunRound = Math.Max(1, run.StageNumber);
+        _lastToDieStats.LastRunElapsedTicks = Math.Max(0, run.RunElapsedTicks);
+        _lastToDieStats.Save();
+    }
+
+    private static bool ShouldPersistLastToDieRunStats(LastToDieRunState run)
+    {
+        return run.LevelsCompleted > 0
+            || run.TotalKills > 0
+            || run.TotalDamageDealt > 0
+            || run.TotalHealingReceived > 0
+            || run.RunElapsedTicks > 0;
     }
 
     private void DrawLastToDieHud()

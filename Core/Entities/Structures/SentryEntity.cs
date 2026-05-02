@@ -6,13 +6,13 @@ public sealed class SentryEntity : SimulationEntity
     public const float Height = 24f;
     public const float GravityPerTick = 0.6f;
     public const float MaxFallSpeed = 10f;
-    public const int MaxHealth = 100;
+    public const int DefaultMaxHealth = 100;
     public const int InitialHealth = 25;
     public const float TargetRange = 375f;
     public const int ReloadTicks = 5;
     public const int HitDamage = 8;
     public const int ShotTraceTicks = 1;
-    public SentryEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y, float startDirectionX) : base(id)
+    public SentryEntity(int id, int ownerPlayerId, PlayerTeam team, float x, float y, float startDirectionX, int maxHealth = DefaultMaxHealth) : base(id)
     {
         OwnerPlayerId = ownerPlayerId;
         Team = team;
@@ -23,6 +23,7 @@ public sealed class SentryEntity : SimulationEntity
         DesiredFacingDirectionX = StartDirectionX;
         RotationStartDirectionX = StartDirectionX;
         AimDirectionDegrees = StartDirectionX < 0f ? 180f : 0f;
+        MaxHealth = Math.Max(InitialHealth, maxHealth);
         Health = InitialHealth;
     }
 
@@ -52,6 +53,8 @@ public sealed class SentryEntity : SimulationEntity
 
     public int Health { get; private set; }
 
+    public int MaxHealth { get; }
+
     public int ReloadTicksRemaining { get; private set; }
 
     public int AlertTicksRemaining { get; private set; }
@@ -71,6 +74,12 @@ public sealed class SentryEntity : SimulationEntity
     public float LastShotTargetY { get; private set; }
 
     public bool IsShotTraceVisible => ShotTraceTicksRemaining > 0;
+
+    public int ConsecutiveShotsFired { get; private set; }
+
+    public int IdleTicksRemaining { get; private set; }
+
+    public float ContinuousHealingAccumulator { get; private set; }
 
     public void Advance(SimpleLevel level, WorldBounds bounds)
     {
@@ -129,6 +138,16 @@ public sealed class SentryEntity : SimulationEntity
             ShotTraceTicksRemaining -= 1;
         }
 
+        if (IdleTicksRemaining > 0)
+        {
+            IdleTicksRemaining -= 1;
+            if (IdleTicksRemaining <= 0)
+            {
+                IdleTicksRemaining = 0;
+                ConsecutiveShotsFired = 0;
+            }
+        }
+
     }
 
     public bool IsNear(float x, float y, float radius)
@@ -168,13 +187,49 @@ public sealed class SentryEntity : SimulationEntity
         return IsBuilt && AlertTicksRemaining == 0 && ReloadTicksRemaining == 0;
     }
 
-    public void FireAt(float targetX, float targetY)
+    public void FireAt(float targetX, float targetY, int reloadTicks = ReloadTicks, int idleResetTicks = 0)
     {
         AimDirectionDegrees = MathF.Atan2(targetY - Y, targetX - X) * (180f / MathF.PI);
         LastShotTargetX = targetX;
         LastShotTargetY = targetY;
         ShotTraceTicksRemaining = ShotTraceTicks;
-        ReloadTicksRemaining = ReloadTicks;
+        ReloadTicksRemaining = Math.Max(1, reloadTicks);
+        ConsecutiveShotsFired += 1;
+        IdleTicksRemaining = Math.Max(0, idleResetTicks);
+    }
+
+    public void Heal(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        Health = int.Min(MaxHealth, Health + amount);
+    }
+
+    public void MoveTo(float x, float y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    public void ApplyContinuousHealing(float amount)
+    {
+        if (amount <= 0f || Health >= MaxHealth)
+        {
+            return;
+        }
+
+        ContinuousHealingAccumulator += amount;
+        var wholeHealing = (int)ContinuousHealingAccumulator;
+        if (wholeHealing <= 0)
+        {
+            return;
+        }
+
+        ContinuousHealingAccumulator -= wholeHealing;
+        Heal(wholeHealing);
     }
 
     public bool ApplyDamage(int damage)
@@ -222,6 +277,9 @@ public sealed class SentryEntity : SimulationEntity
         LastShotTargetY = lastShotTargetY;
         RotationTicksRemaining = 0;
         RotationStartDirectionX = FacingDirectionX;
+        ConsecutiveShotsFired = 0;
+        IdleTicksRemaining = 0;
+        ContinuousHealingAccumulator = 0f;
     }
 
     private void SetDesiredFacing(float desiredFacingDirectionX)

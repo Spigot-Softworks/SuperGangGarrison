@@ -11,12 +11,20 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.IsExperimentalCryoFrozen)
+        {
+            player.ClearMedicHealingTarget();
+            return;
+        }
+
         if (TryHandleAcquiredPrimaryFire(player, input, suppressPyroPrimaryThisTick))
         {
             return;
         }
 
-        if (player.HasExperimentalOffhandWeapon && input.FirePrimary)
+        if (player.HasExperimentalOffhandWeapon
+            && input.FirePrimary
+            && player.ClassId != PlayerClass.Engineer)
         {
             player.StowExperimentalOffhandWeapon();
         }
@@ -115,6 +123,35 @@ public sealed partial class SimulationWorld
 
     private bool TryHandleEquippedPrimaryFire(PlayerEntity player, PlayerInputSnapshot input, bool primaryPressed, bool suppressPyroPrimaryThisTick)
     {
+        if (HasExperimentalEngineerFreezeRay(player))
+        {
+            if (input.FirePrimary)
+            {
+                UpdateExperimentalEngineerFreezeRay(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                player.ClearMedicHealingTarget();
+            }
+
+            return true;
+        }
+
+        if (HasExperimentalEngineerEssenceExtractor(player))
+        {
+            if (input.FirePrimary)
+            {
+                UpdateExperimentalEngineerEssenceExtractor(player, input.AimWorldX, input.AimWorldY);
+            }
+            else
+            {
+                FlushExperimentalEngineerEssenceExtractorHealing(player);
+                player.ClearMedicHealingTarget();
+            }
+
+            return true;
+        }
+
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun))
         {
             if (input.FirePrimary)
@@ -175,6 +212,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.IsExperimentalCryoFrozen)
+        {
+            return;
+        }
+
         if (TryHandleExperimentalSoldierStingerDetonation(player))
         {
             return;
@@ -218,6 +260,35 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.ClassId == PlayerClass.Engineer
+            && HasExperimentalEngineerDestinyPunctuator(player))
+        {
+            TryHandleExperimentalEngineerDestinyPunctuatorBlast(player, input);
+            return;
+        }
+
+        if (player.ClassId == PlayerClass.Engineer
+            && player.IsExperimentalOffhandEquipped
+            && HasExperimentalEngineerAlternateWeaponAvailable(player))
+        {
+            var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
+            if (maxOwnedSentries > 1)
+            {
+                if (GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
+                {
+                    TryBuildSentry(player);
+                    return;
+                }
+            }
+
+            if (!TryDestroySentry(player))
+            {
+                TryBuildSentry(player);
+            }
+
+            return;
+        }
+
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding);
@@ -238,6 +309,21 @@ public sealed partial class SimulationWorld
 
         if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.EngineerPda)
         {
+            if (TryHandleExperimentalEngineerDestinyPunctuatorBlast(player, input))
+            {
+                return;
+            }
+
+            var maxOwnedSentries = GetExperimentalMaxOwnedSentries(player);
+            if (maxOwnedSentries > 1)
+            {
+                if (GetExperimentalOwnedSentryCount(player.Id) < maxOwnedSentries)
+                {
+                    TryBuildSentry(player);
+                    return;
+                }
+            }
+
             if (!TryDestroySentry(player))
             {
                 TryBuildSentry(player);
@@ -485,7 +571,90 @@ public sealed partial class SimulationWorld
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)
     {
+        if (TryHandleExperimentalEngineerAlternateWeaponInteraction(player))
+        {
+            return;
+        }
+
         TryHandleDroppedWeaponInteraction(player);
+    }
+
+    private bool TryHandleExperimentalEngineerDestinyPunctuatorBlast(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (!HasExperimentalEngineerDestinyPunctuator(player)
+            || player.ClassId != PlayerClass.Engineer)
+        {
+            return false;
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            ClearExperimentalEngineerAlternateWeaponState(player);
+            player.StowExperimentalOffhandWeapon();
+        }
+
+        if (!player.TryFireExperimentalEngineerDestinyPunctuatorBlast())
+        {
+            return true;
+        }
+
+        WeaponHandler.FireExperimentalEngineerDestinyPunctuatorBlast(
+            player,
+            input.AimWorldX,
+            input.AimWorldY,
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorPelletMultiplier);
+
+        var aimRadians = MathF.Atan2(input.AimWorldY - player.Y, input.AimWorldX - player.X);
+        var blastOriginX = player.X + MathF.Cos(aimRadians) * 16f;
+        var blastOriginY = player.Y + MathF.Sin(aimRadians) * 12f;
+        ApplyExplosionImpulse(
+            player,
+            blastOriginX,
+            blastOriginY,
+            global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorSelfKnockbackPerTick);
+        player.SetMovementState(LegacyMovementState.ExplosionRecovery);
+        return true;
+    }
+
+    private bool TryHandleExperimentalEngineerAlternateWeaponInteraction(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Engineer)
+        {
+            return false;
+        }
+
+        var essenceAvailable = HasExperimentalEngineerEssenceExtractorAvailable(player);
+        var freezeAvailable = HasExperimentalEngineerFreezeRayAvailable(player);
+        if (!HasExperimentalEngineerAlternateWeaponAvailable(player))
+        {
+            return false;
+        }
+
+        if (!player.HasExperimentalOffhandWeapon)
+        {
+            player.SetExperimentalOffhandWeapon(CharacterClassCatalog.Medigun);
+        }
+
+        if (!player.IsExperimentalOffhandEquipped)
+        {
+            player.SetExperimentalEngineerAlternateWeaponMode(
+                GetExperimentalEngineerDefaultAlternateWeaponMode(player));
+            player.EquipExperimentalOffhandWeapon();
+            return true;
+        }
+
+        if (player.ExperimentalEngineerAlternateWeaponMode == ExperimentalEngineerAlternateWeaponMode.EssenceExtractor
+            && freezeAvailable)
+        {
+            ClearExperimentalEngineerAlternateWeaponState(player);
+            player.SetExperimentalEngineerAlternateWeaponMode(ExperimentalEngineerAlternateWeaponMode.FreezeRay);
+            return true;
+        }
+
+        ClearExperimentalEngineerAlternateWeaponState(player);
+        player.SetExperimentalEngineerAlternateWeaponMode(ExperimentalEngineerAlternateWeaponMode.None);
+        player.StowExperimentalOffhandWeapon();
+        return true;
     }
 
     private bool TryStartSpyBackstab(PlayerEntity attacker, float aimWorldX, float aimWorldY)

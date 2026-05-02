@@ -57,13 +57,15 @@ public partial class Game1
         {
             PrepareForExclusiveMainMenuOverlayOpen();
             _game._lastToDieMenuOpen = true;
-            _game._lastToDieMenuHoverIndex = -1;
+            _game._lastToDieMenuPage = LastToDieMenuPage.Root;
+            _game._lastToDieMenuHoverIndex = 0;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
         }
 
         public void CloseLastToDieMenu(bool clearStatus = false)
         {
             _game._lastToDieMenuOpen = false;
+            _game._lastToDieMenuPage = LastToDieMenuPage.Root;
             _game._lastToDieMenuHoverIndex = -1;
             if (clearStatus)
             {

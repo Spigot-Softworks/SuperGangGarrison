@@ -237,6 +237,26 @@ public partial class Game1
         _gameplayPlayerStatusEffectRenderController.DrawCapturedPointHealingGhosting(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
     }
 
+    private void DrawExperimentalCryoOverlays(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
+        _gameplayPlayerStatusEffectRenderController.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+    }
+
+    private void DrawExperimentalEssenceExtractorOverlay(
+        PlayerEntity player,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float visibilityAlpha,
+        PlayerBodySpriteSelection bodySelection)
+    {
+        _gameplayPlayerStatusEffectRenderController.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+    }
+
     private Vector2 GetExperimentalDemoknightChargeBlurDirection(PlayerEntity player)
     {
         return _gameplayPlayerStatusEffectRenderController.GetExperimentalDemoknightChargeBlurDirection(player);

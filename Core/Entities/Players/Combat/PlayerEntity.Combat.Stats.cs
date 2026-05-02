@@ -114,6 +114,7 @@ public sealed partial class PlayerEntity
         Caps = 0;
         Points = 0f;
         HealPoints = 0;
+        HealingReceived = 0;
         HighestCombo = 0;
         HighestKillStreak = 0;
         ResetCombatPerformanceTracking();

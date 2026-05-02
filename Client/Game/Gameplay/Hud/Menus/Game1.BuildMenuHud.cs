@@ -45,7 +45,13 @@ public partial class Game1
 
     private void HandleEngineerSpecialPressed(PlayerEntity player)
     {
-        if (GetLocalOwnedSentry() is not null)
+        var ownedSentryCount = GetLocalOwnedSentryCount();
+        var canBuildAdditionalSentry = player.ClassId == PlayerClass.Engineer
+            && IsOfflineBotSessionActive
+            && IsLastToDieSessionActive
+            && _lastToDieRun?.ChosenPerks.Contains(LastToDiePerkKind.EngineerOutputInducer) == true
+            && ownedSentryCount < 2;
+        if (!canBuildAdditionalSentry && GetLocalOwnedSentry() is not null)
         {
             if (HasLocalOwnedJumpPad())
             {

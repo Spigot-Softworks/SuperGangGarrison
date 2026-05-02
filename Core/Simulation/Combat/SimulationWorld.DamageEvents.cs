@@ -55,7 +55,8 @@ public sealed partial class SimulationWorld
         int damage,
         PlayerEntity? attacker,
         float spyRevealAlpha = 0f,
-        DamageEventFlags damageFlags = DamageEventFlags.None)
+        DamageEventFlags damageFlags = DamageEventFlags.None,
+        bool allowOsmosisHealOwnedSentries = true)
     {
         if (damage <= 0 || !target.IsAlive)
         {
@@ -63,8 +64,9 @@ public sealed partial class SimulationWorld
         }
 
         damage = ApplyExperimentalOutgoingDamageMultiplier(attacker, target, damage);
-        damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        damage = ApplyExperimentalIncomingDamageMultiplier(target, attacker, damage);
         damage = ScaleConfiguredDamage(damage);
+        damage = target.AbsorbExperimentalShieldDamage(damage);
         if (damage <= 0)
         {
             return false;
@@ -109,8 +111,12 @@ public sealed partial class SimulationWorld
             died,
             target,
             damageFlags);
-        ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
+        ApplyExperimentalDamageRewards(attacker, target, appliedDamage, allowOsmosisHealOwnedSentries);
         ApplyExperimentalDamageTakenRewards(target, attacker, appliedDamage);
+        if (attacker is not null)
+        {
+            ApplyExperimentalEngineerFriendlyFireRetaliation(attacker, target, appliedDamage);
+        }
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
     }
@@ -120,7 +126,8 @@ public sealed partial class SimulationWorld
         float damage,
         PlayerEntity? attacker,
         float spyRevealAlpha = 0f,
-        DamageEventFlags damageFlags = DamageEventFlags.None)
+        DamageEventFlags damageFlags = DamageEventFlags.None,
+        bool allowOsmosisHealOwnedSentries = true)
     {
         if (damage <= 0f || !target.IsAlive)
         {
@@ -128,8 +135,9 @@ public sealed partial class SimulationWorld
         }
 
         damage = ApplyExperimentalOutgoingDamageMultiplier(attacker, target, damage);
-        damage = ApplyExperimentalIncomingDamageMultiplier(target, damage);
+        damage = ApplyExperimentalIncomingDamageMultiplier(target, attacker, damage);
         damage = ScaleConfiguredDamage(damage);
+        damage = target.AbsorbExperimentalShieldDamage(damage);
         if (damage <= 0f)
         {
             return false;
@@ -174,8 +182,12 @@ public sealed partial class SimulationWorld
             died,
             target,
             damageFlags);
-        ApplyExperimentalDamageRewards(attacker, target, appliedDamage);
+        ApplyExperimentalDamageRewards(attacker, target, appliedDamage, allowOsmosisHealOwnedSentries);
         ApplyExperimentalDamageTakenRewards(target, attacker, appliedDamage);
+        if (attacker is not null)
+        {
+            ApplyExperimentalEngineerFriendlyFireRetaliation(attacker, target, appliedDamage);
+        }
         TryRegisterCombatComboHit(attacker, target, appliedDamage);
         return died;
     }
@@ -187,6 +199,7 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        damage = ApplyExperimentalIncomingSentryDamageMultiplier(target, damage);
         damage = ScaleConfiguredDamage(damage);
         if (damage <= 0)
         {

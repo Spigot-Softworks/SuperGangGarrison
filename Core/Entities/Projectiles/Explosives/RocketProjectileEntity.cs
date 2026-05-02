@@ -48,6 +48,9 @@ public sealed class RocketProjectileEntity : SimulationEntity
         float knockbackScale = 1f,
         bool canIgniteTargets = false,
         bool enableExperimentalStingerTracking = false,
+        bool enableExperimentalCaveatTracking = false,
+        float experimentalVisualScale = 1f,
+        int experimentalTrackingLockTicksRemaining = 0,
         string? killFeedWeaponSpriteNameOverride = null) : base(id)
     {
         Team = team;
@@ -73,6 +76,13 @@ public sealed class RocketProjectileEntity : SimulationEntity
         KnockbackScale = MathF.Max(0f, knockbackScale);
         CanIgniteTargets = canIgniteTargets;
         EnableExperimentalStingerTracking = enableExperimentalStingerTracking;
+        EnableExperimentalCaveatTracking = enableExperimentalCaveatTracking;
+        ExperimentalVisualScale = MathF.Max(
+            0.1f,
+            enableExperimentalStingerTracking
+                ? 1.4f
+                : experimentalVisualScale);
+        ExperimentalTrackingLockTicksRemaining = Math.Max(0, experimentalTrackingLockTicksRemaining);
         KillFeedWeaponSpriteNameOverride = killFeedWeaponSpriteNameOverride;
         IsFading = isFading;
         FadeSourceTicksRemaining = isFading ? MathF.Max(0f, fadeSourceTicksRemaining) : 0f;
@@ -117,6 +127,12 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     public bool EnableExperimentalStingerTracking { get; private set; }
 
+    public bool EnableExperimentalCaveatTracking { get; private set; }
+
+    public float ExperimentalVisualScale { get; private set; }
+
+    public int ExperimentalTrackingLockTicksRemaining { get; private set; }
+
     public string? KillFeedWeaponSpriteNameOverride { get; }
 
     public bool IsFading { get; private set; }
@@ -147,6 +163,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
 
     private bool ExperimentalStingerSpeedBurstConsumed { get; set; }
 
+    private bool ExperimentalCaveatLockSpeedBurstConsumed { get; set; }
+
     public bool IsExpired => TicksRemaining <= 0;
 
     public bool IsExperimentalStingerPhaseOneActive => EnableExperimentalStingerTracking && !ExperimentalStingerSpeedBurstConsumed;
@@ -168,6 +186,11 @@ public sealed class RocketProjectileEntity : SimulationEntity
         Speed += 1f;
         Speed *= 0.92f;
         TicksRemaining -= 1;
+        if (ExperimentalTrackingLockTicksRemaining > 0)
+        {
+            ExperimentalTrackingLockTicksRemaining -= 1;
+        }
+
         AdvanceKnockbackDecay(deltaSeconds);
     }
 
@@ -175,6 +198,11 @@ public sealed class RocketProjectileEntity : SimulationEntity
     {
         LastKnownRangeOriginX = rangeOriginX;
         LastKnownRangeOriginY = rangeOriginY;
+    }
+
+    public void SetDistanceToTravel(float distanceToTravel)
+    {
+        DistanceToTravel = MathF.Max(0f, distanceToTravel);
     }
 
     public bool TryBeginFadeFromSourceRange()
@@ -237,7 +265,10 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
         EnableExperimentalStingerTracking = false;
+        EnableExperimentalCaveatTracking = false;
         ExperimentalStingerSpeedBurstConsumed = false;
+        ExperimentalCaveatLockSpeedBurstConsumed = false;
+        ExperimentalTrackingLockTicksRemaining = 0;
         ReducedKnockbackSourceTicksRemaining = ReflectedReducedKnockbackDelaySourceTicks;
         ZeroKnockbackSourceTicksRemaining = ReflectedZeroKnockbackDelaySourceTicks;
     }
@@ -296,6 +327,22 @@ public sealed class RocketProjectileEntity : SimulationEntity
         return true;
     }
 
+    public bool TryApplyExperimentalCaveatLockSpeedBurst(float speedMultiplier)
+    {
+        if (!EnableExperimentalCaveatTracking
+            || ExperimentalCaveatLockSpeedBurstConsumed
+            || speedMultiplier <= 1f
+            || IsFading
+            || IsExpired)
+        {
+            return false;
+        }
+
+        Speed *= speedMultiplier;
+        ExperimentalCaveatLockSpeedBurstConsumed = true;
+        return true;
+    }
+
     public void ClearDelayedExplosion()
     {
         ExplodeImmediately = false;
@@ -337,6 +384,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
         ExperimentalStingerSpeedBurstConsumed = false;
+        ExperimentalCaveatLockSpeedBurstConsumed = false;
+        ExperimentalTrackingLockTicksRemaining = 0;
     }
 
     public void ApplyNetworkState(
@@ -376,6 +425,8 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ExplodeImmediately = false;
         DelayedExplosionReason = string.Empty;
         ExperimentalStingerSpeedBurstConsumed = false;
+        ExperimentalCaveatLockSpeedBurstConsumed = false;
+        ExperimentalTrackingLockTicksRemaining = 0;
     }
 
     private void AdvanceKnockbackDecay(float deltaSeconds)

@@ -154,6 +154,7 @@ public partial class Game1 : Game
     private int _debugMenuHoverIndex;
     private bool _debugRocketCollisionsEnabled;
     private readonly GameplayOverlayController _gameplayOverlayController;
+    private readonly LastToDieStatsDocument _lastToDieStats;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D? _gameRenderTarget;
     private SimulationConfig _config = null!;
@@ -179,6 +180,8 @@ public partial class Game1 : Game
     private LoadedSpriteFrame? _menuTextBoxMiddleTexture;
     private LoadedSpriteFrame? _menuTextBoxBottomTexture;
     private LoadedSpriteFrame? _menuTextBoxSoloTexture;
+    private LoadedSpriteFrame? _lastToDieMenuPlaqueTexture;
+    private LoadedSpriteFrame? _lastToDieMenuTextBoxSoloTexture;
     private LoadedSpriteFrame? _gameplayLoadoutClassStripTexture;
     private LoadedSpriteFrame? _gameplayLoadoutClassSelectionTexture;
     private LoadedSpriteFrame? _gameplayLoadoutBackgroundBarTexture;
@@ -297,6 +300,7 @@ public partial class Game1 : Game
             _gameplayOverlayController) = CreateShellControllerBundle(this);
         (_clientSettings,
             _inputBindings,
+            _lastToDieStats,
             _hostedServerRuntime,
             _graphics) = CreateRuntimeServices(this, _hostedServerConsole);
         _graphics.HardwareModeSwitch = false;

@@ -42,7 +42,7 @@ public sealed partial class SimulationWorld
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
                 weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
-                killFeedWeaponSpriteNameOverride);
+                killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
 
         private void FirePelletWeapon(
@@ -53,7 +53,9 @@ public sealed partial class SimulationWorld
             PlayerClass weaponClassId,
             string? killFeedWeaponSpriteNameOverride = null,
             float pelletSpawnDistance = 15f,
-            int pelletCountMultiplier = 1)
+            int pelletCountMultiplier = 1,
+            float spreadMultiplier = 1f,
+            bool forceGibOnKill = false)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
             var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
@@ -69,7 +71,7 @@ public sealed partial class SimulationWorld
                 weaponDefinition.ProjectilesPerShot * Math.Max(1, pelletCountMultiplier));
             for (var pelletIndex = 0; pelletIndex < projectileCount; pelletIndex += 1)
             {
-                var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
+                var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees * MathF.Max(0.1f, spreadMultiplier));
                 var pelletAngle = baseAngle + spreadRadians;
                 var directionX = MathF.Cos(pelletAngle);
                 var directionY = MathF.Sin(pelletAngle);
@@ -85,8 +87,90 @@ public sealed partial class SimulationWorld
                     launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                     launchedVelocityY,
                     weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
+                    forceGibOnKill,
                     killFeedWeaponSpriteNameOverride);
             }
+
+            TryFireExperimentalEngineerOverkillAugment(
+                attacker,
+                weaponClassId,
+                weaponOrigin,
+                baseAngle,
+                weaponDefinition,
+                killFeedWeaponSpriteNameOverride);
+        }
+
+        private void TryFireExperimentalEngineerOverkillAugment(
+            PlayerEntity attacker,
+            PlayerClass weaponClassId,
+            SourceWeaponOrigin weaponOrigin,
+            float baseAngle,
+            PrimaryWeaponDefinition weaponDefinition,
+            string? killFeedWeaponSpriteNameOverride)
+        {
+            if (weaponClassId != PlayerClass.Engineer
+                || !_world.IsExperimentalPracticePowerOwner(attacker)
+                || !_world.ExperimentalGameplaySettings.EnableEngineerExperimentalOverkillAugment)
+            {
+                return;
+            }
+
+            var rocketCombat = new RocketCombatDefinition(
+                ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorDirectHitDamage,
+                ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorExplosionDamage,
+                ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorBlastRadius,
+                RocketProjectileEntity.SplashThresholdFactor);
+            var spreadRadians = DegreesToRadians(ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketSpreadDegrees);
+            var lockDelayTicks = Math.Max(
+                0,
+                (int)MathF.Round(Config.TicksPerSecond * ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketLockDelaySeconds));
+            var spawnX = weaponOrigin.BaseX + MathF.Cos(baseAngle) * 20f;
+            var spawnY = weaponOrigin.BaseY + MathF.Sin(baseAngle) * 20f;
+            var explodeImmediately = _world.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY);
+            for (var rocketIndex = 0; rocketIndex < ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount; rocketIndex += 1)
+            {
+                var spreadOffset = ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount == 1
+                    ? 0f
+                    : (rocketIndex == 0 ? -spreadRadians * 0.5f : spreadRadians * 0.5f);
+                SpawnRocket(
+                    attacker,
+                    spawnX,
+                    spawnY,
+                    ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketSpeed,
+                    baseAngle + spreadOffset,
+                    rocketCombat,
+                    explodeImmediately: explodeImmediately,
+                    canGrantExperimentalInstantReloadOnHit: false,
+                    enableExperimentalCaveatTracking: true,
+                    experimentalVisualScale: ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketRenderScale,
+                    experimentalTrackingLockTicksRemaining: lockDelayTicks,
+                    killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride ?? "ShotgunKL");
+
+                if (_world._rockets.Count > 0)
+                {
+                    _world._rockets[^1].SetDistanceToTravel(_world.Bounds.Width + _world.Bounds.Height);
+                }
+            }
+        }
+
+        public void FireExperimentalEngineerDestinyPunctuatorBlast(
+            PlayerEntity attacker,
+            float aimWorldX,
+            float aimWorldY,
+            int pelletCountMultiplier)
+        {
+            DispatchPrimaryWeaponFire(
+                attacker,
+                attacker.PrimaryWeapon,
+                attacker.PrimaryBehaviorId,
+                attacker.ClassId,
+                aimWorldX,
+                aimWorldY,
+                pelletSpawnDistance: 20f,
+                pelletCountMultiplier: Math.Max(1, pelletCountMultiplier),
+                spreadMultiplier: global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorSpreadMultiplier,
+                killFeedWeaponSpriteNameOverride: "ShotgunKL",
+                forceGibOnKill: true);
         }
 
         private void FireRocketLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)

@@ -19,6 +19,11 @@ public sealed partial class SimulationWorld
         return appliedHealing;
     }
 
+    private void RegisterHealingFeedbackOnly(PlayerEntity target, int amount)
+    {
+        RegisterHealingEvent(target, amount);
+    }
+
     private void RegisterHealingEvent(PlayerEntity target, int amount)
     {
         if (amount <= 0)

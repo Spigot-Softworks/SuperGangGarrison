@@ -101,6 +101,7 @@ public sealed partial class SimulationWorld
             && ExperimentalGameplaySettings.EnableRage
             && IsExperimentalPracticePowerOwner(player)
             && (player.ClassId == PlayerClass.Soldier
+                || player.ClassId == PlayerClass.Engineer
                 || player.IsExperimentalDemoknightEnabled);
     }
 

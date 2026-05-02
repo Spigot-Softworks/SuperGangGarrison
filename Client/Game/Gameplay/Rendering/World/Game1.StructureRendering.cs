@@ -85,6 +85,9 @@ public partial class Game1
         }
 
         var sprite = GetResolvedSprite(gib.SpriteName);
+        var gibTint = gib.ExperimentalCryoTinted
+            ? new Color(170, 228, 255)
+            : Color.White;
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var gibScale = GetPlayerGibRenderScale(gib);
@@ -94,7 +97,7 @@ public partial class Game1
                 (int)(gib.Y - (size / 2f) - cameraPosition.Y),
                 size,
                 size);
-            _spriteBatch.Draw(_pixel, rectangle, Color.White * gib.Alpha);
+            _spriteBatch.Draw(_pixel, rectangle, gibTint * gib.Alpha);
             return;
         }
 
@@ -104,7 +107,7 @@ public partial class Game1
             sprite.Frames[frameIndex],
             new Vector2(gib.X - cameraPosition.X, gib.Y - cameraPosition.Y),
             null,
-            Color.White * gib.Alpha,
+            gibTint * gib.Alpha,
             gib.RotationDegrees * (MathF.PI / 180f),
             sprite.Origin.ToVector2(),
             new Vector2(renderScale, renderScale),
@@ -133,6 +136,9 @@ public partial class Game1
         }
 
         var sprite = GetResolvedSprite("BloodDropS");
+        var bloodTint = bloodDrop.ExperimentalCryoTinted
+            ? new Color(176, 232, 255)
+            : Color.White;
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var size = Math.Max(2, (int)MathF.Round(2f * bloodDrop.Scale));
@@ -141,7 +147,7 @@ public partial class Game1
                 (int)(bloodDrop.Y - (size / 2f) - cameraPosition.Y),
                 size,
                 size);
-            _spriteBatch.Draw(_pixel, rectangle, Color.White * bloodDrop.Alpha);
+            _spriteBatch.Draw(_pixel, rectangle, bloodTint * bloodDrop.Alpha);
             return;
         }
 
@@ -149,7 +155,7 @@ public partial class Game1
             sprite.Frames[0],
             new Vector2(bloodDrop.X - cameraPosition.X, bloodDrop.Y - cameraPosition.Y),
             null,
-            Color.White * bloodDrop.Alpha,
+            bloodTint * bloodDrop.Alpha,
             0f,
             sprite.Origin.ToVector2(),
             new Vector2(bloodDrop.Scale, bloodDrop.Scale),
@@ -167,18 +173,22 @@ public partial class Game1
             return false;
         }
 
-        var baseFrameIndex = GetSentryBaseFrameIndex(sentry, baseSprite.Frames.Count);
-        var baseEffects = sentry.FacingDirectionX < 0f ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-        DrawLoadedSpriteFrame(
-            baseSprite.Frames[baseFrameIndex],
-            new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
-            null,
-            Color.White,
-            0f,
-            baseSprite.Origin.ToVector2(),
-            Vector2.One,
-            baseEffects,
-            0f);
+        var drawBaseChassis = !(sentry.IsBuilt && _world.IsExperimentalEngineerFloatingSentry(sentry));
+        if (drawBaseChassis)
+        {
+            var baseFrameIndex = GetSentryBaseFrameIndex(sentry, baseSprite.Frames.Count);
+            var baseEffects = sentry.FacingDirectionX < 0f ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+            DrawLoadedSpriteFrame(
+                baseSprite.Frames[baseFrameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null,
+                Color.White,
+                0f,
+                baseSprite.Origin.ToVector2(),
+                Vector2.One,
+                baseEffects,
+                0f);
+        }
 
         if (!sentry.IsBuilt)
         {
@@ -224,11 +234,11 @@ public partial class Game1
             5);
         _spriteBatch.Draw(_pixel, backRectangle, Color.Black);
 
-        var fillWidth = Math.Clamp((int)MathF.Round(barWidth * (sentry.Health / (float)SentryEntity.MaxHealth)), 0, barWidth);
+        var fillWidth = Math.Clamp((int)MathF.Round(barWidth * (sentry.Health / (float)sentry.MaxHealth)), 0, barWidth);
         if (fillWidth > 0)
         {
             var fillRectangle = new Rectangle(backRectangle.X, backRectangle.Y, fillWidth, backRectangle.Height);
-            _spriteBatch.Draw(_pixel, fillRectangle, Color.Lerp(Color.Red, Color.LimeGreen, sentry.Health / (float)SentryEntity.MaxHealth));
+            _spriteBatch.Draw(_pixel, fillRectangle, Color.Lerp(Color.Red, Color.LimeGreen, sentry.Health / (float)sentry.MaxHealth));
         }
     }
 
@@ -247,7 +257,7 @@ public partial class Game1
         DrawWorldLine(muzzleX, muzzleY, sentry.LastShotTargetX, sentry.LastShotTargetY, cameraPosition, new Color(255, 232, 90, 153), 2f);
     }
 
-    private static int GetSentryBaseFrameIndex(SentryEntity sentry, int frameCount)
+    private int GetSentryBaseFrameIndex(SentryEntity sentry, int frameCount)
     {
         if (frameCount <= 0)
         {
@@ -256,10 +266,15 @@ public partial class Game1
 
         if (sentry.IsBuilt)
         {
+            if (_world.IsExperimentalEngineerFloatingSentry(sentry))
+            {
+                return 0;
+            }
+
             return Math.Clamp(11, 0, frameCount - 1);
         }
 
-        var buildFrame = (int)MathF.Floor((sentry.Health / (float)SentryEntity.MaxHealth) * 10f);
+        var buildFrame = (int)MathF.Floor((sentry.Health / (float)sentry.MaxHealth) * 10f);
         return Math.Clamp(buildFrame, 0, frameCount - 1);
     }
 

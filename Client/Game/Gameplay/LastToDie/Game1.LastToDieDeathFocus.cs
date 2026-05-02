@@ -447,9 +447,12 @@ public partial class Game1
 
     private PlayerClass GetLastToDieLocalDeathFocusClassId()
     {
-        return _lastToDieRun?.SurvivorKind == LastToDieSurvivorKind.Demoknight
-            ? PlayerClass.Demoman
-            : PlayerClass.Soldier;
+        return _lastToDieRun?.SurvivorKind switch
+        {
+            LastToDieSurvivorKind.Demoknight => PlayerClass.Demoman,
+            LastToDieSurvivorKind.Engineer => PlayerClass.Engineer,
+            _ => PlayerClass.Soldier,
+        };
     }
 
     private static DeadBodyAnimationKind GetLastToDieLocalDeathFocusAnimationKind(PlayerClass classId)

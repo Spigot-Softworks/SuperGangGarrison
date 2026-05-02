@@ -114,9 +114,9 @@ public sealed partial class PlayerEntity
 
     public void ForceSetAmmo(int shells)
     {
-        CurrentShells = int.Clamp(shells, 0, PrimaryWeapon.MaxAmmo);
+        CurrentShells = int.Clamp(shells, 0, MaxShells);
         ResetPyroPrimaryStateFromCurrentAmmo();
-        if (CurrentShells >= PrimaryWeapon.MaxAmmo)
+        if (CurrentShells >= MaxShells)
         {
             ReloadTicksUntilNextShell = 0;
         }
@@ -135,7 +135,7 @@ public sealed partial class PlayerEntity
     {
         Health = MaxHealth;
         Metal = MaxMetal;
-        CurrentShells = PrimaryWeapon.MaxAmmo;
+        CurrentShells = MaxShells;
         if (ExperimentalOffhandWeapon is not null)
         {
             ExperimentalOffhandCurrentShells = ExperimentalOffhandWeapon.MaxAmmo;
@@ -166,15 +166,16 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        if (Metal < MaxMetal)
+        var passiveRegenPerTick = PassiveMetalRegenerationPerTick;
+        if (passiveRegenPerTick > 0f && Metal < MaxMetal)
         {
-            Metal = float.Min(MaxMetal, Metal + 0.1f);
+            Metal = float.Min(MaxMetal, Metal + passiveRegenPerTick);
         }
     }
 
     public bool CanAffordSentry()
     {
-        return Metal >= MaxMetal;
+        return Metal >= 100f;
     }
 
     public bool SpendMetal(float amount)

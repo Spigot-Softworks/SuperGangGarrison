@@ -28,23 +28,48 @@ public sealed partial class SimulationWorld
             {
                 var hitResult = hit.Value;
                 var owner = FindPlayerById(shot.OwnerId);
+                var sourceSentry = TryFindExperimentalSentryShotSource(shot);
                 shot.MoveTo(hitResult.HitX, hitResult.HitY);
                 RegisterCombatTrace(shot.PreviousX, shot.PreviousY, directionX, directionY, hitResult.Distance, hitResult.HitPlayer is not null);
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
-                    if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                    if (sourceSentry is not null && owner is not null)
                     {
-                        KillPlayer(
+                        ApplyExperimentalSentryPlayerHit(
+                            sourceSentry,
+                            owner,
                             hitResult.HitPlayer,
-                            killer: owner,
-                            weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? GetKillFeedWeaponSprite(owner));
+                            (int)MathF.Round(shot.DamageValue));
+                    }
+                    else
+                    {
+                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
+                        if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
+                        {
+                            KillPlayer(
+                                hitResult.HitPlayer,
+                                gibbed: shot.ForceGibOnKill,
+                                killer: owner,
+                                weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? GetKillFeedWeaponSprite(owner));
+                        }
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), owner))
+                else if (hitResult.HitSentry is not null)
                 {
-                    DestroySentry(hitResult.HitSentry, owner);
+                    var sentryHealthBefore = hitResult.HitSentry.Health;
+                    if (ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), owner))
+                    {
+                        DestroySentry(hitResult.HitSentry, owner);
+                    }
+
+                    if (sourceSentry is not null && owner is not null)
+                    {
+                        ApplyExperimentalSentryDamageRewards(
+                            sourceSentry,
+                            owner,
+                            Math.Max(0, sentryHealthBefore - hitResult.HitSentry.Health));
+                    }
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
@@ -67,6 +92,24 @@ public sealed partial class SimulationWorld
                 RemoveShotAt(shotIndex);
             }
         }
+    }
+
+    private SentryEntity? TryFindExperimentalSentryShotSource(ShotProjectileEntity shot)
+    {
+        if (!shot.ApplyExperimentalEngineerSentryPerkEffects || !shot.SourceSentryId.HasValue)
+        {
+            return null;
+        }
+
+        for (var sentryIndex = 0; sentryIndex < _sentries.Count; sentryIndex += 1)
+        {
+            if (_sentries[sentryIndex].Id == shot.SourceSentryId.Value)
+            {
+                return _sentries[sentryIndex];
+            }
+        }
+
+        return null;
     }
 
     private void AdvanceBlades()

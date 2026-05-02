@@ -4,6 +4,7 @@ public sealed partial class SimulationWorld
 {
     private void SpawnPlayerGibs(PlayerEntity player)
     {
+        var experimentalCryoTinted = player.IsExperimentalCryoFrozen;
         if (!player.IsAlive || DefaultGibLevel <= 1)
         {
             SpawnDeadBody(player);
@@ -12,11 +13,11 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted);
+        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted);
 
         RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
-        SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f);
+        SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: experimentalCryoTinted);
 
         foreach (var gibPart in GetPlayerGibParts(player))
         {
@@ -33,7 +34,8 @@ public sealed partial class SimulationWorld
                 rotationFriction: gibPart.RotationFriction,
                 bloodChance: gibPart.BloodChance,
                 inheritedVelocityX: gibPart.InheritPlayerVelocity ? inheritedVelocityX : 0f,
-                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f);
+                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f,
+                experimentalCryoTinted: experimentalCryoTinted);
         }
     }
 
@@ -51,7 +53,8 @@ public sealed partial class SimulationWorld
         float rotationFriction = 0.5f,
         float bloodChance = PlayerGibEntity.DefaultBloodChance,
         float inheritedVelocityX = 0f,
-        float inheritedVelocityY = 0f)
+        float inheritedVelocityY = 0f,
+        bool experimentalCryoTinted = false)
     {
         for (var index = 0; index < count; index += 1)
         {
@@ -71,7 +74,8 @@ public sealed partial class SimulationWorld
                 horizontalFriction,
                 rotationFriction,
                 lifetimeTicks,
-                bloodChance);
+                bloodChance,
+                experimentalCryoTinted);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
         }
@@ -223,12 +227,13 @@ public sealed partial class SimulationWorld
             gib.X,
             gib.Y - 1f,
             MathF.Cos(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
-            MathF.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f);
+            MathF.Sin(angle) * gib.Speed * 0.9f + (_random.NextSingle() * 3f) - 1f,
+            experimentalCryoTinted: gib.ExperimentalCryoTinted);
         _bloodDrops.Add(bloodDrop);
         _entities.Add(bloodDrop.Id, bloodDrop);
     }
 
-    private void SpawnBloodDrops(float x, float y, int count, float velocityRangeX, float velocityRangeY, float spreadRadius = 0f)
+    private void SpawnBloodDrops(float x, float y, int count, float velocityRangeX, float velocityRangeY, float spreadRadius = 0f, bool experimentalCryoTinted = false)
     {
         for (var index = 0; index < count; index += 1)
         {
@@ -236,7 +241,7 @@ public sealed partial class SimulationWorld
             var offsetY = spreadRadius <= 0f ? 0f : (_random.NextSingle() * ((spreadRadius * 2f) + 1f)) - spreadRadius;
             var velocityX = (_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX;
             var velocityY = (_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY;
-            var bloodDrop = new BloodDropEntity(AllocateEntityId(), x + offsetX, y + offsetY, velocityX, velocityY);
+            var bloodDrop = new BloodDropEntity(AllocateEntityId(), x + offsetX, y + offsetY, velocityX, velocityY, experimentalCryoTinted: experimentalCryoTinted);
             _bloodDrops.Add(bloodDrop);
             _entities.Add(bloodDrop.Id, bloodDrop);
         }

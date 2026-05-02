@@ -19,7 +19,7 @@ public sealed partial class PlayerEntity
             return true;
         }
 
-        if (!IsAlive || IsHeavyEating || IsTaunting || IsSpyCloaked || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
+        if (!IsAlive || IsHeavyEating || IsTaunting || IsSpyCloaked || IsExperimentalCryoFrozen || PrimaryCooldownTicks > 0 || (!ignoreAmmoCost && CurrentShells < PrimaryWeapon.AmmoPerShot))
         {
             return false;
         }
@@ -46,6 +46,7 @@ public sealed partial class PlayerEntity
             || IsHeavyEating
             || IsTaunting
             || IsSpyCloaked
+            || IsExperimentalCryoFrozen
             || AcquiredWeaponCooldownTicks > 0
             || AcquiredWeaponCurrentShells < weaponDefinition.AmmoPerShot)
         {
@@ -89,6 +90,7 @@ public sealed partial class PlayerEntity
             || IsHeavyEating
             || IsTaunting
             || IsSpyCloaked
+            || IsExperimentalCryoFrozen
             || ExperimentalOffhandCooldownTicks > 0
             || ExperimentalOffhandCurrentShells < weaponDefinition.AmmoPerShot)
         {
@@ -165,6 +167,30 @@ public sealed partial class PlayerEntity
 
         IsPyroPrimaryRefilling = false;
         PyroFlameLoopTicksRemaining = 0;
+        return true;
+    }
+
+    public bool TryFireExperimentalEngineerDestinyPunctuatorBlast()
+    {
+        if (!IsAlive
+            || ClassId != PlayerClass.Engineer
+            || IsHeavyEating
+            || IsTaunting
+            || IsSpyCloaked
+            || IsExperimentalCryoFrozen
+            || PrimaryCooldownTicks > 0
+            || CurrentShells < global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorSecondaryShellCost)
+        {
+            return false;
+        }
+
+        CurrentShells -= global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorSecondaryShellCost;
+        PrimaryCooldownTicks = GetPrimaryCooldownAfterShot();
+        if (PrimaryWeapon.AutoReloads && CurrentShells < MaxShells)
+        {
+            ReloadTicksUntilNextShell = ApplyExperimentalReloadMultiplier(PrimaryWeapon.AmmoReloadTicks);
+        }
+
         return true;
     }
 

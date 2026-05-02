@@ -54,6 +54,74 @@ public sealed partial class PlayerEntity
 
     private float ExperimentalFogOfWarEvasionChanceValue { get; set; }
 
+    private float ExperimentalShieldHealthValue { get; set; }
+
+    private float ExperimentalMetalCapacityValue { get; set; } = 100f;
+
+    private float ExperimentalPassiveMetalRegenerationPerTickValue { get; set; } = 0.1f;
+
+    private float ExperimentalEngineerMetalMovementSpeedMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalCryoSlowTicksRemaining { get; set; }
+
+    private float ExperimentalCryoSlowMovementMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalCryoFreezeTicksRemaining { get; set; }
+
+    private int ExperimentalCryoHitCountValue { get; set; }
+
+    private int ExperimentalCryoExposureTicksValue { get; set; }
+
+    private float ExperimentalCryoExposureValue { get; set; }
+
+    private int ExperimentalCryoExposureThresholdValue { get; set; }
+
+    private float ExperimentalCryoExposureDecayPerTickValue { get; set; }
+
+    private bool ExperimentalCryoExposureRefreshedThisTick { get; set; }
+
+    private int? ExperimentalCryoSourcePlayerId { get; set; }
+
+    private int ExperimentalDamageTakenDebuffTicksRemaining { get; set; }
+
+    private float ExperimentalDamageTakenMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalEssenceExtractorSlowTicksRemaining { get; set; }
+
+    private float ExperimentalEssenceExtractorSlowMovementMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalFreezeRayCombatDebuffTicksRemaining { get; set; }
+
+    private float ExperimentalFreezeRayWeaponCycleMultiplierValue { get; set; } = 1f;
+
+    private float ExperimentalFreezeRayOutgoingDamageMultiplierValue { get; set; } = 1f;
+
+    private float ExperimentalEssenceExtractorPendingHealingValue { get; set; }
+
+    private int? ExperimentalAdditionalMedicBeamTargetPlayerId1Value { get; set; }
+
+    private int? ExperimentalAdditionalMedicBeamTargetPlayerId2Value { get; set; }
+
+    private int ExperimentalConfusionTicksRemaining { get; set; }
+
+    private int? ExperimentalConfusedAttackTargetPlayerIdValue { get; set; }
+
+    private int ExperimentalConfusedAttackTargetTicksRemaining { get; set; }
+
+    private int ExperimentalConfusionRetaliationTicksRemaining { get; set; }
+
+    private float ExperimentalJumpPadAuraMovementSpeedMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalJumpPadBurstTicksRemaining { get; set; }
+
+    private float ExperimentalJumpPadBurstMovementSpeedMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalJumpPadSlowTicksRemaining { get; set; }
+
+    private float ExperimentalJumpPadSlowMovementSpeedMultiplierValue { get; set; } = 1f;
+
+    private int ExperimentalGravitonVisualTicksRemaining { get; set; }
+
     public float ServerMovementSpeedScale => ServerMovementSpeedScaleValue;
 
     public float ServerGravityScale => ServerGravityScaleValue;
@@ -63,6 +131,54 @@ public sealed partial class PlayerEntity
     public bool IsExperimentalFogOfWarActive => ExperimentalFogOfWarTicksRemaining > 0;
 
     public float ExperimentalFogOfWarEvasionChance => ExperimentalFogOfWarTicksRemaining > 0 ? ExperimentalFogOfWarEvasionChanceValue : 0f;
+
+    public float ExperimentalShieldHealth => ExperimentalShieldHealthValue;
+
+    public float PassiveMetalRegenerationPerTick => ClassId == PlayerClass.Engineer
+        ? MathF.Max(0f, ExperimentalPassiveMetalRegenerationPerTickValue)
+        : 0f;
+
+    public bool IsExperimentalCryoSlowed => ExperimentalCryoSlowTicksRemaining > 0;
+
+    public bool IsExperimentalCryoFrozen => ExperimentalCryoFreezeTicksRemaining > 0;
+
+    public bool IsExperimentalEngineerEssenceExtractorPresented { get; private set; }
+
+    public bool IsExperimentalEngineerFreezeRayPresented { get; private set; }
+
+    public ExperimentalEngineerAlternateWeaponMode ExperimentalEngineerAlternateWeaponMode { get; private set; }
+
+    public int ExperimentalCryoExposureTicks => ExperimentalCryoExposureTicksValue;
+
+    public float ExperimentalCryoExposureFraction => ExperimentalCryoExposureThresholdValue > 0
+        ? Math.Clamp(ExperimentalCryoExposureValue / ExperimentalCryoExposureThresholdValue, 0f, 1f)
+        : 0f;
+
+    public float ExperimentalDamageTakenMultiplier => ExperimentalDamageTakenDebuffTicksRemaining > 0
+        ? ExperimentalDamageTakenMultiplierValue
+        : 1f;
+
+    public bool IsExperimentalEngineerEssenceExtractorAffected => ExperimentalDamageTakenDebuffTicksRemaining > 0;
+
+    public bool IsExperimentalGravitonAffected => ExperimentalGravitonVisualTicksRemaining > 0;
+
+    public float ExperimentalHealthPackHealingMultiplier => MathF.Max(0f, ExperimentalHealthPackHealingMultiplierValue);
+
+    public float ExperimentalFreezeRayOutgoingDamageMultiplier => ExperimentalFreezeRayCombatDebuffTicksRemaining > 0
+        ? ExperimentalFreezeRayOutgoingDamageMultiplierValue
+        : 1f;
+
+    public bool IsExperimentalConfused => ExperimentalConfusionTicksRemaining > 0;
+
+    public int? ExperimentalConfusedAttackTargetPlayerId => ExperimentalConfusedAttackTargetTicksRemaining > 0
+        ? ExperimentalConfusedAttackTargetPlayerIdValue
+        : null;
+
+    public bool IsExperimentalConfusionRetaliationMarked => ExperimentalConfusionRetaliationTicksRemaining > 0;
+
+    public int? ExperimentalAdditionalMedicBeamTargetPlayerId1 => ExperimentalAdditionalMedicBeamTargetPlayerId1Value;
+
+    public int? ExperimentalAdditionalMedicBeamTargetPlayerId2 => ExperimentalAdditionalMedicBeamTargetPlayerId2Value;
 
     public void SetExperimentalDemoknightEnabled(bool enabled)
     {
@@ -149,6 +265,11 @@ public sealed partial class PlayerEntity
         ExperimentalPassiveMovementSpeedMultiplierValue = MathF.Max(1f, multiplier);
     }
 
+    public void SetExperimentalJumpPadAuraMovementSpeedMultiplier(float multiplier)
+    {
+        ExperimentalJumpPadAuraMovementSpeedMultiplierValue = MathF.Max(1f, multiplier);
+    }
+
     public void SetExperimentalJumpHeightMultiplier(float multiplier)
     {
         ExperimentalJumpHeightMultiplierValue = MathF.Max(1f, multiplier);
@@ -233,6 +354,314 @@ public sealed partial class PlayerEntity
     public void SetExperimentalReloadSpeedMultiplier(float multiplier)
     {
         ExperimentalReloadSpeedMultiplierValue = MathF.Max(0.1f, multiplier);
+    }
+
+    public void SetExperimentalShieldHealth(float shieldHealth)
+    {
+        ExperimentalShieldHealthValue = MathF.Max(0f, shieldHealth);
+    }
+
+    public void SetExperimentalMaxHealthBonus(int bonusHealth)
+    {
+        ExperimentalMaxHealthBonusValue = Math.Max(0, bonusHealth);
+        Health = int.Clamp(Health, 0, MaxHealth);
+    }
+
+    public void SetExperimentalHealthPackHealingMultiplier(float multiplier)
+    {
+        ExperimentalHealthPackHealingMultiplierValue = MathF.Max(0f, multiplier);
+    }
+
+    public void ConfigureExperimentalMetal(float maxMetal, float passiveRegenPerTick)
+    {
+        var previousMaxMetal = ExperimentalMetalCapacityValue;
+        var hadFullMetal = previousMaxMetal > 0f && Metal >= previousMaxMetal - 0.001f;
+        ExperimentalMetalCapacityValue = MathF.Max(1f, maxMetal);
+        ExperimentalPassiveMetalRegenerationPerTickValue = MathF.Max(0f, passiveRegenPerTick);
+        Metal = hadFullMetal && MaxMetal > previousMaxMetal
+            ? MaxMetal
+            : float.Clamp(Metal, 0f, MaxMetal);
+    }
+
+    public void ClearExperimentalShield()
+    {
+        ExperimentalShieldHealthValue = 0f;
+    }
+
+    public void SetExperimentalEngineerEssenceExtractorPresented(bool presented)
+    {
+        IsExperimentalEngineerEssenceExtractorPresented = presented;
+    }
+
+    public void SetExperimentalEngineerFreezeRayPresented(bool presented)
+    {
+        IsExperimentalEngineerFreezeRayPresented = presented;
+    }
+
+    public void SetExperimentalEngineerAlternateWeaponMode(ExperimentalEngineerAlternateWeaponMode mode)
+    {
+        ExperimentalEngineerAlternateWeaponMode = mode;
+    }
+
+    public void SetExperimentalEngineerMetalMovementSpeedMultiplier(float multiplier)
+    {
+        ExperimentalEngineerMetalMovementSpeedMultiplierValue = MathF.Max(1f, multiplier);
+    }
+
+    public void RefreshExperimentalCryoSlow(int ticks, float movementMultiplier)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalCryoSlowTicksRemaining = Math.Max(ExperimentalCryoSlowTicksRemaining, ticks);
+        ExperimentalCryoSlowMovementMultiplierValue = Math.Clamp(
+            Math.Min(ExperimentalCryoSlowMovementMultiplierValue, movementMultiplier),
+            0.05f,
+            1f);
+    }
+
+    public bool AccumulateExperimentalCryoHit(int ownerPlayerId, int freezeThresholdHits, int freezeDurationTicks, float slowMovementMultiplier, int slowTicks)
+    {
+        if (!IsAlive || ownerPlayerId <= 0 || freezeThresholdHits <= 0 || freezeDurationTicks <= 0)
+        {
+            return false;
+        }
+
+        if (ExperimentalCryoSourcePlayerId != ownerPlayerId)
+        {
+            ExperimentalCryoSourcePlayerId = ownerPlayerId;
+            ExperimentalCryoHitCountValue = 0;
+            ExperimentalCryoExposureTicksValue = 0;
+            ExperimentalCryoExposureThresholdValue = freezeThresholdHits;
+        }
+
+        ExperimentalCryoHitCountValue = Math.Min(freezeThresholdHits, ExperimentalCryoHitCountValue + 1);
+        SetExperimentalCryoExposure(ExperimentalCryoHitCountValue, freezeThresholdHits);
+        ExperimentalCryoExposureDecayPerTickValue = 0f;
+        ExperimentalCryoExposureRefreshedThisTick = true;
+        RefreshExperimentalCryoSlow(slowTicks, slowMovementMultiplier);
+        if (ExperimentalCryoHitCountValue < freezeThresholdHits)
+        {
+            return false;
+        }
+
+        ExperimentalCryoFreezeTicksRemaining = Math.Max(ExperimentalCryoFreezeTicksRemaining, freezeDurationTicks);
+        ClearExperimentalCryoAccumulationState();
+        ExperimentalCryoSlowTicksRemaining = Math.Max(ExperimentalCryoSlowTicksRemaining, freezeDurationTicks);
+        ExperimentalCryoSlowMovementMultiplierValue = 0.05f;
+        HorizontalSpeed = 0f;
+        VerticalSpeed = 0f;
+        return true;
+    }
+
+    public bool AccumulateExperimentalCryoExposure(int ownerPlayerId, int freezeThresholdTicks, int exposureWindowTicks, int freezeDurationTicks, float slowMovementMultiplier, int slowTicks)
+    {
+        if (!IsAlive || ownerPlayerId <= 0 || freezeThresholdTicks <= 0 || freezeDurationTicks <= 0)
+        {
+            return false;
+        }
+
+        if (ExperimentalCryoSourcePlayerId != ownerPlayerId)
+        {
+            ExperimentalCryoSourcePlayerId = ownerPlayerId;
+            ExperimentalCryoHitCountValue = 0;
+            ClearExperimentalCryoAccumulationState();
+            ExperimentalCryoSourcePlayerId = ownerPlayerId;
+        }
+
+        SetExperimentalCryoExposure(Math.Min(freezeThresholdTicks, ExperimentalCryoExposureValue + 1f), freezeThresholdTicks);
+        ExperimentalCryoExposureDecayPerTickValue = freezeThresholdTicks / (float)Math.Max(freezeThresholdTicks, exposureWindowTicks);
+        ExperimentalCryoExposureRefreshedThisTick = true;
+        RefreshExperimentalCryoSlow(slowTicks, slowMovementMultiplier);
+        if (ExperimentalCryoExposureTicksValue < freezeThresholdTicks)
+        {
+            return false;
+        }
+
+        ExperimentalCryoFreezeTicksRemaining = Math.Max(ExperimentalCryoFreezeTicksRemaining, freezeDurationTicks);
+        ClearExperimentalCryoAccumulationState();
+        ExperimentalCryoSlowTicksRemaining = Math.Max(ExperimentalCryoSlowTicksRemaining, freezeDurationTicks);
+        ExperimentalCryoSlowMovementMultiplierValue = 0.05f;
+        HorizontalSpeed = 0f;
+        VerticalSpeed = 0f;
+        return true;
+    }
+
+    public void RefreshExperimentalDamageTakenDebuff(int ticks, float multiplier)
+    {
+        if (!IsAlive || ticks <= 0 || multiplier <= 1f)
+        {
+            return;
+        }
+
+        ExperimentalDamageTakenDebuffTicksRemaining = Math.Max(ExperimentalDamageTakenDebuffTicksRemaining, ticks);
+        ExperimentalDamageTakenMultiplierValue = Math.Max(ExperimentalDamageTakenMultiplierValue, multiplier);
+    }
+
+    public void RefreshExperimentalEngineerEssenceExtractorSlow(int ticks, float movementMultiplier)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalEssenceExtractorSlowTicksRemaining = Math.Max(ExperimentalEssenceExtractorSlowTicksRemaining, ticks);
+        ExperimentalEssenceExtractorSlowMovementMultiplierValue = Math.Clamp(
+            Math.Min(ExperimentalEssenceExtractorSlowMovementMultiplierValue, movementMultiplier),
+            0.05f,
+            1f);
+    }
+
+    public void RefreshExperimentalFreezeRayCombatDebuff(int ticks, float weaponCycleMultiplier, float outgoingDamageMultiplier)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalFreezeRayCombatDebuffTicksRemaining = Math.Max(ExperimentalFreezeRayCombatDebuffTicksRemaining, ticks);
+        ExperimentalFreezeRayWeaponCycleMultiplierValue = Math.Max(ExperimentalFreezeRayWeaponCycleMultiplierValue, weaponCycleMultiplier);
+        ExperimentalFreezeRayOutgoingDamageMultiplierValue = Math.Clamp(
+            Math.Min(ExperimentalFreezeRayOutgoingDamageMultiplierValue, outgoingDamageMultiplier),
+            0.05f,
+            1f);
+    }
+
+    public void GrantExperimentalJumpPadBurst(int ticks, float speedMultiplier)
+    {
+        if (!IsAlive || ticks <= 0 || speedMultiplier <= 1f)
+        {
+            return;
+        }
+
+        ExperimentalJumpPadBurstTicksRemaining = Math.Max(ExperimentalJumpPadBurstTicksRemaining, ticks);
+        ExperimentalJumpPadBurstMovementSpeedMultiplierValue = Math.Max(ExperimentalJumpPadBurstMovementSpeedMultiplierValue, speedMultiplier);
+    }
+
+    public void RefreshExperimentalJumpPadSlow(int ticks, float movementMultiplier)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalJumpPadSlowTicksRemaining = Math.Max(ExperimentalJumpPadSlowTicksRemaining, ticks);
+        ExperimentalJumpPadSlowMovementSpeedMultiplierValue = Math.Clamp(
+            Math.Min(ExperimentalJumpPadSlowMovementSpeedMultiplierValue, movementMultiplier),
+            0.05f,
+            1f);
+    }
+
+    public void RefreshExperimentalGravitonEffect(int ticks)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalGravitonVisualTicksRemaining = Math.Max(ExperimentalGravitonVisualTicksRemaining, ticks);
+    }
+
+    public int AccumulateExperimentalEngineerEssenceExtractorHealing(float amount, float chunkSize)
+    {
+        if (!IsAlive || amount <= 0f || chunkSize <= 0f)
+        {
+            return 0;
+        }
+
+        ExperimentalEssenceExtractorPendingHealingValue = Math.Max(0f, ExperimentalEssenceExtractorPendingHealingValue + amount);
+        var chunkCount = (int)MathF.Floor(ExperimentalEssenceExtractorPendingHealingValue / chunkSize);
+        if (chunkCount <= 0)
+        {
+            return 0;
+        }
+
+        var appliedHealing = (int)MathF.Round(chunkCount * chunkSize);
+        ExperimentalEssenceExtractorPendingHealingValue = Math.Max(0f, ExperimentalEssenceExtractorPendingHealingValue - appliedHealing);
+        return appliedHealing;
+    }
+
+    public int FlushExperimentalEngineerEssenceExtractorHealing()
+    {
+        var pendingHealing = (int)MathF.Floor(ExperimentalEssenceExtractorPendingHealingValue);
+        ExperimentalEssenceExtractorPendingHealingValue = 0f;
+        return Math.Max(0, pendingHealing);
+    }
+
+    public void SetExperimentalAdditionalMedicBeamTargets(PlayerEntity? target1, PlayerEntity? target2)
+    {
+        ExperimentalAdditionalMedicBeamTargetPlayerId1Value = target1?.Id;
+        ExperimentalAdditionalMedicBeamTargetPlayerId2Value = target2?.Id;
+    }
+
+    public void ClearExperimentalAdditionalMedicBeamTargets()
+    {
+        ExperimentalAdditionalMedicBeamTargetPlayerId1Value = null;
+        ExperimentalAdditionalMedicBeamTargetPlayerId2Value = null;
+    }
+
+    public void RefreshExperimentalConfusion(int ticks)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalConfusionTicksRemaining = Math.Max(ExperimentalConfusionTicksRemaining, ticks);
+    }
+
+    public void SetExperimentalConfusedAttackTarget(int? targetPlayerId, int ticks)
+    {
+        if (!targetPlayerId.HasValue || ticks <= 0)
+        {
+            ExperimentalConfusedAttackTargetPlayerIdValue = null;
+            ExperimentalConfusedAttackTargetTicksRemaining = 0;
+            return;
+        }
+
+        ExperimentalConfusedAttackTargetPlayerIdValue = targetPlayerId.Value;
+        ExperimentalConfusedAttackTargetTicksRemaining = Math.Max(ExperimentalConfusedAttackTargetTicksRemaining, ticks);
+    }
+
+    public void MarkExperimentalConfusionRetaliation(int ticks)
+    {
+        if (!IsAlive || ticks <= 0)
+        {
+            return;
+        }
+
+        ExperimentalConfusionRetaliationTicksRemaining = Math.Max(ExperimentalConfusionRetaliationTicksRemaining, ticks);
+    }
+
+    public void ClearExperimentalConfusionRetaliation()
+    {
+        ExperimentalConfusionRetaliationTicksRemaining = 0;
+    }
+
+    public int AbsorbExperimentalShieldDamage(int damage)
+    {
+        if (damage <= 0 || ExperimentalShieldHealthValue <= 0f)
+        {
+            return damage;
+        }
+
+        var blockedDamage = Math.Min(damage, (int)MathF.Ceiling(ExperimentalShieldHealthValue));
+        ExperimentalShieldHealthValue = Math.Max(0f, ExperimentalShieldHealthValue - blockedDamage);
+        return Math.Max(0, damage - blockedDamage);
+    }
+
+    public float AbsorbExperimentalShieldDamage(float damage)
+    {
+        if (damage <= 0f || ExperimentalShieldHealthValue <= 0f)
+        {
+            return damage;
+        }
+
+        var blockedDamage = MathF.Min(damage, ExperimentalShieldHealthValue);
+        ExperimentalShieldHealthValue = MathF.Max(0f, ExperimentalShieldHealthValue - blockedDamage);
+        return MathF.Max(0f, damage - blockedDamage);
     }
 
     public int GetExperimentalReloadDurationTicks(int ticks)
@@ -423,6 +852,144 @@ public sealed partial class PlayerEntity
 
     private void AdvanceExperimentalPowerState()
     {
+        if (ExperimentalCryoSlowTicksRemaining > 0)
+        {
+            ExperimentalCryoSlowTicksRemaining -= 1;
+            if (ExperimentalCryoSlowTicksRemaining <= 0)
+            {
+                ExperimentalCryoSlowTicksRemaining = 0;
+                ExperimentalCryoSlowMovementMultiplierValue = 1f;
+                ExperimentalCryoHitCountValue = 0;
+                if (ExperimentalCryoExposureDecayPerTickValue <= 0f || ExperimentalCryoExposureValue <= 0f)
+                {
+                    ClearExperimentalCryoAccumulationState();
+                }
+            }
+        }
+
+        if (ExperimentalCryoFreezeTicksRemaining > 0)
+        {
+            ExperimentalCryoFreezeTicksRemaining -= 1;
+            HorizontalSpeed = 0f;
+            VerticalSpeed = 0f;
+            if (ExperimentalCryoFreezeTicksRemaining <= 0)
+            {
+                ExperimentalCryoFreezeTicksRemaining = 0;
+            }
+        }
+
+        if (ExperimentalCryoExposureDecayPerTickValue > 0f)
+        {
+            if (!ExperimentalCryoExposureRefreshedThisTick
+                && ExperimentalCryoFreezeTicksRemaining <= 0
+                && ExperimentalCryoExposureValue > 0f)
+            {
+                SetExperimentalCryoExposure(
+                    Math.Max(0f, ExperimentalCryoExposureValue - ExperimentalCryoExposureDecayPerTickValue),
+                    ExperimentalCryoExposureThresholdValue);
+                if (ExperimentalCryoExposureValue <= 0.001f && ExperimentalCryoSlowTicksRemaining <= 0)
+                {
+                    ClearExperimentalCryoAccumulationState();
+                }
+            }
+
+            ExperimentalCryoExposureRefreshedThisTick = false;
+        }
+        else
+        {
+            ExperimentalCryoExposureRefreshedThisTick = false;
+        }
+
+        if (ExperimentalDamageTakenDebuffTicksRemaining > 0)
+        {
+            ExperimentalDamageTakenDebuffTicksRemaining -= 1;
+            if (ExperimentalDamageTakenDebuffTicksRemaining <= 0)
+            {
+                ExperimentalDamageTakenDebuffTicksRemaining = 0;
+                ExperimentalDamageTakenMultiplierValue = 1f;
+            }
+        }
+
+        if (ExperimentalEssenceExtractorSlowTicksRemaining > 0)
+        {
+            ExperimentalEssenceExtractorSlowTicksRemaining -= 1;
+            if (ExperimentalEssenceExtractorSlowTicksRemaining <= 0)
+            {
+                ExperimentalEssenceExtractorSlowTicksRemaining = 0;
+                ExperimentalEssenceExtractorSlowMovementMultiplierValue = 1f;
+            }
+        }
+
+        if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
+        {
+            ExperimentalFreezeRayCombatDebuffTicksRemaining -= 1;
+            if (ExperimentalFreezeRayCombatDebuffTicksRemaining <= 0)
+            {
+                ExperimentalFreezeRayCombatDebuffTicksRemaining = 0;
+                ExperimentalFreezeRayWeaponCycleMultiplierValue = 1f;
+                ExperimentalFreezeRayOutgoingDamageMultiplierValue = 1f;
+            }
+        }
+
+        if (ExperimentalJumpPadBurstTicksRemaining > 0)
+        {
+            ExperimentalJumpPadBurstTicksRemaining -= 1;
+            if (ExperimentalJumpPadBurstTicksRemaining <= 0)
+            {
+                ExperimentalJumpPadBurstTicksRemaining = 0;
+                ExperimentalJumpPadBurstMovementSpeedMultiplierValue = 1f;
+            }
+        }
+
+        if (ExperimentalJumpPadSlowTicksRemaining > 0)
+        {
+            ExperimentalJumpPadSlowTicksRemaining -= 1;
+            if (ExperimentalJumpPadSlowTicksRemaining <= 0)
+            {
+                ExperimentalJumpPadSlowTicksRemaining = 0;
+                ExperimentalJumpPadSlowMovementSpeedMultiplierValue = 1f;
+            }
+        }
+
+        if (ExperimentalGravitonVisualTicksRemaining > 0)
+        {
+            ExperimentalGravitonVisualTicksRemaining -= 1;
+            if (ExperimentalGravitonVisualTicksRemaining <= 0)
+            {
+                ExperimentalGravitonVisualTicksRemaining = 0;
+            }
+        }
+
+        if (ExperimentalConfusionTicksRemaining > 0)
+        {
+            ExperimentalConfusionTicksRemaining -= 1;
+            if (ExperimentalConfusionTicksRemaining <= 0)
+            {
+                ExperimentalConfusionTicksRemaining = 0;
+                ExperimentalConfusedAttackTargetPlayerIdValue = null;
+                ExperimentalConfusedAttackTargetTicksRemaining = 0;
+            }
+        }
+
+        if (ExperimentalConfusedAttackTargetTicksRemaining > 0)
+        {
+            ExperimentalConfusedAttackTargetTicksRemaining -= 1;
+            if (ExperimentalConfusedAttackTargetTicksRemaining <= 0)
+            {
+                ExperimentalConfusedAttackTargetTicksRemaining = 0;
+                ExperimentalConfusedAttackTargetPlayerIdValue = null;
+            }
+        }
+
+        if (ExperimentalConfusionRetaliationTicksRemaining > 0)
+        {
+            ExperimentalConfusionRetaliationTicksRemaining -= 1;
+            if (ExperimentalConfusionRetaliationTicksRemaining <= 0)
+            {
+                ExperimentalConfusionRetaliationTicksRemaining = 0;
+            }
+        }
+
         if (!IsExperimentalDemoknightEnabled)
         {
             IsExperimentalDemoknightCharging = false;
@@ -555,6 +1122,47 @@ public sealed partial class PlayerEntity
         ExperimentalLuckyBastardReviveHealth = 0;
         ExperimentalFogOfWarTicksRemaining = 0;
         ExperimentalFogOfWarEvasionChanceValue = 0f;
+        ExperimentalShieldHealthValue = 0f;
+        ExperimentalMetalCapacityValue = 100f;
+        ExperimentalPassiveMetalRegenerationPerTickValue = 0.1f;
+        ExperimentalEngineerMetalMovementSpeedMultiplierValue = 1f;
+        Metal = float.Clamp(Metal, 0f, MaxMetal);
+        ExperimentalCryoSlowTicksRemaining = 0;
+        ExperimentalCryoSlowMovementMultiplierValue = 1f;
+        ExperimentalCryoFreezeTicksRemaining = 0;
+        ExperimentalCryoHitCountValue = 0;
+        ExperimentalCryoExposureTicksValue = 0;
+        ExperimentalCryoExposureValue = 0f;
+        ExperimentalCryoExposureThresholdValue = 0;
+        ExperimentalCryoExposureDecayPerTickValue = 0f;
+        ExperimentalCryoExposureRefreshedThisTick = false;
+        ExperimentalCryoSourcePlayerId = null;
+        ExperimentalPrimaryWeaponOverride = null;
+        ExperimentalMaxHealthBonusValue = 0;
+        ExperimentalHealthPackHealingMultiplierValue = 1f;
+        IsExperimentalEngineerEssenceExtractorPresented = false;
+        IsExperimentalEngineerFreezeRayPresented = false;
+        ExperimentalEngineerAlternateWeaponMode = ExperimentalEngineerAlternateWeaponMode.None;
+        ExperimentalDamageTakenDebuffTicksRemaining = 0;
+        ExperimentalDamageTakenMultiplierValue = 1f;
+        ExperimentalEssenceExtractorSlowTicksRemaining = 0;
+        ExperimentalEssenceExtractorSlowMovementMultiplierValue = 1f;
+        ExperimentalFreezeRayCombatDebuffTicksRemaining = 0;
+        ExperimentalFreezeRayWeaponCycleMultiplierValue = 1f;
+        ExperimentalFreezeRayOutgoingDamageMultiplierValue = 1f;
+        ExperimentalEssenceExtractorPendingHealingValue = 0f;
+        ExperimentalAdditionalMedicBeamTargetPlayerId1Value = null;
+        ExperimentalAdditionalMedicBeamTargetPlayerId2Value = null;
+        ExperimentalConfusionTicksRemaining = 0;
+        ExperimentalConfusedAttackTargetPlayerIdValue = null;
+        ExperimentalConfusedAttackTargetTicksRemaining = 0;
+        ExperimentalConfusionRetaliationTicksRemaining = 0;
+        ExperimentalJumpPadAuraMovementSpeedMultiplierValue = 1f;
+        ExperimentalJumpPadBurstTicksRemaining = 0;
+        ExperimentalJumpPadBurstMovementSpeedMultiplierValue = 1f;
+        ExperimentalJumpPadSlowTicksRemaining = 0;
+        ExperimentalJumpPadSlowMovementSpeedMultiplierValue = 1f;
+        ExperimentalGravitonVisualTicksRemaining = 0;
         IsExperimentalDemoknightCharging = false;
         ExperimentalDemoknightChargeRechargeAccumulator = 0f;
         ExperimentalDemoknightChargeTicksRemaining = IsExperimentalDemoknightEnabled
@@ -567,10 +1175,33 @@ public sealed partial class PlayerEntity
     private float GetExperimentalMovementSpeedMultiplier()
     {
         var multiplier = ServerMovementSpeedScaleValue * ExperimentalPassiveMovementSpeedMultiplierValue;
+        multiplier *= ExperimentalEngineerMetalMovementSpeedMultiplierValue;
 
         if (ExperimentalMovementBoostTicksRemaining > 0)
         {
             multiplier *= ExperimentalMovementSpeedMultiplierValue;
+        }
+
+        multiplier *= ExperimentalJumpPadAuraMovementSpeedMultiplierValue;
+
+        if (ExperimentalJumpPadBurstTicksRemaining > 0)
+        {
+            multiplier *= ExperimentalJumpPadBurstMovementSpeedMultiplierValue;
+        }
+
+        if (ExperimentalCryoSlowTicksRemaining > 0)
+        {
+            multiplier *= ExperimentalCryoSlowMovementMultiplierValue;
+        }
+
+        if (ExperimentalEssenceExtractorSlowTicksRemaining > 0)
+        {
+            multiplier *= ExperimentalEssenceExtractorSlowMovementMultiplierValue;
+        }
+
+        if (ExperimentalJumpPadSlowTicksRemaining > 0)
+        {
+            multiplier *= ExperimentalJumpPadSlowMovementSpeedMultiplierValue;
         }
 
         return multiplier;
@@ -666,6 +1297,30 @@ public sealed partial class PlayerEntity
 
     private int ApplyExperimentalWeaponCycleMultiplier(int ticks)
     {
-        return ApplyExperimentalReloadMultiplier(ticks);
+        var adjustedTicks = ApplyExperimentalReloadMultiplier(ticks);
+        if (ExperimentalFreezeRayCombatDebuffTicksRemaining > 0)
+        {
+            adjustedTicks = Math.Max(1, (int)MathF.Round(adjustedTicks * ExperimentalFreezeRayWeaponCycleMultiplierValue));
+        }
+
+        return adjustedTicks;
+    }
+
+    private void SetExperimentalCryoExposure(float exposure, int thresholdTicks)
+    {
+        ExperimentalCryoExposureThresholdValue = Math.Max(0, thresholdTicks);
+        ExperimentalCryoExposureValue = Math.Clamp(exposure, 0f, Math.Max(0f, ExperimentalCryoExposureThresholdValue));
+        ExperimentalCryoExposureTicksValue = (int)MathF.Round(ExperimentalCryoExposureValue);
+    }
+
+    private void ClearExperimentalCryoAccumulationState()
+    {
+        ExperimentalCryoHitCountValue = 0;
+        ExperimentalCryoExposureTicksValue = 0;
+        ExperimentalCryoExposureValue = 0f;
+        ExperimentalCryoExposureThresholdValue = 0;
+        ExperimentalCryoExposureDecayPerTickValue = 0f;
+        ExperimentalCryoExposureRefreshedThisTick = false;
+        ExperimentalCryoSourcePlayerId = null;
     }
 }

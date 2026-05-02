@@ -56,7 +56,7 @@ public partial class Game1
                     ToClientPluginTeam(sentry.Team),
                     new Vector2(sentry.X, sentry.Y),
                     sentry.Health,
-                    SentryEntity.MaxHealth));
+                    sentry.MaxHealth));
             }
 
             return markers;

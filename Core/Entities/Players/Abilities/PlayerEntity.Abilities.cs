@@ -167,12 +167,17 @@ public sealed partial class PlayerEntity
     {
         MedicHealTargetId = target?.Id;
         IsMedicHealing = target is not null;
+        if (target is null)
+        {
+            ClearExperimentalAdditionalMedicBeamTargets();
+        }
     }
 
     public void ClearMedicHealingTarget()
     {
         MedicHealTargetId = null;
         IsMedicHealing = false;
+        ClearExperimentalAdditionalMedicBeamTargets();
     }
 
     public bool TryStartMedicUber()
@@ -291,7 +296,9 @@ public sealed partial class PlayerEntity
         ContinuousHealingAccumulator -= wholeHealing;
         var previousHealth = Health;
         Health = int.Min(MaxHealth, Health + wholeHealing);
-        return Math.Max(0, Health - previousHealth);
+        var appliedHealing = Math.Max(0, Health - previousHealth);
+        HealingReceived += appliedHealing;
+        return appliedHealing;
     }
 
     public bool ApplyContinuousHealing(float healing)

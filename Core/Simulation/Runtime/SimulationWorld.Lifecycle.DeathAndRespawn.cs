@@ -19,6 +19,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (player.IsExperimentalCryoFrozen)
+        {
+            gibbed = true;
+        }
+
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
             ? ResolveAssistPlayer(player, killer)
             : null;
@@ -106,7 +111,7 @@ public sealed partial class SimulationWorld
                     killer?.DisplayName ?? string.Empty,
                     killer?.Team,
                     deathCamSentry.Health,
-                    SentryEntity.MaxHealth,
+                    deathCamSentry.MaxHealth,
                     deathCamTicks,
                     deathCamTicks);
             }

@@ -4,6 +4,14 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
 {
+    private enum ExperimentalDamageKind
+    {
+        Generic,
+        Bullet,
+        Explosive,
+        Fire,
+    }
+
     public bool IsPlayerInsideCapturedPointHealingAuraForVisuals(PlayerEntity? player)
     {
         return player is not null
@@ -68,7 +76,7 @@ public sealed partial class SimulationWorld
         return ExperimentalGameplaySettings.CapturedPointHealingPerSecond / Math.Max(1, Config.TicksPerSecond);
     }
 
-    private void ApplyExperimentalDamageRewards(PlayerEntity? attacker, PlayerEntity target, int appliedDamage)
+    private void ApplyExperimentalDamageRewards(PlayerEntity? attacker, PlayerEntity target, int appliedDamage, bool allowOsmosisHealOwnedSentries = true)
     {
         if (appliedDamage <= 0
             || attacker is null
@@ -84,7 +92,7 @@ public sealed partial class SimulationWorld
             ApplyExperimentalHealingReward(attacker, appliedDamage * ExperimentalGameplaySettings.HealOnDamageFraction);
         }
 
-        if (attacker.AcquiredWeaponClassId.HasValue && ExperimentalGameplaySettings.AcquiredWeaponHealingMultiplier > 1f)
+        if (attacker.IsAcquiredWeaponEquipped && ExperimentalGameplaySettings.AcquiredWeaponHealingMultiplier > 1f)
         {
             ApplyExperimentalHealingReward(
                 attacker,
@@ -109,6 +117,13 @@ public sealed partial class SimulationWorld
                 GetExperimentalDamageBuffTicks(),
                 ExperimentalGameplaySettings.SpeedBoostMultiplier);
         }
+
+        if (allowOsmosisHealOwnedSentries)
+        {
+            ApplyExperimentalPlayerDamageToOwnedSentries(attacker, appliedDamage);
+        }
+
+        ApplyExperimentalEngineerPlayerDamageRewards(attacker, appliedDamage);
     }
 
     private void ApplyExperimentalDamageTakenRewards(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
@@ -246,7 +261,7 @@ public sealed partial class SimulationWorld
         return global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerRocketTurnRateDegrees * (MathF.PI / 180f);
     }
 
-    private int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, int damage)
+    private int ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, PlayerEntity? attacker, int damage)
     {
         if (damage <= 0
             || !IsExperimentalPracticePowerOwner(target))
@@ -260,11 +275,13 @@ public sealed partial class SimulationWorld
             multiplier *= ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier;
         }
 
+        multiplier *= target.ExperimentalDamageTakenMultiplier;
         multiplier *= 1f - Math.Clamp(ExperimentalGameplaySettings.PassiveDamageResistance, 0f, 0.95f);
+        multiplier *= 1f - GetExperimentalTypedResistanceForKind(ResolveExperimentalDamageKind(attacker));
         return Math.Max(1, (int)MathF.Round(damage * multiplier));
     }
 
-    private float ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, float damage)
+    private float ApplyExperimentalIncomingDamageMultiplier(PlayerEntity target, PlayerEntity? attacker, float damage)
     {
         if (damage <= 0f
             || !IsExperimentalPracticePowerOwner(target))
@@ -278,7 +295,9 @@ public sealed partial class SimulationWorld
             multiplier *= ExperimentalGameplaySettings.DemoknightChargeDamageTakenMultiplier;
         }
 
+        multiplier *= target.ExperimentalDamageTakenMultiplier;
         multiplier *= 1f - Math.Clamp(ExperimentalGameplaySettings.PassiveDamageResistance, 0f, 0.95f);
+        multiplier *= 1f - GetExperimentalTypedResistanceForKind(ResolveExperimentalDamageKind(attacker));
         return MathF.Max(0.01f, damage * multiplier);
     }
 
@@ -307,22 +326,34 @@ public sealed partial class SimulationWorld
     private float GetExperimentalOutgoingDamageMultiplier(PlayerEntity? attacker, PlayerEntity target)
     {
         if (attacker is null
-            || !IsExperimentalPracticePowerOwner(attacker)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team)
         {
             return 1f;
         }
 
-        var multiplier = ExperimentalGameplaySettings.PassiveDamageMultiplier;
+        var multiplier = attacker.ExperimentalFreezeRayOutgoingDamageMultiplier;
+        if (!IsExperimentalPracticePowerOwner(attacker))
+        {
+            return MathF.Max(0.01f, multiplier);
+        }
+
+        var damageKind = ResolveExperimentalDamageKind(attacker);
+        multiplier *= ExperimentalGameplaySettings.PassiveDamageMultiplier;
+        multiplier *= GetExperimentalTypedDamageMultiplierForKind(damageKind);
         if (ShouldApplyExperimentalSoldierBattleborn(attacker, target))
         {
             multiplier *= 1f + Math.Max(0, attacker.CurrentCombo) / 100f;
         }
 
-        if (attacker.AcquiredWeaponClassId.HasValue)
+        if (attacker.IsAcquiredWeaponEquipped)
         {
             multiplier *= ExperimentalGameplaySettings.AcquiredWeaponDamageMultiplier;
+        }
+
+        if (ExperimentalGameplaySettings.PassiveDamageTargetClassId == target.ClassId)
+        {
+            multiplier *= ExperimentalGameplaySettings.PassiveDamageToTargetClassMultiplier;
         }
 
         return MathF.Max(0.01f, multiplier);
@@ -348,7 +379,6 @@ public sealed partial class SimulationWorld
         if (damage <= 0f
             || attacker is null
             || !IsExperimentalPracticePowerOwner(target)
-            || target.ClassId != PlayerClass.Soldier
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
             || GetExperimentalTotalEvasionChance(target) <= 0f
@@ -378,9 +408,19 @@ public sealed partial class SimulationWorld
         }
 
         return Math.Clamp(
-            ExperimentalGameplaySettings.PassiveEvasionChance + target.ExperimentalFogOfWarEvasionChance,
+            ExperimentalGameplaySettings.PassiveEvasionChance
+                + target.ExperimentalFogOfWarEvasionChance
+                + GetExperimentalEngineerMisdirectionFieldEvasionChance(target),
             0f,
             0.95f);
+    }
+
+    private float GetExperimentalEngineerMisdirectionFieldEvasionChance(PlayerEntity target)
+    {
+        return ExperimentalGameplaySettings.EnableEngineerMisdirectionField
+            && IsPlayerNearExperimentalOwnedSentry(target)
+            ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerMisdirectionFieldEvasionChance
+            : 0f;
     }
 
     private void TryApplyExperimentalThornsDamage(PlayerEntity target, PlayerEntity? attacker, int appliedDamage)
@@ -445,6 +485,55 @@ public sealed partial class SimulationWorld
         {
             player.ApplyContinuousHealingAndGetAmount(GetExperimentalCapturedPointHealingPerTick());
         }
+
+        ApplyExperimentalEngineerPassivePlayerEffects(player);
+    }
+
+    private static ExperimentalDamageKind ResolveExperimentalDamageKind(PlayerEntity? attacker)
+    {
+        if (attacker is null)
+        {
+            return ExperimentalDamageKind.Generic;
+        }
+
+        var weaponDefinition = attacker.IsAcquiredWeaponEquipped
+            ? attacker.AcquiredWeapon
+            : attacker.IsExperimentalOffhandEquipped
+                ? attacker.ExperimentalOffhandWeapon
+                : attacker.PrimaryWeapon;
+        if (weaponDefinition is null)
+        {
+            return ExperimentalDamageKind.Generic;
+        }
+
+        return weaponDefinition.Kind switch
+        {
+            PrimaryWeaponKind.PelletGun or PrimaryWeaponKind.Minigun or PrimaryWeaponKind.Rifle or PrimaryWeaponKind.Revolver => ExperimentalDamageKind.Bullet,
+            PrimaryWeaponKind.RocketLauncher or PrimaryWeaponKind.MineLauncher => ExperimentalDamageKind.Explosive,
+            PrimaryWeaponKind.FlameThrower => ExperimentalDamageKind.Fire,
+            _ => ExperimentalDamageKind.Generic,
+        };
+    }
+
+    private float GetExperimentalTypedDamageMultiplierForKind(ExperimentalDamageKind damageKind)
+    {
+        return damageKind switch
+        {
+            ExperimentalDamageKind.Bullet => ExperimentalGameplaySettings.PassiveBulletDamageMultiplier,
+            ExperimentalDamageKind.Explosive => ExperimentalGameplaySettings.PassiveExplosiveDamageMultiplier,
+            _ => 1f,
+        };
+    }
+
+    private float GetExperimentalTypedResistanceForKind(ExperimentalDamageKind damageKind)
+    {
+        return damageKind switch
+        {
+            ExperimentalDamageKind.Bullet => Math.Clamp(ExperimentalGameplaySettings.PassiveBulletResistance, 0f, 0.95f),
+            ExperimentalDamageKind.Explosive => Math.Clamp(ExperimentalGameplaySettings.PassiveExplosiveResistance, 0f, 0.95f),
+            ExperimentalDamageKind.Fire => Math.Clamp(ExperimentalGameplaySettings.PassiveFireResistance, 0f, 0.95f),
+            _ => 0f,
+        };
     }
 
     private bool IsPlayerInsideCapturedPointHealingAura(PlayerEntity player)
