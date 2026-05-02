@@ -77,7 +77,7 @@ public partial class Game1
                 return;
             }
 
-            var sourceTickAdvance = _game._clientUpdateElapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+            var sourceTickAdvance = (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
             if (sourceTickAdvance <= 0f)
             {
                 return;
@@ -111,7 +111,20 @@ public partial class Game1
         {
             for (var index = 0; index < _game._backstabVisuals.Count; index += 1)
             {
-                _game.DrawStabAnimation(_game._backstabVisuals[index].Animation, cameraPosition);
+                var backstabVisual = _game._backstabVisuals[index].Animation;
+                if (backstabVisual.OwnerId != 0)
+                {
+                    var owner = _game.FindPlayerById(backstabVisual.OwnerId);
+                    if (owner is not null
+                        && owner.IsAlive
+                        && owner.ClassId == PlayerClass.Spy
+                        && _game.IsSpyHiddenFromLocalViewer(owner))
+                    {
+                        continue;
+                    }
+                }
+
+                _game.DrawStabAnimation(backstabVisual, cameraPosition);
             }
         }
 

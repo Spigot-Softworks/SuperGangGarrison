@@ -42,8 +42,10 @@ public sealed partial class PlayerEntity
             return;
         }
 
-        SpyCloakAlpha = float.Min(1f, SpyCloakAlpha + alpha);
-        IsSpyVisibleToEnemies = SpyCloakAlpha > 0f || IsSpyBackstabAnimating;
+        SpyCloakAlpha = float.Max(SpyCloakAlpha, alpha);
+        // When a cloaked spy is damaged, keep them cloaked and let cloak alpha
+        // fade back toward 0 at the normal spy cloak fade rate.
+        IsSpyVisibleToEnemies = true;
     }
 
     public void ForceDecloak()

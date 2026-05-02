@@ -50,6 +50,9 @@ public partial class Game1
     private SoundEffectInstance? _localMedigunSoundInstance;
     private bool _audioAvailable = true;
     private bool _audioMuted;
+    private int _menuMusicVolumePercent = 70;
+    private int _ingameMusicVolumePercent = 70;
+    private int _soundEffectsVolumePercent = 70;
     private MusicMode _musicMode = MusicMode.MenuAndInGame;
     private bool _menuMusicLoadAttempted;
     private bool _lastToDieMenuMusicLoadAttempted;
@@ -247,7 +250,7 @@ public partial class Game1
 
         try
         {
-            sound.Play(volume, pitch, pan);
+            sound.Play(volume * GetSoundEffectsVolumeScale(), pitch, pan);
         }
         catch (Exception ex)
         {
@@ -320,8 +323,14 @@ public partial class Game1
     private void ToggleAudioMute()
     {
         _audioMuted = !_audioMuted;
-        ApplyAudioMuteState();
+        ApplyAudioVolumeState();
         AddConsoleLine(_audioMuted ? "audio muted (F12)" : "audio unmuted (F12)");
+    }
+
+    private void ApplyAudioVolumeState()
+    {
+        ApplyAudioMuteState();
+        UpdateCurrentMusicInstanceVolumes();
     }
 
     private void ApplyAudioMuteState()
@@ -334,6 +343,42 @@ public partial class Game1
         {
             DisableAudio("updating audio mute", ex);
         }
+    }
+
+    private void UpdateCurrentMusicInstanceVolumes()
+    {
+        SetSoundEffectInstanceVolume(_menuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
+        SetSoundEffectInstanceVolume(_lastToDieMenuMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.82f);
+        SetSoundEffectInstanceVolume(_faucetMusicInstance, GetNonLinearVolumeScale(_menuMusicVolumePercent) * 0.8f);
+        SetSoundEffectInstanceVolume(_ingameMusicInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.8f);
+        SetSoundEffectInstanceVolume(_lastToDieIngameMusicInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.82f);
+        SetSoundEffectInstanceVolume(_lastToDieGameOverSoundInstance, GetNonLinearVolumeScale(_ingameMusicVolumePercent) * 0.85f);
+    }
+
+    private static float GetNonLinearVolumeScale(int percent)
+    {
+        return Math.Clamp(MathF.Pow(percent / 100f, 1.5f), 0f, 1f);
+    }
+
+    private static void SetSoundEffectInstanceVolume(SoundEffectInstance? instance, float volume)
+    {
+        if (instance is null)
+        {
+            return;
+        }
+
+        try
+        {
+            instance.Volume = Math.Clamp(volume, 0f, 1f);
+        }
+        catch
+        {
+        }
+    }
+
+    private float GetSoundEffectsVolumeScale()
+    {
+        return _audioMuted ? 0f : GetNonLinearVolumeScale(_soundEffectsVolumePercent);
     }
 
     private bool IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind weaponKind)

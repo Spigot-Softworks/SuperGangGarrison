@@ -376,7 +376,7 @@ public partial class Game1
 
         public static Color GetUberOverlayColor(PlayerTeam team)
         {
-            return team == PlayerTeam.Blue ? Color.Blue : Color.Red;
+            return team == PlayerTeam.Blue ? new Color(56, 136, 255) : new Color(255, 32, 32);
         }
 
         public Vector2 GetExperimentalDemoknightChargeBlurDirection(PlayerEntity player)

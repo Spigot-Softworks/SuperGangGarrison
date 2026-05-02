@@ -30,8 +30,34 @@ public partial class Game1
                 ? BrowserInputBridge.IsFocused
                 : _game.IsActive;
             var keyboard = windowActive ? Game1.GetCurrentKeyboardState() : default;
-            var rawMouse = windowActive ? _game.GetConstrainedMouseState(Game1.GetCurrentMouseState()) : default;
-            var mouse = windowActive ? _game.GetScaledMouseState(rawMouse) : default;
+            var rawMouse = _game.GetConstrainedMouseState(Game1.GetCurrentMouseState());
+            var mouse = _game.GetScaledMouseState(rawMouse);
+            if (windowActive)
+            {
+                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
+            }
+            else
+            {
+                rawMouse = new MouseState(
+                    rawMouse.X,
+                    rawMouse.Y,
+                    0,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released);
+                mouse = new MouseState(
+                    mouse.X,
+                    mouse.Y,
+                    0,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released);
+                _game._lastKnownMousePosition = new Point(mouse.X, mouse.Y);
+            }
             if (!_game._wasWindowActive && windowActive)
             {
                 _game._previousKeyboard = keyboard;
@@ -66,7 +92,13 @@ public partial class Game1
             if (toggleConsolePressed && !_game._mainMenuOpen)
             {
                 _game._consoleOpen = !_game._consoleOpen;
+                if (_game._consoleOpen)
+                {
+                    _game.InitializeConsoleInputCursor();
+                }
             }
+
+            _game.HandleActiveTextFieldKeyboardShortcuts(keyboard, gameTime.ElapsedGameTime.TotalSeconds);
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {

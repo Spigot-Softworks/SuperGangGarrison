@@ -25,18 +25,29 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
+                {
                     if (_game._editingConnectPort)
                     {
-                        if (_game._connectPortBuffer.Length > 0)
-                        {
-                            _game._connectPortBuffer = _game._connectPortBuffer[..^1];
-                        }
+                        var result = _game.DeleteTextSelectionOrBackspace(
+                            _game._connectPortBuffer,
+                            _game._connectPortCursorIndex,
+                            _game._connectPortSelectionStart);
+                        _game._connectPortBuffer = result.Text;
+                        _game._connectPortCursorIndex = result.CursorIndex;
+                        _game._connectPortSelectionStart = result.SelectionStart;
                     }
-                    else if (_game._connectHostBuffer.Length > 0)
+                    else
                     {
-                        _game._connectHostBuffer = _game._connectHostBuffer[..^1];
+                        var result = _game.DeleteTextSelectionOrBackspace(
+                            _game._connectHostBuffer,
+                            _game._connectHostCursorIndex,
+                            _game._connectHostSelectionStart);
+                        _game._connectHostBuffer = result.Text;
+                        _game._connectHostCursorIndex = result.CursorIndex;
+                        _game._connectHostSelectionStart = result.SelectionStart;
                     }
                     break;
+                }
                 case '\t':
                     _game._connectionFlowController.ToggleManualConnectEditingField();
                     break;
@@ -52,14 +63,30 @@ public partial class Game1
 
                     if (_game._editingConnectPort)
                     {
-                        if (char.IsDigit(character) && _game._connectPortBuffer.Length < 5)
+                        if (char.IsDigit(character))
                         {
-                            _game._connectPortBuffer += character;
+                            var result = _game.InsertTextCharacterAtCursor(
+                                _game._connectPortBuffer,
+                                character,
+                                _game._connectPortCursorIndex,
+                                _game._connectPortSelectionStart,
+                                5);
+                            _game._connectPortBuffer = result.Text;
+                            _game._connectPortCursorIndex = result.CursorIndex;
+                            _game._connectPortSelectionStart = result.SelectionStart;
                         }
                     }
-                    else if (_game._connectHostBuffer.Length < 64)
+                    else
                     {
-                        _game._connectHostBuffer += character;
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._connectHostBuffer,
+                            character,
+                            _game._connectHostCursorIndex,
+                            _game._connectHostSelectionStart,
+                            64);
+                        _game._connectHostBuffer = result.Text;
+                        _game._connectHostCursorIndex = result.CursorIndex;
+                        _game._connectHostSelectionStart = result.SelectionStart;
                     }
                     break;
             }
@@ -77,20 +104,33 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    if (_game._playerNameEditBuffer.Length > 0)
-                    {
-                        _game._playerNameEditBuffer = _game._playerNameEditBuffer[..^1];
-                    }
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._playerNameEditBuffer,
+                        _game._playerNameEditCursorIndex,
+                        _game._playerNameEditSelectionStart);
+                    _game._playerNameEditBuffer = result.Text;
+                    _game._playerNameEditCursorIndex = result.CursorIndex;
+                    _game._playerNameEditSelectionStart = result.SelectionStart;
                     break;
+                }
                 case '\r':
                 case '\n':
                     _game.SetLocalPlayerNameFromSettings(_game._playerNameEditBuffer);
                     _game._editingPlayerName = false;
                     break;
                 default:
-                    if (!char.IsControl(character) && _game._playerNameEditBuffer.Length < 20 && character != '#')
+                    if (!char.IsControl(character) && character != '#' && _game._playerNameEditBuffer.Length < 20)
                     {
-                        _game._playerNameEditBuffer += character;
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._playerNameEditBuffer,
+                            character,
+                            _game._playerNameEditCursorIndex,
+                            _game._playerNameEditSelectionStart,
+                            20);
+                        _game._playerNameEditBuffer = result.Text;
+                        _game._playerNameEditCursorIndex = result.CursorIndex;
+                        _game._playerNameEditSelectionStart = result.SelectionStart;
                     }
                     break;
             }

@@ -98,13 +98,18 @@ sealed class ServerSessionManager
                 && client.IsAuthorized
                 && client.TryGetInputForNextTick(out var input))
             {
-                _world.TrySetNetworkPlayerInput(slot, input);
+                _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input));
             }
             else
             {
                 _world.TryClearNetworkPlayerInputOverride(slot);
             }
         }
+    }
+
+    private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
+    {
+        return input;
     }
 
     public void HandleControlCommand(ClientSession client, ControlCommandMessage command)

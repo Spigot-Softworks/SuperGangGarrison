@@ -30,11 +30,16 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    if (_game._passwordEditBuffer.Length > 0)
-                    {
-                        _game._passwordEditBuffer = _game._passwordEditBuffer[..^1];
-                    }
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._passwordEditBuffer,
+                        _game._passwordEditCursorIndex,
+                        _game._passwordEditSelectionStart);
+                    _game._passwordEditBuffer = result.Text;
+                    _game._passwordEditCursorIndex = result.CursorIndex;
+                    _game._passwordEditSelectionStart = result.SelectionStart;
                     break;
+                }
                 case '\r':
                 case '\n':
                     if (!string.IsNullOrEmpty(_game._passwordEditBuffer))
@@ -50,7 +55,15 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && _game._passwordEditBuffer.Length < 32)
                     {
-                        _game._passwordEditBuffer += character;
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._passwordEditBuffer,
+                            character,
+                            _game._passwordEditCursorIndex,
+                            _game._passwordEditSelectionStart,
+                            32);
+                        _game._passwordEditBuffer = result.Text;
+                        _game._passwordEditCursorIndex = result.CursorIndex;
+                        _game._passwordEditSelectionStart = result.SelectionStart;
                         _game._passwordPromptMessage = string.Empty;
                     }
                     break;

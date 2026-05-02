@@ -372,10 +372,13 @@ public partial class Game1
                     continue;
                 }
 
-                if (CanEmitBrowserVisual(_game._mineTrailVisuals.Count, BrowserMineTrailVisualLimit))
+                if (!CanEmitBrowserVisual(_game._mineTrailVisuals.Count, BrowserMineTrailVisualLimit))
                 {
-                    _game._mineTrailVisuals.Add(new MineTrailVisual(mine.X, mine.Y));
+                    continue;
                 }
+
+                var mineRenderPosition = _game.GetRenderPosition(mine.Id, mine.X, mine.Y);
+                _game._mineTrailVisuals.Add(new MineTrailVisual(mineRenderPosition.X, mineRenderPosition.Y));
             }
 
             for (var index = _game._mineTrailVisuals.Count - 1; index >= 0; index -= 1)

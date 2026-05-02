@@ -26,11 +26,11 @@ public sealed partial class SimulationWorld
             }
 
             var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
+            var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
             var pelletAngle = baseAngle + spreadRadians;
             var directionX = MathF.Cos(pelletAngle);
             var directionY = MathF.Sin(pelletAngle);
-            var shotSpeed = weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed);
+            var shotSpeed = GetWeaponShotSpeed(weaponDefinition);
             var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 directionX * shotSpeed,
@@ -43,6 +43,59 @@ public sealed partial class SimulationWorld
                 launchedVelocityY,
                 weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
+        }
+
+        private float GetWeaponSpreadRadians(int attackerId, float spreadDegrees, int pelletIndex = 0, int projectilesPerShot = 1)
+        {
+            if (_world.RandomSpreadEnabled)
+            {
+                return DegreesToRadians((_random.NextSingle() * 2f - 1f) * spreadDegrees);
+            }
+
+            if (projectilesPerShot > 1)
+            {
+                return GetDeterministicPelletSpreadRadians(pelletIndex, projectilesPerShot, spreadDegrees);
+            }
+
+            return GetDeterministicContinuousSpreadRadians(attackerId, spreadDegrees);
+        }
+
+        private float GetWeaponShotSpeed(PrimaryWeaponDefinition weaponDefinition)
+        {
+            return _world.RandomSpreadEnabled
+                ? weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed)
+                : weaponDefinition.MinShotSpeed;
+        }
+
+        private static float GetDeterministicPelletSpreadRadians(int pelletIndex, int projectilesPerShot, float spreadDegrees)
+        {
+            if (projectilesPerShot <= 1)
+            {
+                return 0f;
+            }
+
+            var normalized = pelletIndex / (float)(projectilesPerShot - 1);
+            var fraction = normalized * 2f - 1f;
+            return DegreesToRadians(fraction * spreadDegrees);
+        }
+
+        private float GetDeterministicContinuousSpreadRadians(int attackerId, float spreadDegrees)
+        {
+            var shotIndex = _world.GetDeterministicSpreadShotIndex(attackerId);
+            if (shotIndex == 0)
+            {
+                return 0f;
+            }
+
+            var pattern = new[]
+            {
+                0, 1, -1, 2, -2, 3, -2, 4,
+                -4, 3, -3, 2, -2, 1, -1, 0,
+            };
+
+            var patternIndex = (shotIndex - 1) % pattern.Length;
+            var step = pattern[patternIndex];
+            return DegreesToRadians((step / 4f) * spreadDegrees);
         }
 
         private void FirePelletWeapon(
@@ -71,11 +124,15 @@ public sealed partial class SimulationWorld
                 weaponDefinition.ProjectilesPerShot * Math.Max(1, pelletCountMultiplier));
             for (var pelletIndex = 0; pelletIndex < projectileCount; pelletIndex += 1)
             {
-                var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees * MathF.Max(0.1f, spreadMultiplier));
+                var spreadRadians = GetWeaponSpreadRadians(
+                    attacker.Id,
+                    weaponDefinition.SpreadDegrees * MathF.Max(0.1f, spreadMultiplier),
+                    pelletIndex,
+                    projectileCount);
                 var pelletAngle = baseAngle + spreadRadians;
                 var directionX = MathF.Cos(pelletAngle);
                 var directionY = MathF.Sin(pelletAngle);
-                var pelletSpeed = weaponDefinition.MinShotSpeed + (_random.NextSingle() * weaponDefinition.AdditionalRandomShotSpeed);
+                var pelletSpeed = GetWeaponShotSpeed(weaponDefinition);
                 var (launchedVelocityX, launchedVelocityY) = _world.ApplyExperimentalProjectileSpeedMultiplier(
                     attacker,
                     directionX * pelletSpeed,
@@ -284,7 +341,7 @@ public sealed partial class SimulationWorld
             }
 
             var directionRadians = MathF.Atan2(aimDeltaY, aimDeltaX);
-            var spreadRadians = DegreesToRadians((_random.NextSingle() * 2f - 1f) * weaponDefinition.SpreadDegrees);
+            var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
             var bulletAngle = directionRadians + spreadRadians;
             var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
             for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)

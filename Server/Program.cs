@@ -52,6 +52,7 @@ var server = new GameServer(
     autoBalanceNewPlayerGraceSeconds,
     launchOptions.AutoBalanceEnabled,
     launchOptions.SecondaryAbilitiesEnabled,
+    launchOptions.RandomSpreadEnabled,
     launchOptions.TimeLimitMinutesOverride,
     launchOptions.CapLimitOverride,
     launchOptions.RespawnSecondsOverride,

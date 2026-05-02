@@ -30,11 +30,16 @@ public partial class Game1
             switch (character)
             {
                 case '\b':
-                    if (_game._chatInput.Length > 0)
-                    {
-                        _game._chatInput = _game._chatInput[..^1];
-                    }
+                {
+                    var result = _game.DeleteTextSelectionOrBackspace(
+                        _game._chatInput,
+                        _game._chatInputCursorIndex,
+                        _game._chatInputSelectionStart);
+                    _game._chatInput = result.Text;
+                    _game._chatInputCursorIndex = result.CursorIndex;
+                    _game._chatInputSelectionStart = result.SelectionStart;
                     break;
+                }
                 case '\r':
                 case '\n':
                     _game.SubmitChatMessage();
@@ -42,7 +47,15 @@ public partial class Game1
                 default:
                     if (!char.IsControl(character) && _game._chatInput.Length < 120)
                     {
-                        _game._chatInput += character;
+                        var result = _game.InsertTextCharacterAtCursor(
+                            _game._chatInput,
+                            character,
+                            _game._chatInputCursorIndex,
+                            _game._chatInputSelectionStart,
+                            120);
+                        _game._chatInput = result.Text;
+                        _game._chatInputCursorIndex = result.CursorIndex;
+                        _game._chatInputSelectionStart = result.SelectionStart;
                     }
                     break;
             }

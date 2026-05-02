@@ -10,7 +10,9 @@ internal static class KeyboardInputMapper
         KeyboardState keyboard,
         MouseState mouse,
         float cameraX,
-        float cameraY)
+        float cameraY,
+        float localPlayerX,
+        float localPlayerY)
     {
         return new PlayerInputSnapshot(
             Left: keyboard.IsKeyDown(bindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left),

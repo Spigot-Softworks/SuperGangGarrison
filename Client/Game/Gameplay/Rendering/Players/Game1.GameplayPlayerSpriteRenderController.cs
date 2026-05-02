@@ -57,15 +57,43 @@ public partial class Game1
                 DrawIntelUnderlaySprite(player, cameraPosition, tint, scale, bodySelection, roundedOrigin);
             }
 
-            _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
             if (player.IsUbered)
             {
-                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team) * 0.7f, 0f, sprite.Origin.ToVector2(), scale);
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+                _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                if (_game._uberOutlineEnabled)
+                {
+                    _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, 0f, sprite.Origin.ToVector2(), scale);
+                }
+                _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, teamColor, 0f, sprite.Origin.ToVector2(), scale);
+            }
+            else
+            {
+                _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
             }
 
             if (drawIntelOverlay && !isHeavyEating && !player.IsTaunting && bodySelection.DrawIntelUnderlay)
             {
                 DrawCarriedIntelTimerSprite(player, cameraPosition, roundedOrigin);
+            }
+
+            if (player.ClassId == PlayerClass.Spy
+                && !ReferenceEquals(player, _game._world.LocalPlayer)
+                && player.Team != _game._world.LocalPlayer.Team
+                && !(_game.IsSpyHiddenFromLocalViewer(player) && !_game.GetPlayerIsSpyVisibleToEnemies(player)))
+            {
+                _game.RecordLastVisibleEnemySpyFrame(
+                    player,
+                    spriteName,
+                    frameIndex,
+                    renderPosition,
+                    sprite.Origin.ToVector2(),
+                    scale,
+                    bodyYOffset,
+                    tint,
+                    drawIntelOverlay);
             }
 
             return true;
@@ -155,7 +183,11 @@ public partial class Game1
             return new PlayerBodySpriteSelection(spriteName, animationImage, bodyYOffset, equipmentOffset, player.IsCarryingIntel, false);
         }
 
-        public static float GetPlayerFacingScale(PlayerEntity player) => IsFacingLeftByAim(player) ? -1f : 1f;
+        public static float GetPlayerFacingScale(PlayerEntity player)
+        {
+            return IsFacingLeftByAim(player) ? -1f : 1f;
+        }
+
         public static bool IsFacingLeftByAim(PlayerEntity player)
         {
             var radians = System.MathF.PI * player.AimDirectionDegrees / 180f;
@@ -205,7 +237,17 @@ public partial class Game1
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
-
+            if (ReferenceEquals(player, _game._world.LocalPlayer)
+                && _game.TryGetLocalPlayerAimDirection(player, out var aimDirectionDegrees))
+            {
+                var radians = System.MathF.PI * aimDirectionDegrees / 180f;
+                var cos = System.MathF.Cos(radians);
+                if (System.MathF.Abs(cos) < 0.001f)
+                {
+                    return player.FacingDirectionX < 0f ? -1f : 1f;
+                }
+                return cos < 0f ? -1f : 1f;
+            }
             return GetPlayerFacingScale(player);
         }
 

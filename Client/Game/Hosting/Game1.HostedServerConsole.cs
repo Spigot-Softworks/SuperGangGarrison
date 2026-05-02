@@ -12,8 +12,8 @@ public partial class Game1
         var consoleSnapshot = GetHostedServerConsoleSnapshot();
         var consoleLayout = HostSetupMenuLayoutCalculator.CreateHostedServerConsoleLayout(menuLayout.Panel);
 
-        _spriteBatch.Draw(_pixel, consoleLayout.LogBounds, new Color(24, 25, 30, 230));
-        _spriteBatch.Draw(_pixel, consoleLayout.SummaryBounds, new Color(28, 30, 34, 230));
+        _spriteBatch.Draw(_pixel, consoleLayout.LogBounds, new Color(44, 40, 37, 230));
+        _spriteBatch.Draw(_pixel, consoleLayout.SummaryBounds, new Color(50, 45, 42, 230));
         DrawBitmapFontText("Recent Output", new Vector2(consoleLayout.LogBounds.X + 10f, consoleLayout.LogBounds.Y + 8f), Color.White, 0.95f);
         DrawBitmapFontText("Live Status", new Vector2(consoleLayout.SummaryBounds.X + 10f, consoleLayout.SummaryBounds.Y + 8f), Color.White, 0.95f);
 
@@ -61,7 +61,13 @@ public partial class Game1
         }
 
         DrawBitmapFontText("Console Command", new Vector2(consoleLayout.CommandBounds.X, consoleLayout.CommandBounds.Y - 20f), new Color(210, 210, 210), 0.9f);
-        DrawMenuInputBox(consoleLayout.CommandBounds, consoleSnapshot.CommandInput, _hostSetupEditField == HostSetupEditField.ServerConsoleCommand);
+        DrawMenuInputBoxScaled(
+            consoleLayout.CommandBounds,
+            consoleSnapshot.CommandInput,
+            _hostSetupEditField == HostSetupEditField.ServerConsoleCommand,
+            1f,
+            consoleSnapshot.CommandInputCursorIndex,
+            consoleSnapshot.CommandInputSelectionStart);
         DrawMenuButton(consoleLayout.SendBounds, "Send", false);
         DrawMenuButton(consoleLayout.ClearBounds, "Clear", false);
         DrawMenuButton(consoleLayout.StatusCommandBounds, "Status", false);
@@ -89,7 +95,7 @@ public partial class Game1
 
     private void DrawHostedServerSummaryRow(Rectangle bounds, string label, string value)
     {
-        _spriteBatch.Draw(_pixel, bounds, new Color(44, 46, 52, 180));
+        _spriteBatch.Draw(_pixel, bounds, new Color(54, 47, 41, 180));
         var compactBounds = bounds.Height < 34;
         DrawBitmapFontText(label.ToUpperInvariant(), new Vector2(bounds.X + 8f, bounds.Y + 4f), new Color(210, 210, 210), compactBounds ? 0.7f : 0.82f);
         var valueY = bounds.Y + MathF.Max(12f, bounds.Height - 18f);

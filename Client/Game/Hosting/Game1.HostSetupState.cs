@@ -103,6 +103,114 @@ public partial class Game1
         set => _hostSetupState.RespawnSecondsBuffer = value;
     }
 
+    private int _hostServerNameCursorIndex
+    {
+        get => _hostSetupState.ServerNameCursorIndex;
+        set => _hostSetupState.ServerNameCursorIndex = value;
+    }
+
+    private int _hostServerNameSelectionStart
+    {
+        get => _hostSetupState.ServerNameSelectionStart;
+        set => _hostSetupState.ServerNameSelectionStart = value;
+    }
+
+    private int _hostPortCursorIndex
+    {
+        get => _hostSetupState.PortCursorIndex;
+        set => _hostSetupState.PortCursorIndex = value;
+    }
+
+    private int _hostPortSelectionStart
+    {
+        get => _hostSetupState.PortSelectionStart;
+        set => _hostSetupState.PortSelectionStart = value;
+    }
+
+    private int _hostSlotsCursorIndex
+    {
+        get => _hostSetupState.SlotsCursorIndex;
+        set => _hostSetupState.SlotsCursorIndex = value;
+    }
+
+    private int _hostSlotsSelectionStart
+    {
+        get => _hostSetupState.SlotsSelectionStart;
+        set => _hostSetupState.SlotsSelectionStart = value;
+    }
+
+    private int _hostPasswordCursorIndex
+    {
+        get => _hostSetupState.PasswordCursorIndex;
+        set => _hostSetupState.PasswordCursorIndex = value;
+    }
+
+    private int _hostPasswordSelectionStart
+    {
+        get => _hostSetupState.PasswordSelectionStart;
+        set => _hostSetupState.PasswordSelectionStart = value;
+    }
+
+    private int _hostRconPasswordCursorIndex
+    {
+        get => _hostSetupState.RconPasswordCursorIndex;
+        set => _hostSetupState.RconPasswordCursorIndex = value;
+    }
+
+    private int _hostRconPasswordSelectionStart
+    {
+        get => _hostSetupState.RconPasswordSelectionStart;
+        set => _hostSetupState.RconPasswordSelectionStart = value;
+    }
+
+    private int _hostMapRotationFileCursorIndex
+    {
+        get => _hostSetupState.MapRotationFileCursorIndex;
+        set => _hostSetupState.MapRotationFileCursorIndex = value;
+    }
+
+    private int _hostMapRotationFileSelectionStart
+    {
+        get => _hostSetupState.MapRotationFileSelectionStart;
+        set => _hostSetupState.MapRotationFileSelectionStart = value;
+    }
+
+    private int _hostTimeLimitCursorIndex
+    {
+        get => _hostSetupState.TimeLimitCursorIndex;
+        set => _hostSetupState.TimeLimitCursorIndex = value;
+    }
+
+    private int _hostTimeLimitSelectionStart
+    {
+        get => _hostSetupState.TimeLimitSelectionStart;
+        set => _hostSetupState.TimeLimitSelectionStart = value;
+    }
+
+    private int _hostCapLimitCursorIndex
+    {
+        get => _hostSetupState.CapLimitCursorIndex;
+        set => _hostSetupState.CapLimitCursorIndex = value;
+    }
+
+    private int _hostCapLimitSelectionStart
+    {
+        get => _hostSetupState.CapLimitSelectionStart;
+        set => _hostSetupState.CapLimitSelectionStart = value;
+    }
+
+    private int _hostRespawnSecondsCursorIndex
+    {
+        get => _hostSetupState.RespawnSecondsCursorIndex;
+        set => _hostSetupState.RespawnSecondsCursorIndex = value;
+    }
+
+    private int _hostRespawnSecondsSelectionStart
+    {
+        get => _hostSetupState.RespawnSecondsSelectionStart;
+        set => _hostSetupState.RespawnSecondsSelectionStart = value;
+    }
+
     private bool _hostLobbyAnnounceEnabled
     {
         get => _hostSetupState.LobbyAnnounceEnabled;

@@ -20,6 +20,8 @@ public sealed class ClientSettings
 
     public bool VSync { get; set; }
 
+    public int FrameRateLimit { get; set; }
+
     public IngameResolutionKind IngameResolution { get; set; } = IngameResolutionKind.Aspect4x3;
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
@@ -31,6 +33,12 @@ public sealed class ClientSettings
         get => MusicMode is MusicMode.MenuAndInGame or MusicMode.InGameOnly;
         set => MusicMode = value ? MusicMode.MenuAndInGame : MusicMode.MenuOnly;
     }
+
+    public int MenuMusicVolumePercent { get; set; } = 70;
+
+    public int IngameMusicVolumePercent { get; set; } = 70;
+
+    public int SoundEffectsVolumePercent { get; set; } = 70;
 
     public bool KillCamEnabled { get; set; } = true;
 
@@ -50,7 +58,13 @@ public sealed class ClientSettings
 
     public bool ShowHealthBarEnabled { get; set; }
 
+    public bool ShowUberOutlinesEnabled { get; set; } = true;
+
+    public bool AudioMuted { get; set; }
+
     public bool ShowPersistentSelfNameEnabled { get; set; }
+
+    public bool PositionSmoothingEnabled { get; set; } = false;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -122,6 +136,8 @@ public sealed class ClientSettings
             PlayerName = document.PlayerName,
             Rewards = document.Rewards,
             Fullscreen = document.Fullscreen,
+            VSync = document.VSync,
+            FrameRateLimit = document.FrameRateLimit,
             MusicMode = document.MusicMode,
             BotMode = document.BotMode,
             IngameResolution = document.IngameResolution,
@@ -129,12 +145,17 @@ public sealed class ClientSettings
             GibLevel = document.GibLevel,
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
-            VSync = document.VSync,
             HealerRadarEnabled = document.HealerRadarEnabled,
             ShowHealerEnabled = document.ShowHealerEnabled,
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
+            ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
+            AudioMuted = document.AudioMuted,
+            MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
+            IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
+            SoundEffectsVolumePercent = Math.Clamp(document.SoundEffectsVolumePercent, 0, 100),
             ShowPersistentSelfNameEnabled = document.ShowPersistentSelfNameEnabled,
+            PositionSmoothingEnabled = document.PositionSmoothingEnabled,
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
             DisableLegacyGameplaySpriteFallback = document.DisableLegacyGameplaySpriteFallback,
             RecentConnection = new ClientRecentConnectionSettings
@@ -165,8 +186,15 @@ public sealed class ClientSettings
         preferences.ShowHealerEnabled = ShowHealerEnabled;
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
+        preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
+        preferences.AudioMuted = AudioMuted;
+        preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;
+        preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;
+        preferences.SoundEffectsVolumePercent = SoundEffectsVolumePercent;
         preferences.ShowPersistentSelfNameEnabled = ShowPersistentSelfNameEnabled;
+        preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
+        preferences.FrameRateLimit = FrameRateLimit;
         preferences.DisableLegacyGameplaySpriteFallback = DisableLegacyGameplaySpriteFallback;
         preferences.RecentConnectionHost = RecentConnection.Host;
         preferences.RecentConnectionPort = RecentConnection.Port;

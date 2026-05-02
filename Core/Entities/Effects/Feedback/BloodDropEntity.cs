@@ -68,6 +68,8 @@ public sealed class BloodDropEntity : SimulationEntity
 
         if (!IsStuck)
         {
+            var previousX = X;
+            var previousY = Y;
             VelocityY = float.Clamp(VelocityY + GravityPerTick, -MaxSpeed, MaxSpeed);
             VelocityX = float.Clamp(VelocityX, -MaxSpeed, MaxSpeed);
             X += VelocityX;
@@ -80,7 +82,7 @@ public sealed class BloodDropEntity : SimulationEntity
                     continue;
                 }
 
-                StickToSolid(solid);
+                ResolveSolidCollision(solid, previousX, previousY);
                 break;
             }
 
@@ -95,6 +97,61 @@ public sealed class BloodDropEntity : SimulationEntity
                 IsStuck = true;
             }
         }
+    }
+
+    private void ResolveSolidCollision(LevelSolid solid, float previousX, float previousY)
+    {
+        var halfSize = BoundingSize * 0.5f;
+        var previousLeft = previousX - halfSize;
+        var previousRight = previousX + halfSize;
+        var previousTop = previousY - halfSize;
+        var previousBottom = previousY + halfSize;
+
+        var currentLeft = X - halfSize;
+        var currentRight = X + halfSize;
+        var currentTop = Y - halfSize;
+        var currentBottom = Y + halfSize;
+
+        var overlapX = MathF.Min(currentRight, solid.Right) - MathF.Max(currentLeft, solid.Left);
+        var overlapY = MathF.Min(currentBottom, solid.Bottom) - MathF.Max(currentTop, solid.Top);
+        if (overlapX <= 0f || overlapY <= 0f)
+        {
+            return;
+        }
+
+        if (overlapX < overlapY)
+        {
+            if (previousRight <= solid.Left)
+            {
+                X = solid.Left - halfSize;
+            }
+            else if (previousLeft >= solid.Right)
+            {
+                X = solid.Right + halfSize;
+            }
+
+            VelocityX = 0f;
+            return;
+        }
+
+        if (previousBottom <= solid.Top)
+        {
+            Y = solid.Top - halfSize;
+            VelocityY = 0f;
+            IsStuck = true;
+            return;
+        }
+
+        if (previousTop >= solid.Bottom)
+        {
+            Y = solid.Bottom + halfSize;
+            VelocityY = 0f;
+            return;
+        }
+
+        Y = solid.Top - halfSize;
+        VelocityY = 0f;
+        IsStuck = true;
     }
 
     public bool CanMergeWith(BloodDropEntity other)

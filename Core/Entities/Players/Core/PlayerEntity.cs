@@ -17,7 +17,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const int HeavyEatDurationTicks = 124;
     public const int HeavySandvichCooldownTicks = 1350;
     private const float HealingCabinetSoundCooldownSeconds = 4f;
-    private const float HeavyEatHealPerTick = 0.4f;
+    private static readonly float HeavyEatHealPerTick = 200f / HeavyEatDurationTicks;
     private const float StepUpHeight = 6f;
     private const float StepSupportEpsilon = 2f;
     public const float SniperScopedMoveScale = 2f / 3f;
@@ -38,7 +38,7 @@ public sealed partial class PlayerEntity : SimulationEntity
     public const float SpyCloakFadePerTick = 0.05f;
     public const float SpyCloakToggleThreshold = 0.5f;
     public const float SpyMinAllyCloakAlpha = 0.5f;
-    public const float SpyDamageRevealAlpha = 0.1f;
+    public const float SpyDamageRevealAlpha = 0.3f;
     public const float SpyMineRevealAlpha = 0.2f;
     public const float SpySniperRevealAlpha = 0.3f;
     public const int QuoteBubbleLimit = 25;
@@ -159,6 +159,11 @@ public sealed partial class PlayerEntity : SimulationEntity
     public float AimDirectionDegrees { get; private set; }
 
     public PrimaryWeaponDefinition PrimaryWeapon => ExperimentalPrimaryWeaponOverride ?? ClassDefinition.PrimaryWeapon;
+    public float AimWorldX { get; private set; }
+
+    public float AimWorldY { get; private set; }
+
+    public (float X, float Y) AimWorldPosition => (AimWorldX, AimWorldY);
 
     public int CurrentShells { get; private set; }
 
@@ -449,6 +454,12 @@ public sealed partial class PlayerEntity : SimulationEntity
         _playerScale = ClampPlayerScale(scale);
     }
 
+    public void SetAimWorldPosition(float x, float y)
+    {
+        AimWorldX = x;
+        AimWorldY = y;
+    }
+
     public static float ClampPlayerScale(float scale) => float.Clamp(scale, MinPlayerScale, MaxPlayerScale);
 
     public void Spawn(PlayerTeam team, float x, float y)
@@ -560,7 +571,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsMedicHealing = false;
         if (resetMedicUberCharge)
         {
-            MedicUberCharge = 0f;
+            MedicUberCharge = ClassId == PlayerClass.Medic ? 0f : 0f;
             IsMedicUberReady = false;
         }
 
@@ -651,6 +662,14 @@ public sealed partial class PlayerEntity : SimulationEntity
     public void SetMovementState(LegacyMovementState movementState)
     {
         MovementState = movementState;
+    }
+
+    public void SetMovementStateIfAirborne(LegacyMovementState movementState)
+    {
+        if (!IsGrounded)
+        {
+            MovementState = movementState;
+        }
     }
 
     public void ScaleVerticalSpeed(float scale)

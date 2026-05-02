@@ -288,7 +288,9 @@ public sealed record SnapshotPlayerState(
     string GameplayAcquiredItemId = "",
     IReadOnlyList<string>? OwnedGameplayItemIds = null,
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
-    float PlayerScale = 1f);
+    float PlayerScale = 1f,
+    float AimWorldX = 0f,
+    float AimWorldY = 0f);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,

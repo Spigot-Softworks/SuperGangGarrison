@@ -113,11 +113,11 @@ public sealed partial class SimulationWorld
             ApplyMineExplosionImpulse(player, mine.X, mine.Y, factor);
             if (player.Id == mine.OwnerId && player.Team == mine.Team)
             {
-                player.SetMovementState(LegacyMovementState.ExplosionRecovery);
+                player.SetMovementStateIfAirborne(LegacyMovementState.ExplosionRecovery);
             }
             else
             {
-                player.SetMovementState(LegacyMovementState.FriendlyJuggle);
+                player.SetMovementStateIfAirborne(LegacyMovementState.FriendlyJuggle);
             }
 
             if (CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))

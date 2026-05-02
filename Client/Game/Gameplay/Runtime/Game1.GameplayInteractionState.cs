@@ -44,12 +44,13 @@ public partial class Game1
 
     private bool ShouldPreserveAimWhileBlocked()
     {
-        return _chatOpen
-            && !_consoleOpen
-            && !_passwordPromptOpen
-            && !_teamSelectOpen
-            && !_classSelectOpen
-            && !IsGameplayMenuOpen();
+        return !IsGameplayWindowInputActive()
+            || (_chatOpen
+                && !_consoleOpen
+                && !_passwordPromptOpen
+                && !_teamSelectOpen
+                && !_classSelectOpen
+                && !IsGameplayMenuOpen());
     }
 
     private bool CanUseSpectatorTrackingHotkeys()

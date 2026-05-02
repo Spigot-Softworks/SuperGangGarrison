@@ -300,8 +300,6 @@ internal static class SnapshotDeltaBudgeter
             RemainingAirJumps = 0,
             IsCarryingIntel = false,
             IntelRechargeTicks = 0f,
-            IsSpyCloaked = false,
-            SpyCloakAlpha = 1f,
             IsUbered = false,
             IsHeavyEating = false,
             HeavyEatTicksRemaining = 0,
@@ -469,22 +467,22 @@ internal static class SnapshotDeltaBudgeter
             PlayerGibs = seedFromTemplateCollections ? new List<SnapshotPlayerGibState>(template.PlayerGibs) : [];
             BloodDrops = seedFromTemplateCollections ? new List<SnapshotBloodDropState>(template.BloodDrops) : [];
             DeadBodies = seedFromTemplateCollections ? new List<SnapshotDeadBodyState>(template.DeadBodies) : [];
-            RemovedPlayerIds = seedFromTemplateCollections ? new List<int>(template.RemovedPlayerIds) : [];
-            RemovedSentryIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryIds) : [];
-            RemovedShotIds = seedFromTemplateCollections ? new List<int>(template.RemovedShotIds) : [];
-            RemovedBubbleIds = seedFromTemplateCollections ? new List<int>(template.RemovedBubbleIds) : [];
-            RemovedBladeIds = seedFromTemplateCollections ? new List<int>(template.RemovedBladeIds) : [];
-            RemovedNeedleIds = seedFromTemplateCollections ? new List<int>(template.RemovedNeedleIds) : [];
-            RemovedRevolverShotIds = seedFromTemplateCollections ? new List<int>(template.RemovedRevolverShotIds) : [];
-            RemovedRocketIds = seedFromTemplateCollections ? new List<int>(template.RemovedRocketIds) : [];
-            RemovedFlameIds = seedFromTemplateCollections ? new List<int>(template.RemovedFlameIds) : [];
-            RemovedFlareIds = seedFromTemplateCollections ? new List<int>(template.RemovedFlareIds) : [];
-            RemovedMineIds = seedFromTemplateCollections ? new List<int>(template.RemovedMineIds) : [];
-            RemovedSentryGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedSentryGibIds) : [];
-            RemovedJumpPadIds = seedFromTemplateCollections ? new List<int>(template.RemovedJumpPadIds) : [];
-            RemovedPlayerGibIds = seedFromTemplateCollections ? new List<int>(template.RemovedPlayerGibIds) : [];
-            RemovedBloodDropIds = seedFromTemplateCollections ? new List<int>(template.RemovedBloodDropIds) : [];
-            RemovedDeadBodyIds = seedFromTemplateCollections ? new List<int>(template.RemovedDeadBodyIds) : [];
+            RemovedPlayerIds = new List<int>(template.RemovedPlayerIds);
+            RemovedSentryIds = new List<int>(template.RemovedSentryIds);
+            RemovedShotIds = new List<int>(template.RemovedShotIds);
+            RemovedBubbleIds = new List<int>(template.RemovedBubbleIds);
+            RemovedBladeIds = new List<int>(template.RemovedBladeIds);
+            RemovedNeedleIds = new List<int>(template.RemovedNeedleIds);
+            RemovedRevolverShotIds = new List<int>(template.RemovedRevolverShotIds);
+            RemovedRocketIds = new List<int>(template.RemovedRocketIds);
+            RemovedFlameIds = new List<int>(template.RemovedFlameIds);
+            RemovedFlareIds = new List<int>(template.RemovedFlareIds);
+            RemovedMineIds = new List<int>(template.RemovedMineIds);
+            RemovedSentryGibIds = new List<int>(template.RemovedSentryGibIds);
+            RemovedJumpPadIds = new List<int>(template.RemovedJumpPadIds);
+            RemovedPlayerGibIds = new List<int>(template.RemovedPlayerGibIds);
+            RemovedBloodDropIds = new List<int>(template.RemovedBloodDropIds);
+            RemovedDeadBodyIds = new List<int>(template.RemovedDeadBodyIds);
         }
 
         private Builder(Builder other)
