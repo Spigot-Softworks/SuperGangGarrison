@@ -651,11 +651,14 @@ public partial class Game1
 
     private void CaptureProjectileInterpolationTarget(int entityId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
     {
+        var baseSnapshotIntervalSeconds = MathF.Max(
+            1f / _config.TicksPerSecond,
+            _smoothedSnapshotIntervalSeconds);
+        var expectedAuthoritativeIntervalSeconds = baseSnapshotIntervalSeconds * ExpectedProjectileUpdateIntervalTicks;
+        var cadenceJitterHeadroomSeconds = (_smoothedSnapshotJitterSeconds * 2f) + (baseSnapshotIntervalSeconds * 0.25f);
         var desiredExtrapolationDurationSeconds = MathF.Max(
-            (_networkSnapshotInterpolationDurationSeconds * 4f) + (_smoothedSnapshotJitterSeconds * 4f),
-            MathF.Max(
-                _smoothedSnapshotIntervalSeconds * 2f,
-                1f / LegacyMovementModel.SourceTicksPerSecond));
+            expectedAuthoritativeIntervalSeconds + cadenceJitterHeadroomSeconds,
+            1f / LegacyMovementModel.SourceTicksPerSecond);
         var extrapolationDurationSeconds = Math.Clamp(
             desiredExtrapolationDurationSeconds,
             1f / LegacyMovementModel.SourceTicksPerSecond,
@@ -861,9 +864,16 @@ public partial class Game1
             return sample.Position;
         }
 
-        if (TryGetMineById(entityId, out var mine) && !mine.IsStickied)
+        // Try to get the appropriate gravity parameters for this projectile type
+        if (TryGetProjectileGravityParameters(entityId, out var gravityPerTick, out var maxFallSpeed))
         {
-            var predictedPosition = EvaluateMineProjectileExtrapolation(sample.Position, sample.Velocity, extrapolationSeconds, _world.ConfiguredGravityScale);
+            var predictedPosition = EvaluateGravityProjectileExtrapolation(
+                sample.Position,
+                sample.Velocity,
+                extrapolationSeconds,
+                gravityPerTick,
+                maxFallSpeed,
+                _world.ConfiguredGravityScale);
             var distance = Vector2.Distance(sample.Position, predictedPosition);
             if (sample.MaxExtrapolationDistance > 0f && distance > sample.MaxExtrapolationDistance)
             {
@@ -873,6 +883,7 @@ public partial class Game1
             return predictedPosition;
         }
 
+        // Fallback to linear extrapolation for projectiles without gravity
         var offset = sample.Velocity * extrapolationSeconds;
         var distanceLinear = offset.Length();
         if (sample.MaxExtrapolationDistance > 0f && distanceLinear > sample.MaxExtrapolationDistance)
@@ -883,19 +894,79 @@ public partial class Game1
         return sample.Position + offset;
     }
 
-    private Vector2 EvaluateMineProjectileExtrapolation(Vector2 position, Vector2 velocityPerSecond, float extrapolationSeconds, float gravityScale)
+    private bool TryGetProjectileGravityParameters(int entityId, out float gravityPerTick, out float maxFallSpeed)
+    {
+        // Check for mine (has special max fall speed)
+        if (TryGetMineById(entityId, out var mine) && !mine.IsStickied)
+        {
+            gravityPerTick = MineProjectileEntity.GravityPerTick;
+            maxFallSpeed = MineProjectileEntity.MaxFallSpeed;
+            return true;
+        }
+
+        // Check for shots
+        if (TryGetShotById(entityId, out _))
+        {
+            gravityPerTick = ShotProjectileEntity.GravityPerTick;
+            maxFallSpeed = float.MaxValue; // No clamping
+            return true;
+        }
+
+        // Check for revolver shots
+        if (TryGetRevolverShotById(entityId, out _))
+        {
+            gravityPerTick = RevolverProjectileEntity.GravityPerTick;
+            maxFallSpeed = float.MaxValue;
+            return true;
+        }
+
+        // Check for needles
+        if (TryGetNeedleById(entityId, out _))
+        {
+            gravityPerTick = NeedleProjectileEntity.GravityPerTick;
+            maxFallSpeed = float.MaxValue;
+            return true;
+        }
+
+        // Check for flames
+        if (TryGetFlameById(entityId, out _))
+        {
+            gravityPerTick = FlameProjectileEntity.GravityPerTick;
+            maxFallSpeed = float.MaxValue;
+            return true;
+        }
+
+        gravityPerTick = 0f;
+        maxFallSpeed = 0f;
+        return false;
+    }
+
+    private Vector2 EvaluateGravityProjectileExtrapolation(
+        Vector2 position,
+        Vector2 velocityPerSecond,
+        float extrapolationSeconds,
+        float gravityPerTick,
+        float maxFallSpeed,
+        float gravityScale)
     {
         var currentVelocityX = velocityPerSecond.X;
         var currentVelocityY = velocityPerSecond.Y;
         var stepSeconds = 1f / _config.TicksPerSecond;
-        var gravityPerSecond = MineProjectileEntity.GravityPerTick * gravityScale * _config.TicksPerSecond;
-        var maxFallSpeedPerSecond = MineProjectileEntity.MaxFallSpeed * _config.TicksPerSecond;
+        var gravityPerSecondSquared = gravityPerTick * gravityScale * _config.TicksPerSecond * _config.TicksPerSecond;
+        var maxFallSpeedPerSecond = maxFallSpeed * _config.TicksPerSecond;
         var remainingSeconds = extrapolationSeconds;
 
         while (remainingSeconds > 0f)
         {
             var dt = Math.Min(stepSeconds, remainingSeconds);
-            currentVelocityY = MathF.Min(maxFallSpeedPerSecond, currentVelocityY + gravityPerSecond * dt);
+            // Apply gravity to vertical velocity
+            currentVelocityY += gravityPerSecondSquared * dt;
+            // Clamp to max fall speed if applicable
+            if (maxFallSpeedPerSecond < float.MaxValue)
+            {
+                currentVelocityY = MathF.Min(maxFallSpeedPerSecond, currentVelocityY);
+            }
+            // Update position
             position.X += currentVelocityX * dt;
             position.Y += currentVelocityY * dt;
             remainingSeconds -= dt;
@@ -916,6 +987,66 @@ public partial class Game1
         }
 
         mine = default!;
+        return false;
+    }
+
+    private bool TryGetShotById(int entityId, out ShotProjectileEntity shot)
+    {
+        foreach (var candidate in _world.Shots)
+        {
+            if (candidate.Id == entityId)
+            {
+                shot = candidate;
+                return true;
+            }
+        }
+
+        shot = default!;
+        return false;
+    }
+
+    private bool TryGetRevolverShotById(int entityId, out RevolverProjectileEntity revolverShot)
+    {
+        foreach (var candidate in _world.RevolverShots)
+        {
+            if (candidate.Id == entityId)
+            {
+                revolverShot = candidate;
+                return true;
+            }
+        }
+
+        revolverShot = default!;
+        return false;
+    }
+
+    private bool TryGetNeedleById(int entityId, out NeedleProjectileEntity needle)
+    {
+        foreach (var candidate in _world.Needles)
+        {
+            if (candidate.Id == entityId)
+            {
+                needle = candidate;
+                return true;
+            }
+        }
+
+        needle = default!;
+        return false;
+    }
+
+    private bool TryGetFlameById(int entityId, out FlameProjectileEntity flame)
+    {
+        foreach (var candidate in _world.Flames)
+        {
+            if (candidate.Id == entityId)
+            {
+                flame = candidate;
+                return true;
+            }
+        }
+
+        flame = default!;
         return false;
     }
 
