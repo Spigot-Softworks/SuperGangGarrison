@@ -14,7 +14,7 @@ internal static class SnapshotContributionPlanner
     private const int LocalPlayerUpdatePriorityBonus = 300;
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
-    private const int SnapshotPlayerMovementBytes = 32;
+    private const int SnapshotPlayerMovementBytes = 49;
     private const int ProjectileSnapshotUpdateIntervalTicks = 3;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
@@ -420,7 +420,12 @@ internal static class SnapshotContributionPlanner
             player.MovementState,
             player.IsTaunting,
             player.TauntFrameIndex,
-            player.BurnIntensity);
+            player.BurnIntensity,
+            player.GameplayEquippedSlot,
+            player.PrimaryCooldownTicks,
+            player.ReloadTicksUntilNextShell,
+            player.OffhandCooldownTicks,
+            player.OffhandReloadTicks);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -436,7 +441,12 @@ internal static class SnapshotContributionPlanner
             || player.MovementState != baselinePlayer.MovementState
             || player.IsTaunting != baselinePlayer.IsTaunting
             || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
-            || player.BurnIntensity != baselinePlayer.BurnIntensity;
+            || player.BurnIntensity != baselinePlayer.BurnIntensity
+            || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
+            || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
+            || player.ReloadTicksUntilNextShell != baselinePlayer.ReloadTicksUntilNextShell
+            || player.OffhandCooldownTicks != baselinePlayer.OffhandCooldownTicks
+            || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
     }
 
     private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)

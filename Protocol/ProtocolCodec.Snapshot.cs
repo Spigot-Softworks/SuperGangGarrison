@@ -433,6 +433,11 @@ public static partial class ProtocolCodec
             writer.Write(state.IsTaunting);
             writer.Write(state.TauntFrameIndex);
             writer.Write(state.BurnIntensity);
+            writer.Write(state.GameplayEquippedSlot);
+            writer.Write(state.PrimaryCooldownTicks);
+            writer.Write(state.ReloadTicksUntilNextShell);
+            writer.Write(state.OffhandCooldownTicks);
+            writer.Write(state.OffhandReloadTicks);
         }
     }
 
@@ -455,7 +460,12 @@ public static partial class ProtocolCodec
                 reader.ReadByte(),
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadByte(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32()));
         }
 
         return states;
