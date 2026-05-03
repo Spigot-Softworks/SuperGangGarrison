@@ -297,6 +297,11 @@ public partial class Game1
             return PasteActiveClipboard();
         }
 
+        if (IsKeyPressed(keyboard, Keys.A))
+        {
+            return TrySelectAllActiveTextField();
+        }
+
         return false;
     }
 
@@ -379,6 +384,80 @@ public partial class Game1
         }
 
         return TrySetClipboardText(selectedText);
+    }
+
+    private bool TrySelectAllActiveTextField()
+    {
+        if (_passwordPromptOpen)
+        {
+            _passwordEditCursorIndex = _passwordEditBuffer.Length;
+            _passwordEditSelectionStart = 0;
+            return true;
+        }
+
+        if (_chatOpen)
+        {
+            _chatInputCursorIndex = _chatInput.Length;
+            _chatInputSelectionStart = 0;
+            return true;
+        }
+
+        if (_consoleOpen)
+        {
+            _consoleInputCursorIndex = _consoleInput.Length;
+            _consoleInputSelectionStart = 0;
+            return true;
+        }
+
+        var clickTarget = GetActiveTextFieldClickTarget();
+        if (clickTarget == TextFieldClickTarget.None)
+        {
+            return false;
+        }
+
+        SelectAllTextInActiveField(clickTarget);
+        return true;
+    }
+
+    private TextFieldClickTarget GetActiveTextFieldClickTarget()
+    {
+        if (_mainMenuOpen && _manualConnectOpen)
+        {
+            if (_editingConnectHost)
+            {
+                return TextFieldClickTarget.ManualConnectHost;
+            }
+
+            if (_editingConnectPort)
+            {
+                return TextFieldClickTarget.ManualConnectPort;
+            }
+        }
+
+        if (_optionsMenuOpen && _editingPlayerName)
+        {
+            return TextFieldClickTarget.OptionsPlayerName;
+        }
+
+        if (_mainMenuOpen && _hostSetupOpen)
+        {
+            return _hostSetupEditField switch
+            {
+                HostSetupEditField.ServerName => TextFieldClickTarget.HostSetupServerName,
+                HostSetupEditField.Port => TextFieldClickTarget.HostSetupPort,
+                HostSetupEditField.Slots => TextFieldClickTarget.HostSetupSlots,
+                HostSetupEditField.Password => TextFieldClickTarget.HostSetupPassword,
+                HostSetupEditField.RconPassword => TextFieldClickTarget.HostSetupRconPassword,
+                HostSetupEditField.MapRotationFile => TextFieldClickTarget.HostSetupMapRotationFile,
+                HostSetupEditField.TimeLimit => TextFieldClickTarget.HostSetupTimeLimit,
+                HostSetupEditField.CapLimit => TextFieldClickTarget.HostSetupCapLimit,
+                HostSetupEditField.RespawnSeconds => TextFieldClickTarget.HostSetupRespawnSeconds,
+                HostSetupEditField.ServerConsoleCommand when _hostSetupTab == HostSetupTab.ServerConsole => TextFieldClickTarget.HostSetupConsoleCommand,
+                _ => TextFieldClickTarget.None,
+            };
+        }
+
+        return TextFieldClickTarget.None;
     }
 
     private bool CutActiveSelection()

@@ -384,7 +384,7 @@ public partial class Game1 : Game
     {
         var browserDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
-        _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
+        // Use interpolation clock value from Update() - don't re-sample during Draw()
         ApplyFrameRateLimit();
         GraphicsDevice.Clear(new Color(24, 32, 48));
         _frameController.Draw(gameTime);
