@@ -100,7 +100,9 @@ public sealed partial class SimulationWorld
             snapshotPlayer.GameplayAcquiredItemId,
             snapshotPlayer.OwnedGameplayItemIds,
             ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates),
-            snapshotPlayer.PlayerScale);
+            snapshotPlayer.PlayerScale,
+            offhandCooldownTicks: snapshotPlayer.OffhandCooldownTicks,
+            offhandReloadTicks: snapshotPlayer.OffhandReloadTicks);
     }
 
     private static GameplayReplicatedStateEntry[] ConvertReplicatedStateEntries(IReadOnlyList<SnapshotReplicatedStateEntry>? entries)

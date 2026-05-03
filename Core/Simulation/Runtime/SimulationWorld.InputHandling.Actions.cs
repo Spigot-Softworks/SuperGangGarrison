@@ -16,9 +16,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasExperimentalOffhandWeapon && input.FirePrimary)
+        if (TryHandleExperimentalOffhandPrimaryFire(player, input))
         {
-            player.StowExperimentalOffhandWeapon();
+            return;
         }
 
         if (TryHandleEquippedPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick))
@@ -45,6 +45,24 @@ public sealed partial class SimulationWorld
         }
 
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+    }
+
+    private bool TryHandleExperimentalOffhandPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (!input.FirePrimary
+            || !player.IsExperimentalOffhandEquipped
+            || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (!player.TryFireExperimentalOffhandWeapon())
+        {
+            return true;
+        }
+
+        WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        return true;
     }
 
     private bool TryHandleExperimentalSoldierStingerPrimaryBurst(PlayerEntity player)
@@ -175,6 +193,11 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        if (TryHandleSoldierOffhandToggle(player))
+        {
+            return;
+        }
+
         if (TryHandleExperimentalSoldierStingerDetonation(player))
         {
             return;
@@ -297,6 +320,30 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private static bool TryHandleSoldierOffhandToggle(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Soldier || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+        else
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
+        return true;
+    }
+
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
@@ -406,30 +453,10 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    private static void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
     {
-        if (player.ClassId != PlayerClass.Soldier
-            || !player.HasExperimentalOffhandWeapon)
-        {
-            return;
-        }
-
-        if (player.IsAcquiredWeaponEquipped)
-        {
-            player.StowAcquiredWeapon();
-        }
-
-        if (!player.IsExperimentalOffhandEquipped)
-        {
-            player.EquipExperimentalOffhandWeapon();
-        }
-
-        if (!player.TryFireExperimentalOffhandWeapon())
-        {
-            return;
-        }
-
-        WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        _ = input;
+        TryHandleSoldierOffhandToggle(player);
     }
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)

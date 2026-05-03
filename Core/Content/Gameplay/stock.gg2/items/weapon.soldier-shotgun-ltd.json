@@ -1,10 +1,10 @@
 {
-  "id": "weapon.soldier-shotgun",
+  "id": "weapon.soldier-shotgun-ltd",
   "displayName": "12 Gauge",
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
-    "maxAmmo": 2,
+    "maxAmmo": 8,
     "ammoPerUse": 1,
     "projectilesPerUse": 4,
     "useDelaySourceTicks": 20,
@@ -28,7 +28,7 @@
     "blueTeamHudFrameOffset": 1
   },
   "description": {
-    "summary": "Secondary shotgun for Soldier.",
+    "summary": "Soldier shotgun perk for Last to Die mode.",
     "positiveAttributes": [
       "fires with Secondary Weapon"
     ]

@@ -290,7 +290,11 @@ public sealed record SnapshotPlayerState(
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
     float PlayerScale = 1f,
     float AimWorldX = 0f,
-    float AimWorldY = 0f);
+    float AimWorldY = 0f,
+    // Offhand weapon animation state (e.g. soldier shotgun). Delivered via movement delta so animations
+    // are visible to other players without waiting for the budget-limited full-state update.
+    int OffhandCooldownTicks = 0,
+    int OffhandReloadTicks = 0);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -302,7 +306,17 @@ public sealed record SnapshotPlayerMovementState(
     int RemainingAirJumps,
     float FacingDirectionX,
     float AimDirectionDegrees,
-    byte MovementState);
+    byte MovementState,
+    bool IsTaunting,
+    float TauntFrameIndex,
+    float BurnIntensity,
+    // Animation-critical weapon state. Included in movement delta so weapon switches and
+    // recoil/reload animations are visible to all players every tick, not subject to budget trimming.
+    byte GameplayEquippedSlot = 0,
+    int PrimaryCooldownTicks = 0,
+    int ReloadTicksUntilNextShell = 0,
+    int OffhandCooldownTicks = 0,
+    int OffhandReloadTicks = 0);
 
 public sealed record SnapshotIntelState(
     byte Team,

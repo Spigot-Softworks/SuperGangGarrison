@@ -14,7 +14,7 @@ internal static class SnapshotContributionPlanner
     private const int LocalPlayerUpdatePriorityBonus = 300;
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
-    private const int SnapshotPlayerMovementBytes = 32;
+    private const int SnapshotPlayerMovementBytes = 49;
     private const int ProjectileSnapshotUpdateIntervalTicks = 3;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
@@ -392,11 +392,15 @@ internal static class SnapshotContributionPlanner
                 var detailPriority = player.Slot == viewerSlot
                     ? PlayerDetailUpdatePriority + 50
                     : PlayerDetailUpdatePriority;
+                var detailKind = player.Slot == viewerSlot
+                    ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate
+                    : SnapshotDeltaBudgeter.ContributionKind.Optional;
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     detailPriority,
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
                     EstimatePlayerBytes(player),
-                    builder => builder.Players.Add(player)));
+                    builder => builder.Players.Add(player),
+                    detailKind));
             }
         }
     }
@@ -413,7 +417,15 @@ internal static class SnapshotContributionPlanner
             player.RemainingAirJumps,
             player.FacingDirectionX,
             player.AimDirectionDegrees,
-            player.MovementState);
+            player.MovementState,
+            player.IsTaunting,
+            player.TauntFrameIndex,
+            player.BurnIntensity,
+            player.GameplayEquippedSlot,
+            player.PrimaryCooldownTicks,
+            player.ReloadTicksUntilNextShell,
+            player.OffhandCooldownTicks,
+            player.OffhandReloadTicks);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -426,7 +438,15 @@ internal static class SnapshotContributionPlanner
             || player.RemainingAirJumps != baselinePlayer.RemainingAirJumps
             || player.FacingDirectionX != baselinePlayer.FacingDirectionX
             || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
-            || player.MovementState != baselinePlayer.MovementState;
+            || player.MovementState != baselinePlayer.MovementState
+            || player.IsTaunting != baselinePlayer.IsTaunting
+            || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
+            || player.BurnIntensity != baselinePlayer.BurnIntensity
+            || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
+            || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
+            || player.ReloadTicksUntilNextShell != baselinePlayer.ReloadTicksUntilNextShell
+            || player.OffhandCooldownTicks != baselinePlayer.OffhandCooldownTicks
+            || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
     }
 
     private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -442,6 +462,9 @@ internal static class SnapshotContributionPlanner
             FacingDirectionX = baselinePlayer.FacingDirectionX,
             AimDirectionDegrees = baselinePlayer.AimDirectionDegrees,
             MovementState = baselinePlayer.MovementState,
+            IsTaunting = baselinePlayer.IsTaunting,
+            TauntFrameIndex = baselinePlayer.TauntFrameIndex,
+            BurnIntensity = baselinePlayer.BurnIntensity,
         };
 
         return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);

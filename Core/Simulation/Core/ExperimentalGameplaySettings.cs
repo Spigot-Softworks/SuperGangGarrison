@@ -7,6 +7,7 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableDemoknightKit = false,
     bool EnableCapturedPointHealingAura = false,
     bool EnableSoldierShotgunSecondaryWeapon = false,
+    bool EnableSoldierShotgunLtdPerk = false,
     bool EnableSoldierAmmoRegeneratesWhileSwappedOut = false,
     bool EnableSoldierStingerRockets = false,
     bool EnableSoldierInfiniteAmmoDuringRage = false,
