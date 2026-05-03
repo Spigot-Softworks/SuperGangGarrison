@@ -38,9 +38,20 @@ public sealed partial class PlayerEntity
         get
         {
             var baseCount = BurnVisualBaseCount;
-            if (baseCount <= 0 || BurnDurationSourceTicks <= 0f)
+            if (baseCount <= 0)
             {
                 return 0;
+            }
+
+            if (BurnDurationSourceTicks <= 0f)
+            {
+                if (BurnIntensity <= 0f)
+                {
+                    return 0;
+                }
+
+                var intensityScaledCount = (int)MathF.Ceiling(baseCount * (BurnIntensity / BurnMaxIntensity));
+                return int.Clamp(Math.Max(1, intensityScaledCount), 0, baseCount);
             }
 
             var scaledCount = baseCount * (BurnDurationSourceTicks / GetBurnMaxDurationSourceTicks());
@@ -192,6 +203,63 @@ public sealed partial class PlayerEntity
         BurnDurationSourceTicks = float.Min(BurnDurationSourceTicks, GetBurnMaxDurationSourceTicks());
         BurnIntensity = float.Min(BurnIntensity, BurnMaxIntensity);
         return default;
+    }
+
+    public void AdvanceAfterburnVisual(float deltaSeconds)
+    {
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        if (IsUbered)
+        {
+            ExtinguishAfterburn();
+            return;
+        }
+
+        if (IsExperimentalGhostDashing)
+        {
+            return;
+        }
+
+        var sourceDelta = MathF.Max(0f, deltaSeconds) * LegacyMovementModel.SourceTicksPerSecond;
+        if (sourceDelta <= 0f || !IsBurning)
+        {
+            return;
+        }
+
+        if (BurnDurationSourceTicks > 0f)
+        {
+            BurnDurationSourceTicks -= BurnDurationDecayPerSourceTick * sourceDelta;
+        }
+        if (NapalmCoveredSourceTicks > 0f)
+        {
+            NapalmCoveredSourceTicks = MathF.Max(0f, NapalmCoveredSourceTicks - sourceDelta);
+        }
+
+        if (BurnDecayDelaySourceTicksRemaining > 0f)
+        {
+            BurnDecayDelaySourceTicksRemaining -= sourceDelta;
+            if (BurnDecayDelaySourceTicksRemaining <= 0f)
+            {
+                BurnDecayDelaySourceTicksRemaining = 0f;
+                BurnIntensityDecayPerSourceTick = BurnIntensity / BurnDecayDurationSourceTicks;
+            }
+        }
+        else if (BurnIntensity > 0f)
+        {
+            BurnIntensity -= BurnIntensityDecayPerSourceTick * sourceDelta;
+        }
+
+        if (BurnIntensity <= 0f)
+        {
+            ExtinguishAfterburn();
+            return;
+        }
+
+        BurnDurationSourceTicks = float.Min(BurnDurationSourceTicks, GetBurnMaxDurationSourceTicks());
+        BurnIntensity = float.Min(BurnIntensity, BurnMaxIntensity);
     }
 
     public void ReduceBurnDuration(float sourceTicks)

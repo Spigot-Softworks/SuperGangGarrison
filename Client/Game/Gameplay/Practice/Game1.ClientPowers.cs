@@ -11,7 +11,6 @@ public partial class Game1
 {
     private enum ClientPowerToggleKind
     {
-        SoldierShotgunSecondaryWeapon,
         StickyGibBlood,
         HealOnDamage,
         HealOnKill,
@@ -41,7 +40,6 @@ public partial class Game1
 
     private static readonly ClientPowerToggleEntry[] ClientPowerEntries =
     [
-        new(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon, "Soldier shotgun", "Press Space to fire secondary shotgun in practice."),
         new(ClientPowerToggleKind.StickyGibBlood, "Sticky gib blood", "Gib blood coats nearby players for 10s, then fades out."),
         new(ClientPowerToggleKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
         new(ClientPowerToggleKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),
@@ -96,12 +94,6 @@ public partial class Game1
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
             CloseClientPowersMenu();
-            return;
-        }
-
-        if (IsKeyPressed(keyboard, Keys.Enter))
-        {
-            TogglePracticeClientPower(ClientPowerToggleKind.SoldierShotgunSecondaryWeapon);
             return;
         }
 
@@ -323,7 +315,6 @@ public partial class Game1
     {
         return kind switch
         {
-            ClientPowerToggleKind.SoldierShotgunSecondaryWeapon => _practiceExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
             ClientPowerToggleKind.StickyGibBlood => _practiceStickyGibBloodEnabled,
             ClientPowerToggleKind.HealOnDamage => _practiceExperimentalGameplaySettings.EnableHealOnDamage,
             ClientPowerToggleKind.HealOnKill => _practiceExperimentalGameplaySettings.EnableHealOnKill,
@@ -345,12 +336,6 @@ public partial class Game1
     {
         switch (kind)
         {
-            case ClientPowerToggleKind.SoldierShotgunSecondaryWeapon:
-                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
-                {
-                    EnableSoldierShotgunSecondaryWeapon = !_practiceExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
-                };
-                break;
             case ClientPowerToggleKind.StickyGibBlood:
                 _practiceStickyGibBloodEnabled = !_practiceStickyGibBloodEnabled;
                 break;
@@ -433,7 +418,12 @@ public partial class Game1
 
     private ExperimentalGameplaySettings GetPracticeExperimentalGameplaySettings()
     {
-        return _practiceExperimentalGameplaySettings;
+        var specialAbilities = _practiceSpecialAbilitiesEnabled;
+        return _practiceExperimentalGameplaySettings with
+        {
+            EnableSecondaryAbilities = specialAbilities,
+            EnableSoldierShotgunSecondaryWeapon = specialAbilities,
+        };
     }
 
     private void ApplyPracticeExperimentalGameplaySettings()

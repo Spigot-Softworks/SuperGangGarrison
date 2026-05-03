@@ -72,7 +72,9 @@ public sealed partial class PlayerEntity
         string gameplayAcquiredItemId = "",
         IReadOnlyList<string>? ownedGameplayItemIds = null,
         IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null,
-        float playerScale = 1f)
+        float playerScale = 1f,
+        int offhandCooldownTicks = 0,
+        int offhandReloadTicks = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -214,6 +216,13 @@ public sealed partial class PlayerEntity
             ExtinguishAfterburn();
         }
 
+        // Pre-set the selected equipped slot so that if ApplyReplicatedGameplayLoadoutState falls back
+        // to RefreshGameplayLoadoutState (e.g., strings cleared under budget pressure), it uses the
+        // correct slot delivered via the movement delta rather than staying on its previous value.
+        if (Enum.IsDefined(typeof(GameplayEquipmentSlot), (int)gameplayEquippedSlot))
+        {
+            SelectedGameplayEquippedSlot = (GameplayEquipmentSlot)gameplayEquippedSlot;
+        }
         ApplyReplicatedGameplayLoadoutState(
             gameplayModPackId,
             gameplayLoadoutId,
@@ -225,6 +234,11 @@ public sealed partial class PlayerEntity
             gameplayAcquiredItemId);
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+        // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
+        // These values arrive via the movement delta (OffhandCooldownTicks / OffhandReloadTicks) so they
+        // are delivered every tick rather than only with the budget-limited full-state update.
+        ExperimentalOffhandCooldownTicks = Math.Max(0, offhandCooldownTicks);
+        ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, offhandReloadTicks);
     }
 
     private void ApplyReplicatedGameplayLoadoutState(

@@ -120,7 +120,7 @@ public sealed class ProtocolCodecTests
         {
             BaselineFrame = 100,
             IsDelta = true,
-            PlayerMovementStates = [new SnapshotPlayerMovementState(1, 112f, 151f, 3f, 0f, true, 1, 1f, 22f, 1)],
+            PlayerMovementStates = [new SnapshotPlayerMovementState(1, 112f, 151f, 3f, 0f, true, 1, 1f, 22f, 1, true, 4f, 5f)],
             RemovedShotIds = [2, 4, 6],
             SentryGibs = [new SnapshotSentryGibState(3, 1, 10f, 12f, 25)],
             RemovedSentryGibIds = [3],
@@ -134,5 +134,7 @@ public sealed class ProtocolCodecTests
         var playerMovement = Assert.Single(roundTrippedSnapshot.PlayerMovementStates);
         Assert.Equal(112f, playerMovement.X);
         Assert.Equal(22f, playerMovement.AimDirectionDegrees);
+        Assert.True(playerMovement.IsTaunting);
+        Assert.Equal(5f, playerMovement.BurnIntensity);
     }
 }

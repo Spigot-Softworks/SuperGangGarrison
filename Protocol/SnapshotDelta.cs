@@ -147,6 +147,14 @@ public static class SnapshotDelta
                 FacingDirectionX = movement.FacingDirectionX,
                 AimDirectionDegrees = movement.AimDirectionDegrees,
                 MovementState = movement.MovementState,
+                IsTaunting = movement.IsTaunting,
+                TauntFrameIndex = movement.TauntFrameIndex,
+                BurnIntensity = movement.BurnIntensity,
+                GameplayEquippedSlot = movement.GameplayEquippedSlot,
+                PrimaryCooldownTicks = movement.PrimaryCooldownTicks,
+                ReloadTicksUntilNextShell = movement.ReloadTicksUntilNextShell,
+                OffhandCooldownTicks = movement.OffhandCooldownTicks,
+                OffhandReloadTicks = movement.OffhandReloadTicks,
             };
         }
 
