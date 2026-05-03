@@ -150,6 +150,11 @@ public static class SnapshotDelta
                 IsTaunting = movement.IsTaunting,
                 TauntFrameIndex = movement.TauntFrameIndex,
                 BurnIntensity = movement.BurnIntensity,
+                GameplayEquippedSlot = movement.GameplayEquippedSlot,
+                PrimaryCooldownTicks = movement.PrimaryCooldownTicks,
+                ReloadTicksUntilNextShell = movement.ReloadTicksUntilNextShell,
+                OffhandCooldownTicks = movement.OffhandCooldownTicks,
+                OffhandReloadTicks = movement.OffhandReloadTicks,
             };
         }
 

@@ -163,7 +163,9 @@ internal static partial class ServerHelpers
             replicatedStates.ToArray(),
             player.PlayerScale,
             AimWorldX: player.AimWorldX,
-            AimWorldY: player.AimWorldY);
+            AimWorldY: player.AimWorldY,
+            OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
+            OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

@@ -266,6 +266,16 @@ internal static class SnapshotDeltaBudgeter
 
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
     {
+        // Keep Toggle (bool) ReplicatedStates entries — these carry low-frequency state like
+        // soldier_shotgun_equipped that clients need even under budget pressure. Drop Whole/Scalar
+        // int entries since the animation-critical cooldown/reload values now arrive via the movement
+        // delta (OffhandCooldownTicks / OffhandReloadTicks fields).
+        var reducedReplicatedStates = player.ReplicatedStates is { Count: > 0 }
+            ? player.ReplicatedStates
+                .Where(static e => e.Kind == SnapshotReplicatedStateValueKind.Toggle)
+                .ToArray()
+            : Array.Empty<SnapshotReplicatedStateEntry>();
+
         return player with
         {
             BadgeMask = 0,
@@ -277,7 +287,7 @@ internal static class SnapshotDeltaBudgeter
             GameplayEquippedItemId = string.Empty,
             GameplayAcquiredItemId = string.Empty,
             OwnedGameplayItemIds = Array.Empty<string>(),
-            ReplicatedStates = Array.Empty<SnapshotReplicatedStateEntry>(),
+            ReplicatedStates = reducedReplicatedStates,
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
