@@ -18,8 +18,8 @@ public partial class Game1
     private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.12f;
     private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.22f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
-    private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.25f;
-    private const int ExpectedProjectileUpdateIntervalTicks = 3;
+    private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.15f; // Allow some extrapolation for jitter
+    private const int ExpectedProjectileUpdateIntervalTicks = 1;
 
     private int GetPlayerStateKey(PlayerEntity player)
     {

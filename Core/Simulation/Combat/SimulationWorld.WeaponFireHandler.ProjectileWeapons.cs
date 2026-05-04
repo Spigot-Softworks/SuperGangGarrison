@@ -18,16 +18,40 @@ public sealed partial class SimulationWorld
             string? killFeedWeaponSpriteNameOverride)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
-            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
-            if (aimDeltaX == 0f && aimDeltaY == 0f)
-            {
-                aimDeltaX = attacker.FacingDirectionX;
-            }
+            
+            // Use weapon pivot system to spawn bullets relative to weapon sprite rotation
+            const float minigunPivotOffsetX = 0f;
+            const float minigunPivotAdditionalYOffset = 14f;
+            var pivotRay = GetWeaponPivotRay(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                aimWorldX,
+                aimWorldY,
+                attacker.FacingDirectionX,
+                minigunPivotOffsetX,
+                minigunPivotAdditionalYOffset);
 
-            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            // The minigun sprite rotates around a pivot at the top of the weapon.
+            // Adjust the barrel offset so bullets spawn correctly at all angles:
+            // - Horizontal: 2 pixels above the pivot, no horizontal offset
+            // - Vertical up: at the pivot level, 10 pixels to the side (in facing direction)
+            // - Vertical down: no additional horizontal offset (only the rotation offset)
+            // Calculate the barrel's actual world position by rotating this offset.
+            const float barrelOffsetFromPivot = -2f;
+            const float barrelHorizontalOffsetWhenUp = 10f;
+            var facingScale = MathF.Cos(pivotRay.AngleRadians) < 0f ? -1f : 1f;
+            
+            // Rotate the barrel offset (0, barrelOffsetFromPivot) by the weapon angle
+            // Plus add horizontal offset only when aiming upward
+            var barrelOffsetX = (-MathF.Sin(pivotRay.AngleRadians) * barrelOffsetFromPivot 
+                + MathF.Max(0, -MathF.Sin(pivotRay.AngleRadians)) * barrelHorizontalOffsetWhenUp) * facingScale;
+            var barrelOffsetY = MathF.Cos(pivotRay.AngleRadians) * barrelOffsetFromPivot;
+            
+            var barrelPivotX = pivotRay.PivotX + barrelOffsetX;
+            var barrelPivotY = pivotRay.PivotY + barrelOffsetY;
+
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
-            var pelletAngle = baseAngle + spreadRadians;
+            var pelletAngle = pivotRay.AngleRadians + spreadRadians;
             var directionX = MathF.Cos(pelletAngle);
             var directionY = MathF.Sin(pelletAngle);
             var shotSpeed = GetWeaponShotSpeed(weaponDefinition);
@@ -35,10 +59,16 @@ public sealed partial class SimulationWorld
                 attacker,
                 directionX * shotSpeed,
                 directionY * shotSpeed);
+            
+            // Spawn bullets 30 pixels from the barrel position along the firing direction
+            const float bulletSpawnDistanceFromBarrel = 30f;
+            var spawnX = barrelPivotX + directionX * bulletSpawnDistanceFromBarrel;
+            var spawnY = barrelPivotY + directionY * bulletSpawnDistanceFromBarrel;
+            
             SpawnShot(
                 attacker,
-                weaponOrigin.BaseX + directionX * 20f,
-                weaponOrigin.BaseY + 12f + directionY * 20f,
+                spawnX,
+                spawnY,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
                 weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,

@@ -9,7 +9,7 @@ internal static class SnapshotDeltaBudgeter
 {
     private readonly record struct SerializedSnapshot(SnapshotMessage Message, byte[] Payload);
 
-    public const int TargetSnapshotPayloadBytes = 1200;
+    public const int TargetSnapshotPayloadBytes = 1400;
     public const int ReliableStreamTargetSnapshotPayloadBytes = 8 * 1024;
 
     internal enum ContributionKind
