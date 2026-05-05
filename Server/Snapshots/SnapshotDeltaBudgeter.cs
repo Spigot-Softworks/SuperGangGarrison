@@ -427,6 +427,7 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             builder.PlayerGibs.Clear();
+            builder.GibSpawnEvents.Clear();
             builder.SentryGibs.Clear();
             builder.DeadBodies.Clear();
         },
@@ -488,6 +489,7 @@ internal static class SnapshotDeltaBudgeter
             VisualEvents = seedFromTemplateCollections ? new List<SnapshotVisualEvent>(template.VisualEvents) : [];
             DamageEvents = seedFromTemplateCollections ? new List<SnapshotDamageEvent>(template.DamageEvents) : [];
             SoundEvents = seedFromTemplateCollections ? new List<SnapshotSoundEvent>(template.SoundEvents) : [];
+            GibSpawnEvents = seedFromTemplateCollections ? new List<SnapshotGibSpawnEvent>(template.GibSpawnEvents) : [];
             Players = seedFromTemplateCollections ? new List<SnapshotPlayerState>(template.Players) : [];
             PlayerMovementStates = seedFromTemplateCollections ? new List<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
             Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
@@ -530,6 +532,7 @@ internal static class SnapshotDeltaBudgeter
             VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
             DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
             SoundEvents = new List<SnapshotSoundEvent>(other.SoundEvents);
+            GibSpawnEvents = new List<SnapshotGibSpawnEvent>(other.GibSpawnEvents);
             Players = new List<SnapshotPlayerState>(other.Players);
             PlayerMovementStates = new List<SnapshotPlayerMovementState>(other.PlayerMovementStates);
             Sentries = new List<SnapshotSentryState>(other.Sentries);
@@ -569,6 +572,7 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotVisualEvent> VisualEvents { get; }
         public List<SnapshotDamageEvent> DamageEvents { get; }
         public List<SnapshotSoundEvent> SoundEvents { get; }
+        public List<SnapshotGibSpawnEvent> GibSpawnEvents { get; }
         public List<SnapshotPlayerState> Players { get; }
         public List<SnapshotPlayerMovementState> PlayerMovementStates { get; }
         public List<SnapshotSentryState> Sentries { get; } = new();
@@ -633,6 +637,7 @@ internal static class SnapshotDeltaBudgeter
                 VisualEvents = VisualEvents.ToArray(),
                 DamageEvents = DamageEvents.ToArray(),
                 SoundEvents = SoundEvents.ToArray(),
+                GibSpawnEvents = GibSpawnEvents.ToArray(),
                 RemovedPlayerIds = RemovedPlayerIds.ToArray(),
                 RemovedSentryIds = RemovedSentryIds.ToArray(),
                 RemovedShotIds = RemovedShotIds.ToArray(),

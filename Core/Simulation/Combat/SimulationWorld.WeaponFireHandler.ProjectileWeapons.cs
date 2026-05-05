@@ -42,9 +42,10 @@ public sealed partial class SimulationWorld
                 directionX * shotSpeed,
                 directionY * shotSpeed);
             
-            // Spawn bullets directly from the weapon pivot
-            var spawnX = pivotRay.PivotX;
-            var spawnY = pivotRay.PivotY;
+            // Spawn bullets 14 pixels forward from the weapon pivot along the firing direction
+            const float minigunBarrelForwardOffset = 14f;
+            var spawnX = pivotRay.PivotX + (directionX * minigunBarrelForwardOffset);
+            var spawnY = pivotRay.PivotY + (directionY * minigunBarrelForwardOffset);
             
             SpawnShot(
                 attacker,
@@ -290,7 +291,7 @@ public sealed partial class SimulationWorld
         {
             if (CountOwnedMines(attacker.Id) >= weaponDefinition.MaxAmmo)
             {
-                return;
+                _world.ExplodeOldestMine(attacker.Id);
             }
 
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);

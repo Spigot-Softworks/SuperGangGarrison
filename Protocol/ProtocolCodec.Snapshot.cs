@@ -54,8 +54,7 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedFlareIds);
         WriteMineStates(writer, snapshot.Mines);
         WriteEntityIdList(writer, snapshot.RemovedMineIds);
-        WritePlayerGibStates(writer, snapshot.PlayerGibs);
-        WriteEntityIdList(writer, snapshot.RemovedPlayerGibIds);
+        WriteGibSpawnEvents(writer, snapshot.GibSpawnEvents);
         WriteDeadBodyStates(writer, snapshot.DeadBodies);
         WriteEntityIdList(writer, snapshot.RemovedDeadBodyIds);
         WriteSentryGibStates(writer, snapshot.SentryGibs);
@@ -124,8 +123,7 @@ public static partial class ProtocolCodec
         var removedFlareIds = ReadEntityIdList(reader);
         var mines = ReadMineStates(reader);
         var removedMineIds = ReadEntityIdList(reader);
-        var playerGibs = ReadPlayerGibStates(reader);
-        var removedPlayerGibIds = ReadEntityIdList(reader);
+        var gibSpawnEvents = ReadGibSpawnEvents(reader);
         var deadBodies = ReadDeadBodyStates(reader);
         var removedDeadBodyIds = ReadEntityIdList(reader);
         var sentryGibs = ReadSentryGibStates(reader);
@@ -172,7 +170,6 @@ public static partial class ProtocolCodec
             flames,
             flares,
             mines,
-            playerGibs,
             deadBodies,
             controlPointSetupTicksRemaining,
             kothUnlockTicksRemaining,
@@ -206,7 +203,7 @@ public static partial class ProtocolCodec
             RemovedFlameIds = removedFlameIds,
             RemovedFlareIds = removedFlareIds,
             RemovedMineIds = removedMineIds,
-            RemovedPlayerGibIds = removedPlayerGibIds,
+            GibSpawnEvents = gibSpawnEvents,
             RemovedDeadBodyIds = removedDeadBodyIds,
             SentryGibs = sentryGibs,
             RemovedSentryGibIds = removedSentryGibIds,

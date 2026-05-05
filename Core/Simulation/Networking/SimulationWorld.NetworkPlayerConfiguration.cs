@@ -398,9 +398,10 @@ public sealed partial class SimulationWorld
             KillPlayer(
                 player,
                 weaponSpriteName: "DeadKL",
-                killFeedMessage: player.DisplayName + ClassChangeKillFeedSuffix,
+                killFeedMessage: player.IsInSpawnRoom ? null : player.DisplayName + ClassChangeKillFeedSuffix,
                 createDeathCam: false,
-                spawnRemains: !player.IsInSpawnRoom);
+                spawnRemains: !player.IsInSpawnRoom,
+                recordKillFeed: !player.IsInSpawnRoom);
         }
 
         player.SetClassDefinition(definition);

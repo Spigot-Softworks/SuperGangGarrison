@@ -199,6 +199,25 @@ public sealed partial class SimulationWorld
         return null;
     }
 
+    internal void ExplodeOldestMine(int ownerId)
+    {
+        MineProjectileEntity? oldestMine = null;
+        foreach (var mine in _mines)
+        {
+            if (mine.OwnerId == ownerId)
+            {
+                // Find the oldest mine (first one in the list, as they're added chronologically)
+                oldestMine = mine;
+                break;
+            }
+        }
+
+        if (oldestMine is not null)
+        {
+            ExplodeMine(oldestMine);
+        }
+    }
+
     private IEnumerable<MineProjectileEntity> GetTriggeredMines(MineProjectileEntity sourceMine)
     {
         foreach (var mine in _mines)
