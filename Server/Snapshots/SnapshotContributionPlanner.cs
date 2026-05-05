@@ -15,9 +15,21 @@ internal static class SnapshotContributionPlanner
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
     private const int SnapshotPlayerMovementBytes = 49;
-    private const int ProjectileSnapshotUpdateIntervalTicks = 1;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
     private const float MaxEventDistanceFromFocus = 1200f;
+    
+    // Snapshot Bandwidth Optimizations:
+    // 1. Distance-based player detail scheduling (nearby: every tick, medium: every 3 ticks, far: every 6 ticks)
+    // 2. Weapon/status effect trimming in budget reducer (zero values omitted)
+    // 3. Aggressive medic beam state trimming when not healing
+    // 4. More aggressive distance thresholds and intervals
+    
+    // Distance-based player detail update scheduling
+    private const float PlayerDetailNearbyDistance = 600f; // Reduced from 800
+    private const float PlayerDetailMediumDistance = 1200f; // Reduced from 1600
+    private const int PlayerDetailNearbyUpdateInterval = 1; // Every tick
+    private const int PlayerDetailMediumUpdateInterval = 3; // Every 3 ticks (was 2)
+    private const int PlayerDetailFarUpdateInterval = 6; // Every 6 ticks (was 4)
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
@@ -35,7 +47,8 @@ internal static class SnapshotContributionPlanner
             baseline?.Players ?? Array.Empty<SnapshotPlayerState>(),
             PlayerUpdatePriority,
             client.Slot,
-            focus);
+            focus,
+            frame);
 
         AddEntityDelta(
             contributions,
@@ -241,21 +254,7 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedPlayerGibIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
-        AddEntityDelta(
-            contributions,
-            fullSnapshot.BloodDrops,
-            baseline?.BloodDrops,
-            priority: 240,
-            estimateUpdatedBytes: static state => 29,
-            estimatedRemovedBytes: 4,
-            focus,
-            static state => state.Id,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.BloodDrops.Add(state),
-            static (builder, id) => builder.RemovedBloodDropIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
+        // Blood drops are now generated locally on the client - not sent over network
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
@@ -279,13 +278,13 @@ internal static class SnapshotContributionPlanner
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
-            priority: 830,
+            priority: 1150, // High priority - needed for client-side blood and hit feedback
             estimateBytes: static state => 42,
             focus,
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.DamageEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            maxDistanceFromFocus: float.MaxValue); // Never distance-filter damage events - they're critical for hit feedback/blood
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
@@ -320,7 +319,8 @@ internal static class SnapshotContributionPlanner
         IReadOnlyList<SnapshotPlayerState> baselinePlayers,
         int priority,
         byte viewerSlot,
-        (float X, float Y) focus)
+        (float X, float Y) focus,
+        long currentFrame)
     {
         var currentBySlot = new Dictionary<int, SnapshotPlayerState>(currentPlayers.Count);
         for (var index = 0; index < currentPlayers.Count; index += 1)
@@ -400,6 +400,21 @@ internal static class SnapshotContributionPlanner
 
             if (HasPlayerNonMovementDetailChanged(player, baselinePlayer!))
             {
+                // Distance-based detail update scheduling (similar to cosmetic entities)
+                // Always update local player and nearby players every tick
+                var distance = MathF.Sqrt(DistanceSquared(focus.X, focus.Y, player.X, player.Y));
+                var updateInterval = distance < PlayerDetailNearbyDistance
+                    ? PlayerDetailNearbyUpdateInterval
+                    : distance < PlayerDetailMediumDistance
+                        ? PlayerDetailMediumUpdateInterval
+                        : PlayerDetailFarUpdateInterval;
+                
+                // Skip scheduled update if not the player's turn (unless it's the local viewer)
+                if (player.Slot != viewerSlot && (currentFrame % updateInterval) != (player.PlayerId % updateInterval))
+                {
+                    continue;
+                }
+                
                 var detailPriority = player.Slot == viewerSlot
                     ? PlayerDetailUpdatePriority + 50
                     : PlayerDetailUpdatePriority;
@@ -451,7 +466,7 @@ internal static class SnapshotContributionPlanner
             || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
             || player.MovementState != baselinePlayer.MovementState
             || player.IsTaunting != baselinePlayer.IsTaunting
-            || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
+            // TauntFrameIndex excluded - client simulates animation locally
             || player.BurnIntensity != baselinePlayer.BurnIntensity
             || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
             || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
@@ -557,12 +572,9 @@ internal static class SnapshotContributionPlanner
         int entityId,
         Func<T, T, bool> isMotionOnlyChange)
     {
-        if (!isMotionOnlyChange(state, baselineState))
-        {
-            return false;
-        }
-
-        return ((currentWorldFrame + entityId) % ProjectileSnapshotUpdateIntervalTicks) != 0;
+        // Only send projectile updates when there are non-motion state changes
+        // Motion-only updates are always skipped - clients predict projectile motion locally
+        return isMotionOnlyChange(state, baselineState);
     }
 
     private static bool IsShotMotionOnlyChange(SnapshotShotState state, SnapshotShotState baselineState)

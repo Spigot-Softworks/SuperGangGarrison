@@ -74,6 +74,8 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
+    private readonly HashSet<int> _clientPredictedProjectileIds = new();
+    private readonly ClientSnapshotStringCache _snapshotStringCache = new();
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
     private int _configuredCapLimit = DefaultCapLimit;
@@ -159,6 +161,13 @@ public sealed partial class SimulationWorld
     public ExperimentalGameplaySettings ExperimentalGameplaySettings { get; private set; } = new();
 
     public bool RandomSpreadEnabled { get; set; } = true;
+
+    /// <summary>
+    /// When true, only the local player and projectiles are simulated.
+    /// Other network players, match logic, and structures are skipped.
+    /// Used for client-side prediction in multiplayer.
+    /// </summary>
+    public bool ClientPredictionMode { get; set; }
 
     public int GetDeterministicSpreadShotIndex(int attackerId)
     {

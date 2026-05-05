@@ -21,9 +21,18 @@ public sealed partial class SimulationWorld
                 return;
             }
 
-            _phaseController.AdvancePrePlayerSimulationPhase();
-            _phaseController.AdvancePlayerSimulationPhase();
-            _phaseController.AdvancePostPlayerSimulationPhase();
+            if (_world.ClientPredictionMode)
+            {
+                // Client prediction: simulate projectiles and local player only
+                _phaseController.AdvanceClientPredictionPhase();
+            }
+            else
+            {
+                // Full simulation for offline mode or server
+                _phaseController.AdvancePrePlayerSimulationPhase();
+                _phaseController.AdvancePlayerSimulationPhase();
+                _phaseController.AdvancePostPlayerSimulationPhase();
+            }
             _world._previousLocalInput = _world._localInput;
             _world.Frame += 1;
         }

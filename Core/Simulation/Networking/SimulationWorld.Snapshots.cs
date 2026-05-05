@@ -11,6 +11,9 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        // Apply string cache updates from server
+        _snapshotStringCache.ApplyCacheUpdates(snapshot.StringCacheUpdates);
+
         ApplySnapshotWorldState(snapshot);
 
         if (!TryResolveSnapshotLocalPlayerState(
@@ -29,8 +32,17 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private static void ApplySnapshotPlayer(PlayerEntity player, SnapshotPlayerState snapshotPlayer)
+    private void ApplySnapshotPlayer(PlayerEntity player, SnapshotPlayerState snapshotPlayer)
     {
+        // Resolve cached strings using cache IDs
+        var modPackId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayModPackCacheId, snapshotPlayer.GameplayModPackId);
+        var loadoutId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayLoadoutCacheId, snapshotPlayer.GameplayLoadoutId);
+        var primaryItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayPrimaryItemCacheId, snapshotPlayer.GameplayPrimaryItemId);
+        var secondaryItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplaySecondaryItemCacheId, snapshotPlayer.GameplaySecondaryItemId);
+        var utilityItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayUtilityItemCacheId, snapshotPlayer.GameplayUtilityItemId);
+        var equippedItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayEquippedItemCacheId, snapshotPlayer.GameplayEquippedItemId);
+        var acquiredItemId = _snapshotStringCache.Resolve(snapshotPlayer.GameplayAcquiredItemCacheId, snapshotPlayer.GameplayAcquiredItemId);
+
         player.SetDisplayName(snapshotPlayer.Name);
         player.ApplyNetworkState(
             (PlayerTeam)snapshotPlayer.Team,
@@ -90,14 +102,16 @@ public sealed partial class SimulationWorld
             snapshotPlayer.HeavyEatCooldownTicksRemaining,
             snapshotPlayer.Assists,
             snapshotPlayer.BadgeMask,
-            snapshotPlayer.GameplayModPackId,
-            snapshotPlayer.GameplayLoadoutId,
-            snapshotPlayer.GameplayPrimaryItemId,
-            snapshotPlayer.GameplaySecondaryItemId,
-            snapshotPlayer.GameplayUtilityItemId,
+            snapshotPlayer.IsMedicHealing,
+            snapshotPlayer.MedicHealTargetId,
+            modPackId,
+            loadoutId,
+            primaryItemId,
+            secondaryItemId,
+            utilityItemId,
             snapshotPlayer.GameplayEquippedSlot,
-            snapshotPlayer.GameplayEquippedItemId,
-            snapshotPlayer.GameplayAcquiredItemId,
+            equippedItemId,
+            acquiredItemId,
             snapshotPlayer.OwnedGameplayItemIds,
             ConvertReplicatedStateEntries(snapshotPlayer.ReplicatedStates),
             snapshotPlayer.PlayerScale,
@@ -195,7 +209,7 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
         ApplySnapshotMines(snapshot.Mines);
         ApplySnapshotPlayerGibs(snapshot.PlayerGibs);
-        ApplySnapshotBloodDrops(snapshot.BloodDrops);
+        // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
     }
@@ -260,7 +274,26 @@ public sealed partial class SimulationWorld
         Action<T, SnapshotShotState> applyState)
         where T : SimulationEntity
     {
-        SyncSnapshotEntities(shots, target, static state => state.Id, canReuse, factory, applyState);
+        SyncSnapshotEntities(
+            shots,
+            target,
+            static state => state.Id,
+            canReuse,
+            factory,
+            applyState,
+            (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity && LocalPlayer is not null)
+                {
+                    // Track new projectiles for client-side prediction
+                    _clientPredictedProjectileIds.Add(state.Id);
+                }
+                // Only apply spawn state - client simulates projectile movement
+                if (isNewEntity)
+                {
+                    applyState(entity, state);
+                }
+            });
     }
 
     private void ApplySnapshotRockets(IReadOnlyList<SnapshotRocketState> rockets)
@@ -303,7 +336,36 @@ public sealed partial class SimulationWorld
                 state.DistanceToTravel,
                 state.IsFading,
                 state.FadeSourceTicksRemaining,
-                state.PassedFriendlyPlayerIds));
+                state.PassedFriendlyPlayerIds),
+            (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity && LocalPlayer is not null)
+                {
+                    // Track new projectiles for client-side prediction
+                    _clientPredictedProjectileIds.Add(state.Id);
+                }
+                // Only apply spawn state - client simulates projectile movement
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.PreviousX,
+                        state.PreviousY,
+                        state.DirectionRadians,
+                        state.Speed,
+                        state.TicksRemaining,
+                        state.ReducedKnockbackSourceTicksRemaining,
+                        state.ZeroKnockbackSourceTicksRemaining,
+                        state.RangeAnchorOwnerId,
+                        state.LastKnownRangeOriginX,
+                        state.LastKnownRangeOriginY,
+                        state.DistanceToTravel,
+                        state.IsFading,
+                        state.FadeSourceTicksRemaining,
+                        state.PassedFriendlyPlayerIds);
+                }
+            });
     }
 
     private void ApplySnapshotFlames(IReadOnlyList<SnapshotFlameState> flames)
@@ -331,7 +393,30 @@ public sealed partial class SimulationWorld
                 state.TicksRemaining,
                 state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
                 state.AttachedOffsetX,
-                state.AttachedOffsetY));
+                state.AttachedOffsetY),
+            (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity && LocalPlayer is not null)
+                {
+                    // Track new projectiles for client-side prediction
+                    _clientPredictedProjectileIds.Add(state.Id);
+                }
+                // Only apply spawn state - client simulates projectile movement
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.PreviousX,
+                        state.PreviousY,
+                        state.VelocityX,
+                        state.VelocityY,
+                        state.TicksRemaining,
+                        state.AttachedPlayerId < 0 ? null : state.AttachedPlayerId,
+                        state.AttachedOffsetX,
+                        state.AttachedOffsetY);
+                }
+            });
     }
 
     private void ApplySnapshotBloodDrops(IReadOnlyList<SnapshotBloodDropState> bloodDrops)
@@ -394,7 +479,27 @@ public sealed partial class SimulationWorld
                 state.VelocityY,
                 state.IsStickied,
                 state.IsDestroyed,
-                state.ExplosionDamage));
+                state.ExplosionDamage),
+            (entity, state, isNewEntity) =>
+            {
+                if (isNewEntity && LocalPlayer is not null)
+                {
+                    // Track new projectiles for client-side prediction
+                    _clientPredictedProjectileIds.Add(state.Id);
+                }
+                // Only apply spawn state - client simulates projectile movement
+                if (isNewEntity)
+                {
+                    entity.ApplyNetworkState(
+                        state.X,
+                        state.Y,
+                        state.VelocityX,
+                        state.VelocityY,
+                        state.IsStickied,
+                        state.IsDestroyed,
+                        state.ExplosionDamage);
+                }
+            });
     }
 
     private void ApplySnapshotDeadBodies(IReadOnlyList<SnapshotDeadBodyState> deadBodies)
@@ -625,7 +730,9 @@ public sealed partial class SimulationWorld
 
         for (var index = 0; index < _snapshotStaleEntityIds.Count; index += 1)
         {
-            _entities.Remove(_snapshotStaleEntityIds[index]);
+            var staleId = _snapshotStaleEntityIds[index];
+            _entities.Remove(staleId);
+            _clientPredictedProjectileIds.Remove(staleId);
         }
     }
 

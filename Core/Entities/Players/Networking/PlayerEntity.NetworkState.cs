@@ -62,6 +62,8 @@ public sealed partial class PlayerEntity
         int heavyEatCooldownTicksRemaining = 0,
         int assists = 0,
         ulong badgeMask = 0,
+        bool isMedicHealing = false,
+        int medicHealTargetId = -1,
         string gameplayModPackId = "",
         string gameplayLoadoutId = "",
         string gameplayPrimaryItemId = "",
@@ -127,6 +129,8 @@ public sealed partial class PlayerEntity
         Points = Math.Max(0f, points);
         HealPoints = Math.Max(0, healPoints);
         BadgeMask = BadgeCatalog.SanitizeBadgeMask(badgeMask);
+        IsMedicHealing = isMedicHealing;
+        MedicHealTargetId = medicHealTargetId >= 0 ? medicHealTargetId : null;
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
         IsDominatedByLocalViewer = isDominatedByLocalViewer;
