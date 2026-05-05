@@ -193,7 +193,7 @@ internal static class SnapshotDeltaBudgeter
     {
         builder.KillFeed.Clear();
         builder.CombatTraces.Clear();
-        builder.VisualEvents.Clear();
+        // Keep VisualEvents (rocket explosions) - let priority system decide
         builder.DamageEvents.Clear();
         builder.SoundEvents.Clear();
     }
@@ -291,6 +291,22 @@ internal static class SnapshotDeltaBudgeter
             IsChatBubbleVisible = false,
             ChatBubbleFrameIndex = 0,
             ChatBubbleAlpha = 0f,
+            // Weapon state trimming - clear if at default values
+            MedicNeedleCooldownTicks = 0,
+            MedicNeedleRefillTicks = 0,
+            PyroAirblastCooldownTicks = 0,
+            PyroFlareCooldownTicks = 0,
+            PyroFlameLoopTicksRemaining = 0,
+            HeavyEatCooldownTicksRemaining = 0,
+            // Status effect trimming - clear burn if not burning
+            BurnIntensity = 0f,
+            BurnDurationSourceTicks = 0f,
+            BurnDecayDelaySourceTicksRemaining = 0f,
+            BurnIntensityDecayPerSourceTick = 0f,
+            BurnedByPlayerId = -1,
+            // Medic beam trimming - clear if not healing
+            IsMedicHealing = player.IsMedicHealing && player.MedicHealTargetId >= 0 ? player.IsMedicHealing : false,
+            MedicHealTargetId = player.IsMedicHealing && player.MedicHealTargetId >= 0 ? player.MedicHealTargetId : -1,
         };
     }
 
@@ -344,6 +360,9 @@ internal static class SnapshotDeltaBudgeter
             PyroFlameLoopTicksRemaining = 0,
             PyroPrimaryRequiresReleaseAfterEmpty = false,
             HeavyEatCooldownTicksRemaining = 0,
+            // Medic beam trimming
+            IsMedicHealing = false,
+            MedicHealTargetId = -1,
         };
     }
 

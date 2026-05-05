@@ -28,6 +28,8 @@ sealed class SnapshotBroadcaster
     private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
+    private readonly SnapshotStringCache _stringCache = new();
+    private readonly Dictionary<byte, ClientStringCacheTracker> _clientCacheTrackers = new();
 
     public SnapshotBroadcaster(
         SimulationWorld world,
@@ -247,6 +249,7 @@ sealed class SnapshotBroadcaster
             visualEvents,
             damageEvents,
             soundEvents,
+            StringCacheUpdates: null, // TODO: Implement string cache
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
             mapMetadata.MapContentHash,
@@ -294,7 +297,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
+            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache));
         }
 
         // Add server bot players
@@ -311,8 +314,13 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer));
+            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache));
         }
+
+        // Build string cache updates for this client
+        var cacheTracker = GetOrCreateCacheTracker(client.Slot);
+        var referencedStrings = CollectReferencedCachedStrings(players);
+        var stringCacheUpdates = cacheTracker.BuildCacheUpdatesForSnapshot(referencedStrings);
 
         return sharedSnapshot.Template with
         {
@@ -320,6 +328,7 @@ sealed class SnapshotBroadcaster
             Players = players.ToArray(),
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
+            StringCacheUpdates = stringCacheUpdates,
         };
     }
 
@@ -429,6 +438,42 @@ sealed class SnapshotBroadcaster
             GameplayAcquiredItemId: string.Empty,
             OwnedGameplayItemIds: Array.Empty<string>(),
             PlayerScale: 1f);
+    }
+
+    private ClientStringCacheTracker GetOrCreateCacheTracker(byte slot)
+    {
+        if (!_clientCacheTrackers.TryGetValue(slot, out var tracker))
+        {
+            tracker = new ClientStringCacheTracker(_stringCache);
+            _clientCacheTrackers[slot] = tracker;
+        }
+
+        return tracker;
+    }
+
+    private static List<(string value, ushort cacheId)> CollectReferencedCachedStrings(List<SnapshotPlayerState> players)
+    {
+        var referenced = new List<(string, ushort)>(players.Count * 7);
+
+        foreach (var player in players)
+        {
+            if (player.GameplayModPackCacheId != 0)
+                referenced.Add((player.GameplayModPackId, player.GameplayModPackCacheId));
+            if (player.GameplayLoadoutCacheId != 0)
+                referenced.Add((player.GameplayLoadoutId, player.GameplayLoadoutCacheId));
+            if (player.GameplayPrimaryItemCacheId != 0)
+                referenced.Add((player.GameplayPrimaryItemId, player.GameplayPrimaryItemCacheId));
+            if (player.GameplaySecondaryItemCacheId != 0)
+                referenced.Add((player.GameplaySecondaryItemId, player.GameplaySecondaryItemCacheId));
+            if (player.GameplayUtilityItemCacheId != 0)
+                referenced.Add((player.GameplayUtilityItemId, player.GameplayUtilityItemCacheId));
+            if (player.GameplayEquippedItemCacheId != 0)
+                referenced.Add((player.GameplayEquippedItemId, player.GameplayEquippedItemCacheId));
+            if (player.GameplayAcquiredItemCacheId != 0)
+                referenced.Add((player.GameplayAcquiredItemId, player.GameplayAcquiredItemCacheId));
+        }
+
+        return referenced;
     }
 
     private static SnapshotBaselineState? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)

@@ -27,6 +27,7 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.BlueCaps);
         writer.Write(snapshot.SpectatorCount);
         writer.Write(snapshot.LastProcessedInputSequence);
+        WriteStringCacheUpdates(writer, snapshot.StringCacheUpdates);
         WriteIntelState(writer, snapshot.RedIntel);
         WriteIntelState(writer, snapshot.BlueIntel);
         WriteSnapshotPlayers(writer, snapshot.Players);
@@ -98,6 +99,7 @@ public static partial class ProtocolCodec
         var blueCaps = reader.ReadInt32();
         var spectatorCount = reader.ReadInt32();
         var lastProcessedInputSequence = reader.ReadUInt32();
+        var stringCacheUpdates = ReadStringCacheUpdates(reader);
         var redIntel = ReadIntelState(reader);
         var blueIntel = ReadIntelState(reader);
         var players = ReadSnapshotPlayers(reader);
@@ -188,6 +190,7 @@ public static partial class ProtocolCodec
             visualEvents,
             damageEvents,
             soundEvents,
+            stringCacheUpdates,
             isCustomMap,
             mapDownloadUrl,
             mapContentHash,
@@ -239,6 +242,41 @@ public static partial class ProtocolCodec
         return ids;
     }
 
+    private static void WriteStringCacheUpdates(BinaryWriter writer, IReadOnlyDictionary<ushort, string>? updates)
+    {
+        if (updates == null || updates.Count == 0)
+        {
+            writer.Write((ushort)0);
+            return;
+        }
+        
+        writer.Write((ushort)updates.Count);
+        foreach (var (id, value) in updates)
+        {
+            writer.Write(id);
+            WriteString(writer, value, MaxGameplayIdBytes, nameof(updates));
+        }
+    }
+    
+    private static Dictionary<ushort, string>? ReadStringCacheUpdates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        if (count == 0)
+        {
+            return null;
+        }
+        
+        var updates = new Dictionary<ushort, string>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var id = reader.ReadUInt16();
+            var value = ReadString(reader, MaxGameplayIdBytes);
+            updates[id] = value;
+        }
+        
+        return updates;
+    }
+
     private static void WriteSnapshotPlayers(BinaryWriter writer, IReadOnlyList<SnapshotPlayerState> players)
     {
         writer.Write((byte)players.Count);
@@ -254,10 +292,10 @@ public static partial class ProtocolCodec
             writer.Write(player.IsAwaitingJoin);
             writer.Write(player.IsSpectator);
             writer.Write(player.RespawnTicks);
-            writer.Write(player.X);
-            writer.Write(player.Y);
-            writer.Write(player.HorizontalSpeed);
-            writer.Write(player.VerticalSpeed);
+            writer.Write(QuantizePosition(player.X)); // Quantized to int16
+            writer.Write(QuantizePosition(player.Y)); // Quantized to int16
+            writer.Write(QuantizePosition(player.HorizontalSpeed)); // Quantized to int16
+            writer.Write(QuantizePosition(player.VerticalSpeed)); // Quantized to int16
             writer.Write(player.Health);
             writer.Write(player.MaxHealth);
             writer.Write(player.Ammo);
@@ -308,19 +346,38 @@ public static partial class ProtocolCodec
             writer.Write(player.HeavyEatCooldownTicksRemaining);
             writer.Write(player.Assists);
             writer.Write(player.BadgeMask);
-            WriteString(writer, player.GameplayModPackId, MaxGameplayIdBytes, nameof(player.GameplayModPackId));
-            WriteString(writer, player.GameplayLoadoutId, MaxGameplayIdBytes, nameof(player.GameplayLoadoutId));
-            WriteString(writer, player.GameplayPrimaryItemId, MaxGameplayIdBytes, nameof(player.GameplayPrimaryItemId));
-            WriteString(writer, player.GameplaySecondaryItemId, MaxGameplayIdBytes, nameof(player.GameplaySecondaryItemId));
-            WriteString(writer, player.GameplayUtilityItemId, MaxGameplayIdBytes, nameof(player.GameplayUtilityItemId));
+            writer.Write(player.IsMedicHealing);
+            writer.Write(player.MedicHealTargetId);
+            // String caching: write cache ID (ushort) if available, otherwise write full string
+            writer.Write(player.GameplayModPackCacheId);
+            if (player.GameplayModPackCacheId == 0)
+                WriteString(writer, player.GameplayModPackId, MaxGameplayIdBytes, nameof(player.GameplayModPackId));
+            writer.Write(player.GameplayLoadoutCacheId);
+            if (player.GameplayLoadoutCacheId == 0)
+                WriteString(writer, player.GameplayLoadoutId, MaxGameplayIdBytes, nameof(player.GameplayLoadoutId));
+            writer.Write(player.GameplayPrimaryItemCacheId);
+            if (player.GameplayPrimaryItemCacheId == 0)
+                WriteString(writer, player.GameplayPrimaryItemId, MaxGameplayIdBytes, nameof(player.GameplayPrimaryItemId));
+            writer.Write(player.GameplaySecondaryItemCacheId);
+            if (player.GameplaySecondaryItemCacheId == 0)
+                WriteString(writer, player.GameplaySecondaryItemId, MaxGameplayIdBytes, nameof(player.GameplaySecondaryItemId));
+            writer.Write(player.GameplayUtilityItemCacheId);
+            if (player.GameplayUtilityItemCacheId == 0)
+                WriteString(writer, player.GameplayUtilityItemId, MaxGameplayIdBytes, nameof(player.GameplayUtilityItemId));
             writer.Write(player.GameplayEquippedSlot);
-            WriteString(writer, player.GameplayEquippedItemId, MaxGameplayIdBytes, nameof(player.GameplayEquippedItemId));
-            WriteString(writer, player.GameplayAcquiredItemId, MaxGameplayIdBytes, nameof(player.GameplayAcquiredItemId));
+            writer.Write(player.GameplayEquippedItemCacheId);
+            if (player.GameplayEquippedItemCacheId == 0)
+                WriteString(writer, player.GameplayEquippedItemId, MaxGameplayIdBytes, nameof(player.GameplayEquippedItemId));
+            writer.Write(player.GameplayAcquiredItemCacheId);
+            if (player.GameplayAcquiredItemCacheId == 0)
+                WriteString(writer, player.GameplayAcquiredItemId, MaxGameplayIdBytes, nameof(player.GameplayAcquiredItemId));
             WriteGameplayIdList(writer, player.OwnedGameplayItemIds);
             WriteReplicatedStateEntries(writer, player.ReplicatedStates);
             writer.Write(player.PlayerScale);
             writer.Write(player.AimWorldX);
             writer.Write(player.AimWorldY);
+            writer.Write(player.OffhandCooldownTicks);
+            writer.Write(player.OffhandReloadTicks);
         }
     }
 
@@ -330,83 +387,120 @@ public static partial class ProtocolCodec
         var players = new List<SnapshotPlayerState>(playerCount);
         for (var index = 0; index < playerCount; index += 1)
         {
+            var slot = reader.ReadByte();
+            var playerId = reader.ReadInt32();
+            var name = ReadString(reader, MaxPlayerNameBytes);
+            var team = reader.ReadByte();
+            var classId = reader.ReadByte();
+            var isAlive = reader.ReadBoolean();
+            var isAwaitingJoin = reader.ReadBoolean();
+            var isSpectator = reader.ReadBoolean();
+            var respawnTicks = reader.ReadInt32();
+            var x = DequantizePosition(reader.ReadInt16());
+            var y = DequantizePosition(reader.ReadInt16());
+            var horizontalSpeed = DequantizePosition(reader.ReadInt16());
+            var verticalSpeed = DequantizePosition(reader.ReadInt16());
+            var health = reader.ReadInt16();
+            var maxHealth = reader.ReadInt16();
+            var ammo = reader.ReadInt16();
+            var maxAmmo = reader.ReadInt16();
+            var kills = reader.ReadInt16();
+            var deaths = reader.ReadInt16();
+            var caps = reader.ReadInt16();
+            var points = reader.ReadSingle();
+            var healPoints = reader.ReadInt16();
+            var activeDominationCount = reader.ReadInt16();
+            var isDominatingLocalViewer = reader.ReadBoolean();
+            var isDominatedByLocalViewer = reader.ReadBoolean();
+            var metal = reader.ReadSingle();
+            var isGrounded = reader.ReadBoolean();
+            var remainingAirJumps = reader.ReadInt32();
+            var isCarryingIntel = reader.ReadBoolean();
+            var intelRechargeTicks = reader.ReadSingle();
+            var isSpyCloaked = reader.ReadBoolean();
+            var spyCloakAlpha = reader.ReadSingle();
+            var isUbered = reader.ReadBoolean();
+            var isHeavyEating = reader.ReadBoolean();
+            var heavyEatTicksRemaining = reader.ReadInt32();
+            var isSniperScoped = reader.ReadBoolean();
+            var sniperChargeTicks = reader.ReadInt32();
+            var facingDirectionX = reader.ReadSingle();
+            var aimDirectionDegrees = reader.ReadSingle();
+            var isTaunting = reader.ReadBoolean();
+            var tauntFrameIndex = reader.ReadSingle();
+            var isChatBubbleVisible = reader.ReadBoolean();
+            var chatBubbleFrameIndex = reader.ReadInt32();
+            var chatBubbleAlpha = reader.ReadSingle();
+            var burnIntensity = reader.ReadSingle();
+            var burnDurationSourceTicks = reader.ReadSingle();
+            var burnDecayDelaySourceTicksRemaining = reader.ReadSingle();
+            var burnIntensityDecayPerSourceTick = reader.ReadSingle();
+            var burnedByPlayerId = reader.ReadInt32();
+            var movementState = reader.ReadByte();
+            var primaryCooldownTicks = reader.ReadInt32();
+            var reloadTicksUntilNextShell = reader.ReadInt32();
+            var medicNeedleCooldownTicks = reader.ReadInt32();
+            var medicNeedleRefillTicks = reader.ReadInt32();
+            var pyroAirblastCooldownTicks = reader.ReadInt32();
+            var pyroFlareCooldownTicks = reader.ReadInt32();
+            var pyroPrimaryFuelScaled = reader.ReadInt32();
+            var isPyroPrimaryRefilling = reader.ReadBoolean();
+            var pyroFlameLoopTicksRemaining = reader.ReadInt32();
+            var pyroPrimaryRequiresReleaseAfterEmpty = reader.ReadBoolean();
+            var heavyEatCooldownTicksRemaining = reader.ReadInt32();
+            var assists = reader.ReadInt16();
+            var badgeMask = reader.ReadUInt64();
+            var isMedicHealing = reader.ReadBoolean();
+            var medicHealTargetId = reader.ReadInt32();
+            
+            // String caching: read cache ID, then string if cache ID is 0
+            var gameplayModPackCacheId = reader.ReadUInt16();
+            var gameplayModPackId = gameplayModPackCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplayLoadoutCacheId = reader.ReadUInt16();
+            var gameplayLoadoutId = gameplayLoadoutCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplayPrimaryItemCacheId = reader.ReadUInt16();
+            var gameplayPrimaryItemId = gameplayPrimaryItemCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplaySecondaryItemCacheId = reader.ReadUInt16();
+            var gameplaySecondaryItemId = gameplaySecondaryItemCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplayUtilityItemCacheId = reader.ReadUInt16();
+            var gameplayUtilityItemId = gameplayUtilityItemCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplayEquippedSlot = reader.ReadByte();
+            var gameplayEquippedItemCacheId = reader.ReadUInt16();
+            var gameplayEquippedItemId = gameplayEquippedItemCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var gameplayAcquiredItemCacheId = reader.ReadUInt16();
+            var gameplayAcquiredItemId = gameplayAcquiredItemCacheId == 0 ? ReadString(reader, MaxGameplayIdBytes) : string.Empty;
+            var ownedGameplayItemIds = ReadGameplayIdList(reader);
+            var replicatedStates = ReadReplicatedStateEntries(reader);
+            var playerScale = reader.ReadSingle();
+            var aimWorldX = reader.ReadSingle();
+            var aimWorldY = reader.ReadSingle();
+            var offhandCooldownTicks = reader.ReadInt32();
+            var offhandReloadTicks = reader.ReadInt32();
+            
             players.Add(new SnapshotPlayerState(
-                reader.ReadByte(),
-                reader.ReadInt32(),
-                ReadString(reader, MaxPlayerNameBytes),
-                reader.ReadByte(),
-                reader.ReadByte(),
-                reader.ReadBoolean(),
-                reader.ReadBoolean(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadSingle(),
-                reader.ReadInt16(),
-                reader.ReadInt16(),
-                reader.ReadBoolean(),
-                reader.ReadBoolean(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadInt32(),
-                reader.ReadByte(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadBoolean(),
-                reader.ReadInt32(),
-                reader.ReadInt16(),
-                reader.ReadUInt64(),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadString(reader, MaxGameplayIdBytes),
-                reader.ReadByte(),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadString(reader, MaxGameplayIdBytes),
-                ReadGameplayIdList(reader),
-                ReadReplicatedStateEntries(reader),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle()));
+                slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
+                respawnTicks, x, y, horizontalSpeed, verticalSpeed,
+                health, maxHealth, ammo, maxAmmo, kills, deaths, caps, points, healPoints,
+                activeDominationCount, isDominatingLocalViewer, isDominatedByLocalViewer,
+                metal, isGrounded, remainingAirJumps, isCarryingIntel, intelRechargeTicks,
+                isSpyCloaked, spyCloakAlpha, isUbered, isHeavyEating, heavyEatTicksRemaining,
+                isSniperScoped, sniperChargeTicks, facingDirectionX, aimDirectionDegrees,
+                isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
+                burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,
+                burnIntensityDecayPerSourceTick, burnedByPlayerId, movementState,
+                primaryCooldownTicks, reloadTicksUntilNextShell, medicNeedleCooldownTicks,
+                medicNeedleRefillTicks, pyroAirblastCooldownTicks, pyroFlareCooldownTicks,
+                pyroPrimaryFuelScaled, isPyroPrimaryRefilling, pyroFlameLoopTicksRemaining,
+                pyroPrimaryRequiresReleaseAfterEmpty, heavyEatCooldownTicksRemaining,
+                assists, badgeMask, isMedicHealing, medicHealTargetId,
+                gameplayModPackId, gameplayLoadoutId, gameplayPrimaryItemId,
+                gameplaySecondaryItemId, gameplayUtilityItemId, gameplayEquippedSlot,
+                gameplayEquippedItemId, gameplayAcquiredItemId,
+                gameplayModPackCacheId, gameplayLoadoutCacheId, gameplayPrimaryItemCacheId,
+                gameplaySecondaryItemCacheId, gameplayUtilityItemCacheId,
+                gameplayEquippedItemCacheId, gameplayAcquiredItemCacheId,
+                ownedGameplayItemIds, replicatedStates, playerScale, aimWorldX, aimWorldY,
+                offhandCooldownTicks, offhandReloadTicks));
         }
 
         return players;
@@ -421,10 +515,10 @@ public static partial class ProtocolCodec
         {
             var state = states[index];
             writer.Write(state.Slot);
-            writer.Write(state.X);
-            writer.Write(state.Y);
-            writer.Write(state.HorizontalSpeed);
-            writer.Write(state.VerticalSpeed);
+            writer.Write(QuantizePosition(state.X));
+            writer.Write(QuantizePosition(state.Y));
+            writer.Write(QuantizePosition(state.HorizontalSpeed));
+            writer.Write(QuantizePosition(state.VerticalSpeed));
             writer.Write(state.IsGrounded);
             writer.Write(state.RemainingAirJumps);
             writer.Write(state.FacingDirectionX);
@@ -449,10 +543,10 @@ public static partial class ProtocolCodec
         {
             states.Add(new SnapshotPlayerMovementState(
                 reader.ReadByte(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
+                DequantizePosition(reader.ReadInt16()),
+                DequantizePosition(reader.ReadInt16()),
+                DequantizePosition(reader.ReadInt16()),
+                DequantizePosition(reader.ReadInt16()),
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
                 reader.ReadSingle(),

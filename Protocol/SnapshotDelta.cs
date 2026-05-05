@@ -136,6 +136,10 @@ public static class SnapshotDelta
                 continue;
             }
 
+            // Only update TauntFrameIndex if taunt is starting (wasn't taunting before)
+            // Otherwise let client simulation advance the frame locally
+            var isTauntStarting = !player.IsTaunting && movement.IsTaunting;
+            
             mergedBySlot[movement.Slot] = player with
             {
                 X = movement.X,
@@ -148,7 +152,7 @@ public static class SnapshotDelta
                 AimDirectionDegrees = movement.AimDirectionDegrees,
                 MovementState = movement.MovementState,
                 IsTaunting = movement.IsTaunting,
-                TauntFrameIndex = movement.TauntFrameIndex,
+                TauntFrameIndex = isTauntStarting ? movement.TauntFrameIndex : player.TauntFrameIndex,
                 BurnIntensity = movement.BurnIntensity,
                 GameplayEquippedSlot = movement.GameplayEquippedSlot,
                 PrimaryCooldownTicks = movement.PrimaryCooldownTicks,
