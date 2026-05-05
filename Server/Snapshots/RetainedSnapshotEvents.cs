@@ -5,3 +5,5 @@ sealed record RetainedSnapshotSoundEvent(SnapshotSoundEvent Event, ulong Expires
 sealed record RetainedSnapshotVisualEvent(SnapshotVisualEvent Event, ulong ExpiresAfterFrame);
 
 sealed record RetainedSnapshotDamageEvent(SnapshotDamageEvent Event, ulong ExpiresAfterFrame);
+
+sealed record RetainedSnapshotGibSpawnEvent(SnapshotGibSpawnEvent Event, ulong ExpiresAfterFrame);

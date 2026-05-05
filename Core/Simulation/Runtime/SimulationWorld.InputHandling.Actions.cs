@@ -26,9 +26,10 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        // Mine launcher at limit: explode oldest mine to make room
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MineLauncher) && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
         {
-            return;
+            ExplodeOldestMine(player.Id);
         }
 
         if (primaryPressed && TryHandleExperimentalSoldierStingerPrimaryBurst(player))
@@ -188,6 +189,16 @@ public sealed partial class SimulationWorld
 
     private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
     {
+        // Allow demoman to detonate mines even while taunting
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding)
+            && secondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate
+            && !player.IsExperimentalDemoknightEnabled)
+        {
+            DetonateOwnedMines(player.Id);
+            return;
+        }
+
         if (player.IsTaunting)
         {
             return;
@@ -231,21 +242,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
-        runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding);
         runtimeRegistry.TryGetUtilityAbilityBinding(player.UtilityBehaviorId, out var utilityBinding);
         var resolvedSecondaryBinding = player.IsAcquiredWeaponEquipped ? equippedBinding : secondaryBinding;
 
         if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SniperScope)
         {
             player.TryToggleSniperScope();
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
-        {
-            DetonateOwnedMines(player.Id);
             return;
         }
 

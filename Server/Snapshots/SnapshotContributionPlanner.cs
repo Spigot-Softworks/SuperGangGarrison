@@ -40,6 +40,12 @@ internal static class SnapshotContributionPlanner
         var focus = GetClientFocusPoint(client, world);
         var frame = world.Frame;
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
+        
+        // Spectators and dead players get all events regardless of distance (server doesn't know their camera position)
+        var isAlivePlayer = SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
+            && world.TryGetNetworkPlayer(client.Slot, out var player)
+            && player.IsAlive;
+        var eventDistanceLimit = isAlivePlayer ? MaxEventDistanceFromFocus : float.MaxValue;
 
         AddPlayerDelta(
             contributions,
@@ -239,22 +245,17 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedSentryGibIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
-        AddEntityDelta(
+        // Blood drops are now generated locally on the client - not sent over network
+        AddPointEventContributions(
             contributions,
-            fullSnapshot.PlayerGibs,
-            baseline?.PlayerGibs,
+            fullSnapshot.GibSpawnEvents,
             priority: 320,
-            estimateUpdatedBytes: EstimatePlayerGibBytes,
-            estimatedRemovedBytes: 4,
+            estimateBytes: EstimateGibSpawnEventBytes,
             focus,
-            static state => state.Id,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.PlayerGibs.Add(state),
-            static (builder, id) => builder.RemovedPlayerGibIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
-        // Blood drops are now generated locally on the client - not sent over network
+            static (builder, state) => builder.GibSpawnEvents.Add(state),
+            maxDistanceFromFocus: eventDistanceLimit);
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
@@ -264,7 +265,7 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.SoundEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            maxDistanceFromFocus: eventDistanceLimit);
         AddPointEventContributions(
             contributions,
             fullSnapshot.VisualEvents,
@@ -274,7 +275,7 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.VisualEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            maxDistanceFromFocus: eventDistanceLimit);
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
@@ -298,16 +299,22 @@ internal static class SnapshotContributionPlanner
     private static (float X, float Y) GetClientFocusPoint(ClientSession client, SimulationWorld world)
     {
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && world.TryGetNetworkPlayer(client.Slot, out var player)
-            && player.IsAlive)
+            && world.TryGetNetworkPlayer(client.Slot, out var player))
         {
+            if (player.IsAlive)
+            {
+                return (player.X, player.Y);
+            }
+            
+            // Dead player: check for death cam first
+            var deathCam = world.GetNetworkPlayerDeathCam(client.Slot);
+            if (deathCam is not null)
+            {
+                return (deathCam.FocusX, deathCam.FocusY);
+            }
+            
+            // No death cam (e.g., self-kill): use player's last position
             return (player.X, player.Y);
-        }
-
-        var deathCam = world.GetNetworkPlayerDeathCam(client.Slot);
-        if (deathCam is not null)
-        {
-            return (deathCam.FocusX, deathCam.FocusY);
         }
 
         return (world.Bounds.Width / 2f, world.Bounds.Height / 2f);
@@ -768,6 +775,11 @@ internal static class SnapshotContributionPlanner
     private static int EstimatePlayerGibBytes(SnapshotPlayerGibState state)
     {
         return 42 + state.SpriteName.Length;
+    }
+
+    private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent state)
+    {
+        return 50 + state.SpriteName.Length;
     }
 
     private static int EstimateRocketBytes(SnapshotRocketState state)

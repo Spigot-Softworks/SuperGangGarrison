@@ -52,6 +52,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
+    private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
@@ -59,6 +60,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
+    private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
     private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
     private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
     private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
@@ -498,6 +500,18 @@ public sealed partial class SimulationWorld
         var damageEvents = _pendingDamageEvents.ToArray();
         _pendingDamageEvents.Clear();
         return damageEvents;
+    }
+
+    public IReadOnlyList<WorldGibSpawnEvent> DrainPendingGibSpawnEvents()
+    {
+        if (_pendingGibSpawnEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var gibSpawnEvents = _pendingGibSpawnEvents.ToArray();
+        _pendingGibSpawnEvents.Clear();
+        return gibSpawnEvents;
     }
 
     public IReadOnlyList<WorldHealingEvent> DrainPendingHealingEvents()
