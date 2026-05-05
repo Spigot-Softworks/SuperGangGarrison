@@ -644,6 +644,7 @@ internal sealed class ServerRuntimeEventReporter(
         return new SnapshotTransientEvents(
             transientEvents.VisualEvents ?? [],
             transientEvents.DamageEvents ?? [],
-            transientEvents.SoundEvents ?? []);
+            transientEvents.SoundEvents ?? [],
+            transientEvents.GibSpawnEvents ?? []);
     }
 }

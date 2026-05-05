@@ -59,6 +59,8 @@ public sealed partial class SimulationWorld
             var velocityX = inheritedVelocityX + ((_random.NextSingle() * ((velocityRangeX * 2f) + 1f)) - velocityRangeX);
             var velocityY = inheritedVelocityY + ((_random.NextSingle() * ((velocityRangeY * 2f) + 1f)) - velocityRangeY);
             var rotationSpeed = (_random.NextSingle() * ((rotationRange * 2f) + 1f)) - rotationRange;
+            
+            // Create gib entity locally (for offline mode and server-side simulation)
             var gib = new PlayerGibEntity(
                 AllocateEntityId(),
                 spriteName,
@@ -74,6 +76,20 @@ public sealed partial class SimulationWorld
                 bloodChance);
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
+            
+            // Emit event for network replication to clients
+            _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+                spriteName,
+                resolvedFrameIndex,
+                player.X,
+                player.Y,
+                velocityX,
+                velocityY,
+                rotationSpeed,
+                horizontalFriction,
+                rotationFriction,
+                lifetimeTicks,
+                bloodChance));
         }
     }
 
@@ -93,6 +109,8 @@ public sealed partial class SimulationWorld
         var velocityX = (normalizedDirectionX * 6f) + ((_random.NextSingle() * 4f) - 2f);
         var velocityY = (normalizedDirectionY * 2.5f) - 6f - (_random.NextSingle() * 2f);
         var rotationSpeed = (_random.NextSingle() * 160f) - 80f;
+        
+        // Create gib entity locally (for offline mode and server-side simulation)
         var headGib = new PlayerGibEntity(
             AllocateEntityId(),
             headSpriteName,
@@ -108,6 +126,20 @@ public sealed partial class SimulationWorld
             bloodChance: 1.3f);
         _playerGibs.Add(headGib);
         _entities.Add(headGib.Id, headGib);
+        
+        // Emit event for network replication to clients
+        _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+            headSpriteName,
+            0,
+            spawnX,
+            spawnY,
+            velocityX,
+            velocityY,
+            rotationSpeed,
+            0.55f,
+            0.55f,
+            250,
+            1.3f));
 
         RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
         SpawnBloodDrops(spawnX, spawnY, 18, 8f, 12f, spreadRadius: 6f);

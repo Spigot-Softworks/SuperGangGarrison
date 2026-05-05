@@ -208,7 +208,7 @@ public sealed partial class SimulationWorld
             },
             static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
         ApplySnapshotMines(snapshot.Mines);
-        ApplySnapshotPlayerGibs(snapshot.PlayerGibs);
+        ApplySnapshotGibSpawnEvents(snapshot.GibSpawnEvents);
         // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
@@ -566,51 +566,32 @@ public sealed partial class SimulationWorld
             });
     }
 
-    private void ApplySnapshotPlayerGibs(IReadOnlyList<SnapshotPlayerGibState> playerGibs)
+    private void ApplySnapshotGibSpawnEvents(IReadOnlyList<SnapshotGibSpawnEvent> gibSpawnEvents)
     {
-        SyncSnapshotEntities(
-            playerGibs,
-            _playerGibs,
-            static state => state.Id,
-            static (entity, state) =>
-                string.Equals(entity.SpriteName, state.SpriteName, StringComparison.Ordinal)
-                && entity.FrameIndex == state.FrameIndex
-                && entity.BloodChance == state.BloodChance,
-            state => new PlayerGibEntity(
-                state.Id,
-                state.SpriteName,
-                state.FrameIndex,
-                state.X,
-                state.Y,
-                state.VelocityX,
-                state.VelocityY,
-                state.RotationSpeedDegrees,
-                horizontalFriction: 0.4f,
-                rotationFriction: 0.6f,
-                lifetimeTicks: state.TicksRemaining,
-                bloodChance: state.BloodChance),
-            static (entity, state) => entity.ApplyNetworkState(
-                state.X,
-                state.Y,
-                state.VelocityX,
-                state.VelocityY,
-                state.RotationDegrees,
-                state.RotationSpeedDegrees,
-                state.TicksRemaining),
-            static (entity, state, isNewEntity) =>
+        for (var index = 0; index < gibSpawnEvents.Count; index += 1)
+        {
+            var e = gibSpawnEvents[index];
+            if (e.EventId != 0 && !_processedNetworkGibSpawnEventIds.Add(e.EventId))
             {
-                if (isNewEntity)
-                {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.VelocityX,
-                        state.VelocityY,
-                        state.RotationDegrees,
-                        state.RotationSpeedDegrees,
-                        state.TicksRemaining);
-                }
-            });
+                continue;
+            }
+
+            var gib = new PlayerGibEntity(
+                AllocateEntityId(),
+                e.SpriteName,
+                e.FrameIndex,
+                e.X,
+                e.Y,
+                e.VelocityX,
+                e.VelocityY,
+                e.RotationSpeedDegrees,
+                e.HorizontalFriction,
+                e.RotationFriction,
+                e.LifetimeTicks,
+                e.BloodChance);
+            _playerGibs.Add(gib);
+            _entities.Add(gib.Id, gib);
+        }
     }
 
     private void SyncRemoteSnapshotPlayers(IEnumerable<SnapshotPlayerState> snapshotPlayers)

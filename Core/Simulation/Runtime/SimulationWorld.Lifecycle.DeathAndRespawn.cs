@@ -1,3 +1,5 @@
+using OpenGarrison.GameplayModding;
+
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld
@@ -12,7 +14,8 @@ public sealed partial class SimulationWorld
         SentryEntity? deathCamSentry = null,
         string? killFeedMessage = null,
         bool createDeathCam = true,
-        bool spawnRemains = true)
+        bool spawnRemains = true,
+        bool recordKillFeed = true)
     {
         var assistingPlayer = killer is not null && !ReferenceEquals(killer, player)
             ? ResolveAssistPlayer(player, killer)
@@ -72,7 +75,11 @@ public sealed partial class SimulationWorld
             RegisterWorldSoundEvent(_random.Next(2) == 0 ? "DeathSnd1" : "DeathSnd2", player.X, player.Y);
         }
 
-        RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage);
+        if (recordKillFeed)
+        {
+            RecordKillFeedEntry(player, killer, weaponSpriteName ?? "DeadKL", killFeedMessage);
+        }
+        
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             UpdateDominationStateForKill(player, killer);
@@ -136,6 +143,13 @@ public sealed partial class SimulationWorld
         }
 
         RemoveOwnedSpyArtifacts(player.Id);
+        
+        // Remove demoman mines on death without exploding them
+        if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MineLauncher))
+        {
+            RemoveOwnedMines(player.Id);
+        }
+        
         player.Kill();
         if (hasNetworkSlot)
         {

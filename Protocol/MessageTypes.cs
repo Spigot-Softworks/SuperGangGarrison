@@ -472,6 +472,20 @@ public sealed record SnapshotPlayerGibState(
     int TicksRemaining,
     float BloodChance);
 
+public sealed record SnapshotGibSpawnEvent(
+    string SpriteName,
+    int FrameIndex,
+    float X,
+    float Y,
+    float VelocityX,
+    float VelocityY,
+    float RotationSpeedDegrees,
+    float HorizontalFriction,
+    float RotationFriction,
+    int LifetimeTicks,
+    float BloodChance,
+    ulong EventId = 0);
+
 public sealed record SnapshotBloodDropState(
     int Id,
     float X,
@@ -587,7 +601,6 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotFlameState> Flames,
     IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
-    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     int ControlPointSetupTicksRemaining,
     int KothUnlockTicksRemaining,
@@ -628,6 +641,8 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
     public IReadOnlyList<SnapshotJumpPadState> JumpPads { get; init; } = Array.Empty<SnapshotJumpPadState>();
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
+    public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
 
     public MessageType Type => MessageType.Snapshot;
 }

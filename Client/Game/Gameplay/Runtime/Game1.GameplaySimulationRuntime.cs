@@ -33,6 +33,8 @@ public partial class Game1
                 return;
             }
 
+            // Offline mode: disable client prediction (run full simulation)
+            _simulator.World.ClientPredictionMode = false;
             BeginBotDiagnosticsFrame(gameTime);
             var elapsedSeconds = gameTime.ElapsedGameTime.TotalSeconds;
             if (OperatingSystem.IsBrowser())

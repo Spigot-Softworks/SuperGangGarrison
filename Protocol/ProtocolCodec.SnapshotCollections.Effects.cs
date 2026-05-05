@@ -83,6 +83,50 @@ public static partial class ProtocolCodec
         return deadBodies;
     }
 
+    private static void WriteGibSpawnEvents(BinaryWriter writer, IReadOnlyList<SnapshotGibSpawnEvent> gibSpawnEvents)
+    {
+        writer.Write((ushort)gibSpawnEvents.Count);
+        for (var index = 0; index < gibSpawnEvents.Count; index += 1)
+        {
+            var e = gibSpawnEvents[index];
+            WriteString(writer, e.SpriteName, MaxAssetNameBytes, nameof(e.SpriteName));
+            writer.Write(e.FrameIndex);
+            writer.Write(e.X);
+            writer.Write(e.Y);
+            writer.Write(e.VelocityX);
+            writer.Write(e.VelocityY);
+            writer.Write(e.RotationSpeedDegrees);
+            writer.Write(e.HorizontalFriction);
+            writer.Write(e.RotationFriction);
+            writer.Write(e.LifetimeTicks);
+            writer.Write(e.BloodChance);
+            writer.Write(e.EventId);
+        }
+    }
+
+    private static List<SnapshotGibSpawnEvent> ReadGibSpawnEvents(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var events = new List<SnapshotGibSpawnEvent>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            events.Add(new SnapshotGibSpawnEvent(
+                ReadString(reader, MaxAssetNameBytes),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadUInt64()));
+        }
+        return events;
+    }
+
     private static void WritePlayerGibStates(BinaryWriter writer, IReadOnlyList<SnapshotPlayerGibState> playerGibs)
     {
         writer.Write((ushort)playerGibs.Count);
