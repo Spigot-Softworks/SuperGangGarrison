@@ -100,11 +100,71 @@ public static class GameMakerRoomMetadataImporter
 
     private static RoomObjectMarker[] ReadRoomObjects(XElement[] instances)
     {
-        return instances
+        var roomObjects = instances
             .Select(ToRoomObjectMarker)
             .Where(marker => marker.HasValue)
             .Select(marker => marker!.Value)
             .ToArray();
+
+        return NormalizeControlPointSetupGates(roomObjects);
+    }
+
+    private static RoomObjectMarker[] NormalizeControlPointSetupGates(RoomObjectMarker[] roomObjects)
+    {
+        var setupGates = roomObjects
+            .Where(marker => marker.Type == RoomObjectType.ControlPointSetupGate)
+            .OrderBy(marker => marker.X)
+            .ThenBy(marker => marker.Y)
+            .ToArray();
+        if (setupGates.Length <= 1)
+        {
+            return roomObjects;
+        }
+
+        var mergedSetupGates = new List<RoomObjectMarker>();
+        var index = 0;
+        while (index < setupGates.Length)
+        {
+            var seed = setupGates[index];
+            var left = seed.Left;
+            var right = seed.Right;
+            var top = seed.Top;
+            var bottom = seed.Bottom;
+            var mergedAny = false;
+            index += 1;
+
+            while (index < setupGates.Length)
+            {
+                var candidate = setupGates[index];
+                if (MathF.Abs(candidate.Left - left) > 0.1f
+                    || MathF.Abs(candidate.Right - right) > 0.1f)
+                {
+                    break;
+                }
+
+                // Source stock CP setup gates are authored as fragmented bars on the same doorway.
+                // Merge nearby aligned segments into one blocking plane so attackers cannot walk through the center gap.
+                if (candidate.Top - bottom > 180f)
+                {
+                    break;
+                }
+
+                top = MathF.Min(top, candidate.Top);
+                bottom = MathF.Max(bottom, candidate.Bottom);
+                mergedAny = true;
+                index += 1;
+            }
+
+            mergedSetupGates.Add(mergedAny
+                ? seed with { Y = top, Height = bottom - top }
+                : seed);
+        }
+
+        var normalizedRoomObjects = roomObjects
+            .Where(marker => marker.Type != RoomObjectType.ControlPointSetupGate)
+            .ToList();
+        normalizedRoomObjects.AddRange(mergedSetupGates);
+        return normalizedRoomObjects.ToArray();
     }
 
     private static string[] ReadUnsupportedEntities(XElement[] instances)

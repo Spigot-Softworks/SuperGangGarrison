@@ -34,7 +34,7 @@ public partial class Game1
 
     private void DrawGameplayHudLayers(MouseState mouse, Vector2 cameraPosition)
     {
-        var browserHudDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserHudDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         if (IsLastToDieDeathFocusPresentationActive())
         {
             RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
@@ -159,7 +159,7 @@ public partial class Game1
 
     private void DrawGameplayModalOverlays(MouseState mouse)
     {
-        var browserModalDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserModalDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         if (IsLastToDieDeathFocusPresentationActive())
         {
             if (IsLastToDieFailureOverlayActive())

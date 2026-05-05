@@ -57,6 +57,22 @@ internal sealed partial class LuaClientPlugin(
     private readonly List<DynValue> _pendingHealEvents = [];
     private DynValue _cachedClientState = DynValue.Nil;
     private LuaClientStateCacheKey? _cachedClientStateKey;
+    private DynValue _cachedClientRuntimeState = DynValue.Nil;
+    private LuaClientStateCacheKey? _cachedClientRuntimeStateKey;
+    private DynValue _cachedPlayerMarkers = DynValue.Nil;
+    private ulong? _cachedPlayerMarkersWorldFrame;
+    private DynValue _cachedSentryMarkers = DynValue.Nil;
+    private ulong? _cachedSentryMarkersWorldFrame;
+    private DynValue _cachedObjectiveMarkers = DynValue.Nil;
+    private ulong? _cachedObjectiveMarkersWorldFrame;
+    private Table? _cachedClientFrameEventTable;
+    private DynValue _cachedClientFrameEvent = DynValue.Nil;
+    private Table? _cachedGameplayHudCanvasTable;
+    private DynValue _cachedGameplayHudCanvas = DynValue.Nil;
+    private Table? _cachedScoreboardHudCanvasTable;
+    private DynValue _cachedScoreboardHudCanvas = DynValue.Nil;
+    private IOpenGarrisonClientHudCanvas? _activeHudCanvas;
+    private IOpenGarrisonClientScoreboardCanvas? _activeScoreboardCanvas;
     private LuaCallbackPhase _currentCallbackPhase = LuaCallbackPhase.None;
     private bool _callbacksDisabled;
     private const int ClientPluginOverlayMenuLimit = 6;
@@ -171,6 +187,33 @@ internal sealed partial class LuaClientPlugin(
         host["get_manifest"] = DynValue.NewCallback((_, _) => ToDynValue(context.Manifest));
         host["get_host_api"] = DynValue.NewCallback((_, _) => ToDynValue(context.HostApi));
         host["get_client_state"] = DynValue.NewCallback((_, _) => GetCachedClientState(context.ClientState));
+        host["get_client_runtime_state"] = DynValue.NewCallback((_, _) => GetCachedClientRuntimeState(context.ClientState));
+        host["get_player_markers"] = DynValue.NewCallback((_, _) => GetCachedPlayerMarkers(context.ClientState));
+        host["get_sentry_markers"] = DynValue.NewCallback((_, _) => GetCachedSentryMarkers(context.ClientState));
+        host["get_objective_markers"] = DynValue.NewCallback((_, _) => GetCachedObjectiveMarkers(context.ClientState));
+        host["is_connected"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsConnected));
+        host["is_gameplay_active"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsGameplayActive));
+        host["is_gameplay_input_blocked"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsGameplayInputBlocked));
+        host["is_spectator"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsSpectator));
+        host["is_local_player_alive"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsLocalPlayerAlive));
+        host["is_local_player_scoped"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsLocalPlayerScoped));
+        host["is_local_player_healing"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.IsLocalPlayerHealing));
+        host["get_local_ping_milliseconds"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.LocalPingMilliseconds));
+        host["get_level_name"] = DynValue.NewCallback((_, _) => DynValue.NewString(context.ClientState.LevelName));
+        host["get_level_width"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.LevelWidth));
+        host["get_level_height"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.LevelHeight));
+        host["get_viewport_width"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.ViewportWidth));
+        host["get_viewport_height"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.ViewportHeight));
+        host["has_local_player_id"] = DynValue.NewCallback((_, _) => DynValue.NewBoolean(context.ClientState.LocalPlayerId.HasValue));
+        host["get_local_player_id"] = DynValue.NewCallback((_, _) => DynValue.NewNumber(context.ClientState.LocalPlayerId ?? -1));
+        host["get_local_player_team"] = DynValue.NewCallback((_, _) => DynValue.NewString(context.ClientState.LocalPlayerTeam.ToString()));
+        host["get_local_player_class"] = DynValue.NewCallback((_, _) => DynValue.NewString(context.ClientState.LocalPlayerClass.ToString()));
+        host["get_local_player_health"] = DynValue.NewCallback((_, _) =>
+            DynValue.NewNumber(context.ClientState.TryGetLocalPlayerHealth(out var health, out _) ? health : -1));
+        host["get_local_player_max_health"] = DynValue.NewCallback((_, _) =>
+            DynValue.NewNumber(context.ClientState.TryGetLocalPlayerHealth(out _, out var maxHealth) ? maxHealth : -1));
+        host["get_camera_top_left"] = DynValue.NewCallback((_, _) =>
+            DynValue.NewTable(CreateVectorTable(script, context.ClientState.CameraTopLeft.X, context.ClientState.CameraTopLeft.Y)));
         host["try_get_player_world_position"] = DynValue.NewCallback((_, args) =>
         {
             var playerId = ReadIntArgument(args, 0);
@@ -178,6 +221,10 @@ internal sealed partial class LuaClientPlugin(
                 ? DynValue.NewTable(CreateVectorTable(script, position.X, position.Y))
                 : DynValue.Nil;
         });
+        host["try_get_local_player_world_position"] = DynValue.NewCallback((_, _) =>
+            context.ClientState.TryGetLocalPlayerWorldPosition(out var position)
+                ? DynValue.NewTable(CreateVectorTable(script, position.X, position.Y))
+                : DynValue.Nil);
         host["is_player_visible"] = DynValue.NewCallback((_, args) =>
             DynValue.NewBoolean(context.ClientState.IsPlayerVisibleToLocalViewer(ReadIntArgument(args, 0))));
         host["is_player_cloaked"] = DynValue.NewCallback((_, args) =>
@@ -458,36 +505,123 @@ internal sealed partial class LuaClientPlugin(
         return host;
     }
 
-    private Table CreateHudCanvasTable(Script script, IOpenGarrisonClientHudCanvas canvas, bool rightAlignedText)
+    private DynValue GetCachedClientFrameEvent(ClientFrameEvent value)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        _cachedClientFrameEventTable ??= new Table(_script);
+        if (_cachedClientFrameEvent.Type != DataType.Table)
+        {
+            _cachedClientFrameEvent = DynValue.NewTable(_cachedClientFrameEventTable);
+        }
+
+        UpdateClientFrameEventTable(_cachedClientFrameEventTable, value);
+        return _cachedClientFrameEvent;
+    }
+
+    private DynValue GetCachedGameplayHudCanvas(IOpenGarrisonClientHudCanvas canvas)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        _cachedGameplayHudCanvasTable ??= CreateHudCanvasTable(_script, rightAlignedText: false);
+        if (_cachedGameplayHudCanvas.Type != DataType.Table)
+        {
+            _cachedGameplayHudCanvas = DynValue.NewTable(_cachedGameplayHudCanvasTable);
+        }
+
+        UpdateHudCanvasTable(_cachedGameplayHudCanvasTable, canvas);
+        return _cachedGameplayHudCanvas;
+    }
+
+    private DynValue GetCachedScoreboardHudCanvas(IOpenGarrisonClientScoreboardCanvas canvas)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        _cachedScoreboardHudCanvasTable ??= CreateHudCanvasTable(_script, rightAlignedText: true);
+        if (_cachedScoreboardHudCanvas.Type != DataType.Table)
+        {
+            _cachedScoreboardHudCanvas = DynValue.NewTable(_cachedScoreboardHudCanvasTable);
+        }
+
+        UpdateHudCanvasTable(_cachedScoreboardHudCanvasTable, canvas);
+        return _cachedScoreboardHudCanvas;
+    }
+
+    private static void UpdateClientFrameEventTable(Table table, ClientFrameEvent value)
+    {
+        SetNamedValue(table, nameof(ClientFrameEvent.DeltaSeconds), DynValue.NewNumber(value.DeltaSeconds));
+        SetNamedValue(table, nameof(ClientFrameEvent.ClientTicks), DynValue.NewNumber(value.ClientTicks));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsMainMenuOpen), DynValue.NewBoolean(value.IsMainMenuOpen));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsGameplayActive), DynValue.NewBoolean(value.IsGameplayActive));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsConnected), DynValue.NewBoolean(value.IsConnected));
+        SetNamedValue(table, nameof(ClientFrameEvent.IsSpectator), DynValue.NewBoolean(value.IsSpectator));
+    }
+
+    private static void UpdateHudCanvasTable(Table table, IOpenGarrisonClientHudCanvas canvas)
+    {
+        table["viewport_width"] = DynValue.NewNumber(canvas.ViewportWidth);
+        table["viewport_height"] = DynValue.NewNumber(canvas.ViewportHeight);
+    }
+
+    private IOpenGarrisonClientHudCanvas GetRequiredHudCanvas()
+    {
+        return _activeHudCanvas ?? throw new InvalidOperationException("Lua HUD callback attempted to use the canvas outside an active draw phase.");
+    }
+
+    private IOpenGarrisonClientScoreboardCanvas GetRequiredScoreboardHudCanvas()
+    {
+        return _activeScoreboardCanvas ?? throw new InvalidOperationException("Lua scoreboard callback attempted to use the scoreboard canvas outside an active draw phase.");
+    }
+
+    private Table CreateHudCanvasTable(Script script, bool rightAlignedText)
     {
         var table = new Table(script)
         {
-            ["viewport_width"] = canvas.ViewportWidth,
-            ["viewport_height"] = canvas.ViewportHeight,
+            ["viewport_width"] = 0,
+            ["viewport_height"] = 0,
         };
 
         table["world_to_screen"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var worldPosition = ReadVector2Argument(args, 0, 1);
             var screenPosition = canvas.WorldToScreen(worldPosition);
             return DynValue.NewTable(CreateVectorTable(script, SanitizeFiniteFloat(screenPosition.X, 0f), SanitizeFiniteFloat(screenPosition.Y, 0f)));
         });
         table["measure_bitmap_text_width"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewNumber(canvas.MeasureBitmapTextWidth(ReadStringArgument(args, 0), ClampPositiveFiniteFloat(ReadOptionalFloatArgument(args, 1, 1f), 1f))));
+        {
+            var canvas = GetRequiredHudCanvas();
+            return DynValue.NewNumber(canvas.MeasureBitmapTextWidth(ReadStringArgument(args, 0), ClampPositiveFiniteFloat(ReadOptionalFloatArgument(args, 1, 1f), 1f)));
+        });
         table["measure_bitmap_text_height"] = DynValue.NewCallback((_, args) =>
-            DynValue.NewNumber(canvas.MeasureBitmapTextHeight(ClampPositiveFiniteFloat(ReadOptionalFloatArgument(args, 0, 1f), 1f))));
+        {
+            var canvas = GetRequiredHudCanvas();
+            return DynValue.NewNumber(canvas.MeasureBitmapTextHeight(ClampPositiveFiniteFloat(ReadOptionalFloatArgument(args, 0, 1f), 1f)));
+        });
         table["fill_screen_rectangle"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             canvas.FillScreenRectangle(ReadRectangleArgument(args, 0), ReadColorArgument(args, 4));
             return DynValue.True;
         });
         table["draw_screen_rectangle_outline"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             canvas.DrawScreenRectangleOutline(ReadRectangleArgument(args, 0), ReadColorArgument(args, 4), ReadOptionalIntArgument(args, 5, 1));
             return DynValue.True;
         });
         table["draw_bitmap_text"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             canvas.DrawBitmapText(
                 ReadStringArgument(args, 0),
                 ReadVector2Argument(args, 1, 2),
@@ -497,6 +631,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_bitmap_text_centered"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             canvas.DrawBitmapTextCentered(
                 ReadStringArgument(args, 0),
                 ReadVector2Argument(args, 1, 2),
@@ -506,6 +641,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_bitmap_text_world"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var worldPosition = ReadVector2Argument(args, 1, 2);
             var position = canvas.WorldToScreen(worldPosition);
             canvas.DrawBitmapText(
@@ -517,6 +653,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_bitmap_text_centered_world"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var worldPosition = ReadVector2Argument(args, 1, 2);
             var position = canvas.WorldToScreen(worldPosition);
             canvas.DrawBitmapTextCentered(
@@ -528,6 +665,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_screen_texture"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTexture(assetId, out var texture))
             {
@@ -546,6 +684,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_level_background"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             if (!canvas.TryGetLevelBackgroundTexture(out var texture))
             {
                 return DynValue.False;
@@ -556,16 +695,12 @@ internal sealed partial class LuaClientPlugin(
             var scale = new Vector2(
                 destination.Width / (float)Math.Max(1, sourceRectangle.Width),
                 destination.Height / (float)Math.Max(1, sourceRectangle.Height));
-            canvas.DrawScreenTexture(
-                texture,
-                new Vector2(destination.X, destination.Y),
-                ReadColorArgument(args, 8),
-                scale,
-                sourceRectangle);
+            canvas.DrawScreenTexture(texture, new Vector2(destination.X, destination.Y), ReadColorArgument(args, 8), scale, sourceRectangle);
             return DynValue.True;
         });
         table["draw_level_background_view"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             if (!canvas.TryGetLevelBackgroundTexture(out var texture))
             {
                 return DynValue.False;
@@ -582,16 +717,12 @@ internal sealed partial class LuaClientPlugin(
             var scale = new Vector2(
                 destination.Width / (float)Math.Max(1, sourceRectangle.Width),
                 destination.Height / (float)Math.Max(1, sourceRectangle.Height));
-            canvas.DrawScreenTexture(
-                texture,
-                new Vector2(destination.X, destination.Y),
-                ReadColorArgument(args, 10),
-                scale,
-                sourceRectangle);
+            canvas.DrawScreenTexture(texture, new Vector2(destination.X, destination.Y), ReadColorArgument(args, 10), scale, sourceRectangle);
             return DynValue.True;
         });
         table["draw_screen_sprite"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             return DynValue.NewBoolean(canvas.TryDrawScreenSprite(
                 ReadStringArgument(args, 0),
                 ReadIntArgument(args, 1),
@@ -601,6 +732,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_world_texture"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTexture(assetId, out var texture))
             {
@@ -619,6 +751,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_screen_texture_region"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTextureRegion(assetId, out var region))
             {
@@ -637,6 +770,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_world_texture_region"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTextureRegion(assetId, out var region))
             {
@@ -655,6 +789,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_screen_texture_atlas_frame"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTextureAtlas(assetId, out var atlas))
             {
@@ -679,6 +814,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_world_texture_atlas_frame"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveTextureAtlas(assetId, out var atlas))
             {
@@ -703,6 +839,7 @@ internal sealed partial class LuaClientPlugin(
         });
         table["draw_world_animation_frame"] = DynValue.NewCallback((_, args) =>
         {
+            var canvas = GetRequiredHudCanvas();
             var assetId = ReadStringArgument(args, 0);
             if (!TryResolveAnimationTexture(assetId, ReadIntArgument(args, 1), out var texture))
             {
@@ -719,10 +856,11 @@ internal sealed partial class LuaClientPlugin(
                 ReadOptionalOriginArgument(args, 7, 8));
             return DynValue.True;
         });
-        if (rightAlignedText && canvas is IOpenGarrisonClientScoreboardCanvas scoreboardCanvas)
+        if (rightAlignedText)
         {
             table["draw_bitmap_text_right_aligned"] = DynValue.NewCallback((_, args) =>
             {
+                var scoreboardCanvas = GetRequiredScoreboardHudCanvas();
                 scoreboardCanvas.DrawBitmapTextRightAligned(
                     ReadStringArgument(args, 0),
                     ReadVector2Argument(args, 1, 2),
@@ -1353,6 +1491,75 @@ internal sealed partial class LuaClientPlugin(
         return _cachedClientState;
     }
 
+    private DynValue GetCachedClientRuntimeState(IOpenGarrisonClientReadOnlyState state)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        var cacheKey = CreateClientStateCacheKey(state);
+        if (_cachedClientRuntimeStateKey.HasValue && _cachedClientRuntimeStateKey.Value.Equals(cacheKey))
+        {
+            return _cachedClientRuntimeState;
+        }
+
+        _cachedClientRuntimeState = DynValue.NewTable(ToClientRuntimeStateTable(_script, state));
+        _cachedClientRuntimeStateKey = cacheKey;
+        return _cachedClientRuntimeState;
+    }
+
+    private DynValue GetCachedPlayerMarkers(IOpenGarrisonClientReadOnlyState state)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        if (_cachedPlayerMarkersWorldFrame == state.WorldFrame)
+        {
+            return _cachedPlayerMarkers;
+        }
+
+        _cachedPlayerMarkers = ToObjectArrayTable(_script, state.GetPlayerMarkers().ToArray(), ToClientPlayerMarkerTable);
+        _cachedPlayerMarkersWorldFrame = state.WorldFrame;
+        return _cachedPlayerMarkers;
+    }
+
+    private DynValue GetCachedSentryMarkers(IOpenGarrisonClientReadOnlyState state)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        if (_cachedSentryMarkersWorldFrame == state.WorldFrame)
+        {
+            return _cachedSentryMarkers;
+        }
+
+        _cachedSentryMarkers = ToObjectArrayTable(_script, state.GetSentryMarkers().ToArray(), ToClientSentryMarkerTable);
+        _cachedSentryMarkersWorldFrame = state.WorldFrame;
+        return _cachedSentryMarkers;
+    }
+
+    private DynValue GetCachedObjectiveMarkers(IOpenGarrisonClientReadOnlyState state)
+    {
+        if (_script is null)
+        {
+            return DynValue.Nil;
+        }
+
+        if (_cachedObjectiveMarkersWorldFrame == state.WorldFrame)
+        {
+            return _cachedObjectiveMarkers;
+        }
+
+        _cachedObjectiveMarkers = ToObjectArrayTable(_script, state.GetObjectiveMarkers().ToArray(), ToClientObjectiveMarkerTable);
+        _cachedObjectiveMarkersWorldFrame = state.WorldFrame;
+        return _cachedObjectiveMarkers;
+    }
+
     private static LuaClientStateCacheKey CreateClientStateCacheKey(IOpenGarrisonClientReadOnlyState state)
     {
         var hasHealth = state.TryGetLocalPlayerHealth(out var health, out var maxHealth);
@@ -1862,6 +2069,45 @@ internal sealed partial class LuaClientPlugin(
         SetNamedValue(table, nameof(LuaClientStateSnapshot.PlayerMarkers), ToObjectArrayTable(script, value.PlayerMarkers, ToClientPlayerMarkerTable));
         SetNamedValue(table, nameof(LuaClientStateSnapshot.SentryMarkers), ToObjectArrayTable(script, value.SentryMarkers, ToClientSentryMarkerTable));
         SetNamedValue(table, nameof(LuaClientStateSnapshot.ObjectiveMarkers), ToObjectArrayTable(script, value.ObjectiveMarkers, ToClientObjectiveMarkerTable));
+        return table;
+    }
+
+    private static Table ToClientRuntimeStateTable(Script script, IOpenGarrisonClientReadOnlyState state)
+    {
+        var table = new Table(script);
+        var hasHealth = state.TryGetLocalPlayerHealth(out var health, out var maxHealth);
+        var hasLocalPosition = state.TryGetLocalPlayerWorldPosition(out var localPosition);
+
+        SetNamedValue(table, "IsConnected", DynValue.NewBoolean(state.IsConnected));
+        SetNamedValue(table, "IsMainMenuOpen", DynValue.NewBoolean(state.IsMainMenuOpen));
+        SetNamedValue(table, "IsGameplayActive", DynValue.NewBoolean(state.IsGameplayActive));
+        SetNamedValue(table, "IsGameplayInputBlocked", DynValue.NewBoolean(state.IsGameplayInputBlocked));
+        SetNamedValue(table, "IsSpectator", DynValue.NewBoolean(state.IsSpectator));
+        SetNamedValue(table, "IsDeathCamActive", DynValue.NewBoolean(state.IsDeathCamActive));
+        SetNamedValue(table, "WorldFrame", DynValue.NewNumber(state.WorldFrame));
+        SetNamedValue(table, "TickRate", DynValue.NewNumber(state.TickRate));
+        SetNamedValue(table, "LocalPingMilliseconds", DynValue.NewNumber(state.LocalPingMilliseconds));
+        SetNamedValue(table, "LevelName", DynValue.NewString(state.LevelName));
+        SetNamedValue(table, "LevelWidth", DynValue.NewNumber(state.LevelWidth));
+        SetNamedValue(table, "LevelHeight", DynValue.NewNumber(state.LevelHeight));
+        SetNamedValue(table, "ViewportWidth", DynValue.NewNumber(state.ViewportWidth));
+        SetNamedValue(table, "ViewportHeight", DynValue.NewNumber(state.ViewportHeight));
+        SetNamedValue(table, "HasLocalPlayerId", DynValue.NewBoolean(state.LocalPlayerId.HasValue));
+        SetNamedValue(table, "LocalPlayerId", DynValue.NewNumber(state.LocalPlayerId ?? -1));
+        SetNamedValue(table, "LocalPlayerTeam", DynValue.NewString(state.LocalPlayerTeam.ToString()));
+        SetNamedValue(table, "LocalPlayerClass", DynValue.NewString(state.LocalPlayerClass.ToString()));
+        SetNamedValue(table, "IsLocalPlayerAlive", DynValue.NewBoolean(state.IsLocalPlayerAlive));
+        SetNamedValue(table, "IsLocalPlayerScoped", DynValue.NewBoolean(state.IsLocalPlayerScoped));
+        SetNamedValue(table, "IsLocalPlayerHealing", DynValue.NewBoolean(state.IsLocalPlayerHealing));
+        SetNamedValue(table, "HasLocalPlayerHealth", DynValue.NewBoolean(hasHealth));
+        SetNamedValue(table, "LocalPlayerHealth", DynValue.NewNumber(hasHealth ? health : -1));
+        SetNamedValue(table, "LocalPlayerMaxHealth", DynValue.NewNumber(hasHealth ? maxHealth : -1));
+        SetNamedValue(table, "HasLocalPlayerPosition", DynValue.NewBoolean(hasLocalPosition));
+        SetNamedValue(table, "LocalPlayerWorldX", DynValue.NewNumber(hasLocalPosition ? localPosition.X : 0f));
+        SetNamedValue(table, "LocalPlayerWorldY", DynValue.NewNumber(hasLocalPosition ? localPosition.Y : 0f));
+        SetNamedValue(table, "CameraTopLeft", DynValue.NewTable(CreateVectorTable(script, state.CameraTopLeft.X, state.CameraTopLeft.Y)));
+        SetNamedValue(table, "CameraTopLeftX", DynValue.NewNumber(state.CameraTopLeft.X));
+        SetNamedValue(table, "CameraTopLeftY", DynValue.NewNumber(state.CameraTopLeft.Y));
         return table;
     }
 

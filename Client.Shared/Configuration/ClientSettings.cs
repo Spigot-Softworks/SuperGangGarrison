@@ -64,7 +64,7 @@ public sealed class ClientSettings
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
-    public bool PositionSmoothingEnabled { get; set; } = false;
+    public bool PositionSmoothingEnabled { get; set; } = true;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -77,6 +77,8 @@ public sealed class ClientSettings
     public string LobbyHost { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
 
     public int LobbyPort { get; set; } = OpenGarrisonPreferencesDocument.DefaultLobbyPort;
+
+    public string DiscordApplicationId { get; set; } = string.Empty;
 
     public static ClientSettings Load(string? path = null)
     {
@@ -166,6 +168,7 @@ public sealed class ClientSettings
             HostDefaults = document.HostSettings.Clone(),
             LobbyHost = document.LobbyHost,
             LobbyPort = document.LobbyPort,
+            DiscordApplicationId = document.DiscordApplicationId,
         };
     }
 
@@ -201,6 +204,7 @@ public sealed class ClientSettings
         preferences.HostSettings = HostDefaults.Clone();
         preferences.LobbyHost = LobbyHost;
         preferences.LobbyPort = LobbyPort;
+        preferences.DiscordApplicationId = DiscordApplicationId;
     }
 }
 

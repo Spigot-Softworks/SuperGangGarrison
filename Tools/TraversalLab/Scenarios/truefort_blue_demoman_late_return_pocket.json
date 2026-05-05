@@ -1,0 +1,34 @@
+{
+  "name": "truefort_blue_demoman_late_return_pocket",
+  "levelName": "Truefort",
+  "mapAreaIndex": 1,
+  "team": "Blue",
+  "classId": "Demoman",
+  "start": {
+    "x": 1126.0,
+    "bottom": 846.0,
+    "isGrounded": true,
+    "facingDirectionX": 1.0
+  },
+  "steps": [
+    {
+      "label": "push_right_jump",
+      "durationTicks": 90,
+      "right": true,
+      "up": true,
+      "aimFacingDirectionX": 1.0
+    }
+  ],
+  "maxTicks": 90,
+  "traceEveryTicks": 5,
+  "startXOffsets": [ 0.0, -8.0, 8.0 ],
+  "startBottomOffsets": [ 0.0 ],
+  "facingDirections": [ 1.0 ],
+  "expectation": {
+    "minHorizontalTravel": 24.0,
+    "minBottomTravel": 24.0,
+    "mustLeaveGround": true,
+    "mustReground": true,
+    "mustBeGrounded": true
+  }
+}

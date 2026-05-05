@@ -18,4 +18,5 @@ internal sealed record ServerRuntimeBootstrap(
     AutoBalancer AutoBalancer,
     SnapshotBroadcaster SnapshotBroadcaster,
     MapRotationManager MapRotationManager,
-    ServerBotManager BotManager);
+    ServerBotManager BotManager,
+    ServerDemoRecorder DemoRecorder);

@@ -177,7 +177,7 @@ public partial class Game1
             var pluginOverride = _game.GetClientPluginMainMenuBackgroundOverride();
             if (pluginOverride is not null
                 && !string.IsNullOrWhiteSpace(pluginOverride.ImagePath)
-                && (OperatingSystem.IsBrowser() || System.IO.File.Exists(pluginOverride.ImagePath)))
+                && _game.CanLoadSpriteFrameFromPath(pluginOverride.ImagePath))
             {
                 return (pluginOverride.ImagePath, pluginOverride.AttributionText);
             }
@@ -193,16 +193,7 @@ public partial class Game1
                 : aspectRatio <= 1.4f
                     ? "background-4x3.png"
                     : "background.png";
-            var path = ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
-            if (!string.IsNullOrWhiteSpace(path) && (OperatingSystem.IsBrowser() || System.IO.File.Exists(path)))
-            {
-                return path;
-            }
-
-            var fallbackPath = ContentRoot.GetPath("Sprites", "Menu", "Title", "background.png");
-            return !string.IsNullOrWhiteSpace(fallbackPath) && (OperatingSystem.IsBrowser() || System.IO.File.Exists(fallbackPath))
-                ? fallbackPath
-                : null;
+            return ContentRoot.GetPath("Sprites", "Menu", "Title", fileName);
         }
 
         private void DisposeMenuBackgroundTexture()

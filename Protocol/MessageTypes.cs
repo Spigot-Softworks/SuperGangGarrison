@@ -76,6 +76,7 @@ public sealed record WelcomeMessage(
     int TickRate,
     string LevelName,
     byte PlayerSlot,
+    int MaxPlayerCount,
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
     string MapContentHash = "",
@@ -290,7 +291,9 @@ public sealed record SnapshotPlayerState(
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
     float PlayerScale = 1f,
     float AimWorldX = 0f,
-    float AimWorldY = 0f);
+    float AimWorldY = 0f,
+    int MedicHealTargetPlayerId = -1,
+    bool IsMedicHealing = false);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -302,7 +305,25 @@ public sealed record SnapshotPlayerMovementState(
     int RemainingAirJumps,
     float FacingDirectionX,
     float AimDirectionDegrees,
-    byte MovementState);
+    byte MovementState,
+    int MedicHealTargetPlayerId = -1,
+    bool IsMedicHealing = false);
+
+public sealed record SnapshotPlayerStatusState(
+    byte Slot,
+    short Health,
+    short MaxHealth,
+    short Ammo,
+    short MaxAmmo,
+    float Metal,
+    bool IsCarryingIntel,
+    float IntelRechargeTicks);
+
+public sealed record SnapshotPlayerChatBubbleState(
+    byte Slot,
+    bool IsChatBubbleVisible,
+    int ChatBubbleFrameIndex,
+    float ChatBubbleAlpha);
 
 public sealed record SnapshotIntelState(
     byte Team,
@@ -583,10 +604,19 @@ public sealed record SnapshotMessage(
     float MapScale = 1f) : IProtocolMessage, ISnapshotBaselineState
 {
     public int TimeLimitTicks { get; init; }
+    public int ArenaUnlockTicksRemaining { get; init; }
+    public byte ArenaPointTeam { get; init; }
+    public byte ArenaCappingTeam { get; init; }
+    public float ArenaCappingTicks { get; init; }
+    public int ArenaCappers { get; init; }
+    public int ArenaRedConsecutiveWins { get; init; }
+    public int ArenaBlueConsecutiveWins { get; init; }
 
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }
     public IReadOnlyList<SnapshotPlayerMovementState> PlayerMovementStates { get; init; } = Array.Empty<SnapshotPlayerMovementState>();
+    public IReadOnlyList<SnapshotPlayerStatusState> PlayerStatusStates { get; init; } = Array.Empty<SnapshotPlayerStatusState>();
+    public IReadOnlyList<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; init; } = Array.Empty<SnapshotPlayerChatBubbleState>();
     public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedShotIds { get; init; } = Array.Empty<int>();

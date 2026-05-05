@@ -228,8 +228,11 @@ public partial class Game1 : Game
     private Task<DevMessageFetchResult>? _devMessageFetchTask;
     private readonly Queue<DevMessagePopupState> _pendingDevMessagePopups = new();
     private DevMessagePopupState? _activeDevMessagePopup;
+    private readonly Queue<string> _queuedReplayPaths = new();
+    private string? _activeReplayPath;
     private bool _killCamEnabled = true;
     private bool _positionSmoothingEnabled = false;
+    private string _lastGameplayWindowTitle = string.Empty;
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _flameRenderMode;
@@ -312,6 +315,7 @@ public partial class Game1 : Game
         _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
         ClientRuntimeBootstrap.InitializeContentRoot(Content.RootDirectory);
+        InitializeLocalDistributionAtlasManifestsIfPresent();
         IsMouseVisible = false;
         ApplyIngameResolution(_clientSettings.IngameResolution);
         ApplyPreferredBackBufferSize(!OperatingSystem.IsBrowser() && _clientSettings.Fullscreen, _ingameResolution);
@@ -333,6 +337,7 @@ public partial class Game1 : Game
         {
             IsFixedTimeStep = false;
             TargetElapsedTime = TimeSpan.FromSeconds(1d / ClientUpdateTicksPerSecond);
+            InactiveSleepTime = TimeSpan.Zero;
         }
     }
 
@@ -366,29 +371,34 @@ public partial class Game1 : Game
 
     protected override void UnloadContent()
     {
+        ShutdownDiscordRichPresence();
         _bootstrapController.UnloadContent();
         base.UnloadContent();
     }
 
     protected override void Update(GameTime gameTime)
     {
-        var browserUpdateStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserUpdateStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("update", ref _browserDebugUpdateCount, gameTime);
         PollBrowserBootstrapAssetPreload();
         _bootstrapController.AdvanceDeferredContentBootstrap();
         BeginNetworkDiagnosticsFrame(gameTime);
+        BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _frameController.Update(gameTime);
+        PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);
         NotifyClientPluginsFrame(gameTime, clientTicks);
+        AdvanceClientPerformanceAutomation();
         FinalizeNetworkDiagnosticsFrame();
 
         base.Update(gameTime);
         RecordBrowserUpdateDuration(browserUpdateStartTimestamp);
+        FinalizeClientPerformanceDiagnosticsFrame();
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        var browserDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         ApplyFrameRateLimit();

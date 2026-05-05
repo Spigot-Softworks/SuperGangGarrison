@@ -18,6 +18,7 @@ public partial class Game1
         public void EnterGameplaySession(GameplaySessionKind sessionKind, bool openJoinMenus, string? statusMessage)
         {
             _game._gameplaySessionKind = sessionKind;
+            _game._practiceSessionElapsedTicks = 0;
             _game._pendingHostedConnectTicks = -1;
             _game._pendingHostedConnectPort = 8190;
             _game._mainMenuOpen = false;
@@ -25,6 +26,7 @@ public partial class Game1
             _game.CloseGameplayOverlayState();
             _game._teamSelectOpen = openJoinMenus;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
+            _game.InvalidateDiscordRichPresenceRefresh();
         }
 
         public void ResetToMainMenuState(string? statusMessage)
@@ -40,9 +42,11 @@ public partial class Game1
             _game.CloseGameplayOverlayState();
             _game._editingPlayerName = false;
             _game._gameplaySessionKind = GameplaySessionKind.None;
+            _game._practiceSessionElapsedTicks = 0;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
             _game._autoBalanceNoticeText = string.Empty;
             _game._autoBalanceNoticeTicks = 0;
+            _game.InvalidateDiscordRichPresenceRefresh();
         }
 
         public void ResetActiveSessionState()
@@ -53,8 +57,10 @@ public partial class Game1
             _game.ResetGameplayTransitionEffects();
             _game.ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
             _game.ResetGameplayRuntimeState();
+            _game._practiceSessionElapsedTicks = 0;
             _game.ResetSpectatorTracking(enableTracking: false);
             _game.ResetLastToDieState();
+            _game.InvalidateDiscordRichPresenceRefresh();
         }
     }
 }

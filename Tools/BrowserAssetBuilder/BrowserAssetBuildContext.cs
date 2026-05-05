@@ -7,13 +7,15 @@ internal sealed record BrowserAssetBuildContext(
     string BrowserWwwRoot,
     string BrowserOutputRoot,
     string BrowserPluginsRoot,
-    string BrowserPackagedClientPluginsRoot,
+    string? PackagedClientPluginSourceRoot,
     string BrowserAtlasesRoot,
     string BrowserManifestsRoot,
-    string BrowserBootstrapRoot,
-    string BrowserReportsRoot)
+    string BrowserBootstrapRoot)
 {
-    public static BrowserAssetBuildContext Create(string outputContentRoot, string startPath)
+    public static BrowserAssetBuildContext Create(
+        string outputContentRoot,
+        string startPath,
+        string? packagedClientPluginSourceRoot = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputContentRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(startPath);
@@ -30,11 +32,12 @@ internal sealed record BrowserAssetBuildContext(
             browserWwwRoot,
             browserOutputRoot,
             Path.Combine(browserWwwRoot, "Plugins"),
-            Path.Combine(browserWwwRoot, "Plugins", "Client"),
+            string.IsNullOrWhiteSpace(packagedClientPluginSourceRoot)
+                ? null
+                : Path.GetFullPath(packagedClientPluginSourceRoot),
             Path.Combine(browserOutputRoot, "Atlases"),
             Path.Combine(browserOutputRoot, "Manifests"),
-            Path.Combine(browserOutputRoot, "Bootstrap"),
-            Path.Combine(browserOutputRoot, "Reports"));
+            Path.Combine(browserOutputRoot, "Bootstrap"));
     }
 
     private static DirectoryInfo FindRepoRoot(string startPath)

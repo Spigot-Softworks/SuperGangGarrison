@@ -37,14 +37,11 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
             _browserFallbackServices.Add(service);
         }
 
-        if (OperatingSystem.IsBrowser())
+        _browserAtlasTextureCache ??= new BrowserAtlasTextureCache(_graphicsDevice);
+        var stockAtlasManifest = ClientRuntimeBootstrap.GetBrowserStockGameplayAtlasManifest();
+        if (stockAtlasManifest is not null)
         {
-            _browserAtlasTextureCache ??= new BrowserAtlasTextureCache(_graphicsDevice);
-            var stockAtlasManifest = ClientRuntimeBootstrap.GetBrowserStockGameplayAtlasManifest();
-            if (stockAtlasManifest is not null)
-            {
-                _browserStockAtlasResolver = new BrowserGameplayAtlasSpriteResolver(stockAtlasManifest, _browserAtlasTextureCache);
-            }
+            _browserStockAtlasResolver = new BrowserGameplayAtlasSpriteResolver(stockAtlasManifest, _browserAtlasTextureCache);
         }
 
         foreach (var modPack in runtimeComposition.GameplayModPacks)
@@ -71,9 +68,16 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
 
         if (!_registeredSprites.TryGetValue(spriteId, out var registeredSprite))
         {
-            return OperatingSystem.IsBrowser()
-                ? TryGetBrowserSprite(spriteId, null)
-                : null;
+            return TryGetAtlasSprite(spriteId)
+                ?? (OperatingSystem.IsBrowser()
+                    ? TryGetBrowserSprite(spriteId, null)
+                    : null);
+        }
+
+        var atlasSprite = TryGetAtlasSprite(spriteId);
+        if (atlasSprite is not null)
+        {
+            return atlasSprite;
         }
 
         if (OperatingSystem.IsBrowser())
@@ -159,6 +163,28 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         }
 
         return new LoadedGameMakerSprite(frames.ToArray(), new Point(spriteDefinition.OriginX, spriteDefinition.OriginY));
+    }
+
+    private LoadedGameMakerSprite? TryGetAtlasSprite(string spriteId)
+    {
+        if (_browserStockAtlasResolver?.CanResolve(spriteId) != true)
+        {
+            return null;
+        }
+
+        var pendingTask = _browserStockAtlasResolver.LoadSpriteAsync(spriteId);
+        if (OperatingSystem.IsBrowser() && !pendingTask.IsCompletedSuccessfully)
+        {
+            return null;
+        }
+
+        var sprite = pendingTask.GetAwaiter().GetResult();
+        if (sprite is not null)
+        {
+            _sprites[spriteId] = sprite;
+        }
+
+        return sprite;
     }
 
     private void AppendFramesFromSourceTexture(List<LoadedSpriteFrame> frames, Texture2D sourceTexture, GameplaySpriteAssetDefinition spriteDefinition)

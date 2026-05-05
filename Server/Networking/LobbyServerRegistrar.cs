@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 sealed class LobbyServerRegistrar
 {
@@ -17,6 +18,7 @@ sealed class LobbyServerRegistrar
     private TimeSpan _lastSent = TimeSpan.MinValue;
     private TimeSpan _lastResolve = TimeSpan.MinValue;
     private IPEndPoint? _endpoint;
+    private Task<IPEndPoint?>? _pendingResolveTask;
 
     public LobbyServerRegistrar(
         UdpClient udp,
@@ -43,9 +45,10 @@ sealed class LobbyServerRegistrar
             return;
         }
 
+        ConsumePendingResolve();
         if (_endpoint is null || now - _lastResolve >= _resolveInterval)
         {
-            ResolveEndpoint(now);
+            QueueResolveEndpoint(now);
         }
 
         if (_endpoint is null || now - _lastSent < _heartbeatInterval)
@@ -58,19 +61,54 @@ sealed class LobbyServerRegistrar
         _lastSent = now;
     }
 
-    private void ResolveEndpoint(TimeSpan now)
+    private void QueueResolveEndpoint(TimeSpan now)
     {
+        if (_pendingResolveTask is not null)
+        {
+            return;
+        }
+
         _lastResolve = now;
+        _pendingResolveTask = Task.Run(() => ResolveEndpoint(_host, _port));
+    }
+
+    private void ConsumePendingResolve()
+    {
+        var pendingResolveTask = _pendingResolveTask;
+        if (pendingResolveTask is null || !pendingResolveTask.IsCompleted)
+        {
+            return;
+        }
+
         try
         {
-            var addresses = Dns.GetHostAddresses(_host);
-            var address = addresses.FirstOrDefault(candidate => candidate.AddressFamily == AddressFamily.InterNetwork)
-                ?? addresses.FirstOrDefault();
-            _endpoint = address is null ? null : new IPEndPoint(address, _port);
+            if (pendingResolveTask.Status == TaskStatus.RanToCompletion)
+            {
+                _endpoint = pendingResolveTask.Result;
+            }
         }
         catch
         {
             _endpoint = null;
+        }
+        finally
+        {
+            _pendingResolveTask = null;
+        }
+    }
+
+    private static IPEndPoint? ResolveEndpoint(string host, int port)
+    {
+        try
+        {
+            var addresses = Dns.GetHostAddresses(host);
+            var address = addresses.FirstOrDefault(candidate => candidate.AddressFamily == AddressFamily.InterNetwork)
+                ?? addresses.FirstOrDefault();
+            return address is null ? null : new IPEndPoint(address, port);
+        }
+        catch
+        {
+            return null;
         }
     }
 

@@ -8,6 +8,8 @@ using static ServerHelpers;
 
 sealed class SnapshotBroadcaster
 {
+    private const int InitialRemoteFullSnapshotPayloadBytes = 16 * 1024;
+
     private readonly record struct SentSnapshotMetrics(
         int FullPayloadBytes,
         int SentPayloadBytes,
@@ -24,27 +26,36 @@ sealed class SnapshotBroadcaster
     private readonly SimulationWorld _world;
     private readonly SimulationConfig _config;
     private readonly Dictionary<byte, ClientSession> _clientsBySlot;
+    private readonly int _maxPlayableClients;
     private readonly ServerBotManager _botManager;
     private readonly Action<ServerTransportPeer, SnapshotMessage, byte[]> _sendSnapshot;
     private readonly OpenGarrison.Server.ServerMapMetadataResolver _mapMetadataResolver;
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
+    private readonly Action<SnapshotMessage>? _recordCanonicalSnapshot;
+    private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
 
     public SnapshotBroadcaster(
         SimulationWorld world,
         SimulationConfig config,
         Dictionary<byte, ClientSession> clientsBySlot,
+        int maxPlayableClients,
         ServerBotManager botManager,
         ulong transientEventReplayTicks,
         OpenGarrison.Server.ServerMapMetadataResolver mapMetadataResolver,
-        Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot)
+        Action<ServerTransportPeer, SnapshotMessage, byte[]> sendSnapshot,
+        Action<SnapshotMessage>? recordCanonicalSnapshot = null,
+        Func<bool>? shouldRecordCanonicalSnapshot = null)
     {
         _world = world;
         _config = config;
         _clientsBySlot = clientsBySlot;
+        _maxPlayableClients = maxPlayableClients;
         _botManager = botManager;
         _mapMetadataResolver = mapMetadataResolver;
         _transientEventBuffer = new OpenGarrison.Server.SnapshotTransientEventBuffer(transientEventReplayTicks);
         _sendSnapshot = sendSnapshot;
+        _recordCanonicalSnapshot = recordCanonicalSnapshot;
+        _shouldRecordCanonicalSnapshot = shouldRecordCanonicalSnapshot;
     }
 
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
@@ -81,6 +92,11 @@ sealed class SnapshotBroadcaster
             transientEvents.SoundEvents);
         var sharedCaptureTicks = Stopwatch.GetTimestamp() - sharedCaptureStartTimestamp;
         var sharedCaptureAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - sharedCaptureStartAllocatedBytes;
+        if (_recordCanonicalSnapshot is not null
+            && (_shouldRecordCanonicalSnapshot?.Invoke() ?? true))
+        {
+            _recordCanonicalSnapshot(CaptureCanonicalSnapshot(sharedSnapshot));
+        }
 
         long perClientTicks = 0;
         long perClientAllocatedBytes = 0;
@@ -149,9 +165,15 @@ sealed class SnapshotBroadcaster
         var fullSnapshot = CaptureFullSnapshot(client, sharedSnapshot);
         var fullSnapshotPayloadBytes = ProtocolCodec.MeasureSerializedSize(fullSnapshot);
         var targetPayloadBytes = GetTargetSnapshotPayloadBytes(client);
-        if (fullSnapshotPayloadBytes <= targetPayloadBytes)
+        var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
+
+        // A client with no baseline cannot safely reconstruct compact movement-only player
+        // updates for peers it has never seen. Send a complete first remote snapshot, even if
+        // it exceeds the steady-state UDP target, so join-time world state stays coherent.
+        if (baseline is null
+            && fullSnapshotPayloadBytes <= InitialRemoteFullSnapshotPayloadBytes)
         {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, fullSnapshotPayloadBytes);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
@@ -164,7 +186,23 @@ sealed class SnapshotBroadcaster
                 SnapshotHistoryCount: client.SnapshotHistoryCount);
         }
 
-        var baseline = TryGetBaselineSnapshot(client, fullSnapshot);
+        // Prefer ACK-based deltas for steady-state gameplay once the client has a valid
+        // baseline. Reserve full snapshots for join/resync/fallback.
+        if (baseline is null && fullSnapshotPayloadBytes <= targetPayloadBytes)
+        {
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, fullSnapshotPayloadBytes);
+            _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
+            client.RememberSnapshotState(fullSnapshot);
+            return new SentSnapshotMetrics(
+                FullPayloadBytes: fullSnapshotPayloadBytes,
+                SentPayloadBytes: fullSnapshotPayloadBytes,
+                SerializePassCount: 1,
+                WasBudgeted: false,
+                BaselineHit: false,
+                BaselineMiss: false,
+                SnapshotHistoryCount: client.SnapshotHistoryCount);
+        }
+
         var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline, targetPayloadBytes);
         _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
         client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
@@ -253,6 +291,13 @@ sealed class SnapshotBroadcaster
             _world.Level.MapScale)
         {
             TimeLimitTicks = _world.MatchRules.TimeLimitTicks,
+            ArenaUnlockTicksRemaining = _world.ArenaUnlockTicksRemaining,
+            ArenaPointTeam = _world.ArenaPointTeam.HasValue ? (byte)_world.ArenaPointTeam.Value : (byte)0,
+            ArenaCappingTeam = _world.ArenaCappingTeam.HasValue ? (byte)_world.ArenaCappingTeam.Value : (byte)0,
+            ArenaCappingTicks = _world.ArenaCappingTicks,
+            ArenaCappers = _world.ArenaCappers,
+            ArenaRedConsecutiveWins = _world.ArenaRedConsecutiveWins,
+            ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
         };
@@ -503,7 +548,69 @@ sealed class SnapshotBroadcaster
     {
         return client.Peer.Kind == ServerTransportKind.WebSocket
             ? OpenGarrison.Server.SnapshotDeltaBudgeter.ReliableStreamTargetSnapshotPayloadBytes
-            : OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes;
+            : client.IsLoopbackConnection
+                ? OpenGarrison.Server.SnapshotDeltaBudgeter.LoopbackTargetSnapshotPayloadBytes
+                : OpenGarrison.Server.SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes;
+    }
+
+    public WelcomeMessage CreateCanonicalDemoWelcomeMessage(string serverName)
+    {
+        var mapMetadata = _mapMetadataResolver.GetCurrentMapMetadata();
+        return new WelcomeMessage(
+            serverName,
+            ProtocolVersion.Current,
+            _config.TicksPerSecond,
+            _world.Level.Name,
+            SimulationWorld.FirstSpectatorSlot,
+            _maxPlayableClients,
+            mapMetadata.IsCustomMap,
+            mapMetadata.MapDownloadUrl,
+            mapMetadata.MapContentHash,
+            _world.Level.MapScale);
+    }
+
+    public SnapshotMessage CaptureCanonicalDemoSnapshot()
+    {
+        var sharedSnapshot = CaptureSharedSnapshotData(
+            Array.Empty<SnapshotVisualEvent>(),
+            Array.Empty<SnapshotDamageEvent>(),
+            Array.Empty<SnapshotSoundEvent>());
+        return CaptureCanonicalSnapshot(sharedSnapshot);
+    }
+
+    private SnapshotMessage CaptureCanonicalSnapshot(SharedSnapshotData sharedSnapshot)
+    {
+        var players = new List<SnapshotPlayerState>(sharedSnapshot.OrderedClients.Length + _botManager.BotSlots.Count);
+
+        foreach (var entry in sharedSnapshot.OrderedClients)
+        {
+            if (IsSpectatorSlot(entry.Slot))
+            {
+                players.Add(CreateSpectatorSnapshotPlayerState(entry));
+                continue;
+            }
+
+            if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
+            {
+                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null));
+            }
+        }
+
+        foreach (var (botSlot, _) in _botManager.BotSlots)
+        {
+            if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            {
+                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null));
+            }
+        }
+
+        return sharedSnapshot.Template with
+        {
+            LastProcessedInputSequence = 0,
+            Players = players.ToArray(),
+            RemovedPlayerIds = Array.Empty<int>(),
+            LocalDeathCam = null,
+        };
     }
 
     private SnapshotBudgetBuildResult BuildBudgetedSnapshot(ClientSession client, SnapshotMessage fullSnapshot, SnapshotBaselineState? baseline)

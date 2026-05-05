@@ -65,7 +65,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
 
-    public bool PositionSmoothingEnabled { get; set; } = false;
+    public bool PositionSmoothingEnabled { get; set; } = true;
 
     public bool SpriteDropShadowEnabled { get; set; }
 
@@ -80,6 +80,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public string LobbyHost { get; set; } = DefaultLobbyHost;
 
     public int LobbyPort { get; set; } = DefaultLobbyPort;
+
+    public string DiscordApplicationId { get; set; } = string.Empty;
 
     public int MaxPlayableClients { get; set; } = SimulationWorld.MaxPlayableNetworkPlayers;
 
@@ -123,7 +125,7 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
             SoundEffectsVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Sound Effects Volume", 100), 0, 100),
             ShowPersistentSelfNameEnabled = ini.GetBool(SettingsSection, "Show Self Name", false),
-            PositionSmoothingEnabled = false,
+            PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Position Smoothing", true),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", false),
             DisableLegacyGameplaySpriteFallback = ini.GetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", false),
             RecentConnectionHost = ini.GetString(ConnectionSection, "Host", "127.0.0.1"),
@@ -131,6 +133,7 @@ public sealed class OpenGarrisonPreferencesDocument
             HostSettings = OpenGarrisonHostSettings.LoadFrom(ini, legacySelectedMap),
             LobbyHost = ini.GetString(ServerAdvancedSection, "LobbyHost", DefaultLobbyHost),
             LobbyPort = ini.GetInt(ServerAdvancedSection, "LobbyPort", DefaultLobbyPort),
+            DiscordApplicationId = ini.GetString(ServerAdvancedSection, "DiscordApplicationId", string.Empty),
             MaxPlayableClients = ini.GetInt(ServerAdvancedSection, "MaxPlayableClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxTotalClients = ini.GetInt(ServerAdvancedSection, "MaxTotalClients", SimulationWorld.MaxPlayableNetworkPlayers),
             MaxSpectatorClients = ini.GetInt(ServerAdvancedSection, "MaxSpectatorClients", SimulationWorld.MaxPlayableNetworkPlayers),
@@ -171,6 +174,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);
         ini.SetInt(SettingsSection, "Sound Effects Volume", SoundEffectsVolumePercent);
         ini.SetBool(SettingsSection, "Show Self Name", ShowPersistentSelfNameEnabled);
+        ini.SetBool(SettingsSection, "Position Smoothing", PositionSmoothingEnabled);
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
         ini.SetBool(SettingsSection, "Disable Legacy Gameplay Sprite Fallback", DisableLegacyGameplaySpriteFallback);
 
@@ -191,8 +195,12 @@ public sealed class OpenGarrisonPreferencesDocument
 
         ini.SetString(ServerAdvancedSection, "LobbyHost", LobbyHost);
         ini.SetInt(ServerAdvancedSection, "LobbyPort", LobbyPort > 0 ? LobbyPort : DefaultLobbyPort);
+        ini.SetString(ServerAdvancedSection, "DiscordApplicationId", DiscordApplicationId);
         ini.SetInt(ServerAdvancedSection, "TickRate", SimulationConfig.NormalizeTicksPerSecond(HostSettings.TickRate));
         ini.SetString(ServerAdvancedSection, "RconPassword", HostSettings.RconPassword);
+        ini.SetBool(ServerAdvancedSection, "BotAutofillEnabled", HostSettings.BotAutofillEnabled);
+        ini.SetInt(ServerAdvancedSection, "BotAutofillMinPlayers", HostSettings.BotAutofillMinPlayers);
+        ini.SetInt(ServerAdvancedSection, "BotAutofillPerTeam", HostSettings.BotAutofillPerTeam);
         ini.SetInt(ServerAdvancedSection, "MaxPlayableClients", MaxPlayableClients);
         ini.SetInt(ServerAdvancedSection, "MaxTotalClients", MaxTotalClients);
         ini.SetInt(ServerAdvancedSection, "MaxSpectatorClients", MaxSpectatorClients);
@@ -284,6 +292,12 @@ public sealed class OpenGarrisonHostSettings
 
     public string RconPassword { get; set; } = string.Empty;
 
+    public bool BotAutofillEnabled { get; set; }
+
+    public int BotAutofillMinPlayers { get; set; }
+
+    public int BotAutofillPerTeam { get; set; }
+
     public bool LobbyAnnounceEnabled { get; set; } = true;
 
     public bool AutoBalanceEnabled { get; set; } = true;
@@ -359,6 +373,9 @@ public sealed class OpenGarrisonHostSettings
             RespawnSeconds = RespawnSeconds,
             TickRate = TickRate,
             RconPassword = RconPassword,
+            BotAutofillEnabled = BotAutofillEnabled,
+            BotAutofillMinPlayers = BotAutofillMinPlayers,
+            BotAutofillPerTeam = BotAutofillPerTeam,
             LobbyAnnounceEnabled = LobbyAnnounceEnabled,
             AutoBalanceEnabled = AutoBalanceEnabled,
             SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled,
@@ -383,6 +400,15 @@ public sealed class OpenGarrisonHostSettings
             TickRate = SimulationConfig.NormalizeTicksPerSecond(
                 ini.GetInt("Server.Advanced", "TickRate", SimulationConfig.DefaultTicksPerSecond)),
             RconPassword = ini.GetString("Server.Advanced", "RconPassword", string.Empty),
+            BotAutofillEnabled = ini.GetBool("Server.Advanced", "BotAutofillEnabled", false),
+            BotAutofillMinPlayers = Math.Clamp(
+                ini.GetInt("Server.Advanced", "BotAutofillMinPlayers", 0),
+                0,
+                SimulationWorld.MaxPlayableNetworkPlayers),
+            BotAutofillPerTeam = Math.Clamp(
+                ini.GetInt("Server.Advanced", "BotAutofillPerTeam", 0),
+                0,
+                SimulationWorld.MaxPlayableNetworkPlayers / 2),
             LobbyAnnounceEnabled = ini.GetBool("Settings", "UseLobby", true),
             AutoBalanceEnabled = ini.GetBool("Server", "AutoBalance", true),
             SecondaryAbilitiesEnabled = ini.GetBool("Server", "SecondaryAbilities", true),
@@ -441,7 +467,7 @@ public static class OpenGarrisonStockMapCatalog
         new("ctf_classicwell", "ClassicWell", "ClassicWell", GameModeKind.CaptureTheFlag, 4, "classicwell"),
         new("ctf_waterway", "Waterway", "Waterway", GameModeKind.CaptureTheFlag, 5, "waterway"),
         new("ctf_orange", "Orange", "Orange", GameModeKind.CaptureTheFlag, 6, "orange"),
-        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 7, "dirtbowl"),
+        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 7, "dirtbowl", "cp_dirtbowl_stage1", "cp_dirtbowl_stage2", "cp_dirtbowl_stage3"),
         new("cp_egypt", "Egypt", "Egypt", GameModeKind.ControlPoint, 8, "egypt"),
         new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 9, "montane"),
         new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 10, "lumberyard"),

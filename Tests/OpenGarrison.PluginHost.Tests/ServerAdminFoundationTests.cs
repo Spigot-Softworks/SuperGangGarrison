@@ -879,7 +879,7 @@ public sealed class ServerAdminFoundationTests
                 () => world,
                 static () => null,
                 () => new MapRotationManager(world, requestedMap: null, mapRotationFile: null, stockMapRotation: [], static _ => { }),
-                () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, botManager, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
+                () => new SnapshotBroadcaster(world, new SimulationConfig(), clients, maxPlayableClients: 24, botManager, transientEventReplayTicks: 0, new ServerMapMetadataResolver(world), static (_, _, _) => { }),
                 () => botManager,
                 banService: banService);
 
@@ -1401,6 +1401,7 @@ public sealed class ServerAdminFoundationTests
             world,
             new SimulationConfig(),
             clients,
+            maxPlayableClients: 24,
             botManager,
             transientEventReplayTicks: 0,
             new ServerMapMetadataResolver(world),
@@ -1417,7 +1418,7 @@ public sealed class ServerAdminFoundationTests
         broadcaster.BroadcastSnapshot();
 
         var sent = Assert.Single(sentSnapshots);
-        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.True(sent.Payload.Length <= SnapshotDeltaBudgeter.LoopbackTargetSnapshotPayloadBytes);
         Assert.True(sent.Message.IsDelta);
         Assert.InRange(sent.Message.Players.Count, 1, 18);
         var merged = SnapshotDelta.ToFullSnapshot(sent.Message, baseline);
@@ -1431,7 +1432,7 @@ public sealed class ServerAdminFoundationTests
             world.AdvanceOneTick();
             broadcaster.BroadcastSnapshot();
             var next = Assert.Single(sentSnapshots);
-            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+            Assert.True(next.Payload.Length <= SnapshotDeltaBudgeter.LoopbackTargetSnapshotPayloadBytes);
             client.AcknowledgeSnapshot(next.Message.Frame);
             Assert.True(client.TryGetSnapshotState(client.LastAcknowledgedSnapshotFrame, out latestBaseline));
             sentSnapshots.Clear();
@@ -1448,6 +1449,136 @@ public sealed class ServerAdminFoundationTests
         for (var slot = 2; slot <= 20; slot += 1)
         {
             Assert.Contains(latestBaseline.Players, player => player.Slot == slot);
+        }
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterSkipsCanonicalDemoCaptureWhileRecorderIsIdle()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var canonicalSnapshots = new List<SnapshotMessage>();
+        var shouldRecordCanonicalSnapshot = false;
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            maxPlayableClients: 24,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)),
+            recordCanonicalSnapshot: snapshot => canonicalSnapshots.Add(snapshot),
+            shouldRecordCanonicalSnapshot: () => shouldRecordCanonicalSnapshot);
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        Assert.Single(sentSnapshots);
+        Assert.Empty(canonicalSnapshots);
+
+        shouldRecordCanonicalSnapshot = true;
+        sentSnapshots.Clear();
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        Assert.Single(sentSnapshots);
+        Assert.Single(canonicalSnapshots);
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterPrefersAckBasedDeltaEvenWhenFullSnapshotWouldFit()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            maxPlayableClients: 24,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var initial = Assert.Single(sentSnapshots);
+        Assert.False(initial.Message.IsDelta);
+        client.AcknowledgeSnapshot(initial.Message.Frame);
+        sentSnapshots.Clear();
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var next = Assert.Single(sentSnapshots);
+        Assert.True(next.Message.IsDelta);
+        Assert.Equal(initial.Message.Frame, next.Message.BaselineFrame);
+        Assert.True(next.Payload.Length < initial.Payload.Length);
+    }
+
+    [Fact]
+    public void SnapshotBroadcasterSendsCompleteInitialRemoteSnapshotEvenWhenItExceedsSteadyStateUdpBudget()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Parse("203.0.113.10"), 8190),
+            "RemoteTester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        Assert.Equal(19, botManager.FillBots(targetPerTeam: 10, PlayerClass.Soldier));
+
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            maxPlayableClients: 24,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var initial = Assert.Single(sentSnapshots);
+        Assert.False(initial.Message.IsDelta);
+        Assert.True(initial.Payload.Length > SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Equal(20, initial.Message.Players.Count);
+        Assert.Contains(initial.Message.Players, player => player.Slot == SimulationWorld.FirstSpectatorSlot);
+        for (var slot = 2; slot <= 20; slot += 1)
+        {
+            Assert.Contains(initial.Message.Players, player => player.Slot == slot);
         }
     }
 
@@ -1471,6 +1602,7 @@ public sealed class ServerAdminFoundationTests
             world,
             new SimulationConfig(),
             clients,
+            maxPlayableClients: 24,
             botManager,
             transientEventReplayTicks: 0,
             new ServerMapMetadataResolver(world),
@@ -1531,6 +1663,7 @@ public sealed class ServerAdminFoundationTests
             world,
             new SimulationConfig(),
             clients,
+            maxPlayableClients: 24,
             botManager,
             transientEventReplayTicks: 0,
             new ServerMapMetadataResolver(world),
@@ -1597,6 +1730,7 @@ public sealed class ServerAdminFoundationTests
             world,
             new SimulationConfig(),
             clients,
+            maxPlayableClients: 24,
             botManager,
             transientEventReplayTicks: 0,
             new ServerMapMetadataResolver(world),

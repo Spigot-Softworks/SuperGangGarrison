@@ -1,0 +1,129 @@
+{
+  "Version": 1,
+  "Map": "Avanti",
+  "Area": 1,
+  "Mode": "CaptureTheFlag",
+  "Team": "Red",
+  "Class": "Medic",
+  "AttackTicks": 134,
+  "ReturnTicks": 357,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 26
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 5
+    }
+  ],
+  "Return": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 25
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 18
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Drop",
+      "Direction": 1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 2
+    }
+  ]
+}

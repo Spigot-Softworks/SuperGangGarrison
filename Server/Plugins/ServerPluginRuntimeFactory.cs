@@ -29,6 +29,7 @@ internal static class ServerPluginRuntimeFactory
         ServerSessionManager sessionManager,
         SnapshotBroadcaster snapshotBroadcaster,
         ServerBotManager botManager,
+        ServerDemoRecorder demoRecorder,
         Action<MapChangeTransition> applyMapTransition,
         Action<ServerTransportPeer, IProtocolMessage> sendMessage,
         Action<byte, string, string, string, string, PluginMessagePayloadFormat, ushort> sendPluginMessageToClient,
@@ -52,6 +53,7 @@ internal static class ServerPluginRuntimeFactory
             () => mapRotationManager,
             () => snapshotBroadcaster,
             () => botManager,
+            broadcastSystemChatMessage: message => demoRecorder.RecordBroadcastMessage(message),
             applyMapTransition,
             banService);
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(
@@ -70,7 +72,8 @@ internal static class ServerPluginRuntimeFactory
             autoBalanceEnabledGetter,
             respawnSecondsGetter,
             () => mapRotationManager,
-            mapRotationFile);
+            mapRotationFile,
+            demoRecorder.GetStatusLine);
         new ServerBuiltInCommandRegistrar(
             commandRegistry,
             consoleSummaryBuilder.AddStatusSummary,
@@ -79,6 +82,17 @@ internal static class ServerPluginRuntimeFactory
             consoleSummaryBuilder.AddMapSummary,
             consoleSummaryBuilder.AddRotationSummary,
             consoleSummaryBuilder.AddPlayersSummary,
+            demoRecorder.GetStatusLine,
+            requestedPath =>
+            {
+                var success = demoRecorder.TryStart(requestedPath, out var status, out var error);
+                return (success, status, error);
+            },
+            () =>
+            {
+                var success = demoRecorder.TryStop(out var status, out var error);
+                return (success, status, error);
+            },
             () => pluginHost?.LoadedPluginIds ?? Array.Empty<string>(),
             cvarRegistry,
             scheduler)

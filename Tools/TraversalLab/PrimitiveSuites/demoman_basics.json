@@ -1,0 +1,108 @@
+{
+  "name": "demoman_basics",
+  "team": "Blue",
+  "classId": "Demoman",
+  "perturbationProfiles": [
+    {
+      "name": "spawn_window",
+      "startXOffsets": [ -16, -8, 0, 8, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ -1, 1 ],
+      "startHorizontalSpeedOffsets": [ 0 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    }
+  ],
+  "primitives": [
+    {
+      "name": "flat_run_right",
+      "fixture": "FlatGround",
+      "start": {
+        "x": 128,
+        "bottom": 500,
+        "isGrounded": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "run_right", "durationTicks": 18, "right": true }
+      ],
+      "maxTicks": 18,
+      "traceEveryTicks": 9,
+      "perturbationProfile": "spawn_window",
+      "expectation": {
+        "minHorizontalTravel": 24,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "short_hop_right",
+      "fixture": "FlatGround",
+      "start": {
+        "x": 128,
+        "bottom": 500,
+        "isGrounded": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "jump_start", "durationTicks": 1, "right": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 31, "right": true }
+      ],
+      "maxTicks": 32,
+      "traceEveryTicks": 8,
+      "perturbationProfile": "spawn_window",
+      "expectation": {
+        "minHorizontalTravel": 20,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "low_box_climb_right",
+      "fixture": "LowBoxClimb",
+      "start": {
+        "x": 280,
+        "bottom": 500,
+        "isGrounded": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "run_up", "durationTicks": 8, "right": true },
+        { "label": "jump_up", "durationTicks": 1, "right": true, "up": true },
+        { "label": "land_on_box", "durationTicks": 28, "right": true }
+      ],
+      "maxTicks": 37,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "spawn_window",
+      "expectation": {
+        "minHorizontalTravel": 36,
+        "finalBottom": 460,
+        "radiusBottom": 20,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "stair_descent_right",
+      "fixture": "StairDescent",
+      "start": {
+        "x": 180,
+        "bottom": 380,
+        "isGrounded": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "descend", "durationTicks": 36, "right": true }
+      ],
+      "maxTicks": 36,
+      "traceEveryTicks": 12,
+      "perturbationProfile": "spawn_window",
+      "expectation": {
+        "minHorizontalTravel": 120,
+        "minBottomTravel": 24,
+        "mustBeGrounded": true
+      }
+    }
+  ]
+}

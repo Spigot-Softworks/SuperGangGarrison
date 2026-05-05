@@ -81,6 +81,16 @@ public partial class Game1
             return _onlineSessionController.TryConnectToServer(endpoint, addConsoleFeedback);
         }
 
+        public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
+        {
+            return _onlineSessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);
+        }
+
+        public bool TryPlayOpenGarrisonDemo(string demoPath, bool addConsoleFeedback)
+        {
+            return _onlineSessionController.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
+        }
+
         public void HandleWelcomeMessage(OpenGarrison.Protocol.WelcomeMessage welcome)
         {
             _onlineSessionController.HandleWelcomeMessage(welcome);

@@ -26,6 +26,12 @@ public partial class Game1
     private int _networkDiagnosticReceivePolls;
     private int _networkDiagnosticReceivePackets;
     private long _networkDiagnosticReceiveBytes;
+    private long _networkDiagnosticSentPackets;
+    private long _networkDiagnosticSentBytes;
+    private long _networkDiagnosticSentHelloMessages;
+    private long _networkDiagnosticSentInputMessages;
+    private long _networkDiagnosticSentControlMessages;
+    private long _networkDiagnosticSentSnapshotAckMessages;
     private int _networkDiagnosticReceiveReleasedMessages;
     private int _networkDiagnosticReceiveSnapshotMessages;
     private int _networkDiagnosticReceiveMaxBatchPackets;
@@ -66,6 +72,7 @@ public partial class Game1
     private int _networkDiagnosticLastGen1Collections;
     private int _networkDiagnosticLastGen2Collections;
     private string _networkDiagnosticLastConsoleSummary = "netdiag disabled";
+    private NetworkGameClient.SendDiagnostics _networkDiagnosticPreviousSendTotals;
 
     private void BeginNetworkDiagnosticsFrame(GameTime gameTime)
     {
@@ -128,6 +135,15 @@ public partial class Game1
         _networkDiagnosticReceiveDeserializeMaxMilliseconds = Math.Max(
             _networkDiagnosticReceiveDeserializeMaxMilliseconds,
             diagnostics.MaxDeserializeMilliseconds);
+
+        var totalSendDiagnostics = _networkClient.TotalSendDiagnostics;
+        _networkDiagnosticSentPackets += Math.Max(0, totalSendDiagnostics.PacketsSent - _networkDiagnosticPreviousSendTotals.PacketsSent);
+        _networkDiagnosticSentBytes += Math.Max(0, totalSendDiagnostics.BytesSent - _networkDiagnosticPreviousSendTotals.BytesSent);
+        _networkDiagnosticSentHelloMessages += Math.Max(0, totalSendDiagnostics.HelloMessagesSent - _networkDiagnosticPreviousSendTotals.HelloMessagesSent);
+        _networkDiagnosticSentInputMessages += Math.Max(0, totalSendDiagnostics.InputMessagesSent - _networkDiagnosticPreviousSendTotals.InputMessagesSent);
+        _networkDiagnosticSentControlMessages += Math.Max(0, totalSendDiagnostics.ControlMessagesSent - _networkDiagnosticPreviousSendTotals.ControlMessagesSent);
+        _networkDiagnosticSentSnapshotAckMessages += Math.Max(0, totalSendDiagnostics.SnapshotAckMessagesSent - _networkDiagnosticPreviousSendTotals.SnapshotAckMessagesSent);
+        _networkDiagnosticPreviousSendTotals = totalSendDiagnostics;
     }
 
     private void RecordNetworkMessageProcessed(IProtocolMessage message)
@@ -401,6 +417,8 @@ public partial class Game1
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"recv pkts {_networkDiagnosticReceivePackets / intervalSeconds:F1}/s msgs {_networkDiagnosticReceiveReleasedMessages / intervalSeconds:F1}/s snaps {_networkDiagnosticReceiveSnapshotMessages / intervalSeconds:F1}/s bytes {receiveKilobytesPerSecond:F1}KB/s burst {_networkDiagnosticReceiveMaxBatchPackets}/{_networkDiagnosticReceiveMaxBatchMessages}"));
         _networkDiagnosticOverlayLines.Add(
+            string.Create(CultureInfo.InvariantCulture, $"send pkts {_networkDiagnosticSentPackets / intervalSeconds:F1}/s bytes {_networkDiagnosticSentBytes / 1024d / intervalSeconds:F1}KB/s hello {_networkDiagnosticSentHelloMessages} input {_networkDiagnosticSentInputMessages} ctrl {_networkDiagnosticSentControlMessages} ack {_networkDiagnosticSentSnapshotAckMessages}"));
+        _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"recv payload {_networkDiagnosticReceiveMaxPayloadBytes}B decode {averageReceiveDeserializeMilliseconds:F3}/{_networkDiagnosticReceiveDeserializeMaxMilliseconds:F3}ms"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"snap proc {_networkDiagnosticProcessedSnapshots} appl {_networkDiagnosticAppliedSnapshots} frameBurst {_networkDiagnosticMaxSnapshotsPerFrame} stale {_networkDiagnosticStaleSnapshots} missBase {_networkDiagnosticMissingBaselineSnapshots} rej {_networkDiagnosticRejectedSnapshots} delta/full {_networkDiagnosticProcessedDeltaSnapshots}/{_networkDiagnosticProcessedFullSnapshots}"));
@@ -417,7 +435,7 @@ public partial class Game1
 
         _networkDiagnosticLastConsoleSummary = string.Create(
             CultureInfo.InvariantCulture,
-            $"netdiag fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} pkts={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s burst={_networkDiagnosticMaxSnapshotsPerFrame} proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px snaps={_networkDiagnosticRenderCorrectionHardSnaps} gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
+            $"netdiag fps={fps:F1} hitch33={_networkDiagnosticUpdateHitches33} recv={_networkDiagnosticReceivePackets / intervalSeconds:F1}/s send={_networkDiagnosticSentPackets / intervalSeconds:F1}/s snaps={_networkDiagnosticAppliedSnapshots / intervalSeconds:F1}/s burst={_networkDiagnosticMaxSnapshotsPerFrame} proc={averageProcessNetworkMessagesMilliseconds:F3}/{_networkDiagnosticProcessMessagesMaxMilliseconds:F3}ms apply={averageApplySnapshotMilliseconds:F3}/{_networkDiagnosticApplySnapshotMaxMilliseconds:F3}ms pred={averagePredictionErrorPixels:F2}/{_networkDiagnosticPredictionErrorMaxPixels:F2}px view={averageRenderCorrectionPixels:F2}/{_networkDiagnosticRenderCorrectionMaxPixels:F2}px snaps={_networkDiagnosticRenderCorrectionHardSnaps} gc={gen0Collections}/{gen1Collections}/{gen2Collections} mem={currentMemoryMegabytes:F1}MB");
         _networkDiagnosticSummaryHistory.Add($"[{DateTime.Now:HH:mm:ss}] {_networkDiagnosticLastConsoleSummary}");
         while (_networkDiagnosticSummaryHistory.Count > NetworkDiagnosticHistoryLimit)
         {
@@ -439,6 +457,12 @@ public partial class Game1
         _networkDiagnosticReceivePolls = 0;
         _networkDiagnosticReceivePackets = 0;
         _networkDiagnosticReceiveBytes = 0L;
+        _networkDiagnosticSentPackets = 0L;
+        _networkDiagnosticSentBytes = 0L;
+        _networkDiagnosticSentHelloMessages = 0L;
+        _networkDiagnosticSentInputMessages = 0L;
+        _networkDiagnosticSentControlMessages = 0L;
+        _networkDiagnosticSentSnapshotAckMessages = 0L;
         _networkDiagnosticReceiveReleasedMessages = 0;
         _networkDiagnosticReceiveSnapshotMessages = 0;
         _networkDiagnosticReceiveMaxBatchPackets = 0;
@@ -474,6 +498,7 @@ public partial class Game1
         _networkDiagnosticRenderCorrectionSamples = 0;
         _networkDiagnosticLatestRenderCorrectionPixels = 0f;
         _networkDiagnosticRenderCorrectionHardSnaps = 0;
+        _networkDiagnosticPreviousSendTotals = _networkClient.TotalSendDiagnostics;
     }
 
     private void InitializeNetworkDiagnosticGcBaseline()

@@ -27,9 +27,11 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $toolProject = Join-Path $repoRoot 'MotionProof.Tools\OpenGarrison.MotionProof.Tools.csproj'
 $artifactRoot = Join-Path $repoRoot 'Core\Content\MotionProof'
+$tapeArtifactRoot = Join-Path $artifactRoot 'tapes'
 $candidateRoot = Join-Path $repoRoot 'MotionProof.Tools\candidates'
 $logRoot = Join-Path $repoRoot 'MotionProof.Tools\logs'
 New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $tapeArtifactRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $candidateRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
@@ -64,6 +66,26 @@ function Quote-Argument {
     return '"' + ($Value -replace '"', '\"') + '"'
 }
 
+function Get-TapeArtifactPath {
+    param(
+        [string]$Map,
+        [string]$Team,
+        [string]$Class,
+        [switch]$AllowLegacyFallback
+    )
+
+    $fileName = "$Map.$Team.$Class.json"
+    $preferredPath = Join-Path $tapeArtifactRoot $fileName
+    if ($AllowLegacyFallback) {
+        $legacyPath = Join-Path $artifactRoot $fileName
+        if ((-not (Test-Path -LiteralPath $preferredPath)) -and (Test-Path -LiteralPath $legacyPath)) {
+            return $legacyPath
+        }
+    }
+
+    return $preferredPath
+}
+
 function Start-TapeBakeProcess {
     param(
         [string]$Map,
@@ -73,7 +95,7 @@ function Start-TapeBakeProcess {
 
     $resolvedMap = Resolve-MapName $Map
     $safeName = "$resolvedMap.$Team.$Class"
-    $finalOutputPath = Join-Path $artifactRoot "$safeName.json"
+    $finalOutputPath = Get-TapeArtifactPath -Map $resolvedMap -Team $Team -Class $Class -AllowLegacyFallback
     $candidatePath = Join-Path $candidateRoot "$safeName.$([guid]::NewGuid().ToString('N')).json"
     $stdoutPath = Join-Path $logRoot "$safeName.tape.out.log"
     $stderrPath = Join-Path $logRoot "$safeName.tape.err.log"

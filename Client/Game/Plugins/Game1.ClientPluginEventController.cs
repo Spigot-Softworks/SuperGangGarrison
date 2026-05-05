@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using System.Diagnostics;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
@@ -31,17 +32,23 @@ public partial class Game1
                 }
 
                 _game._pendingNetworkDamageEvents.Add(damageEvent);
+                _game.QueueImmediateNetworkDeathPresentation(resolvedSnapshot, damageEvent);
             }
         }
 
         public void DispatchClientSemanticGameplayEvents()
         {
+            var dispatchStartTimestamp = _game.IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
             DispatchPendingDamageEventsToPlugins();
             DispatchPendingHealingEventsToPlugins();
             DispatchClientRoundPhaseEvents();
             DispatchClientLocalPlayerStateEvents();
             DispatchClientObjectiveEvents();
             DispatchClientKillFeedEvents();
+            if (dispatchStartTimestamp > 0)
+            {
+                _game.RecordClientPerformanceMetric(ClientPerformanceMetric.PluginEvents, Game1.GetDiagnosticsElapsedMilliseconds(dispatchStartTimestamp));
+            }
         }
 
         public void DispatchPendingDamageEventsToPlugins()

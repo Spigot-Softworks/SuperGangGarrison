@@ -51,6 +51,16 @@ public sealed class AdaptiveMapPracticeBotController : IPracticeBotController
         _activeController = null;
     }
 
+    public void ConfigureSpawnOverrides(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+    {
+        var selectedController = PracticeBotControllerMapPolicy.ShouldUseModernGraphRoute(world.Level.Name)
+            ? _modernController
+            : _defaultController;
+        selectedController.ConfigureSpawnOverrides(world, controlledSlots);
+    }
+
     public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputs(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)

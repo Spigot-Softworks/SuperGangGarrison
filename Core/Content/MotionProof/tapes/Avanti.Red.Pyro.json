@@ -1,0 +1,109 @@
+{
+  "Version": 1,
+  "Map": "Avanti",
+  "Area": 1,
+  "Mode": "CaptureTheFlag",
+  "Team": "Red",
+  "Class": "Pyro",
+  "AttackTicks": 133,
+  "ReturnTicks": 355,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 25
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 5
+    }
+  ],
+  "Return": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Drop",
+      "Direction": 1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 3
+    }
+  ]
+}

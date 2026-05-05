@@ -163,7 +163,9 @@ internal static partial class ServerHelpers
             replicatedStates.ToArray(),
             player.PlayerScale,
             AimWorldX: player.AimWorldX,
-            AimWorldY: player.AimWorldY);
+            AimWorldY: player.AimWorldY,
+            MedicHealTargetPlayerId: player.MedicHealTargetId ?? -1,
+            IsMedicHealing: player.IsMedicHealing);
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)

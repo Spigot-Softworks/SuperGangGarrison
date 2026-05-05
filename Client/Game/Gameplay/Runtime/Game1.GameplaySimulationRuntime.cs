@@ -13,7 +13,7 @@ public partial class Game1
 
     private void AdvanceGameplaySimulation(GameTime gameTime, PlayerInputSnapshot networkInput)
     {
-        var browserSimulationStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserSimulationStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var simulationTickCount = 0;
         if (_networkClient.IsConnected)
         {
@@ -63,6 +63,11 @@ public partial class Game1
     {
         OnNavEditorTraversalCaptureAfterTick();
         OnScoreRouteRecorderAfterTick();
+        if (IsPracticeSessionActive)
+        {
+            _practiceSessionElapsedTicks += 1;
+        }
+
         AdvanceLastToDieSimulationTick();
         UpdateLastToDieBotReactions();
     }

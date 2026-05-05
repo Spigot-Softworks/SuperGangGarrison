@@ -1,0 +1,329 @@
+{
+  "name": "truefort_demoman_windows",
+  "team": "Blue",
+  "classId": "Demoman",
+  "perturbationProfiles": [
+    {
+      "name": "late_return_window",
+      "startXOffsets": [ -32, -24, -16, -12, -8, -4, 0, 4, 8, 12, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ 1 ],
+      "startHorizontalSpeedOffsets": [ 0 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    },
+    {
+      "name": "red_attack_window",
+      "startXOffsets": [ -16, -8, 0, 8, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ 1 ],
+      "startHorizontalSpeedOffsets": [ 0 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    },
+    {
+      "name": "late_return_stage997_window",
+      "startXOffsets": [ 0, 4, 8, 12, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ -1, 1 ],
+      "startHorizontalSpeedOffsets": [ 0 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    },
+    {
+      "name": "late_return_progression_window",
+      "startXOffsets": [ 0, 4, 8, 12, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ -1, 1 ],
+      "startHorizontalSpeedOffsets": [ 0, 1, 2, 3, 4, 5, 6 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    },
+    {
+      "name": "stage103_from_stage361_landing_window",
+      "startXOffsets": [ -24, -20, -16, -12, -8, -4, 0, 4, 8 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ -1, 1 ],
+      "startHorizontalSpeedOffsets": [ -170, -160, -150, 0, 1, 2, 3, 4, 5, 6 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    },
+    {
+      "name": "stage361_from_pickup_window",
+      "startXOffsets": [ 0, 4, 8, 12, 16 ],
+      "startBottomOffsets": [ 0 ],
+      "facingDirections": [ -1, 1 ],
+      "startHorizontalSpeedOffsets": [ -170, -160, -150 ],
+      "startVerticalSpeedOffsets": [ 0 ],
+      "groundedStates": [ true ]
+    }
+  ],
+  "primitives": [
+    {
+      "name": "blue_late_return_walk_left",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 1126,
+        "bottom": 846,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "walk_left", "durationTicks": 30, "left": true }
+      ],
+      "maxTicks": 30,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_window",
+      "expectation": {
+        "minHorizontalTravel": 20,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "blue_late_return_walk_right",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 1126,
+        "bottom": 846,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "walk_right", "durationTicks": 30, "right": true }
+      ],
+      "maxTicks": 30,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_window",
+      "expectation": {
+        "minHorizontalTravel": 20,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "blue_late_return_jump_right",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 1126,
+        "bottom": 846,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "jump_start", "durationTicks": 1, "right": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 29, "right": true }
+      ],
+      "maxTicks": 30,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_window",
+      "expectation": {
+        "minHorizontalTravel": 20,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "blue_late_return_run_jump_right",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 1126,
+        "bottom": 846,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "run_up", "durationTicks": 4, "right": true },
+        { "label": "jump_start", "durationTicks": 1, "right": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 25, "right": true }
+      ],
+      "maxTicks": 30,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_window",
+      "expectation": {
+        "minHorizontalTravel": 20,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "red_attack_walk_right",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Red",
+      "classId": "Demoman",
+      "start": {
+        "x": 1632,
+        "bottom": 498,
+        "isGrounded": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "walk_right", "durationTicks": 30, "right": true }
+      ],
+      "maxTicks": 30,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "red_attack_window",
+      "expectation": {
+        "minHorizontalTravel": 40,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "blue_late_return_stage997_jump_left",
+      "artifactLabel": "truefort_blue_demoman_late_return_stage_997_seam",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 997,
+        "bottom": 846,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "jump_start", "durationTicks": 1, "left": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 27, "left": true },
+        { "label": "run_left", "durationTicks": 44, "left": true }
+      ],
+      "maxTicks": 72,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_stage997_window",
+      "expectation": {
+        "minHorizontalTravel": 140,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true
+      }
+    },
+    {
+      "name": "blue_late_return_stage690_run_left",
+      "artifactLabel": "truefort_blue_demoman_late_return_stage_654_seam",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 677,
+        "bottom": 912,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "run_left", "durationTicks": 60, "left": true }
+      ],
+      "maxTicks": 60,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_progression_window",
+      "expectation": {
+        "minHorizontalTravel": 120,
+        "mustBeGrounded": true,
+        "maxBottom": 920
+      }
+    },
+    {
+      "name": "blue_late_return_stage445_jump_left",
+      "artifactLabel": "truefort_blue_demoman_late_return_stage_445_seam",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 445,
+        "bottom": 912,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "jump_start", "durationTicks": 1, "left": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 27, "left": true },
+        { "label": "run_left", "durationTicks": 32, "left": true }
+      ],
+      "maxTicks": 60,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "late_return_progression_window",
+      "expectation": {
+        "minHorizontalTravel": 70,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true,
+        "maxBottom": 900
+      }
+    },
+    {
+      "name": "blue_late_return_stage361_jump_left",
+      "artifactLabel": "truefort_blue_demoman_late_return_stage_361_seam",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 361,
+        "bottom": 882,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": 1
+      },
+      "steps": [
+        { "label": "jump_start", "durationTicks": 1, "left": true, "up": true },
+        { "label": "jump_arc", "durationTicks": 31, "left": true },
+        { "label": "run_left", "durationTicks": 40, "left": true }
+      ],
+      "maxTicks": 72,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "stage361_from_pickup_window",
+      "expectation": {
+        "minHorizontalTravel": 220,
+        "mustLeaveGround": true,
+        "mustReground": true,
+        "mustBeGrounded": true,
+        "maxBottom": 900
+      }
+    },
+    {
+      "name": "blue_late_return_stage103_run_right",
+      "artifactLabel": "truefort_blue_demoman_late_return_stage_103_seam",
+      "levelName": "Truefort",
+      "mapAreaIndex": 1,
+      "team": "Blue",
+      "classId": "Demoman",
+      "start": {
+        "x": 138.2,
+        "bottom": 696,
+        "isGrounded": true,
+        "isCarryingIntel": true,
+        "facingDirectionX": -1
+      },
+      "steps": [
+        { "label": "run_right", "durationTicks": 140, "right": true }
+      ],
+      "maxTicks": 140,
+      "traceEveryTicks": 10,
+      "perturbationProfile": "stage103_from_stage361_landing_window",
+      "expectation": {
+        "minHorizontalTravel": 500,
+        "mustBeGrounded": true
+      }
+    }
+  ]
+}

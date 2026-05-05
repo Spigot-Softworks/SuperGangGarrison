@@ -106,6 +106,7 @@ sealed partial class GameServer
     private SnapshotBroadcaster _snapshotBroadcaster = null!;
     private MapRotationManager _mapRotationManager = null!;
     private OpenGarrison.Server.ServerConnectionRateLimiter _connectionRateLimiter = null!;
+    private ServerDemoRecorder _demoRecorder = null!;
     private ServerAdminSessionManager _adminSessionManager = null!;
     private ServerScheduler _scheduler = null!;
     private IOpenGarrisonServerCvarRegistry _cvarRegistry = null!;
@@ -143,6 +144,9 @@ sealed partial class GameServer
         int? timeLimitMinutesOverride,
         int? capLimitOverride,
         int? respawnSecondsOverride,
+        bool botAutofillEnabled,
+        int botAutofillMinPlayers,
+        int botAutofillPerTeam,
         int webSocketPort,
         string? webSocketCertificatePath,
         string? webSocketCertificatePassword,
@@ -184,6 +188,9 @@ sealed partial class GameServer
         _timeLimitMinutesOverride = timeLimitMinutesOverride;
         _capLimitOverride = capLimitOverride;
         _respawnSecondsOverride = respawnSecondsOverride;
+        _botAutofillEnabled = botAutofillEnabled;
+        _botAutofillMinPlayers = Math.Clamp(botAutofillMinPlayers, 0, SimulationWorld.MaxPlayableNetworkPlayers);
+        _botAutofillPerTeam = Math.Clamp(botAutofillPerTeam, 0, SimulationWorld.MaxPlayableNetworkPlayers / 2);
         _webSocketPort = webSocketPort;
         _webSocketCertificatePath = webSocketCertificatePath;
         _webSocketCertificatePassword = webSocketCertificatePassword;

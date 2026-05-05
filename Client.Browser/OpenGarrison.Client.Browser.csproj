@@ -8,6 +8,7 @@
     <RootNamespace>OpenGarrison.Client.Browser</RootNamespace>
     <OpenGarrisonClientAsLibrary>true</OpenGarrisonClientAsLibrary>
     <OpenGarrisonBrowserAot Condition="'$(OpenGarrisonBrowserAot)' == ''">true</OpenGarrisonBrowserAot>
+    <DisableBuildCompression>true</DisableBuildCompression>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OpenGarrisonBrowserAot)' == 'true'">
@@ -49,42 +50,29 @@
   </ItemGroup>
 
   <Target Name="SyncCoreContentToBrowserWwwroot"
-          BeforeTargets="Build;Publish"
+          BeforeTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ItemGroup>
       <BrowserMirroredContent Include="..\Core\Content\**\*"
                               Exclude="..\Core\Content\bin\**\*;..\Core\Content\obj\**\*;..\Core\Content\**\*.mgcb;..\Core\Content\**\*.cs" />
       <BrowserCompiledClientContent Include="..\Client\Content\bin\DesktopGL\Content\**\*" />
-      <BrowserPackagedClientPlugins Include="..\Plugins\Packaged\Client\**\*"
-                                    Exclude="..\Plugins\Packaged\Client\Lua.MoreAnimations\**\*" />
-      <BrowserGameplaySpriteDefinitions Include="..\Core\Content\Gameplay\stock.gg2\sprites\*.json" />
-      <BrowserGameMakerSpriteFrames Include="..\Core\Content\Sprites\**\*.png" />
       <BrowserStaleSourceFiles Include="$(MSBuildProjectDirectory)\wwwroot\Content\**\*.cs" />
+      <BrowserStaticWebAssetCacheFiles Include="$(IntermediateOutputPath)*.dswa.cache.json;
+                                           $(IntermediateOutputPath)swae.*.cache" />
     </ItemGroup>
 
-    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
-    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content\Gameplay\stock.gg2\sprites" />
-    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins\Client" />
+    <Delete Files="@(BrowserStaticWebAssetCacheFiles)" />
+    <RemoveDir Directories="$(IntermediateOutputPath)compressed" />
     <Delete Files="@(BrowserStaleSourceFiles)" />
-    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Plugins\Client\Lua.MoreAnimations" />
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content;$(MSBuildProjectDirectory)\wwwroot\Plugins" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\Content" />
     <Copy SourceFiles="@(BrowserMirroredContent)"
           DestinationFiles="@(BrowserMirroredContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(BrowserCompiledClientContent)"
           DestinationFiles="@(BrowserCompiledClientContent->'$(MSBuildProjectDirectory)\wwwroot\Content\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BrowserPackagedClientPlugins)"
-          DestinationFiles="@(BrowserPackagedClientPlugins->'$(MSBuildProjectDirectory)\wwwroot\Plugins\Client\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-    <WriteLinesToFile
-        File="$(MSBuildProjectDirectory)\wwwroot\Content\Gameplay\stock.gg2\sprites\_sprite-index.txt"
-        Lines="@(BrowserGameplaySpriteDefinitions->'%(Filename)%(Extension)')"
-        Overwrite="true" />
-    <WriteLinesToFile
-        File="$(MSBuildProjectDirectory)\wwwroot\Content\Sprites\_frame-index.txt"
-        Lines="@(BrowserGameMakerSpriteFrames->'Content/Sprites/%(RecursiveDir)%(Filename)%(Extension)')"
-        Overwrite="true" />
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot;" />
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\wwwroot\Content&quot; &quot;$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client&quot;" />
   </Target>
 
   <Target Name="CleanBrowserMirroredContent" AfterTargets="Clean">

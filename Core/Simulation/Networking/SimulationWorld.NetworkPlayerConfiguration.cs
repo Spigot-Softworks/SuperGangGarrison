@@ -127,7 +127,7 @@ public sealed partial class SimulationWorld
                 else
                 {
                     var otherTeam = GetNetworkPlayerConfiguredTeam(otherSlot);
-                    SpawnPlayerResolved(otherPlayer, otherTeam, ReserveSpawn(otherPlayer, otherTeam));
+                    SpawnPlayerResolved(otherPlayer, otherTeam, ReserveSpawn(otherPlayer, otherTeam, otherSlot));
                 }
             }
 
@@ -154,7 +154,7 @@ public sealed partial class SimulationWorld
         }
 
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
         return true;
     }
 
@@ -207,6 +207,28 @@ public sealed partial class SimulationWorld
 
         EnsureAdditionalNetworkPlayer(slot);
         _additionalNetworkPlayerInputs[slot] = input;
+        return true;
+    }
+
+    public bool TrySetNetworkPlayerSpawnOverride(byte slot, float x, float y)
+    {
+        if (!IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        _networkPlayerSpawnOverrides[slot] = new SpawnPoint(x, y);
+        return true;
+    }
+
+    public bool TryClearNetworkPlayerSpawnOverride(byte slot)
+    {
+        if (!IsPlayableNetworkPlayerSlot(slot))
+        {
+            return false;
+        }
+
+        _networkPlayerSpawnOverrides.Remove(slot);
         return true;
     }
 

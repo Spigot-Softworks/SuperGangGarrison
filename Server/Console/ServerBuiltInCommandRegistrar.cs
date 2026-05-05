@@ -13,6 +13,9 @@ internal sealed class ServerBuiltInCommandRegistrar(
     Action<List<string>> addMapSummary,
     Action<List<string>> addRotationSummary,
     Action<List<string>> addPlayersSummary,
+    Func<string> getDemoStatusLine,
+    Func<string?, (bool Success, string Status, string Error)> tryStartDemoRecording,
+    Func<(bool Success, string Status, string Error)> tryStopDemoRecording,
     Func<IReadOnlyList<string>> loadedPluginIdsProvider,
     IOpenGarrisonServerCvarRegistry cvarRegistry,
     IOpenGarrisonServerScheduler scheduler)
@@ -127,6 +130,36 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "plugins",
             (_, _, _) => Task.FromResult<IReadOnlyList<string>>(BuildPluginLines()),
             OpenGarrisonServerAdminPermissions.ViewServerState);
+        commandRegistry.RegisterBuiltIn(
+            "demo",
+            "Show demo recording status.",
+            "demo",
+            (_, _, _) => Task.FromResult<IReadOnlyList<string>>([getDemoStatusLine()]),
+            OpenGarrisonServerAdminPermissions.ViewServerState,
+            "demos");
+        commandRegistry.RegisterBuiltIn(
+            "demo start",
+            "Start server-authoritative demo recording.",
+            "demo start [path]",
+            (_, arguments, _) =>
+            {
+                var requestedPath = string.IsNullOrWhiteSpace(arguments) ? null : arguments.Trim();
+                var result = tryStartDemoRecording(requestedPath);
+                return Task.FromResult<IReadOnlyList<string>>(
+                    [result.Success ? result.Status : $"[server] demo start failed: {result.Error}"]);
+            },
+            OpenGarrisonServerAdminPermissions.ManageServerConfiguration);
+        commandRegistry.RegisterBuiltIn(
+            "demo stop",
+            "Stop and save demo recording.",
+            "demo stop",
+            (_, _, _) =>
+            {
+                var result = tryStopDemoRecording();
+                return Task.FromResult<IReadOnlyList<string>>(
+                    [result.Success ? result.Status : $"[server] demo stop failed: {result.Error}"]);
+            },
+            OpenGarrisonServerAdminPermissions.ManageServerConfiguration);
         commandRegistry.RegisterBuiltIn(
             "cvars",
             "List host cvars.",

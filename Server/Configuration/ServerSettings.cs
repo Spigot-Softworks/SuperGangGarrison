@@ -45,6 +45,12 @@ sealed class ServerSettings
 
     public string RconPassword { get; set; } = string.Empty;
 
+    public bool BotAutofillEnabled { get; set; }
+
+    public int BotAutofillMinPlayers { get; set; }
+
+    public int BotAutofillPerTeam { get; set; }
+
     public bool PersistentGameplayOwnershipEnabled { get; set; }
 
     public PersistentGameplayOwnershipIdentityMode PersistentGameplayOwnershipIdentityMode { get; set; } = PersistentGameplayOwnershipIdentityMode.Disabled;
@@ -124,6 +130,9 @@ sealed class ServerSettings
             RespawnSeconds = hostDefaults.RespawnSeconds,
             TickRate = SimulationConfig.NormalizeTicksPerSecond(hostDefaults.TickRate),
             RconPassword = hostDefaults.RconPassword,
+            BotAutofillEnabled = hostDefaults.BotAutofillEnabled,
+            BotAutofillMinPlayers = hostDefaults.BotAutofillMinPlayers,
+            BotAutofillPerTeam = hostDefaults.BotAutofillPerTeam,
             HostDefaults = hostDefaults,
             PersistentGameplayOwnershipEnabled = preferences.PersistentGameplayOwnershipEnabled,
             PersistentGameplayOwnershipIdentityMode = preferences.PersistentGameplayOwnershipIdentityMode,
@@ -147,6 +156,9 @@ sealed class ServerSettings
         hostDefaults.RespawnSeconds = RespawnSeconds;
         hostDefaults.TickRate = SimulationConfig.NormalizeTicksPerSecond(TickRate);
         hostDefaults.RconPassword = RconPassword;
+        hostDefaults.BotAutofillEnabled = BotAutofillEnabled;
+        hostDefaults.BotAutofillMinPlayers = Math.Clamp(BotAutofillMinPlayers, 0, SimulationWorld.MaxPlayableNetworkPlayers);
+        hostDefaults.BotAutofillPerTeam = Math.Clamp(BotAutofillPerTeam, 0, SimulationWorld.MaxPlayableNetworkPlayers / 2);
         if (hostDefaults.Slots <= 0)
         {
             hostDefaults.Slots = MaxPlayableClients;

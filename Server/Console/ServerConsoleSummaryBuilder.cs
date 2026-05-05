@@ -20,7 +20,8 @@ internal sealed class ServerConsoleSummaryBuilder(
     Func<bool> autoBalanceEnabledGetter,
     Func<int> respawnSecondsGetter,
     Func<MapRotationManager> mapRotationManagerGetter,
-    string? mapRotationFile)
+    string? mapRotationFile,
+    Func<string>? demoStatusLineGetter = null)
 {
     public void AddStatusSummary(List<string> lines)
     {
@@ -38,6 +39,10 @@ internal sealed class ServerConsoleSummaryBuilder(
         if (!snapshotMetrics.HasMeasurements)
         {
             lines.Add("[server] snapshots | waiting for an active snapshot broadcast.");
+            if (demoStatusLineGetter is not null)
+            {
+                lines.Add(demoStatusLineGetter());
+            }
             return;
         }
 
@@ -45,6 +50,10 @@ internal sealed class ServerConsoleSummaryBuilder(
             $"[server] snapshots | frame={snapshotMetrics.Frame} | clients={snapshotMetrics.ClientCount} | sharedBuildMs={snapshotMetrics.SharedCaptureMilliseconds:F2} | clientBuildMs={snapshotMetrics.PerClientMilliseconds:F2} | totalMs={snapshotMetrics.TotalMilliseconds:F2} | allocKB={snapshotMetrics.TotalAllocatedBytes / 1024d:F1} (shared={snapshotMetrics.SharedCaptureAllocatedBytes / 1024d:F1}, client={snapshotMetrics.PerClientAllocatedBytes / 1024d:F1})");
         lines.Add(
             $"[server] snapshot-net | payloadAvg={snapshotMetrics.AverageSentPayloadBytes}/{snapshotMetrics.AverageFullPayloadBytes} bytes | serializeAvg={snapshotMetrics.AverageSerializePasses:F1} | budgeted={snapshotMetrics.BudgetedClientCount} | baselines={snapshotMetrics.BaselineHitCount}/{snapshotMetrics.BaselineMissCount} | historyAvg={snapshotMetrics.AverageSnapshotHistoryCount:F1} | historyMax={snapshotMetrics.MaxSnapshotHistoryCount}");
+        if (demoStatusLineGetter is not null)
+        {
+            lines.Add(demoStatusLineGetter());
+        }
     }
 
     public void AddRulesSummary(List<string> lines)

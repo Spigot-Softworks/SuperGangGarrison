@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -24,7 +25,7 @@ partial class GameServer
         InitializeHttpRegistryHeartbeat();
         InitializeIncomingPacketPump();
         StartAndAnnounceServer(timerResolution.IsActive, eventLog);
-        RunMainLoop(cancellationToken);
+        RunMainLoop(eventLog, cancellationToken);
     }
 
     private static void TryDisableUdpConnectionReset(Socket socket)
@@ -136,6 +137,7 @@ partial class GameServer
         _snapshotBroadcaster = runtime.SnapshotBroadcaster;
         _mapRotationManager = runtime.MapRotationManager;
         _botManager = runtime.BotManager;
+        _demoRecorder = runtime.DemoRecorder;
     }
 
     private void StartAndAnnounceServer(bool highResolutionTimerEnabled, PersistentServerEventLog eventLog)
@@ -151,6 +153,9 @@ partial class GameServer
             : $"[server] WebSocket: {(_webSocketCertificatePath is null ? "ws" : "wss")}://0.0.0.0:{_webSocketPort}/opengarrison/ws");
         Console.WriteLine($"Name: {_serverName}");
         Console.WriteLine($"Max players: {_maxPlayableClients}");
+        Console.WriteLine(_botAutofillEnabled
+            ? $"Bot autofill: enabled (min players {_botAutofillMinPlayers}, per team {_botAutofillPerTeam})"
+            : "Bot autofill: disabled");
         if (highResolutionTimerEnabled)
         {
             Console.WriteLine("[server] high-resolution timer enabled (1 ms).");
@@ -217,8 +222,10 @@ partial class GameServer
         _pluginHost?.NotifyServerStarted();
     }
 
-    private void RunMainLoop(CancellationToken cancellationToken)
+    private void RunMainLoop(PersistentServerEventLog eventLog, CancellationToken cancellationToken)
     {
+        var maxSimulationTicksPerAdvance = Math.Max(1, (int)Math.Ceiling(_config.TicksPerSecond / 10d));
+        var simulationBacklogDropCount = 0;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -248,13 +255,24 @@ partial class GameServer
                         _autoBalancer.Tick(now, 1, _autoBalanceEnabled);
                         if (_mapRotationManager.TryApplyPendingMapChange(out var transition))
                         {
+                            var restoredBotCount = _botManager.ReactivateBotsAfterMapChange();
                             _eventReporter.ApplyMapTransition(transition);
+                            _demoRecorder.HandleMapTransition(transition);
                             _snapshotBroadcaster.ResetTransientEvents();
+                            if (restoredBotCount > 0)
+                            {
+                                Console.WriteLine($"[server] restored {restoredBotCount} server bots after map change.");
+                            }
                         }
                         // Update bot reactions/emotes AFTER simulation advances
                         _botManager.AdvanceBotReactions();
                     },
-                    _snapshotBroadcaster.BroadcastSnapshot);
+                    _snapshotBroadcaster.BroadcastSnapshot,
+                    maxSimulationTicksPerAdvance);
+                if (_simulator.DroppedSimulationBacklogOnLastAdvance)
+                {
+                    simulationBacklogDropCount += 1;
+                }
                 _lobbyRegistrar?.Tick(now, BuildLobbyServerName(_serverName, _world, _clientsBySlot, _passwordRequired, _maxPlayableClients));
                 _httpRegistryHeartbeat?.Tick(now);
                 if (ticks > 0)
@@ -262,7 +280,7 @@ partial class GameServer
                     _eventReporter.PublishGameplayEvents(_snapshotBroadcaster.LastCapturedTransientEvents);
                 }
 
-                if (ticks > 0 && _world.Frame % _config.TicksPerSecond == 0)
+                if (ticks > 0 && _world.Frame % (_config.TicksPerSecond * 5) == 0)
                 {
                     var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
                     Console.WriteLine(
@@ -271,23 +289,50 @@ partial class GameServer
                         $"ammo={_world.LocalPlayer.CurrentShells}/{_world.LocalPlayer.MaxShells} pos=({_world.LocalPlayer.X:F1},{_world.LocalPlayer.Y:F1}) " +
                         $"activePlayable={activePlayableCount} spectators={_clientsBySlot.Keys.Count(IsSpectatorSlot)} caps={_world.RedCaps}-{_world.BlueCaps}");
 
+                    var snapshotMetrics = _snapshotBroadcaster.Metrics;
+                    if (snapshotMetrics.HasMeasurements)
+                    {
+                        eventLog.Write(
+                            "server_snapshot_metrics",
+                            ("frame", snapshotMetrics.Frame),
+                            ("client_count", snapshotMetrics.ClientCount),
+                            ("average_full_payload_bytes", snapshotMetrics.AverageFullPayloadBytes),
+                            ("average_sent_payload_bytes", snapshotMetrics.AverageSentPayloadBytes),
+                            ("budgeted_client_count", snapshotMetrics.BudgetedClientCount),
+                            ("baseline_hit_count", snapshotMetrics.BaselineHitCount),
+                            ("baseline_miss_count", snapshotMetrics.BaselineMissCount),
+                            ("average_serialize_passes", snapshotMetrics.AverageSerializePasses),
+                            ("shared_capture_ms", snapshotMetrics.SharedCaptureMilliseconds),
+                            ("per_client_ms", snapshotMetrics.PerClientMilliseconds),
+                            ("total_ms", snapshotMetrics.TotalMilliseconds),
+                            ("simulation_backlog_drop_count", simulationBacklogDropCount),
+                            ("shared_capture_allocated_bytes", snapshotMetrics.SharedCaptureAllocatedBytes),
+                            ("per_client_allocated_bytes", snapshotMetrics.PerClientAllocatedBytes),
+                            ("total_allocated_bytes", snapshotMetrics.TotalAllocatedBytes),
+                            ("average_snapshot_history_count", snapshotMetrics.AverageSnapshotHistoryCount),
+                            ("max_snapshot_history_count", snapshotMetrics.MaxSnapshotHistoryCount));
+                    }
+
+                    var botMetrics = _botManager.Metrics;
+                    if (botMetrics.HasMeasurements)
+                    {
+                        eventLog.Write(
+                            "server_bot_perf",
+                            ("frame", _world.Frame),
+                            ("controlled_bot_count", botMetrics.ControlledBotCount),
+                            ("sample_count", botMetrics.SampleCount),
+                            ("last_build_input_ms", botMetrics.LastBuildInputMilliseconds),
+                            ("average_build_input_ms", botMetrics.AverageBuildInputMilliseconds),
+                            ("max_build_input_ms", botMetrics.MaxBuildInputMilliseconds),
+                            ("last_apply_input_ms", botMetrics.LastApplyInputMilliseconds),
+                            ("average_apply_input_ms", botMetrics.AverageApplyInputMilliseconds),
+                            ("max_apply_input_ms", botMetrics.MaxApplyInputMilliseconds));
+                    }
+
                     // Check bot autofill every 5 seconds
                     if (_botAutofillEnabled && _world.Frame - _botAutofillLastTick >= (long)_config.TicksPerSecond * 5)
                     {
-                        _botAutofillLastTick = (int)_world.Frame;
-                        var humanCount = _clientsBySlot.Count(slot => !IsSpectatorSlot(slot.Key));
-                        var needed = _botAutofillMinPlayers - humanCount;
-                        if (needed > 0)
-                        {
-                            var perTeam = needed / 2 + (needed % 2);
-                            var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, Math.Min(perTeam, _botAutofillPerTeam), requestedClass: null);
-                            var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, Math.Min(perTeam + (needed % 2), _botAutofillPerTeam), requestedClass: null);
-                            var totalAdded = addedRed + addedBlue;
-                            if (totalAdded > 0)
-                            {
-                                Console.WriteLine($"[server] autofill: added {totalAdded} bots ({addedRed} red, {addedBlue} blue) to reach {_botAutofillMinPlayers} players.");
-                            }
-                        }
+                        ApplyBotAutofill();
                     }
                 }
 
@@ -304,6 +349,8 @@ partial class GameServer
                 ("frame", _world?.Frame ?? 0L));
             _pluginHost?.NotifyServerStopping();
             _outboundMessaging.NotifyClientsOfShutdown();
+            _demoRecorder.TryStop(out _, out _);
+            _demoRecorder.Dispose();
             _httpRegistryHeartbeat?.Remove();
             _httpRegistryHeartbeat?.Dispose();
             _httpRegistryHeartbeat = null;
@@ -346,6 +393,7 @@ partial class GameServer
             _sessionManager,
             _snapshotBroadcaster,
             _botManager,
+            _demoRecorder,
             _eventReporter.ApplyMapTransition,
             _outboundMessaging.SendMessage,
             _outboundMessaging.SendPluginMessage,
@@ -363,6 +411,114 @@ partial class GameServer
             _adminSessionManager,
             () => _pluginHost,
             (slot, text) => _adminOperations.SendSystemMessage(slot, text));
+    }
+
+    private void ApplyBotAutofill()
+    {
+        _botAutofillLastTick = (int)_world.Frame;
+
+        var (humanRedCount, humanBlueCount) = GetConnectedHumanTeamCounts();
+        var (targetRedBots, targetBlueBots) = ComputeBotAutofillTargets(
+            humanRedCount,
+            humanBlueCount,
+            _botAutofillMinPlayers,
+            _botAutofillPerTeam);
+
+        var removedRed = _botManager.TrimTeam(PlayerTeam.Red, targetRedBots);
+        var removedBlue = _botManager.TrimTeam(PlayerTeam.Blue, targetBlueBots);
+        var addedRed = _botManager.TryFillTeam(PlayerTeam.Red, targetRedBots, requestedClass: null);
+        var addedBlue = _botManager.TryFillTeam(PlayerTeam.Blue, targetBlueBots, requestedClass: null);
+        var totalDelta = removedRed + removedBlue + addedRed + addedBlue;
+        if (totalDelta == 0)
+        {
+            return;
+        }
+
+        var currentRedBots = _botManager.BotSlots.Values.Count(state => state.Team == PlayerTeam.Red);
+        var currentBlueBots = _botManager.BotSlots.Values.Count(state => state.Team == PlayerTeam.Blue);
+        Console.WriteLine(
+            $"[server] autofill: humans={humanRedCount + humanBlueCount} " +
+            $"targets=R{targetRedBots}/B{targetBlueBots} " +
+            $"added=R{addedRed}/B{addedBlue} removed=R{removedRed}/B{removedBlue} " +
+            $"current=R{currentRedBots}/B{currentBlueBots}.");
+    }
+
+    private (int RedCount, int BlueCount) GetConnectedHumanTeamCounts()
+    {
+        var redCount = 0;
+        var blueCount = 0;
+        foreach (var entry in _clientsBySlot)
+        {
+            if (IsSpectatorSlot(entry.Key))
+            {
+                continue;
+            }
+
+            var team = _world.GetNetworkPlayerConfiguredTeam(entry.Key);
+            if (team == PlayerTeam.Red)
+            {
+                redCount += 1;
+            }
+            else if (team == PlayerTeam.Blue)
+            {
+                blueCount += 1;
+            }
+        }
+
+        return (redCount, blueCount);
+    }
+
+    internal static (int RedBots, int BlueBots) ComputeBotAutofillTargets(
+        int humanRedCount,
+        int humanBlueCount,
+        int minimumTotalPlayers,
+        int maxBotsPerTeam)
+    {
+        var clampedHumanRedCount = Math.Max(0, humanRedCount);
+        var clampedHumanBlueCount = Math.Max(0, humanBlueCount);
+        var clampedMinimumTotalPlayers = Math.Max(0, minimumTotalPlayers);
+        var clampedMaxBotsPerTeam = Math.Max(0, maxBotsPerTeam);
+        var desiredTotalBots = Math.Max(
+            0,
+            clampedMinimumTotalPlayers - (clampedHumanRedCount + clampedHumanBlueCount));
+        desiredTotalBots = Math.Min(
+            desiredTotalBots,
+            clampedMaxBotsPerTeam * 2);
+
+        var targetRedBots = 0;
+        var targetBlueBots = 0;
+        for (var index = 0; index < desiredTotalBots; index += 1)
+        {
+            if (targetRedBots >= clampedMaxBotsPerTeam && targetBlueBots >= clampedMaxBotsPerTeam)
+            {
+                break;
+            }
+
+            if (targetRedBots >= clampedMaxBotsPerTeam)
+            {
+                targetBlueBots += 1;
+                continue;
+            }
+
+            if (targetBlueBots >= clampedMaxBotsPerTeam)
+            {
+                targetRedBots += 1;
+                continue;
+            }
+
+            var redTotal = clampedHumanRedCount + targetRedBots;
+            var blueTotal = clampedHumanBlueCount + targetBlueBots;
+            if (redTotal <= blueTotal)
+            {
+                targetRedBots += 1;
+            }
+            else
+            {
+                targetBlueBots += 1;
+            }
+        }
+
+        return (targetRedBots, targetBlueBots);
     }
 
     private void InitializeHttpRegistryHeartbeat()

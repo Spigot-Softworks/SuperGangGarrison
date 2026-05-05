@@ -30,7 +30,7 @@ public partial class Game1
             _networkSnapshotInterpolationDurationSeconds = 1f / _config.TicksPerSecond;
             _smoothedSnapshotIntervalSeconds = 1f / _config.TicksPerSecond;
             _smoothedSnapshotJitterSeconds = 0f;
-            _remotePlayerInterpolationBackTimeSeconds = RemotePlayerMinimumInterpolationBackTimeSeconds;
+            _remotePlayerInterpolationBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
             _remotePlayerRenderTimeSeconds = 0d;
             _lastRemotePlayerRenderTimeClockSeconds = -1d;
             _hasRemotePlayerRenderTime = false;
@@ -324,16 +324,36 @@ public partial class Game1
         _latestSnapshotServerTimeSeconds = snapshotServerTimeSeconds;
         _latestSnapshotReceivedClockSeconds = snapshotReceivedTimeSeconds;
         var targetIntervalSeconds = MathF.Max(baseIntervalSeconds, _smoothedSnapshotIntervalSeconds);
-        _networkSnapshotInterpolationDurationSeconds = Math.Clamp(
-            targetIntervalSeconds * 0.9f,
-            baseIntervalSeconds * 0.5f,
-            0.12f);
-        var desiredBackTimeSeconds = Math.Clamp(
-            MathF.Max(
-                RemotePlayerMinimumInterpolationBackTimeSeconds,
-                (_smoothedSnapshotIntervalSeconds * 3f) + (_smoothedSnapshotJitterSeconds * 6f)),
-            RemotePlayerMinimumInterpolationBackTimeSeconds,
-            RemotePlayerMaximumInterpolationBackTimeSeconds);
+        if (_networkClient.IsReplayConnection)
+        {
+            _networkSnapshotInterpolationDurationSeconds = Math.Clamp(
+                targetIntervalSeconds,
+                baseIntervalSeconds * 0.75f,
+                baseIntervalSeconds * 1.5f);
+        }
+        else
+        {
+            _networkSnapshotInterpolationDurationSeconds = Math.Clamp(
+                targetIntervalSeconds * 0.9f,
+                baseIntervalSeconds * 0.5f,
+                0.12f);
+        }
+
+        var minimumBackTimeSeconds = GetMinimumRemotePlayerInterpolationBackTimeSeconds();
+        var maximumBackTimeSeconds = GetMaximumRemotePlayerInterpolationBackTimeSeconds();
+        var desiredBackTimeSeconds = _networkClient.IsReplayConnection
+            ? Math.Clamp(
+                MathF.Max(
+                    minimumBackTimeSeconds,
+                    (_smoothedSnapshotIntervalSeconds * 1.1f) + (_smoothedSnapshotJitterSeconds * 1.5f)),
+                minimumBackTimeSeconds,
+                maximumBackTimeSeconds)
+            : Math.Clamp(
+                MathF.Max(
+                    minimumBackTimeSeconds,
+                    (_smoothedSnapshotIntervalSeconds * 2.25f) + (_smoothedSnapshotJitterSeconds * 4f)),
+                minimumBackTimeSeconds,
+                maximumBackTimeSeconds);
         var backTimeAdjustmentAlpha = desiredBackTimeSeconds >= _remotePlayerInterpolationBackTimeSeconds
             ? 0.25f
             : 0.12f;
@@ -341,8 +361,8 @@ public partial class Game1
             (desiredBackTimeSeconds - _remotePlayerInterpolationBackTimeSeconds) * backTimeAdjustmentAlpha;
         _remotePlayerInterpolationBackTimeSeconds = Math.Clamp(
             _remotePlayerInterpolationBackTimeSeconds,
-            RemotePlayerMinimumInterpolationBackTimeSeconds,
-            RemotePlayerMaximumInterpolationBackTimeSeconds);
+            minimumBackTimeSeconds,
+            maximumBackTimeSeconds);
     }
 
     private void CaptureEntityInterpolationTarget(bool isActive, int entityId, float x, float y)
@@ -362,7 +382,7 @@ public partial class Game1
             return;
         }
 
-        if (!_positionSmoothingEnabled)
+        if (!IsPositionSmoothingActive())
         {
             var latest = history[^1];
             if (renderTimeSeconds <= latest.TimeSeconds)

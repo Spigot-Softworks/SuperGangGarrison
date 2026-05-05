@@ -82,17 +82,23 @@ public partial class Game1
 
         public bool ShouldSuppressManagedLocalRapidFireSound(WorldSoundEvent soundEvent)
         {
+            if (_game._networkClient.IsReplayConnection)
+            {
+                return false;
+            }
+
             var soundName = soundEvent.SoundName;
+            var listenerPosition = _game.GetWorldSoundListenerPosition();
             if (string.Equals(soundName, "ChaingunSnd", StringComparison.OrdinalIgnoreCase))
             {
                 return IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind.Minigun)
-                    && AudioDistanceSquared(soundEvent.X, soundEvent.Y, _game._world.LocalPlayer.X, _game._world.LocalPlayer.Y) <= 576f;
+                    && AudioDistanceSquared(soundEvent.X, soundEvent.Y, listenerPosition.X, listenerPosition.Y) <= 576f;
             }
 
             if (string.Equals(soundName, "FlamethrowerSnd", StringComparison.OrdinalIgnoreCase))
             {
                 return IsLocalRapidFireWeaponSoundActive(PrimaryWeaponKind.FlameThrower)
-                    && AudioDistanceSquared(soundEvent.X, soundEvent.Y, _game._world.LocalPlayer.X, _game._world.LocalPlayer.Y) <= 576f;
+                    && AudioDistanceSquared(soundEvent.X, soundEvent.Y, listenerPosition.X, listenerPosition.Y) <= 576f;
             }
 
             return false;
@@ -100,8 +106,9 @@ public partial class Game1
 
         public (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)
         {
-            var dx = worldX - _game._world.LocalPlayer.X;
-            var dy = worldY - _game._world.LocalPlayer.Y;
+            var listenerPosition = _game.GetWorldSoundListenerPosition();
+            var dx = worldX - listenerPosition.X;
+            var dy = worldY - listenerPosition.Y;
             var distance = MathF.Sqrt(dx * dx + dy * dy);
             var volume = Math.Clamp(1f - (distance / 1200f), 0f, 1f) * 0.6f;
             var pan = Math.Clamp(dx / 600f, -1f, 1f);

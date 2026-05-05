@@ -20,7 +20,8 @@ local earthquake_state = {
     frequency = 18.0,
 }
 
-local current_camera_offset = nil
+local current_camera_offset_x = 0.0
+local current_camera_offset_y = 0.0
 
 local function clamp(value, minimum, maximum)
     if value < minimum then
@@ -64,7 +65,8 @@ local function reset_earthquake()
     earthquake_state.elapsedSeconds = 0.0
     earthquake_state.amplitude = 10.0
     earthquake_state.frequency = 18.0
-    current_camera_offset = plugin.host.vec2(0.0, 0.0)
+    current_camera_offset_x = 0.0
+    current_camera_offset_y = 0.0
 end
 
 local function reset_all()
@@ -121,24 +123,24 @@ local function handle_announce_payload(payload)
     plugin.host.show_notice(message_text, ANNOUNCE_NOTICE_TICKS, false)
 end
 
-local function draw_blind_overlay(canvas, state)
+local function draw_blind_overlay(canvas)
     local color = { r = 0, g = 0, b = 0, a = blind_state.alpha }
     if blind_state.remainingSeconds <= 0.0 then
         return
     end
 
-    local viewport_width = canvas.viewport_width or state.viewportWidth or 0
-    local viewport_height = canvas.viewport_height or state.viewportHeight or 0
+    local viewport_width = canvas.viewport_width or plugin.host.get_viewport_width() or 0
+    local viewport_height = canvas.viewport_height or plugin.host.get_viewport_height() or 0
     if viewport_width <= 0 or viewport_height <= 0 then
         return
     end
 
-    if not state.hasLocalPlayerPosition then
+    local local_position = plugin.host.try_get_local_player_world_position()
+    if local_position == nil then
         canvas.fill_screen_rectangle(0, 0, viewport_width, viewport_height, color)
         return
     end
 
-    local local_position = plugin.host.vec2(state.localPlayerWorldX, state.localPlayerWorldY)
     local screen_position = canvas.world_to_screen(local_position)
     local half_width = blind_state.innerRadiusPixels
     local half_height = blind_state.innerRadiusPixels * 1.4
@@ -163,7 +165,8 @@ end
 
 function plugin.initialize(host)
     plugin.host = host
-    current_camera_offset = host.vec2(0.0, 0.0)
+    current_camera_offset_x = 0.0
+    current_camera_offset_y = 0.0
 end
 
 function plugin.shutdown()
@@ -189,15 +192,15 @@ function plugin.on_client_frame(e)
             or 0.0
         local amplitude = earthquake_state.amplitude * clamp(duration_ratio, 0.0, 1.0)
         local angle = earthquake_state.elapsedSeconds * earthquake_state.frequency * math.pi * 2.0
-        current_camera_offset = plugin.host.vec2(
-            math.sin(angle * 1.31) * amplitude,
-            math.cos(angle * 1.73) * amplitude)
+        current_camera_offset_x = math.sin(angle * 1.31) * amplitude
+        current_camera_offset_y = math.cos(angle * 1.73) * amplitude
 
         if earthquake_state.remainingSeconds <= 0.0 then
             reset_earthquake()
         end
     else
-        current_camera_offset = plugin.host.vec2(0.0, 0.0)
+        current_camera_offset_x = 0.0
+        current_camera_offset_y = 0.0
     end
 end
 
@@ -219,16 +222,15 @@ function plugin.on_server_plugin_message(e)
 end
 
 function plugin.get_camera_offset()
-    return current_camera_offset or plugin.host.vec2(0.0, 0.0)
+    return plugin.host.vec2(current_camera_offset_x, current_camera_offset_y)
 end
 
 function plugin.on_gameplay_hud_draw(canvas)
-    local state = plugin.host.get_client_state()
-    if not state.isGameplayActive then
+    if not plugin.host.is_gameplay_active() then
         return
     end
 
-    draw_blind_overlay(canvas, state)
+    draw_blind_overlay(canvas)
 end
 
 return plugin

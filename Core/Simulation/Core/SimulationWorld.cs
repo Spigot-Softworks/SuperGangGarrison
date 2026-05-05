@@ -72,6 +72,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, bool> _additionalNetworkPlayerAwaitingJoin = new();
     private readonly Dictionary<byte, int> _additionalNetworkPlayerRespawnTicks = new();
     private readonly Dictionary<byte, PlayerTeam> _additionalNetworkPlayerTeams = new();
+    private readonly Dictionary<byte, SpawnPoint> _networkPlayerSpawnOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();

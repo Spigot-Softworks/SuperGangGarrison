@@ -79,6 +79,7 @@ public partial class Game1
 
     private void ResetPracticeBotManagerState(bool releaseWorldSlots)
     {
+        ClearPracticeBotSpawnOverrides(_practiceBotSlots.Keys);
         if (releaseWorldSlots)
         {
             var slotsToRelease = new List<byte>(_practiceBotSlots.Keys);
@@ -113,10 +114,17 @@ public partial class Game1
         for (var index = 0; index < staleSlots.Count; index += 1)
         {
             var slot = staleSlots[index];
+            _world.TryClearNetworkPlayerSpawnOverride(slot);
             _world.TryReleaseNetworkPlayerSlot(slot);
             _practiceBotSlots.Remove(slot);
             _practiceBotDisplayNamePool.ReleaseSlot(slot);
         }
+
+        var desiredControlledSlots = desiredSlots.ToDictionary(
+            static entry => entry.Key,
+            static entry => new ControlledBotSlot(entry.Key, entry.Value.Team, entry.Value.ClassId));
+        ClearPracticeBotSpawnOverrides(desiredControlledSlots.Keys);
+        _practiceBotController.ConfigureSpawnOverrides(_world, desiredControlledSlots);
 
         foreach (var desired in desiredSlots.Values)
         {
@@ -431,10 +439,10 @@ public partial class Game1
 
         var diagnosticsStartTimestamp = _botDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         var controlledSlots = BuildControlledPracticeBotSlots();
-        var buildInputsStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var buildInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var inputsBySlot = GetPracticeBotInputs(controlledSlots);
         var buildInputsMilliseconds = GetDiagnosticsElapsedMilliseconds(buildInputsStartTimestamp);
-        var setInputsStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var setInputsStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var entry in controlledSlots)
         {
             _world.TrySetNetworkPlayerInput(entry.Key, inputsBySlot.GetValueOrDefault(entry.Key));
@@ -475,6 +483,8 @@ public partial class Game1
 
     private void LogBrowserPracticeBotPerformance(int controlledBotCount, double buildInputsMilliseconds, double setInputsMilliseconds)
     {
+        RecordClientPerformanceMetric(ClientPerformanceMetric.BotBuild, buildInputsMilliseconds);
+        RecordClientPerformanceMetric(ClientPerformanceMetric.BotApply, setInputsMilliseconds);
         if (!OperatingSystem.IsBrowser() || controlledBotCount <= 0)
         {
             return;
@@ -630,6 +640,7 @@ public partial class Game1
 
     private void ResetPracticeBotControllerState()
     {
+        ClearPracticeBotSpawnOverrides(_practiceBotSlots.Keys);
         _browserPracticeBotInputCache.Clear();
         _browserPracticeBotThinkTick = 0;
         _browserPracticeBotPerfSamples = 0;
@@ -638,6 +649,14 @@ public partial class Game1
         _browserPracticeBotPerfSetInputTotalMilliseconds = 0d;
         _browserPracticeBotPerfSetInputMaxMilliseconds = 0d;
         _practiceBotController.Reset();
+    }
+
+    private void ClearPracticeBotSpawnOverrides(IEnumerable<byte> slots)
+    {
+        foreach (var slot in slots)
+        {
+            _world.TryClearNetworkPlayerSpawnOverride(slot);
+        }
     }
 
     private void ApplyConfiguredPracticeBotController(bool respawnActiveBots)
@@ -677,13 +696,6 @@ public partial class Game1
             || string.Equals(botController, "ModernGraphRoute", StringComparison.OrdinalIgnoreCase))
         {
             return (nameof(OfflineBotControllerMode.ModernGraphRoute), new ModernPracticeBotController());
-        }
-
-        if (string.Equals(botController, "objective_traversal", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(botController, "ObjectiveTraversal", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(botController, "lattice", StringComparison.OrdinalIgnoreCase))
-        {
-            return (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
         }
 
         return ("AdaptiveMapPolicy", new AdaptiveMapPracticeBotController(

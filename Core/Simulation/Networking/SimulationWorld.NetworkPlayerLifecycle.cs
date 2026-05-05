@@ -70,6 +70,7 @@ public sealed partial class SimulationWorld
         SetNetworkPlayerDeathCam(slot, null);
         TrySetNetworkPlayerClassDefinition(slot, CharacterClassCatalog.Scout);
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
+        _networkPlayerSpawnOverrides.Remove(slot);
         _networkPlayerMovementSpeedScaleOverrides.Remove(slot);
         _networkPlayerGravityScaleOverrides.Remove(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
@@ -147,7 +148,7 @@ public sealed partial class SimulationWorld
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
         SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }

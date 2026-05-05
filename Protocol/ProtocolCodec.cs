@@ -25,7 +25,15 @@ public static partial class ProtocolCodec
     public static byte[] Serialize(IProtocolMessage message)
     {
         var size = MeasureSerializedSize(message);
-        using var stream = new MemoryStream(size);
+        return Serialize(message, size);
+    }
+
+    public static byte[] Serialize(IProtocolMessage message, int measuredSize)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentOutOfRangeException.ThrowIfNegative(measuredSize);
+
+        using var stream = new MemoryStream(measuredSize);
         using var writer = new BinaryWriter(stream, Utf8, leaveOpen: true);
         WriteMessage(writer, message);
         writer.Flush();
@@ -107,6 +115,7 @@ public static partial class ProtocolCodec
                     reader.ReadInt32(),
                     ReadString(reader, MaxLevelNameBytes),
                     reader.ReadByte(),
+                    reader.ReadInt32(),
                     reader.ReadBoolean(),
                     ReadString(reader, MaxMapUrlBytes),
                     ReadString(reader, MaxMapHashBytes),
@@ -272,6 +281,7 @@ public static partial class ProtocolCodec
                 writer.Write(welcome.TickRate);
                 WriteString(writer, welcome.LevelName, MaxLevelNameBytes, nameof(welcome.LevelName));
                 writer.Write(welcome.PlayerSlot);
+                writer.Write(welcome.MaxPlayerCount);
                 writer.Write(welcome.IsCustomMap);
                 WriteString(writer, welcome.MapDownloadUrl, MaxMapUrlBytes, nameof(welcome.MapDownloadUrl));
                 WriteString(writer, welcome.MapContentHash, MaxMapHashBytes, nameof(welcome.MapContentHash));

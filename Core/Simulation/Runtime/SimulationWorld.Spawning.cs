@@ -56,7 +56,7 @@ public sealed partial class SimulationWorld
     {
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        SpawnPlayerResolved(player, team, ReserveSpawn(player, team));
+        SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot));
     }
 
     private void RespawnPlayersForNewRound()
@@ -160,6 +160,17 @@ public sealed partial class SimulationWorld
         }
 
         return selectedSpawn;
+    }
+
+    private SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot)
+    {
+        if (_networkPlayerSpawnOverrides.TryGetValue(slot, out var spawnOverride)
+            && player.CanOccupy(Level, team, spawnOverride.X, spawnOverride.Y))
+        {
+            return spawnOverride;
+        }
+
+        return ReserveSpawn(player, team);
     }
 
     private static bool IsSpawnPointInsideSpawnRoom(SpawnPoint spawn, IReadOnlyList<RoomObjectMarker> spawnRooms)

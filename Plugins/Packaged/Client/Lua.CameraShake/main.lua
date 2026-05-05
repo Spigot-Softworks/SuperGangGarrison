@@ -3,7 +3,6 @@ local plugin = {}
 local SHAKE_DECAY_PER_REFERENCE_FRAME = 0.8
 local REFERENCE_FRAMES_PER_SECOND = 30.0
 local INTENSITY_EPSILON = 0.0005
-local SOURCE_CLASS_DETECTION_DISTANCE_SQUARED = 32 * 32
 local LOCAL_SOURCE_DISTANCE_SQUARED = 20 * 20
 
 local default_config = {
@@ -13,6 +12,10 @@ local default_config = {
 local config = default_config
 local current_shake_intensity = 0.0
 local current_camera_offset = { x = 0.0, y = 0.0 }
+local current_camera_center = { x = 0.0, y = 0.0 }
+local current_local_player_position = nil
+local current_local_player_class = "Unknown"
+local current_local_player_scoped = false
 
 local function clamp(value, minimum, maximum)
     if value < minimum then
@@ -40,6 +43,10 @@ end
 local function reset_shake_state()
     current_shake_intensity = 0.0
     current_camera_offset = plugin.host.vec2(0.0, 0.0)
+    current_camera_center = plugin.host.vec2(0.0, 0.0)
+    current_local_player_position = nil
+    current_local_player_class = "Unknown"
+    current_local_player_scoped = false
 end
 
 local function random_range(minimum, maximum)
@@ -66,50 +73,28 @@ local function distance(left, right)
     return math.sqrt(distance_squared(left, right))
 end
 
-local function get_camera_center()
-    local state = plugin.host.get_client_state()
-    return plugin.host.vec2(state.cameraTopLeftX + (state.viewportWidth * 0.5), state.cameraTopLeftY + (state.viewportHeight * 0.5))
-end
-
 local function get_distance_to_camera_center(world_position)
-    return math.max(1.0, distance(world_position, get_camera_center()))
-end
-
-local function resolve_likely_shooter_class(sound_position)
-    local state = plugin.host.get_client_state()
-    local closest_class = "Unknown"
-    local closest_distance_squared = SOURCE_CLASS_DETECTION_DISTANCE_SQUARED
-    for _, marker in ipairs(state.playerMarkers or {}) do
-        if marker.isAlive then
-            local marker_position = marker.worldPosition
-            local candidate_distance_squared = distance_squared(marker_position, sound_position)
-            if candidate_distance_squared <= closest_distance_squared then
-                closest_distance_squared = candidate_distance_squared
-                closest_class = marker.classId
-            end
-        end
-    end
-
-    return closest_class
+    return math.max(1.0, distance(world_position, current_camera_center))
 end
 
 local function is_local_source(sound_position, expected_class)
-    local state = plugin.host.get_client_state()
-    if state.localPlayerClass ~= expected_class or not state.hasLocalPlayerPosition then
+    if current_local_player_class ~= expected_class then
         return false
     end
 
-    local local_position = plugin.host.vec2(state.localPlayerWorldX, state.localPlayerWorldY)
-    return distance_squared(local_position, sound_position) <= LOCAL_SOURCE_DISTANCE_SQUARED
+    if current_local_player_position == nil then
+        return false
+    end
+
+    return distance_squared(current_local_player_position, sound_position) <= LOCAL_SOURCE_DISTANCE_SQUARED
 end
 
 local function is_local_scoped_sniper_source(sound_position)
-    local state = plugin.host.get_client_state()
-    return state.isLocalPlayerScoped and is_local_source(sound_position, "Sniper")
+    return current_local_player_scoped and is_local_source(sound_position, "Sniper")
 end
 
 local function get_shotgun_shake_cap(sound_position)
-    return resolve_likely_shooter_class(sound_position) == "Scout" and 0.3 or 0.2
+    return is_local_source(sound_position, "Scout") and 0.3 or 0.2
 end
 
 local function get_rifle_shake_contribution(sound_position, sound_distance)
@@ -155,8 +140,17 @@ function plugin.on_client_frame(e)
         return
     end
 
+    local camera_top_left = plugin.host.get_camera_top_left()
+    current_camera_center = plugin.host.vec2(
+        camera_top_left.x + (plugin.host.get_viewport_width() * 0.5),
+        camera_top_left.y + (plugin.host.get_viewport_height() * 0.5))
+    current_local_player_position = plugin.host.try_get_local_player_world_position()
+    current_local_player_class = plugin.host.get_local_player_class()
+    current_local_player_scoped = plugin.host.is_local_player_scoped()
+
     if current_shake_intensity <= INTENSITY_EPSILON then
-        reset_shake_state()
+        current_shake_intensity = 0.0
+        current_camera_offset = plugin.host.vec2(0.0, 0.0)
         return
     end
 
@@ -173,8 +167,7 @@ function plugin.on_world_sound(e)
         return
     end
 
-    local state = plugin.host.get_client_state()
-    if not state.isGameplayActive then
+    if not plugin.host.is_gameplay_active() then
         return
     end
 

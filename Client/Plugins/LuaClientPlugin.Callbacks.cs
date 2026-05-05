@@ -27,6 +27,22 @@ internal sealed partial class LuaClientPlugin
         _pendingHealEvents.Clear();
         _cachedClientState = DynValue.Nil;
         _cachedClientStateKey = null;
+        _cachedClientRuntimeState = DynValue.Nil;
+        _cachedClientRuntimeStateKey = null;
+        _cachedPlayerMarkers = DynValue.Nil;
+        _cachedPlayerMarkersWorldFrame = null;
+        _cachedSentryMarkers = DynValue.Nil;
+        _cachedSentryMarkersWorldFrame = null;
+        _cachedObjectiveMarkers = DynValue.Nil;
+        _cachedObjectiveMarkersWorldFrame = null;
+        _cachedClientFrameEventTable = null;
+        _cachedClientFrameEvent = DynValue.Nil;
+        _cachedGameplayHudCanvasTable = null;
+        _cachedGameplayHudCanvas = DynValue.Nil;
+        _cachedScoreboardHudCanvasTable = null;
+        _cachedScoreboardHudCanvas = DynValue.Nil;
+        _activeHudCanvas = null;
+        _activeScoreboardCanvas = null;
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -43,24 +59,66 @@ internal sealed partial class LuaClientPlugin
 
     public void OnClientFrame(ClientFrameEvent e)
     {
+        var hasFrameCallback = HasCallback("on_client_frame");
+        var hasPendingDamageCallback = _pendingLocalDamageEvents.Count > 0 && HasCallback("on_local_damage");
+        var hasPendingHealCallback = _pendingHealEvents.Count > 0 && HasCallback("on_heal");
+        if (!hasFrameCallback && !hasPendingDamageCallback && !hasPendingHealCallback)
+        {
+            _pendingLocalDamageEvents.Clear();
+            _pendingHealEvents.Clear();
+            return;
+        }
+
         ExecuteInPhase(LuaCallbackPhase.Update, () =>
         {
-            FlushPendingLocalDamageEvents();
-            FlushPendingHealEvents();
-            CallIfPresent("on_client_frame", ToDynValue(e));
+            if (hasPendingDamageCallback)
+            {
+                FlushPendingLocalDamageEvents();
+            }
+            else
+            {
+                _pendingLocalDamageEvents.Clear();
+            }
+
+            if (hasPendingHealCallback)
+            {
+                FlushPendingHealEvents();
+            }
+            else
+            {
+                _pendingHealEvents.Clear();
+            }
+
+            if (hasFrameCallback)
+            {
+                CallIfPresent("on_client_frame", GetCachedClientFrameEvent(e));
+            }
         });
     }
 
-    public void OnWorldSound(ClientWorldSoundEvent e) => ExecuteInPhase(LuaCallbackPhase.Update, () => CallIfPresent("on_world_sound", ToDynValue(e)));
+    public void OnWorldSound(ClientWorldSoundEvent e)
+    {
+        if (!HasCallback("on_world_sound"))
+        {
+            return;
+        }
+
+        ExecuteInPhase(LuaCallbackPhase.Update, () => CallIfPresent("on_world_sound", ToDynValue(e)));
+    }
 
     public void OnServerPluginMessage(ClientPluginMessageEnvelope e)
     {
+        if (!HasCallback("on_server_plugin_message"))
+        {
+            return;
+        }
+
         ExecuteInPhase(LuaCallbackPhase.Update, () => CallIfPresent("on_server_plugin_message", ToDynValue(e)));
     }
 
     public void OnLocalDamage(LocalDamageEvent e)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("on_local_damage"))
         {
             return;
         }
@@ -70,7 +128,7 @@ internal sealed partial class LuaClientPlugin
 
     public void OnHeal(ClientHealEvent e)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("on_heal"))
         {
             return;
         }
@@ -80,7 +138,7 @@ internal sealed partial class LuaClientPlugin
 
     public Vector2 GetCameraOffset()
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("get_camera_offset"))
         {
             return Vector2.Zero;
         }
@@ -100,14 +158,23 @@ internal sealed partial class LuaClientPlugin
 
     public void OnGameplayHudDraw(IOpenGarrisonClientHudCanvas canvas)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("on_gameplay_hud_draw"))
         {
             return;
         }
 
-        ExecuteInPhase(
-            LuaCallbackPhase.GameplayHudDraw,
-            () => CallIfPresent("on_gameplay_hud_draw", DynValue.NewTable(CreateHudCanvasTable(_script, canvas, rightAlignedText: false))));
+        ExecuteInPhase(LuaCallbackPhase.GameplayHudDraw, () =>
+        {
+            _activeHudCanvas = canvas;
+            try
+            {
+                CallIfPresent("on_gameplay_hud_draw", GetCachedGameplayHudCanvas(canvas));
+            }
+            finally
+            {
+                _activeHudCanvas = null;
+            }
+        });
     }
 
     public ClientScoreboardPanelLocation ScoreboardPanelLocation => ExecuteInPhase(LuaCallbackPhase.ScoreboardQuery, ReadScoreboardLocation);
@@ -116,19 +183,30 @@ internal sealed partial class LuaClientPlugin
 
     public void OnScoreboardDraw(IOpenGarrisonClientScoreboardCanvas canvas, ClientScoreboardRenderState state)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("on_scoreboard_draw"))
         {
             return;
         }
 
-        ExecuteInPhase(
-            LuaCallbackPhase.ScoreboardDraw,
-            () => CallIfPresent("on_scoreboard_draw", DynValue.NewTable(CreateHudCanvasTable(_script, canvas, rightAlignedText: true)), ToDynValue(state)));
+        ExecuteInPhase(LuaCallbackPhase.ScoreboardDraw, () =>
+        {
+            _activeHudCanvas = canvas;
+            _activeScoreboardCanvas = canvas;
+            try
+            {
+                CallIfPresent("on_scoreboard_draw", GetCachedScoreboardHudCanvas(canvas), ToDynValue(state));
+            }
+            finally
+            {
+                _activeScoreboardCanvas = null;
+                _activeHudCanvas = null;
+            }
+        });
     }
 
     public ClientPluginMainMenuBackgroundOverride? GetMainMenuBackgroundOverride()
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("get_main_menu_background_override"))
         {
             return null;
         }
@@ -153,25 +231,33 @@ internal sealed partial class LuaClientPlugin
 
     public bool TryDrawDeadBody(IOpenGarrisonClientHudCanvas canvas, ClientDeadBodyRenderState deadBody)
     {
-        if (_script is null || _pluginTable is null || _callbacksDisabled)
+        if (_script is null || _pluginTable is null || _callbacksDisabled || !HasCallback("try_draw_dead_body"))
         {
             return false;
         }
 
         return ExecuteInPhase(LuaCallbackPhase.DeadBodyDraw, () =>
         {
-            if (!TryInvokeCallback("try_draw_dead_body", out var result, DynValue.NewTable(CreateHudCanvasTable(_script, canvas, rightAlignedText: false)), ToDynValue(deadBody)))
+            _activeHudCanvas = canvas;
+            try
             {
-                return false;
-            }
+                if (!TryInvokeCallback("try_draw_dead_body", out var result, GetCachedGameplayHudCanvas(canvas), ToDynValue(deadBody)))
+                {
+                    return false;
+                }
 
-            return result.CastToBool();
+                return result.CastToBool();
+            }
+            finally
+            {
+                _activeHudCanvas = null;
+            }
         });
     }
 
     public ClientBubbleMenuUpdateResult? TryHandleBubbleMenuInput(ClientBubbleMenuInputState inputState)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("try_handle_bubble_menu_input"))
         {
             return null;
         }
@@ -193,25 +279,33 @@ internal sealed partial class LuaClientPlugin
 
     public bool TryDrawBubbleMenu(IOpenGarrisonClientHudCanvas canvas, ClientBubbleMenuRenderState renderState)
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("try_draw_bubble_menu"))
         {
             return false;
         }
 
         return ExecuteInPhase(LuaCallbackPhase.BubbleMenuDraw, () =>
         {
-            if (!TryInvokeCallback("try_draw_bubble_menu", out var result, DynValue.NewTable(CreateHudCanvasTable(_script, canvas, rightAlignedText: false)), ToDynValue(renderState)))
+            _activeHudCanvas = canvas;
+            try
             {
-                return false;
-            }
+                if (!TryInvokeCallback("try_draw_bubble_menu", out var result, GetCachedGameplayHudCanvas(canvas), ToDynValue(renderState)))
+                {
+                    return false;
+                }
 
-            return result.CastToBool();
+                return result.CastToBool();
+            }
+            finally
+            {
+                _activeHudCanvas = null;
+            }
         });
     }
 
     public IReadOnlyList<ClientPluginOptionsSection> GetOptionsSections()
     {
-        if (_script is null || _pluginTable is null)
+        if (_script is null || _pluginTable is null || !HasCallback("get_options_sections"))
         {
             return Array.Empty<ClientPluginOptionsSection>();
         }
@@ -304,6 +398,16 @@ internal sealed partial class LuaClientPlugin
 
             return false;
         }
+    }
+
+    private bool HasCallback(string callbackName)
+    {
+        if (_script is null || _pluginTable is null || _callbacksDisabled)
+        {
+            return false;
+        }
+
+        return TryGetCachedCallbackFunction(callbackName, out _);
     }
 
     private DynValue InvokeCallbackWithLimits(DynValue function, DynValue[] args)

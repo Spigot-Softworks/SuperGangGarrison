@@ -127,6 +127,23 @@ function Copy-DirectoryContents {
     Copy-Item (Join-Path $SourceDirectory "*") $DestinationDirectory -Recurse -Force
 }
 
+function Invoke-GenerateDistributionAtlases {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    Invoke-DotNet -Arguments @(
+        "run",
+        "--project",
+        (Join-Path $RepoRoot "Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj"),
+        "--",
+        $ContentDirectory
+    )
+}
+
 function New-UnixLauncherScript {
     param(
         [Parameter(Mandatory = $true)]
@@ -327,6 +344,7 @@ foreach ($runtimeIdentifier in $Platforms) {
 
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
+    Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force

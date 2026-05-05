@@ -18,6 +18,18 @@ public interface INetworkClientMessageTransport : IDisposable
     void Send(byte[] payload);
 }
 
+public interface IPlaybackMessageTransport : INetworkClientMessageTransport
+{
+    bool IsPaused { get; }
+    float PlaybackRate { get; }
+    int CurrentTick { get; }
+    int TotalTicks { get; }
+
+    void SetPaused(bool paused);
+    void TogglePaused();
+    void SetPlaybackRate(float playbackRate);
+}
+
 internal sealed class UdpNetworkClientMessageTransport : INetworkClientMessageTransport
 {
     private const int SioUdpConnReset = -1744830452;

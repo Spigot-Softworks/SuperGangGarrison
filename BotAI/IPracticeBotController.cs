@@ -10,6 +10,10 @@ public interface IPracticeBotController
 
     void Reset();
 
+    void ConfigureSpawnOverrides(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots);
+
     IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputs(
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots);

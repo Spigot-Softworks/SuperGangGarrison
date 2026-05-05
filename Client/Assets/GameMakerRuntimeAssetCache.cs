@@ -33,14 +33,11 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         _graphicsDevice = graphicsDevice;
         _manifest = manifest;
 
-        if (OperatingSystem.IsBrowser())
+        var atlasManifest = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest();
+        if (atlasManifest is not null)
         {
-            var atlasManifest = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest();
-            if (atlasManifest is not null)
-            {
-                _browserAtlasTextureCache = new BrowserAtlasTextureCache(graphicsDevice);
-                _browserGameMakerAtlasResolver = new BrowserGameMakerAtlasSpriteResolver(atlasManifest, _browserAtlasTextureCache);
-            }
+            _browserAtlasTextureCache = new BrowserAtlasTextureCache(graphicsDevice);
+            _browserGameMakerAtlasResolver = new BrowserGameMakerAtlasSpriteResolver(atlasManifest, _browserAtlasTextureCache);
         }
     }
 
@@ -56,6 +53,12 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         if (!_manifest.Sprites.TryGetValue(spriteName, out var spriteAsset))
         {
             return null;
+        }
+
+        var atlasSprite = TryGetAtlasSprite(spriteName);
+        if (atlasSprite is not null)
+        {
+            return atlasSprite;
         }
 
         if (OperatingSystem.IsBrowser())
@@ -233,6 +236,28 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         _browserGameMakerAtlasResolver = null;
         _browserAtlasTextureCache?.Dispose();
         _browserAtlasTextureCache = null;
+    }
+
+    private LoadedGameMakerSprite? TryGetAtlasSprite(string spriteName)
+    {
+        if (_browserGameMakerAtlasResolver?.CanResolve(spriteName) != true)
+        {
+            return null;
+        }
+
+        var pendingTask = _browserGameMakerAtlasResolver.LoadSpriteAsync(spriteName);
+        if (OperatingSystem.IsBrowser() && !pendingTask.IsCompletedSuccessfully)
+        {
+            return null;
+        }
+
+        var sprite = pendingTask.GetAwaiter().GetResult();
+        if (sprite is not null)
+        {
+            _sprites[spriteName] = sprite;
+        }
+
+        return sprite;
     }
 
     private LoadedGameMakerSprite? TryGetBrowserSprite(string spriteName, GameMakerSpriteAsset spriteAsset)
@@ -424,18 +449,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
     private async Task<LoadedGameMakerSprite?> LoadBrowserSpriteAsync(GameMakerSpriteAsset spriteAsset)
     {
-        if (_browserGameMakerAtlasResolver?.CanResolve(spriteAsset.Name) == true)
-        {
-            var atlasSprite = await _browserGameMakerAtlasResolver.LoadSpriteAsync(spriteAsset.Name).ConfigureAwait(false);
-            if (atlasSprite is not null)
-            {
-                return atlasSprite;
-            }
-        }
-
-        var framePaths = spriteAsset.FramePaths.Count > 0
-            ? spriteAsset.FramePaths
-            : await ResolveBrowserSpriteFramePathsAsync(spriteAsset.MetadataPath).ConfigureAwait(false);
+        var framePaths = spriteAsset.FramePaths;
         if (framePaths.Count == 0)
         {
             LogCriticalBrowserRuntimeSprite(spriteAsset.Name, "no-frame-paths", $"metadata={spriteAsset.MetadataPath}");
@@ -488,67 +502,6 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         await Task.Yield();
         return SoundDecodeUtility.LoadSoundEffect(bytes, soundAsset.AudioPath);
-    }
-
-    private static async Task<IReadOnlyList<string>> ResolveBrowserSpriteFramePathsAsync(string metadataPath)
-    {
-        if (string.IsNullOrWhiteSpace(metadataPath) || !metadataPath.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-        {
-            return Array.Empty<string>();
-        }
-
-        var imageRoot = metadataPath[..^4] + ".images";
-        var framePaths = new List<string>();
-        for (var frameIndex = 0; frameIndex < 512; frameIndex += 1)
-        {
-            var framePath = await TryResolveBrowserSpriteFramePathAsync(imageRoot, frameIndex).ConfigureAwait(false);
-            if (framePath is null)
-            {
-                break;
-            }
-
-            framePaths.Add(framePath);
-        }
-
-        return framePaths;
-    }
-
-    private static async Task<string?> TryResolveBrowserSpriteFramePathAsync(string imageRoot, int frameIndex)
-    {
-        var spacedPath = $"{imageRoot}/image {frameIndex}.png";
-        if (await BrowserAssetExistsAsync(spacedPath).ConfigureAwait(false))
-        {
-            return spacedPath;
-        }
-
-        var compactPath = $"{imageRoot}/image{frameIndex}.png";
-        return await BrowserAssetExistsAsync(compactPath).ConfigureAwait(false)
-            ? compactPath
-            : null;
-    }
-
-    private static async Task<bool> BrowserAssetExistsAsync(string relativePath)
-    {
-        if (BrowserContentCatalog.TryGetBinary(relativePath, out _))
-        {
-            return true;
-        }
-
-        var httpClient = ClientRuntimeBootstrap.GetBrowserHttpClient();
-        if (httpClient is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            using var response = await httpClient.GetAsync(relativePath, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private bool TryGetBrowserBackgroundByPath(string backgroundPath, out Texture2D texture)

@@ -72,7 +72,9 @@ public sealed partial class PlayerEntity
         string gameplayAcquiredItemId = "",
         IReadOnlyList<string>? ownedGameplayItemIds = null,
         IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null,
-        float playerScale = 1f)
+        float playerScale = 1f,
+        int medicHealTargetPlayerId = -1,
+        bool isMedicHealing = false)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -183,6 +185,8 @@ public sealed partial class PlayerEntity
         ChatBubbleAlpha = chatBubbleAlpha;
         IsChatBubbleFading = false;
         ChatBubbleTicksRemaining = 0;
+        MedicHealTargetId = isMedicHealing && medicHealTargetPlayerId > 0 ? medicHealTargetPlayerId : null;
+        IsMedicHealing = IsAlive && MedicHealTargetId.HasValue;
 
         if (!IsChatBubbleVisible)
         {
@@ -204,6 +208,8 @@ public sealed partial class PlayerEntity
             IntelRechargeTicks = 0f;
             IsSniperScoped = false;
             SniperChargeTicks = 0;
+            MedicHealTargetId = null;
+            IsMedicHealing = false;
             MovementState = LegacyMovementState.None;
             ExtinguishAfterburn();
         }

@@ -1,0 +1,144 @@
+{
+  "Version": 1,
+  "Map": "Avanti",
+  "Area": 1,
+  "Mode": "CaptureTheFlag",
+  "Team": "Blue",
+  "Class": "Spy",
+  "AttackTicks": 127,
+  "ReturnTicks": 402,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    }
+  ],
+  "Return": [
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 27
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 18
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 39
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 6
+    }
+  ]
+}

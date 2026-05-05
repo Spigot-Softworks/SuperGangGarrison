@@ -83,6 +83,9 @@ public partial class Game1
             };
         }
 
+        gameplayInput = ApplyClientOnlineSmokeInputPattern(gameplayInput);
+        networkInput = ApplyClientOnlineSmokeInputPattern(networkInput);
+
         UpdateBuildMenuState(keyboard, mouse);
         TryShowEngineerJumpPadBuildNoticeOnUtilityPress(fullInput);
 

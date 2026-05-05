@@ -211,9 +211,8 @@ local function play_ding(target_world_position)
 
     local pan = 0.0
     if config.stereoDing then
-        local client_state = plugin.host.get_client_state()
-        local camera_top_left = client_state.cameraTopLeft or client_state.camera_top_left or plugin.host.vec2(0.0, 0.0)
-        local viewport_width = client_state.viewportWidth or client_state.viewport_width or 0.0
+        local camera_top_left = plugin.host.get_camera_top_left()
+        local viewport_width = plugin.host.get_viewport_width()
         local clamped_screen_x = clamp((target_world_position.x or 0.0) - (camera_top_left.x or 0.0), 0.0, viewport_width)
         if viewport_width > 0.0 then
             pan = clamp((clamped_screen_x / (viewport_width / 2.0)) - 1.0, -1.0, 1.0)
