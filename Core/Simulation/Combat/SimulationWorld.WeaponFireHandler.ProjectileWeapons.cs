@@ -31,25 +31,7 @@ public sealed partial class SimulationWorld
                 minigunPivotOffsetX,
                 minigunPivotAdditionalYOffset);
 
-            // The minigun sprite rotates around a pivot at the top of the weapon.
-            // Adjust the barrel offset so bullets spawn correctly at all angles:
-            // - Horizontal: 2 pixels above the pivot, no horizontal offset
-            // - Vertical up: at the pivot level, 10 pixels to the side (in facing direction)
-            // - Vertical down: no additional horizontal offset (only the rotation offset)
-            // Calculate the barrel's actual world position by rotating this offset.
-            const float barrelOffsetFromPivot = -2f;
-            const float barrelHorizontalOffsetWhenUp = 10f;
-            var facingScale = MathF.Cos(pivotRay.AngleRadians) < 0f ? -1f : 1f;
-            
-            // Rotate the barrel offset (0, barrelOffsetFromPivot) by the weapon angle
-            // Plus add horizontal offset only when aiming upward
-            var barrelOffsetX = (-MathF.Sin(pivotRay.AngleRadians) * barrelOffsetFromPivot 
-                + MathF.Max(0, -MathF.Sin(pivotRay.AngleRadians)) * barrelHorizontalOffsetWhenUp) * facingScale;
-            var barrelOffsetY = MathF.Cos(pivotRay.AngleRadians) * barrelOffsetFromPivot;
-            
-            var barrelPivotX = pivotRay.PivotX + barrelOffsetX;
-            var barrelPivotY = pivotRay.PivotY + barrelOffsetY;
-
+            // Spawn bullets directly from the weapon pivot, moving forward along the firing direction
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
             var pelletAngle = pivotRay.AngleRadians + spreadRadians;
             var directionX = MathF.Cos(pelletAngle);
@@ -60,10 +42,9 @@ public sealed partial class SimulationWorld
                 directionX * shotSpeed,
                 directionY * shotSpeed);
             
-            // Spawn bullets 30 pixels from the barrel position along the firing direction
-            const float bulletSpawnDistanceFromBarrel = 30f;
-            var spawnX = barrelPivotX + directionX * bulletSpawnDistanceFromBarrel;
-            var spawnY = barrelPivotY + directionY * bulletSpawnDistanceFromBarrel;
+            // Spawn bullets directly from the weapon pivot
+            var spawnX = pivotRay.PivotX;
+            var spawnY = pivotRay.PivotY;
             
             SpawnShot(
                 attacker,
