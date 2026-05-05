@@ -47,7 +47,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float DirectSeekClimbClearance = 84f;
     private const int DirectSeekDynamicRescueJumpPulseTicks = 10;
     private const int DirectSeekDynamicRescueJumpPulsePeriodTicks = 24;
-    private const int DirectSeekBackupTicks = 14;
+    private const int DirectSeekBackupTicks = 6;
     private const int DirectSeekBackupJumpPulseTicks = 8;
     private const int DirectSeekStuckBackupTicks = 12;
     private const int DirectSeekVerticalFlipNoGoalProgressTicks = 90;
@@ -65,12 +65,23 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float ObjectiveTerminalDirectRadius = 480f;
     private const float ObjectiveTerminalTightRadius = 96f;
     private const float CtfIntelPickupMarkerSize = 24f;
-    private const float TapeReattachStartRadiusX = 40f;
-    private const float TapeReattachStartRadiusBottom = 40f;
+    private const float TapeReattachStartRadiusX = 12f;
+    private const float TapeReattachStartRadiusBottom = 12f;
+    private const float TapeStartAlignmentReadyRadiusX = 2f;
     private const float TapeReattachWindowRadiusX = 28f;
     private const float TapeReattachWindowRadiusBottom = 28f;
     private const float TapeReattachDuplicateDistance = 24f;
     private const float TapeReattachSearchDistance = 960f;
+    private const float TapeReattachLocalDriftDistance = 256f;
+    private const float TapeReattachSpawnSearchDistance = 2048f;
+    private const float TapeReattachSpawnStartSeekDistance = 256f;
+    private const float TapeExhaustedObjectiveFinishDistance = 160f;
+    private const float TapeReattachStableHorizontalSpeed = 1f;
+    private const float TapeReattachStableVerticalSpeed = 1f;
+    private const float TapeStartAlignmentStableHorizontalSpeed = 0.75f;
+    private const float TapeStartAlignmentStableVerticalSpeed = 0.75f;
+    private const float SpawnReplayWindowRadiusX = 96f;
+    private const float SpawnReplayWindowRadiusBottom = 48f;
     private const float ObjectiveHoldStrafeHalfWidth = 44f;
     private const float ObjectiveCaptureStrafeHalfWidth = 18f;
     private const int ObjectiveHoldStrafePeriodTicks = 32;
@@ -174,8 +185,87 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float TwodFortTwoScoutLateReturnSeamGoalX = 3096f;
     private const float TwodFortTwoScoutLateReturnSeamGoalBottom = 726f;
     private const float TwodFortTwoScoutLateReturnSeamGoalRadius = 128f;
+    private const float TruefortBlueDemomanAttackSeamStartX = 1230f;
+    private const float TruefortBlueDemomanAttackSeamStartBottom = 636f;
+    private const float TruefortBlueDemomanAttackSeamToleranceX = 72f;
+    private const float TruefortBlueDemomanAttackSeamToleranceBottom = 72f;
+    private const float TruefortBlueDemomanAttackSeamGoalX = 384f;
+    private const float TruefortBlueDemomanAttackSeamGoalBottom = 864f;
+    private const float TruefortBlueDemomanAttackSeamGoalRadius = 96f;
+    private const float TruefortBlueDemomanLateAttackSeamStartX = 827f;
+    private const float TruefortBlueDemomanLateAttackSeamStartBottom = 546f;
+    private const float TruefortBlueDemomanLateAttackSeamToleranceX = 40f;
+    private const float TruefortBlueDemomanLateAttackSeamToleranceBottom = 24f;
+    private const float TruefortBlueDemomanDeepAttackSeamStartX = 721f;
+    private const float TruefortBlueDemomanDeepAttackSeamStartBottom = 756f;
+    private const float TruefortBlueDemomanDeepAttackSeamToleranceX = 40f;
+    private const float TruefortBlueDemomanDeepAttackSeamToleranceBottom = 24f;
+    private const float TruefortBlueDemomanPickupSeamStartX = 417f;
+    private const float TruefortBlueDemomanPickupSeamStartBottom = 882f;
+    private const float TruefortBlueDemomanPickupSeamToleranceX = 40f;
+    private const float TruefortBlueDemomanPickupSeamToleranceBottom = 24f;
+    private const float TruefortBlueDemomanPickupSeamGoalX = 361f;
+    private const float TruefortBlueDemomanPickupSeamGoalBottom = 882f;
+    private const float TruefortBlueDemomanPickupSeamGoalRadius = 12f;
+    private const float TruefortBlueDemomanReturnSeamStartX = 4624f;
+    private const float TruefortBlueDemomanReturnSeamStartBottom = 576f;
+    private const float TruefortBlueDemomanReturnSeamToleranceX = 72f;
+    private const float TruefortBlueDemomanReturnSeamToleranceBottom = 72f;
+    private const float TruefortBlueDemomanReturnSeamGoalX = 4962f;
+    private const float TruefortBlueDemomanReturnSeamGoalBottom = 864f;
+    private const float TruefortBlueDemomanReturnSeamGoalRadius = 96f;
+    private const float TruefortBlueDemomanFullReturnSeamStartX = 380f;
+    private const float TruefortBlueDemomanFullReturnSeamStartBottom = 856f;
+    private const float TruefortBlueDemomanFullReturnSeamToleranceX = 128f;
+    private const float TruefortBlueDemomanFullReturnSeamToleranceBottom = 64f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamStartX = 1126f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamStartBottom = 846f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamToleranceX = 6f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamToleranceBottom = 6f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamGoalX = 667f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamGoalBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnPocketSeamGoalRadius = 48f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamStartX = 997f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamStartBottom = 846f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamToleranceX = 6f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamToleranceBottom = 6f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamGoalX = 654f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamGoalBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnStage997SeamGoalRadius = 12f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamStartX = 654f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamStartBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamToleranceX = 20f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamToleranceBottom = 12f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamGoalX = 445f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamGoalBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnStage654SeamGoalRadius = 12f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamStartX = 445f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamStartBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamToleranceX = 8f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamToleranceBottom = 8f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamGoalX = 361f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamGoalBottom = 882f;
+    private const float TruefortBlueDemomanLateReturnStage445SeamGoalRadius = 12f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamStartX = 361f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamStartBottom = 882f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamToleranceX = 8f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamToleranceBottom = 8f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamGoalX = 103f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamGoalBottom = 696f;
+    private const float TruefortBlueDemomanLateReturnStage361SeamGoalRadius = 16f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamStartX = 103f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamStartBottom = 696f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamToleranceX = 8f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamToleranceBottom = 8f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamGoalX = 706f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamGoalBottom = 912f;
+    private const float TruefortBlueDemomanLateReturnStage103SeamGoalRadius = 24f;
+    private const float GalleryBlueSpawnExitGoalX = 3135f;
+    private const float GalleryBlueSpawnExitGoalBottom = 900f;
+    private const float GalleryBlueSpawnExitGoalRadius = 64f;
     private const float HealTargetSeekDistance = 360f;
     private const float MedicHealFireDistance = 300f;
+    private const float MedicHealFollowDistance = 120f;
     private const float MedicNeedleRange = 420f;
     private const float MedicUberEnemyThreatDistance = 220f;
     private const float LowHealthFraction = 0.3f;
@@ -184,6 +274,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float MineThreatDistance = 400f;
     private const float MineDetonationRadius = 50f;
     private const float CombatSightDistance = 520f;
+    private const float CombatSeekVerticalTolerance = 120f;
+    private const float CombatSeekDropTolerance = 140f;
+    private const float CombatSeekJumpHorizontalRadius = 240f;
+    private const float CombatSeekObstacleProbeDistance = 18f;
     private const float SniperScopeDistance = 150f;
     private const int SniperMinimumChargeTicks = 50;
     private const float SoldierOffhandDistance = 260f;
@@ -191,6 +285,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private const float QuoteBladeMinimumDistance = 80f;
     private const float QuoteBladeMaximumDistance = 220f;
     private const string MotionProofContentRelativeDirectory = "Core/Content/MotionProof";
+    private const string MotionProofTapesDirectoryName = "tapes";
+    private const string MotionProofGraphsDirectoryName = "graphs";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -422,6 +518,401 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         DurationTicks: 85,
         NoMovementTicks: 18);
 
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanAttackSeamProgram = new(
+        "truefort_blue_demoman_attack_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 34),
+            new("Jump", 1, 18),
+            new("Run", 1, 8),
+            new("Run", -1, 14),
+            new("Jump", -1, 20),
+            new("Drop", -1, 30),
+            new("Run", -1, 8),
+            new("Run", 1, 14),
+            new("Run", -1, 8),
+            new("Run", 1, 14),
+            new("Run", -1, 8),
+            new("Run", -1, 52),
+            new("Jump", -1, 22),
+        },
+        GoalX: TruefortBlueDemomanAttackSeamGoalX,
+        GoalBottom: TruefortBlueDemomanAttackSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanAttackSeamGoalRadius,
+        DurationTicks: 250,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanReturnSeamProgram = new(
+        "truefort_blue_demoman_return_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8),
+            new("Run", -1, 22),
+            new("Run", 1, 14),
+            new("Run", -1, 8),
+            new("Jump", 1, 12),
+            new("Run", 1, 34),
+            new("Jump", 1, 23),
+            new("Jump", 1, 22),
+        },
+        GoalX: TruefortBlueDemomanReturnSeamGoalX,
+        GoalBottom: TruefortBlueDemomanReturnSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanReturnSeamGoalRadius,
+        DurationTicks: 143,
+        NoMovementTicks: 90);
+
+    // Mirrored from the proven Truefort Red Demoman return path.
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanFullReturnSeamProgram = new(
+        "truefort_blue_demoman_full_return_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", 1, 31),
+            new("Drop", 1, 73),
+            new("Jump", -1, 19),
+            new("Drop", -1, 7),
+            new("Jump", 1, 21),
+            new("Drop", 1, 7),
+            new("Jump", -1, 20),
+            new("Run", -1, 8),
+            new("Drop", 1, 7),
+            new("Jump", 1, 17),
+            new("Run", 1, 8),
+            new("Run", 1, 34),
+            new("Run", 1, 34),
+            new("Jump", 1, 43),
+            new("Run", 1, 34),
+            new("Run", 1, 34),
+            new("Run", 1, 52),
+            new("Jump", 1, 23),
+            new("Run", 1, 52),
+            new("Jump", 1, 28),
+            new("Run", 1, 14),
+            new("Run", 1, 22),
+            new("Jump", 1, 28),
+            new("Run", 1, 52),
+            new("Jump", 1, 28),
+            new("Drop", 1, 13),
+            new("Run", 1, 52),
+            new("Jump", 1, 24),
+            new("Run", 1, 14),
+            new("Run", 1, 34),
+            new("Jump", 1, 28),
+            new("Run", 1, 14),
+            new("Run", 1, 22),
+            new("Drop", -1, 7),
+            new("Jump", -1, 17),
+            new("Run", 1, 14),
+            new("Jump", 1, 20),
+            new("Run", 1, 14),
+            new("Jump", 1, 11),
+            new("Run", 1, 14),
+            new("Run", -1, 8),
+            new("Run", -1, 8),
+            new("Run", 1, 8),
+            new("Run", -1, 8),
+            new("Jump", 1, 13),
+            new("Run", 1, 8),
+            new("Run", 1, 34),
+            new("Run", 1, 22),
+            new("Jump", 1, 22),
+        },
+        GoalX: TruefortBlueDemomanReturnSeamGoalX,
+        GoalBottom: TruefortBlueDemomanReturnSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanReturnSeamGoalRadius,
+        DurationTicks: 1125,
+        NoMovementTicks: 120);
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnPocketRetreatSeamProgram = new(
+        "truefort_blue_demoman_late_return_pocket_retreat",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 120),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage997SeamStartX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage997SeamStartBottom,
+        GoalRadius: 8f,
+        DurationTicks: 120,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 1094f,
+                StartXMax: 1130f,
+                StartBottom: TruefortBlueDemomanLateReturnPocketSeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnPocketSeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 997f,
+            XMax: 1013f,
+            Bottom: TruefortBlueDemomanLateReturnStage997SeamStartBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage997SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnStage997SeamProgram = new(
+        "truefort_blue_demoman_late_return_stage_997_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", -1, 28),
+            new("Run", -1, 44),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage997SeamGoalX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage997SeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanLateReturnStage997SeamGoalRadius,
+        DurationTicks: 72,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 997f,
+                StartXMax: 1013f,
+                StartBottom: TruefortBlueDemomanLateReturnStage997SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage997SeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+            new ObjectiveSeamStartWindow(
+                StartXMin: 997f,
+                StartXMax: 1013f,
+                StartBottom: TruefortBlueDemomanLateReturnStage997SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage997SeamToleranceBottom,
+                FacingDirectionX: -1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 677f,
+            XMax: 695f,
+            Bottom: TruefortBlueDemomanLateReturnStage654SeamStartBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage654SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnStage654SeamProgram = new(
+        "truefort_blue_demoman_late_return_stage_654_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 60),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage654SeamGoalX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage654SeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanLateReturnStage654SeamGoalRadius,
+        DurationTicks: 60,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 677f,
+                StartXMax: 695f,
+                StartBottom: TruefortBlueDemomanLateReturnStage654SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage654SeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+            new ObjectiveSeamStartWindow(
+                StartXMin: 677f,
+                StartXMax: 695f,
+                StartBottom: TruefortBlueDemomanLateReturnStage654SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage654SeamToleranceBottom,
+                FacingDirectionX: -1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 445f,
+            XMax: 446f,
+            Bottom: TruefortBlueDemomanLateReturnStage654SeamGoalBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage445SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnStage445SeamProgram = new(
+        "truefort_blue_demoman_late_return_stage_445_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", -1, 28),
+            new("Run", -1, 32),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage445SeamGoalX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage445SeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanLateReturnStage445SeamGoalRadius,
+        DurationTicks: 60,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 445f,
+                StartXMax: 461f,
+                StartBottom: TruefortBlueDemomanLateReturnStage445SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage445SeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+            new ObjectiveSeamStartWindow(
+                StartXMin: 445f,
+                StartXMax: 461f,
+                StartBottom: TruefortBlueDemomanLateReturnStage445SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage445SeamToleranceBottom,
+                FacingDirectionX: -1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 361f,
+            XMax: 362f,
+            Bottom: TruefortBlueDemomanLateReturnStage445SeamGoalBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage361SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnStage361SeamProgram = new(
+        "truefort_blue_demoman_late_return_stage_361_seam",
+        new MotionProofAction[]
+        {
+            new("Jump", -1, 32),
+            new("Run", -1, 40),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage361SeamGoalX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage361SeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanLateReturnStage361SeamGoalRadius,
+        DurationTicks: 72,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 361f,
+                StartXMax: 377f,
+                StartBottom: TruefortBlueDemomanLateReturnStage361SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage361SeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+            new ObjectiveSeamStartWindow(
+                StartXMin: 361f,
+                StartXMax: 377f,
+                StartBottom: TruefortBlueDemomanLateReturnStage361SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage361SeamToleranceBottom,
+                FacingDirectionX: -1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 103f,
+            XMax: 139f,
+            Bottom: TruefortBlueDemomanLateReturnStage361SeamGoalBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage103SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateReturnStage103SeamProgram = new(
+        "truefort_blue_demoman_late_return_stage_103_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 140),
+        },
+        GoalX: TruefortBlueDemomanLateReturnStage103SeamGoalX,
+        GoalBottom: TruefortBlueDemomanLateReturnStage103SeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanLateReturnStage103SeamGoalRadius,
+        DurationTicks: 140,
+        NoMovementTicks: 18,
+        StartWindows:
+        [
+            new ObjectiveSeamStartWindow(
+                StartXMin: 103f,
+                StartXMax: 119f,
+                StartBottom: TruefortBlueDemomanLateReturnStage103SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage103SeamToleranceBottom,
+                FacingDirectionX: 1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+            new ObjectiveSeamStartWindow(
+                StartXMin: 103f,
+                StartXMax: 119f,
+                StartBottom: TruefortBlueDemomanLateReturnStage103SeamStartBottom,
+                StartBottomTolerance: TruefortBlueDemomanLateReturnStage103SeamToleranceBottom,
+                FacingDirectionX: -1f,
+                HorizontalSpeedTolerance: TapeStartAlignmentStableHorizontalSpeed,
+                VerticalSpeedTolerance: TapeStartAlignmentStableVerticalSpeed,
+                RequireGrounded: true),
+        ],
+        CompletionWindow: new ObjectiveSeamCompletionWindow(
+            XMin: 766f,
+            XMax: 787f,
+            Bottom: TruefortBlueDemomanLateReturnStage103SeamGoalBottom,
+            BottomTolerance: TruefortBlueDemomanLateReturnStage654SeamToleranceBottom,
+            RequireGrounded: true));
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanLateAttackSeamProgram = new(
+        "truefort_blue_demoman_late_attack_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 8),
+            new("Run", 1, 8),
+            new("Run", 1, 8),
+            new("Run", -1, 14),
+            new("Run", 1, 8),
+            new("Jump", -1, 11),
+            new("Run", -1, 22),
+            new("Run", -1, 22),
+            new("Jump", -1, 25),
+            new("Run", -1, 1),
+        },
+        GoalX: TruefortBlueDemomanAttackSeamGoalX,
+        GoalBottom: TruefortBlueDemomanAttackSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanAttackSeamGoalRadius,
+        DurationTicks: 127,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanDeepAttackSeamProgram = new(
+        "truefort_blue_demoman_deep_attack_seam",
+        new MotionProofAction[]
+        {
+            new("Run", 1, 14),
+            new("Run", 1, 14),
+            new("Run", -1, 14),
+            new("Run", -1, 22),
+            new("Run", -1, 22),
+            new("Jump", -1, 25),
+            new("Run", -1, 1),
+        },
+        GoalX: TruefortBlueDemomanAttackSeamGoalX,
+        GoalBottom: TruefortBlueDemomanAttackSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanAttackSeamGoalRadius,
+        DurationTicks: 112,
+        NoMovementTicks: 18);
+
+    private static readonly ObjectiveSeamProgram TruefortBlueDemomanPickupSeamProgram = new(
+        "truefort_blue_demoman_pickup_seam",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 24),
+        },
+        GoalX: TruefortBlueDemomanPickupSeamGoalX,
+        GoalBottom: TruefortBlueDemomanPickupSeamGoalBottom,
+        GoalRadius: TruefortBlueDemomanPickupSeamGoalRadius,
+        DurationTicks: 24,
+        NoMovementTicks: 12);
+
+    private static readonly ObjectiveSeamProgram GalleryBlueSpawnExitSeamProgram = new(
+        "gallery_blue_spawn_exit",
+        new MotionProofAction[]
+        {
+            new("Run", -1, 24), new("Run", -1, 24),
+        },
+        GoalX: GalleryBlueSpawnExitGoalX,
+        GoalBottom: GalleryBlueSpawnExitGoalBottom,
+        GoalRadius: GalleryBlueSpawnExitGoalRadius,
+        DurationTicks: 48,
+        NoMovementTicks: 18);
+
     private readonly Dictionary<byte, ReplayState> _statesBySlot = new();
     private readonly Dictionary<string, PreparedMotionProofArtifact?> _artifactsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PreparedMotionGraph?> _graphsByKey = new(StringComparer.OrdinalIgnoreCase);
@@ -429,6 +920,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private readonly Dictionary<byte, GraphReplayState> _graphStatesBySlot = new();
     private readonly Dictionary<byte, DirectSeekState> _directSeekStatesBySlot = new();
     private readonly Dictionary<byte, ObjectiveSeamState> _objectiveSeamStatesBySlot = new();
+    private readonly Dictionary<byte, ObjectiveSeamProgram> _deferredObjectiveSeamProgramsBySlot = new();
+    private readonly Dictionary<byte, string> _objectiveSeamIssueBySlot = new();
     private readonly Dictionary<byte, int> _objectiveHoldPointBySlot = new();
     private readonly Dictionary<byte, int> _localObjectiveDirectPointBySlot = new();
     private readonly Dictionary<byte, bool> _spawnReattachEligibleBySlot = new();
@@ -446,13 +939,39 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         _graphStatesBySlot.Clear();
         _directSeekStatesBySlot.Clear();
         _objectiveSeamStatesBySlot.Clear();
+        _deferredObjectiveSeamProgramsBySlot.Clear();
+        _objectiveSeamIssueBySlot.Clear();
         _objectiveHoldPointBySlot.Clear();
         _localObjectiveDirectPointBySlot.Clear();
         _spawnReattachEligibleBySlot.Clear();
         _inputs.Clear();
         _aliveBySlot.Clear();
+        _artifactsByKey.Clear();
+        _graphsByKey.Clear();
         _routeMapsByKey.Clear();
         LastDiagnostics = BotControllerDiagnosticsSnapshot.Empty;
+    }
+
+    public void ConfigureSpawnOverrides(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+    {
+        foreach (var entry in controlledSlots)
+        {
+            var controlledSlot = entry.Value;
+            var artifact = GetArtifact(world, controlledSlot);
+            if (artifact is null
+                || float.IsNaN(artifact.AttackPhase.StartX)
+                || float.IsNaN(artifact.AttackPhase.StartBottom))
+            {
+                world.TryClearNetworkPlayerSpawnOverride(entry.Key);
+                continue;
+            }
+
+            var definition = CharacterClassCatalog.GetDefinition(controlledSlot.ClassId);
+            var spawnY = artifact.AttackPhase.StartBottom - (definition.CollisionBottom * world.ConfiguredPlayerScale);
+            world.TrySetNetworkPlayerSpawnOverride(entry.Key, artifact.AttackPhase.StartX, spawnY);
+        }
     }
 
     public IReadOnlyDictionary<byte, PlayerInputSnapshot> BuildInputs(
@@ -485,7 +1004,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (_aliveBySlot.TryGetValue(slot, out var wasAlive) && !wasAlive)
+            var hadAliveState = _aliveBySlot.TryGetValue(slot, out var wasAlive);
+            if (!hadAliveState || !wasAlive)
             {
                 ResetSlotState(slot);
                 _spawnReattachEligibleBySlot[slot] = true;
@@ -496,6 +1016,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             }
 
             _aliveBySlot[slot] = true;
+            var hadActiveSeamStateAtTickStart = _objectiveSeamStatesBySlot.TryGetValue(slot, out var activeSeamStateAtTickStart);
             if (TryGetDirectEnemyGoal(world, player, out var enemyGoal))
             {
                 _statesBySlot.Remove(slot);
@@ -521,17 +1042,43 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             var artifact = GetArtifact(world, controlledSlot);
             var graph = GetGraph(world, controlledSlot);
             GraphGoal graphGoal = default;
-            var hasGraphGoal = graph is not null && TryGetGraphGoal(world, controlledSlot.Team, player, out graphGoal);
+            var hasObjectiveGoal = TryGetGraphGoal(world, controlledSlot.Team, player, out graphGoal);
+            var hasGraphGoal = graph is not null && hasObjectiveGoal;
 
-            if (hasGraphGoal
+            if (hadActiveSeamStateAtTickStart && !hasObjectiveGoal)
+            {
+                LogObjectiveSeamEvent(slot, player, activeSeamStateAtTickStart.Program, "seam_skipped:no_objective_goal");
+            }
+
+            if (hasObjectiveGoal
                 && TryBuildObjectiveSeamInput(slot, world, controlledSlot, player, graphGoal, out var seamInput, out var seamGoal))
             {
-                _inputs[slot] = ApplyCombatInput(world, player, seamInput, allPlayers);
+                _inputs[slot] = ApplyCombatInput(
+                    world,
+                    player,
+                    seamInput,
+                    allPlayers,
+                    preservePassiveAim: true,
+                    preserveMovementAuthority: true);
                 diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, seamGoal, _inputs[slot]));
                 continue;
             }
 
-            if (hasGraphGoal
+            if (hadActiveSeamStateAtTickStart)
+            {
+                var seamIssue = _objectiveSeamIssueBySlot.TryGetValue(slot, out var issue) ? issue : "none";
+                var seamStillActive = _objectiveSeamStatesBySlot.TryGetValue(slot, out var survivingSeamState);
+                var message = seamStillActive
+                    ? $"seam_skipped:fallthrough:{seamIssue}"
+                    : $"seam_lost_before_fallthrough:{seamIssue}";
+                LogObjectiveSeamEvent(
+                    slot,
+                    player,
+                    seamStillActive ? survivingSeamState.Program : activeSeamStateAtTickStart.Program,
+                    message);
+            }
+
+            if (hasObjectiveGoal
                 && TryBuildObjectiveTerminalInput(slot, world, controlledSlot.Team, player, graphGoal, out var terminalInput))
             {
                 _localObjectiveDirectPointBySlot.Remove(slot);
@@ -541,9 +1088,20 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (hasGraphGoal && ShouldUseLocalObjectiveDirectSeek(slot, world, graphGoal, player))
+            if (hasObjectiveGoal
+                && (artifact is null || !ShouldUseObjectiveTape(world))
+                && ShouldUseLocalObjectiveDirectSeek(slot, world, graphGoal, player))
             {
                 _statesBySlot.Remove(slot);
+                if (graph is not null
+                    && ShouldUseGraphForLocalObjectiveCompletion(world, graphGoal)
+                    && TryBuildGraphInput(slot, world, controlledSlot, graph!, graphGoal, player, out var localObjectiveGraphInput))
+                {
+                    _inputs[slot] = ApplyCombatInput(world, player, localObjectiveGraphInput, allPlayers);
+                    diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, graphGoal, _inputs[slot]));
+                    continue;
+                }
+
                 _graphStatesBySlot.Remove(slot);
                 var localObjectiveInput = BuildDirectSeekInput(slot, world, controlledSlot.Team, player, graphGoal);
                 _inputs[slot] = ApplyCombatInput(world, player, localObjectiveInput, allPlayers);
@@ -554,6 +1112,14 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             if (hasGraphGoal && IsDynamicGraphGoal(graphGoal.Label))
             {
                 _statesBySlot.Remove(slot);
+                if (ShouldUseDynamicGraphObjectiveNavigation(world, graphGoal)
+                    && TryBuildGraphInput(slot, world, controlledSlot, graph!, graphGoal, player, out var dynamicGraphInput))
+                {
+                    _inputs[slot] = ApplyCombatInput(world, player, dynamicGraphInput, allPlayers);
+                    diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, graphGoal, _inputs[slot]));
+                    continue;
+                }
+
                 _graphStatesBySlot.Remove(slot);
                 var directGoalInput = BuildDirectSeekInput(slot, world, controlledSlot.Team, player, graphGoal);
                 _inputs[slot] = ApplyCombatInput(world, player, directGoalInput, allPlayers);
@@ -572,17 +1138,30 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
             if (artifact is { } objectiveArtifact && ShouldUseObjectiveTape(world))
             {
-                var tapeInput = BuildTapeInput(slot, world, controlledSlot, objectiveArtifact, player, out var tapeGoal);
+                if (hasGraphGoal
+                    && TryBuildObjectiveTapeGraphRecoveryInput(slot, world, controlledSlot, graph, player, graphGoal, out var activeRecoveryGraphInput))
+                {
+                    _inputs[slot] = ApplyCombatInput(world, player, activeRecoveryGraphInput, allPlayers);
+                    diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, graphGoal, _inputs[slot]));
+                    continue;
+                }
+
+                var tapeInput = BuildTapeInput(slot, world, controlledSlot, objectiveArtifact, graph, player, out var tapeGoal);
                 if (hasGraphGoal
                     && ShouldRecoverObjectiveTapeWithGraph(slot, world, player, objectiveArtifact)
                     && TryBuildGraphInput(slot, world, controlledSlot, graph!, graphGoal, player, out var recoveryGraphInput))
                 {
+                    if (_statesBySlot.TryGetValue(slot, out var recoveryState))
+                    {
+                        _statesBySlot[slot] = recoveryState with { GraphRecoveryActive = true };
+                    }
+
                     _inputs[slot] = ApplyCombatInput(world, player, recoveryGraphInput, allPlayers);
                     diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, graphGoal, _inputs[slot]));
                     continue;
                 }
 
-                _inputs[slot] = ApplyCombatInput(world, player, tapeInput, allPlayers);
+                _inputs[slot] = ApplyCombatInput(world, player, tapeInput, allPlayers, preservePassiveAim: true);
                 diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, tapeGoal, _inputs[slot]));
                 continue;
             }
@@ -595,7 +1174,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            if (hasGraphGoal && !ShouldUseObjectiveTape(world))
+            if (hasObjectiveGoal && !ShouldUseObjectiveTape(world))
             {
                 var directGoalInput = BuildDirectSeekInput(slot, world, controlledSlot.Team, player, graphGoal);
                 _inputs[slot] = ApplyCombatInput(world, player, directGoalInput, allPlayers);
@@ -609,8 +1188,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 continue;
             }
 
-            var fallbackInput = BuildTapeInput(slot, world, controlledSlot, artifact, player, out var fallbackGoal);
-            _inputs[slot] = ApplyCombatInput(world, player, fallbackInput, allPlayers);
+            var fallbackInput = BuildTapeInput(slot, world, controlledSlot, artifact, graph, player, out var fallbackGoal);
+            _inputs[slot] = ApplyCombatInput(world, player, fallbackInput, allPlayers, preservePassiveAim: true);
             diagnostics?.Add(CreateDiagnostics(slot, controlledSlot, player, fallbackGoal, _inputs[slot]));
         }
 
@@ -632,6 +1211,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         SimulationWorld world,
         ControlledBotSlot controlledSlot,
         PreparedMotionProofArtifact artifact,
+        PreparedMotionGraph? graph,
         PlayerEntity player,
         out GraphGoal diagnosticGoal)
     {
@@ -647,6 +1227,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var state = GetReplayState(slot, world, controlledSlot, artifact, phase);
         if (state.Phase != phase)
         {
+            var captureImplicitReturnStart = phase == ReplayPhase.Return && float.IsNaN(phaseData.StartX);
             state = state with
             {
                 Phase = phase,
@@ -655,8 +1236,16 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 LastX = player.X,
                 LastBottom = player.Bottom,
                 NoProgressTicks = 0,
+                NoHorizontalProgressTicks = 0,
                 BestGoalDistance = float.NaN,
                 NoGoalProgressTicks = 0,
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+                ImplicitPhaseStartX = captureImplicitReturnStart ? player.X : float.NaN,
+                ImplicitPhaseStartBottom = captureImplicitReturnStart ? player.Bottom : float.NaN,
+                GraphRecoveryActive = false,
+                PendingForwardReattach = false,
             };
         }
 
@@ -673,10 +1262,44 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 return BuildIdleInput(world, player);
             }
 
-            _statesBySlot[slot] = state;
-            if (TryGetGraphGoal(world, controlledSlot.Team, player, out var recoveryGoal))
+            if (TryGetGraphGoal(world, controlledSlot.Team, player, out var fallbackRecoveryGoal))
             {
-                return BuildDirectSeekInput(slot, world, controlledSlot.Team, player, recoveryGoal);
+                if (TryBuildTapeExhaustedReattachInput(
+                        slot,
+                        world,
+                        controlledSlot,
+                        graph,
+                        player,
+                        phaseData,
+                        fallbackRecoveryGoal,
+                        ref state,
+                        out var exhaustedReattachInput,
+                        out diagnosticGoal))
+                {
+                    _statesBySlot[slot] = state;
+                    return exhaustedReattachInput;
+                }
+
+                _statesBySlot[slot] = state;
+                if (ShouldStrictlyReplayObjectiveTape(world))
+                {
+                    diagnosticGoal = fallbackRecoveryGoal;
+                    if (ShouldPreferGraphForStrictTapeRecovery(world, controlledSlot.Team, player, fallbackRecoveryGoal, graph)
+                        && TryBuildGraphInput(slot, world, controlledSlot, graph!, fallbackRecoveryGoal, player, out var strictRecoveryGraphInput))
+                    {
+                        return strictRecoveryGraphInput;
+                    }
+
+                    return BuildDirectSeekInput(slot, world, controlledSlot.Team, player, fallbackRecoveryGoal);
+                }
+
+                if (graph is not null
+                    && TryBuildGraphInput(slot, world, controlledSlot, graph, fallbackRecoveryGoal, player, out var fallbackRecoveryGraphInput))
+                {
+                    return fallbackRecoveryGraphInput;
+                }
+
+                return BuildDirectSeekInput(slot, world, controlledSlot.Team, player, fallbackRecoveryGoal);
             }
 
             state = state with { ActionIndex = 0, ActionTick = 0 };
@@ -697,8 +1320,52 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var objectiveDistance = hasObjectiveGoal
             ? Distance(player.X, player.Bottom, objectiveGoal.X, objectiveGoal.Bottom)
             : float.NaN;
+        if (TryBuildImplicitReturnStartWaitInput(world, phase, phaseData, state, player, out var implicitReturnStartInput, out diagnosticGoal))
+        {
+            _statesBySlot[slot] = state;
+            return implicitReturnStartInput;
+        }
+
+        if (TryBuildSpawnExitTapePrefixInput(
+                slot,
+                world,
+                controlledSlot,
+                graph,
+                player,
+                phaseData,
+                hasObjectiveGoal ? objectiveGoal : null,
+                objectiveDistance,
+                ref state,
+                out var spawnExitInput,
+                out diagnosticGoal))
+        {
+            _statesBySlot[slot] = state;
+            return spawnExitInput;
+        }
+
+        if (TryBuildTapeReattachInput(
+                slot,
+                world,
+                controlledSlot,
+                graph,
+                player,
+                phase,
+                phaseData,
+                ref state,
+                hasObjectiveGoal ? objectiveGoal : null,
+                objectiveDistance,
+                out var reattachInput,
+                out diagnosticGoal))
+        {
+            _statesBySlot[slot] = state;
+            return reattachInput;
+        }
+
         state = TrackReplayProgress(state, player, objectiveDistance);
-        if (state.NoProgressTicks >= GetObjectiveTapeFastForwardTicks(world)
+        var strictReplay = ShouldStrictlyReplayObjectiveTape(world);
+        var action = tape[state.ActionIndex];
+        if (!strictReplay
+            && state.NoProgressTicks >= GetObjectiveTapeFastForwardTicks(world)
             && CanFastForwardInertTapeAction(tape, state.ActionIndex))
         {
             state = state with
@@ -711,10 +1378,11 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 BestGoalDistance = objectiveDistance,
                 NoGoalProgressTicks = 0,
             };
+            action = tape[state.ActionIndex];
         }
 
-        var action = tape[state.ActionIndex];
-        if (hasObjectiveGoal
+        if (!strictReplay
+            && hasObjectiveGoal
             && state.NoGoalProgressTicks >= ObjectiveTapeNoGoalProgressTicks
             && TryFindBetterObjectiveTapeAction(tape, state.ActionIndex, objectiveGoal.X - player.X, out var betterActionIndex))
         {
@@ -730,7 +1398,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             action = tape[state.ActionIndex];
         }
 
-        if (IsGroundedIdleAction(action, player))
+        if (!strictReplay && IsGroundedIdleAction(action, player))
         {
             state = state with
             {
@@ -749,23 +1417,232 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
 
         var input = BuildActionInput(action, state.ActionTick, player);
-        input = ApplyObjectiveTapeRescueInput(
-            world,
-            controlledSlot.Team,
-            player,
-            action,
-            input,
-            state.NoProgressTicks,
-            allowObstacleJump: false,
-            rescueJumpTicks: ObjectiveNavigationRescueJumpTicks);
+        if (!strictReplay)
+        {
+            input = ApplyObjectiveTapeRescueInput(
+                world,
+                controlledSlot.Team,
+                player,
+                action,
+                input,
+                state.NoProgressTicks,
+                allowObstacleJump: false,
+                rescueJumpTicks: ObjectiveNavigationRescueJumpTicks);
+        }
+
         _statesBySlot[slot] = AdvanceReplayState(state, tape) with { LastX = player.X, LastBottom = player.Bottom };
         return input;
+    }
+
+    private bool TryBuildSpawnExitTapePrefixInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PreparedMotionGraph? graph,
+        PlayerEntity player,
+        TapePhaseData phaseData,
+        GraphGoal? objectiveGoal,
+        float objectiveDistance,
+        ref ReplayState state,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        if (!_spawnReattachEligibleBySlot.TryGetValue(slot, out var spawnReattachEligible)
+            || !spawnReattachEligible)
+        {
+            return false;
+        }
+
+        if (state.SpawnExitPrefixResumeActionIndex < 0
+            && (state.ActionIndex != 0 || state.ActionTick != 0))
+        {
+            return false;
+        }
+
+        var isNearSpawnReplayWindow = IsWithinTeamSpawnReplayWindow(world, controlledSlot.Team, player);
+        if (!player.IsInSpawnRoom && !isNearSpawnReplayWindow)
+        {
+            _spawnReattachEligibleBySlot[slot] = false;
+            state = state with
+            {
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+            return false;
+        }
+
+        var shouldPreferSpawnExitPrefix = HasOutsideSpawnRoomReattachPoint(phaseData.ReattachPoints)
+            && !IsNearTapePhaseStartForSpawnReplay(player, phaseData);
+
+        if (!shouldPreferSpawnExitPrefix
+            && TryFindNearbyTapePhaseStartAlignmentPoint(phaseData, player, player.IsInSpawnRoom || isNearSpawnReplayWindow, out var startAlignmentPoint))
+        {
+            if (!IsNearTapePhaseStartForSpawnReplay(player, phaseData))
+            {
+                if (MathF.Abs(player.X - startAlignmentPoint.X) <= TapeStartAlignmentReadyRadiusX
+                    && IsReadyToStartTapeFromNearbySpawnOffset(player))
+                {
+                    _directSeekStatesBySlot.Remove(slot);
+                    state = state with
+                    {
+                        ActionIndex = 0,
+                        ActionTick = 0,
+                        LastX = player.X,
+                        LastBottom = player.Bottom,
+                        NoProgressTicks = 0,
+                        NoHorizontalProgressTicks = 0,
+                        BestGoalDistance = objectiveDistance,
+                        NoGoalProgressTicks = 0,
+                        ReattachResumeActionIndex = -1,
+                        ActiveReattachPoint = null,
+                        SpawnExitPrefixResumeActionIndex = -1,
+                    };
+                    return false;
+                }
+
+                diagnosticGoal = new GraphGoal(
+                    "tape_start_align",
+                    startAlignmentPoint.X,
+                    startAlignmentPoint.Bottom,
+                    MathF.Max(startAlignmentPoint.RadiusX, startAlignmentPoint.RadiusBottom));
+                input = BuildTapeStartAlignmentInput(player, startAlignmentPoint);
+                state = state with
+                {
+                    ReattachResumeActionIndex = -1,
+                    ActiveReattachPoint = null,
+                    SpawnExitPrefixResumeActionIndex = -1,
+                };
+                return true;
+            }
+
+            if (IsReadyToStartTapeFromNearbySpawnOffset(player))
+            {
+                _directSeekStatesBySlot.Remove(slot);
+                state = state with
+                {
+                    ActionIndex = 0,
+                    ActionTick = 0,
+                    LastX = player.X,
+                    LastBottom = player.Bottom,
+                    NoProgressTicks = 0,
+                    NoHorizontalProgressTicks = 0,
+                    BestGoalDistance = objectiveDistance,
+                    NoGoalProgressTicks = 0,
+                    ReattachResumeActionIndex = -1,
+                    ActiveReattachPoint = null,
+                    SpawnExitPrefixResumeActionIndex = -1,
+                };
+                return false;
+            }
+            else
+            {
+                diagnosticGoal = new GraphGoal(
+                    "tape_start_wait",
+                    startAlignmentPoint.X,
+                    startAlignmentPoint.Bottom,
+                    MathF.Max(startAlignmentPoint.RadiusX, startAlignmentPoint.RadiusBottom));
+                input = BuildIdleInput(world, player);
+                state = state with
+                {
+                    ReattachResumeActionIndex = -1,
+                    ActiveReattachPoint = null,
+                    SpawnExitPrefixResumeActionIndex = -1,
+                };
+                return true;
+            }
+        }
+
+        TapeReattachPoint spawnExitPoint;
+        var spawnExitResumeActionIndex = state.SpawnExitPrefixResumeActionIndex;
+        if (spawnExitResumeActionIndex >= 0)
+        {
+            if (!TryResolveTapeReattachPoint(phaseData, spawnExitResumeActionIndex, out spawnExitPoint))
+            {
+                _spawnReattachEligibleBySlot[slot] = false;
+                state = state with
+                {
+                    ReattachResumeActionIndex = -1,
+                    ActiveReattachPoint = null,
+                    SpawnExitPrefixResumeActionIndex = -1,
+                };
+                return false;
+            }
+        }
+        else if (!TryFindSpawnExitTapePrefixTarget(
+                phaseData.ReattachPoints,
+                player,
+                objectiveGoal,
+                objectiveDistance,
+                out spawnExitPoint))
+        {
+            return false;
+        }
+
+        spawnExitResumeActionIndex = spawnExitPoint.ResumeActionIndex;
+        if (!IsDirectlyContestableGoal(
+                world,
+                controlledSlot.Team,
+                player,
+                spawnExitPoint.X,
+                spawnExitPoint.Bottom,
+                CombatSeekVerticalTolerance,
+                CombatSeekDropTolerance,
+                CombatSeekJumpHorizontalRadius))
+        {
+            _spawnReattachEligibleBySlot[slot] = false;
+            state = state with
+            {
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+            return false;
+        }
+
+        if (IsReadyToResumeTapeAtReattachPoint(player, spawnExitPoint))
+        {
+            _spawnReattachEligibleBySlot[slot] = false;
+            _directSeekStatesBySlot.Remove(slot);
+            state = state with
+            {
+                ActionIndex = spawnExitResumeActionIndex,
+                ActionTick = 0,
+                LastX = player.X,
+                LastBottom = player.Bottom,
+                NoProgressTicks = 0,
+                NoHorizontalProgressTicks = 0,
+                BestGoalDistance = objectiveDistance,
+                NoGoalProgressTicks = 0,
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+            return false;
+        }
+
+        diagnosticGoal = new GraphGoal(
+            $"tape_spawn_exit_{spawnExitPoint.ResumeActionIndex}",
+            spawnExitPoint.X,
+            spawnExitPoint.Bottom,
+            MathF.Max(spawnExitPoint.RadiusX, spawnExitPoint.RadiusBottom));
+        input = BuildTapeRecoverySeekInput(slot, world, controlledSlot, graph, player, diagnosticGoal);
+        state = state with
+        {
+            ReattachResumeActionIndex = -1,
+            ActiveReattachPoint = null,
+            SpawnExitPrefixResumeActionIndex = spawnExitResumeActionIndex,
+        };
+        return true;
     }
 
     private bool TryBuildTapeReattachInput(
         byte slot,
         SimulationWorld world,
-        PlayerTeam team,
+        ControlledBotSlot controlledSlot,
+        PreparedMotionGraph? graph,
         PlayerEntity player,
         ReplayPhase phase,
         TapePhaseData phaseData,
@@ -779,7 +1656,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         diagnosticGoal = default;
         if (phaseData.ReattachPoints.Count == 0)
         {
-            state = state with { ReattachResumeActionIndex = -1 };
+            state = state with { ReattachResumeActionIndex = -1, ActiveReattachPoint = null };
             return false;
         }
 
@@ -787,9 +1664,17 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         if (reattachResumeActionIndex < 0)
         {
             var spawnReattachEligible = _spawnReattachEligibleBySlot.TryGetValue(slot, out var isEligible) && isEligible;
+            var pendingForwardReattach = state.PendingForwardReattach;
             TapeReattachPoint reattachPoint;
             var startedFromSpawnOrPhase = false;
-            if (ShouldStartTapeReattach(player, phaseData, state, spawnReattachEligible))
+            if (pendingForwardReattach)
+            {
+                if (!TryFindForwardTapeReattachPoint(phase, phaseData.ReattachPoints, player, state.ActionIndex, objectiveGoal, objectiveDistance, out reattachPoint))
+                {
+                    return false;
+                }
+            }
+            else if (ShouldStartTapeReattach(player, phaseData, state, spawnReattachEligible))
             {
                 if (!TryFindTapePhaseStartReattachPoint(phase, phaseData, player, objectiveGoal, objectiveDistance, out reattachPoint))
                 {
@@ -808,24 +1693,43 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             }
 
             reattachResumeActionIndex = reattachPoint.ResumeActionIndex;
-            state = state with { ReattachResumeActionIndex = reattachResumeActionIndex };
+            state = state with
+            {
+                ReattachResumeActionIndex = reattachResumeActionIndex,
+                ActiveReattachPoint = reattachPoint,
+                PendingForwardReattach = false,
+            };
             if (startedFromSpawnOrPhase)
             {
                 _spawnReattachEligibleBySlot[slot] = false;
             }
         }
 
-        if (!TryResolveTapeReattachPoint(phaseData, reattachResumeActionIndex, out var activePoint))
+        var activePoint = state.ActiveReattachPoint;
+        if (activePoint is null
+            || activePoint.Value.ResumeActionIndex != reattachResumeActionIndex)
         {
-            state = state with { ReattachResumeActionIndex = -1 };
-            return false;
+            if (!TryResolveTapeReattachPoint(phaseData, reattachResumeActionIndex, out var resolvedPoint))
+            {
+                state = state with { ReattachResumeActionIndex = -1, ActiveReattachPoint = null };
+                return false;
+            }
+
+            activePoint = resolvedPoint;
+            state = state with { ActiveReattachPoint = resolvedPoint };
         }
 
-        if (IsWithinTapeReattachWindow(player, activePoint))
+        var currentReattachPoint = activePoint.Value;
+        if (currentReattachPoint.UseLiveBottom)
+        {
+            currentReattachPoint = currentReattachPoint with { Bottom = player.Bottom };
+        }
+
+        if (IsReadyToResumeTapeAtReattachPoint(player, currentReattachPoint))
         {
             state = state with
             {
-                ActionIndex = activePoint.ResumeActionIndex,
+                ActionIndex = currentReattachPoint.ResumeActionIndex,
                 ActionTick = 0,
                 LastX = player.X,
                 LastBottom = player.Bottom,
@@ -834,16 +1738,201 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 BestGoalDistance = float.NaN,
                 NoGoalProgressTicks = 0,
                 ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+                PendingForwardReattach = false,
+            };
+            return false;
+        }
+
+        if (objectiveGoal is { } activeObjectiveGoal
+            && TrySelectObjectiveSeamProgram(world, controlledSlot, player, activeObjectiveGoal, out var seamProgram)
+            && TryStartObjectiveSeamInput(slot, world, controlledSlot, player, seamProgram, out input, out diagnosticGoal))
+        {
+            state = state with
+            {
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+            return true;
+        }
+
+        if (!IsDirectlyContestableGoal(
+                world,
+                controlledSlot.Team,
+                player,
+                currentReattachPoint.X,
+                currentReattachPoint.Bottom,
+                CombatSeekVerticalTolerance,
+                CombatSeekDropTolerance,
+                CombatSeekJumpHorizontalRadius))
+        {
+            state = state with
+            {
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
             };
             return false;
         }
 
         diagnosticGoal = new GraphGoal(
-            $"tape_reattach_{activePoint.ResumeActionIndex}",
-            activePoint.X,
-            activePoint.Bottom,
-            MathF.Max(activePoint.RadiusX, activePoint.RadiusBottom));
-        input = BuildDirectSeekInput(slot, world, team, player, diagnosticGoal);
+            $"tape_reattach_{currentReattachPoint.ResumeActionIndex}",
+            currentReattachPoint.X,
+            currentReattachPoint.Bottom,
+            MathF.Max(currentReattachPoint.RadiusX, currentReattachPoint.RadiusBottom));
+        input = BuildTapeRecoverySeekInput(slot, world, controlledSlot, graph, player, diagnosticGoal);
+        return true;
+    }
+
+    private PlayerInputSnapshot BuildTapeRecoverySeekInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PreparedMotionGraph? graph,
+        PlayerEntity player,
+        GraphGoal goal)
+    {
+        if (ShouldStrictlyReplayObjectiveTape(world))
+        {
+            if (ShouldPreferGraphForStrictTapeRecovery(world, controlledSlot.Team, player, goal, graph)
+                && TryBuildGraphInput(slot, world, controlledSlot, graph!, goal, player, out var strictGraphInput))
+            {
+                return strictGraphInput;
+            }
+
+            return BuildDirectSeekInput(slot, world, controlledSlot.Team, player, goal);
+        }
+
+        if (graph is not null
+            && TryBuildGraphInput(slot, world, controlledSlot, graph, goal, player, out var graphInput))
+        {
+            return graphInput;
+        }
+
+        return BuildDirectSeekInput(slot, world, controlledSlot.Team, player, goal);
+    }
+
+    private static PlayerInputSnapshot BuildTapeStartAlignmentInput(PlayerEntity player, TapeReattachPoint point)
+    {
+        var deltaX = point.X - player.X;
+        var direction = MathF.Abs(deltaX) > point.RadiusX ? Math.Sign(deltaX) : 0;
+        var aimDirection = direction != 0
+            ? direction
+            : player.FacingDirectionX < 0f ? -1 : 1;
+        return new PlayerInputSnapshot(
+            Left: direction < 0,
+            Right: direction > 0,
+            Up: false,
+            Down: false,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + (aimDirection * 160f),
+            AimWorldY: player.Y,
+            DebugKill: false);
+    }
+
+    private bool TryBuildTapeExhaustedReattachInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PreparedMotionGraph? graph,
+        PlayerEntity player,
+        TapePhaseData phaseData,
+        GraphGoal objectiveGoal,
+        ref ReplayState state,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        var currentObjectiveDistance = Distance(player.X, player.Bottom, objectiveGoal.X, objectiveGoal.Bottom);
+        TapeReattachPoint point;
+        if (!TryFindLocalTapeDriftReattachPoint(phaseData, player, state.ActionIndex, out point)
+            && !TryFindBestObjectiveTapeReattachPoint(
+                phaseData.ReattachPoints,
+                player,
+                requireOutsideSpawnRoom: player.IsInSpawnRoom,
+                currentActionIndex: -1,
+                objectiveGoal,
+                currentObjectiveDistance,
+                out point)
+            && !TryFindNearestTapeReattachPoint(phaseData, player, out point))
+        {
+            return false;
+        }
+
+        if (IsReadyToResumeTapeAtReattachPoint(player, point))
+        {
+            diagnosticGoal = new GraphGoal(
+                $"tape_exhausted_resume_{point.ResumeActionIndex}",
+                point.X,
+                point.Bottom,
+                MathF.Max(point.RadiusX, point.RadiusBottom));
+            state = state with
+            {
+                ActionIndex = point.ResumeActionIndex,
+                ActionTick = 0,
+                LastX = player.X,
+                LastBottom = player.Bottom,
+                NoProgressTicks = 0,
+                NoHorizontalProgressTicks = 0,
+                BestGoalDistance = currentObjectiveDistance,
+                NoGoalProgressTicks = 0,
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+
+            _directSeekStatesBySlot.Remove(slot);
+            var action = phaseData.Actions[Math.Clamp(point.ResumeActionIndex, 0, phaseData.Actions.Count - 1)];
+            input = BuildActionInput(action, 0, player);
+            return true;
+        }
+
+        var isTerminalPoint = point.ResumeActionIndex >= phaseData.Actions.Count - 1;
+        if (isTerminalPoint
+            && currentObjectiveDistance <= MathF.Max(TapeExhaustedObjectiveFinishDistance, objectiveGoal.Radius))
+        {
+            if (TryBuildObjectiveTerminalInput(slot, world, controlledSlot.Team, player, objectiveGoal, out input))
+            {
+                diagnosticGoal = objectiveGoal;
+                state = state with
+                {
+                    ReattachResumeActionIndex = -1,
+                    ActiveReattachPoint = null,
+                    SpawnExitPrefixResumeActionIndex = -1,
+                };
+                return true;
+            }
+
+            diagnosticGoal = objectiveGoal;
+            state = state with
+            {
+                ReattachResumeActionIndex = -1,
+                ActiveReattachPoint = null,
+                SpawnExitPrefixResumeActionIndex = -1,
+            };
+            input = BuildTapeRecoverySeekInput(slot, world, controlledSlot, graph, player, objectiveGoal);
+            return true;
+        }
+
+        diagnosticGoal = new GraphGoal(
+            $"tape_exhausted_reattach_{point.ResumeActionIndex}",
+            point.X,
+            point.Bottom,
+            MathF.Max(point.RadiusX, point.RadiusBottom));
+        state = state with
+        {
+            ReattachResumeActionIndex = point.ResumeActionIndex,
+            ActiveReattachPoint = point,
+            SpawnExitPrefixResumeActionIndex = -1,
+        };
+        input = BuildTapeRecoverySeekInput(slot, world, controlledSlot, graph, player, diagnosticGoal);
         return true;
     }
 
@@ -1042,7 +2131,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             NoNextPointTicks: 0,
             FallbackRouteLabel: string.Empty,
             FallbackTriggerLabel: string.Empty,
-            NavigationIssueLabel: string.Empty,
+            NavigationIssueLabel: _objectiveSeamIssueBySlot.TryGetValue(slot, out var seamIssue) ? seamIssue : string.Empty,
             BranchFromPointId: -1,
             BranchToPointId: -1,
             BranchTicks: 0,
@@ -1061,7 +2150,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         var root = ResolveMotionProofContentRoot();
 
-        var path = Path.Combine(root, $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.json");
+        var path = ResolveFirstExistingMotionProofArtifactPath(
+            root,
+            MotionProofTapesDirectoryName,
+            $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.json");
         if (!File.Exists(path))
         {
             _artifactsByKey[key] = null;
@@ -1161,7 +2253,11 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 endBottom,
                 TapeReattachWindowRadiusX,
                 TapeReattachWindowRadiusBottom,
-                bot.IsInSpawnRoom));
+                bot.IsInSpawnRoom,
+                bot.IsGrounded,
+                bot.HorizontalSpeed,
+                bot.VerticalSpeed,
+                UseLiveBottom: false));
             lastAddedX = endX;
             lastAddedBottom = endBottom;
         }
@@ -1204,12 +2300,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         out SimulationWorld world,
         out PlayerEntity bot)
     {
-        world = new SimulationWorld(new SimulationConfig
-        {
-            EnableLocalDummies = false,
-            EnableEnemyTrainingDummy = false,
-            EnableFriendlySupportDummy = false,
-        });
+        world = new SimulationWorld();
         bot = null!;
         if (!world.TryLoadLevel(map, area, preservePlayerStats: false))
         {
@@ -1241,6 +2332,24 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         return ProjectSourceLocator.FindDirectory(MotionProofContentRelativeDirectory) ?? root;
     }
 
+    private static string ResolveFirstExistingMotionProofArtifactPath(
+        string root,
+        string preferredSubdirectory,
+        string fileName)
+    {
+        var candidates = EnumerateMotionProofArtifactPaths(root, preferredSubdirectory, fileName).ToArray();
+        return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+    }
+
+    private static IEnumerable<string> EnumerateMotionProofArtifactPaths(
+        string root,
+        string preferredSubdirectory,
+        string fileName)
+    {
+        yield return Path.Combine(root, preferredSubdirectory, fileName);
+        yield return Path.Combine(root, fileName);
+    }
+
     private static bool ShouldUseObjectiveTape(SimulationWorld world)
     {
         return world.MatchRules.Mode is GameModeKind.CaptureTheFlag or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
@@ -1253,17 +2362,38 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         PlayerEntity player,
         PreparedMotionProofArtifact artifact)
     {
+        if (ShouldStrictlyReplayObjectiveTape(world))
+        {
+            return false;
+        }
+
         if (!_statesBySlot.TryGetValue(slot, out var state))
         {
             return false;
         }
 
-        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
+        var phase = SelectPhase(world, player);
+        var phaseData = phase == ReplayPhase.Return ? artifact.ReturnPhase : artifact.AttackPhase;
+        if (state.ReattachResumeActionIndex >= 0
+            || state.SpawnExitPrefixResumeActionIndex >= 0
+            || state.ActiveReattachPoint is not null)
+        {
+            return false;
+        }
+
+        if (state.ActionIndex >= phaseData.Actions.Count)
+        {
+            return true;
+        }
+
+        if (world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && phase != ReplayPhase.Return)
         {
             return false;
         }
 
         return state.NoProgressTicks >= ObjectiveGraphRecoveryTicks
+            || state.NoHorizontalProgressTicks >= ObjectiveGraphRecoveryTicks
             || state.NoGoalProgressTicks >= ObjectiveGraphRecoveryTicks;
     }
 
@@ -1281,6 +2411,75 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         return !IsEnabled(Environment.GetEnvironmentVariable("OG_MOTION_PROOF_FORCE_OBJECTIVE_TAPES"))
             && (world.MatchRules.Mode is GameModeKind.CaptureTheFlag or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill);
+    }
+
+    private bool TryBuildObjectiveTapeGraphRecoveryInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PreparedMotionGraph? graph,
+        PlayerEntity player,
+        GraphGoal goal,
+        out PlayerInputSnapshot input)
+    {
+        input = default;
+        if (graph is null
+            || !_statesBySlot.TryGetValue(slot, out var state)
+            || !state.GraphRecoveryActive)
+        {
+            return false;
+        }
+
+        if (TryBuildGraphInput(slot, world, controlledSlot, graph, goal, player, out input))
+        {
+            return true;
+        }
+
+        _statesBySlot[slot] = state with { GraphRecoveryActive = false };
+        return false;
+    }
+
+    private static bool ShouldUseDynamicGraphObjectiveNavigation(SimulationWorld world, GraphGoal goal)
+    {
+        return world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && goal.Label.Equals("enemy_carrier", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldUseGraphForLocalObjectiveCompletion(SimulationWorld world, GraphGoal goal)
+    {
+        return world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+            && goal.Label.StartsWith("control_point_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldPreferGraphForStrictTapeRecovery(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        GraphGoal goal,
+        PreparedMotionGraph? graph)
+    {
+        if (graph is null
+            || goal.Label.StartsWith("tape_", StringComparison.OrdinalIgnoreCase)
+            || goal.Label.StartsWith("terminal_", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !IsDirectlyContestableGoal(
+            world,
+            team,
+            player,
+            goal.X,
+            goal.Bottom,
+            verticalTolerance: 96f,
+            dropTolerance: DirectSeekVerticalDropThreshold,
+            jumpHorizontalRadius: DirectSeekVerticalSearchHorizontalRadius);
+    }
+
+    private static bool ShouldStrictlyReplayObjectiveTape(SimulationWorld world)
+    {
+        return ShouldUseObjectiveTape(world)
+            && !IsEnabled(Environment.GetEnvironmentVariable("OG_MOTION_PROOF_MUTATE_OBJECTIVE_TAPES"));
     }
 
     private bool ShouldUseLocalObjectiveDirectSeek(byte slot, SimulationWorld world, GraphGoal goal, PlayerEntity player)
@@ -1337,7 +2536,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     private PreparedMotionGraph? GetGraph(SimulationWorld world, ControlledBotSlot controlledSlot)
     {
         var movementProfile = GetMovementProfileId(controlledSlot.ClassId);
-        var key = $"{world.Level.Name}.a{world.Level.MapAreaIndex}.{movementProfile}";
+        var key = $"{world.Level.Name}.a{world.Level.MapAreaIndex}.{controlledSlot.Team}.{movementProfile}";
         if (_graphsByKey.TryGetValue(key, out var cached))
         {
             return cached;
@@ -1345,13 +2544,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         var root = ResolveMotionProofContentRoot();
 
-        var candidatePaths = new[]
-        {
-            Path.Combine(root, $"{world.Level.Name}.{movementProfile}.graph.json.gz"),
-            Path.Combine(root, $"{world.Level.Name}.{movementProfile}.graph.json"),
-            Path.Combine(root, $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.graph.json.gz"),
-            Path.Combine(root, $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.graph.json"),
-        };
+        var candidatePaths = EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{controlledSlot.Team}.{movementProfile}.graph.json.gz")
+            .Concat(EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{controlledSlot.Team}.{movementProfile}.graph.json"))
+            .Concat(EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{movementProfile}.graph.json.gz"))
+            .Concat(EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{movementProfile}.graph.json"))
+            .Concat(EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.graph.json.gz"))
+            .Concat(EnumerateMotionProofArtifactPaths(root, MotionProofGraphsDirectoryName, $"{world.Level.Name}.{controlledSlot.Team}.{controlledSlot.ClassId}.graph.json"))
+            .ToArray();
         var path = candidatePaths.FirstOrDefault(File.Exists);
         if (!File.Exists(path))
         {
@@ -1389,43 +2588,19 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             || (!shouldFinishPickupTape && state.GoalKey != goalKey)
             || state.ActionIndex >= state.Actions.Count)
         {
-            if (!TryBuildGraphPlan(
+            if (!TryRebuildGraphReplayState(
                     graph,
-                    controlledSlot.Team,
-                    player.IsCarryingIntel,
-                    player,
-                    player.X,
-                    player.Bottom,
-                    player.IsGrounded,
-                    player.HorizontalSpeed,
-                    player.VerticalSpeed,
-                    player.Height,
+                    controlledSlot,
                     world,
-                    goal.X,
-                    goal.Bottom,
-                    goal.Radius,
-                    goal.Label,
-                    out var plan))
+                    player,
+                    mapKey,
+                    goalKey,
+                    goal,
+                    out state))
             {
                 _graphStatesBySlot.Remove(slot);
                 return false;
             }
-
-            state = new GraphReplayState(
-                mapKey,
-                goalKey,
-                plan.Actions,
-                ActionIndex: 0,
-                ActionTick: 0,
-                plan.StartNodeIndex,
-                plan.GoalNodeIndex,
-                plan.GoalNodeX,
-                plan.GoalNodeBottom,
-                plan.PathNodeIndices,
-                LastX: player.X,
-                LastBottom: player.Bottom,
-                NoProgressTicks: 0,
-                NoHorizontalProgressTicks: 0);
         }
         else
         {
@@ -1434,6 +2609,24 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             {
                 _graphStatesBySlot.Remove(slot);
                 return false;
+            }
+
+            if (state.ActionIndex > 0
+                && state.ActionTick == 0)
+            {
+                if (!TryRebuildGraphReplayState(
+                        graph,
+                        controlledSlot,
+                        world,
+                        player,
+                        mapKey,
+                        goalKey,
+                        goal,
+                        out state))
+                {
+                    _graphStatesBySlot.Remove(slot);
+                    return false;
+                }
             }
         }
 
@@ -1475,6 +2668,56 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             allowDirectionReverse: true);
         _directSeekStatesBySlot.Remove(slot);
         _graphStatesBySlot[slot] = AdvanceGraphReplayState(state) with { LastX = player.X, LastBottom = player.Bottom };
+        return true;
+    }
+
+    private bool TryRebuildGraphReplayState(
+        PreparedMotionGraph graph,
+        ControlledBotSlot controlledSlot,
+        SimulationWorld world,
+        PlayerEntity player,
+        string mapKey,
+        string goalKey,
+        GraphGoal goal,
+        out GraphReplayState state)
+    {
+        state = default;
+        if (!TryBuildGraphPlan(
+                graph,
+                controlledSlot.Team,
+                player.IsCarryingIntel,
+                player,
+                player.X,
+                player.Bottom,
+                player.IsGrounded,
+                player.HorizontalSpeed,
+                player.VerticalSpeed,
+                player.Height,
+                world,
+                goal.X,
+                goal.Bottom,
+                goal.Radius,
+                goal.Label,
+                out var plan))
+        {
+            return false;
+        }
+
+        state = new GraphReplayState(
+            mapKey,
+            goalKey,
+            plan.Actions,
+            ActionIndex: 0,
+            ActionTick: 0,
+            plan.StartNodeIndex,
+            plan.GoalNodeIndex,
+            plan.GoalNodeX,
+            plan.GoalNodeBottom,
+            plan.PathNodeIndices,
+            LastX: player.X,
+            LastBottom: player.Bottom,
+            NoProgressTicks: 0,
+            NoHorizontalProgressTicks: 0);
         return true;
     }
 
@@ -1520,14 +2763,60 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         input = default;
         diagnosticGoal = default;
 
-        if (_objectiveSeamStatesBySlot.TryGetValue(slot, out var seamState))
+        if (_deferredObjectiveSeamProgramsBySlot.TryGetValue(slot, out var deferredProgram))
         {
-            if (!IsObjectiveSeamGoalReached(player, seamState.Program))
+            _deferredObjectiveSeamProgramsBySlot.Remove(slot);
+            if (IsInsideObjectiveSeamStartWindow(player, deferredProgram, ignoreVelocityTolerances: false))
             {
-                return TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal);
+                LogObjectiveSeamEvent(slot, player, deferredProgram, "seam_chain_resume");
+                return TryStartObjectiveSeamInput(slot, world, controlledSlot, player, deferredProgram, out input, out diagnosticGoal);
             }
 
-            _objectiveSeamStatesBySlot.Remove(slot);
+            LogObjectiveSeamEvent(slot, player, deferredProgram, "seam_chain_resume_rejected");
+        }
+
+        if (_objectiveSeamStatesBySlot.TryGetValue(slot, out var seamState))
+        {
+            if (IsObjectiveSeamGoalReached(player, seamState.Program))
+            {
+                _objectiveSeamIssueBySlot[slot] = "seam_goal_reached";
+                LogObjectiveSeamEvent(slot, player, seamState.Program, _objectiveSeamIssueBySlot[slot]);
+                _objectiveSeamStatesBySlot.Remove(slot);
+                if (TrySelectObjectiveSeamProgram(
+                        world,
+                        controlledSlot,
+                        player,
+                        goal,
+                        out var chainedProgram,
+                        previousProgram: seamState.Program,
+                        ignoreVelocityTolerances: true)
+                    && !ReferenceEquals(chainedProgram, seamState.Program))
+                {
+                    if (HasCertifiedObjectiveSeamStartWindows(chainedProgram))
+                    {
+                        _deferredObjectiveSeamProgramsBySlot[slot] = chainedProgram;
+                        diagnosticGoal = new GraphGoal(chainedProgram.Label, chainedProgram.GoalX, chainedProgram.GoalBottom, chainedProgram.GoalRadius);
+                        input = BuildIdleInput(world, player);
+                        LogObjectiveSeamEvent(slot, player, chainedProgram, $"seam_chain_deferred_from:{seamState.Program.Label}");
+                        return true;
+                    }
+
+                    LogObjectiveSeamEvent(slot, player, chainedProgram, $"seam_chain_from:{seamState.Program.Label}");
+                    return TryStartObjectiveSeamInput(slot, world, controlledSlot, player, chainedProgram, out input, out diagnosticGoal);
+                }
+
+                ArmObjectiveSeamReplayRecovery(slot, player);
+                LogObjectiveSeamEvent(slot, player, seamState.Program, "seam_chain_none");
+            }
+            else
+            {
+                if (TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal))
+                {
+                    return true;
+                }
+
+                _objectiveSeamStatesBySlot.Remove(slot);
+            }
         }
 
         if (!TrySelectObjectiveSeamProgram(world, controlledSlot, player, goal, out var program))
@@ -1535,19 +2824,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             return false;
         }
 
-        seamState = new ObjectiveSeamState(
-            program,
-            ActionIndex: 0,
-            ActionTick: 0,
-            TicksRemaining: Math.Max(program.DurationTicks, program.Actions.Sum(action => Math.Max(1, action.Ticks))),
-            NoMovementTicks: 0,
-            LastX: player.X,
-            LastBottom: player.Bottom);
-        _statesBySlot.Remove(slot);
-        _graphStatesBySlot.Remove(slot);
-        _directSeekStatesBySlot.Remove(slot);
-        _objectiveSeamStatesBySlot[slot] = seamState;
-        return TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal);
+        return TryStartObjectiveSeamInput(slot, world, controlledSlot, player, program, out input, out diagnosticGoal);
     }
 
     private bool TryContinueObjectiveSeamInput(
@@ -1561,11 +2838,27 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
     {
         input = default;
         diagnosticGoal = default;
-        if (IsObjectiveSeamGoalReached(player, state.Program)
-            || state.ActionIndex < 0
-            || state.ActionIndex >= state.Program.Actions.Count
-            || state.TicksRemaining <= 0)
+        if (IsObjectiveSeamGoalReached(player, state.Program))
         {
+            ArmObjectiveSeamReplayRecovery(slot, player);
+            _objectiveSeamIssueBySlot[slot] = "seam_goal_reached";
+            LogObjectiveSeamEvent(slot, player, state.Program, _objectiveSeamIssueBySlot[slot]);
+            _objectiveSeamStatesBySlot.Remove(slot);
+            return false;
+        }
+
+        if (state.ActionIndex < 0 || state.ActionIndex >= state.Program.Actions.Count)
+        {
+            _objectiveSeamIssueBySlot[slot] = "seam_action_exhausted";
+            LogObjectiveSeamEvent(slot, player, state.Program, _objectiveSeamIssueBySlot[slot]);
+            _objectiveSeamStatesBySlot.Remove(slot);
+            return false;
+        }
+
+        if (state.TicksRemaining <= 0)
+        {
+            _objectiveSeamIssueBySlot[slot] = "seam_time_budget_exhausted";
+            LogObjectiveSeamEvent(slot, player, state.Program, _objectiveSeamIssueBySlot[slot]);
             _objectiveSeamStatesBySlot.Remove(slot);
             return false;
         }
@@ -1574,6 +2867,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var noMovementTicks = moved >= NoProgressDistance ? 0 : state.NoMovementTicks + 1;
         if (noMovementTicks >= state.Program.NoMovementTicks)
         {
+            _objectiveSeamIssueBySlot[slot] = $"seam_no_movement:{noMovementTicks}";
+            LogObjectiveSeamEvent(slot, player, state.Program, _objectiveSeamIssueBySlot[slot]);
             _objectiveSeamStatesBySlot.Remove(slot);
             return false;
         }
@@ -1584,6 +2879,33 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         state = AdvanceObjectiveSeamState(state, player, noMovementTicks);
         _objectiveSeamStatesBySlot[slot] = state;
         return true;
+    }
+
+    private bool TryStartObjectiveSeamInput(
+        byte slot,
+        SimulationWorld world,
+        ControlledBotSlot controlledSlot,
+        PlayerEntity player,
+        ObjectiveSeamProgram program,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        var seamState = new ObjectiveSeamState(
+            program,
+            ActionIndex: 0,
+            ActionTick: 0,
+            TicksRemaining: Math.Max(program.DurationTicks, program.Actions.Sum(action => Math.Max(1, action.Ticks))),
+            NoMovementTicks: 0,
+            LastX: player.X,
+            LastBottom: player.Bottom);
+        _statesBySlot.Remove(slot);
+        _graphStatesBySlot.Remove(slot);
+        _directSeekStatesBySlot.Remove(slot);
+        _objectiveSeamStatesBySlot[slot] = seamState;
+        LogObjectiveSeamEvent(slot, player, program, "seam_start");
+        return TryContinueObjectiveSeamInput(slot, world, controlledSlot.Team, player, ref seamState, out input, out diagnosticGoal);
     }
 
     private static ObjectiveSeamState AdvanceObjectiveSeamState(ObjectiveSeamState state, PlayerEntity player, int noMovementTicks)
@@ -1610,7 +2932,144 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static bool IsObjectiveSeamGoalReached(PlayerEntity player, ObjectiveSeamProgram program)
     {
+        var completionWindows = GetObjectiveSeamCompletionWindows(program);
+        foreach (var completionWindow in completionWindows)
+        {
+            if (player.X >= completionWindow.XMin
+                && player.X <= completionWindow.XMax
+                && MathF.Abs(player.Bottom - completionWindow.Bottom) <= completionWindow.BottomTolerance
+                && (!completionWindow.RequireGrounded || player.IsGrounded))
+            {
+                return true;
+            }
+        }
+
+        if (HasCertifiedObjectiveSeamCompletionWindows(program))
+        {
+            return false;
+        }
+
         return Distance(player.X, player.Bottom, program.GoalX, program.GoalBottom) <= program.GoalRadius;
+    }
+
+    private static bool IsInsideObjectiveSeamStartWindow(PlayerEntity player, ObjectiveSeamProgram program)
+        => IsInsideObjectiveSeamStartWindow(player, program, ignoreVelocityTolerances: false);
+
+    private static bool IsInsideObjectiveSeamStartWindow(
+        PlayerEntity player,
+        ObjectiveSeamProgram program,
+        bool ignoreVelocityTolerances)
+    {
+        if (ignoreVelocityTolerances && HasCertifiedObjectiveSeamStartWindows(program))
+        {
+            ignoreVelocityTolerances = false;
+        }
+
+        var startWindows = GetObjectiveSeamStartWindows(program);
+        if (startWindows.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var window in startWindows)
+        {
+            if (player.X < window.StartXMin
+                || player.X > window.StartXMax
+                || MathF.Abs(player.Bottom - window.StartBottom) > window.StartBottomTolerance
+                || (!ignoreVelocityTolerances && MathF.Abs(player.HorizontalSpeed - window.HorizontalSpeedCenter) > window.HorizontalSpeedTolerance)
+                || (!ignoreVelocityTolerances && MathF.Abs(player.VerticalSpeed - window.VerticalSpeedCenter) > window.VerticalSpeedTolerance)
+                || player.IsGrounded != window.RequireGrounded)
+            {
+                continue;
+            }
+
+            if (window.FacingDirectionX > 0f && player.FacingDirectionX <= 0f)
+            {
+                continue;
+            }
+
+            if (window.FacingDirectionX < 0f && player.FacingDirectionX >= 0f)
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<ObjectiveSeamStartWindow> GetObjectiveSeamStartWindows(ObjectiveSeamProgram program)
+    {
+        if (!TraversalLabObjectiveSeamArtifactStore.TryGetCertification(program.Label, out var certification)
+            || certification.StartWindows.Count == 0)
+        {
+            return program.StartWindows;
+        }
+
+        return certification.StartWindows
+            .Select(static window => new ObjectiveSeamStartWindow(
+                window.StartXMin,
+                window.StartXMax,
+                window.StartBottom,
+                window.StartBottomTolerance,
+                window.FacingDirectionX,
+                window.HorizontalSpeedTolerance,
+                window.VerticalSpeedTolerance,
+                window.RequireGrounded,
+                window.HorizontalSpeedCenter,
+                window.VerticalSpeedCenter))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<ObjectiveSeamCompletionWindow> GetObjectiveSeamCompletionWindows(ObjectiveSeamProgram program)
+    {
+        if (TraversalLabObjectiveSeamArtifactStore.TryGetCertification(program.Label, out var certification)
+            && certification.CompletionWindows.Count > 0)
+        {
+            return certification.CompletionWindows
+                .Select(static window => new ObjectiveSeamCompletionWindow(
+                    window.XMin,
+                    window.XMax,
+                    window.Bottom,
+                    window.BottomTolerance,
+                    window.RequireGrounded))
+                .ToArray();
+        }
+
+        return program.CompletionWindow is { } completionWindow
+            ? [completionWindow]
+            : [];
+    }
+
+    private static bool HasCertifiedObjectiveSeamCompletionWindows(ObjectiveSeamProgram program)
+        => TraversalLabObjectiveSeamArtifactStore.TryGetCertification(program.Label, out var certification)
+            && certification.CompletionWindows.Count > 0;
+
+    private static bool HasCertifiedObjectiveSeamStartWindows(ObjectiveSeamProgram program)
+        => TraversalLabObjectiveSeamArtifactStore.TryGetCertification(program.Label, out var certification)
+            && certification.StartWindows.Count > 0;
+
+    private static bool IsAllowedObjectiveSeamChainCandidate(
+        ObjectiveSeamProgram? previousProgram,
+        ObjectiveSeamProgram candidateProgram)
+    {
+        if (previousProgram is null)
+        {
+            return true;
+        }
+
+        if (string.Equals(previousProgram.Label, candidateProgram.Label, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!TraversalLabObjectiveSeamArtifactStore.TryGetCertifiedSuccessorLabels(previousProgram.Label, out var successorLabels))
+        {
+            return true;
+        }
+
+        return successorLabels.Contains(candidateProgram.Label, StringComparer.OrdinalIgnoreCase);
     }
 
     private static bool TrySelectObjectiveSeamProgram(
@@ -1618,9 +3077,22 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         ControlledBotSlot controlledSlot,
         PlayerEntity player,
         GraphGoal goal,
-        out ObjectiveSeamProgram program)
+        out ObjectiveSeamProgram program,
+        ObjectiveSeamProgram? previousProgram = null,
+        bool ignoreVelocityTolerances = false)
     {
         program = default!;
+        if (world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+            && string.Equals(world.Level.Name, "Gallery", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && player.IsInSpawnRoom
+            && goal.Label.StartsWith("control_point_", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.ClassId is PlayerClass.Medic or PlayerClass.Demoman)
+        {
+            program = GalleryBlueSpawnExitSeamProgram;
+            return true;
+        }
+
         if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag)
         {
             return false;
@@ -1631,6 +3103,134 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && controlledSlot.ClassId == PlayerClass.Scout)
         {
             return false;
+        }
+
+        if (string.Equals(world.Level.Name, "Truefort", StringComparison.OrdinalIgnoreCase)
+            && controlledSlot.Team == PlayerTeam.Blue
+            && controlledSlot.ClassId == PlayerClass.Demoman)
+        {
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnPocketRetreatSeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnPocketRetreatSeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnPocketRetreatSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnStage997SeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnStage997SeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnStage997SeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnStage654SeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnStage654SeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnStage654SeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnStage445SeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnStage445SeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnStage445SeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnStage361SeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnStage361SeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnStage361SeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && IsAllowedObjectiveSeamChainCandidate(previousProgram, TruefortBlueDemomanLateReturnStage103SeamProgram)
+                && IsInsideObjectiveSeamStartWindow(player, TruefortBlueDemomanLateReturnStage103SeamProgram, ignoreVelocityTolerances))
+            {
+                program = TruefortBlueDemomanLateReturnStage103SeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanFullReturnSeamStartX) <= TruefortBlueDemomanFullReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanFullReturnSeamStartBottom) <= TruefortBlueDemomanFullReturnSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanFullReturnSeamProgram;
+                return true;
+            }
+
+            if (player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("own_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanReturnSeamStartX) <= TruefortBlueDemomanReturnSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanReturnSeamStartBottom) <= TruefortBlueDemomanReturnSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanReturnSeamProgram;
+                return true;
+            }
+
+            if (!player.IsCarryingIntel
+                && player.IsGrounded
+                && MathF.Abs(player.HorizontalSpeed) <= TapeStartAlignmentStableHorizontalSpeed
+                && MathF.Abs(player.VerticalSpeed) <= TapeStartAlignmentStableVerticalSpeed
+                && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanAttackSeamStartX) <= TruefortBlueDemomanAttackSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanAttackSeamStartBottom) <= TruefortBlueDemomanAttackSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanAttackSeamProgram;
+                return true;
+            }
+
+            if (!player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanLateAttackSeamStartX) <= TruefortBlueDemomanLateAttackSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanLateAttackSeamStartBottom) <= TruefortBlueDemomanLateAttackSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanLateAttackSeamProgram;
+                return true;
+            }
+
+            if (!player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanPickupSeamStartX) <= TruefortBlueDemomanPickupSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanPickupSeamStartBottom) <= TruefortBlueDemomanPickupSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanPickupSeamProgram;
+                return true;
+            }
+
+            if (!player.IsCarryingIntel
+                && player.IsGrounded
+                && goal.Label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase)
+                && MathF.Abs(player.X - TruefortBlueDemomanDeepAttackSeamStartX) <= TruefortBlueDemomanDeepAttackSeamToleranceX
+                && MathF.Abs(player.Bottom - TruefortBlueDemomanDeepAttackSeamStartBottom) <= TruefortBlueDemomanDeepAttackSeamToleranceBottom)
+            {
+                program = TruefortBlueDemomanDeepAttackSeamProgram;
+                return true;
+            }
+
         }
 
         if (string.Equals(world.Level.Name, "Conflict", StringComparison.OrdinalIgnoreCase))
@@ -2022,10 +3622,15 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         var deltaX = goal.X - player.X;
         var deltaBottom = goal.Bottom - player.Bottom;
-        var targetAbove = deltaBottom < -DirectSeekVerticalJumpThreshold;
-        var targetBelow = deltaBottom > DirectSeekVerticalDropThreshold;
         var goalCenterY = goal.Bottom - (player.Height * 0.5f);
+        var isLocalObjectiveGoal = goal.Label.StartsWith("control_point_", StringComparison.OrdinalIgnoreCase);
+        var targetAbove = deltaBottom < -DirectSeekVerticalJumpThreshold;
+        var targetBelow = deltaBottom > DirectSeekVerticalDropThreshold
+            || (isLocalObjectiveGoal
+                && MathF.Abs(deltaX) <= 96f
+                && deltaBottom > DirectSeekVerticalJumpThreshold * 2f);
         var isDynamicEnemyGoal = IsDynamicGraphGoal(goal.Label);
+        var allowReverseRecovery = isDynamicEnemyGoal || isLocalObjectiveGoal;
         var isTapeReattachGoal = goal.Label.StartsWith("tape_reattach_", StringComparison.OrdinalIgnoreCase);
         var hasGoalLineOfSight = !isDynamicEnemyGoal
             || HasLineOfSight(world, player.X, player.Y, goal.X, goalCenterY, team, player.IsCarryingIntel);
@@ -2033,17 +3638,43 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             ? Math.Sign(deltaX)
             : 0;
         var verticalSearchDirection = state.VerticalSearchDirection;
+        var nearLocalObjectiveClimbWindow = player.IsGrounded
+            && isLocalObjectiveGoal
+            && !targetBelow
+            && MathF.Abs(deltaX) <= GraphAttachRadius;
+        var leftJumpable = nearLocalObjectiveClimbWindow && HasJumpableVerticalAccessAhead(world, team, player, -1);
+        var rightJumpable = nearLocalObjectiveClimbWindow && HasJumpableVerticalAccessAhead(world, team, player, 1);
+        var hasNearbyLocalObjectiveClimbAccess = leftJumpable || rightJumpable;
         var shouldUseWideVerticalSearch = targetAbove
-            && (goal.Label.StartsWith("control_point_", StringComparison.OrdinalIgnoreCase)
-                || isDynamicEnemyGoal)
+            && (isLocalObjectiveGoal || isDynamicEnemyGoal)
             && MathF.Abs(deltaX) <= DirectSeekVerticalSearchHorizontalRadius;
         var shouldSearchForLineOfSight = isDynamicEnemyGoal
             && !hasGoalLineOfSight
             && (currentGoalDistance <= DirectSeekLineOfSightSearchDistance
                 || state.NoGoalProgressTicks >= DirectSeekRescueJumpTicks);
+        var shouldSearchLocalObjectiveDrop = isLocalObjectiveGoal
+            && targetBelow
+            && MathF.Abs(deltaX) <= 96f;
+        var shouldSearchLocalObjectiveClimb = hasNearbyLocalObjectiveClimbAccess
+            && (!hasGoalLineOfSight
+                || targetAbove
+                || state.NoHorizontalProgressTicks >= 2);
         var shouldSearchVertically = (MathF.Abs(deltaBottom) >= DirectSeekVerticalSearchThreshold
                 && (MathF.Abs(deltaX) <= GraphAttachRadius || shouldUseWideVerticalSearch || verticalSearchDirection != 0))
-            || shouldSearchForLineOfSight;
+            || shouldSearchForLineOfSight
+            || shouldSearchLocalObjectiveDrop
+            || shouldSearchLocalObjectiveClimb;
+        var shouldRefreshVerticalSearchDirection = shouldSearchVertically
+            && verticalSearchDirection != 0
+            && ((shouldSearchForLineOfSight && state.NoGoalProgressTicks >= DirectSeekRescueJumpTicks)
+                || state.NoHorizontalProgressTicks >= DirectSeekRescueJumpTicks
+                || (player.IsGrounded
+                    && WouldMoveIntoObstacle(
+                        world,
+                        team,
+                        player,
+                        verticalSearchDirection,
+                        probeDistance: DirectSeekObstacleProbeDistance)));
         if (isTapeReattachGoal
             && targetAbove
             && MathF.Abs(deltaX) > GraphAttachRadius)
@@ -2053,7 +3684,14 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         }
         if (shouldSearchVertically)
         {
-            if (verticalSearchDirection == 0
+            if (shouldSearchLocalObjectiveClimb && hasNearbyLocalObjectiveClimbAccess)
+            {
+                verticalSearchDirection = leftJumpable && rightJumpable
+                    ? SelectVerticalSearchDirection(world, team, player, goal, state.VerticalSearchDirection)
+                    : leftJumpable ? -1 : 1;
+            }
+            else if (verticalSearchDirection == 0
+                || shouldRefreshVerticalSearchDirection
                 || (shouldSearchForLineOfSight
                     && state.NoHorizontalProgressTicks >= DirectSeekStuckBackupTicks * 2
                     && state.NoGoalProgressTicks >= DirectSeekVerticalFlipNoGoalProgressTicks))
@@ -2061,11 +3699,33 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 verticalSearchDirection = SelectVerticalSearchDirection(world, team, player, goal, state.VerticalSearchDirection);
             }
 
+            if (!allowReverseRecovery
+                && !targetBelow
+                && targetDirection != 0
+                && verticalSearchDirection != 0
+                && verticalSearchDirection != targetDirection)
+            {
+                verticalSearchDirection = targetDirection;
+            }
+
             targetDirection = verticalSearchDirection;
         }
         else
         {
             verticalSearchDirection = 0;
+        }
+
+        if (targetDirection == 0
+            && player.IsGrounded
+            && !targetBelow
+            && isLocalObjectiveGoal)
+        {
+            if (leftJumpable || rightJumpable)
+            {
+                targetDirection = leftJumpable && rightJumpable
+                    ? SelectVerticalSearchDirection(world, team, player, goal, player.FacingDirectionX >= 0f ? 1 : -1)
+                    : leftJumpable ? -1 : 1;
+            }
         }
 
         var direction = targetDirection;
@@ -2079,7 +3739,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             backupEscape = true;
             state = state with { BackupTicksRemaining = state.BackupTicksRemaining - 1 };
         }
-        else if (targetDirection != 0
+        else if (allowReverseRecovery
+            && targetDirection != 0
             && ShouldReverseDirectSeek(state, shouldSearchVertically, targetAbove)
             && (WouldMoveIntoObstacle(world, team, player, targetDirection)
                 || MathF.Abs(deltaBottom) >= DirectSeekVerticalSearchThreshold
@@ -2100,12 +3761,28 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             };
         }
 
-        var obstacleAhead = direction != 0 && WouldMoveIntoObstacle(world, team, player, direction, DirectSeekObstacleProbeDistance);
+        var frontFootBlocked = direction != 0
+            && player.IsGrounded
+            && HasDirectSeekForwardFootBlock(world, team, player, direction, probeDistance: 8f)
+            && HasDirectSeekJumpHeadClear(world, team, player);
+        var upcomingFootBlock = direction != 0
+            && player.IsGrounded
+            && HasUpcomingDirectSeekFootBlock(world, team, player, direction, startProbeDistance: 18f, endProbeDistance: 42f, step: 6f)
+            && HasDirectSeekJumpHeadClear(world, team, player);
+        var obstacleAhead = direction != 0
+            && (WouldMoveIntoObstacle(world, team, player, direction, DirectSeekObstacleProbeDistance) || frontFootBlocked);
         if (targetBelow
             && shouldSearchVertically
             && player.IsGrounded
-            && TryFindNearestDropDirection(world, team, player, out var dropDirection))
+            && TryFindNearestDropDirection(world, team, player, verticalSearchDirection, out var dropDirection))
         {
+            if (verticalSearchDirection != 0
+                && dropDirection != verticalSearchDirection
+                && state.NoGoalProgressTicks < DirectSeekVerticalFlipNoGoalProgressTicks)
+            {
+                dropDirection = verticalSearchDirection;
+            }
+
             direction = dropDirection;
             obstacleAhead = WouldMoveIntoObstacle(world, team, player, direction);
             verticalSearchDirection = direction;
@@ -2122,6 +3799,10 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 state.NoHorizontalProgressTicks,
                 state.NoGoalProgressTicks,
                 state.TotalTicks);
+        var immediateClimbJump = direction != 0
+            && player.IsGrounded
+            && HasJumpableVerticalAccessAhead(world, team, player, direction)
+            && (!targetBelow || targetAbove || MathF.Abs(deltaBottom) <= DirectSeekClimbClearance);
         var belowObstacleClearJump = targetBelow
             && direction != 0
             && obstacleAhead
@@ -2131,8 +3812,17 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && player.IsGrounded
             && state.NoHorizontalProgressTicks >= 4
             && MathF.Abs(deltaBottom) <= 160f
-            && HasDirectSeekForwardFootBlock(world, team, player, direction, probeDistance: 8f)
-            && HasDirectSeekJumpHeadClear(world, team, player);
+            && frontFootBlocked;
+        var immediateLipJump = !targetBelow
+            && direction != 0
+            && player.IsGrounded
+            && frontFootBlocked;
+        var ledgeApproachJump = targetAbove
+            && direction != 0
+            && player.IsGrounded
+            && MathF.Abs(deltaX) >= 24f
+            && MathF.Abs(deltaX) <= 168f
+            && upcomingFootBlock;
         var dynamicRescueJumpPulse = isDynamicEnemyGoal
             && !targetBelow
             && direction != 0
@@ -2144,9 +3834,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && direction != 0
             && state.BackupTicksRemaining >= DirectSeekBackupTicks - DirectSeekBackupJumpPulseTicks;
         var groundJump = (!targetBelow && obstacleAhead)
+            || immediateClimbJump
             || verticalClimbJump
             || belowObstacleClearJump
             || belowLipRecoveryJump
+            || immediateLipJump
+            || ledgeApproachJump
             || (targetAbove && hasGoalLineOfSight && MathF.Abs(deltaX) <= 260f)
             || (targetBelow && shouldSearchVertically && obstacleAhead)
             || dynamicRescueJumpPulse
@@ -2204,6 +3897,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static bool ShouldReverseDirectSeek(DirectSeekState state, bool shouldSearchVertically, bool targetAbove)
     {
+        if (targetAbove && shouldSearchVertically)
+        {
+            return state.NoHorizontalProgressTicks >= DirectSeekStuckBackupTicks * 2
+                && state.NoGoalProgressTicks >= DirectSeekVerticalFlipNoGoalProgressTicks;
+        }
+
         if (state.NoProgressTicks >= DirectSeekStuckBackupTicks)
         {
             return true;
@@ -2364,6 +4063,31 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         return IntersectsMovementBlocker(world, team, player, probeX - 1f, feetY - 1f, probeX + 1f, feetY + 4f);
     }
 
+    private static bool HasUpcomingDirectSeekFootBlock(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        int direction,
+        float startProbeDistance,
+        float endProbeDistance,
+        float step)
+    {
+        if (direction == 0)
+        {
+            return false;
+        }
+
+        for (var probeDistance = startProbeDistance; probeDistance <= endProbeDistance; probeDistance += step)
+        {
+            if (HasDirectSeekForwardFootBlock(world, team, player, direction, probeDistance))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool HasDirectSeekJumpHeadClear(
         SimulationWorld world,
         PlayerTeam team,
@@ -2507,6 +4231,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         SimulationWorld world,
         PlayerTeam team,
         PlayerEntity player,
+        int preferredDirection,
         out int direction)
     {
         var left = FindDropSearchCandidate(world, team, player, -1);
@@ -2529,12 +4254,33 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             return true;
         }
 
+        if (preferredDirection < 0
+            && ShouldKeepPreferredDropDirection(left.Value, right.Value))
+        {
+            direction = -1;
+            return true;
+        }
+
+        if (preferredDirection > 0
+            && ShouldKeepPreferredDropDirection(right.Value, left.Value))
+        {
+            direction = 1;
+            return true;
+        }
+
         direction = right.Value.ClearRunDistance > left.Value.ClearRunDistance + DirectSeekDropProbeStep
             ? 1
             : left.Value.ClearRunDistance > right.Value.ClearRunDistance + DirectSeekDropProbeStep
             ? -1
             : right.Value.DropDistance <= left.Value.DropDistance ? 1 : -1;
         return true;
+    }
+
+    private static bool ShouldKeepPreferredDropDirection(DropSearchCandidate preferred, DropSearchCandidate alternate)
+    {
+        var alternateHasMeaningfullyMoreRunway = alternate.ClearRunDistance > preferred.ClearRunDistance + DirectSeekDropProbeStep;
+        var alternateHasMeaningfullyShorterDrop = alternate.DropDistance + DirectSeekDropProbeStep < preferred.DropDistance;
+        return !alternateHasMeaningfullyMoreRunway && !alternateHasMeaningfullyShorterDrop;
     }
 
     private static DropSearchCandidate? FindDropSearchCandidate(
@@ -2640,7 +4386,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static bool TrySelectEnemyGoal(SimulationWorld world, PlayerEntity player, out GraphGoal goal)
     {
-        var bestDistance = float.MaxValue;
+        var bestDistance = MathF.Max(CombatSightDistance, GetCombatSeekCommitDistance(player.ClassId, CombatTargetKind.Player));
         byte bestSlot = 0;
         PlayerEntity? bestEnemy = null;
         foreach (var (slot, candidate) in world.EnumerateActiveNetworkPlayers())
@@ -2653,7 +4399,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             }
 
             var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
-            if (distance >= bestDistance)
+            if (distance >= bestDistance
+                || !HasCombatLineOfSight(world, player, candidate)
+                || !IsDirectlyContestableEnemyGoal(world, player, candidate))
             {
                 continue;
             }
@@ -2671,6 +4419,71 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         goal = new GraphGoal($"enemy_{bestSlot}", bestEnemy.X, bestEnemy.Bottom, GraphGoalRadius);
         return true;
+    }
+
+    private static bool IsDirectlyContestableEnemyGoal(
+        SimulationWorld world,
+        PlayerEntity player,
+        PlayerEntity enemy)
+    {
+        return IsDirectlyContestableGoal(
+            world,
+            player.Team,
+            player,
+            enemy.X,
+            enemy.Bottom,
+            CombatSeekVerticalTolerance,
+            CombatSeekDropTolerance,
+            CombatSeekJumpHorizontalRadius);
+    }
+
+    private static bool IsDirectlyContestableGoal(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player,
+        float goalX,
+        float goalBottom,
+        float verticalTolerance,
+        float dropTolerance,
+        float jumpHorizontalRadius)
+    {
+        var deltaX = goalX - player.X;
+        var deltaBottom = goalBottom - player.Bottom;
+        if (MathF.Abs(deltaBottom) > verticalTolerance)
+        {
+            return false;
+        }
+
+        var direction = Math.Sign(deltaX);
+        if (direction == 0)
+        {
+            return true;
+        }
+
+        var obstacleAhead = WouldMoveIntoObstacle(world, team, player, direction, CombatSeekObstacleProbeDistance);
+        if (!obstacleAhead)
+        {
+            return true;
+        }
+
+        if (!player.IsGrounded)
+        {
+            return false;
+        }
+
+        var targetAbove = deltaBottom < -DirectSeekVerticalJumpThreshold;
+        if (targetAbove
+            && MathF.Abs(deltaX) <= jumpHorizontalRadius
+            && HasJumpableVerticalAccessAhead(world, team, player, direction))
+        {
+            return true;
+        }
+
+        var targetBelow = deltaBottom > dropTolerance;
+        return targetBelow
+            && MathF.Abs(deltaX) <= 96f
+            && TryFindNearestDropDirection(world, team, player, direction, out var dropDirection)
+            && dropDirection == direction;
     }
 
     private static bool IsEnabled(string? value)
@@ -2720,8 +4533,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         return $"{graph.Identity}:{graph.Version}:{team}:{carryingIntel}:{QuantizeGoalCoordinate(goalX, quantum)}:{QuantizeGoalCoordinate(goalBottom, quantum)}:{QuantizeGoalCoordinate(goalRadius, StaticGoalQuantization)}";
     }
 
-    private static bool IsDynamicGraphGoal(string label)
+    private static bool IsDynamicGraphGoal(string? label)
     {
+        if (string.IsNullOrEmpty(label))
+        {
+            return false;
+        }
+
         return (label.StartsWith("enemy_", StringComparison.OrdinalIgnoreCase)
                 && !label.Equals("enemy_intel", StringComparison.OrdinalIgnoreCase))
             || label.StartsWith("ally_carrier", StringComparison.OrdinalIgnoreCase)
@@ -3489,7 +5307,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             NoHorizontalProgressTicks: 0,
             BestGoalDistance: float.NaN,
             NoGoalProgressTicks: 0,
-            ReattachResumeActionIndex: -1);
+            ReattachResumeActionIndex: -1,
+            ActiveReattachPoint: null,
+            SpawnExitPrefixResumeActionIndex: -1,
+            ImplicitPhaseStartX: float.NaN,
+            ImplicitPhaseStartBottom: float.NaN,
+            GraphRecoveryActive: false,
+            PendingForwardReattach: false);
     }
 
     private static ReplayPhase SelectPhase(SimulationWorld world, PlayerEntity player)
@@ -3520,17 +5344,17 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static bool ShouldStartTapeReattach(PlayerEntity player, TapePhaseData phaseData, ReplayState state, bool spawnReattachEligible)
     {
-        if (state.ActionIndex != 0)
+        if (state.ActionIndex != 0 || state.ActionTick != 0)
         {
             return false;
         }
 
-        if (!player.IsInSpawnRoom || !spawnReattachEligible)
+        if (IsNearTapePhaseStartForSpawnReplay(player, phaseData))
         {
             return false;
         }
 
-        return IsFarFromTapePhaseStart(player, phaseData);
+        return !player.IsInSpawnRoom || !spawnReattachEligible;
     }
 
     private static bool IsFarFromTapePhaseStart(PlayerEntity player, TapePhaseData phaseData)
@@ -3539,9 +5363,43 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             || MathF.Abs(player.Bottom - phaseData.StartBottom) > TapeReattachStartRadiusBottom;
     }
 
+    private static bool IsNearTapePhaseStartForSpawnReplay(PlayerEntity player, TapePhaseData phaseData)
+    {
+        if (!player.IsInSpawnRoom)
+        {
+            return !IsFarFromTapePhaseStart(player, phaseData);
+        }
+
+        return MathF.Abs(player.X - phaseData.StartX) <= SpawnReplayWindowRadiusX
+            && MathF.Abs(player.Bottom - phaseData.StartBottom) <= TapeReattachWindowRadiusBottom;
+    }
+
     private static bool ShouldStartTapeRecoveryReattach(ReplayState state)
     {
         return false;
+    }
+
+    private void ArmObjectiveSeamReplayRecovery(byte slot, PlayerEntity player)
+    {
+        if (!_statesBySlot.TryGetValue(slot, out var replayState))
+        {
+            return;
+        }
+
+        _statesBySlot[slot] = replayState with
+        {
+            LastX = player.X,
+            LastBottom = player.Bottom,
+            NoProgressTicks = 0,
+            NoHorizontalProgressTicks = 0,
+            BestGoalDistance = float.NaN,
+            NoGoalProgressTicks = 0,
+            ReattachResumeActionIndex = -1,
+            ActiveReattachPoint = null,
+            SpawnExitPrefixResumeActionIndex = -1,
+            GraphRecoveryActive = false,
+            PendingForwardReattach = true,
+        };
     }
 
     private static bool TryFindNearestTapeReattachPoint(TapePhaseData phaseData, PlayerEntity player, out TapeReattachPoint point)
@@ -3555,6 +5413,42 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         return TryFindNearestTapeReattachPoint(phaseData.ReattachPoints, player, requireOutsideSpawnRoom: false, out point);
     }
 
+    private static bool TryFindLocalTapeDriftReattachPoint(
+        TapePhaseData phaseData,
+        PlayerEntity player,
+        int currentActionIndex,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        if (currentActionIndex <= 0)
+        {
+            return false;
+        }
+
+        var bestDistance = float.MaxValue;
+        var hasPoint = false;
+        foreach (var candidate in phaseData.ReattachPoints)
+        {
+            if (candidate.ResumeActionIndex >= currentActionIndex)
+            {
+                continue;
+            }
+
+            var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
+            if (distance > TapeReattachLocalDriftDistance
+                || distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            point = candidate;
+            hasPoint = true;
+        }
+
+        return hasPoint;
+    }
+
     private static bool TryFindTapePhaseStartReattachPoint(
         ReplayPhase phase,
         TapePhaseData phaseData,
@@ -3564,15 +5458,43 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         out TapeReattachPoint point)
     {
         if (phase == ReplayPhase.Return
-            && objectiveGoal is { } returnGoal
-            && TryFindBestObjectiveTapeReattachPoint(
+            && !float.IsNaN(phaseData.StartX)
+            && !float.IsNaN(phaseData.StartBottom)
+            && IsFarFromTapePhaseStart(player, phaseData))
+        {
+            point = new TapeReattachPoint(
+                ResumeActionIndex: 0,
+                X: phaseData.StartX,
+                Bottom: phaseData.StartBottom,
+                RadiusX: TapeReattachStartRadiusX,
+                RadiusBottom: TapeReattachStartRadiusBottom,
+                IsInSpawnRoom: false,
+                IsGrounded: true,
+                HorizontalSpeed: 0f,
+                VerticalSpeed: 0f,
+                UseLiveBottom: false);
+            return true;
+        }
+
+        if (TryFindEarliestSpawnExitTapeReattachPoint(phaseData.ReattachPoints, player, out point))
+        {
+            return true;
+        }
+
+        if (objectiveGoal is { } phaseGoal
+            && TryFindNearestObjectiveTapeReattachPoint(
                 phaseData.ReattachPoints,
                 player,
                 requireOutsideSpawnRoom: player.IsInSpawnRoom,
                 currentActionIndex: -1,
-                objectiveGoal: returnGoal,
+                objectiveGoal: phaseGoal,
                 currentObjectiveDistance: objectiveDistance,
                 out point))
+        {
+            return true;
+        }
+
+        if (TryFindNearestTapeReattachPoint(phaseData, player, out point))
         {
             return true;
         }
@@ -3588,11 +5510,137 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 Bottom: phaseData.StartBottom,
                 RadiusX: TapeReattachStartRadiusX,
                 RadiusBottom: TapeReattachStartRadiusBottom,
-                IsInSpawnRoom: true);
+                IsInSpawnRoom: true,
+                IsGrounded: true,
+                HorizontalSpeed: 0f,
+                VerticalSpeed: 0f,
+                UseLiveBottom: false);
             return true;
         }
 
-        return TryFindNearestTapeReattachPoint(phaseData, player, out point);
+        return false;
+    }
+
+    private static bool TryFindEarliestSpawnExitTapeReattachPoint(
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        if (!player.IsInSpawnRoom)
+        {
+            return false;
+        }
+
+        foreach (var candidate in points)
+        {
+            if (candidate.IsInSpawnRoom
+                || !IsStableTapeReattachPoint(candidate)
+                || Distance(player.X, player.Bottom, candidate.X, candidate.Bottom) > TapeReattachSpawnSearchDistance)
+            {
+                continue;
+            }
+
+            point = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindFirstOutsideSpawnTapeReattachPoint(
+        IReadOnlyList<TapeReattachPoint> points,
+        out TapeReattachPoint point)
+    {
+        foreach (var candidate in points)
+        {
+            if (!candidate.IsInSpawnRoom)
+            {
+                point = candidate;
+                return true;
+            }
+        }
+
+        point = default;
+        return false;
+    }
+
+    private static bool TryFindSpawnExitTapePrefixTarget(
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        GraphGoal? objectiveGoal,
+        float objectiveDistance,
+        out TapeReattachPoint point)
+    {
+        if (objectiveGoal is { } phaseGoal
+            && TryFindNearestObjectiveTapeReattachPoint(
+                points,
+                player,
+                requireOutsideSpawnRoom: true,
+                currentActionIndex: -1,
+                objectiveGoal: phaseGoal,
+                currentObjectiveDistance: objectiveDistance,
+                out point))
+        {
+            return true;
+        }
+
+        return TryFindFirstOutsideSpawnTapeReattachPoint(points, out point);
+    }
+
+    private static bool TryFindNearbyTapePhaseStartAlignmentPoint(
+        TapePhaseData phaseData,
+        PlayerEntity player,
+        bool isWithinSpawnReplayWindow,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        if (!isWithinSpawnReplayWindow
+            || float.IsNaN(phaseData.StartX)
+            || float.IsNaN(phaseData.StartBottom))
+        {
+            return false;
+        }
+
+        var distanceToStart = Distance(player.X, player.Bottom, phaseData.StartX, phaseData.StartBottom);
+        if (distanceToStart > TapeReattachSpawnStartSeekDistance
+            || MathF.Abs(player.Bottom - phaseData.StartBottom) > TapeReattachWindowRadiusBottom)
+        {
+            return false;
+        }
+
+        point = new TapeReattachPoint(
+            ResumeActionIndex: 0,
+            X: phaseData.StartX,
+            Bottom: player.Bottom,
+            RadiusX: TapeStartAlignmentReadyRadiusX,
+            RadiusBottom: TapeReattachStartRadiusBottom,
+            IsInSpawnRoom: true,
+            IsGrounded: true,
+            HorizontalSpeed: 0f,
+            VerticalSpeed: 0f,
+            UseLiveBottom: true);
+        return true;
+    }
+
+    private static bool IsWithinTeamSpawnReplayWindow(
+        SimulationWorld world,
+        PlayerTeam team,
+        PlayerEntity player)
+    {
+        var spawns = team == PlayerTeam.Blue ? world.Level.BlueSpawns : world.Level.RedSpawns;
+        var playerFeetY = player.Bottom;
+        foreach (var spawn in spawns)
+        {
+            var spawnFeetY = spawn.Y + player.CollisionBottomOffset;
+            if (MathF.Abs(player.X - spawn.X) <= SpawnReplayWindowRadiusX
+                && MathF.Abs(playerFeetY - spawnFeetY) <= SpawnReplayWindowRadiusBottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryResolveTapeReattachPoint(
@@ -3610,7 +5658,11 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 Bottom: phaseData.StartBottom,
                 RadiusX: TapeReattachStartRadiusX,
                 RadiusBottom: TapeReattachStartRadiusBottom,
-                IsInSpawnRoom: true);
+                IsInSpawnRoom: true,
+                IsGrounded: true,
+                HorizontalSpeed: 0f,
+                VerticalSpeed: 0f,
+                UseLiveBottom: false);
             return true;
         }
 
@@ -3690,9 +5742,18 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         point = default;
         var bestScore = float.MaxValue;
         var hasPoint = false;
+        var distanceLimit = requireOutsideSpawnRoom && currentActionIndex < 0
+            ? TapeReattachSpawnSearchDistance
+            : TapeReattachSearchDistance;
+        var requireStablePoint = requireOutsideSpawnRoom && currentActionIndex < 0;
         foreach (var candidate in points)
         {
             if (requireOutsideSpawnRoom && candidate.IsInSpawnRoom)
+            {
+                continue;
+            }
+
+            if (requireStablePoint && !IsStableTapeReattachPoint(candidate))
             {
                 continue;
             }
@@ -3703,7 +5764,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             }
 
             var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
-            if (distance > TapeReattachSearchDistance)
+            if (distance > distanceLimit)
             {
                 continue;
             }
@@ -3726,7 +5787,92 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             hasPoint = true;
         }
 
+        if (!hasPoint && requireStablePoint)
+        {
+            return TryFindBestObjectiveTapeReattachPoint(
+                points,
+                player,
+                requireOutsideSpawnRoom,
+                currentActionIndex: 0,
+                objectiveGoal,
+                currentObjectiveDistance,
+                out point);
+        }
+
         return hasPoint;
+    }
+
+    private static bool TryFindNearestObjectiveTapeReattachPoint(
+        IReadOnlyList<TapeReattachPoint> points,
+        PlayerEntity player,
+        bool requireOutsideSpawnRoom,
+        int currentActionIndex,
+        GraphGoal objectiveGoal,
+        float currentObjectiveDistance,
+        out TapeReattachPoint point)
+    {
+        point = default;
+        var bestDistance = float.MaxValue;
+        var hasPoint = false;
+        var distanceLimit = requireOutsideSpawnRoom && currentActionIndex < 0
+            ? TapeReattachSpawnSearchDistance
+            : TapeReattachSearchDistance;
+        var requireStablePoint = requireOutsideSpawnRoom && currentActionIndex < 0;
+        foreach (var candidate in points)
+        {
+            if (requireOutsideSpawnRoom && candidate.IsInSpawnRoom)
+            {
+                continue;
+            }
+
+            if (requireStablePoint && !IsStableTapeReattachPoint(candidate))
+            {
+                continue;
+            }
+
+            if (currentActionIndex >= 0 && candidate.ResumeActionIndex <= currentActionIndex)
+            {
+                continue;
+            }
+
+            var distance = Distance(player.X, player.Bottom, candidate.X, candidate.Bottom);
+            if (distance > distanceLimit || distance >= bestDistance)
+            {
+                continue;
+            }
+
+            var candidateGoalDistance = Distance(candidate.X, candidate.Bottom, objectiveGoal.X, objectiveGoal.Bottom);
+            if (!float.IsNaN(currentObjectiveDistance)
+                && candidateGoalDistance > currentObjectiveDistance + 64f)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            point = candidate;
+            hasPoint = true;
+        }
+
+        if (!hasPoint && requireStablePoint)
+        {
+            return TryFindNearestObjectiveTapeReattachPoint(
+                points,
+                player,
+                requireOutsideSpawnRoom,
+                currentActionIndex: 0,
+                objectiveGoal,
+                currentObjectiveDistance,
+                out point);
+        }
+
+        return hasPoint;
+    }
+
+    private static bool IsStableTapeReattachPoint(TapeReattachPoint point)
+    {
+        return point.IsGrounded
+            && MathF.Abs(point.HorizontalSpeed) <= TapeReattachStableHorizontalSpeed
+            && MathF.Abs(point.VerticalSpeed) <= TapeReattachStableVerticalSpeed;
     }
 
     private static bool TryFindNearestTapeReattachPoint(
@@ -3766,6 +5912,74 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             && MathF.Abs(player.Bottom - point.Bottom) <= point.RadiusBottom;
     }
 
+    private static bool IsReadyToResumeTapeAtReattachPoint(PlayerEntity player, TapeReattachPoint point)
+    {
+        if (!IsWithinTapeReattachWindow(player, point))
+        {
+            return false;
+        }
+
+        if (point.UseLiveBottom)
+        {
+            return player.IsGrounded == point.IsGrounded
+                && MathF.Abs(player.X - point.X) <= TapeStartAlignmentReadyRadiusX
+                && MathF.Abs(player.HorizontalSpeed - point.HorizontalSpeed) <= TapeStartAlignmentStableHorizontalSpeed
+                && MathF.Abs(player.VerticalSpeed - point.VerticalSpeed) <= TapeStartAlignmentStableVerticalSpeed;
+        }
+
+        if (!IsStableTapeReattachPoint(point))
+        {
+            return true;
+        }
+
+        return player.IsGrounded == point.IsGrounded
+            && MathF.Abs(player.HorizontalSpeed - point.HorizontalSpeed) <= TapeReattachStableHorizontalSpeed
+            && MathF.Abs(player.VerticalSpeed - point.VerticalSpeed) <= TapeReattachStableVerticalSpeed;
+    }
+
+    private static bool IsReadyToStartTapeFromNearbySpawnOffset(PlayerEntity player)
+    {
+        return MathF.Abs(player.HorizontalSpeed) <= TapeStartAlignmentStableHorizontalSpeed
+            && MathF.Abs(player.VerticalSpeed) <= TapeStartAlignmentStableVerticalSpeed;
+    }
+
+    private static bool TryBuildImplicitReturnStartWaitInput(
+        SimulationWorld world,
+        ReplayPhase phase,
+        TapePhaseData phaseData,
+        ReplayState state,
+        PlayerEntity player,
+        out PlayerInputSnapshot input,
+        out GraphGoal diagnosticGoal)
+    {
+        input = default;
+        diagnosticGoal = default;
+        if (phase != ReplayPhase.Return
+            || !float.IsNaN(phaseData.StartX)
+            || state.ActionIndex != 0
+            || state.ActionTick != 0
+            || float.IsNaN(state.ImplicitPhaseStartX)
+            || float.IsNaN(state.ImplicitPhaseStartBottom))
+        {
+            return false;
+        }
+
+        if (player.IsGrounded
+            && MathF.Abs(player.HorizontalSpeed) <= TapeStartAlignmentStableHorizontalSpeed
+            && MathF.Abs(player.VerticalSpeed) <= TapeStartAlignmentStableVerticalSpeed)
+        {
+            return false;
+        }
+
+        diagnosticGoal = new GraphGoal(
+            "tape_return_start_wait",
+            state.ImplicitPhaseStartX,
+            state.ImplicitPhaseStartBottom,
+            TapeReattachStartRadiusX);
+        input = BuildIdleInput(world, player);
+        return true;
+    }
+
     private static ReplayState TrackReplayProgress(ReplayState state, PlayerEntity player, float objectiveDistance)
     {
         var goalState = state;
@@ -3783,13 +5997,27 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
         if (float.IsNaN(state.LastX) || float.IsNaN(state.LastBottom))
         {
-            return goalState with { LastX = player.X, LastBottom = player.Bottom, NoProgressTicks = 0 };
+            return goalState with { LastX = player.X, LastBottom = player.Bottom, NoProgressTicks = 0, NoHorizontalProgressTicks = 0 };
         }
 
         var moved = Distance(player.X, player.Bottom, state.LastX, state.LastBottom);
-        return moved >= NoProgressDistance
-            ? goalState with { NoProgressTicks = 0 }
-            : goalState with { NoProgressTicks = state.NoProgressTicks + 1 };
+        var movedHorizontally = MathF.Abs(player.X - state.LastX);
+        return goalState with
+        {
+            NoProgressTicks = moved >= NoProgressDistance ? 0 : state.NoProgressTicks + 1,
+            NoHorizontalProgressTicks = movedHorizontally >= NoProgressDistance ? 0 : state.NoHorizontalProgressTicks + 1,
+        };
+    }
+
+    private static void LogObjectiveSeamEvent(byte slot, PlayerEntity player, ObjectiveSeamProgram program, string message)
+    {
+        if (!IsEnabled(Environment.GetEnvironmentVariable("OG_BOT_DIAGNOSTICS")))
+        {
+            return;
+        }
+
+        Console.WriteLine(
+            $"objective-seam slot={slot} label={program.Label} event={message} pos=({player.X:0.0},{player.Bottom:0.0}) vel=({player.HorizontalSpeed:0.0},{player.VerticalSpeed:0.0}) grounded={player.IsGrounded} facing={player.FacingDirectionX:0.0}");
     }
 
     private static GraphReplayState TrackGraphProgress(GraphReplayState state, PlayerEntity player)
@@ -3810,12 +6038,12 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
 
     private static DirectSeekState TrackDirectSeekProgress(DirectSeekState state, PlayerEntity player, float currentGoalDistance)
     {
-        var moved = Distance(player.X, player.Bottom, state.LastX, state.LastBottom);
         var movedHorizontally = MathF.Abs(player.X - state.LastX);
         var improvedGoalDistance = currentGoalDistance + 8f < state.BestGoalDistance;
+        var madeMeaningfulProgress = movedHorizontally >= NoProgressDistance || improvedGoalDistance;
         return state with
         {
-            NoProgressTicks = moved >= NoProgressDistance ? 0 : state.NoProgressTicks + 1,
+            NoProgressTicks = madeMeaningfulProgress ? 0 : state.NoProgressTicks + 1,
             NoHorizontalProgressTicks = movedHorizontally >= NoProgressDistance ? 0 : state.NoHorizontalProgressTicks + 1,
             BestGoalDistance = improvedGoalDistance ? currentGoalDistance : state.BestGoalDistance,
             NoGoalProgressTicks = improvedGoalDistance ? 0 : state.NoGoalProgressTicks + 1,
@@ -4162,7 +6390,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         SimulationWorld world,
         PlayerEntity player,
         PlayerInputSnapshot movementInput,
-        IReadOnlyList<PlayerEntity> allPlayers)
+        IReadOnlyList<PlayerEntity> allPlayers,
+        bool preservePassiveAim = false,
+        bool preserveMovementAuthority = false)
     {
         if (!player.IsAlive)
         {
@@ -4179,9 +6409,14 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         var fireSecondary = false;
         var fireSecondaryWeapon = false;
         var idleAimTarget = ResolveIdleAimTarget(world, player);
-        var aimX = idleAimTarget.X;
-        var aimY = idleAimTarget.Y;
-        if (targetPlayer is not null)
+        var aimX = preservePassiveAim ? movementInput.AimWorldX : idleAimTarget.X;
+        var aimY = preservePassiveAim ? movementInput.AimWorldY : idleAimTarget.Y;
+        if (hasCombatTarget && !preserveMovementAuthority)
+        {
+            movementInput = ApplyCombatSeekMovement(world, player, movementInput, target);
+        }
+
+        if (targetPlayer is not null && !preserveMovementAuthority)
         {
             movementInput = ApplyCombatSpacingInput(movementInput, player, targetPlayer);
         }
@@ -4190,10 +6425,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         {
             if (healTarget is not null)
             {
+                if (!preserveMovementAuthority)
+                {
+                    movementInput = ApplyMedicSupportMovement(world, player, movementInput, healTarget);
+                }
                 aimX = healTarget.X;
                 aimY = GetCombatAimTargetY(healTarget);
-                firePrimary = NeedsHealing(healTarget)
-                    && Distance(player.X, player.Y, healTarget.X, healTarget.Y) <= MedicHealFireDistance
+                firePrimary = Distance(player.X, player.Y, healTarget.X, healTarget.Y) <= MedicHealFireDistance
                     && HasCombatLineOfSight(world, player, healTarget);
                 fireSecondary = player.IsMedicUberReady
                     && (healTarget.Health < healTarget.MaxHealth / 2
@@ -4344,6 +6582,53 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         };
     }
 
+    private static PlayerInputSnapshot ApplyCombatSeekMovement(
+        SimulationWorld world,
+        PlayerEntity player,
+        PlayerInputSnapshot movementInput,
+        CombatTarget target)
+    {
+        if (!ShouldCommitMovementToCombatTarget(player, target, out var desiredSpacing, out var targetBottom))
+        {
+            return movementInput;
+        }
+
+        var deltaX = target.X - player.X;
+        var deltaBottom = targetBottom - player.Bottom;
+        if (MathF.Abs(deltaBottom) > CombatSeekVerticalTolerance)
+        {
+            return movementInput;
+        }
+
+        var direction = MathF.Abs(deltaX) > desiredSpacing
+            ? Math.Sign(deltaX)
+            : 0;
+        var targetAbove = deltaBottom < -DirectSeekVerticalJumpThreshold;
+        var targetBelow = deltaBottom > CombatSeekDropTolerance;
+        var obstacleAhead = direction != 0
+            && WouldMoveIntoObstacle(world, player.Team, player, direction, CombatSeekObstacleProbeDistance);
+        if (obstacleAhead)
+        {
+            return movementInput;
+        }
+
+        var shouldJump = player.IsGrounded
+            && direction != 0
+            && targetAbove
+            && MathF.Abs(deltaX) <= CombatSeekJumpHorizontalRadius;
+        var shouldDrop = !shouldJump
+            && targetBelow
+            && MathF.Abs(deltaX) <= 96f;
+
+        return movementInput with
+        {
+            Left = direction < 0,
+            Right = direction > 0,
+            Up = shouldJump,
+            Down = shouldDrop,
+        };
+    }
+
     private static PlayerInputSnapshot ApplyCombatSpacingInput(PlayerInputSnapshot movementInput, PlayerEntity player, PlayerEntity target)
     {
         var minimumSpacing = GetMinimumCombatSpacing(player.ClassId);
@@ -4363,6 +6648,105 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         {
             Left = awayDirection < 0,
             Right = awayDirection > 0,
+        };
+    }
+
+    private static bool ShouldCommitMovementToCombatTarget(
+        PlayerEntity player,
+        CombatTarget target,
+        out float desiredSpacing,
+        out float targetBottom)
+    {
+        desiredSpacing = GetMinimumCombatSpacing(player.ClassId);
+        targetBottom = target.Player?.Bottom ?? target.Y;
+
+        if (player.IsCarryingIntel)
+        {
+            return false;
+        }
+
+        if (target.Kind != CombatTargetKind.Player)
+        {
+            return false;
+        }
+
+        if (target.Player is { IsSpyCloaked: true }
+            && player.ClassId != PlayerClass.Pyro)
+        {
+            return false;
+        }
+
+        var commitDistance = GetCombatSeekCommitDistance(player.ClassId, target.Kind);
+        return Distance(player.X, player.Y, target.X, target.Y) <= commitDistance;
+    }
+
+    private static PlayerInputSnapshot ApplyMedicSupportMovement(
+        SimulationWorld world,
+        PlayerEntity player,
+        PlayerInputSnapshot movementInput,
+        PlayerEntity healTarget)
+    {
+        var healDistance = Distance(player.X, player.Y, healTarget.X, healTarget.Y);
+        if (healDistance <= MedicHealFollowDistance)
+        {
+            return movementInput;
+        }
+
+        var direction = Math.Sign(healTarget.X - player.X);
+        if (direction == 0)
+        {
+            return movementInput;
+        }
+
+        if (WouldMoveIntoObstacle(world, player.Team, player, direction, probeDistance: 16f))
+        {
+            var reverseDirection = -direction;
+            direction = WouldMoveIntoObstacle(world, player.Team, player, reverseDirection, probeDistance: 16f)
+                ? 0
+                : reverseDirection;
+        }
+
+        var jump = movementInput.Up;
+        if (direction != 0
+            && player.IsGrounded
+            && (healTarget.Y < player.Y - 24f
+                || WouldMoveIntoObstacle(world, player.Team, player, direction, probeDistance: 16f)))
+        {
+            jump = true;
+        }
+
+        return movementInput with
+        {
+            Left = direction < 0,
+            Right = direction > 0,
+            Up = jump,
+        };
+    }
+
+    private static float GetCombatSeekCommitDistance(PlayerClass classId, CombatTargetKind targetKind)
+    {
+        if (targetKind == CombatTargetKind.Generator)
+        {
+            return classId switch
+            {
+                PlayerClass.Pyro => 200f,
+                PlayerClass.Spy => 120f,
+                _ => 260f,
+            };
+        }
+
+        return classId switch
+        {
+            PlayerClass.Pyro => 210f,
+            PlayerClass.Spy => 120f,
+            PlayerClass.Scout => 300f,
+            PlayerClass.Heavy => 340f,
+            PlayerClass.Soldier => 360f,
+            PlayerClass.Demoman => 280f,
+            PlayerClass.Sniper => 260f,
+            PlayerClass.Medic => 240f,
+            PlayerClass.Quote => 240f,
+            _ => 280f,
         };
     }
 
@@ -4549,35 +6933,24 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         IReadOnlyList<PlayerEntity> allPlayers)
     {
         PlayerEntity? bestTarget = null;
-        var bestScore = float.MaxValue;
+        var bestScore = float.PositiveInfinity;
         for (var index = 0; index < allPlayers.Count; index += 1)
         {
             var candidate = allPlayers[index];
             if (!candidate.IsAlive
                 || candidate.Team != player.Team
-                || candidate.Id == player.Id
-                || !NeedsHealing(candidate))
+                || candidate.Id == player.Id)
             {
                 continue;
-            }
-
-            var distanceSquared = DistanceSquared(player.X, player.Y, candidate.X, candidate.Y);
-            if (distanceSquared > HealTargetSeekDistance * HealTargetSeekDistance)
-            {
-                continue;
-            }
-
-            var score = distanceSquared;
-            score -= (1f - GetHealthFraction(candidate)) * 60_000f;
-            if (candidate.IsCarryingIntel)
-            {
-                score -= 90_000f;
             }
 
             if (!HasCombatLineOfSight(world, player, candidate))
             {
-                score += 40_000f;
+                continue;
             }
+
+            var distance = Distance(player.X, player.Y, candidate.X, candidate.Y);
+            var score = (distance / 1000f) + (GetHealthFraction(candidate) * 2f);
 
             if (score >= bestScore)
             {
@@ -4877,6 +7250,8 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         _graphStatesBySlot.Remove(slot);
         _directSeekStatesBySlot.Remove(slot);
         _objectiveSeamStatesBySlot.Remove(slot);
+        _deferredObjectiveSeamProgramsBySlot.Remove(slot);
+        _objectiveSeamIssueBySlot.Remove(slot);
         _objectiveHoldPointBySlot.Remove(slot);
         _localObjectiveDirectPointBySlot.Remove(slot);
         _aliveBySlot.Remove(slot);
@@ -4899,7 +7274,13 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         int NoHorizontalProgressTicks,
         float BestGoalDistance,
         int NoGoalProgressTicks,
-        int ReattachResumeActionIndex);
+        int ReattachResumeActionIndex,
+        TapeReattachPoint? ActiveReattachPoint,
+        int SpawnExitPrefixResumeActionIndex,
+        float ImplicitPhaseStartX,
+        float ImplicitPhaseStartBottom,
+        bool GraphRecoveryActive,
+        bool PendingForwardReattach);
 
     private readonly record struct GraphGoal(string Label, float X, float Bottom, float Radius);
 
@@ -4910,7 +7291,31 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         float GoalBottom,
         float GoalRadius,
         int DurationTicks,
-        int NoMovementTicks);
+        int NoMovementTicks,
+        IReadOnlyList<ObjectiveSeamStartWindow>? StartWindows = null,
+        ObjectiveSeamCompletionWindow? CompletionWindow = null)
+    {
+        public IReadOnlyList<ObjectiveSeamStartWindow> StartWindows { get; init; } = StartWindows ?? [];
+    }
+
+    private readonly record struct ObjectiveSeamStartWindow(
+        float StartXMin,
+        float StartXMax,
+        float StartBottom,
+        float StartBottomTolerance,
+        float FacingDirectionX,
+        float HorizontalSpeedTolerance,
+        float VerticalSpeedTolerance,
+        bool RequireGrounded,
+        float HorizontalSpeedCenter = 0f,
+        float VerticalSpeedCenter = 0f);
+
+    private readonly record struct ObjectiveSeamCompletionWindow(
+        float XMin,
+        float XMax,
+        float Bottom,
+        float BottomTolerance,
+        bool RequireGrounded);
 
     private readonly record struct ObjectiveSeamState(
         ObjectiveSeamProgram Program,
@@ -5083,5 +7488,9 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
         float Bottom,
         float RadiusX,
         float RadiusBottom,
-        bool IsInSpawnRoom);
+        bool IsInSpawnRoom,
+        bool IsGrounded,
+        float HorizontalSpeed,
+        float VerticalSpeed,
+        bool UseLiveBottom);
 }

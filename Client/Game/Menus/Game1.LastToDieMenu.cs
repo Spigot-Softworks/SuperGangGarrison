@@ -26,7 +26,7 @@ public partial class Game1
     private bool _lastToDieMenuOpen;
     private LastToDieMenuPage _lastToDieMenuPage;
     private int _lastToDieMenuHoverIndex = -1;
-    private Texture2D? _lastToDieLogoTexture;
+    private LoadedSpriteFrame? _lastToDieLogoTexture;
     private string? _lastToDieLogoTexturePath;
 
     private bool IsLastToDieMenuActive()
@@ -398,13 +398,13 @@ public partial class Game1
             32,
             (int)MathF.Round(targetWidth),
             (int)MathF.Round(targetHeight));
-        _spriteBatch.Draw(_lastToDieLogoTexture, destination, Color.White);
+        DrawLoadedSpriteFrame(_lastToDieLogoTexture, destination, Color.White);
     }
 
     private void EnsureLastToDieLogoTexture()
     {
         var path = ContentRoot.GetPath("Sprites", "Menu", "LastToDie", "last2die.png");
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || !CanLoadSpriteFrameFromPath(path))
         {
             DisposeLastToDieLogoTexture();
             return;
@@ -417,8 +417,7 @@ public partial class Game1
         }
 
         DisposeLastToDieLogoTexture();
-        using var stream = File.OpenRead(path);
-        _lastToDieLogoTexture = Texture2D.FromStream(GraphicsDevice, stream);
+        _lastToDieLogoTexture = LoadSpriteFrameFromPath(path);
         _lastToDieLogoTexturePath = path;
     }
 

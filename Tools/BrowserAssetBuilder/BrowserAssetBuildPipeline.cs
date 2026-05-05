@@ -27,7 +27,7 @@ internal static class BrowserAssetBuildPipeline
 
         var legacyManifest = BuildLegacyGameMakerManifest(context, generatedFiles);
         var stockPackDefinition = BuildLegacyStockPackDefinition(context, generatedFiles);
-        BuildLegacyBundles(context, legacyManifest, stockPackDefinition, generatedFiles);
+        BuildLegacyBundles(context, legacyManifest, generatedFiles);
         BuildClientPluginBundle(context, generatedFiles);
 
         var bootstrapAtlasManifest = BuildBootstrapAtlasManifest(context, warnings, generatedFiles);
@@ -45,21 +45,29 @@ internal static class BrowserAssetBuildPipeline
             GeneratedFiles: generatedFiles,
             Warnings: warnings);
 
-        WriteJson(Path.Combine(context.BrowserReportsRoot, "browser-asset-build-report.json"), report, generatedFiles);
+        PruneLegacyDistributionArtifacts(context);
         return report;
     }
 
     private static void EnsureDirectories(BrowserAssetBuildContext context)
     {
+        if (Directory.Exists(context.BrowserOutputRoot))
+        {
+            Directory.Delete(context.BrowserOutputRoot, recursive: true);
+        }
+
+        var legacyStockPackBundlePath = Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-assets.zip");
+        if (File.Exists(legacyStockPackBundlePath))
+        {
+            File.Delete(legacyStockPackBundlePath);
+        }
+
         Directory.CreateDirectory(context.OutputContentRoot);
         Directory.CreateDirectory(context.BrowserWwwRoot);
         Directory.CreateDirectory(context.BrowserOutputRoot);
-        Directory.CreateDirectory(context.BrowserPluginsRoot);
-        Directory.CreateDirectory(context.BrowserPackagedClientPluginsRoot);
         Directory.CreateDirectory(context.BrowserAtlasesRoot);
         Directory.CreateDirectory(context.BrowserManifestsRoot);
         Directory.CreateDirectory(context.BrowserBootstrapRoot);
-        Directory.CreateDirectory(context.BrowserReportsRoot);
         Directory.CreateDirectory(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2"));
     }
 
@@ -77,7 +85,7 @@ internal static class BrowserAssetBuildPipeline
         var stockPackDefinition = GameplayModPackDirectoryLoader.LoadFromDirectory(stockPackDirectory);
         WriteText(
             Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-definition.json"),
-            JsonSerializer.Serialize(stockPackDefinition, JsonOptions),
+            JsonSerializer.Serialize(BrowserGameplayModPackDefinitionDocument.FromDefinition(stockPackDefinition), JsonOptions),
             generatedFiles);
         return stockPackDefinition;
     }
@@ -85,24 +93,22 @@ internal static class BrowserAssetBuildPipeline
     private static void BuildLegacyBundles(
         BrowserAssetBuildContext context,
         GameMakerAssetManifest manifest,
-        GameplayModPackDefinition stockPackDefinition,
         List<string> generatedFiles)
     {
         BuildBundle(Path.Combine(context.OutputContentRoot, "_browser-bootstrap-assets.zip"), EnumerateBootstrapBundleEntries(context), generatedFiles);
         BuildBundle(Path.Combine(context.OutputContentRoot, "_browser-runtime-assets.zip"), EnumerateRuntimeBundleEntries(context, manifest), generatedFiles);
-        BuildBundle(
-            Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-assets.zip"),
-            EnumerateStockPackBundleEntries(context, stockPackDefinition),
-            generatedFiles);
     }
 
     private static void BuildClientPluginBundle(BrowserAssetBuildContext context, List<string> generatedFiles)
     {
-        if (!Directory.Exists(context.BrowserPackagedClientPluginsRoot))
+        if (string.IsNullOrWhiteSpace(context.PackagedClientPluginSourceRoot)
+            || !Directory.Exists(context.PackagedClientPluginSourceRoot))
         {
+            DeleteFileIfExists(Path.Combine(context.BrowserPluginsRoot, "_browser-client-plugins.zip"));
             return;
         }
 
+        Directory.CreateDirectory(context.BrowserPluginsRoot);
         var outputPath = Path.Combine(context.BrowserPluginsRoot, "_browser-client-plugins.zip");
         BuildBundle(outputPath, EnumerateClientPluginBundleEntries(context), generatedFiles);
     }
@@ -435,6 +441,11 @@ internal static class BrowserAssetBuildPipeline
     {
         foreach (var path in BrowserBootstrapAssetCatalog.DefaultBinaryAssetPaths.Concat(BrowserBootstrapAssetCatalog.DefaultTextAssetPaths))
         {
+            if (path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (TryResolveStagedContentPath(context, path, out var sourcePath))
             {
                 yield return (BrowserAssetBundleLoader.NormalizeRelativePath(path), sourcePath);
@@ -445,12 +456,11 @@ internal static class BrowserAssetBuildPipeline
     private static IEnumerable<(string EntryPath, string SourcePath)> EnumerateRuntimeBundleEntries(BrowserAssetBuildContext context, GameMakerAssetManifest manifest)
     {
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in manifest.Sprites.Values.SelectMany(static sprite => sprite.FramePaths)
-                     .Concat(manifest.Backgrounds.Values.Select(static background => background.ImagePath))
+        foreach (var path in manifest.Backgrounds.Values.Select(static background => background.ImagePath)
                      .Concat(manifest.Sounds.Values.Select(static sound => sound.AudioPath))
                      .Concat(Directory.EnumerateFiles(Path.Combine(context.ContentRoot, "StockMaps"), "*.png", SearchOption.TopDirectoryOnly)
                          .Select(static path => NormalizeContentRelativePath(path)))
-                     .Concat(EnumerateNavigationJsonContentPaths(context))
+                     .Concat(EnumerateRuntimeContentPaths(context))
                      .Where(static path => !string.IsNullOrWhiteSpace(path)))
         {
             var normalizedPath = NormalizeContentRelativePath(path);
@@ -461,59 +471,115 @@ internal static class BrowserAssetBuildPipeline
         }
     }
 
-    private static IEnumerable<string> EnumerateNavigationJsonContentPaths(BrowserAssetBuildContext context)
+    private static IEnumerable<string> EnumerateRuntimeContentPaths(BrowserAssetBuildContext context)
     {
-        foreach (var directoryName in new[] { "BotNav", "BotNavHints" })
+        foreach (var path in EnumerateDirectoryFiles(context, "BotNav", "*.json", SearchOption.TopDirectoryOnly))
         {
-            var directory = Path.Combine(context.ContentRoot, directoryName);
-            if (!Directory.Exists(directory))
-            {
-                continue;
-            }
+            yield return path;
+        }
 
-            foreach (var path in Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly)
-                         .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
-            {
-                yield return NormalizeContentRelativePath(path);
-            }
+        foreach (var path in EnumerateDirectoryFiles(context, "BotNavHints", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, "BotNavScoreRoutes", "*.json", SearchOption.TopDirectoryOnly))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "tapes"), "*.json", SearchOption.AllDirectories))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "graphs"), "*.json", SearchOption.AllDirectories))
+        {
+            yield return path;
+        }
+
+        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "graphs"), "*.json.gz", SearchOption.AllDirectories))
+        {
+            yield return path;
         }
     }
 
-    private static IEnumerable<(string EntryPath, string SourcePath)> EnumerateStockPackBundleEntries(BrowserAssetBuildContext context, GameplayModPackDefinition stockPackDefinition)
+    private static IEnumerable<string> EnumerateDirectoryFiles(
+        BrowserAssetBuildContext context,
+        string directoryName,
+        string pattern,
+        SearchOption searchOption)
     {
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var framePath in stockPackDefinition.Assets.Sprites.Values.SelectMany(static sprite => sprite.FramePaths).Where(static path => !string.IsNullOrWhiteSpace(path)))
+        var directory = Path.Combine(context.ContentRoot, directoryName);
+        if (!Directory.Exists(directory))
         {
-            var entryPath = BrowserAssetBundleLoader.NormalizeRelativePath($"Content/Gameplay/stock.gg2/{framePath}");
-            if (seenPaths.Add(entryPath) && TryResolveStagedContentPath(context, entryPath, out var sourcePath))
-            {
-                yield return (entryPath, sourcePath);
-            }
+            yield break;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(directory, pattern, searchOption)
+                     .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            yield return NormalizeContentRelativePath(path);
         }
     }
 
     private static IEnumerable<(string EntryPath, string SourcePath)> EnumerateClientPluginBundleEntries(BrowserAssetBuildContext context)
     {
-        if (!Directory.Exists(context.BrowserPackagedClientPluginsRoot))
+        if (string.IsNullOrWhiteSpace(context.PackagedClientPluginSourceRoot)
+            || !Directory.Exists(context.PackagedClientPluginSourceRoot))
         {
             yield break;
         }
 
-        foreach (var sourcePath in Directory.EnumerateFiles(context.BrowserPackagedClientPluginsRoot, "*", SearchOption.AllDirectories)
+        foreach (var sourcePath in Directory.EnumerateFiles(context.PackagedClientPluginSourceRoot, "*", SearchOption.AllDirectories)
                      .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
         {
-            if (BrowserClientPluginCompatibility.IsBrowserDisabledPackagedClientPluginPath(context.BrowserPackagedClientPluginsRoot, sourcePath))
+            if (BrowserClientPluginCompatibility.IsBrowserDisabledPackagedClientPluginPath(context.PackagedClientPluginSourceRoot, sourcePath))
             {
                 continue;
             }
 
-            var relativePath = Path.GetRelativePath(context.BrowserWwwRoot, sourcePath);
+            var relativePath = Path.GetRelativePath(context.PackagedClientPluginSourceRoot, sourcePath);
             if (string.IsNullOrWhiteSpace(relativePath))
             {
                 continue;
             }
 
-            yield return (BrowserAssetBundleLoader.NormalizeRelativePath(relativePath), sourcePath);
+            yield return (BrowserAssetBundleLoader.NormalizeRelativePath(Path.Combine("Plugins", "Client", relativePath)), sourcePath);
+        }
+    }
+
+    private static void PruneLegacyDistributionArtifacts(BrowserAssetBuildContext context)
+    {
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Sprites"), "*.png", SearchOption.AllDirectories));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "assets"), "*.png", SearchOption.AllDirectories));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "sprites"), "*.json", SearchOption.TopDirectoryOnly));
+
+        DeleteFileIfExists(Path.Combine(context.OutputContentRoot, "Sprites", "_frame-index.txt"));
+        DeleteFileIfExists(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "sprites", "_sprite-index.txt"));
+        DeleteFileIfExists(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-assets.zip"));
+    }
+
+    private static IEnumerable<string> EnumerateFiles(string directory, string searchPattern, SearchOption searchOption)
+    {
+        return Directory.Exists(directory)
+            ? Directory.EnumerateFiles(directory, searchPattern, searchOption)
+            : Array.Empty<string>();
+    }
+
+    private static void DeleteFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            DeleteFileIfExists(path);
+        }
+    }
+
+    private static void DeleteFileIfExists(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
         }
     }
 

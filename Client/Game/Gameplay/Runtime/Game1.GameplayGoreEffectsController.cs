@@ -227,6 +227,17 @@ public partial class Game1
             return true;
         }
 
+        public void SpawnImmediateFatalDamageVisuals(float x, float y, int damageAmount)
+        {
+            if (_game._gibLevel == 0)
+            {
+                return;
+            }
+
+            var burstCount = Math.Clamp(Math.Max(3, damageAmount / 18), 3, 8);
+            SpawnBloodImpactVisuals(x, y, 270f, burstCount);
+        }
+
         public void SpawnBackstabVisual(int ownerId, PlayerTeam team, float x, float y, float directionDegrees)
         {
             var normalizedDirection = NormalizeDirectionDegrees(directionDegrees);

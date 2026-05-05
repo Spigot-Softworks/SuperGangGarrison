@@ -98,6 +98,7 @@ internal static class ServerRuntimeBootstrapFactory
         var eventReporter = new ServerRuntimeEventReporter(world, pluginHostGetter, writeEvent, mapMetadataResolver);
         eventReporter.ResetObservedGameplayState();
         ServerBotManager? botManager = null;
+        ServerDemoRecorder? demoRecorder = null;
         bool IsPlayableSlotAvailableForClient(byte slot) => botManager is null || !botManager.BotSlots.ContainsKey(slot);
         var outboundMessaging = new ServerOutboundMessaging(
             transport,
@@ -108,7 +109,8 @@ internal static class ServerRuntimeBootstrapFactory
             adminChatRouterGetter,
             pluginHostGetter,
             eventReporter.WriteEvent,
-            log);
+            log,
+            recordBroadcastMessage: message => demoRecorder?.RecordBroadcastMessage(message));
         var sessionManager = new ServerSessionManager(
             world,
             clientsBySlot,
@@ -139,7 +141,8 @@ internal static class ServerRuntimeBootstrapFactory
             autoBalanceNewPlayerGraceSeconds,
             passwordRequired,
             outboundMessaging.SendMessage,
-            log);
+            log,
+            recordBroadcastNotice: notice => demoRecorder?.RecordBroadcastMessage(notice));
 
         IPracticeBotController botController = new AdaptiveMapPracticeBotController(
             new MotionProofPracticeBotController(),
@@ -155,10 +158,20 @@ internal static class ServerRuntimeBootstrapFactory
             world,
             config,
             clientsBySlot,
+            maxPlayableClients,
             botManager,
             transientEventReplayTicks,
             mapMetadataResolver,
-            outboundMessaging.SendSnapshotPayload);
+            outboundMessaging.SendSnapshotPayload,
+            recordCanonicalSnapshot: snapshot => demoRecorder?.RecordSnapshot(snapshot),
+            shouldRecordCanonicalSnapshot: () => demoRecorder?.IsActive == true);
+
+        demoRecorder = new ServerDemoRecorder(
+            () => snapshotBroadcaster.CreateCanonicalDemoWelcomeMessage(serverName),
+            snapshotBroadcaster.CaptureCanonicalDemoSnapshot,
+            () => serverName,
+            () => world.Level.Name,
+            log);
 
         return new ServerRuntimeBootstrap(
             lobbyRegistrar,
@@ -174,6 +187,7 @@ internal static class ServerRuntimeBootstrapFactory
             autoBalancer,
             snapshotBroadcaster,
             mapRotationManager,
-            botManager);
+            botManager,
+            demoRecorder);
     }
 }

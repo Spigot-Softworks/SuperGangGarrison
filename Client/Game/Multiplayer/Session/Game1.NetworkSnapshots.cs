@@ -64,6 +64,7 @@ public partial class Game1
 
         RecordResolvedSnapshotPredictionError(resolvedSnapshot);
         QueueResolvedSnapshotVisualEvents(resolvedSnapshot);
+        QueueResolvedSnapshotSoundEvents(resolvedSnapshot);
         QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
 
         resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotMessage>();
@@ -98,6 +99,20 @@ public partial class Game1
             }
 
             _pendingNetworkVisualEvents.Add(visualEvent);
+        }
+    }
+
+    private void QueueResolvedSnapshotSoundEvents(SnapshotMessage resolvedSnapshot)
+    {
+        for (var soundIndex = 0; soundIndex < resolvedSnapshot.SoundEvents.Count; soundIndex += 1)
+        {
+            var soundEvent = resolvedSnapshot.SoundEvents[soundIndex];
+            _pendingNetworkSoundEvents.Add(new WorldSoundEvent(
+                soundEvent.SoundName,
+                soundEvent.X,
+                soundEvent.Y,
+                soundEvent.EventId,
+                soundEvent.SourceFrame));
         }
     }
 

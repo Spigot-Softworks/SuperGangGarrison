@@ -1,5 +1,6 @@
 #nullable enable
 
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using System;
 using System.Collections.Generic;
@@ -65,6 +66,7 @@ public partial class Game1
     private readonly HashSet<ulong> _processedKillFeedEventIds = new();
     private readonly Queue<ulong> _processedKillFeedEventOrder = new();
     private readonly List<PendingBrowserSoundEvent> _pendingBrowserSoundEvents = new();
+    private readonly List<WorldSoundEvent> _pendingNetworkSoundEvents = new();
 
     private void LoadMenuMusic()
     {
@@ -389,6 +391,16 @@ public partial class Game1
     private bool ShouldSuppressManagedLocalRapidFireSound(WorldSoundEvent soundEvent)
     {
         return _gameplayRapidFireAudioController.ShouldSuppressManagedLocalRapidFireSound(soundEvent);
+    }
+
+    private Vector2 GetWorldSoundListenerPosition()
+    {
+        if (_networkClient.IsReplayConnection || _networkClient.IsSpectator)
+        {
+            return GetLocalViewPosition();
+        }
+
+        return new Vector2(_world.LocalPlayer.X, _world.LocalPlayer.Y);
     }
 
     private (float Volume, float Pan) GetWorldSoundMix(float worldX, float worldY)

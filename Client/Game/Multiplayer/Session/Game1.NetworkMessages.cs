@@ -72,7 +72,8 @@ public partial class Game1
             FinalizeResolvedSnapshotBatch(latestResolvedSnapshot, resolvedBatchSnapshots);
         }
 
-        ApplyNextQueuedAuthoritativeSnapshot();
+        ApplyQueuedAuthoritativeSnapshots();
+        PublishCompletedDemoRecordingNoticeIfAvailable();
 
         if (_networkDiagnosticsEnabled)
         {
@@ -81,8 +82,28 @@ public partial class Game1
 
         if (_networkClient.TryConsumeDisconnectReason(out var disconnectReason))
         {
+            if (TryHandleReplayDisconnect(disconnectReason))
+            {
+                return;
+            }
+
             ReturnToMainMenuWithNetworkStatus(disconnectReason, $"network disconnected: {disconnectReason}");
         }
+    }
+
+    private void ApplyQueuedAuthoritativeSnapshots()
+    {
+        if (_networkClient.IsReplayConnection)
+        {
+            while (_queuedAuthoritativeSnapshots.Count > 0)
+            {
+                ApplyNextQueuedAuthoritativeSnapshot();
+            }
+
+            return;
+        }
+
+        ApplyNextQueuedAuthoritativeSnapshot();
     }
 
     private static string GetTeamLabel(byte team)

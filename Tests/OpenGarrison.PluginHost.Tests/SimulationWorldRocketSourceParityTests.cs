@@ -112,6 +112,8 @@ public sealed class SimulationWorldRocketSourceParityTests
             sniperChargeTicks: 0,
             facingDirectionX: 1f,
             aimDirectionDegrees: 0f,
+            aimWorldX: 20f,
+            aimWorldY: 0f,
             isTaunting: false,
             tauntFrameIndex: 0f,
             isChatBubbleVisible: false,

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -5,6 +6,11 @@ namespace OpenGarrison.Protocol;
 
 public static partial class ProtocolCodec
 {
+    private const float QuantizedAimDegreesMax = 360f;
+    private const float QuantizedMetalScale = 10f;
+    private const float QuantizedIntelRechargeScale = 4f;
+    private const float QuantizedChatBubbleAlphaScale = 255f;
+
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
     {
         writer.Write(snapshot.Frame);
@@ -31,6 +37,8 @@ public static partial class ProtocolCodec
         WriteIntelState(writer, snapshot.BlueIntel);
         WriteSnapshotPlayers(writer, snapshot.Players);
         WriteSnapshotPlayerMovementStates(writer, snapshot.PlayerMovementStates);
+        WriteSnapshotPlayerStatusStates(writer, snapshot.PlayerStatusStates);
+        WriteSnapshotPlayerChatBubbleStates(writer, snapshot.PlayerChatBubbleStates);
         WriteEntityIdList(writer, snapshot.RemovedPlayerIds);
         WriteCombatTraces(writer, snapshot.CombatTraces);
         WriteSentryStates(writer, snapshot.Sentries);
@@ -67,6 +75,13 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.KothUnlockTicksRemaining);
         writer.Write(snapshot.KothRedTimerTicksRemaining);
         writer.Write(snapshot.KothBlueTimerTicksRemaining);
+        writer.Write(snapshot.ArenaUnlockTicksRemaining);
+        writer.Write(snapshot.ArenaPointTeam);
+        writer.Write(snapshot.ArenaCappingTeam);
+        writer.Write(snapshot.ArenaCappingTicks);
+        writer.Write(snapshot.ArenaCappers);
+        writer.Write(snapshot.ArenaRedConsecutiveWins);
+        writer.Write(snapshot.ArenaBlueConsecutiveWins);
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
@@ -102,6 +117,8 @@ public static partial class ProtocolCodec
         var blueIntel = ReadIntelState(reader);
         var players = ReadSnapshotPlayers(reader);
         var playerMovementStates = ReadSnapshotPlayerMovementStates(reader);
+        var playerStatusStates = ReadSnapshotPlayerStatusStates(reader);
+        var playerChatBubbleStates = ReadSnapshotPlayerChatBubbleStates(reader);
         var removedPlayerIds = ReadEntityIdList(reader);
         var combatTraces = ReadCombatTraces(reader);
         var sentries = ReadSentryStates(reader);
@@ -138,6 +155,13 @@ public static partial class ProtocolCodec
         var kothUnlockTicksRemaining = reader.ReadInt32();
         var kothRedTimerTicksRemaining = reader.ReadInt32();
         var kothBlueTimerTicksRemaining = reader.ReadInt32();
+        var arenaUnlockTicksRemaining = reader.ReadInt32();
+        var arenaPointTeam = reader.ReadByte();
+        var arenaCappingTeam = reader.ReadByte();
+        var arenaCappingTicks = reader.ReadSingle();
+        var arenaCappers = reader.ReadInt32();
+        var arenaRedConsecutiveWins = reader.ReadInt32();
+        var arenaBlueConsecutiveWins = reader.ReadInt32();
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
         var deathCam = ReadDeathCamState(reader);
@@ -194,9 +218,18 @@ public static partial class ProtocolCodec
             mapScale)
         {
             TimeLimitTicks = timeLimitTicks,
+            ArenaUnlockTicksRemaining = arenaUnlockTicksRemaining,
+            ArenaPointTeam = arenaPointTeam,
+            ArenaCappingTeam = arenaCappingTeam,
+            ArenaCappingTicks = arenaCappingTicks,
+            ArenaCappers = arenaCappers,
+            ArenaRedConsecutiveWins = arenaRedConsecutiveWins,
+            ArenaBlueConsecutiveWins = arenaBlueConsecutiveWins,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             PlayerMovementStates = playerMovementStates,
+            PlayerStatusStates = playerStatusStates,
+            PlayerChatBubbleStates = playerChatBubbleStates,
             RemovedPlayerIds = removedPlayerIds,
             RemovedSentryIds = removedSentryIds,
             RemovedShotIds = removedShotIds,
@@ -321,6 +354,8 @@ public static partial class ProtocolCodec
             writer.Write(player.PlayerScale);
             writer.Write(player.AimWorldX);
             writer.Write(player.AimWorldY);
+            writer.Write(player.MedicHealTargetPlayerId);
+            writer.Write(player.IsMedicHealing);
         }
     }
 
@@ -406,7 +441,9 @@ public static partial class ProtocolCodec
                 ReadReplicatedStateEntries(reader),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
         }
 
         return players;
@@ -425,11 +462,11 @@ public static partial class ProtocolCodec
             writer.Write(state.Y);
             writer.Write(state.HorizontalSpeed);
             writer.Write(state.VerticalSpeed);
-            writer.Write(state.IsGrounded);
-            writer.Write(state.RemainingAirJumps);
-            writer.Write(state.FacingDirectionX);
-            writer.Write(state.AimDirectionDegrees);
+            writer.Write(GetMovementFlags(state.IsGrounded, state.FacingDirectionX < 0f, state.IsMedicHealing));
+            writer.Write((byte)Math.Clamp(state.RemainingAirJumps, 0, byte.MaxValue));
+            writer.Write(QuantizeAngleDegrees(state.AimDirectionDegrees));
             writer.Write(state.MovementState);
+            writer.Write(state.MedicHealTargetPlayerId);
         }
     }
 
@@ -439,20 +476,166 @@ public static partial class ProtocolCodec
         var states = new List<SnapshotPlayerMovementState>(stateCount);
         for (var index = 0; index < stateCount; index += 1)
         {
+            var slot = reader.ReadByte();
+            var x = reader.ReadSingle();
+            var y = reader.ReadSingle();
+            var horizontalSpeed = reader.ReadSingle();
+            var verticalSpeed = reader.ReadSingle();
+            var flags = reader.ReadByte();
             states.Add(new SnapshotPlayerMovementState(
+                slot,
+                x,
+                y,
+                horizontalSpeed,
+                verticalSpeed,
+                IsGroundedFromFlags(flags),
                 reader.ReadByte(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadBoolean(),
+                FacingDirectionXFromFlags(flags),
+                ReadQuantizedAngleDegrees(reader),
+                reader.ReadByte(),
                 reader.ReadInt32(),
-                reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadByte()));
+                IsMedicHealingFromFlags(flags)));
         }
 
         return states;
+    }
+
+    private static void WriteSnapshotPlayerStatusStates(
+        BinaryWriter writer,
+        IReadOnlyList<SnapshotPlayerStatusState> states)
+    {
+        writer.Write((byte)states.Count);
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            var state = states[index];
+            writer.Write(state.Slot);
+            writer.Write(state.Health);
+            writer.Write(state.MaxHealth);
+            writer.Write(state.Ammo);
+            writer.Write(state.MaxAmmo);
+            writer.Write(QuantizeScaledUInt16(state.Metal, QuantizedMetalScale));
+            writer.Write(GetStatusFlags(state.IsCarryingIntel));
+            writer.Write(QuantizeScaledUInt16(state.IntelRechargeTicks, QuantizedIntelRechargeScale));
+        }
+    }
+
+    private static List<SnapshotPlayerStatusState> ReadSnapshotPlayerStatusStates(BinaryReader reader)
+    {
+        var stateCount = reader.ReadByte();
+        var states = new List<SnapshotPlayerStatusState>(stateCount);
+        for (var index = 0; index < stateCount; index += 1)
+        {
+            states.Add(new SnapshotPlayerStatusState(
+                reader.ReadByte(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                reader.ReadInt16(),
+                ReadScaledUInt16(reader, QuantizedMetalScale),
+                IsCarryingIntelFromFlags(reader.ReadByte()),
+                ReadScaledUInt16(reader, QuantizedIntelRechargeScale)));
+        }
+
+        return states;
+    }
+
+    private static void WriteSnapshotPlayerChatBubbleStates(
+        BinaryWriter writer,
+        IReadOnlyList<SnapshotPlayerChatBubbleState> states)
+    {
+        writer.Write((byte)states.Count);
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            var state = states[index];
+            writer.Write(state.Slot);
+            writer.Write(GetChatBubbleFlags(state.IsChatBubbleVisible));
+            writer.Write((ushort)Math.Clamp(state.ChatBubbleFrameIndex, 0, ushort.MaxValue));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(state.ChatBubbleAlpha, 0f, 1f) * QuantizedChatBubbleAlphaScale), 0, byte.MaxValue));
+        }
+    }
+
+    private static List<SnapshotPlayerChatBubbleState> ReadSnapshotPlayerChatBubbleStates(BinaryReader reader)
+    {
+        var stateCount = reader.ReadByte();
+        var states = new List<SnapshotPlayerChatBubbleState>(stateCount);
+        for (var index = 0; index < stateCount; index += 1)
+        {
+            states.Add(new SnapshotPlayerChatBubbleState(
+                reader.ReadByte(),
+                IsChatBubbleVisibleFromFlags(reader.ReadByte()),
+                reader.ReadUInt16(),
+                reader.ReadByte() / QuantizedChatBubbleAlphaScale));
+        }
+
+        return states;
+    }
+
+    private static byte GetMovementFlags(bool isGrounded, bool isFacingLeft, bool isMedicHealing)
+    {
+        byte flags = 0;
+        if (isGrounded)
+        {
+            flags |= 0x01;
+        }
+
+        if (isFacingLeft)
+        {
+            flags |= 0x02;
+        }
+
+        if (isMedicHealing)
+        {
+            flags |= 0x04;
+        }
+
+        return flags;
+    }
+
+    private static bool IsGroundedFromFlags(byte flags) => (flags & 0x01) != 0;
+
+    private static float FacingDirectionXFromFlags(byte flags) => (flags & 0x02) != 0 ? -1f : 1f;
+
+    private static bool IsMedicHealingFromFlags(byte flags) => (flags & 0x04) != 0;
+
+    private static byte GetStatusFlags(bool isCarryingIntel) => isCarryingIntel ? (byte)0x01 : (byte)0x00;
+
+    private static bool IsCarryingIntelFromFlags(byte flags) => (flags & 0x01) != 0;
+
+    private static byte GetChatBubbleFlags(bool isVisible) => isVisible ? (byte)0x01 : (byte)0x00;
+
+    private static bool IsChatBubbleVisibleFromFlags(byte flags) => (flags & 0x01) != 0;
+
+    private static ushort QuantizeAngleDegrees(float degrees)
+    {
+        var normalized = degrees % QuantizedAimDegreesMax;
+        if (normalized < 0f)
+        {
+            normalized += QuantizedAimDegreesMax;
+        }
+
+        return (ushort)Math.Clamp(
+            (int)MathF.Round((normalized / QuantizedAimDegreesMax) * ushort.MaxValue),
+            0,
+            ushort.MaxValue);
+    }
+
+    private static float ReadQuantizedAngleDegrees(BinaryReader reader)
+    {
+        var quantized = reader.ReadUInt16();
+        return (quantized / (float)ushort.MaxValue) * QuantizedAimDegreesMax;
+    }
+
+    private static ushort QuantizeScaledUInt16(float value, float scale)
+    {
+        return (ushort)Math.Clamp(
+            (int)MathF.Round(Math.Max(0f, value) * scale),
+            0,
+            ushort.MaxValue);
+    }
+
+    private static float ReadScaledUInt16(BinaryReader reader, float scale)
+    {
+        return reader.ReadUInt16() / scale;
     }
 
     private static void WriteReplicatedStateEntries(BinaryWriter writer, IReadOnlyList<SnapshotReplicatedStateEntry>? entries)

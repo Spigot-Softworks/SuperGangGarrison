@@ -16,21 +16,31 @@ public partial class Game1
 
     private void UpdateGameplayPresentation(GameTime gameTime, KeyboardState keyboard, MouseState mouse, int clientTicks)
     {
-        var browserPresentationStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
-        var interpolationStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var browserPresentationStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
+        var interpolationStartTimestamp = (_networkDiagnosticsEnabled || IsClientPerformanceDiagnosticsEnabled()) ? Stopwatch.GetTimestamp() : 0L;
         UpdateInterpolatedWorldState();
         if (_networkDiagnosticsEnabled)
         {
             RecordInterpolationDuration(GetDiagnosticsElapsedMilliseconds(interpolationStartTimestamp));
         }
 
+        if (interpolationStartTimestamp > 0)
+        {
+            RecordClientPerformanceMetric(ClientPerformanceMetric.Interpolation, GetDiagnosticsElapsedMilliseconds(interpolationStartTimestamp));
+        }
+
         HandleGameplayMapTransitionIfNeeded();
         UpdateLocalSentryNotice();
         UpdateIntelNotice();
         UpdateLocalPredictedRenderPosition();
+        var renderStateStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var player in EnumerateRenderablePlayers())
         {
             UpdatePlayerRenderState(player);
+        }
+        if (renderStateStartTimestamp > 0)
+        {
+            RecordClientPerformanceMetric(ClientPerformanceMetric.RenderStates, GetDiagnosticsElapsedMilliseconds(renderStateStartTimestamp));
         }
 
         RemoveStalePlayerRenderState();
@@ -44,7 +54,12 @@ public partial class Game1
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
+        var musicStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
         EnsureIngameMusicPlaying();
+        if (musicStartTimestamp > 0)
+        {
+            RecordClientPerformanceMetric(ClientPerformanceMetric.Music, GetDiagnosticsElapsedMilliseconds(musicStartTimestamp));
+        }
         UpdateLastToDieSession(clientTicks);
         UpdateLastToDieCombatFeedbackPresentation();
         UpdateTeamSelect(keyboard, mouse);

@@ -1,0 +1,93 @@
+{
+  "Version": 1,
+  "Map": "Atalia",
+  "Area": 1,
+  "Mode": "DoubleKingOfTheHill",
+  "Team": "Red",
+  "Class": "Scout",
+  "AttackTicks": 365,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 26
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 18
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 23
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 26
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 16
+    }
+  ],
+  "Return": []
+}

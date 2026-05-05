@@ -66,6 +66,7 @@ public sealed partial class SimulationWorld
 
     private void ApplySnapshotObjectives(SnapshotMessage snapshot)
     {
+        ApplySnapshotArena(snapshot);
         ApplySnapshotControlPoints(snapshot);
         ApplySnapshotKoth(snapshot);
         ApplySnapshotGenerators(snapshot);
@@ -81,6 +82,29 @@ public sealed partial class SimulationWorld
             snapshot.BlueIntel.IsAtBase,
             snapshot.BlueIntel.IsDropped,
             snapshot.BlueIntel.ReturnTicksRemaining);
+    }
+
+    private void ApplySnapshotArena(SnapshotMessage snapshot)
+    {
+        if ((GameModeKind)snapshot.GameMode != GameModeKind.Arena)
+        {
+            _arenaPointTeam = null;
+            _arenaCappingTeam = null;
+            _arenaCappingTicks = 0f;
+            _arenaCappers = 0;
+            _arenaUnlockTicksRemaining = 0;
+            _arenaRedConsecutiveWins = 0;
+            _arenaBlueConsecutiveWins = 0;
+            return;
+        }
+
+        _arenaPointTeam = snapshot.ArenaPointTeam == 0 ? null : (PlayerTeam)snapshot.ArenaPointTeam;
+        _arenaCappingTeam = snapshot.ArenaCappingTeam == 0 ? null : (PlayerTeam)snapshot.ArenaCappingTeam;
+        _arenaCappingTicks = Math.Max(0f, snapshot.ArenaCappingTicks);
+        _arenaCappers = Math.Max(0, snapshot.ArenaCappers);
+        _arenaUnlockTicksRemaining = Math.Max(0, snapshot.ArenaUnlockTicksRemaining);
+        _arenaRedConsecutiveWins = Math.Max(0, snapshot.ArenaRedConsecutiveWins);
+        _arenaBlueConsecutiveWins = Math.Max(0, snapshot.ArenaBlueConsecutiveWins);
     }
 
     private void ApplySnapshotKillFeed(IReadOnlyList<SnapshotKillFeedEntry> killFeed)

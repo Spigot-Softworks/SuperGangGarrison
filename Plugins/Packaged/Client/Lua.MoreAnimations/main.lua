@@ -130,12 +130,6 @@ function plugin.shutdown()
     reset_animation_load_state()
 end
 
-function plugin.on_client_started()
-end
-
-function plugin.on_client_frame(e)
-end
-
 function plugin.try_draw_dead_body(canvas, dead_body)
     if dead_body.animationKind == "Default" or dead_body.classId == "Quote" then
         return false

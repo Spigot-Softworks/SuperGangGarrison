@@ -77,6 +77,11 @@ if (options.RunBotPerfSmoke)
     return RunBotPerfSmoke(options);
 }
 
+if (options.RunTraversalLab)
+{
+    return TraversalLabCli.Run(options);
+}
+
 if (options.RunBotScenarioHarness)
 {
     return RunBotScenarioHarness(options);
@@ -246,7 +251,7 @@ static int RunBotScenarioHarness(NavBuildOptions options)
             Console.WriteLine($"  routes: {result.RouteSummary}");
         }
 
-        if (!result.Passed && !string.IsNullOrWhiteSpace(result.TraceSummary))
+        if ((!result.Passed || options.ScoreRouteDiagnostics) && !string.IsNullOrWhiteSpace(result.TraceSummary))
         {
             Console.WriteLine($"  trace: {result.TraceSummary}");
         }
@@ -303,6 +308,19 @@ static int RunBotPerfSmoke(NavBuildOptions options)
         var slot = (byte)(2 + index);
         var team = index % 2 == 0 ? PlayerTeam.Red : PlayerTeam.Blue;
         var classId = classes[index % classes.Count];
+        controlledSlots[slot] = new ControlledBotSlot(slot, team, classId);
+    }
+
+    var controller = new MotionProofPracticeBotController
+    {
+        CollectDiagnostics = false,
+    };
+    controller.ConfigureSpawnOverrides(world, controlledSlots);
+    for (var index = 0; index < botCount; index += 1)
+    {
+        var slot = (byte)(2 + index);
+        var team = controlledSlots[slot].Team;
+        var classId = controlledSlots[slot].ClassId;
         if (!world.TryPrepareNetworkPlayerJoin(slot)
             || !world.TrySetNetworkPlayerTeam(slot, team)
             || !world.TryApplyNetworkPlayerClassSelection(slot, classId)
@@ -311,14 +329,7 @@ static int RunBotPerfSmoke(NavBuildOptions options)
             Console.Error.WriteLine($"bot-perf-smoke failed_to_spawn_bot slot={slot} team={team} class={classId}");
             return 2;
         }
-
-        controlledSlots[slot] = new ControlledBotSlot(slot, team, classId);
     }
-
-    var controller = new MotionProofPracticeBotController
-    {
-        CollectDiagnostics = false,
-    };
     var totalTicks = seconds * world.Config.TicksPerSecond;
     var totalStopwatch = Stopwatch.StartNew();
     var buildTicksTotal = 0L;
@@ -4052,6 +4063,13 @@ static BotScenarioResult RunBotScenarioCase(
     world.PrepareLocalPlayerJoin();
 
     const byte botSlot = 2;
+    var controller = CreateScenarioController(botControllerMode);
+    controller.CollectDiagnostics = collectDiagnostics;
+    var controlledSlots = new Dictionary<byte, ControlledBotSlot>
+    {
+        [botSlot] = new(botSlot, scenario.Team, scenario.ClassId),
+    };
+    controller.ConfigureSpawnOverrides(world, controlledSlots);
     if (!world.TryPrepareNetworkPlayerJoin(botSlot)
         || !world.TrySetNetworkPlayerTeam(botSlot, scenario.Team)
         || !world.TryApplyNetworkPlayerClassSelection(botSlot, scenario.ClassId)
@@ -4073,13 +4091,6 @@ static BotScenarioResult RunBotScenarioCase(
             ObjectiveSummary: string.Empty,
             FailureReason: "failed_to_spawn_bot");
     }
-
-    var controller = CreateScenarioController(botControllerMode);
-    controller.CollectDiagnostics = collectDiagnostics;
-    var controlledSlots = new Dictionary<byte, ControlledBotSlot>
-    {
-        [botSlot] = new(botSlot, scenario.Team, scenario.ClassId),
-    };
 
     if (!TryPrepareScenario(world, bot, scenario, out var setupFailureReason))
     {
@@ -4560,7 +4571,6 @@ static IPracticeBotController CreateScenarioController(BotControllerMode mode)
 {
     return mode switch
     {
-        BotControllerMode.ObjectiveTraversal => new ObjectiveTraversalBotController(),
         BotControllerMode.MotionProof => new MotionProofPracticeBotController(),
         _ => new ModernPracticeBotController(),
     };
@@ -5860,7 +5870,13 @@ int RunMotionProofArtifactStateDump(NavBuildOptions options)
     }
 
     var classId = options.ScenarioClasses[0];
-    var artifactPath = Path.Combine(ContentRoot.Path, "MotionProof", $"{levelName}.{options.ScenarioTeam}.{classId}.json");
+    var motionProofRoot = Path.Combine(ContentRoot.Path, "MotionProof");
+    var candidatePaths = new[]
+    {
+        Path.Combine(motionProofRoot, "tapes", $"{levelName}.{options.ScenarioTeam}.{classId}.json"),
+        Path.Combine(motionProofRoot, $"{levelName}.{options.ScenarioTeam}.{classId}.json"),
+    };
+    var artifactPath = candidatePaths.FirstOrDefault(File.Exists) ?? candidatePaths[0];
     if (!File.Exists(artifactPath))
     {
         Console.Error.WriteLine($"missing_motionproof_artifact:{artifactPath}");
@@ -6095,14 +6111,13 @@ internal sealed record ToolTapeReattachPoint(int ResumeActionIndex, float X, flo
 internal enum BotControllerMode
 {
     ModernGraphRoute = 0,
-    ObjectiveTraversal = 1,
     MotionProof = 2,
 }
 
 internal sealed class NavBuildOptions
 {
     public const string Usage =
-        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch] [--probe-modern-edge --from-node N --to-node N [--start-x X --start-bottom Y]] [--probe-modern-chain --chain-nodes N,N,N [--start-x X --start-bottom Y]] [--probe-collision-window --start-x X --start-bottom Y] [--probe-gml-link --from-node N --to-node N] [--probe-waterway-terminal-tape [--start-x X --start-bottom Y]] [--dump-motionproof-artifact [--artifact-phase Attack|Return] [--artifact-start-action N] [--artifact-end-action N]]";
+        "usage: dotnet run --project BotAI.Tools -- [--map MapName] [--output Path] [--include-custom] [--audit-reachability] [--audit-shipped] [--repair-shipped] [--audit-capture-routes] [--validate-modern-edges] [--build-score-routes] [--score-route-diagnostics] [--score-route-max-phase-routes N] [--score-route-max-proof-attempts N] [--score-route-context-budget-ms N] [--score-route-map-budget-ms N] [--score-route-no-progress-stop-seconds N] [--run-bot-scenario] [--bot-controller ModernGraphRoute|MotionProof] [--stock-score-matrix] [--stock-ctf-koth-matrix] [--scenario-kind Score|Route|Arrival|ReturnCap|Combat] [--team Red|Blue] [--class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote]... [--enemy-class Scout|Engineer|Pyro|Soldier|Demoman|Heavy|Sniper|Medic|Spy|Quote] [--enemy-feet-x X --enemy-feet-y Y] [--seconds N] [--wall-timeout-ms N] [--bot-perf-smoke] [--perf-bots N] [--perf-min-fps N] [--run-traversal-lab --traversal-lab-scenario Path.json|--traversal-lab-suite Path.json] [--fail-fast] [--no-bot-diagnostics] [--probe-orange-lip] [--probe-orange-branch] [--probe-modern-edge --from-node N --to-node N [--start-x X --start-bottom Y]] [--probe-modern-chain --chain-nodes N,N,N [--start-x X --start-bottom Y]] [--probe-collision-window --start-x X --start-bottom Y] [--probe-gml-link --from-node N --to-node N] [--probe-waterway-terminal-tape [--start-x X --start-bottom Y]] [--dump-motionproof-artifact [--artifact-phase Attack|Return] [--artifact-start-action N] [--artifact-end-action N]]";
 
     public HashSet<string> MapNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -6141,6 +6156,14 @@ internal sealed class NavBuildOptions
     public int BotPerfSmokeBotCount { get; private set; } = 12;
 
     public float BotPerfSmokeMinFps { get; private set; } = 60f;
+
+    public bool RunTraversalLab { get; private set; }
+
+    public string? TraversalLabScenarioPath { get; private set; }
+
+    public string? TraversalLabSuitePath { get; private set; }
+
+    public string? TraversalLabObjectiveSeamArtifactExportPath { get; private set; }
 
     public BotControllerMode BotControllerMode { get; private set; } = BotControllerMode.ModernGraphRoute;
 
@@ -6345,6 +6368,30 @@ internal sealed class NavBuildOptions
             if (arg.Equals("--bot-perf-smoke", StringComparison.OrdinalIgnoreCase))
             {
                 options.RunBotPerfSmoke = true;
+                continue;
+            }
+
+            if (arg.Equals("--run-traversal-lab", StringComparison.OrdinalIgnoreCase))
+            {
+                options.RunTraversalLab = true;
+                continue;
+            }
+
+            if (arg.Equals("--traversal-lab-scenario", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.TraversalLabScenarioPath = args[++index].Trim();
+                continue;
+            }
+
+            if (arg.Equals("--traversal-lab-suite", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.TraversalLabSuitePath = args[++index].Trim();
+                continue;
+            }
+
+            if (arg.Equals("--traversal-lab-export-objective-seams", StringComparison.OrdinalIgnoreCase) && index + 1 < args.Count)
+            {
+                options.TraversalLabObjectiveSeamArtifactExportPath = args[++index].Trim();
                 continue;
             }
 
@@ -6852,6 +6899,23 @@ internal sealed class NavBuildOptions
             if (GetEffectiveBotPerfSmokeMinFps() <= 0f)
             {
                 message = "--perf-min-fps must be greater than zero.";
+                return false;
+            }
+        }
+
+        if (RunTraversalLab)
+        {
+            if (string.IsNullOrWhiteSpace(TraversalLabScenarioPath)
+                == string.IsNullOrWhiteSpace(TraversalLabSuitePath))
+            {
+                message = "--run-traversal-lab requires exactly one of --traversal-lab-scenario <path> or --traversal-lab-suite <path>.";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(TraversalLabObjectiveSeamArtifactExportPath)
+                && string.IsNullOrWhiteSpace(TraversalLabSuitePath))
+            {
+                message = "--traversal-lab-export-objective-seams requires --traversal-lab-suite.";
                 return false;
             }
         }

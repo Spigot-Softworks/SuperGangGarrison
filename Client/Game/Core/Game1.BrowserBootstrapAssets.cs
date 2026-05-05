@@ -94,7 +94,7 @@ public partial class Game1
     private bool TryLoadBrowserFrame(string path, out LoadedSpriteFrame? frame)
     {
         frame = null;
-        if (!OperatingSystem.IsBrowser() || !TryGetBrowserContentRelativePath(path, out var relativePath))
+        if (!TryGetBrowserContentRelativePath(path, out var relativePath))
         {
             return false;
         }
@@ -104,16 +104,11 @@ public partial class Game1
     private bool TryLoadBrowserFrameByRelativePath(string relativePath, out LoadedSpriteFrame? frame)
     {
         frame = null;
-        if (!OperatingSystem.IsBrowser())
-        {
-            return false;
-        }
-
         EnsureBrowserBootstrapAtlasResolver();
         if (_browserBootstrapAtlasResolver?.CanResolve(relativePath) == true)
         {
             var pendingFrame = _browserBootstrapAtlasResolver.LoadFrameAsync(relativePath);
-            if (!pendingFrame.IsCompletedSuccessfully)
+            if (OperatingSystem.IsBrowser() && !pendingFrame.IsCompletedSuccessfully)
             {
                 return false;
             }
@@ -144,6 +139,42 @@ public partial class Game1
             && _browserBootstrapAssets.TryGetText(relativePath, out text);
     }
 
+    private bool CanLoadSpriteFrameFromPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (File.Exists(path))
+        {
+            return true;
+        }
+
+        if (!TryGetBrowserContentRelativePath(path, out var relativePath))
+        {
+            return false;
+        }
+
+        EnsureBrowserBootstrapAtlasResolver();
+        if (_browserBootstrapAtlasResolver?.CanResolve(relativePath) == true)
+        {
+            return true;
+        }
+
+        if (OperatingSystem.IsBrowser())
+        {
+            if ((_browserBootstrapAssets?.TryGetBinary(relativePath, out _) ?? false)
+                || BrowserContentCatalog.TryGetBinary(relativePath, out _)
+                || BrowserContentCatalog.TryGetBinaryForPath(path, out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryGetBrowserContentRelativePath(string path, out string relativePath)
     {
         relativePath = string.Empty;
@@ -167,7 +198,7 @@ public partial class Game1
 
     private void EnsureBrowserBootstrapAtlasResolver()
     {
-        if (!OperatingSystem.IsBrowser() || _browserBootstrapAtlasResolver is not null)
+        if (_browserBootstrapAtlasResolver is not null)
         {
             return;
         }
@@ -185,5 +216,20 @@ public partial class Game1
 
         _browserAtlasTextureCache ??= new BrowserAtlasTextureCache(GraphicsDevice);
         _browserBootstrapAtlasResolver = new BrowserBootstrapAtlasTextureResolver(bootstrapAtlasManifest, _browserAtlasTextureCache);
+    }
+
+    private static void InitializeLocalDistributionAtlasManifestsIfPresent()
+    {
+        if (OperatingSystem.IsBrowser())
+        {
+            return;
+        }
+
+        ClientRuntimeBootstrap.SetBrowserBootstrapAtlasManifest(
+            BrowserAtlasManifestLoader.TryLoadBootstrapFromFile());
+        ClientRuntimeBootstrap.SetBrowserStockGameplayAtlasManifest(
+            BrowserAtlasManifestLoader.TryLoadStockGameplayFromFile());
+        ClientRuntimeBootstrap.SetBrowserGameMakerAtlasManifest(
+            BrowserAtlasManifestLoader.TryLoadGameMakerFromFile());
     }
 }

@@ -42,7 +42,7 @@ The default ModernPracticeBotController path is still the mature bot brain:
 - It keeps combat/objective/role behavior in `ModernPracticeBotController`.
 - It uses GG2/clientbot-style point graphs for navigation intent.
 - It does not use MotionProof as the default controller unless explicitly selected through `--bot-controller MotionProof`.
-- It has diagnostic harness support in BotAI.Tools for ModernGraphRoute, ObjectiveTraversal, and MotionProof.
+- It has diagnostic harness support in BotAI.Tools for ModernGraphRoute and MotionProof.
 
 The important design direction is:
 
@@ -80,7 +80,7 @@ Files changed by the useful highwater work
     - `--probe-modern-chain`
     - `--probe-collision-window`
     - `--probe-gml-link`
-  - Added `--bot-controller ModernGraphRoute|ObjectiveTraversal|MotionProof`.
+  - Added `--bot-controller ModernGraphRoute|MotionProof`.
   - Score harness prints richer per-case output and failure buckets.
 
 - `BotAI/BotRole.cs`

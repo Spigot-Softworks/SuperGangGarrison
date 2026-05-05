@@ -31,7 +31,13 @@ public static class SnapshotDelta
         {
             BaselineFrame = 0,
             IsDelta = false,
-            Players = MergePlayers(baseline?.Players, snapshot.Players, snapshot.PlayerMovementStates, snapshot.RemovedPlayerIds),
+            Players = MergePlayers(
+                baseline?.Players,
+                snapshot.Players,
+                snapshot.PlayerMovementStates,
+                snapshot.PlayerStatusStates,
+                snapshot.PlayerChatBubbleStates,
+                snapshot.RemovedPlayerIds),
             Sentries = MergeEntities(baseline?.Sentries, snapshot.Sentries, snapshot.RemovedSentryIds, static state => state.Id),
             Shots = MergeEntities(baseline?.Shots, snapshot.Shots, snapshot.RemovedShotIds, static state => state.Id),
             Bubbles = MergeEntities(baseline?.Bubbles, snapshot.Bubbles, snapshot.RemovedBubbleIds, static state => state.Id),
@@ -48,6 +54,8 @@ public static class SnapshotDelta
             SentryGibs = MergeEntities(baseline?.SentryGibs, snapshot.SentryGibs, snapshot.RemovedSentryGibIds, static state => state.Id),
             JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
+            PlayerChatBubbleStates = Array.Empty<SnapshotPlayerChatBubbleState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
@@ -74,6 +82,8 @@ public static class SnapshotDelta
             BaselineFrame = 0,
             IsDelta = false,
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            PlayerStatusStates = Array.Empty<SnapshotPlayerStatusState>(),
+            PlayerChatBubbleStates = Array.Empty<SnapshotPlayerChatBubbleState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
@@ -97,6 +107,8 @@ public static class SnapshotDelta
         IReadOnlyList<SnapshotPlayerState>? baseline,
         IReadOnlyList<SnapshotPlayerState> updates,
         IReadOnlyList<SnapshotPlayerMovementState> movementUpdates,
+        IReadOnlyList<SnapshotPlayerStatusState> statusUpdates,
+        IReadOnlyList<SnapshotPlayerChatBubbleState> chatBubbleUpdates,
         IReadOnlyList<int> removedIds)
     {
         var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
@@ -146,7 +158,47 @@ public static class SnapshotDelta
                 RemainingAirJumps = movement.RemainingAirJumps,
                 FacingDirectionX = movement.FacingDirectionX,
                 AimDirectionDegrees = movement.AimDirectionDegrees,
+                MedicHealTargetPlayerId = movement.MedicHealTargetPlayerId,
+                IsMedicHealing = movement.IsMedicHealing,
                 MovementState = movement.MovementState,
+            };
+        }
+
+        for (var index = 0; index < statusUpdates.Count; index += 1)
+        {
+            var status = statusUpdates[index];
+            if (removed?.Contains(status.Slot) == true
+                || !mergedBySlot.TryGetValue(status.Slot, out var player))
+            {
+                continue;
+            }
+
+            mergedBySlot[status.Slot] = player with
+            {
+                Health = status.Health,
+                MaxHealth = status.MaxHealth,
+                Ammo = status.Ammo,
+                MaxAmmo = status.MaxAmmo,
+                Metal = status.Metal,
+                IsCarryingIntel = status.IsCarryingIntel,
+                IntelRechargeTicks = status.IntelRechargeTicks,
+            };
+        }
+
+        for (var index = 0; index < chatBubbleUpdates.Count; index += 1)
+        {
+            var chatBubble = chatBubbleUpdates[index];
+            if (removed?.Contains(chatBubble.Slot) == true
+                || !mergedBySlot.TryGetValue(chatBubble.Slot, out var player))
+            {
+                continue;
+            }
+
+            mergedBySlot[chatBubble.Slot] = player with
+            {
+                IsChatBubbleVisible = chatBubble.IsChatBubbleVisible,
+                ChatBubbleFrameIndex = chatBubble.ChatBubbleFrameIndex,
+                ChatBubbleAlpha = chatBubble.ChatBubbleAlpha,
             };
         }
 

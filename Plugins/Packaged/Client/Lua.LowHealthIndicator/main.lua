@@ -61,21 +61,25 @@ function plugin.on_client_frame(e)
         return
     end
 
-    local state = plugin.host.get_client_state()
-    if state.isSpectator
-        or not state.isLocalPlayerAlive
-        or state.localPlayerHealth < 0
-        or state.localPlayerMaxHealth <= 0 then
-        warning_elapsed_frames = 0.0
-        return
-    end
-
     warning_elapsed_frames = warning_elapsed_frames + (e.deltaSeconds * LEGACY_FRAMES_PER_SECOND)
     if warning_elapsed_frames < config.warningTimerFrames then
         return
     end
 
-    if not should_play_warning(state.localPlayerHealth, state.localPlayerMaxHealth) then
+    if plugin.host.is_spectator() or not plugin.host.is_local_player_alive() then
+        warning_elapsed_frames = 0.0
+        return
+    end
+
+    local health = plugin.host.get_local_player_health()
+    local max_health = plugin.host.get_local_player_max_health()
+    if health < 0 or max_health <= 0 then
+        warning_elapsed_frames = 0.0
+        return
+    end
+
+    if not should_play_warning(health, max_health) then
+        warning_elapsed_frames = 0.0
         return
     end
 

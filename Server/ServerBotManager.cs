@@ -39,8 +39,10 @@ internal sealed class ServerBotManager
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
     private int _perfSamples;
+    private double _perfBuildInputLastMs;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
+    private double _perfApplyInputLastMs;
     private double _perfApplyInputTotalMs;
     private double _perfApplyInputMaxMs;
 
@@ -60,6 +62,17 @@ internal sealed class ServerBotManager
     }
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
+
+    public ServerBotRuntimeMetrics Metrics => new(
+        HasMeasurements: _perfSamples > 0,
+        ControlledBotCount: _controlledSlotsBuffer.Count,
+        SampleCount: _perfSamples,
+        LastBuildInputMilliseconds: _perfBuildInputLastMs,
+        AverageBuildInputMilliseconds: _perfSamples == 0 ? 0d : _perfBuildInputTotalMs / _perfSamples,
+        MaxBuildInputMilliseconds: _perfBuildInputMaxMs,
+        LastApplyInputMilliseconds: _perfApplyInputLastMs,
+        AverageApplyInputMilliseconds: _perfSamples == 0 ? 0d : _perfApplyInputTotalMs / _perfSamples,
+        MaxApplyInputMilliseconds: _perfApplyInputMaxMs);
 
     /// <summary>
     /// Adds a bot to the specified slot with the given configuration.
@@ -239,6 +252,44 @@ internal sealed class ServerBotManager
     }
 
     /// <summary>
+    /// Removes bots from a team until the team has at most the requested bot count.
+    /// Returns the number of bots actually removed.
+    /// </summary>
+    public int TrimTeam(PlayerTeam team, int targetCount)
+    {
+        if (team != PlayerTeam.Red && team != PlayerTeam.Blue)
+        {
+            return 0;
+        }
+
+        var clampedTargetCount = Math.Max(0, targetCount);
+        var removableSlots = _botSlots.Values
+            .Where(state => state.Team == team)
+            .OrderByDescending(state => state.Slot)
+            .Select(state => state.Slot)
+            .ToArray();
+        var currentCount = removableSlots.Length;
+        if (currentCount <= clampedTargetCount)
+        {
+            return 0;
+        }
+
+        var removedCount = 0;
+        for (var index = 0; index < removableSlots.Length && currentCount > clampedTargetCount; index += 1)
+        {
+            if (!TryRemoveBot(removableSlots[index]))
+            {
+                continue;
+            }
+
+            currentCount -= 1;
+            removedCount += 1;
+        }
+
+        return removedCount;
+    }
+
+    /// <summary>
     /// Removes all bots from the server.
     /// </summary>
     public void ClearAllBots()
@@ -259,6 +310,41 @@ internal sealed class ServerBotManager
     public void ResetReactions()
     {
         _reactionController.Reset();
+    }
+
+    /// <summary>
+    /// Reapplies remembered bot join state after a dedicated map change pushed playable slots back to awaiting-join.
+    /// Returns the number of bots successfully restored into active play.
+    /// </summary>
+    public int ReactivateBotsAfterMapChange()
+    {
+        if (_botSlots.Count == 0)
+        {
+            return 0;
+        }
+
+        var restoredCount = 0;
+        foreach (var entry in _botSlots)
+        {
+            var slot = entry.Key;
+            var state = entry.Value;
+
+            if (!_world.TrySetNetworkPlayerName(slot, state.DisplayName)
+                || !_world.TrySetNetworkPlayerTeam(slot, state.Team)
+                || !_world.TryApplyNetworkPlayerClassSelection(slot, state.ClassId))
+            {
+                continue;
+            }
+
+            if (_world.IsNetworkPlayerAwaitingJoin(slot))
+            {
+                continue;
+            }
+
+            restoredCount += 1;
+        }
+
+        return restoredCount;
     }
 
     /// <summary>
@@ -424,23 +510,14 @@ internal sealed class ServerBotManager
     private void RecordBuildInputPerformance(double milliseconds)
     {
         _perfSamples++;
+        _perfBuildInputLastMs = milliseconds;
         _perfBuildInputTotalMs += milliseconds;
         _perfBuildInputMaxMs = Math.Max(_perfBuildInputMaxMs, milliseconds);
-
-        if ((_perfSamples % 30) != 0)
-        {
-            return;
-        }
-
-        var averageMs = _perfBuildInputTotalMs / _perfSamples;
-        Console.WriteLine(
-            $"ServerBotManager slots={_controlledSlotsBuffer.Count} " +
-            $"build(last/avg/max)={milliseconds:0.0}/{averageMs:0.0}/{_perfBuildInputMaxMs:0.0}ms " +
-            $"apply(last/avg/max)={_perfApplyInputTotalMs / _perfSamples:0.0}/{_perfApplyInputTotalMs / _perfSamples:0.0}/{_perfApplyInputMaxMs:0.0}ms");
     }
 
     private void RecordApplyInputPerformance(double milliseconds)
     {
+        _perfApplyInputLastMs = milliseconds;
         _perfApplyInputTotalMs += milliseconds;
         _perfApplyInputMaxMs = Math.Max(_perfApplyInputMaxMs, milliseconds);
     }

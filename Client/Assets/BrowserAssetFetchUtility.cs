@@ -1,5 +1,6 @@
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
+using System.IO;
 
 namespace OpenGarrison.Client;
 
@@ -12,6 +13,17 @@ internal static class BrowserAssetFetchUtility
         if (BrowserContentCatalog.TryGetBinary(relativePath, out var cachedBytes))
         {
             return cachedBytes;
+        }
+
+        if (!OperatingSystem.IsBrowser())
+        {
+            var localPath = TryResolveLocalContentPath(relativePath);
+            if (localPath is null || !File.Exists(localPath))
+            {
+                return null;
+            }
+
+            return File.ReadAllBytes(localPath);
         }
 
         var httpClient = ClientRuntimeBootstrap.GetBrowserHttpClient();
@@ -43,5 +55,19 @@ internal static class BrowserAssetFetchUtility
         {
             return null;
         }
+    }
+
+    private static string? TryResolveLocalContentPath(string relativePath)
+    {
+        var normalizedPath = relativePath.Replace('\\', '/').TrimStart('/');
+        const string contentPrefix = "Content/";
+        if (normalizedPath.StartsWith(contentPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedPath = normalizedPath[contentPrefix.Length..];
+        }
+
+        return string.IsNullOrWhiteSpace(normalizedPath)
+            ? null
+            : ContentRoot.GetPath(normalizedPath);
     }
 }

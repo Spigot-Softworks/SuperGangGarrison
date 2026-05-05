@@ -1,0 +1,30 @@
+{
+  "name": "truefort_red_demoman_attack_start_walk_right_sweep",
+  "levelName": "Truefort",
+  "mapAreaIndex": 1,
+  "team": "Red",
+  "classId": "Demoman",
+  "start": {
+    "x": 1632.0,
+    "bottom": 498.0,
+    "isGrounded": true,
+    "facingDirectionX": 1.0
+  },
+  "steps": [
+    {
+      "label": "walk_right",
+      "durationTicks": 30,
+      "right": true,
+      "aimFacingDirectionX": 1.0
+    }
+  ],
+  "maxTicks": 30,
+  "traceEveryTicks": 30,
+  "startXOffsets": [ -16.0, -12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0, 16.0 ],
+  "startBottomOffsets": [ 0.0 ],
+  "facingDirections": [ 1.0 ],
+  "expectation": {
+    "minHorizontalTravel": 8.0,
+    "mustBeGrounded": true
+  }
+}

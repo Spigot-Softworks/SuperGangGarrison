@@ -15,7 +15,8 @@ internal sealed class ServerOutboundMessaging(
     Func<ServerAdminChatRouter?> adminChatRouterGetter,
     Func<PluginHost?> pluginHostGetter,
     Action<string, (string Key, object? Value)[]> writeEvent,
-    Action<string> log)
+    Action<string> log,
+    Action<IProtocolMessage>? recordBroadcastMessage = null)
 {
     public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
@@ -110,6 +111,7 @@ internal sealed class ServerOutboundMessaging(
         log(teamOnly
             ? $"[team chat] {client.Name}: {sanitized}"
             : $"[chat] {client.Name}: {sanitized}");
+        recordBroadcastMessage?.Invoke(relay);
     }
 
     public void SendPluginMessage(
@@ -147,6 +149,8 @@ internal sealed class ServerOutboundMessaging(
 
             SendMessage(client.Peer, message);
         }
+
+        recordBroadcastMessage?.Invoke(message);
     }
 
     public void NotifyClientsOfShutdown()

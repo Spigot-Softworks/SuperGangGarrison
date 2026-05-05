@@ -444,6 +444,45 @@
                         return false;
                     });
             },
+            setAutomationValue: function (fieldName, value) {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(false);
+                }
+
+                return host.invokeMethodAsync("SetAutomationValue", fieldName ?? "", value ?? "")
+                    .catch(function (error) {
+                        console.error("Browser host automation value set failed.", error);
+                        return false;
+                    });
+            },
+            connectAutomationTarget: function (hostName, portText) {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(false);
+                }
+
+                return host.invokeMethodAsync("ConnectAutomationTarget", hostName ?? "", portText ?? "")
+                    .catch(function (error) {
+                        console.error("Browser host automation connect failed.", error);
+                        return false;
+                    });
+            },
+            startAutomationPractice: function (enemyBotCount, friendlyBotCount) {
+                const api = window.OpenGarrisonBrowserHost;
+                const host = api.inputBridgeHost ?? api.gameLoopHost;
+                if (!host || typeof host.invokeMethodAsync !== "function") {
+                    return Promise.resolve(false);
+                }
+
+                return host.invokeMethodAsync("StartAutomationPractice", enemyBotCount ?? 0, friendlyBotCount ?? 0)
+                    .catch(function (error) {
+                        console.error("Browser host automation practice start failed.", error);
+                        return false;
+                    });
+            },
             getPerformanceSnapshot: function () {
                 const api = window.OpenGarrisonBrowserHost;
                 const host = api.inputBridgeHost ?? api.gameLoopHost;

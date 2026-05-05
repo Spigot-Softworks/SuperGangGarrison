@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
+using System.Net.Sockets;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
 
@@ -21,6 +23,14 @@ internal sealed class NetworkGameClient : IDisposable
         int PendingInboundMessages,
         double DeserializeMilliseconds,
         double MaxDeserializeMilliseconds);
+
+    public readonly record struct SendDiagnostics(
+        long PacketsSent,
+        long BytesSent,
+        long HelloMessagesSent,
+        long InputMessagesSent,
+        long ControlMessagesSent,
+        long SnapshotAckMessagesSent);
 
     private const int WsaConnReset = 10054;
     private const int SioUdpConnReset = -1744830452;
@@ -50,6 +60,14 @@ internal sealed class NetworkGameClient : IDisposable
     private long _lastHelloSentAtMilliseconds = -1;
     private long _lastServerMessageReceivedAtMilliseconds = -1;
     private string? _lastDisconnectReason;
+    private OpenGarrisonDemoRecordingWriter? _demoRecorder;
+    private string? _armedDemoRecordingPath;
+    private int _demoRecordingRecordedSnapshots;
+    private ulong _demoRecordingFirstSnapshotFrame;
+    private bool _demoRecordingFirstSnapshotFrameInitialized;
+    private int _demoRecordingLastDueMilliseconds;
+    private long _demoRecordingStartedAtMilliseconds = -1;
+    private string? _lastCompletedDemoRecordingNotice;
 
     public bool CollectDiagnostics { get; set; }
 
@@ -59,17 +77,25 @@ internal sealed class NetworkGameClient : IDisposable
     public bool IsConnected => _transport is not null;
     public bool IsAwaitingWelcome => IsConnected && LocalPlayerSlot == 0;
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
+    public bool IsReplayConnection { get; private set; }
 
     public byte LocalPlayerSlot { get; private set; }
     public string? ServerDescription { get; private set; }
+    public int ServerMaxPlayerCount { get; private set; }
     public int SimulatedLatencyMilliseconds { get; private set; }
     public int EstimatedPingMilliseconds { get; private set; } = -1;
     public ReceiveDiagnostics LastReceiveDiagnostics { get; private set; }
+    public SendDiagnostics TotalSendDiagnostics { get; private set; }
 
     public bool Connect(string host, int port, string playerName, ulong badgeMask, out string error)
     {
         error = string.Empty;
+        var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
         Disconnect();
+        if (!string.IsNullOrWhiteSpace(armedDemoRecordingPath))
+        {
+            _armedDemoRecordingPath = armedDemoRecordingPath;
+        }
 
         try
         {
@@ -78,16 +104,7 @@ internal sealed class NetworkGameClient : IDisposable
                 return false;
             }
 
-            _transport = transport;
-            NetworkInputDelayTicks = transport.IsLoopbackConnection ? 0 : 2;
-            _pendingHelloPlayerName = playerName;
-            _pendingHelloBadgeMask = badgeMask;
-            _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
-            _lastHelloSentAtMilliseconds = -1;
-            LocalPlayerSlot = 0;
-            SendHello();
-            ServerDescription = transport.RemoteDescription;
-            return true;
+            return Connect(transport, playerName, badgeMask, out error);
         }
         catch (SocketException ex)
         {
@@ -97,8 +114,35 @@ internal sealed class NetworkGameClient : IDisposable
         }
     }
 
+    public bool Connect(INetworkClientMessageTransport transport, string playerName, ulong badgeMask, out string error)
+    {
+        error = string.Empty;
+        ArgumentNullException.ThrowIfNull(transport);
+        var armedDemoRecordingPath = _demoRecorder is null ? _armedDemoRecordingPath : null;
+        Disconnect();
+        if (!string.IsNullOrWhiteSpace(armedDemoRecordingPath))
+        {
+            _armedDemoRecordingPath = armedDemoRecordingPath;
+        }
+
+        _transport = transport;
+        IsReplayConnection = transport is ReDsmReplayTransport
+            || transport.RemoteDescription.StartsWith("replay:", StringComparison.OrdinalIgnoreCase);
+        NetworkInputDelayTicks = transport.IsLoopbackConnection ? 0 : 2;
+        _pendingHelloPlayerName = playerName;
+        _pendingHelloBadgeMask = badgeMask;
+        _connectStartedAtMilliseconds = _clock.ElapsedMilliseconds;
+        _lastHelloSentAtMilliseconds = -1;
+        LocalPlayerSlot = 0;
+        ServerMaxPlayerCount = 0;
+        SendHello();
+        ServerDescription = transport.RemoteDescription;
+        return true;
+    }
+
     public void Disconnect()
     {
+        FinalizeDemoRecording(saveRecording: true, completedByDisconnect: true);
         _transport?.Dispose();
         _transport = null;
         _nextInputSequence = 1;
@@ -111,8 +155,10 @@ internal sealed class NetworkGameClient : IDisposable
         _trackedInputRoundTrips.Clear();
         _trackedInputRoundTripTimes.Clear();
         _networkInputTick = 0;
+        IsReplayConnection = false;
         LocalPlayerSlot = 0;
         ServerDescription = null;
+        ServerMaxPlayerCount = 0;
         _pendingHelloPlayerName = null;
         _pendingHelloBadgeMask = 0UL;
         _connectStartedAtMilliseconds = -1;
@@ -120,6 +166,152 @@ internal sealed class NetworkGameClient : IDisposable
         _lastServerMessageReceivedAtMilliseconds = -1;
         EstimatedPingMilliseconds = -1;
         LastReceiveDiagnostics = default;
+        TotalSendDiagnostics = default;
+    }
+
+    public bool TryToggleReplayPause(out bool isPaused, out string error)
+    {
+        if (_transport is not IPlaybackMessageTransport replayTransport)
+        {
+            isPaused = false;
+            error = "no replay is currently playing.";
+            return false;
+        }
+
+        replayTransport.TogglePaused();
+        isPaused = replayTransport.IsPaused;
+        error = string.Empty;
+        return true;
+    }
+
+    public bool TrySetReplayPaused(bool paused, out string error)
+    {
+        if (_transport is not IPlaybackMessageTransport replayTransport)
+        {
+            error = "no replay is currently playing.";
+            return false;
+        }
+
+        replayTransport.SetPaused(paused);
+        error = string.Empty;
+        return true;
+    }
+
+    public bool TrySetReplayPlaybackRate(float playbackRate, out float appliedPlaybackRate, out string error)
+    {
+        if (_transport is not IPlaybackMessageTransport replayTransport)
+        {
+            appliedPlaybackRate = 1f;
+            error = "no replay is currently playing.";
+            return false;
+        }
+
+        replayTransport.SetPlaybackRate(playbackRate);
+        appliedPlaybackRate = replayTransport.PlaybackRate;
+        error = string.Empty;
+        return true;
+    }
+
+    public bool TryGetReplayStatus(out string status)
+    {
+        if (_transport is not IPlaybackMessageTransport replayTransport)
+        {
+            status = "no replay is currently playing.";
+            return false;
+        }
+
+        var pauseLabel = replayTransport.IsPaused ? "paused" : "playing";
+        status =
+            $"replay {pauseLabel} tick={replayTransport.CurrentTick}/{replayTransport.TotalTicks} speed={(replayTransport.PlaybackRate * 100f).ToString("0", CultureInfo.InvariantCulture)}%";
+        return true;
+    }
+
+    public bool TryStartDemoRecording(string demoPath, string remoteDescription, byte[]? initialWelcomePayload, out string status, out string error)
+    {
+        status = string.Empty;
+        error = string.Empty;
+
+        if (OperatingSystem.IsBrowser())
+        {
+            error = "demo recording is unavailable in the browser runtime.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(demoPath))
+        {
+            error = "demo recording requires an output path.";
+            return false;
+        }
+
+        if (_transport is IPlaybackMessageTransport || IsReplayConnection)
+        {
+            error = "demo recording is unavailable while playing a replay or demo.";
+            return false;
+        }
+
+        if (_demoRecorder is not null || !string.IsNullOrWhiteSpace(_armedDemoRecordingPath))
+        {
+            error = "demo recording is already active.";
+            return false;
+        }
+
+        var resolvedPath = Path.GetFullPath(demoPath.Trim().Trim('"'));
+        if (initialWelcomePayload is not null)
+        {
+            return TryCreateActiveDemoRecorder(resolvedPath, remoteDescription, initialWelcomePayload, out status, out error);
+        }
+
+        _armedDemoRecordingPath = resolvedPath;
+        status = $"demo recording armed: {resolvedPath}";
+        return true;
+    }
+
+    public bool TryStopDemoRecording(bool saveRecording, out string status, out string error)
+    {
+        status = string.Empty;
+        error = string.Empty;
+
+        if (_demoRecorder is null && string.IsNullOrWhiteSpace(_armedDemoRecordingPath))
+        {
+            error = "no demo recording is active.";
+            return false;
+        }
+
+        status = FinalizeDemoRecording(saveRecording, completedByDisconnect: false);
+        return true;
+    }
+
+    public bool TryGetDemoRecordingStatus(out string status)
+    {
+        if (_demoRecorder is not null)
+        {
+            status =
+                $"demo recording active path={_demoRecorder.FinalPath} messages={_demoRecorder.MessageCount} " +
+                $"snapshots={_demoRecordingRecordedSnapshots} bytes={_demoRecorder.PayloadByteCount}";
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_armedDemoRecordingPath))
+        {
+            status = $"demo recording armed path={_armedDemoRecordingPath}";
+            return true;
+        }
+
+        status = "no demo recording is active.";
+        return false;
+    }
+
+    public bool TryConsumeCompletedDemoRecordingNotice(out string notice)
+    {
+        if (string.IsNullOrWhiteSpace(_lastCompletedDemoRecordingNotice))
+        {
+            notice = string.Empty;
+            return false;
+        }
+
+        notice = _lastCompletedDemoRecordingNotice;
+        _lastCompletedDemoRecordingNotice = null;
+        return true;
     }
 
     public void SetLocalPlayerSlot(byte slot)
@@ -139,6 +331,11 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         ServerDescription = description.Trim();
+    }
+
+    public void SetServerMaxPlayerCount(int maxPlayerCount)
+    {
+        ServerMaxPlayerCount = Math.Max(0, maxPlayerCount);
     }
 
     public void QueueChatBubble(int frameIndex)
@@ -392,6 +589,7 @@ internal sealed class NetworkGameClient : IDisposable
                 }
 
                 _lastServerMessageReceivedAtMilliseconds = _clock.ElapsedMilliseconds;
+                CaptureInboundDemoMessage(transport, message, payload);
                 if (collectDiagnostics && message is SnapshotMessage)
                 {
                     snapshotMessages += 1;
@@ -457,6 +655,7 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         var payload = ProtocolCodec.Serialize(message);
+        RecordSendDiagnostics(message, payload.Length);
         if (SimulatedLatencyMilliseconds > 0)
         {
             _pendingOutboundPackets.Enqueue(new PendingPacket(_clock.ElapsedMilliseconds + SimulatedLatencyMilliseconds, payload));
@@ -465,6 +664,191 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         transport.Send(payload);
+    }
+
+    private void CaptureInboundDemoMessage(INetworkClientMessageTransport transport, IProtocolMessage message, byte[] payload)
+    {
+        if (_demoRecorder is null)
+        {
+            if (message is not WelcomeMessage || string.IsNullOrWhiteSpace(_armedDemoRecordingPath))
+            {
+                return;
+            }
+
+            if (!TryCreateActiveDemoRecorder(
+                    _armedDemoRecordingPath,
+                    ServerDescription ?? transport.RemoteDescription,
+                    payload,
+                    out _,
+                    out var activationError))
+            {
+                _lastCompletedDemoRecordingNotice = $"demo recording failed: {activationError}";
+            }
+
+            return;
+        }
+
+        if (!ShouldRecordDemoMessage(message))
+        {
+            return;
+        }
+
+        var dueMilliseconds = ResolveDemoMessageDueMilliseconds(message);
+        _demoRecorder.AppendMessage(dueMilliseconds, payload);
+        if (message is SnapshotMessage)
+        {
+            _demoRecordingRecordedSnapshots += 1;
+        }
+    }
+
+    private bool TryCreateActiveDemoRecorder(
+        string resolvedPath,
+        string remoteDescription,
+        byte[] initialWelcomePayload,
+        out string status,
+        out string error)
+    {
+        status = string.Empty;
+        error = string.Empty;
+
+        try
+        {
+            ResetDemoRecordingTimingState();
+            var resolvedRemoteDescription = string.IsNullOrWhiteSpace(remoteDescription)
+                ? "demo-recording"
+                : remoteDescription.Trim();
+            var recorder = new OpenGarrisonDemoRecordingWriter(resolvedPath, resolvedRemoteDescription, "Demo ended.");
+            recorder.AppendMessage(0, initialWelcomePayload);
+            _demoRecordingStartedAtMilliseconds = _clock.ElapsedMilliseconds;
+            _demoRecorder = recorder;
+            _armedDemoRecordingPath = null;
+            status = $"demo recording started: {resolvedPath}";
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
+        {
+            ResetDemoRecordingTimingState();
+            _demoRecorder?.Dispose();
+            _demoRecorder = null;
+            _armedDemoRecordingPath = null;
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private int ResolveDemoMessageDueMilliseconds(IProtocolMessage message)
+    {
+        if (message is WelcomeMessage)
+        {
+            _demoRecordingLastDueMilliseconds = 0;
+            return 0;
+        }
+
+        if (message is SnapshotMessage snapshot)
+        {
+            if (!_demoRecordingFirstSnapshotFrameInitialized)
+            {
+                _demoRecordingFirstSnapshotFrame = snapshot.Frame;
+                _demoRecordingFirstSnapshotFrameInitialized = true;
+                _demoRecordingLastDueMilliseconds = Math.Max(_demoRecordingLastDueMilliseconds, 0);
+                return _demoRecordingLastDueMilliseconds;
+            }
+
+            var effectiveTickRate = snapshot.TickRate > 0 ? snapshot.TickRate : SimulationConfig.DefaultTicksPerSecond;
+            var frameDelta = snapshot.Frame > _demoRecordingFirstSnapshotFrame
+                ? snapshot.Frame - _demoRecordingFirstSnapshotFrame
+                : 0UL;
+            var snapshotDueMilliseconds = (int)Math.Clamp(
+                Math.Round(frameDelta * 1000d / effectiveTickRate, MidpointRounding.AwayFromZero),
+                0d,
+                int.MaxValue);
+            _demoRecordingLastDueMilliseconds = Math.Max(_demoRecordingLastDueMilliseconds, snapshotDueMilliseconds);
+            return _demoRecordingLastDueMilliseconds;
+        }
+
+        var startMilliseconds = _demoRecordingStartedAtMilliseconds >= 0
+            ? _demoRecordingStartedAtMilliseconds
+            : _clock.ElapsedMilliseconds;
+        var elapsedMilliseconds = (int)Math.Clamp(_clock.ElapsedMilliseconds - startMilliseconds, 0L, int.MaxValue);
+        _demoRecordingLastDueMilliseconds = Math.Max(_demoRecordingLastDueMilliseconds, elapsedMilliseconds);
+        return _demoRecordingLastDueMilliseconds;
+    }
+
+    private string FinalizeDemoRecording(bool saveRecording, bool completedByDisconnect)
+    {
+        var armedPath = _armedDemoRecordingPath;
+        if (_demoRecorder is null)
+        {
+            if (string.IsNullOrWhiteSpace(armedPath))
+            {
+                return string.Empty;
+            }
+
+            _armedDemoRecordingPath = null;
+            return saveRecording
+                ? $"demo recording canceled before any welcome payload was captured ({armedPath})"
+                : $"demo recording canceled ({armedPath})";
+        }
+
+        var recorder = _demoRecorder;
+        _demoRecorder = null;
+        _armedDemoRecordingPath = null;
+
+        try
+        {
+            var finalPath = recorder.FinalPath;
+            var messageCount = recorder.MessageCount;
+            var payloadBytes = recorder.PayloadByteCount;
+            var snapshotCount = _demoRecordingRecordedSnapshots;
+            if (!saveRecording || snapshotCount <= 0 || messageCount <= 1)
+            {
+                recorder.Discard();
+                var discardedMessage = !saveRecording
+                    ? $"demo recording canceled ({finalPath})"
+                    : $"demo recording discarded: no snapshots were captured ({finalPath})";
+                ResetDemoRecordingTimingState();
+                if (completedByDisconnect)
+                {
+                    _lastCompletedDemoRecordingNotice = discardedMessage;
+                }
+
+                return discardedMessage;
+            }
+
+            recorder.Complete();
+            var completionMessage =
+                $"demo recording saved: {finalPath} messages={messageCount} snapshots={snapshotCount} bytes={payloadBytes}";
+            ResetDemoRecordingTimingState();
+            if (completedByDisconnect)
+            {
+                _lastCompletedDemoRecordingNotice = completionMessage;
+            }
+
+            return completionMessage;
+        }
+        finally
+        {
+            ResetDemoRecordingTimingState();
+        }
+    }
+
+    private void ResetDemoRecordingTimingState()
+    {
+        _demoRecordingRecordedSnapshots = 0;
+        _demoRecordingFirstSnapshotFrame = 0;
+        _demoRecordingFirstSnapshotFrameInitialized = false;
+        _demoRecordingLastDueMilliseconds = 0;
+        _demoRecordingStartedAtMilliseconds = -1;
+    }
+
+    private static bool ShouldRecordDemoMessage(IProtocolMessage message)
+    {
+        return message is SnapshotMessage
+            or ChatRelayMessage
+            or AutoBalanceNoticeMessage
+            or SessionSlotChangedMessage
+            or ControlAckMessage
+            or ServerPluginMessage;
     }
 
     public void Dispose()
@@ -616,6 +1000,20 @@ internal sealed class NetworkGameClient : IDisposable
             ? "Connection closed."
             : reason;
         Disconnect();
+    }
+
+    private void RecordSendDiagnostics(IProtocolMessage message, int payloadBytes)
+    {
+        var current = TotalSendDiagnostics;
+        TotalSendDiagnostics = current with
+        {
+            PacketsSent = current.PacketsSent + 1,
+            BytesSent = current.BytesSent + Math.Max(0, payloadBytes),
+            HelloMessagesSent = current.HelloMessagesSent + (message is HelloMessage ? 1 : 0),
+            InputMessagesSent = current.InputMessagesSent + (message is InputStateMessage ? 1 : 0),
+            ControlMessagesSent = current.ControlMessagesSent + (message is ControlCommandMessage ? 1 : 0),
+            SnapshotAckMessagesSent = current.SnapshotAckMessagesSent + (message is SnapshotAckMessage ? 1 : 0),
+        };
     }
 
     private sealed record PendingControlCommand(uint Sequence, ControlCommandKind Kind, byte Value, string TextValue);

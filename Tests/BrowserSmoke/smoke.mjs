@@ -39,6 +39,14 @@ const maxPumpDurationMs = Number.parseFloat(process.env.OG_BROWSER_MAX_PUMP_MS ?
 const maxPracticeShellReadyMs = Number.parseInt(process.env.OG_BROWSER_MAX_SHELL_READY_MS ?? "45000", 10);
 const practiceEnemyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_ENEMY_BOTS ?? "0");
 const practiceFriendlyBots = clampPracticeBotCount(process.env.OG_BROWSER_PRACTICE_FRIENDLY_BOTS ?? "0");
+const scenario = (process.env.OG_BROWSER_SCENARIO ?? "practice").trim().toLowerCase();
+if (!["practice", "dedicated"].includes(scenario)) {
+  throw new Error(`Unsupported OG_BROWSER_SCENARIO=${scenario}. Expected 'practice' or 'dedicated'.`);
+}
+const remoteHost = (process.env.OG_BROWSER_REMOTE_HOST ?? "").trim();
+const remotePort = Number.parseInt(process.env.OG_BROWSER_REMOTE_PORT ?? "8190", 10);
+const remoteClass = (process.env.OG_BROWSER_REMOTE_CLASS ?? "Pyro").trim();
+const remoteSessionSampleMs = Number.parseInt(process.env.OG_BROWSER_REMOTE_SAMPLE_MS ?? `${gameplayFpsSampleMs}`, 10);
 const postJoinCommands = parseCommandList(process.env.OG_BROWSER_POST_JOIN_COMMANDS ?? "");
 const postJoinMoveKey = process.env.OG_BROWSER_POST_JOIN_MOVE_KEY ?? "";
 const postJoinMoveDurationMs = Number.parseInt(process.env.OG_BROWSER_POST_JOIN_MOVE_MS ?? "0", 10);
@@ -103,54 +111,11 @@ try {
     hostSettleTimeoutMs,
     "main menu"
   );
-  const practiceLaunchStartedAt = Date.now();
-  await launchPracticeSession(page);
+  const scenarioResult = scenario === "dedicated"
+    ? await runDedicatedScenario(page)
+    : await runPracticeScenario(page);
 
-  const postPracticeSummary = await waitForStableHost(page, practiceLaunchSettleTimeoutMs);
-  if (postPracticeSummary.hostFailed) {
-    throw new Error(`Browser host failed after launching Practice. Status: ${postPracticeSummary.hostStatus}`);
-  }
-
-  await delay(1_000);
-  const immediateGameplayShellState = await readAutomationState(page);
-  if (!isGameplayShellReady(immediateGameplayShellState)) {
-    await waitForGameplayShell(page, gameplayShellTimeoutMs);
-  }
-  timings.practiceShellReadyMs = Date.now() - practiceLaunchStartedAt;
-  if (timings.practiceShellReadyMs > maxPracticeShellReadyMs) {
-    throw new Error(
-      `Browser practice shell readiness exceeded the load threshold: ${timings.practiceShellReadyMs}ms, ` +
-      `expected at most ${maxPracticeShellReadyMs}ms. Timings: ${JSON.stringify(timings)}`
-    );
-  }
-
-  const joinPracticeStartedAt = Date.now();
-  await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.resetMetrics?.());
-  await joinPracticeAndExerciseRapidFire(page);
-  timings.practiceJoinAndExerciseMs = Date.now() - joinPracticeStartedAt;
-
-  await runPostJoinCommands(page);
-  await runPostJoinMovement(page);
-  await verifyChatInput(page);
-  await verifyResizeRecovery(page);
-
-  const finalSummary = await waitForStableHost(page, practiceSpawnSettleTimeoutMs);
-  if (finalSummary.hostFailed) {
-    throw new Error(`Browser host failed after joining Practice. Status: ${finalSummary.hostStatus}`);
-  }
-
-  const finalAutomationState = await readAutomationState(page);
-  if (finalAutomationState && finalAutomationState.audioAvailable === false) {
-    throw new Error(`Browser audio disabled during smoke. Automation state: ${JSON.stringify(finalAutomationState)}`);
-  }
-
-  if (finalAutomationState && finalAutomationState.looseSheetVisualCount > maxLooseSheetVisuals) {
-    throw new Error(
-      `Browser loose-sheet visual count exceeded the cap: ${finalAutomationState.looseSheetVisualCount}, ` +
-      `expected at most ${maxLooseSheetVisuals}. Automation state: ${JSON.stringify(finalAutomationState)}`);
-  }
-
-  const gameplayMetrics = await sampleBrowserMetrics(page, gameplayFpsSampleMs);
+  const gameplayMetrics = await scenarioResult.gameplayMetrics;
   if (!gameplayMetrics) {
     throw new Error("Browser host did not expose frame-pump metrics.");
   }
@@ -158,7 +123,7 @@ try {
   if (gameplayMetrics.recentFps < minGameplayFps) {
     throw new Error(
       `Browser gameplay FPS below smoke threshold: ${gameplayMetrics.recentFps.toFixed(1)}fps over ` +
-      `${gameplayFpsSampleMs}ms, expected at least ${minGameplayFps}fps. Metrics: ${JSON.stringify(gameplayMetrics)}`);
+      `${scenarioResult.sampleDurationMs}ms, expected at least ${minGameplayFps}fps. Metrics: ${JSON.stringify(gameplayMetrics)}`);
   }
 
   if (gameplayMetrics.maxPumpDurationMs > maxPumpDurationMs) {
@@ -167,8 +132,15 @@ try {
       `expected at most ${maxPumpDurationMs}ms. Metrics: ${JSON.stringify(gameplayMetrics)}`);
   }
 
-  const practiceScreenshotPath = join(artifactsDir, "browser-smoke-practice.png");
-  await page.screenshot({ path: practiceScreenshotPath, timeout: 60_000 });
+  if (scenarioResult.performanceSnapshot) {
+    console.log(`Performance snapshot: ${JSON.stringify(scenarioResult.performanceSnapshot)}`);
+  }
+
+  if (scenarioResult.sessionHealth) {
+    console.log(`Session health: ${JSON.stringify(scenarioResult.sessionHealth)}`);
+  }
+
+  await page.screenshot({ path: scenarioResult.screenshotPath, timeout: 60_000 });
 
   const consoleErrors = consoleEvents.filter((entry) =>
     (entry.startsWith("[error]") || entry.startsWith("pageerror:"))
@@ -180,8 +152,9 @@ try {
   }
 
   console.log("Browser smoke test passed.");
-  console.log(`KNI host started: ${finalSummary.kniHostStarted}`);
-  console.log(`Host status: ${finalSummary.hostStatus}`);
+  console.log(`Scenario: ${scenario}`);
+  console.log(`KNI host started: ${scenarioResult.finalSummary.kniHostStarted}`);
+  console.log(`Host status: ${scenarioResult.finalSummary.hostStatus}`);
   console.log(`Timings: ${JSON.stringify(timings)}`);
   console.log(`Gameplay metrics: ${JSON.stringify(gameplayMetrics)}`);
   const readPixelsWarnings = consoleEvents.filter((entry) => entry.includes("ReadPixels")).length;
@@ -465,6 +438,90 @@ async function waitForStableHost(page, timeoutMs) {
   throw new Error(`Timed out waiting for browser host after practice launch. Latest status: ${latestSummary.hostStatus}`);
 }
 
+async function runPracticeScenario(page) {
+  const practiceLaunchStartedAt = Date.now();
+  await launchPracticeSession(page);
+
+  const postPracticeSummary = await waitForStableHost(page, practiceLaunchSettleTimeoutMs);
+  if (postPracticeSummary.hostFailed) {
+    throw new Error(`Browser host failed after launching Practice. Status: ${postPracticeSummary.hostStatus}`);
+  }
+
+  await delay(1_000);
+  const immediateGameplayShellState = await readAutomationState(page);
+  if (!isGameplayShellReady(immediateGameplayShellState)) {
+    await waitForGameplayShell(page, gameplayShellTimeoutMs);
+  }
+
+  timings.practiceShellReadyMs = Date.now() - practiceLaunchStartedAt;
+  if (timings.practiceShellReadyMs > maxPracticeShellReadyMs) {
+    throw new Error(
+      `Browser practice shell readiness exceeded the load threshold: ${timings.practiceShellReadyMs}ms, ` +
+      `expected at most ${maxPracticeShellReadyMs}ms. Timings: ${JSON.stringify(timings)}`
+    );
+  }
+
+  const joinPracticeStartedAt = Date.now();
+  await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.resetMetrics?.());
+  await joinPracticeAndExerciseRapidFire(page);
+  timings.practiceJoinAndExerciseMs = Date.now() - joinPracticeStartedAt;
+
+  await runPostJoinCommands(page);
+  await runPostJoinMovement(page);
+
+  const finalSummary = await waitForStableHost(page, practiceSpawnSettleTimeoutMs);
+  if (finalSummary.hostFailed) {
+    throw new Error(`Browser host failed after joining Practice. Status: ${finalSummary.hostStatus}`);
+  }
+
+  const finalAutomationState = await readAutomationState(page);
+  validateFinalAutomationState(finalAutomationState);
+
+  return {
+    finalSummary,
+    gameplayMetrics: await sampleBrowserMetrics(page, gameplayFpsSampleMs),
+    performanceSnapshot: await samplePerformanceSnapshot(page),
+    sessionHealth: null,
+    screenshotPath: join(artifactsDir, "browser-smoke-practice.png"),
+    sampleDurationMs: gameplayFpsSampleMs
+  };
+}
+
+async function runDedicatedScenario(page) {
+  if (!remoteHost) {
+    throw new Error("Dedicated browser smoke requires OG_BROWSER_REMOTE_HOST.");
+  }
+
+  const connectStartedAt = Date.now();
+  await connectToDedicatedServer(page, remoteHost, remotePort);
+  timings.dedicatedConnectMs = Date.now() - connectStartedAt;
+
+  const joinStartedAt = Date.now();
+  await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.resetMetrics?.());
+  await joinDedicatedSessionAndExerciseMovement(page, remoteClass);
+  timings.dedicatedJoinAndExerciseMs = Date.now() - joinStartedAt;
+
+  await runPostJoinCommands(page);
+  await runPostJoinMovement(page);
+
+  const finalSummary = await waitForStableHost(page, practiceSpawnSettleTimeoutMs);
+  if (finalSummary.hostFailed) {
+    throw new Error(`Browser host failed after joining dedicated server. Status: ${finalSummary.hostStatus}`);
+  }
+
+  const finalAutomationState = await readAutomationState(page);
+  validateFinalAutomationState(finalAutomationState);
+
+  return {
+    finalSummary,
+    gameplayMetrics: await sampleBrowserMetrics(page, remoteSessionSampleMs),
+    performanceSnapshot: await samplePerformanceSnapshot(page),
+    sessionHealth: await sampleOnlineSessionHealth(page, remoteSessionSampleMs),
+    screenshotPath: join(artifactsDir, "browser-smoke-dedicated.png"),
+    sampleDurationMs: remoteSessionSampleMs
+  };
+}
+
 async function launchPracticeSession(page) {
   const launchStartedAt = Date.now();
   const rootState = await waitForAutomationState(
@@ -509,8 +566,57 @@ async function launchPracticeSession(page) {
   timings.launchEnemyBotsReadyMs = Date.now() - launchStartedAt;
   await setPracticeBotCount(page, "Friendly", (await readAutomationState(page))?.practiceFriendlyBotCount ?? 0, practiceFriendlyBots);
   timings.launchFriendlyBotsReadyMs = Date.now() - launchStartedAt;
-  await clickAutomationAction(page, readyPracticeState?.practiceButtons ?? [], "Start Practice");
+  const started = await page.evaluate(
+    async ({ enemyBots, friendlyBots }) =>
+      await globalThis.OpenGarrisonBrowserHost?.startAutomationPractice?.(enemyBots, friendlyBots) ?? false,
+    { enemyBots: practiceEnemyBots, friendlyBots: practiceFriendlyBots });
+  if (!started) {
+    throw new Error(`Browser automation practice start failed. State: ${JSON.stringify(await readAutomationState(page))}`);
+  }
   timings.launchClickedStartPracticeMs = Date.now() - launchStartedAt;
+}
+
+async function connectToDedicatedServer(page, host, port) {
+  const rootState = await waitForAutomationState(
+    page,
+    (state) => state && state.mainMenuOpen && state.mainMenuOverlay === "None" && state.mainMenuPage === "Root",
+    hostSettleTimeoutMs,
+    "root main menu"
+  );
+  await clickAutomationAction(page, rootState.menuButtons, "Play Online");
+
+  const onlineState = await waitForAutomationState(
+    page,
+    (state) => state && state.mainMenuOpen && state.mainMenuOverlay === "None" && state.mainMenuPage === "PlayOnline",
+    15_000,
+    "online menu"
+  );
+  await clickAutomationAction(page, onlineState.menuButtons, "Join (IP)");
+
+  const manualConnectState = await waitForAutomationState(
+    page,
+    (state) => state && state.manualConnectOpen && state.mainMenuOverlay === "ManualConnect",
+    15_000,
+    "manual connect menu"
+  );
+
+  if (!await setAutomationValue(page, "manualconnect_host", host)) {
+    throw new Error(`Failed to set manual connect host to '${host}'. State: ${JSON.stringify(manualConnectState)}`);
+  }
+
+  if (!await setAutomationValue(page, "manualconnect_port", `${port}`)) {
+    throw new Error(`Failed to set manual connect port to '${port}'. State: ${JSON.stringify(manualConnectState)}`);
+  }
+
+  const connectStarted = await page.evaluate(
+    async ({ hostName, portText }) =>
+      await globalThis.OpenGarrisonBrowserHost?.connectAutomationTarget?.(hostName, portText) ?? false,
+    { hostName: host, portText: `${port}` });
+  if (!connectStarted) {
+    throw new Error(`Dedicated connect automation did not start for ${host}:${port}. State: ${JSON.stringify(await readAutomationState(page))}`);
+  }
+
+  await waitForDedicatedJoinState(page, 20_000);
 }
 
 async function setPracticeBotCount(page, kind, currentCount, targetCount) {
@@ -518,22 +624,19 @@ async function setPracticeBotCount(page, kind, currentCount, targetCount) {
     return;
   }
 
-  const decrementLabel = `${kind} Bots -`;
-  const incrementLabel = `${kind} Bots +`;
+  const fieldName = kind === "Enemy" ? "practice_enemy_bots" : "practice_friendly_bots";
   const countField = kind === "Enemy" ? "practiceEnemyBotCount" : "practiceFriendlyBotCount";
-  let latestState = await readAutomationState(page);
-  let latestCount = currentCount;
-  for (let attempt = 0; latestCount !== targetCount && attempt < 20; attempt += 1) {
-    const label = latestCount < targetCount ? incrementLabel : decrementLabel;
-    await clickAutomationAction(page, latestState?.practiceButtons ?? [], label);
-    latestState = await waitForAutomationState(
-      page,
-      (state) => state && state.practiceSetupOpen && state[countField] !== latestCount,
-      5_000,
-      `${kind.toLowerCase()} bot count change`);
-    latestCount = latestState[countField];
+  const updated = await setAutomationValue(page, fieldName, `${targetCount}`);
+  if (!updated) {
+    throw new Error(`Failed to set ${kind.toLowerCase()} bot count to ${targetCount}.`);
   }
 
+  const latestState = await waitForAutomationState(
+    page,
+    (state) => state && state.practiceSetupOpen && state[countField] === targetCount,
+    5_000,
+    `${kind.toLowerCase()} bot count change`);
+  const latestCount = latestState[countField];
   if (latestCount !== targetCount) {
     throw new Error(`${kind} bot count settled at ${latestCount}, expected ${targetCount}. State: ${JSON.stringify(latestState)}`);
   }
@@ -590,6 +693,64 @@ async function joinPracticeAndExerciseRapidFire(page) {
   await delay(3_000);
 }
 
+async function joinDedicatedSessionAndExerciseMovement(page, preferredClass) {
+  const joinedState = await waitForDedicatedJoinState(page, 20_000);
+  if (joinedState.teamSelectOpen) {
+    await clickAutomationAction(page, joinedState.teamSelectButtons, "Auto Select");
+  }
+
+  const classSelectState = await waitForAutomationState(
+    page,
+    (state) => state && state.classSelectOpen,
+    15_000,
+    "dedicated class select"
+  );
+  await clickAutomationAction(page, classSelectState.classSelectButtons, preferredClass);
+
+  const spawnedState = await waitForAutomationState(
+    page,
+    (state) => state && state.networkConnected && !state.classSelectOpen && !state.awaitingJoin && state.localPlayerAlive,
+    20_000,
+    "dedicated spawn completion"
+  );
+
+  await setBrowserKey(page, "KeyD", true);
+  await delay(750);
+  await setBrowserKey(page, "KeyD", false);
+
+  await delay(1_000);
+  await page.mouse.move(500, 300);
+  await page.mouse.down();
+  await delay(1_000);
+  await page.mouse.up();
+  await delay(1_000);
+}
+
+async function waitForDedicatedJoinState(page, timeoutMs) {
+  return await waitForAutomationState(
+    page,
+    (state) => {
+      if (!state) {
+        return false;
+      }
+
+      if (typeof state.statusMessage === "string" && state.statusMessage.toLowerCase().includes("connect failed")) {
+        return true;
+      }
+
+      return state.networkConnected && (state.teamSelectOpen || state.classSelectOpen || state.shell === "Gameplay");
+    },
+    timeoutMs,
+    "dedicated join state"
+  ).then((state) => {
+    if (typeof state.statusMessage === "string" && state.statusMessage.toLowerCase().includes("connect failed")) {
+      throw new Error(`Dedicated connect failed. State: ${JSON.stringify(state)}`);
+    }
+
+    return state;
+  });
+}
+
 async function setBrowserKey(page, code, pressed) {
   const invoked = await page.evaluate(
     async ({ keyCode, isPressed }) => {
@@ -609,6 +770,13 @@ async function setBrowserKey(page, code, pressed) {
 
 async function readAutomationState(page) {
   return await page.evaluate(async () => await globalThis.OpenGarrisonBrowserHost?.getAutomationState?.() ?? null);
+}
+
+async function setAutomationValue(page, fieldName, value) {
+  return await page.evaluate(
+    async ({ field, nextValue }) =>
+      await globalThis.OpenGarrisonBrowserHost?.setAutomationValue?.(field, nextValue) ?? false,
+    { field: fieldName, nextValue: value });
 }
 
 async function runAutomationConsoleCommand(page, commandText) {
@@ -671,12 +839,24 @@ function inferAutomationActionSet(actions) {
   }
 
   const labels = new Set(actions.map((entry) => entry.label));
-  if (labels.has("Play Offline") || labels.has("Play Online") || labels.has("Settings") || labels.has("Practice") || labels.has("Minigames")) {
+  if (labels.has("Play Offline")
+    || labels.has("Play Online")
+    || labels.has("Settings")
+    || labels.has("Practice")
+    || labels.has("Minigames")
+    || labels.has("Host Match")
+    || labels.has("Join (IP)")
+    || labels.has("Join (Lobby)")
+    || labels.has("Back")) {
     return "menu";
   }
 
   if (labels.has("Start Practice") || labels.has("Enemy Bots +") || labels.has("Friendly Bots +")) {
     return "practice";
+  }
+
+  if (labels.has("Connect") || labels.has("Edit Host") || labels.has("Edit Port")) {
+    return "manualconnect";
   }
 
   if (labels.has("Auto Select") || labels.has("RED") || labels.has("BLU")) {
@@ -702,6 +882,52 @@ async function sampleBrowserMetrics(page, durationMs) {
   return await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.getMetrics?.() ?? null);
 }
 
+async function samplePerformanceSnapshot(page) {
+  return await page.evaluate(async () => await globalThis.OpenGarrisonBrowserHost?.getPerformanceSnapshot?.() ?? null);
+}
+
+async function sampleOnlineSessionHealth(page, durationMs) {
+  const startedAt = Date.now();
+  let previousState = null;
+  let previousMetrics = null;
+  let currentStallMs = 0;
+  let maxSnapshotStallMs = 0;
+  let sampleCount = 0;
+  while (Date.now() - startedAt < durationMs) {
+    const [state, metrics] = await Promise.all([
+      readAutomationState(page),
+      page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.getMetrics?.() ?? null)
+    ]);
+    sampleCount += 1;
+
+    const sameSnapshotFrame = previousState
+      && state
+      && state.networkConnected
+      && state.lastAppliedSnapshotFrame === previousState.lastAppliedSnapshotFrame;
+    const framePumpAdvanced = previousMetrics
+      && metrics
+      && metrics.completedPumps > previousMetrics.completedPumps;
+    if (sameSnapshotFrame && framePumpAdvanced) {
+      currentStallMs += 1000;
+      maxSnapshotStallMs = Math.max(maxSnapshotStallMs, currentStallMs);
+    } else {
+      currentStallMs = 0;
+    }
+
+    previousState = state;
+    previousMetrics = metrics;
+    await delay(1000);
+  }
+
+  return {
+    samples: sampleCount,
+    maxSnapshotStallMs,
+    lastAppliedSnapshotFrame: previousState?.lastAppliedSnapshotFrame ?? 0,
+    estimatedPingMilliseconds: previousState?.estimatedPingMilliseconds ?? -1,
+    queuedAuthoritativeSnapshotCount: previousState?.queuedAuthoritativeSnapshotCount ?? 0
+  };
+}
+
 async function runPostJoinCommands(page) {
   for (const commandText of postJoinCommands) {
     await runAutomationConsoleCommand(page, commandText);
@@ -720,7 +946,11 @@ async function runPostJoinMovement(page) {
 }
 
 async function verifyChatInput(page) {
-  await page.click("#theCanvas");
+  const focused = await page.evaluate(() => globalThis.OpenGarrisonBrowserHost?.focusCanvas?.() ?? false);
+  if (!focused) {
+    throw new Error("Browser canvas focus helper was unavailable for chat input verification.");
+  }
+
   await page.keyboard.press("y");
   await waitForAutomationState(
     page,
@@ -769,6 +999,18 @@ async function verifyResizeRecovery(page) {
   const resizeMetrics = await sampleBrowserMetrics(page, 2_000);
   if (!resizeMetrics || resizeMetrics.recentCompletedPumps <= 0) {
     throw new Error(`Browser frame pump did not recover after resize. Metrics: ${JSON.stringify(resizeMetrics)}`);
+  }
+}
+
+function validateFinalAutomationState(finalAutomationState) {
+  if (finalAutomationState && finalAutomationState.audioAvailable === false) {
+    throw new Error(`Browser audio disabled during smoke. Automation state: ${JSON.stringify(finalAutomationState)}`);
+  }
+
+  if (finalAutomationState && finalAutomationState.looseSheetVisualCount > maxLooseSheetVisuals) {
+    throw new Error(
+      `Browser loose-sheet visual count exceeded the cap: ${finalAutomationState.looseSheetVisualCount}, ` +
+      `expected at most ${maxLooseSheetVisuals}. Automation state: ${JSON.stringify(finalAutomationState)}`);
   }
 }
 

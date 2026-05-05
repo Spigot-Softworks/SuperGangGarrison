@@ -3,13 +3,71 @@
 using Microsoft.Xna.Framework;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
+
+internal readonly record struct ImmediateNetworkDeadBodyPresentationState(
+    int SourcePlayerId,
+    PlayerClass ClassId,
+    PlayerTeam Team,
+    DeadBodyAnimationKind AnimationKind,
+    float X,
+    float Y,
+    float Width,
+    float Height,
+    bool FacingLeft,
+    int TicksRemaining);
+
+internal static class ImmediateNetworkDeathPresentationPlanner
+{
+    internal static ImmediateNetworkDeadBodyPresentationState? TryCreate(
+        SnapshotMessage resolvedSnapshot,
+        SnapshotDamageEvent damageEvent,
+        PlayerEntity? targetPlayer,
+        int lifetimeTicks)
+    {
+        if (!damageEvent.WasFatal
+            || damageEvent.TargetKind != (byte)OpenGarrison.Core.DamageTargetKind.Player
+            || targetPlayer is null
+            || targetPlayer.IsAlive
+            || HasAuthoritativeDeadBodyForPlayer(resolvedSnapshot, damageEvent.TargetEntityId))
+        {
+            return null;
+        }
+
+        return new ImmediateNetworkDeadBodyPresentationState(
+            damageEvent.TargetEntityId,
+            targetPlayer.ClassId,
+            targetPlayer.Team,
+            DeadBodyAnimationKind.Default,
+            targetPlayer.X,
+            targetPlayer.Y,
+            targetPlayer.Width,
+            targetPlayer.Height,
+            targetPlayer.FacingDirectionX < 0f,
+            lifetimeTicks);
+    }
+
+    internal static bool HasAuthoritativeDeadBodyForPlayer(SnapshotMessage resolvedSnapshot, int sourcePlayerId)
+    {
+        for (var index = 0; index < resolvedSnapshot.DeadBodies.Count; index += 1)
+        {
+            if (resolvedSnapshot.DeadBodies[index].SourcePlayerId == sourcePlayerId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
 
 public partial class Game1
 {
     private sealed class GameplayDeadBodyRenderController
     {
+        private const int ImmediateNetworkDeadBodyLifetimeTicks = 90;
         private readonly Game1 _game;
 
         public GameplayDeadBodyRenderController(Game1 game)
@@ -34,6 +92,32 @@ public partial class Game1
                 }
 
                 DrawDeadBodyVisual(deadBody.Id, deadBody.SourcePlayerId, deadBody.ClassId, deadBody.Team, deadBody.AnimationKind, deadBody.X, deadBody.Y, deadBody.Width, deadBody.Height, deadBody.FacingLeft, deadBody.TicksRemaining, cameraPosition);
+            }
+        }
+
+        public void DrawImmediateNetworkDeadBodies(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
+        {
+            foreach (var entry in _game._immediateNetworkDeadBodies)
+            {
+                var deadBody = entry.Value;
+                if (skippedDeadBodySourcePlayerId.HasValue && deadBody.SourcePlayerId == skippedDeadBodySourcePlayerId.Value)
+                {
+                    continue;
+                }
+
+                DrawDeadBodyVisual(
+                    id: -Math.Abs(deadBody.SourcePlayerId),
+                    deadBody.SourcePlayerId,
+                    deadBody.ClassId,
+                    deadBody.Team,
+                    deadBody.AnimationKind,
+                    deadBody.X,
+                    deadBody.Y,
+                    deadBody.Width,
+                    deadBody.Height,
+                    deadBody.FacingLeft,
+                    deadBody.TicksRemaining,
+                    cameraPosition);
             }
         }
 
@@ -69,11 +153,106 @@ public partial class Game1
             }
         }
 
+        public void SyncImmediateNetworkDeadBodies()
+        {
+            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            foreach (var sourcePlayerId in _game._immediateNetworkDeadBodies.Keys)
+            {
+                _game._staleImmediateNetworkDeadBodyPlayerIds.Add(sourcePlayerId);
+            }
+
+            foreach (var deadBody in _game._world.DeadBodies)
+            {
+                _game._staleImmediateNetworkDeadBodyPlayerIds.Remove(deadBody.SourcePlayerId);
+            }
+
+            for (var index = _game._staleImmediateNetworkDeadBodyPlayerIds.Count - 1; index >= 0; index -= 1)
+            {
+                var sourcePlayerId = _game._staleImmediateNetworkDeadBodyPlayerIds[index];
+                var player = _game.FindPlayerById(sourcePlayerId);
+                if (player is not null && !player.IsAlive)
+                {
+                    continue;
+                }
+
+                _game._immediateNetworkDeadBodies.Remove(sourcePlayerId);
+            }
+        }
+
         public void ResetRetainedDeadBodies()
         {
             _game._trackedDeadBodyVisuals.Clear();
             _game._retainedDeadBodies.Clear();
             _game._staleTrackedDeadBodyIds.Clear();
+        }
+
+        public void ResetImmediateNetworkDeadBodies()
+        {
+            _game._immediateNetworkDeadBodies.Clear();
+            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+        }
+
+        public void AdvanceImmediateNetworkDeadBodies()
+        {
+            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+            foreach (var entry in _game._immediateNetworkDeadBodies)
+            {
+                _game._staleImmediateNetworkDeadBodyPlayerIds.Add(entry.Key);
+            }
+
+            for (var index = 0; index < _game._staleImmediateNetworkDeadBodyPlayerIds.Count; index += 1)
+            {
+                var sourcePlayerId = _game._staleImmediateNetworkDeadBodyPlayerIds[index];
+                if (!_game._immediateNetworkDeadBodies.TryGetValue(sourcePlayerId, out var deadBody))
+                {
+                    continue;
+                }
+
+                var nextTicksRemaining = deadBody.TicksRemaining - 1;
+                if (nextTicksRemaining <= 0)
+                {
+                    _game._immediateNetworkDeadBodies.Remove(sourcePlayerId);
+                    continue;
+                }
+
+                _game._immediateNetworkDeadBodies[sourcePlayerId] = deadBody with { TicksRemaining = nextTicksRemaining };
+            }
+
+            _game._staleImmediateNetworkDeadBodyPlayerIds.Clear();
+        }
+
+        public void QueueImmediateNetworkDeathPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
+        {
+            if (!damageEvent.WasFatal || damageEvent.TargetKind != (byte)OpenGarrison.Core.DamageTargetKind.Player)
+            {
+                return;
+            }
+
+            _game._gameplayGoreEffectsController.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+
+            var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
+            var plannedDeadBody = ImmediateNetworkDeathPresentationPlanner.TryCreate(
+                resolvedSnapshot,
+                damageEvent,
+                targetPlayer,
+                ImmediateNetworkDeadBodyLifetimeTicks);
+            if (!plannedDeadBody.HasValue)
+            {
+                return;
+            }
+
+            var deadBody = plannedDeadBody.Value;
+            _game._immediateNetworkDeadBodies[deadBody.SourcePlayerId] = new ImmediateNetworkDeadBodyVisual(
+                deadBody.SourcePlayerId,
+                deadBody.ClassId,
+                deadBody.Team,
+                deadBody.AnimationKind,
+                deadBody.X,
+                deadBody.Y,
+                deadBody.Width,
+                deadBody.Height,
+                deadBody.FacingLeft,
+                deadBody.TicksRemaining);
         }
 
         public ClientDeadBodyAnimationKind ResolveClientPluginDeadBodyAnimationKind(int sourcePlayerId, PlayerClass classId, PlayerTeam team, DeadBodyAnimationKind animationKind)

@@ -66,12 +66,11 @@ function plugin.initialize(host)
 end
 
 function plugin.on_gameplay_hud_draw(canvas)
-    local state = plugin.host.get_client_state()
-    if not state.isGameplayActive or not state.isConnected then
+    if not plugin.host.is_gameplay_active() or not plugin.host.is_connected() then
         return
     end
 
-    local label, color = get_display_state(state.localPingMilliseconds)
+    local label, color = get_display_state(plugin.host.get_local_ping_milliseconds())
     canvas.draw_bitmap_text_centered(label, config.positionX, config.positionY, color, config.sizeTenths / 10.0)
 end
 
@@ -84,12 +83,11 @@ function plugin.get_scoreboard_panel_order()
 end
 
 function plugin.on_scoreboard_draw(canvas, state)
-    local client_state = plugin.host.get_client_state()
-    if not client_state.isConnected then
+    if not plugin.host.is_connected() then
         return
     end
 
-    local label, color = get_display_state(client_state.localPingMilliseconds)
+    local label, color = get_display_state(plugin.host.get_local_ping_milliseconds())
     local tinted = multiply_alpha(color, state.alpha)
     canvas.draw_bitmap_text_right_aligned(
         "Ping: " .. label,

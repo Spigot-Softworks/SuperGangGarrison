@@ -1,5 +1,6 @@
 using System.Net.Http;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.ClientShared;
 
@@ -128,6 +129,13 @@ public static class ClientRuntimeBootstrap
     }
 
     public static GameplayPackSpriteAssetService? CreateGameplayPackSpriteAssetService(string packId, HttpClient? httpClient = null, string? packDirectory = null)
+        => CreateGameplayPackSpriteAssetService(packId, httpClient, packDirectory, null);
+
+    public static GameplayPackSpriteAssetService? CreateGameplayPackSpriteAssetService(
+        string packId,
+        HttpClient? httpClient,
+        string? packDirectory,
+        IReadOnlyDictionary<string, GameplaySpriteAssetDefinition>? spriteDefinitions)
     {
         if (OperatingSystem.IsBrowser())
         {
@@ -147,6 +155,6 @@ public static class ClientRuntimeBootstrap
             spriteDefinitionReader = new GameplaySpriteDefinitionHttpReader(httpClient);
         }
 
-        return new GameplayPackSpriteAssetService(packId, assetBinarySource, spriteDefinitionReader);
+        return new GameplayPackSpriteAssetService(packId, assetBinarySource, spriteDefinitionReader, spriteDefinitions);
     }
 }

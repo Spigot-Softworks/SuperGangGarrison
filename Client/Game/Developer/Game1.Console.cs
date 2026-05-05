@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenGarrison.Core;
 using Microsoft.Xna.Framework;
@@ -80,7 +81,7 @@ public partial class Game1
         switch (command)
         {
             case "help":
-                AddConsoleLine("help, clear, connect <host> [port], disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, nav_edit <on|off|status|save|reload|rebuild>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, show_import, show_engineer, show_medic");
+                AddConsoleLine("help, clear, connect <host> [port], replay_play <path>, demo_play <path>, demo_record <start [path]|stop|cancel|status>, replay_queue <path|status|clear>, replay_pause <on|off|toggle|status>, replay_speed <percent>, replay_status, replay_stop, disconnect, net_delay <ms>, net_diag <on|off|status|clear|export>, bot_diag <on|off|status|clear>, debug <0|1>, bots <server bot command>, nav_edit <on|off|status|save|reload|rebuild>, score_route_rec <start|stop|save|cancel|status> ..., spawn_dummy (offline training), despawn_dummy (offline training), spawn_friendly_dummy (offline support), despawn_friendly_dummy (offline support), set_name <text>, set_dummy_name <text> (offline training), set_friendly_name <text> (offline support), set_friendly_dummy_hp <n> (offline support), killme, respawn_me, build_sentry, destroy_sentry, give_intel, drop_intel, set_hp <n>, set_ammo <n>, set_class <scout|engineer|pyro|soldier|demoman|heavy|sniper|medic|spy|quote>, load_map <map>, teleport <x> <y>, fill_uber, ltd_win, show_import, show_engineer, show_medic");
                 break;
             case "clear":
                 _consoleHistory.Clear();
@@ -106,7 +107,181 @@ public partial class Game1
                     AddConsoleLine("usage: connect <host> [port]");
                 }
                 break;
+            case "replay_play":
+                if (parts.Length >= 2)
+                {
+                    ClearReplayQueue(clearActiveReplayPath: true);
+                    var replayPath = commandText[command.Length..].Trim();
+                    if (TryPlayLegacyReplay(replayPath, addConsoleFeedback: true))
+                    {
+                        _menuStatusMessage = string.Empty;
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: replay_play <path>");
+                }
+                break;
+            case "demo_play":
+                if (parts.Length >= 2)
+                {
+                    var demoPath = commandText[command.Length..].Trim();
+                    if (TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback: true))
+                    {
+                        _menuStatusMessage = string.Empty;
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: demo_play <path>");
+                }
+                break;
+            case "demo_record":
+                if (parts.Length < 2)
+                {
+                    AddConsoleLine("usage: demo_record <start [path]|stop|cancel|status>");
+                }
+                else if (parts[1].Equals("status", StringComparison.OrdinalIgnoreCase))
+                {
+                    _networkClient.TryGetDemoRecordingStatus(out var demoRecordingStatus);
+                    AddConsoleLine(demoRecordingStatus);
+                }
+                else if (parts[1].Equals("stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_networkClient.TryStopDemoRecording(saveRecording: true, out var demoRecordingStatus, out var demoRecordingError))
+                    {
+                        AddConsoleLine(demoRecordingStatus);
+                    }
+                    else
+                    {
+                        AddConsoleLine(demoRecordingError);
+                    }
+                }
+                else if (parts[1].Equals("cancel", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_networkClient.TryStopDemoRecording(saveRecording: false, out var demoRecordingStatus, out var demoRecordingError))
+                    {
+                        AddConsoleLine(demoRecordingStatus);
+                    }
+                    else
+                    {
+                        AddConsoleLine(demoRecordingError);
+                    }
+                }
+                else if (parts[1].Equals("start", StringComparison.OrdinalIgnoreCase))
+                {
+                    var requestedPath = parts.Length >= 3
+                        ? commandText[(command.Length + parts[1].Length + 2)..].Trim()
+                        : string.Empty;
+                    if (TryStartDemoRecording(requestedPath, out var demoRecordingStatus, out var demoRecordingError))
+                    {
+                        AddConsoleLine(demoRecordingStatus);
+                    }
+                    else
+                    {
+                        AddConsoleLine(demoRecordingError);
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: demo_record <start [path]|stop|cancel|status>");
+                }
+                break;
+            case "replay_queue":
+                if (parts.Length < 2)
+                {
+                    AddConsoleLine("usage: replay_queue <path|status|clear>");
+                }
+                else if (parts[1].Equals("status", StringComparison.OrdinalIgnoreCase))
+                {
+                    AddConsoleLine(GetReplayQueueStatus());
+                }
+                else if (parts[1].Equals("clear", StringComparison.OrdinalIgnoreCase))
+                {
+                    ClearReplayQueue(clearActiveReplayPath: false);
+                    AddConsoleLine("replay queue cleared");
+                }
+                else
+                {
+                    var replayPath = commandText[command.Length..].Trim();
+                    if (TryQueueLegacyReplay(replayPath, addConsoleFeedback: true))
+                    {
+                        _menuStatusMessage = string.Empty;
+                    }
+                }
+
+                break;
+            case "replay_pause":
+                if (parts.Length < 2 || parts[1].Equals("toggle", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_networkClient.TryToggleReplayPause(out var isPaused, out var pauseError))
+                    {
+                        AddConsoleLine(isPaused ? "replay paused" : "replay resumed");
+                    }
+                    else
+                    {
+                        AddConsoleLine(pauseError);
+                    }
+                }
+                else if (parts[1].Equals("status", StringComparison.OrdinalIgnoreCase))
+                {
+                    _networkClient.TryGetReplayStatus(out var replayStatus);
+                    AddConsoleLine(replayStatus);
+                }
+                else if (parts[1].Equals("on", StringComparison.OrdinalIgnoreCase) || parts[1].Equals("off", StringComparison.OrdinalIgnoreCase))
+                {
+                    var pauseReplay = parts[1].Equals("on", StringComparison.OrdinalIgnoreCase);
+                    if (_networkClient.TrySetReplayPaused(pauseReplay, out var pauseError))
+                    {
+                        AddConsoleLine(pauseReplay ? "replay paused" : "replay resumed");
+                    }
+                    else
+                    {
+                        AddConsoleLine(pauseError);
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: replay_pause <on|off|toggle|status>");
+                }
+                break;
+            case "replay_speed":
+                if (parts.Length >= 2
+                    && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var replaySpeedPercent)
+                    && replaySpeedPercent > 0f)
+                {
+                    if (_networkClient.TrySetReplayPlaybackRate(replaySpeedPercent / 100f, out var appliedReplayRate, out var replaySpeedError))
+                    {
+                        AddConsoleLine($"replay speed set to {(appliedReplayRate * 100f).ToString("0", CultureInfo.InvariantCulture)}%");
+                    }
+                    else
+                    {
+                        AddConsoleLine(replaySpeedError);
+                    }
+                }
+                else
+                {
+                    AddConsoleLine("usage: replay_speed <percent>");
+                }
+                break;
+            case "replay_status":
+                _networkClient.TryGetReplayStatus(out var currentReplayStatus);
+                AddConsoleLine(currentReplayStatus);
+                AddConsoleLine(GetReplayQueueStatus());
+                break;
+            case "replay_stop":
+                if (_networkClient.IsReplayConnection)
+                {
+                    ClearReplayQueue(clearActiveReplayPath: true);
+                    ReturnToMainMenu("Replay ended.");
+                }
+                else
+                {
+                    AddConsoleLine("no replay is currently playing.");
+                }
+                break;
             case "disconnect":
+                ClearReplayQueue(clearActiveReplayPath: true);
                 ReturnToMainMenu(IsPracticeSessionActive ? "Practice ended." : "network disconnected");
                 break;
             case "net_delay":

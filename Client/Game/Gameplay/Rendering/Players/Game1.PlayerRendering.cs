@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
+using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Client;
 
@@ -21,6 +22,18 @@ public partial class Game1
 
     private readonly record struct RetainedDeadBodyVisual(
         int Id,
+        int SourcePlayerId,
+        PlayerClass ClassId,
+        PlayerTeam Team,
+        DeadBodyAnimationKind AnimationKind,
+        float X,
+        float Y,
+        float Width,
+        float Height,
+        bool FacingLeft,
+        int TicksRemaining);
+
+    private readonly record struct ImmediateNetworkDeadBodyVisual(
         int SourcePlayerId,
         PlayerClass ClassId,
         PlayerTeam Team,
@@ -62,6 +75,8 @@ public partial class Game1
     private readonly Dictionary<int, RetainedDeadBodyVisual> _trackedDeadBodyVisuals = new();
     private readonly List<RetainedDeadBodyVisual> _retainedDeadBodies = new();
     private readonly List<int> _staleTrackedDeadBodyIds = new();
+    private readonly Dictionary<int, ImmediateNetworkDeadBodyVisual> _immediateNetworkDeadBodies = new();
+    private readonly List<int> _staleImmediateNetworkDeadBodyPlayerIds = new();
 
     private static Rectangle GetPlayerScreenBounds(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition)
     {
@@ -102,14 +117,39 @@ public partial class Game1
         _gameplayDeadBodyRenderController.DrawRetainedDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
     }
 
+    private void DrawImmediateNetworkDeadBodies(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
+    {
+        _gameplayDeadBodyRenderController.DrawImmediateNetworkDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
+    }
+
     private void SyncRetainedDeadBodies()
     {
         _gameplayDeadBodyRenderController.SyncRetainedDeadBodies();
     }
 
+    private void SyncImmediateNetworkDeadBodies()
+    {
+        _gameplayDeadBodyRenderController.SyncImmediateNetworkDeadBodies();
+    }
+
     private void ResetRetainedDeadBodies()
     {
         _gameplayDeadBodyRenderController.ResetRetainedDeadBodies();
+    }
+
+    private void ResetImmediateNetworkDeadBodies()
+    {
+        _gameplayDeadBodyRenderController.ResetImmediateNetworkDeadBodies();
+    }
+
+    private void AdvanceImmediateNetworkDeadBodies()
+    {
+        _gameplayDeadBodyRenderController.AdvanceImmediateNetworkDeadBodies();
+    }
+
+    private void QueueImmediateNetworkDeathPresentation(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
+    {
+        _gameplayDeadBodyRenderController.QueueImmediateNetworkDeathPresentation(resolvedSnapshot, damageEvent);
     }
 
     private void DrawDeadBodyVisual(

@@ -19,6 +19,7 @@ internal sealed class ServerAdminOperations(
     Func<MapRotationManager> mapRotationManagerGetter,
     Func<SnapshotBroadcaster> snapshotBroadcasterGetter,
     Func<ServerBotManager> botManagerGetter,
+    Action<ChatRelayMessage>? broadcastSystemChatMessage = null,
     Action<MapChangeTransition>? applyMapTransition = null,
     ServerBanService? banService = null) : IOpenGarrisonServerAdminOperations
 {
@@ -33,12 +34,15 @@ internal sealed class ServerAdminOperations(
         }
 
         var messageSegments = SplitSystemMessageSegments(text);
-        foreach (var client in clientsGetter().Values)
+        for (var index = 0; index < messageSegments.Count; index += 1)
         {
-            for (var index = 0; index < messageSegments.Count; index += 1)
+            var relay = new ChatRelayMessage(0, "[server]", messageSegments[index]);
+            foreach (var client in clientsGetter().Values)
             {
-                TrySend(client.Peer, new ChatRelayMessage(0, "[server]", messageSegments[index]));
+                TrySend(client.Peer, relay);
             }
+
+            broadcastSystemChatMessage?.Invoke(relay);
         }
 
         log($"[server] system message: {text.Trim()}");

@@ -63,9 +63,13 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $toolProject = Join-Path $repoRoot 'MotionProof.Tools\OpenGarrison.MotionProof.Tools.csproj'
 $artifactRoot = Join-Path $repoRoot 'Core\Content\MotionProof'
+$graphArtifactRoot = Join-Path $artifactRoot 'graphs'
+$tapeArtifactRoot = Join-Path $artifactRoot 'tapes'
 $logRoot = Join-Path $repoRoot 'MotionProof.Tools\logs'
 $candidateRoot = Join-Path $repoRoot 'MotionProof.Tools\candidates'
 New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $graphArtifactRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $tapeArtifactRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $candidateRoot | Out-Null
 
@@ -99,6 +103,45 @@ function Quote-Argument {
     }
 
     return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Get-GraphArtifactPath {
+    param(
+        [string]$Map,
+        [string]$Profile,
+        [switch]$AllowLegacyFallback
+    )
+
+    $fileName = "$Map.$Profile.graph.json.gz"
+    $preferredPath = Join-Path $graphArtifactRoot $fileName
+    if ($AllowLegacyFallback) {
+        $legacyPath = Join-Path $artifactRoot $fileName
+        if ((-not (Test-Path -LiteralPath $preferredPath)) -and (Test-Path -LiteralPath $legacyPath)) {
+            return $legacyPath
+        }
+    }
+
+    return $preferredPath
+}
+
+function Get-TapeArtifactPath {
+    param(
+        [string]$Map,
+        [string]$Team,
+        [string]$Class,
+        [switch]$AllowLegacyFallback
+    )
+
+    $fileName = "$Map.$Team.$Class.json"
+    $preferredPath = Join-Path $tapeArtifactRoot $fileName
+    if ($AllowLegacyFallback) {
+        $legacyPath = Join-Path $artifactRoot $fileName
+        if ((-not (Test-Path -LiteralPath $preferredPath)) -and (Test-Path -LiteralPath $legacyPath)) {
+            return $legacyPath
+        }
+    }
+
+    return $preferredPath
 }
 
 function Resolve-ProfileRepresentativeClass {
@@ -157,7 +200,7 @@ function Start-BakeProcess {
 
     $resolvedMap = Resolve-MapName $Map
     $safeName = "$resolvedMap.$Profile"
-    $finalOutputPath = Join-Path $artifactRoot "$safeName.graph.json.gz"
+    $finalOutputPath = Get-GraphArtifactPath -Map $resolvedMap -Profile $Profile
     $candidateId = [guid]::NewGuid().ToString("N")
     $candidatePath = Join-Path $candidateRoot "$safeName.$candidateId.graph.json.gz"
     $stdoutPath = Join-Path $logRoot "$safeName.out.log"
@@ -207,7 +250,7 @@ function Start-BakeProcess {
 
     if ($UseProofTapeSeeds) {
         $representativeClass = Resolve-ProfileRepresentativeClass $Profile
-        $proofPath = Join-Path $artifactRoot "$resolvedMap.$Team.$representativeClass.json"
+        $proofPath = Get-TapeArtifactPath -Map $resolvedMap -Team $Team -Class $representativeClass -AllowLegacyFallback
         if (Test-Path -LiteralPath $proofPath) {
             $arguments += @('--seed-proof-artifact', $proofPath)
         }
@@ -321,7 +364,7 @@ function Try-ValidateExistingArtifact {
 
     $resolvedMap = Resolve-MapName $Map
     $safeName = "$resolvedMap.$Profile"
-    $outputPath = Join-Path $artifactRoot "$safeName.graph.json.gz"
+    $outputPath = Get-GraphArtifactPath -Map $resolvedMap -Profile $Profile -AllowLegacyFallback
     if (-not (Test-Path -LiteralPath $outputPath)) {
         return $null
     }
@@ -395,7 +438,7 @@ while ($nextIndex -lt $pending.Count -or $running.Count -gt 0) {
         if ($AuditOnly) {
             $resolvedMap = Resolve-MapName $job.Map
             $safeName = "$resolvedMap.$($job.Class)"
-            $finalOutputPath = Join-Path $artifactRoot "$safeName.graph.json.gz"
+            $finalOutputPath = Get-GraphArtifactPath -Map $resolvedMap -Profile $job.Class -AllowLegacyFallback
             $stdoutPath = Join-Path $logRoot "$safeName.out.log"
             $stderrPath = Join-Path $logRoot "$safeName.err.log"
             $reason = if (Test-Path -LiteralPath $finalOutputPath) { 'canary_failed_or_missing_canary' } else { 'missing_artifact' }

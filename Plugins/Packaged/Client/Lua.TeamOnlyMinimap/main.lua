@@ -248,12 +248,11 @@ local function try_project_to_screen(view, world_position)
         or world_position.x > view.left + view.visibleWorldWidth
         or world_position.y < view.top
         or world_position.y > view.top + view.visibleWorldHeight then
-        return nil
+        return nil, nil
     end
 
-    return plugin.host.vec2(
-        view.bounds.x + ((world_position.x - view.left) * view.scale),
-        view.bounds.y + ((world_position.y - view.top) * view.scale))
+    return view.bounds.x + ((world_position.x - view.left) * view.scale),
+        view.bounds.y + ((world_position.y - view.top) * view.scale)
 end
 
 local function get_player_bubble_frame(class_id, team)
@@ -283,38 +282,34 @@ local function get_player_bubble_frame(class_id, team)
     return team == "Blue" and 10 or 0
 end
 
-local function draw_dot(canvas, position, size, color, alpha, big)
+local function draw_dot(canvas, screen_x, screen_y, size, color, alpha, big)
     local pixel_size = big and math.max(4, math.floor((8.0 * size) + 0.5)) or math.max(2, math.floor((4.0 * size) + 0.5))
-    local rectangle = {
-        x = math.floor(position.x - (pixel_size / 2.0) + 0.5),
-        y = math.floor(position.y - (pixel_size / 2.0) + 0.5),
-        width = pixel_size,
-        height = pixel_size
-    }
-    canvas.fill_screen_rectangle(rectangle.x, rectangle.y, rectangle.width, rectangle.height, with_alpha(color, alpha))
+    local rect_x = math.floor(screen_x - (pixel_size / 2.0) + 0.5)
+    local rect_y = math.floor(screen_y - (pixel_size / 2.0) + 0.5)
+    canvas.fill_screen_rectangle(rect_x, rect_y, pixel_size, pixel_size, with_alpha(color, alpha))
     if big then
-        canvas.draw_screen_rectangle_outline(rectangle.x, rectangle.y, rectangle.width, rectangle.height, with_alpha(BLACK, alpha * 0.35), 1)
+        canvas.draw_screen_rectangle_outline(rect_x, rect_y, pixel_size, pixel_size, with_alpha(BLACK, alpha * 0.35), 1)
     end
 end
 
-local function draw_marker(canvas, bubble_frame, position, size, base_color, overlay_color, overlay_amount)
+local function draw_marker(canvas, bubble_frame, screen_x, screen_y, size, base_color, overlay_color, overlay_amount)
     local alpha = get_alpha()
     local overlay = clamp(overlay_amount, 0.0, 1.0)
     if config.showMethod == "Dots" then
-        draw_dot(canvas, position, size, lerp_color(base_color, overlay_color, overlay), alpha, false)
+        draw_dot(canvas, screen_x, screen_y, size, lerp_color(base_color, overlay_color, overlay), alpha, false)
         return
     elseif config.showMethod == "BigDots" then
-        draw_dot(canvas, position, size, lerp_color(base_color, overlay_color, overlay), alpha, true)
+        draw_dot(canvas, screen_x, screen_y, size, lerp_color(base_color, overlay_color, overlay), alpha, true)
         return
     end
 
-    if not canvas.draw_screen_sprite("BubblesS", bubble_frame, position.x, position.y, with_alpha(base_color, alpha), size, size) then
-        draw_dot(canvas, position, size, base_color, alpha, true)
+    if not canvas.draw_screen_sprite("BubblesS", bubble_frame, screen_x, screen_y, with_alpha(base_color, alpha), size, size) then
+        draw_dot(canvas, screen_x, screen_y, size, base_color, alpha, true)
         return
     end
 
     if overlay > 0.01 then
-        canvas.draw_screen_sprite("BubblesS", bubble_frame, position.x, position.y, with_alpha(overlay_color, overlay * alpha), size, size)
+        canvas.draw_screen_sprite("BubblesS", bubble_frame, screen_x, screen_y, with_alpha(overlay_color, overlay * alpha), size, size)
     end
 end
 
@@ -342,13 +337,13 @@ local function draw_player_markers(canvas, state, view)
     local local_team = state.localPlayerTeam
     for _, marker in ipairs(state.playerMarkers or {}) do
         if marker.team == local_team and (config.playersShown ~= "Myself" or marker.isLocalPlayer) then
-            local screen_position = try_project_to_screen(view, marker.worldPosition)
-            if screen_position ~= nil then
+            local screen_x, screen_y = try_project_to_screen(view, marker.worldPosition)
+            if screen_x ~= nil then
                 local frame_index = get_player_bubble_frame(marker.classId, marker.team)
                 local base_color = marker.isLocalPlayer and get_marker_color(config.selfColor) or WHITE
                 local size = (marker.isLocalPlayer and config.selfBubbleSizePercent or config.bubbleSizePercent) / 100.0
                 local damage_ratio = config.showHealth and (1.0 - (marker.health / math.max(1, marker.maxHealth))) or 0.0
-                draw_marker(canvas, frame_index, screen_position, size, base_color, RED, damage_ratio)
+                draw_marker(canvas, frame_index, screen_x, screen_y, size, base_color, RED, damage_ratio)
             end
         end
     end
@@ -361,12 +356,12 @@ local function draw_sentry_markers(canvas, state, view)
         if marker.team == local_team then
             local is_local_owned = state.hasLocalPlayerId and marker.ownerPlayerId == local_player_id
             if config.playersShown ~= "Myself" or is_local_owned then
-                local screen_position = try_project_to_screen(view, marker.worldPosition)
-                if screen_position ~= nil then
+                local screen_x, screen_y = try_project_to_screen(view, marker.worldPosition)
+                if screen_x ~= nil then
                     local base_color = is_local_owned and get_marker_color(config.selfColor) or WHITE
                     local size = (is_local_owned and config.selfBubbleSizePercent or config.bubbleSizePercent) / 100.0
                     local damage_ratio = config.showHealth and (1.0 - (marker.health / math.max(1, marker.maxHealth))) or 0.0
-                    draw_marker(canvas, 31, screen_position, size, base_color, RED, damage_ratio)
+                    draw_marker(canvas, 31, screen_x, screen_y, size, base_color, RED, damage_ratio)
                 end
             end
         end
@@ -377,19 +372,19 @@ local function draw_objective_markers(canvas, state, view)
     local local_team = state.localPlayerTeam
     local size = config.objectiveBubbleSizePercent / 100.0
     for _, marker in ipairs(state.objectiveMarkers or {}) do
-        local screen_position = try_project_to_screen(view, marker.worldPosition)
-        if screen_position ~= nil then
+        local screen_x, screen_y = try_project_to_screen(view, marker.worldPosition)
+        if screen_x ~= nil then
             if marker.kind == "Attack" then
-                draw_marker(canvas, 41, screen_position, size, WHITE, WHITE, 0.0)
+                draw_marker(canvas, 41, screen_x, screen_y, size, WHITE, WHITE, 0.0)
             elseif marker.kind == "Defend" then
-                draw_marker(canvas, 42, screen_position, size, WHITE, WHITE, 0.0)
+                draw_marker(canvas, 42, screen_x, screen_y, size, WHITE, WHITE, 0.0)
             elseif marker.kind == "ControlPoint" then
                 if not marker.isLocked then
                     local is_local = marker.team == local_team
-                    draw_marker(canvas, is_local and 42 or 41, screen_position, size, WHITE, is_local and OBJECTIVE_DEFEND_OVERLAY or OBJECTIVE_ATTACK_OVERLAY, clamp(marker.progress, 0.0, 1.0))
+                    draw_marker(canvas, is_local and 42 or 41, screen_x, screen_y, size, WHITE, is_local and OBJECTIVE_DEFEND_OVERLAY or OBJECTIVE_ATTACK_OVERLAY, clamp(marker.progress, 0.0, 1.0))
                 end
             elseif marker.kind == "Generator" then
-                draw_marker(canvas, marker.team == local_team and 42 or 41, screen_position, size, WHITE, WHITE, 0.0)
+                draw_marker(canvas, marker.team == local_team and 42 or 41, screen_x, screen_y, size, WHITE, WHITE, 0.0)
             end
         end
     end
@@ -412,9 +407,8 @@ function plugin.on_client_frame(e)
         return
     end
 
-    local state = plugin.host.get_client_state()
-    cached_client_state = state
-    if not config.enabled or state.isSpectator or state.isGameplayInputBlocked then
+    cached_client_state = nil
+    if not config.enabled or plugin.host.is_spectator() or plugin.host.is_gameplay_input_blocked() then
         return
     end
 
@@ -424,18 +418,30 @@ function plugin.on_client_frame(e)
 end
 
 function plugin.on_gameplay_hud_draw(canvas)
-    local state = cached_client_state or plugin.host.get_client_state()
+    local local_player_world_position = plugin.host.try_get_local_player_world_position()
+    local state = {
+        isGameplayActive = plugin.host.is_gameplay_active(),
+        isSpectator = plugin.host.is_spectator(),
+        localPlayerTeam = plugin.host.get_local_player_team(),
+        hasLocalPlayerId = plugin.host.has_local_player_id(),
+        localPlayerId = plugin.host.get_local_player_id(),
+        levelWidth = plugin.host.get_level_width(),
+        levelHeight = plugin.host.get_level_height(),
+        isLocalPlayerHealing = plugin.host.is_local_player_healing(),
+        playerMarkers = plugin.host.get_player_markers(),
+        sentryMarkers = plugin.host.get_sentry_markers(),
+        objectiveMarkers = plugin.host.get_objective_markers()
+    }
     if not config.enabled
         or not state.isGameplayActive
         or state.isSpectator
         or state.localPlayerTeam == "None"
         or state.levelWidth <= 1.0
         or state.levelHeight <= 1.0
-        or not state.hasLocalPlayerPosition then
+        or local_player_world_position == nil then
         return
     end
 
-    local local_player_world_position = plugin.host.vec2(state.localPlayerWorldX, state.localPlayerWorldY)
     local layout = resolve_layout(state)
     local view = resolve_view(state, local_player_world_position, layout)
     if view.bounds.width <= 0 or view.bounds.height <= 0 then

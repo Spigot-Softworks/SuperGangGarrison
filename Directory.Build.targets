@@ -17,6 +17,19 @@
     <PluginRuntimeStageDir>$(MSBuildThisFileDirectory)$(PluginRuntimeScope)\bin\$(Configuration)\$(TargetFramework)\Plugins\$(PluginRuntimeScope)\$(PluginRuntimeFolderName)\</PluginRuntimeStageDir>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Client' and '$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <PackagedPluginRuntimeScope>Client</PackagedPluginRuntimeScope>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Server'">
+    <PackagedPluginRuntimeScope>Server</PackagedPluginRuntimeScope>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PackagedPluginRuntimeScope)' != ''">
+    <PackagedPluginRuntimeSourceDir>$(MSBuildThisFileDirectory)Plugins\Packaged\$(PackagedPluginRuntimeScope)\</PackagedPluginRuntimeSourceDir>
+    <PackagedPluginRuntimeDestinationDir>$(TargetDir)Plugins\$(PackagedPluginRuntimeScope)\</PackagedPluginRuntimeDestinationDir>
+  </PropertyGroup>
+
   <Target Name="StagePluginRuntimeOutput"
           AfterTargets="Build"
           Condition="'$(PluginRuntimeStageDir)' != '' and '$(StageLegacyPluginRuntimeOutput)' == 'true'">
@@ -27,6 +40,20 @@
     <MakeDir Directories="$(PluginRuntimeStageDir)" />
     <Copy SourceFiles="@(PluginRuntimeFiles)"
           DestinationFiles="@(PluginRuntimeFiles->'$(PluginRuntimeStageDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="MirrorPackagedPluginRuntimeOutput"
+          AfterTargets="Build"
+          Condition="'$(PackagedPluginRuntimeSourceDir)' != '' and Exists('$(PackagedPluginRuntimeSourceDir)')">
+    <ItemGroup>
+      <PackagedPluginRuntimeFiles Include="$(PackagedPluginRuntimeSourceDir)**\*" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(PackagedPluginRuntimeDestinationDir)" />
+    <MakeDir Directories="$(PackagedPluginRuntimeDestinationDir)" />
+    <Copy SourceFiles="@(PackagedPluginRuntimeFiles)"
+          DestinationFiles="@(PackagedPluginRuntimeFiles->'$(PackagedPluginRuntimeDestinationDir)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 </Project>

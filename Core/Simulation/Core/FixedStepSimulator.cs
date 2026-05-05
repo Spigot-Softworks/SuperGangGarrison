@@ -5,6 +5,8 @@ public sealed class FixedStepSimulator
     private readonly SimulationWorld _world;
     private double _accumulatorSeconds;
 
+    public bool DroppedSimulationBacklogOnLastAdvance { get; private set; }
+
     public FixedStepSimulator(SimulationWorld world)
     {
         _world = world;
@@ -26,6 +28,7 @@ public sealed class FixedStepSimulator
         Action? onTickAdvanced,
         int? maxTicksPerAdvance)
     {
+        DroppedSimulationBacklogOnLastAdvance = false;
         var frameDelta = _world.Config.FixedDeltaSeconds;
         _accumulatorSeconds += elapsedSeconds;
 
@@ -45,6 +48,7 @@ public sealed class FixedStepSimulator
             && ticks >= maxTicksPerAdvance.Value
             && _accumulatorSeconds >= frameDelta)
         {
+            DroppedSimulationBacklogOnLastAdvance = true;
             _accumulatorSeconds = 0d;
         }
 

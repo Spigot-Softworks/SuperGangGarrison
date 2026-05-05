@@ -280,6 +280,24 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         return _game?.TryInvokeBrowserAutomationAction(actionSet, label) == true;
     }
 
+    [JSInvokable("SetAutomationValue")]
+    public bool SetAutomationValue(string fieldName, string value)
+    {
+        return _game?.TrySetBrowserAutomationValue(fieldName, value) == true;
+    }
+
+    [JSInvokable("ConnectAutomationTarget")]
+    public bool ConnectAutomationTarget(string host, string portText)
+    {
+        return _game?.TryBeginBrowserAutomationConnect(host, portText) == true;
+    }
+
+    [JSInvokable("StartAutomationPractice")]
+    public bool StartAutomationPractice(int enemyBotCount, int friendlyBotCount)
+    {
+        return _game?.TryBeginBrowserAutomationPractice(enemyBotCount, friendlyBotCount) == true;
+    }
+
     [JSInvokable("GetPerformanceSnapshot")]
     public OpenGarrison.Client.Game1.BrowserPerformanceSnapshot GetPerformanceSnapshot()
     {

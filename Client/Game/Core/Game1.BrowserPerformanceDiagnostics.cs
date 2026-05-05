@@ -16,72 +16,114 @@ public partial class Game1
 
     private void RecordBrowserUpdateDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordUpdate(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordUpdate(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.Update, elapsedMilliseconds);
     }
 
     private void RecordBrowserDrawDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordDraw(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordDraw(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.Draw, elapsedMilliseconds);
     }
 
     private void RecordBrowserSimulationDuration(long startTimestamp, int tickCount)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordSimulation(GetElapsedMilliseconds(startTimestamp), tickCount);
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordSimulation(elapsedMilliseconds, tickCount);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.Simulation, elapsedMilliseconds);
     }
 
     private void RecordBrowserPresentationDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordPresentation(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordPresentation(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.Presentation, elapsedMilliseconds);
     }
 
     private void RecordBrowserWorldDrawDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordWorldDraw(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordWorldDraw(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.WorldDraw, elapsedMilliseconds);
     }
 
     private void RecordBrowserHudDrawDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordHudDraw(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordHudDraw(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.HudDraw, elapsedMilliseconds);
     }
 
     private void RecordBrowserModalDrawDuration(long startTimestamp)
     {
-        if (!OperatingSystem.IsBrowser())
+        if (startTimestamp <= 0)
         {
             return;
         }
 
-        _browserPerformance.RecordModalDraw(GetElapsedMilliseconds(startTimestamp));
+        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        if (OperatingSystem.IsBrowser())
+        {
+            _browserPerformance.RecordModalDraw(elapsedMilliseconds);
+        }
+
+        RecordClientPerformanceMetric(ClientPerformanceMetric.ModalDraw, elapsedMilliseconds);
     }
 
     private static double GetElapsedMilliseconds(long startTimestamp)

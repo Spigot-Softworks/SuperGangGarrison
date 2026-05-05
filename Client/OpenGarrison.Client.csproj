@@ -33,6 +33,9 @@
     <PackageReference Include="MoonSharp.Interpreter.netcore" Version="2.0.14" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
   </ItemGroup>
+  <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' != 'true'">
+    <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+  </ItemGroup>
   <ItemGroup Condition="'$(OpenGarrisonClientAsLibrary)' == 'true'">
     <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" PrivateAssets="all" />
   </ItemGroup>
@@ -73,22 +76,15 @@
     <Compile Remove="Program.cs" />
   </ItemGroup>
 
-  <Target Name="MirrorPackagedClientPluginsToOutput"
+  <Target Name="GenerateDistributionContentAtlases"
           AfterTargets="Build"
-          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('..\Plugins\Packaged\Client')">
-    <PropertyGroup>
-      <PackagedClientPluginsSource>$(MSBuildProjectDirectory)\..\Plugins\Packaged\Client\</PackagedClientPluginsSource>
-      <PackagedClientPluginsDestination>$(TargetDir)Plugins\Client\</PackagedClientPluginsDestination>
-    </PropertyGroup>
+          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(TargetDir)Content')">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(TargetDir)Content&quot;" />
+  </Target>
 
-    <ItemGroup>
-      <PackagedClientPluginFiles Include="$(PackagedClientPluginsSource)**\*" />
-    </ItemGroup>
-
-    <RemoveDir Directories="$(PackagedClientPluginsDestination)" />
-    <MakeDir Directories="$(PackagedClientPluginsDestination)" />
-    <Copy SourceFiles="@(PackagedClientPluginFiles)"
-          DestinationFiles="@(PackagedClientPluginFiles->'$(PackagedClientPluginsDestination)%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+  <Target Name="GeneratePublishedDistributionContentAtlases"
+          AfterTargets="Publish"
+          Condition="'$(OpenGarrisonClientAsLibrary)' != 'true' and Exists('$(PublishDir)Content')">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\BrowserAssetBuilder\OpenGarrison.Tools.BrowserAssetBuilder.csproj&quot; -- &quot;$(PublishDir)Content&quot;" />
   </Target>
 </Project>

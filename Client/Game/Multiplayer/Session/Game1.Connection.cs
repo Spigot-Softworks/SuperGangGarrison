@@ -48,6 +48,16 @@ public partial class Game1
         return _gameplaySessionController.TryConnectToServer(endpoint, addConsoleFeedback);
     }
 
+    private bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
+    {
+        return _gameplaySessionController.TryPlayLegacyReplay(replayPath, addConsoleFeedback, clearQueuedReplays);
+    }
+
+    private bool TryPlayOpenGarrisonDemo(string demoPath, bool addConsoleFeedback)
+    {
+        return _gameplaySessionController.TryPlayOpenGarrisonDemo(demoPath, addConsoleFeedback);
+    }
+
     private void ShowAutoBalanceNotice(string text, int seconds)
     {
         _connectionFlowController.ShowAutoBalanceNotice(text, seconds);

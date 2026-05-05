@@ -53,7 +53,11 @@ public sealed class GameplayPackSpriteAssetServiceRegistry
             var packDirectory = OperatingSystem.IsBrowser()
                 ? null
                 : GameplayModPackDirectoryLoader.FindPackDirectory(modPack.Id);
-            var service = ClientRuntimeBootstrap.CreateGameplayPackSpriteAssetService(modPack.Id, httpClient, packDirectory);
+            var service = ClientRuntimeBootstrap.CreateGameplayPackSpriteAssetService(
+                modPack.Id,
+                httpClient,
+                packDirectory,
+                modPack.Assets.Sprites);
             if (service is not null)
             {
                 services[modPack.Id] = service;

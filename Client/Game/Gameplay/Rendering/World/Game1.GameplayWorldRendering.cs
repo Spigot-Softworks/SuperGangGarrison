@@ -27,33 +27,41 @@ public partial class Game1
         Rectangle spawnRectangle,
         int? skippedDeadBodySourcePlayerId = null)
     {
-        var browserWorldDrawStartTimestamp = OperatingSystem.IsBrowser() ? Stopwatch.GetTimestamp() : 0L;
+        var browserWorldDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
         DrawGameplayStructures(cameraPosition);
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
-        var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();
-        var medicBeamTargetIds = GetActiveMedicBeamTargetIds();
-        var medicBeamMedicIds = GetActiveMedicBeamMedicIds();
-        var localPlayerInActiveMedicBeam = IsLocalPlayerInActiveMedicBeam();
-
-        if (localPlayerInActiveMedicBeam)
+        if (!HasActiveMedicBeamPlayers())
         {
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
-            DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
         else
         {
-            DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
-            DrawLocalPlayer(cameraPosition, playerRectangle);
+            var medicBeamPlayerIds = GetActiveMedicBeamPlayerIds();
+            var medicBeamTargetIds = GetActiveMedicBeamTargetIds();
+            var medicBeamMedicIds = GetActiveMedicBeamMedicIds();
+            var localPlayerInActiveMedicBeam = IsLocalPlayerInActiveMedicBeam();
+
+            if (localPlayerInActiveMedicBeam)
+            {
+                DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
+                DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
+                DrawMedicBeams(cameraPosition);
+                DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+                DrawLocalPlayer(cameraPosition, playerRectangle);
+            }
+            else
+            {
+                DrawMedicBeams(cameraPosition);
+                DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
+                DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
+                DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+                DrawLocalPlayer(cameraPosition, playerRectangle);
+            }
         }
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
@@ -265,7 +273,9 @@ public partial class Game1
     private void DrawGameplayRemains(Vector2 cameraPosition, int? skippedDeadBodySourcePlayerId = null)
     {
         SyncRetainedDeadBodies();
+        SyncImmediateNetworkDeadBodies();
         DrawRetainedDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
+        DrawImmediateNetworkDeadBodies(cameraPosition, skippedDeadBodySourcePlayerId);
 
         foreach (var playerGib in _world.PlayerGibs)
         {
@@ -316,13 +326,32 @@ public partial class Game1
         return ids;
     }
 
+    private bool HasActiveMedicBeamPlayers()
+    {
+        if (_world.LocalPlayer.IsMedicHealing && _world.LocalPlayer.MedicHealTargetId.HasValue)
+        {
+            return true;
+        }
+
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (!ReferenceEquals(player, _world.LocalPlayer)
+                && player.IsMedicHealing
+                && player.MedicHealTargetId.HasValue)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private System.Collections.Generic.HashSet<int> GetActiveMedicBeamMedicIds()
     {
         var ids = new System.Collections.Generic.HashSet<int>();
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (player.ClassId == PlayerClass.Medic
-                && player.IsMedicHealing
+            if (player.IsMedicHealing
                 && player.MedicHealTargetId.HasValue)
             {
                 ids.Add(player.Id);
@@ -336,8 +365,7 @@ public partial class Game1
         var ids = new System.Collections.Generic.HashSet<int>();
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (player.ClassId == PlayerClass.Medic
-                && player.IsMedicHealing
+            if (player.IsMedicHealing
                 && player.MedicHealTargetId.HasValue)
             {
                 var target = FindPlayerById(player.MedicHealTargetId.Value);
@@ -351,15 +379,14 @@ public partial class Game1
     private bool IsLocalPlayerInActiveMedicBeam()
     {
         var localPlayer = _world.LocalPlayer;
-        if (localPlayer.ClassId == PlayerClass.Medic && localPlayer.IsMedicHealing && localPlayer.MedicHealTargetId.HasValue)
+        if (localPlayer.IsMedicHealing && localPlayer.MedicHealTargetId.HasValue)
         {
             return true;
         }
 
         foreach (var player in EnumerateRenderablePlayers())
         {
-            if (player.ClassId != PlayerClass.Medic
-                || !player.IsMedicHealing
+            if (!player.IsMedicHealing
                 || !player.MedicHealTargetId.HasValue)
             {
                 continue;

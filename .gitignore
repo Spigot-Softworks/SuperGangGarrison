@@ -23,6 +23,7 @@ Thumbs.db
 *.suo
 ReferenceAssets/GG2Randomizer/
 Client.Browser/wwwroot/Content/
+Client.Browser/wwwroot/Plugins/
 artifacts/
 Tests/BrowserSmoke/artifacts/
 Tests/BrowserSmoke/node_modules/

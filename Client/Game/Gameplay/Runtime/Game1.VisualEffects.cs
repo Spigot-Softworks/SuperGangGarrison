@@ -76,8 +76,10 @@ public partial class Game1
     {
         _gameplayImpactEffectsController.ResetTransientEffects();
         ResetRetainedDeadBodies();
+        ResetImmediateNetworkDeadBodies();
         _gameplayGoreEffectsController.ResetTransientEffects();
         ResetPendingBrowserSoundEvents();
+        _pendingNetworkSoundEvents.Clear();
         ResetExperimentalHealingHudIndicators();
         _gameplayMaterialEffectsController.ResetTransientEffects();
         _rocketSmokeVisuals.Clear();

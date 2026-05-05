@@ -1,13 +1,14 @@
 using OpenGarrison.Tools.BrowserAssetBuilder;
 
-if (args.Length != 1)
+if (args.Length is < 1 or > 2)
 {
-    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root>");
+    Console.Error.WriteLine("Usage: OpenGarrison.Tools.BrowserAssetBuilder <output-content-root> [packaged-client-plugin-source-root]");
     return 1;
 }
 
 var outputContentRoot = Path.GetFullPath(args[0]);
-var context = BrowserAssetBuildContext.Create(outputContentRoot, AppContext.BaseDirectory);
+var packagedClientPluginSourceRoot = args.Length == 2 ? args[1] : null;
+var context = BrowserAssetBuildContext.Create(outputContentRoot, AppContext.BaseDirectory, packagedClientPluginSourceRoot);
 var report = BrowserAssetBuildPipeline.Run(context);
 
 Console.WriteLine(

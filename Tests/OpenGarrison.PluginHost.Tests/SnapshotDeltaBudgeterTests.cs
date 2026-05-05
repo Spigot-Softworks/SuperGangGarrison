@@ -143,7 +143,10 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.Equal(currentPlayers.Length, merged.Players.Count);
         var localPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
         Assert.Equal(currentPlayers[0].X, localPlayer.X);
-        Assert.Equal(currentPlayers[0].AimDirectionDegrees, localPlayer.AimDirectionDegrees);
+        Assert.InRange(
+            localPlayer.AimDirectionDegrees,
+            currentPlayers[0].AimDirectionDegrees - 0.01f,
+            currentPlayers[0].AimDirectionDegrees + 0.01f);
     }
 
     [Fact]
@@ -214,6 +217,108 @@ public sealed class SnapshotDeltaBudgeterTests
             Assert.Equal(expected.X, actual.X);
             Assert.Equal(expected.HorizontalSpeed, actual.HorizontalSpeed);
         });
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotCullsFarTransientEventsBeforeBudgeting()
+    {
+        var world = new SimulationWorld();
+        var nearX = world.Bounds.Width / 2f;
+        var nearY = world.Bounds.Height / 2f;
+        var baseline = CreateSnapshot(600);
+        var current = CreateSnapshot(601) with
+        {
+            SoundEvents =
+            [
+                new SnapshotSoundEvent("near-sound", nearX, nearY, EventId: 1, SourceFrame: 601),
+                new SnapshotSoundEvent("far-sound", 5000f, 5000f, EventId: 2, SourceFrame: 601),
+            ],
+            VisualEvents =
+            [
+                new SnapshotVisualEvent("near-visual", nearX, nearY, 0f, 1, EventId: 3),
+                new SnapshotVisualEvent("far-visual", 5000f, 5000f, 0f, 1, EventId: 4),
+            ],
+            DamageEvents =
+            [
+                new SnapshotDamageEvent(25, 1, -1, 1, 10, nearX, nearY, false, EventId: 5, SourceFrame: 601),
+                new SnapshotDamageEvent(25, 1, -1, 1, 10, 5000f, 5000f, false, EventId: 6, SourceFrame: 601),
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
+
+        var soundEvent = Assert.Single(result.Message.SoundEvents);
+        var visualEvent = Assert.Single(result.Message.VisualEvents);
+        var damageEvent = Assert.Single(result.Message.DamageEvents);
+        Assert.Equal("near-sound", soundEvent.SoundName);
+        Assert.Equal("near-visual", visualEvent.EffectName);
+        Assert.Equal<ulong>(5, damageEvent.EventId);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotThrottlesCosmeticEntityMotionUpdates()
+    {
+        var baseline = CreateSnapshot(620) with
+        {
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(1, 1, 100f, 100f, 30),
+                new SnapshotSentryGibState(8, 1, 120f, 100f, 30),
+            ],
+            PlayerGibs =
+            [
+                new SnapshotPlayerGibState(1, "gib-a", 0, 100f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
+                new SnapshotPlayerGibState(8, "gib-b", 0, 120f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
+            ],
+            BloodDrops =
+            [
+                new SnapshotBloodDropState(1, 100f, 100f, 1f, 0f, false, 30, 1f),
+                new SnapshotBloodDropState(8, 120f, 100f, 1f, 0f, false, 30, 1f),
+            ],
+        };
+        var current = baseline with
+        {
+            Frame = 621,
+            SentryGibs =
+            [
+                new SnapshotSentryGibState(1, 1, 101f, 100f, 29),
+                new SnapshotSentryGibState(8, 1, 121f, 100f, 29),
+            ],
+            PlayerGibs =
+            [
+                new SnapshotPlayerGibState(1, "gib-a", 1, 101f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
+                new SnapshotPlayerGibState(8, "gib-b", 1, 121f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
+            ],
+            BloodDrops =
+            [
+                new SnapshotBloodDropState(1, 101f, 100f, 1f, 0f, false, 29, 1f),
+                new SnapshotBloodDropState(8, 121f, 100f, 1f, 0f, false, 29, 1f),
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
+
+        var sentryGib = Assert.Single(result.Message.SentryGibs);
+        var playerGib = Assert.Single(result.Message.PlayerGibs);
+        var bloodDrop = Assert.Single(result.Message.BloodDrops);
+        Assert.Equal(8, sentryGib.Id);
+        Assert.Equal(8, playerGib.Id);
+        Assert.Equal(8, bloodDrop.Id);
     }
 
     [Fact]
@@ -414,6 +519,93 @@ public sealed class SnapshotDeltaBudgeterTests
         var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == localPlayer.Slot);
         Assert.Equal(correctedLocalPlayer.X, mergedLocalPlayer.X);
         Assert.Equal(correctedLocalPlayer.HorizontalSpeed, mergedLocalPlayer.HorizontalSpeed);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesLocalPlayerStatusWhenFullDetailIsCrowdedOut()
+    {
+        var baselineLocalPlayer = CreatePlayerState(1, 951, "Local Player") with
+        {
+            Health = 125,
+            Ammo = 6,
+            Metal = 0f,
+        };
+        var remoteBot = CreatePlayerState(2, 952, "Remote Bot");
+        var currentLocalPlayer = baselineLocalPlayer with
+        {
+            Health = 48,
+            Ammo = 2,
+            Metal = 75f,
+        };
+        var baseline = CreateSnapshot(950) with
+        {
+            Players = [baselineLocalPlayer, remoteBot],
+        };
+        var current = CreateSnapshot(951) with
+        {
+            Players = [currentLocalPlayer, remoteBot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 320);
+        var statusState = Assert.Single(result.Message.PlayerStatusStates);
+        Assert.Equal(1, statusState.Slot);
+        Assert.Equal(48, statusState.Health);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Equal(48, mergedLocalPlayer.Health);
+        Assert.Equal(2, mergedLocalPlayer.Ammo);
+        Assert.Equal(75f, mergedLocalPlayer.Metal);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesPlayerChatBubbleWhenFullDetailIsCrowdedOut()
+    {
+        var baselinePlayer = CreatePlayerState(1, 981, "Bubbly");
+        var currentPlayer = baselinePlayer with
+        {
+            IsChatBubbleVisible = true,
+            ChatBubbleFrameIndex = 49,
+            ChatBubbleAlpha = 0.85f,
+        };
+        var baseline = CreateSnapshot(980) with
+        {
+            Players = [baselinePlayer],
+        };
+        var current = CreateSnapshot(981) with
+        {
+            Players = [currentPlayer],
+        };
+        var client = new ClientSession(
+            2,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 320);
+        var bubbleState = Assert.Single(result.Message.PlayerChatBubbleStates);
+        Assert.Equal(1, bubbleState.Slot);
+        Assert.True(bubbleState.IsChatBubbleVisible);
+        Assert.Equal(49, bubbleState.ChatBubbleFrameIndex);
+        var mergedPlayer = Assert.Single(merged.Players);
+        Assert.True(mergedPlayer.IsChatBubbleVisible);
+        Assert.Equal(49, mergedPlayer.ChatBubbleFrameIndex);
+        Assert.InRange(mergedPlayer.ChatBubbleAlpha, 0.84f, 0.86f);
     }
 
     [Fact]

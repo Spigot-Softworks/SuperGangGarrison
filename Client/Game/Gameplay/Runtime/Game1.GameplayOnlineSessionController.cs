@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.IO;
 using OpenGarrison.Protocol;
 using OpenGarrison.Core;
 
@@ -39,6 +40,7 @@ public partial class Game1
                 return;
             }
 
+            _game.ClearReplayQueue(clearActiveReplayPath: true);
             _game.PrepareHostedServerLaunchUi(closeHostSetup: true, disconnectNetworkClient: true);
 
             if (!_game.TryStartHostedServerBackground(
@@ -78,6 +80,7 @@ public partial class Game1
                 return false;
             }
 
+            _game.ClearReplayQueue(clearActiveReplayPath: true);
             if (!endpoint.TryResolveForCurrentRuntime(out var host, out var port, out var transport))
             {
                 _game.SetNetworkStatus("Connect failed: endpoint does not support this runtime.");
@@ -117,6 +120,98 @@ public partial class Game1
             return false;
         }
 
+        public bool TryPlayLegacyReplay(string replayPath, bool addConsoleFeedback, bool clearQueuedReplays = true)
+        {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
+                return false;
+            }
+
+            if (clearQueuedReplays)
+            {
+                _game.ClearReplayQueue(clearActiveReplayPath: true);
+            }
+
+            if (!ReDsmReplayTransport.TryCreate(replayPath, out var transport, out var error) || transport is null)
+            {
+                _game.SetNetworkStatus($"Replay failed: {error}");
+                if (addConsoleFeedback)
+                {
+                    _game.AddNetworkConsoleLine($"replay failed: {error}");
+                }
+
+                return false;
+            }
+
+            if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
+            {
+                _game._activeReplayPath = replayPath.Trim();
+                _game.ResetGameplayRuntimeState();
+                _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+                _game.CloseLobbyBrowser(clearStatus: false);
+                _game.SetNetworkStatus($"Loading replay {Path.GetFileName(replayPath)}...");
+                if (addConsoleFeedback)
+                {
+                    _game.AddNetworkConsoleLine($"loading replay {Path.GetFileName(replayPath)}");
+                }
+
+                return true;
+            }
+
+            _game.SetNetworkStatus($"Replay failed: {error}");
+            if (addConsoleFeedback)
+            {
+                _game.AddNetworkConsoleLine($"replay failed: {error}");
+            }
+
+            return false;
+        }
+
+        public bool TryPlayOpenGarrisonDemo(string demoPath, bool addConsoleFeedback)
+        {
+            if (!_game._bootstrapController.CanEnterGameplaySession(out var bootstrapReason))
+            {
+                _game.SetNetworkStatus(bootstrapReason ?? "Browser client assets are still loading.");
+                return false;
+            }
+
+            _game.ClearReplayQueue(clearActiveReplayPath: true);
+            if (!OpenGarrisonDemoTransport.TryCreate(demoPath, out var transport, out var error) || transport is null)
+            {
+                _game.SetNetworkStatus($"Demo failed: {error}");
+                if (addConsoleFeedback)
+                {
+                    _game.AddNetworkConsoleLine($"demo failed: {error}");
+                }
+
+                return false;
+            }
+
+            if (_game._networkClient.Connect(transport, _game._world.LocalPlayer.DisplayName, _game._world.LocalPlayer.BadgeMask, out error))
+            {
+                _game._activeReplayPath = demoPath.Trim();
+                _game.ResetGameplayRuntimeState();
+                _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
+                _game.CloseLobbyBrowser(clearStatus: false);
+                _game.SetNetworkStatus($"Loading demo {Path.GetFileName(demoPath)}...");
+                if (addConsoleFeedback)
+                {
+                    _game.AddNetworkConsoleLine($"loading demo {Path.GetFileName(demoPath)}");
+                }
+
+                return true;
+            }
+
+            _game.SetNetworkStatus($"Demo failed: {error}");
+            if (addConsoleFeedback)
+            {
+                _game.AddNetworkConsoleLine($"demo failed: {error}");
+            }
+
+            return false;
+        }
+
         public void HandleWelcomeMessage(WelcomeMessage welcome)
         {
             if (welcome.Version != ProtocolVersion.Current)
@@ -143,6 +238,7 @@ public partial class Game1
             _game._world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
             _game._networkClient.SetLocalPlayerSlot(welcome.PlayerSlot);
             _game._networkClient.SetServerDescription(welcome.ServerName);
+            _game._networkClient.SetServerMaxPlayerCount(welcome.MaxPlayerCount);
             _game.ResetSpectatorTracking(enableTracking: _game._networkClient.IsSpectator);
             _game._networkClient.ClearPendingTeamSelection();
             _game._networkClient.ClearPendingClassSelection();

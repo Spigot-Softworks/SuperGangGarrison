@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.IO;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
@@ -66,6 +67,7 @@ public partial class Game1
 
         public void NotifyClientPluginsFrame(GameTime gameTime, int clientTicks)
         {
+            var notifyStartTimestamp = _game.IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
             _game._clientPluginHost?.NotifyClientFrame(new ClientFrameEvent(
                 (float)gameTime.ElapsedGameTime.TotalSeconds,
                 clientTicks,
@@ -73,6 +75,10 @@ public partial class Game1
                 !_game._startupSplashOpen && !_game._mainMenuOpen,
                 _game._networkClient.IsConnected,
                 _game._networkClient.IsSpectator));
+            if (notifyStartTimestamp > 0)
+            {
+                _game.RecordClientPerformanceMetric(ClientPerformanceMetric.PluginFrame, Game1.GetDiagnosticsElapsedMilliseconds(notifyStartTimestamp));
+            }
         }
     }
 }

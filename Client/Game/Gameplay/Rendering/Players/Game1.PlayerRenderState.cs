@@ -350,7 +350,7 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (!_positionSmoothingEnabled && TryGetLatestLocalServerVelocity(out var serverVelocity))
+            if (!IsPositionSmoothingActive() && TryGetLatestLocalServerVelocity(out var serverVelocity))
             {
                 return serverVelocity.X;
             }
@@ -372,7 +372,7 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (!_positionSmoothingEnabled && TryGetLatestLocalServerVelocity(out var serverVelocity))
+            if (!IsPositionSmoothingActive() && TryGetLatestLocalServerVelocity(out var serverVelocity))
             {
                 return serverVelocity.Y;
             }
@@ -405,7 +405,7 @@ public partial class Game1
 
     private bool GetPlayerRenderIsGrounded(PlayerEntity player)
     {
-        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer) && !_positionSmoothingEnabled)
+        if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer) && !IsPositionSmoothingActive())
         {
             return player.IsGrounded;
         }

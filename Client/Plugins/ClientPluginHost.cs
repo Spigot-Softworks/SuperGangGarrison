@@ -16,6 +16,7 @@ namespace OpenGarrison.Client;
 internal sealed class ClientPluginHost
 {
     private const string GameplayHudTraceFileName = "client-plugin-gameplay-hud-trace.log";
+    private const string GameplayProfileFileName = "client-plugin-profile.log";
     private const string GameplayHudTraceEnvironmentVariable = "OG2_CLIENT_PLUGIN_HUD_TRACE";
     private const string ProfileEnvironmentVariable = "OG2_CLIENT_PLUGIN_PROFILE";
     private static readonly bool GameplayHudTraceEnabled = IsGameplayHudTraceEnabled();
@@ -1000,8 +1001,10 @@ internal sealed class ClientPluginHost
                      .OrderByDescending(candidate => candidate.TotalMilliseconds)
                      .Take(12))
         {
-            _log(FormattableString.Invariant(
-                $"[plugin-profile] plugin={aggregate.PluginId} hook={aggregate.HookStage} type={aggregate.HookType} calls={aggregate.CallCount} totalMs={aggregate.TotalMilliseconds:0.###} avgMs={aggregate.AverageMilliseconds:0.###} maxMs={aggregate.MaxMilliseconds:0.###}"));
+            var line = FormattableString.Invariant(
+                $"[plugin-profile] plugin={aggregate.PluginId} hook={aggregate.HookStage} type={aggregate.HookType} calls={aggregate.CallCount} totalMs={aggregate.TotalMilliseconds:0.###} avgMs={aggregate.AverageMilliseconds:0.###} maxMs={aggregate.MaxMilliseconds:0.###}");
+            _log(line);
+            WritePluginProfileTrace(line);
         }
 
         _profileAggregates.Clear();
@@ -1098,6 +1101,23 @@ internal sealed class ClientPluginHost
         var value = Environment.GetEnvironmentVariable(ProfileEnvironmentVariable);
         return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void WritePluginProfileTrace(string message)
+    {
+        if (!ProfileEnabled)
+        {
+            return;
+        }
+
+        try
+        {
+            var timestamp = DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture);
+            File.AppendAllText(RuntimePaths.GetLogPath(GameplayProfileFileName), $"[{timestamp}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
     }
 
     private enum ClientPluginLifecyclePhase

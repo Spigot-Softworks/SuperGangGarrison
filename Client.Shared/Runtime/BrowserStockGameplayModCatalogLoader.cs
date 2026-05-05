@@ -69,10 +69,11 @@ public static class BrowserStockGameplayModCatalogLoader
 
     private static async Task<GameplayModPackDefinition> LoadStockPackDefinitionAsync(HttpClient httpClient, CancellationToken cancellationToken)
     {
-        var definition = await LoadJsonAsync<GameplayModPackDefinition>(
+        var document = await LoadJsonAsync<BrowserGameplayModPackDefinitionDocument>(
             httpClient,
             BrowserDistributionPaths.StockPackDefinitionPath,
             cancellationToken);
+        var definition = document.ToDefinition();
         var itemsById = definition.Items;
         var classesById = definition.Classes;
         var spritesById = definition.Assets.Sprites;

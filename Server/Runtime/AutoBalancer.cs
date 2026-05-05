@@ -14,6 +14,7 @@ sealed class AutoBalancer
     private readonly bool _passwordRequired;
     private readonly Action<ServerTransportPeer, IProtocolMessage> _sendMessage;
     private readonly Action<string> _log;
+    private readonly Action<AutoBalanceNoticeMessage>? _recordBroadcastNotice;
     private int _autoBalanceCountdownTicks = -1;
     private PlayerTeam? _autoBalanceTeam;
 
@@ -25,7 +26,8 @@ sealed class AutoBalancer
         int autoBalanceNewPlayerGraceSeconds,
         bool passwordRequired,
         Action<ServerTransportPeer, IProtocolMessage> sendMessage,
-        Action<string> log)
+        Action<string> log,
+        Action<AutoBalanceNoticeMessage>? recordBroadcastNotice = null)
     {
         _world = world;
         _config = config;
@@ -35,6 +37,7 @@ sealed class AutoBalancer
         _passwordRequired = passwordRequired;
         _sendMessage = sendMessage;
         _log = log;
+        _recordBroadcastNotice = recordBroadcastNotice;
     }
 
     public void Tick(TimeSpan now, int ticksElapsed, bool autoBalanceEnabled)
@@ -148,6 +151,7 @@ sealed class AutoBalancer
 
     private void SendAutoBalanceNotice(AutoBalanceNoticeMessage notice)
     {
+        _recordBroadcastNotice?.Invoke(notice);
         foreach (var client in _clientsBySlot.Values)
         {
             if (!client.IsAuthorized && _passwordRequired)

@@ -14,9 +14,11 @@ public partial class Game1
     private const int SnapshotStateHistoryLimit = 96;
     private const int MaxQueuedAuthoritativeSnapshots = 4;
     private const float RemotePlayerTeleportSnapDistance = 128f;
-    private const float RemotePlayerExtrapolationDurationSeconds = 0.05f;
-    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.12f;
-    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.22f;
+    private const float RemotePlayerExtrapolationDurationSeconds = 0.07f;
+    private const float RemotePlayerMinimumInterpolationBackTimeSeconds = 0.08f;
+    private const float RemotePlayerMaximumInterpolationBackTimeSeconds = 0.16f;
+    private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
+    private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
     private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.25f;
 
@@ -59,6 +61,25 @@ public partial class Game1
     private ulong _lastAppliedSnapshotFrame;
     private ulong _lastBufferedSnapshotFrame;
 
+    private bool IsPositionSmoothingActive()
+    {
+        return _positionSmoothingEnabled || _networkClient.IsReplayConnection;
+    }
+
+    private float GetMinimumRemotePlayerInterpolationBackTimeSeconds()
+    {
+        return _networkClient.IsReplayConnection
+            ? ReplayMinimumInterpolationBackTimeSeconds
+            : RemotePlayerMinimumInterpolationBackTimeSeconds;
+    }
+
+    private float GetMaximumRemotePlayerInterpolationBackTimeSeconds()
+    {
+        return _networkClient.IsReplayConnection
+            ? ReplayMaximumInterpolationBackTimeSeconds
+            : RemotePlayerMaximumInterpolationBackTimeSeconds;
+    }
+
     private Vector2 GetRenderPosition(int entityId, float x, float y, bool allowInterpolation = true)
     {
         if (!allowInterpolation || !_networkClient.IsConnected)
@@ -71,7 +92,9 @@ public partial class Game1
             return EvaluateInterpolationTrack(track);
         }
 
-        if (_positionSmoothingEnabled || _entitySnapshotHistories.ContainsKey(entityId))
+        if (IsPositionSmoothingActive()
+            || _entitySnapshotHistories.ContainsKey(entityId)
+            || _remotePlayerSnapshotHistories.ContainsKey(entityId))
         {
             return _interpolatedEntityPositions.GetValueOrDefault(entityId, new Vector2(x, y));
         }
@@ -83,7 +106,7 @@ public partial class Game1
     {
         if (_networkClient.IsConnected && ReferenceEquals(player, _world.LocalPlayer))
         {
-            if (!_positionSmoothingEnabled)
+            if (!IsPositionSmoothingActive())
             {
                 return GetRenderPosition(GetResolvedLocalPlayerId(), player.X, player.Y, allowInterpolation);
             }
@@ -121,7 +144,7 @@ public partial class Game1
             return new Vector2(player.AimWorldX, player.AimWorldY);
         }
 
-        if (!_positionSmoothingEnabled)
+        if (!IsPositionSmoothingActive())
         {
             return new Vector2(player.AimWorldX, player.AimWorldY);
         }

@@ -1,0 +1,394 @@
+{
+  "Version": 1,
+  "Map": "Truefort",
+  "Area": 1,
+  "Mode": "CaptureTheFlag",
+  "Team": "Blue",
+  "Class": "Quote",
+  "AttackTicks": 648,
+  "ReturnTicks": 1066,
+  "Attack": [
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 37
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 54
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 30
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 23
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 29
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Drop",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 25
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 21
+    }
+  ],
+  "Return": [
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 31
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 21
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Drop",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Drop",
+      "Direction": 1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 42
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 27
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 25
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 52
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 0,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 24
+    },
+    {
+      "Kind": "Run",
+      "Direction": 1,
+      "Ticks": 5
+    }
+  ]
+}

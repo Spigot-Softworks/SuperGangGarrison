@@ -78,6 +78,12 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
     private const int ModernIntelReturnDirectLatchTicks = 90;
     private const float ModernIntelReturnBlockedEdgeBypassDistanceX = 760f;
     private const float ModernIntelReturnBlockedEdgeBypassDistanceY = 760f;
+
+    public void ConfigureSpawnOverrides(
+        SimulationWorld world,
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
+    {
+    }
     private const float ModernCurrentPointReanchorDistance = 130f;
     private const float ModernChurnDistance = 52f;
     private const float ModernCaptureZoneSeedBand = 96f;
@@ -333,6 +339,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         {
             _navigationGraphsByKey.Clear();
             _clientBotNavPointsByGraphKey.Clear();
+            _runtimeValidatedJumpTapeByKey.Clear();
             _clientBotScoreRouteAssetsByKey.Clear();
             _navigationGraphsByClassBuffer.Clear();
         }

@@ -53,6 +53,11 @@ internal static class MotionProofRunner
             return RunGraphBake(world, bot, options, stopwatch);
         }
 
+        if (options.RepairGraph)
+        {
+            return RunGraphRepair(world, options, stopwatch);
+        }
+
         if (options.CombatSmoke)
         {
             return RunCombatSmoke(options, stopwatch);
@@ -342,22 +347,34 @@ internal static class MotionProofRunner
                 : BuildGraphSeedGoals(world, options.Team))
             .Concat(options.ExtraSeedGoals.Select(goal => new MotionGoal(goal.X, goal.Bottom, options.GoalRadius, options.GoalRadius, goal.Label)))
             .ToArray();
-        var coverageAnchors = options.SeedCoverageAnchors ? AddCoverageAnchorNodes() : 0;
-        var seedGoals = gameplayGoals
-            .Concat(BuildWalkableCoverageSeedGoals(world.Level, classDefinition, options))
-            .ToArray();
         var coverageConnectivityPaths = 0;
         var coverageHubPaths = 0;
         var coverageGapPaths = 0;
         var seededPaths = 0;
-        var importedProofPaths = 0;
         var explicitSeedPaths = 0;
+        var goalsSatisfiedByImportedProof = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var importedProofPaths = AddProofArtifactSeedPaths();
+        var coverageAnchors = options.SeedCoverageAnchors ? AddCoverageAnchorNodes() : 0;
+        var seedGoals = gameplayGoals
+            .Concat(BuildWalkableCoverageSeedGoals(world.Level, classDefinition, options))
+            .ToArray();
         var expanded = 0;
         var rejected = 0;
+        const int expansionCompletionCheckInterval = 128;
         while (queue.Count > 0
             && nodes.Count < options.GraphExpansionMaxNodes
             && stopwatch.ElapsedMilliseconds < options.SearchBudgetMilliseconds)
         {
+            if (coverageTracker.HasReachedTarget
+                && expanded > 0
+                && (expanded % expansionCompletionCheckInterval) == 0
+                && HasReachedObjectiveReachabilityTarget())
+            {
+                Console.WriteLine(
+                    $"motion-proof graph-bake status=early_complete expanded={expanded} nodes={nodes.Count} edges={edges.Count} elapsedMs={stopwatch.ElapsedMilliseconds}");
+                break;
+            }
+
             var fromIndex = queue.Dequeue();
             if (!expandedNodeIndices.Add(fromIndex))
             {
@@ -402,7 +419,6 @@ internal static class MotionProofRunner
 
         var localWeldEdges = AddLocalGroundWeldEdges();
         coverageConnectivityPaths = options.SeedCoverageConnectivity ? AddCoverageConnectivitySeedPaths() : 0;
-        importedProofPaths = AddProofArtifactSeedPaths();
         explicitSeedPaths = AddExplicitSeedPathPairs();
         seededPaths = options.SkipObjectiveSeedPaths ? 0 : AddObjectiveSeedPaths();
         if (options.SkipObjectiveSeedPaths)
@@ -485,8 +501,14 @@ internal static class MotionProofRunner
         int AddCoverageAnchorNodes()
         {
             var count = 0;
-            foreach (var sample in coverageTracker.Samples)
+            for (var sampleIndex = 0; sampleIndex < coverageTracker.SampleCount; sampleIndex += 1)
             {
+                if (coverageTracker.IsCovered(sampleIndex))
+                {
+                    continue;
+                }
+
+                var sample = coverageTracker.Samples[sampleIndex];
                 var nodeIndex = AddGraphNode(MotionState.FromGrounded(
                     sample.X,
                     sample.Y,
@@ -516,6 +538,7 @@ internal static class MotionProofRunner
                 var attackStart = start;
                 var attackEnd = AddPathToGraph(attackStart, attackPath, carryingIntel: false);
                 count += 1;
+                MarkImportedCtfGoalsSatisfied(carryingIntel: false);
                 Console.WriteLine($"motion-proof graph-proof-seed status=imported phase=attack artifact={Path.GetFileName(artifactPath)} actions={attackPath.Actions.Count} ticks={attackPath.TotalTicks}");
 
                 if (artifact.Return.Count == 0 || !attackEnd.HasValue)
@@ -526,6 +549,7 @@ internal static class MotionProofRunner
                 var returnPath = new MotionPath(artifact.Return.Select(action => action.ToMotionAction()).ToArray());
                 AddPathToGraph(attackEnd.Value, returnPath, carryingIntel: true);
                 count += 1;
+                MarkImportedCtfGoalsSatisfied(carryingIntel: true);
                 Console.WriteLine($"motion-proof graph-proof-seed status=imported phase=return artifact={Path.GetFileName(artifactPath)} actions={returnPath.Actions.Count} ticks={returnPath.TotalTicks}");
             }
 
@@ -732,7 +756,7 @@ internal static class MotionProofRunner
 
         bool TryBuildSingleRunWeld(MotionState from, MotionState to, int direction, out MotionAction action)
         {
-            const float goalRadius = 56f;
+            const float goalRadius = 12f;
             var goal = new MotionGoal(to.X, to.Bottom, goalRadius, goalRadius, "local_weld");
             foreach (var ticks in new[] { 8, 14, 22, 34, 52 })
             {
@@ -745,11 +769,12 @@ internal static class MotionProofRunner
                         from,
                         candidate,
                         goal,
-                        requireStableEnd: false,
-                        out _,
+                        requireStableEnd: true,
+                        out var endState,
                         out var actualAction,
                         out var reachedGoal)
-                    || !reachedGoal)
+                    || !reachedGoal
+                    || !IsReplayFaithfulLocalWeldState(endState, to))
                 {
                     continue;
                 }
@@ -762,10 +787,19 @@ internal static class MotionProofRunner
             return false;
         }
 
+        static bool IsReplayFaithfulLocalWeldState(MotionState endState, MotionState targetState)
+        {
+            return endState.IsGrounded == targetState.IsGrounded
+                && Distance(endState.X, endState.Bottom, targetState.X, targetState.Bottom) <= 12f
+                && MathF.Abs(endState.HorizontalSpeed - targetState.HorizontalSpeed) <= 1f
+                && MathF.Abs(endState.VerticalSpeed - targetState.VerticalSpeed) <= 1f
+                && endState.RemainingAirJumps == targetState.RemainingAirJumps;
+        }
+
         int AddCoverageConnectivitySeedPaths()
         {
-            var samples = coverageTracker.Samples;
-            if (samples.Count <= 1 || options.CoverageNeighborLinks <= 0)
+            var samples = coverageTracker.GetUncoveredSamples(coverageTracker.SampleCount).ToArray();
+            if (samples.Length <= 1 || options.CoverageNeighborLinks <= 0)
             {
                 return 0;
             }
@@ -773,7 +807,7 @@ internal static class MotionProofRunner
             var discoveredPaths = new ConcurrentBag<MotionCoverageSeedPath>();
             Parallel.For(
                 0,
-                samples.Count,
+                samples.Length,
                 new ParallelOptions { MaxDegreeOfParallelism = options.CoveragePathParallelism },
                 sourceIndex =>
                 {
@@ -812,15 +846,24 @@ internal static class MotionProofRunner
             }
 
             Console.WriteLine(
-                $"motion-proof coverage-link status=seeded links={count} samples={samples.Count} neighbors={options.CoverageNeighborLinks} radius={options.CoverageLinkMaxDistance:0.0} budgetMs={options.CoverageLinkSearchBudgetMilliseconds} parallelism={options.CoveragePathParallelism}");
+                $"motion-proof coverage-link status=seeded links={count} samples={samples.Length} neighbors={options.CoverageNeighborLinks} radius={options.CoverageLinkMaxDistance:0.0} budgetMs={options.CoverageLinkSearchBudgetMilliseconds} parallelism={options.CoveragePathParallelism}");
             return count;
         }
 
         int AddCoverageHubSeedPaths()
         {
-            var samples = coverageTracker.Samples;
-            if (samples.Count == 0 || gameplayGoals.Length == 0)
+            var reachabilityReport = MotionCoverageReachabilityReport.Create(
+                nodes,
+                edges,
+                coverageTracker.Samples,
+                classDefinition,
+                gameplayGoals,
+                options.CoverageSampleRadius);
+            var samples = reachabilityReport.GetUnreachableSamples().ToArray();
+            if (samples.Length == 0 || gameplayGoals.Length == 0)
             {
+                Console.WriteLine(
+                    $"motion-proof coverage-hub status=skipped reason=all_samples_reachable objectiveReachable={reachabilityReport.ReachableSamples}/{reachabilityReport.SampleCount} ratio={reachabilityReport.Ratio:0.000}");
                 return 0;
             }
 
@@ -842,7 +885,7 @@ internal static class MotionProofRunner
             var discoveredPaths = new ConcurrentBag<MotionCoverageSeedPath>();
             Parallel.For(
                 0,
-                samples.Count,
+                samples.Length,
                 new ParallelOptions { MaxDegreeOfParallelism = options.CoveragePathParallelism },
                 sourceIndex =>
                 {
@@ -971,7 +1014,7 @@ internal static class MotionProofRunner
             }
 
             Console.WriteLine(
-                $"motion-proof coverage-hub status=seeded paths={count} hubs={hubs.Length} samples={samples.Count} parallelism={options.CoveragePathParallelism} hubBudgetMs={options.CoverageHubSearchBudgetMilliseconds} fanoutBudgetMs={options.CoverageHubFanoutSearchBudgetMilliseconds}");
+                $"motion-proof coverage-hub status=seeded paths={count} hubs={hubs.Length} samples={samples.Length} parallelism={options.CoveragePathParallelism} hubBudgetMs={options.CoverageHubSearchBudgetMilliseconds} fanoutBudgetMs={options.CoverageHubFanoutSearchBudgetMilliseconds}");
             return count;
         }
 
@@ -1121,6 +1164,24 @@ internal static class MotionProofRunner
             var count = 0;
             count += AddSeedPathsFromStart(start, seedGoals, startLabel: null, allowCoveredSkip: true);
 
+            foreach (var teamSpawnStart in EnumerateTeamSpawnSeedStarts(world, options.Team, classDefinition))
+            {
+                if (Distance(teamSpawnStart.X, teamSpawnStart.Bottom, start.X, start.Bottom) <= 1f)
+                {
+                    continue;
+                }
+
+                count += AddSeedPathsFromStart(
+                    MotionState.FromGrounded(
+                        teamSpawnStart.X,
+                        teamSpawnStart.Bottom,
+                        classDefinition.CollisionBottom,
+                        classProbe.MaxAirJumps),
+                    seedGoals,
+                    $"spawn=({teamSpawnStart.X:0.0},{teamSpawnStart.Bottom:0.0})",
+                    allowCoveredSkip: false);
+            }
+
             foreach (var extraStart in options.ExtraSeedStarts)
             {
                 var seedStart = MotionState.FromGrounded(
@@ -1145,10 +1206,10 @@ internal static class MotionProofRunner
             for (var goalIndex = 0; goalIndex < goals.Count; goalIndex += 1)
             {
                 var goal = goals[goalIndex];
-                if (allowCoveredSkip && IsWalkableCoverageGoal(goal) && IsGoalCoveredByCurrentGraph(goal))
+                if (allowCoveredSkip && IsGoalCoveredByCurrentGraph(goal))
                 {
                     count += 1;
-                    Console.WriteLine($"motion-proof graph-seed status=covered {FormatSeedStartLabel(startLabel)}goal={goal.Label} radius={options.WalkableSeedCoveredRadius:0.0}");
+                    Console.WriteLine($"motion-proof graph-seed status=covered {FormatSeedStartLabel(startLabel)}goal={goal.Label}");
                     continue;
                 }
 
@@ -1325,16 +1386,40 @@ internal static class MotionProofRunner
 
         bool IsGoalCoveredByCurrentGraph(MotionGoal goal)
         {
+            if (goalsSatisfiedByImportedProof.Contains(goal.Label))
+            {
+                return true;
+            }
+
             for (var index = 0; index < nodes.Count; index += 1)
             {
-                var node = nodes[index];
-                if (Distance(node.State.X, node.State.Bottom, goal.X, goal.Y) <= options.WalkableSeedCoveredRadius)
+                var state = nodes[index].State;
+                if (IntersectsGoal(state, classDefinition, goal)
+                    || Distance(state.X, state.Bottom, goal.X, goal.Y) <= MathF.Max(options.WalkableSeedCoveredRadius, MathF.Max(goal.Width, goal.Height)))
                 {
                     return true;
                 }
             }
 
             return false;
+        }
+
+        void MarkImportedCtfGoalsSatisfied(bool carryingIntel)
+        {
+            if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag)
+            {
+                return;
+            }
+
+            if (!carryingIntel)
+            {
+                goalsSatisfiedByImportedProof.Add("enemy_intel");
+                goalsSatisfiedByImportedProof.Add("enemy_intel_area");
+                return;
+            }
+
+            goalsSatisfiedByImportedProof.Add("own_base");
+            goalsSatisfiedByImportedProof.Add("own_base_area");
         }
 
         MotionState? AddPathToGraph(MotionState pathStart, MotionPath path, bool carryingIntel)
@@ -1566,6 +1651,26 @@ internal static class MotionProofRunner
                 MathF.Max(42f, zone.Width),
                 MathF.Max(42f, zone.Height),
                 $"capture_zone_{index + 1}");
+        }
+    }
+
+    private static IEnumerable<MotionSeedStart> EnumerateTeamSpawnSeedStarts(
+        SimulationWorld world,
+        PlayerTeam team,
+        CharacterClassDefinition classDefinition)
+    {
+        var spawns = team == PlayerTeam.Blue ? world.Level.BlueSpawns : world.Level.RedSpawns;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var spawn in spawns)
+        {
+            var bottom = spawn.Y + classDefinition.CollisionBottom;
+            var key = $"{spawn.X:0.###},{bottom:0.###}";
+            if (!seen.Add(key))
+            {
+                continue;
+            }
+
+            yield return new MotionSeedStart(spawn.X, bottom);
         }
     }
 
@@ -1918,6 +2023,13 @@ internal static class MotionProofRunner
                 yield return _samples[index];
             }
         }
+
+        public bool IsCovered(int index)
+        {
+            return index >= 0
+                && index < _covered.Length
+                && _covered[index];
+        }
     }
 
     private sealed class MotionCoverageReachabilityReport
@@ -2189,6 +2301,151 @@ internal static class MotionProofRunner
         Console.WriteLine(
             $"motion-proof graph-proof result status={(completed ? "pass" : "fail")} distance={distance:0.0} radius={options.GoalRadius:0.0} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         return completed ? 0 : 3;
+    }
+
+    private static int RunGraphRepair(
+        SimulationWorld world,
+        MotionProofOptions options,
+        Stopwatch stopwatch)
+    {
+        if (string.IsNullOrWhiteSpace(options.GraphPath))
+        {
+            Console.Error.WriteLine("graph_repair_requires_graph");
+            return 2;
+        }
+
+        if (string.IsNullOrWhiteSpace(options.OutputPath))
+        {
+            Console.Error.WriteLine("graph_repair_requires_output");
+            return 2;
+        }
+
+        var graph = ReadJsonArtifact<MotionGraphArtifact>(options.GraphPath);
+        if (graph is null || graph.Nodes.Count == 0)
+        {
+            Console.Error.WriteLine("graph_load_failed");
+            return 2;
+        }
+
+        var classDefinition = CharacterClassCatalog.GetDefinition(options.ClassId);
+        var repairedEdges = new List<MotionGraphEdge>(graph.Edges.Count);
+        var invalidEdges = 0;
+        var invalidFreeEdges = 0;
+        var invalidCarryEdges = 0;
+        var invalidFromIndexEdges = 0;
+        var invalidToIndexEdges = 0;
+        var simulatedEdges = 0;
+
+        foreach (var edge in graph.Edges)
+        {
+            if (edge.From < 0 || edge.From >= graph.Nodes.Count)
+            {
+                invalidEdges += 1;
+                invalidFromIndexEdges += 1;
+                continue;
+            }
+
+            if (edge.To < 0 || edge.To >= graph.Nodes.Count)
+            {
+                invalidEdges += 1;
+                invalidToIndexEdges += 1;
+                continue;
+            }
+
+            var allowsFree = IsEdgeAllowedForCarry(edge, carryingIntel: false);
+            var allowsCarry = IsEdgeAllowedForCarry(edge, carryingIntel: true);
+            var validFree = !allowsFree || IsReplayFaithfulGraphEdge(world.Level, options.Team, classDefinition, carryingIntel: false, graph.Nodes[edge.From], graph.Nodes[edge.To], edge.Action.ToMotionAction());
+            var validCarry = !allowsCarry || IsReplayFaithfulGraphEdge(world.Level, options.Team, classDefinition, carryingIntel: true, graph.Nodes[edge.From], graph.Nodes[edge.To], edge.Action.ToMotionAction());
+            simulatedEdges += (allowsFree ? 1 : 0) + (allowsCarry ? 1 : 0);
+            if (validFree && validCarry)
+            {
+                repairedEdges.Add(edge);
+                continue;
+            }
+
+            invalidEdges += 1;
+            if (!validFree)
+            {
+                invalidFreeEdges += 1;
+            }
+
+            if (!validCarry)
+            {
+                invalidCarryEdges += 1;
+            }
+        }
+
+        var repairedGraph = graph with { Edges = repairedEdges };
+        WriteJsonArtifact(options.OutputPath, repairedGraph);
+        Console.WriteLine(
+            $"motion-proof graph-repair result status=done nodes={graph.Nodes.Count} edgesBefore={graph.Edges.Count} edgesAfter={repairedEdges.Count} invalidEdges={invalidEdges} invalidFree={invalidFreeEdges} invalidCarry={invalidCarryEdges} invalidFromIndex={invalidFromIndexEdges} invalidToIndex={invalidToIndexEdges} simulated={simulatedEdges} elapsedMs={stopwatch.ElapsedMilliseconds} output={Path.GetFullPath(options.OutputPath)}");
+        return 0;
+    }
+
+    private static bool IsReplayFaithfulGraphEdge(
+        SimpleLevel level,
+        PlayerTeam team,
+        CharacterClassDefinition classDefinition,
+        bool carryingIntel,
+        MotionGraphNode fromNode,
+        MotionGraphNode toNode,
+        MotionAction action)
+    {
+        var fromState = CreateMotionStateFromGraphNode(fromNode, action.Direction);
+        var targetState = CreateMotionStateFromGraphNode(toNode, action.Direction);
+        if (!TrySimulateAction(
+                level,
+                team,
+                classDefinition,
+                carryingIntel,
+                fromState,
+                action,
+                goal: null,
+                requireStableEnd: false,
+                out var endState,
+                out var actualAction,
+                out _))
+        {
+            return false;
+        }
+
+        return actualAction.Ticks == action.Ticks
+            && AreReplayCompatibleGraphStates(endState, targetState);
+    }
+
+    private static MotionState CreateMotionStateFromGraphNode(MotionGraphNode node, int actionDirection)
+    {
+        var facing = actionDirection != 0
+            ? actionDirection
+            : Math.Sign(node.HorizontalSpeed);
+        if (facing == 0)
+        {
+            facing = 1;
+        }
+
+        return new MotionState(
+            node.X,
+            node.Y,
+            node.Bottom,
+            node.HorizontalSpeed,
+            node.VerticalSpeed,
+            node.IsGrounded,
+            node.RemainingAirJumps,
+            LegacyStateTickAccumulator: 0f,
+            MovementState: LegacyMovementState.None,
+            FacingDirectionX: facing,
+            AimDirectionDegrees: facing >= 0 ? 0f : 180f,
+            SourceFacingDirectionX: facing,
+            PreviousSourceFacingDirectionX: facing);
+    }
+
+    private static bool AreReplayCompatibleGraphStates(MotionState replayed, MotionState target)
+    {
+        return replayed.IsGrounded == target.IsGrounded
+            && Distance(replayed.X, replayed.Bottom, target.X, target.Bottom) <= 18f
+            && MathF.Abs(replayed.HorizontalSpeed - target.HorizontalSpeed) <= 4f
+            && MathF.Abs(replayed.VerticalSpeed - target.VerticalSpeed) <= 4f
+            && replayed.RemainingAirJumps == target.RemainingAirJumps;
     }
 
     private static int RunCombatSmoke(MotionProofOptions options, Stopwatch stopwatch)
@@ -3940,7 +4197,7 @@ internal static class MotionProofRunner
 internal sealed class MotionProofOptions
 {
     public const string Usage =
-        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel]]";
+        "usage: dotnet run --project MotionProof.Tools -- --map Truefort --team Blue --class Heavy [--max-expanded N] [--search-budget-ms N] [--area N] [--output path] [--mirror-artifact path] [--bake-graph] [--repair-graph --graph path --output path] [--seed-walkable-grid N] [--seed-walkable-limit N] [--seed-search-budget-ms N] [--prove-graph --graph path --goal-x X --goal-y Y] [--solve-primitive --start-x X --start-bottom Y --goal-x X --goal-y Y [--start-carrying-intel]]";
 
     public string MapName { get; private set; } = "Truefort";
     public int MapAreaIndex { get; private set; } = 1;
@@ -3953,6 +4210,7 @@ internal sealed class MotionProofOptions
     public string? OutputPath { get; private set; }
     public string? MirrorArtifactPath { get; private set; }
     public bool BakeGraph { get; private set; }
+    public bool RepairGraph { get; private set; }
     public bool WriteFailedGraph { get; private set; }
     public bool ProveGraph { get; private set; }
     public bool SolvePrimitivePath { get; private set; }
@@ -4080,6 +4338,12 @@ internal sealed class MotionProofOptions
             if (arg.Equals("--bake-graph", StringComparison.OrdinalIgnoreCase))
             {
                 options.BakeGraph = true;
+                continue;
+            }
+
+            if (arg.Equals("--repair-graph", StringComparison.OrdinalIgnoreCase))
+            {
+                options.RepairGraph = true;
                 continue;
             }
 

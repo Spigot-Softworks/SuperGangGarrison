@@ -1,0 +1,123 @@
+{
+  "Version": 1,
+  "Map": "Sixties",
+  "Area": 1,
+  "Mode": "DoubleKingOfTheHill",
+  "Team": "Blue",
+  "Class": "Spy",
+  "AttackTicks": 349,
+  "ReturnTicks": 0,
+  "Attack": [
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 9
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 34
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 14
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 12
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 28
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 11
+    },
+    {
+      "Kind": "Jump",
+      "Direction": 1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 22
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 20
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Drop",
+      "Direction": -1,
+      "Ticks": 7
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 35
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 17
+    },
+    {
+      "Kind": "Run",
+      "Direction": -1,
+      "Ticks": 8
+    },
+    {
+      "Kind": "Jump",
+      "Direction": -1,
+      "Ticks": 13
+    }
+  ],
+  "Return": []
+}

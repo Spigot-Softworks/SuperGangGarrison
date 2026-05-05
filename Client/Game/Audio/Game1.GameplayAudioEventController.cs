@@ -129,41 +129,53 @@ public partial class Game1
         {
             ReplayPendingBrowserSoundEvents();
 
+            for (var index = 0; index < _game._pendingNetworkSoundEvents.Count; index += 1)
+            {
+                ProcessPendingSoundEvent(_game._pendingNetworkSoundEvents[index]);
+            }
+
+            _game._pendingNetworkSoundEvents.Clear();
+
             foreach (var soundEvent in _game._world.DrainPendingSoundEvents())
             {
-                if (!Game1.ShouldProcessNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder))
-                {
-                    continue;
-                }
-
-                if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                    && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
-                {
-                    _game._explosions.Add(explosion!);
-                }
-
-                _game.NotifyClientPluginsWorldSound(soundEvent);
-
-                if (!_game._audioAvailable)
-                {
-                    continue;
-                }
-
-                if (_game.ShouldSuppressManagedLocalRapidFireSound(soundEvent))
-                {
-                    continue;
-                }
-
-                var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                    ? "ExplosionSnd"
-                    : soundEvent.SoundName;
-                if (_game._runtimeAssets is null)
-                {
-                    continue;
-                }
-
-                TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser());
+                ProcessPendingSoundEvent(soundEvent);
             }
+        }
+
+        private void ProcessPendingSoundEvent(WorldSoundEvent soundEvent)
+        {
+            if (!Game1.ShouldProcessNetworkEvent(soundEvent.EventId, _game._processedNetworkSoundEventIds, _game._processedNetworkSoundEventOrder))
+            {
+                return;
+            }
+
+            if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                && _game.TryCreateExplosionVisual(soundEvent, out var explosion))
+            {
+                _game._explosions.Add(explosion!);
+            }
+
+            _game.NotifyClientPluginsWorldSound(soundEvent);
+
+            if (!_game._audioAvailable)
+            {
+                return;
+            }
+
+            if (_game.ShouldSuppressManagedLocalRapidFireSound(soundEvent))
+            {
+                return;
+            }
+
+            var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
+                ? "ExplosionSnd"
+                : soundEvent.SoundName;
+            if (_game._runtimeAssets is null)
+            {
+                return;
+            }
+
+            TryPlayResolvedWorldSound(resolvedSoundName, soundEvent.X, soundEvent.Y, allowBrowserDefer: OperatingSystem.IsBrowser());
         }
 
         private void ReplayPendingBrowserSoundEvents()
