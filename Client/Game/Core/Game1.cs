@@ -339,6 +339,17 @@ public partial class Game1 : Game
         {
             Window.AllowUserResizing = !_graphics.IsFullScreen;
         }
+
+        // Subscribe to game exit event to ensure proper server disconnection
+        Exiting += OnGameExiting;
+    }
+
+    private void OnGameExiting(object? sender, EventArgs e)
+    {
+        // Ensure we disconnect from the server before exiting
+        // This sends a proper close message (WebSocket close frame or UDP socket closure)
+        // so the server can immediately remove the player instead of waiting for timeout
+        _networkClient.Disconnect();
     }
 
     public void EnsureBrowserHostLifecycleInitialized()

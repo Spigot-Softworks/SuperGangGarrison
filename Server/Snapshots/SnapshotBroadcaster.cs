@@ -50,14 +50,14 @@ sealed class SnapshotBroadcaster
     }
 
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
-        new([], [], []);
+        new([], [], [], []);
 
     public SnapshotBroadcastMetrics Metrics { get; private set; }
 
     public void ResetTransientEvents()
     {
         _transientEventBuffer.Reset(_clientsBySlot.Values);
-        LastCapturedTransientEvents = new([], [], []);
+        LastCapturedTransientEvents = new([], [], [], []);
         Metrics = default;
     }
 
@@ -80,7 +80,8 @@ sealed class SnapshotBroadcaster
         var sharedSnapshot = CaptureSharedSnapshotData(
             transientEvents.VisualEvents,
             transientEvents.DamageEvents,
-            transientEvents.SoundEvents);
+            transientEvents.SoundEvents,
+            transientEvents.GibSpawnEvents);
         var sharedCaptureTicks = Stopwatch.GetTimestamp() - sharedCaptureStartTimestamp;
         var sharedCaptureAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - sharedCaptureStartAllocatedBytes;
 
@@ -183,7 +184,8 @@ sealed class SnapshotBroadcaster
     private SharedSnapshotData CaptureSharedSnapshotData(
         SnapshotVisualEvent[] visualEvents,
         SnapshotDamageEvent[] damageEvents,
-        SnapshotSoundEvent[] soundEvents)
+        SnapshotSoundEvent[] soundEvents,
+        SnapshotGibSpawnEvent[] gibSpawnEvents)
     {
         var orderedClients = _clientsBySlot.Values.ToArray();
         Array.Sort(orderedClients, static (left, right) => left.Slot.CompareTo(right.Slot));
@@ -235,7 +237,6 @@ sealed class SnapshotBroadcaster
             ConvertToArray(_world.Flames, static flame => ToSnapshotFlameState(flame)),
             ConvertToArray(_world.Flares, static flare => ToSnapshotFlareState(flare)),
             ConvertToArray(_world.Mines, static mine => ToSnapshotMineState(mine)),
-            ConvertToArray(_world.PlayerGibs, static gib => ToSnapshotPlayerGibState(gib)),
             ConvertToArray(_world.DeadBodies, static body => ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
             _world.KothUnlockTicksRemaining,
@@ -257,6 +258,7 @@ sealed class SnapshotBroadcaster
             TimeLimitTicks = _world.MatchRules.TimeLimitTicks,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
+            GibSpawnEvents = gibSpawnEvents,
         };
 
         return new SharedSnapshotData(orderedClients, template);
