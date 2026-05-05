@@ -588,7 +588,6 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
     IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
-    IReadOnlyList<SnapshotBloodDropState> BloodDrops,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     int ControlPointSetupTicksRemaining,
     int KothUnlockTicksRemaining,
@@ -624,7 +623,6 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedFlareIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedMineIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedPlayerGibIds { get; init; } = Array.Empty<int>();
-    public IReadOnlyList<int> RemovedBloodDropIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedDeadBodyIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();

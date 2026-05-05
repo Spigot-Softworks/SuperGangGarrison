@@ -236,7 +236,6 @@ sealed class SnapshotBroadcaster
             ConvertToArray(_world.Flares, static flare => ToSnapshotFlareState(flare)),
             ConvertToArray(_world.Mines, static mine => ToSnapshotMineState(mine)),
             ConvertToArray(_world.PlayerGibs, static gib => ToSnapshotPlayerGibState(gib)),
-            ConvertToArray(_world.BloodDrops, static drop => ToSnapshotBloodDropState(drop)),
             ConvertToArray(_world.DeadBodies, static body => ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
             _world.KothUnlockTicksRemaining,

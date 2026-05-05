@@ -242,6 +242,21 @@ public sealed partial class SimulationWorld
         }
     }
 
+    /// <summary>
+    /// Spawns blood client-side based on damage events from the server.
+    /// </summary>
+    public void SpawnClientBloodFromDamage(float x, float y, int damageAmount)
+    {
+        if (damageAmount <= 0)
+        {
+            return;
+        }
+
+        // Spawn blood proportional to damage (1 drop per 4 damage, max 8 drops)
+        var bloodCount = Math.Min(8, Math.Max(1, damageAmount / 4));
+        SpawnBloodDrops(x, y, bloodCount, velocityRangeX: 6f, velocityRangeY: 8f, spreadRadius: 3f);
+    }
+
     private void MergeBloodDrops()
     {
         if (_bloodDrops.Count < 2)

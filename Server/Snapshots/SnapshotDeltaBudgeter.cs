@@ -194,7 +194,7 @@ internal static class SnapshotDeltaBudgeter
         builder.KillFeed.Clear();
         builder.CombatTraces.Clear();
         // Keep VisualEvents (rocket explosions) - let priority system decide
-        builder.DamageEvents.Clear();
+        // Keep DamageEvents - needed for client-side blood and hit feedback
         builder.SoundEvents.Clear();
     }
 
@@ -387,7 +387,6 @@ internal static class SnapshotDeltaBudgeter
             Flares = Array.Empty<SnapshotShotState>(),
             Mines = Array.Empty<SnapshotMineState>(),
             PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops = Array.Empty<SnapshotBloodDropState>(),
             DeadBodies = Array.Empty<SnapshotDeadBodyState>(),
             ControlPoints = Array.Empty<SnapshotControlPointState>(),
             Generators = Array.Empty<SnapshotGeneratorState>(),
@@ -410,7 +409,6 @@ internal static class SnapshotDeltaBudgeter
             RemovedFlareIds = Array.Empty<int>(),
             RemovedMineIds = Array.Empty<int>(),
             RemovedPlayerGibIds = Array.Empty<int>(),
-            RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
@@ -422,14 +420,12 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             builder.SoundEvents.Clear();
-            builder.DamageEvents.Clear();
             builder.VisualEvents.Clear();
             builder.KillFeed.Clear();
         },
         static builder => builder.CombatTraces.Clear(),
         static builder =>
         {
-            builder.BloodDrops.Clear();
             builder.PlayerGibs.Clear();
             builder.SentryGibs.Clear();
             builder.DeadBodies.Clear();
@@ -442,6 +438,8 @@ internal static class SnapshotDeltaBudgeter
             builder.Needles.Clear();
             builder.RevolverShots.Clear();
             builder.Shots.Clear();
+            // Drop damage events only after cosmetic projectiles are gone
+            builder.DamageEvents.Clear();
         },
         static builder =>
         {
@@ -454,7 +452,6 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             builder.RemovedPlayerIds.Clear();
-            builder.RemovedBloodDropIds.Clear();
             builder.RemovedPlayerGibIds.Clear();
             builder.RemovedSentryGibIds.Clear();
             builder.RemovedJumpPadIds.Clear();
@@ -506,7 +503,6 @@ internal static class SnapshotDeltaBudgeter
             SentryGibs = seedFromTemplateCollections ? new List<SnapshotSentryGibState>(template.SentryGibs) : [];
             JumpPads = seedFromTemplateCollections ? new List<SnapshotJumpPadState>(template.JumpPads) : [];
             PlayerGibs = seedFromTemplateCollections ? new List<SnapshotPlayerGibState>(template.PlayerGibs) : [];
-            BloodDrops = seedFromTemplateCollections ? new List<SnapshotBloodDropState>(template.BloodDrops) : [];
             DeadBodies = seedFromTemplateCollections ? new List<SnapshotDeadBodyState>(template.DeadBodies) : [];
             RemovedPlayerIds = new List<int>(template.RemovedPlayerIds);
             RemovedSentryIds = new List<int>(template.RemovedSentryIds);
@@ -522,7 +518,6 @@ internal static class SnapshotDeltaBudgeter
             RemovedSentryGibIds = new List<int>(template.RemovedSentryGibIds);
             RemovedJumpPadIds = new List<int>(template.RemovedJumpPadIds);
             RemovedPlayerGibIds = new List<int>(template.RemovedPlayerGibIds);
-            RemovedBloodDropIds = new List<int>(template.RemovedBloodDropIds);
             RemovedDeadBodyIds = new List<int>(template.RemovedDeadBodyIds);
         }
 
@@ -549,7 +544,6 @@ internal static class SnapshotDeltaBudgeter
             Mines = new List<SnapshotMineState>(other.Mines);
             SentryGibs = new List<SnapshotSentryGibState>(other.SentryGibs);
             PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
-            BloodDrops = new List<SnapshotBloodDropState>(other.BloodDrops);
             DeadBodies = new List<SnapshotDeadBodyState>(other.DeadBodies);
             RemovedPlayerIds = new List<int>(other.RemovedPlayerIds);
             RemovedSentryIds = new List<int>(other.RemovedSentryIds);
@@ -566,7 +560,6 @@ internal static class SnapshotDeltaBudgeter
             JumpPads = new List<SnapshotJumpPadState>(other.JumpPads);
             RemovedJumpPadIds = new List<int>(other.RemovedJumpPadIds);
             RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
-            RemovedBloodDropIds = new List<int>(other.RemovedBloodDropIds);
             RemovedDeadBodyIds = new List<int>(other.RemovedDeadBodyIds);
         }
 
@@ -591,7 +584,6 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotSentryGibState> SentryGibs { get; } = new();
         public List<SnapshotJumpPadState> JumpPads { get; } = new();
         public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
-        public List<SnapshotBloodDropState> BloodDrops { get; } = new();
         public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
         public List<int> RemovedPlayerIds { get; } = new();
         public List<int> RemovedSentryIds { get; } = new();
@@ -607,7 +599,6 @@ internal static class SnapshotDeltaBudgeter
         public List<int> RemovedSentryGibIds { get; } = new();
         public List<int> RemovedJumpPadIds { get; } = new();
         public List<int> RemovedPlayerGibIds { get; } = new();
-        public List<int> RemovedBloodDropIds { get; } = new();
         public List<int> RemovedDeadBodyIds { get; } = new();
 
         public Builder Clone()
@@ -637,7 +628,6 @@ internal static class SnapshotDeltaBudgeter
                 SentryGibs = SentryGibs.ToArray(),
                 JumpPads = JumpPads.ToArray(),
                 PlayerGibs = PlayerGibs.ToArray(),
-                BloodDrops = BloodDrops.ToArray(),
                 DeadBodies = DeadBodies.ToArray(),
                 KillFeed = KillFeed.ToArray(),
                 VisualEvents = VisualEvents.ToArray(),
@@ -657,7 +647,6 @@ internal static class SnapshotDeltaBudgeter
                 RemovedSentryGibIds = RemovedSentryGibIds.ToArray(),
                 RemovedJumpPadIds = RemovedJumpPadIds.ToArray(),
                 RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
-                RemovedBloodDropIds = RemovedBloodDropIds.ToArray(),
                 RemovedDeadBodyIds = RemovedDeadBodyIds.ToArray(),
             };
         }

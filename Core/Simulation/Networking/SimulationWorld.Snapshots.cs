@@ -209,7 +209,7 @@ public sealed partial class SimulationWorld
             static (entity, state) => entity.ApplyNetworkState(state.X, state.Y, state.VelocityX, state.VelocityY, state.TicksRemaining));
         ApplySnapshotMines(snapshot.Mines);
         ApplySnapshotPlayerGibs(snapshot.PlayerGibs);
-        ApplySnapshotBloodDrops(snapshot.BloodDrops);
+        // Blood drops are now generated locally on the client - not synced from server
         ApplySnapshotDeadBodies(snapshot.DeadBodies);
         ApplySnapshotSentryGibs(snapshot.SentryGibs);
     }

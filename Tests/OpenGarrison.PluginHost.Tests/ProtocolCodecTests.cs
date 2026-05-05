@@ -100,7 +100,6 @@ public sealed class ProtocolCodecTests
             Flares: Array.Empty<SnapshotShotState>(),
             Mines: Array.Empty<SnapshotMineState>(),
             PlayerGibs: Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops: Array.Empty<SnapshotBloodDropState>(),
             DeadBodies: Array.Empty<SnapshotDeadBodyState>(),
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
