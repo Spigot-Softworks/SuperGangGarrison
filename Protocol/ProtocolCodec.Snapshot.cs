@@ -56,8 +56,6 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedMineIds);
         WritePlayerGibStates(writer, snapshot.PlayerGibs);
         WriteEntityIdList(writer, snapshot.RemovedPlayerGibIds);
-        WriteBloodDropStates(writer, snapshot.BloodDrops);
-        WriteEntityIdList(writer, snapshot.RemovedBloodDropIds);
         WriteDeadBodyStates(writer, snapshot.DeadBodies);
         WriteEntityIdList(writer, snapshot.RemovedDeadBodyIds);
         WriteSentryGibStates(writer, snapshot.SentryGibs);
@@ -128,8 +126,6 @@ public static partial class ProtocolCodec
         var removedMineIds = ReadEntityIdList(reader);
         var playerGibs = ReadPlayerGibStates(reader);
         var removedPlayerGibIds = ReadEntityIdList(reader);
-        var bloodDrops = ReadBloodDropStates(reader);
-        var removedBloodDropIds = ReadEntityIdList(reader);
         var deadBodies = ReadDeadBodyStates(reader);
         var removedDeadBodyIds = ReadEntityIdList(reader);
         var sentryGibs = ReadSentryGibStates(reader);
@@ -177,7 +173,6 @@ public static partial class ProtocolCodec
             flares,
             mines,
             playerGibs,
-            bloodDrops,
             deadBodies,
             controlPointSetupTicksRemaining,
             kothUnlockTicksRemaining,
@@ -212,7 +207,6 @@ public static partial class ProtocolCodec
             RemovedFlareIds = removedFlareIds,
             RemovedMineIds = removedMineIds,
             RemovedPlayerGibIds = removedPlayerGibIds,
-            RemovedBloodDropIds = removedBloodDropIds,
             RemovedDeadBodyIds = removedDeadBodyIds,
             SentryGibs = sentryGibs,
             RemovedSentryGibIds = removedSentryGibIds,

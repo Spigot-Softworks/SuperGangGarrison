@@ -254,21 +254,7 @@ internal static class SnapshotContributionPlanner
             static (builder, id) => builder.RemovedPlayerGibIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
-        AddEntityDelta(
-            contributions,
-            fullSnapshot.BloodDrops,
-            baseline?.BloodDrops,
-            priority: 240,
-            estimateUpdatedBytes: static state => 29,
-            estimatedRemovedBytes: 4,
-            focus,
-            static state => state.Id,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.BloodDrops.Add(state),
-            static (builder, id) => builder.RemovedBloodDropIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
+        // Blood drops are now generated locally on the client - not sent over network
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
@@ -292,13 +278,13 @@ internal static class SnapshotContributionPlanner
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
-            priority: 830,
+            priority: 1150, // High priority - needed for client-side blood and hit feedback
             estimateBytes: static state => 42,
             focus,
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.DamageEvents.Add(state),
-            maxDistanceFromFocus: MaxEventDistanceFromFocus);
+            maxDistanceFromFocus: float.MaxValue); // Never distance-filter damage events - they're critical for hit feedback/blood
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
