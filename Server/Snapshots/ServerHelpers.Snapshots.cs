@@ -13,7 +13,12 @@ internal static partial class ServerHelpers
     private const string SoldierShotgunReloadTicksKey = "soldier_shotgun_reload_ticks";
     private const string SoldierShotgunCooldownTicksKey = "soldier_shotgun_cooldown_ticks";
 
-    internal static SnapshotPlayerState ToSnapshotPlayerState(SimulationWorld world, byte slot, PlayerEntity player, PlayerEntity? viewer)
+    internal static SnapshotPlayerState ToSnapshotPlayerState(
+        SimulationWorld world,
+        byte slot,
+        PlayerEntity player,
+        PlayerEntity? viewer,
+        SnapshotStringCache stringCache)
     {
         var isPlayableSlot = SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
         var isAwaitingJoin = isPlayableSlot && world.IsNetworkPlayerAwaitingJoin(slot);
@@ -151,6 +156,8 @@ internal static partial class ServerHelpers
             player.HeavyEatCooldownTicksRemaining,
             (short)player.Assists,
             player.BadgeMask,
+            player.IsMedicHealing,
+            player.MedicHealTargetId ?? -1,
             player.GameplayLoadoutState.ModPackId,
             player.GameplayLoadoutState.LoadoutId,
             player.GameplayLoadoutState.PrimaryItemId,
@@ -159,6 +166,13 @@ internal static partial class ServerHelpers
             (byte)player.GameplayLoadoutState.EquippedSlot,
             player.GameplayLoadoutState.EquippedItemId,
             player.GameplayLoadoutState.AcquiredItemId ?? string.Empty,
+            GameplayModPackCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.ModPackId),
+            GameplayLoadoutCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.LoadoutId),
+            GameplayPrimaryItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.PrimaryItemId),
+            GameplaySecondaryItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.SecondaryItemId ?? string.Empty),
+            GameplayUtilityItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.UtilityItemId ?? string.Empty),
+            GameplayEquippedItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.EquippedItemId),
+            GameplayAcquiredItemCacheId: stringCache.GetOrAddCacheId(player.GameplayLoadoutState.AcquiredItemId ?? string.Empty),
             ReferenceEquals(player, viewer) ? player.GetTrackedOwnedGameplayItemIds() : Array.Empty<string>(),
             replicatedStates.ToArray(),
             player.PlayerScale,

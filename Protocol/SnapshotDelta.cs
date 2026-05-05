@@ -43,7 +43,6 @@ public static class SnapshotDelta
             Flares = MergeEntities(baseline?.Flares, snapshot.Flares, snapshot.RemovedFlareIds, static state => state.Id),
             Mines = MergeEntities(baseline?.Mines, snapshot.Mines, snapshot.RemovedMineIds, static state => state.Id),
             PlayerGibs = MergeEntities(baseline?.PlayerGibs, snapshot.PlayerGibs, snapshot.RemovedPlayerGibIds, static state => state.Id),
-            BloodDrops = MergeEntities(baseline?.BloodDrops, snapshot.BloodDrops, snapshot.RemovedBloodDropIds, static state => state.Id),
             DeadBodies = MergeEntities(baseline?.DeadBodies, snapshot.DeadBodies, snapshot.RemovedDeadBodyIds, static state => state.Id),
             SentryGibs = MergeEntities(baseline?.SentryGibs, snapshot.SentryGibs, snapshot.RemovedSentryGibIds, static state => state.Id),
             JumpPads = MergeEntities(baseline?.JumpPads, snapshot.JumpPads, snapshot.RemovedJumpPadIds, static state => state.Id),
@@ -60,7 +59,6 @@ public static class SnapshotDelta
             RemovedFlareIds = Array.Empty<int>(),
             RemovedMineIds = Array.Empty<int>(),
             RemovedPlayerGibIds = Array.Empty<int>(),
-            RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
@@ -86,7 +84,6 @@ public static class SnapshotDelta
             RemovedFlareIds = Array.Empty<int>(),
             RemovedMineIds = Array.Empty<int>(),
             RemovedPlayerGibIds = Array.Empty<int>(),
-            RemovedBloodDropIds = Array.Empty<int>(),
             RemovedDeadBodyIds = Array.Empty<int>(),
             RemovedSentryGibIds = Array.Empty<int>(),
             RemovedJumpPadIds = Array.Empty<int>(),
@@ -136,6 +133,10 @@ public static class SnapshotDelta
                 continue;
             }
 
+            // Only update TauntFrameIndex if taunt is starting (wasn't taunting before)
+            // Otherwise let client simulation advance the frame locally
+            var isTauntStarting = !player.IsTaunting && movement.IsTaunting;
+            
             mergedBySlot[movement.Slot] = player with
             {
                 X = movement.X,
@@ -148,7 +149,7 @@ public static class SnapshotDelta
                 AimDirectionDegrees = movement.AimDirectionDegrees,
                 MovementState = movement.MovementState,
                 IsTaunting = movement.IsTaunting,
-                TauntFrameIndex = movement.TauntFrameIndex,
+                TauntFrameIndex = isTauntStarting ? movement.TauntFrameIndex : player.TauntFrameIndex,
                 BurnIntensity = movement.BurnIntensity,
                 GameplayEquippedSlot = movement.GameplayEquippedSlot,
                 PrimaryCooldownTicks = movement.PrimaryCooldownTicks,

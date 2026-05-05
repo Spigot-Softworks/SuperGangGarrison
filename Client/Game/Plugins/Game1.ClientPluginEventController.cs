@@ -88,12 +88,26 @@ public partial class Game1
             var localDamageEvents = _game._world.DrainPendingDamageEvents();
             for (var index = 0; index < localDamageEvents.Count; index += 1)
             {
-                TryTrackLastToDieDamageDealt(localDamageEvents[index].AttackerPlayerId, localDamageEvents[index].Amount);
+                var damageEvent = localDamageEvents[index];
+                TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                
+                // Generate blood locally on the client when players take damage
+                if (damageEvent.TargetKind == CoreDamageTargetKind.Player && damageEvent.Amount > 0)
+                {
+                    _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                }
             }
 
             for (var index = 0; index < _game._pendingNetworkDamageEvents.Count; index += 1)
             {
-                TryTrackLastToDieDamageDealt(_game._pendingNetworkDamageEvents[index].AttackerPlayerId, _game._pendingNetworkDamageEvents[index].Amount);
+                var damageEvent = _game._pendingNetworkDamageEvents[index];
+                TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                
+                // Generate blood locally on the client when players take damage
+                if (damageEvent.TargetKind == (byte)CoreDamageTargetKind.Player && damageEvent.Amount > 0)
+                {
+                    _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                }
             }
 
             if (_game._clientPluginHost is null)

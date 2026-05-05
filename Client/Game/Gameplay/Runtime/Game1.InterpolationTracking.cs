@@ -651,6 +651,13 @@ public partial class Game1
 
     private void CaptureProjectileInterpolationTarget(int entityId, float x, float y, Vector2 velocity, float maxExtrapolationDistance, double snapshotTimeSeconds)
     {
+        // Projectiles use spawn-only updates with client-side prediction
+        // Skip interpolation tracking when extrapolation ceiling is 0
+        if (ProjectileInterpolationExtrapolationCeilingSeconds <= 0f)
+        {
+            return;
+        }
+
         var baseSnapshotIntervalSeconds = MathF.Max(
             1f / _config.TicksPerSecond,
             _smoothedSnapshotIntervalSeconds);

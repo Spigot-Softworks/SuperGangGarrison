@@ -13,6 +13,19 @@ public sealed partial class SimulationWorld
             _matchPhaseController = new RuntimeMatchPhaseController(world);
         }
 
+        public void AdvanceClientPredictionPhase()
+        {
+            // Client prediction: projectiles only
+            // Server remains authoritative for all players (including local player)
+            _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
+        }
+
+        public void AdvanceProjectilePhaseOnly()
+        {
+            // Only advance projectiles and transient entities
+            _entityPhaseController.AdvanceProjectileAndTransientEntityPhase();
+        }
+
         public void AdvancePrePlayerSimulationPhase()
         {
             _matchPhaseController.AdvancePrePlayerMatchPhase();

@@ -339,12 +339,16 @@ public sealed class DamageIndicatorPlugin :
 
     private (Vector2 Position, float Scale, bool BottomAligned) GetHudAnchor(IOpenGarrisonClientHudCanvas canvas, float yOffset)
     {
+        // Position damage indicator at bottom of screen with padding, accounting for different aspect ratios
+        var paddingFromBottom = _config.MoveCounterForHud ? 53f : 33f;
+        var yPosition = canvas.ViewportHeight - paddingFromBottom + yOffset;
+        
         if (_config.MoveCounterForHud)
         {
-            return (new Vector2(64f, 547f + yOffset), 2f, true);
+            return (new Vector2(64f, yPosition), 2f, true);
         }
 
-        return (new Vector2(89f, 567f + yOffset), 3f, false);
+        return (new Vector2(89f, yPosition), 3f, false);
     }
 
     private void DrawDamageText(

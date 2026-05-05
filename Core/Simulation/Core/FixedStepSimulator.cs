@@ -5,6 +5,8 @@ public sealed class FixedStepSimulator
     private readonly SimulationWorld _world;
     private double _accumulatorSeconds;
 
+    public SimulationWorld World => _world;
+
     public FixedStepSimulator(SimulationWorld world)
     {
         _world = world;
