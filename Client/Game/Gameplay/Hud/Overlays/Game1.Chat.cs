@@ -275,10 +275,18 @@ public partial class Game1
         var statusText = _chatScrollOffset > 0
             ? $"Scroll: {_chatScrollOffset} older | PgUp/PgDn, Home/End, Wheel"
             : $"History: {_chatLines.Count} lines | PgUp/PgDn, Home/End, Wheel";
+        var lineHeight = GetChatHudLineHeight();
+        var statusRectangle = new Rectangle(
+            promptRectangle.X,
+            promptRectangle.Bottom + 6,
+            promptRectangle.Width,
+            (int)MathF.Ceiling(lineHeight + 10f));
+        DrawInsetHudPanel(statusRectangle, new Color(0, 0, 0, 220), new Color(49, 45, 26, 220));
+
         var textWidth = MeasureBitmapFontWidth(statusText, 1f);
         var textPosition = new Vector2(
-            Math.Max(18f, promptRectangle.Right - textWidth - 10f),
-            promptRectangle.Y - GetChatHudLineHeight() - 8f);
+            Math.Max(statusRectangle.X + 8f, statusRectangle.Right - textWidth - 10f),
+            statusRectangle.Y + 5f);
         DrawBitmapFontText(statusText, textPosition, new Color(235, 235, 235), 1f);
     }
 

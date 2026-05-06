@@ -63,6 +63,8 @@ public sealed partial class SimulationWorld
     private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
     private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
     private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
+    private readonly HashSet<byte> _remoteSnapshotAwaitingJoinSlots = new();
+    private readonly HashSet<int> _remoteSnapshotAwaitingJoinPlayerIds = new();
     private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
     private readonly Dictionary<int, PlayerEntity> _activeNetworkPlayersById = new();
     private readonly Dictionary<int, byte> _networkPlayerSlotsByPlayerId = new();
@@ -77,6 +79,7 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
     private readonly HashSet<int> _clientPredictedProjectileIds = new();
+    private readonly HashSet<int> _terminatedProjectileIds = new();
     private readonly ClientSnapshotStringCache _snapshotStringCache = new();
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
@@ -270,7 +273,12 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
 
+    public IReadOnlySet<byte> RemoteSnapshotAwaitingJoinSlots => _remoteSnapshotAwaitingJoinSlots;
+
     public bool EnemyPlayerEnabled { get; private set; } = true;
+
+    public bool IsRemoteSnapshotPlayerAwaitingJoin(PlayerEntity player)
+        => _remoteSnapshotAwaitingJoinPlayerIds.Contains(player.Id);
 
     public bool FriendlyDummyEnabled { get; private set; }
 
@@ -442,7 +450,9 @@ public sealed partial class SimulationWorld
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         if (definition.Id == GetNetworkPlayerClassDefinition(LocalPlayerSlot).Id)
         {
-            return false;
+            // Allow same-class selection to commit a pending team swap by forcing respawn.
+            return LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+                && TryForceRespawnNetworkPlayer(LocalPlayerSlot);
         }
 
         return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);

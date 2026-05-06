@@ -11,6 +11,16 @@ public partial class Game1
 {
     private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
 
+    private Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
+    {
+        if (!_projectileTeamTintEnabled)
+        {
+            return neutralColor;
+        }
+
+        return team == PlayerTeam.Blue ? blueColor : redColor;
+    }
+
     private void DrawMedicBeams(Vector2 cameraPosition)
     {
         foreach (var player in EnumerateRenderablePlayers())
@@ -34,9 +44,19 @@ public partial class Game1
             return;
         }
 
-        var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
-        var aimDirection = new Vector2(MathF.Cos(aimRadians), MathF.Sin(aimRadians));
-        var beamOrigin = GetMedicBeamOrigin(medic);
+        var healTargetRenderPosition = GetRenderPosition(healTarget, allowInterpolation: !ReferenceEquals(healTarget, _world.LocalPlayer));
+        var beamOrigin = GetMedicBeamOrigin(medic, out var weaponForwardDirection);
+        var toTarget = healTargetRenderPosition - beamOrigin;
+        if (toTarget.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
+        var aimDirection = weaponForwardDirection;
+        if (aimDirection.LengthSquared() <= 0.0001f)
+        {
+            aimDirection = Vector2.Normalize(toTarget);
+        }
         var beamColor = healTarget.Team == PlayerTeam.Blue
             ? new Color(0, 20, 180, 90)
             : new Color(120, 5, 5, 90);
@@ -47,13 +67,13 @@ public partial class Game1
         var helixStartColor = healTarget.Team == PlayerTeam.Blue
             ? new Color(140, 195, 255, 190)
             : new Color(255, 175, 175, 200);
-        var beamStartX = beamOrigin.X + aimDirection.X * 24f;
-        var beamStartY = beamOrigin.Y + aimDirection.Y * 24f;
+        var beamStartX = beamOrigin.X;
+        var beamStartY = beamOrigin.Y;
         DrawCurvedWorldLine(
             beamStartX,
             beamStartY,
-            healTarget.X,
-            healTarget.Y,
+            healTargetRenderPosition.X,
+            healTargetRenderPosition.Y,
             cameraPosition,
             beamStartColor,
             beamColor,
@@ -65,8 +85,8 @@ public partial class Game1
         DrawMedicBeamHelix(
             beamStartX,
             beamStartY,
-            healTarget.X,
-            healTarget.Y,
+            healTargetRenderPosition.X,
+            healTargetRenderPosition.Y,
             cameraPosition,
             aimDirection,
             helixStartColor,
@@ -199,8 +219,9 @@ public partial class Game1
         }
     }
 
-    private Vector2 GetMedicBeamOrigin(PlayerEntity medic)
+    private Vector2 GetMedicBeamOrigin(PlayerEntity medic, out Vector2 weaponForwardDirection)
     {
+        weaponForwardDirection = Vector2.Zero;
         var renderPosition = GetRenderPosition(medic, allowInterpolation: !ReferenceEquals(medic, _world.LocalPlayer));
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var weaponDefinition = GetWeaponRenderDefinition(medic);
@@ -215,12 +236,40 @@ public partial class Game1
             return roundedOrigin;
         }
 
+        if (sprite.Frames.Count == 0)
+        {
+            return roundedOrigin;
+        }
+
         var bodySelection = GetPlayerBodySpriteSelection(medic);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-        var facingScale = GetPlayerFacingScale(medic);
+        var renderAim = GetRenderAimWorldPosition(medic);
+        var playerScale = medic.PlayerScale;
+
+        var facingScale = MathF.Abs(renderAim.X - roundedOrigin.X) > 0.001f
+            ? (renderAim.X < roundedOrigin.X ? -1f : 1f)
+            : (medic.FacingDirectionX < 0f ? -1f : 1f);
+
+        var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+        var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+
+        var aimDeltaX = renderAim.X - drawX;
+        var aimDeltaY = renderAim.Y - drawY;
+        var aimLength = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+        if (aimLength <= 0.001f)
+        {
+            weaponForwardDirection = new Vector2(facingScale, 0f);
+            return new Vector2(drawX, drawY);
+        }
+
+        var aimDirectionX = aimDeltaX / aimLength;
+        var aimDirectionY = aimDeltaY / aimLength;
+        weaponForwardDirection = new Vector2(aimDirectionX, aimDirectionY);
+
+        var tipDistance = Math.Max(0f, (sprite.Frames[0].Width - anchorOrigin.X) * playerScale);
         return new Vector2(
-            roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale,
-            roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y);
+            drawX + aimDirectionX * tipDistance,
+            drawY + aimDirectionY * tipDistance);
     }
 
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
@@ -311,7 +360,7 @@ public partial class Game1
     private void DrawShotProjectile(ShotProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
-        var shotColor = shot.Team == PlayerTeam.Blue ? blueColor : redColor;
+        var shotColor = ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(235, 228, 210));
         if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, GetVelocityRotation(shot.VelocityX, shot.VelocityY)))
         {
             var shotRectangle = new Rectangle(
@@ -326,7 +375,7 @@ public partial class Game1
     private void DrawShotProjectile(RevolverProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
-        var shotColor = shot.Team == PlayerTeam.Blue ? blueColor : redColor;
+        var shotColor = ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(245, 236, 214));
         if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, GetVelocityRotation(shot.VelocityX, shot.VelocityY)))
         {
             var shotRectangle = new Rectangle(
@@ -341,9 +390,11 @@ public partial class Game1
     private void DrawNeedleProjectile(NeedleProjectileEntity needle, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(needle.Id, needle.X, needle.Y);
-        var needleColor = needle.Team == PlayerTeam.Blue
-            ? new Color(150, 220, 255)
-            : new Color(240, 240, 220);
+        var needleColor = ResolveProjectileTint(
+            needle.Team,
+            new Color(150, 220, 255),
+            new Color(240, 240, 220),
+            new Color(236, 236, 228));
         if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, GetVelocityRotation(needle.VelocityX, needle.VelocityY)))
         {
             var needleRectangle = new Rectangle(
@@ -358,9 +409,11 @@ public partial class Game1
     private void DrawBubbleProjectile(BubbleProjectileEntity bubble, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(bubble.Id, bubble.X, bubble.Y);
-        var bubbleColor = bubble.Team == PlayerTeam.Blue
-            ? new Color(170, 225, 255)
-            : new Color(245, 245, 255);
+        var bubbleColor = ResolveProjectileTint(
+            bubble.Team,
+            new Color(170, 225, 255),
+            new Color(245, 245, 255),
+            new Color(242, 242, 248));
         if (!TryDrawSprite("BubbleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, bubbleColor))
         {
             var bubbleRectangle = new Rectangle(
@@ -375,9 +428,11 @@ public partial class Game1
     private void DrawBladeProjectile(BladeProjectileEntity blade, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(blade.Id, blade.X, blade.Y);
-        var bladeColor = blade.Team == PlayerTeam.Blue
-            ? new Color(180, 220, 255)
-            : new Color(255, 235, 170);
+        var bladeColor = ResolveProjectileTint(
+            blade.Team,
+            new Color(180, 220, 255),
+            new Color(255, 235, 170),
+            new Color(244, 232, 208));
         var bladeFrameIndex = Math.Max(0, PlayerEntity.QuoteBladeLifetimeTicks - blade.TicksRemaining) % 4;
         if (!TryDrawSprite("BladeProjectileS", bladeFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, bladeColor, GetVelocityRotation(blade.VelocityX, blade.VelocityY)))
         {
@@ -962,9 +1017,11 @@ public partial class Game1
     private void DrawRocketProjectile(RocketProjectileEntity rocket, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
-        var rocketColor = rocket.Team == PlayerTeam.Blue
-            ? new Color(120, 180, 255)
-            : new Color(255, 110, 90);
+        var rocketColor = ResolveProjectileTint(
+            rocket.Team,
+            new Color(120, 180, 255),
+            new Color(255, 110, 90),
+            new Color(230, 220, 210));
         var rocketFrame = rocket.Team == PlayerTeam.Blue ? 0 : 1;
         var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
         if (!TryDrawSprite("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocketColor, rocket.DirectionRadians, scale: rocketScale))

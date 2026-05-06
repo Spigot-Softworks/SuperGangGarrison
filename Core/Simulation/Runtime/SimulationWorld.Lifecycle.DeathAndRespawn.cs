@@ -22,6 +22,11 @@ public sealed partial class SimulationWorld
             : null;
 
         player.AddDeath();
+        if (gibbed)
+        {
+            player.AddGibDeath();
+        }
+
         if (killer is not null && !ReferenceEquals(killer, player))
         {
             killer.AddKill();

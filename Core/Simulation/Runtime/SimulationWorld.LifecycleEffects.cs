@@ -12,8 +12,8 @@ public sealed partial class SimulationWorld
 
         var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
         var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
-        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
-        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY);
+        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
+        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
 
         RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
         SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f);
@@ -33,7 +33,35 @@ public sealed partial class SimulationWorld
                 rotationFriction: gibPart.RotationFriction,
                 bloodChance: gibPart.BloodChance,
                 inheritedVelocityX: gibPart.InheritPlayerVelocity ? inheritedVelocityX : 0f,
-                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f);
+                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f,
+                emitNetworkEvents: false);
+        }
+    }
+
+    private void SpawnPlayerGibsForNetworkDeath(PlayerEntity player)
+    {
+        var inheritedVelocityX = player.HorizontalSpeed * (float)Config.FixedDeltaSeconds;
+        var inheritedVelocityY = player.VerticalSpeed * (float)Config.FixedDeltaSeconds;
+        SpawnPlayerGibSet(player, "GibS", DefaultGibLevel, randomFrameCount: 7, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 210, horizontalFriction: 0.4f, rotationFriction: 0.6f, bloodChance: 1.8f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
+        SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, emitNetworkEvents: false);
+
+        foreach (var gibPart in GetPlayerGibParts(player))
+        {
+            SpawnPlayerGibSet(
+                player,
+                gibPart.SpriteName,
+                gibPart.Count,
+                frameIndex: gibPart.FrameIndex,
+                velocityRangeX: gibPart.VelocityRangeX,
+                velocityRangeY: gibPart.VelocityRangeY,
+                rotationRange: gibPart.RotationRange,
+                lifetimeTicks: gibPart.LifetimeTicks,
+                horizontalFriction: gibPart.HorizontalFriction,
+                rotationFriction: gibPart.RotationFriction,
+                bloodChance: gibPart.BloodChance,
+                inheritedVelocityX: gibPart.InheritPlayerVelocity ? inheritedVelocityX : 0f,
+                inheritedVelocityY: gibPart.InheritPlayerVelocity ? inheritedVelocityY : 0f,
+                emitNetworkEvents: false);
         }
     }
 
@@ -51,7 +79,8 @@ public sealed partial class SimulationWorld
         float rotationFriction = 0.5f,
         float bloodChance = PlayerGibEntity.DefaultBloodChance,
         float inheritedVelocityX = 0f,
-        float inheritedVelocityY = 0f)
+        float inheritedVelocityY = 0f,
+        bool emitNetworkEvents = true)
     {
         for (var index = 0; index < count; index += 1)
         {
@@ -77,19 +106,22 @@ public sealed partial class SimulationWorld
             _playerGibs.Add(gib);
             _entities.Add(gib.Id, gib);
             
-            // Emit event for network replication to clients
-            _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
-                spriteName,
-                resolvedFrameIndex,
-                player.X,
-                player.Y,
-                velocityX,
-                velocityY,
-                rotationSpeed,
-                horizontalFriction,
-                rotationFriction,
-                lifetimeTicks,
-                bloodChance));
+            if (emitNetworkEvents)
+            {
+                // Emit event for network replication to clients.
+                _pendingGibSpawnEvents.Add(new WorldGibSpawnEvent(
+                    spriteName,
+                    resolvedFrameIndex,
+                    player.X,
+                    player.Y,
+                    velocityX,
+                    velocityY,
+                    rotationSpeed,
+                    horizontalFriction,
+                    rotationFriction,
+                    lifetimeTicks,
+                    bloodChance));
+            }
         }
     }
 
@@ -287,6 +319,11 @@ public sealed partial class SimulationWorld
         // Spawn blood proportional to damage (1 drop per 4 damage, max 8 drops)
         var bloodCount = Math.Min(8, Math.Max(1, damageAmount / 4));
         SpawnBloodDrops(x, y, bloodCount, velocityRangeX: 6f, velocityRangeY: 8f, spreadRadius: 3f);
+    }
+
+    public void ClearBloodDrops()
+    {
+        RemoveEntities(_bloodDrops);
     }
 
     private void MergeBloodDrops()

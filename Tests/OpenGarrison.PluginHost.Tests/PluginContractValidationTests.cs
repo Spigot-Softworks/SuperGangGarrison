@@ -361,6 +361,7 @@ public sealed class PluginContractValidationTests
         public bool IsLocalPlayerAlive => false;
         public bool IsLocalPlayerScoped => false;
         public bool IsLocalPlayerHealing => false;
+        public float SoundEffectsVolumeScale => 1f;
         public Vector2 CameraTopLeft => Vector2.Zero;
 
         public void SendPluginMessage(string sourcePluginId, string targetPluginId, string messageType, string payload, PluginMessagePayloadFormat payloadFormat, ushort schemaVersion)

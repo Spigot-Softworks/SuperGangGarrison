@@ -305,7 +305,8 @@ internal sealed partial class LuaClientPlugin(
             var volume = ReadOptionalFloatArgument(args, 1, 1f);
             var pitch = ReadOptionalFloatArgument(args, 2, 0f);
             var pan = ReadOptionalFloatArgument(args, 3, 0f);
-            return DynValue.NewBoolean(sound.Play(volume, pitch, pan));
+            var effectiveVolume = Math.Clamp(volume * context.ClientState.SoundEffectsVolumeScale, 0f, 1f);
+            return DynValue.NewBoolean(sound.Play(effectiveVolume, pitch, pan));
         });
         host["register_menu_entry"] = DynValue.NewCallback((_, args) =>
         {

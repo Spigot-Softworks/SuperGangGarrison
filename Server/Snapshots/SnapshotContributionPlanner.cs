@@ -14,22 +14,8 @@ internal static class SnapshotContributionPlanner
     private const int LocalPlayerUpdatePriorityBonus = 300;
     private const int RemovedPlayerEstimatedBytes = 6;
     private const int SnapshotPlayerFixedBytes = 220;
-    private const int SnapshotPlayerMovementBytes = 49;
-    private const int CosmeticEntityUpdateIntervalTicks = 8;
-    private const float MaxEventDistanceFromFocus = 1200f;
-    
-    // Snapshot Bandwidth Optimizations:
-    // 1. Distance-based player detail scheduling (nearby: every tick, medium: every 3 ticks, far: every 6 ticks)
-    // 2. Weapon/status effect trimming in budget reducer (zero values omitted)
-    // 3. Aggressive medic beam state trimming when not healing
-    // 4. More aggressive distance thresholds and intervals
-    
-    // Distance-based player detail update scheduling
-    private const float PlayerDetailNearbyDistance = 600f; // Reduced from 800
-    private const float PlayerDetailMediumDistance = 1200f; // Reduced from 1600
-    private const int PlayerDetailNearbyUpdateInterval = 1; // Every tick
-    private const int PlayerDetailMediumUpdateInterval = 3; // Every 3 ticks (was 2)
-    private const int PlayerDetailFarUpdateInterval = 6; // Every 6 ticks (was 4)
+    private const int SnapshotPlayerMovementBytes = 32;
+    private const int ProjectileSnapshotUpdateIntervalTicks = 3;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
@@ -40,12 +26,6 @@ internal static class SnapshotContributionPlanner
         var focus = GetClientFocusPoint(client, world);
         var frame = world.Frame;
         var contributions = new List<SnapshotDeltaBudgeter.Contribution>();
-        
-        // Spectators and dead players get all events regardless of distance (server doesn't know their camera position)
-        var isAlivePlayer = SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && world.TryGetNetworkPlayer(client.Slot, out var player)
-            && player.IsAlive;
-        var eventDistanceLimit = isAlivePlayer ? MaxEventDistanceFromFocus : float.MaxValue;
 
         AddPlayerDelta(
             contributions,
@@ -53,8 +33,7 @@ internal static class SnapshotContributionPlanner
             baseline?.Players ?? Array.Empty<SnapshotPlayerState>(),
             PlayerUpdatePriority,
             client.Slot,
-            focus,
-            frame);
+            focus);
 
         AddEntityDelta(
             contributions,
@@ -242,50 +221,60 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.SentryGibs.Add(state),
-            static (builder, id) => builder.RemovedSentryGibIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
-        // Blood drops are now generated locally on the client - not sent over network
-        AddPointEventContributions(
+            static (builder, id) => builder.RemovedSentryGibIds.Add(id));
+        AddEntityDelta(
             contributions,
-            fullSnapshot.GibSpawnEvents,
+            fullSnapshot.PlayerGibs,
+            baseline?.PlayerGibs,
             priority: 320,
-            estimateBytes: EstimateGibSpawnEventBytes,
+            estimateUpdatedBytes: EstimatePlayerGibBytes,
+            estimatedRemovedBytes: 4,
             focus,
+            static state => state.Id,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.GibSpawnEvents.Add(state),
-            maxDistanceFromFocus: eventDistanceLimit);
+            static (builder, state) => builder.PlayerGibs.Add(state),
+            static (builder, id) => builder.RemovedPlayerGibIds.Add(id));
+        AddEntityDelta(
+            contributions,
+            fullSnapshot.BloodDrops,
+            baseline?.BloodDrops,
+            priority: 240,
+            estimateUpdatedBytes: static state => 29,
+            estimatedRemovedBytes: 4,
+            focus,
+            static state => state.Id,
+            static state => state.X,
+            static state => state.Y,
+            static (builder, state) => builder.BloodDrops.Add(state),
+            static (builder, id) => builder.RemovedBloodDropIds.Add(id));
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
-            priority: 850,
+            priority: 1300,
             estimateBytes: EstimateSoundEventBytes,
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.SoundEvents.Add(state),
-            maxDistanceFromFocus: eventDistanceLimit);
+            static (builder, state) => builder.SoundEvents.Add(state));
         AddPointEventContributions(
             contributions,
             fullSnapshot.VisualEvents,
-            priority: 840,
+            priority: 1290,
             estimateBytes: EstimateVisualEventBytes,
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.VisualEvents.Add(state),
-            maxDistanceFromFocus: eventDistanceLimit);
+            static (builder, state) => builder.VisualEvents.Add(state));
         AddPointEventContributions(
             contributions,
             fullSnapshot.DamageEvents,
-            priority: 1150, // High priority - needed for client-side blood and hit feedback
+            priority: 1285,
             estimateBytes: static state => 42,
             focus,
             static state => state.X,
             static state => state.Y,
-            static (builder, state) => builder.DamageEvents.Add(state),
-            maxDistanceFromFocus: float.MaxValue); // Never distance-filter damage events - they're critical for hit feedback/blood
+            static (builder, state) => builder.DamageEvents.Add(state));
         AddOrderedContributions(
             contributions,
             fullSnapshot.KillFeed,
@@ -299,22 +288,16 @@ internal static class SnapshotContributionPlanner
     private static (float X, float Y) GetClientFocusPoint(ClientSession client, SimulationWorld world)
     {
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && world.TryGetNetworkPlayer(client.Slot, out var player))
+            && world.TryGetNetworkPlayer(client.Slot, out var player)
+            && player.IsAlive)
         {
-            if (player.IsAlive)
-            {
-                return (player.X, player.Y);
-            }
-            
-            // Dead player: check for death cam first
-            var deathCam = world.GetNetworkPlayerDeathCam(client.Slot);
-            if (deathCam is not null)
-            {
-                return (deathCam.FocusX, deathCam.FocusY);
-            }
-            
-            // No death cam (e.g., self-kill): use player's last position
             return (player.X, player.Y);
+        }
+
+        var deathCam = world.GetNetworkPlayerDeathCam(client.Slot);
+        if (deathCam is not null)
+        {
+            return (deathCam.FocusX, deathCam.FocusY);
         }
 
         return (world.Bounds.Width / 2f, world.Bounds.Height / 2f);
@@ -326,8 +309,7 @@ internal static class SnapshotContributionPlanner
         IReadOnlyList<SnapshotPlayerState> baselinePlayers,
         int priority,
         byte viewerSlot,
-        (float X, float Y) focus,
-        long currentFrame)
+        (float X, float Y) focus)
     {
         var currentBySlot = new Dictionary<int, SnapshotPlayerState>(currentPlayers.Count);
         for (var index = 0; index < currentPlayers.Count; index += 1)
@@ -407,33 +389,14 @@ internal static class SnapshotContributionPlanner
 
             if (HasPlayerNonMovementDetailChanged(player, baselinePlayer!))
             {
-                // Distance-based detail update scheduling (similar to cosmetic entities)
-                // Always update local player and nearby players every tick
-                var distance = MathF.Sqrt(DistanceSquared(focus.X, focus.Y, player.X, player.Y));
-                var updateInterval = distance < PlayerDetailNearbyDistance
-                    ? PlayerDetailNearbyUpdateInterval
-                    : distance < PlayerDetailMediumDistance
-                        ? PlayerDetailMediumUpdateInterval
-                        : PlayerDetailFarUpdateInterval;
-                
-                // Skip scheduled update if not the player's turn (unless it's the local viewer)
-                if (player.Slot != viewerSlot && (currentFrame % updateInterval) != (player.PlayerId % updateInterval))
-                {
-                    continue;
-                }
-                
                 var detailPriority = player.Slot == viewerSlot
                     ? PlayerDetailUpdatePriority + 50
                     : PlayerDetailUpdatePriority;
-                var detailKind = player.Slot == viewerSlot
-                    ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate
-                    : SnapshotDeltaBudgeter.ContributionKind.Optional;
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     detailPriority,
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
                     EstimatePlayerBytes(player),
-                    builder => builder.Players.Add(player),
-                    detailKind));
+                    builder => builder.Players.Add(player)));
             }
         }
     }
@@ -451,14 +414,7 @@ internal static class SnapshotContributionPlanner
             player.FacingDirectionX,
             player.AimDirectionDegrees,
             player.MovementState,
-            player.IsTaunting,
-            player.TauntFrameIndex,
-            player.BurnIntensity,
-            player.GameplayEquippedSlot,
-            player.PrimaryCooldownTicks,
-            player.ReloadTicksUntilNextShell,
-            player.OffhandCooldownTicks,
-            player.OffhandReloadTicks);
+            player.IsExperimentalOffhandEquipped);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -472,14 +428,7 @@ internal static class SnapshotContributionPlanner
             || player.FacingDirectionX != baselinePlayer.FacingDirectionX
             || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
             || player.MovementState != baselinePlayer.MovementState
-            || player.IsTaunting != baselinePlayer.IsTaunting
-            // TauntFrameIndex excluded - client simulates animation locally
-            || player.BurnIntensity != baselinePlayer.BurnIntensity
-            || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
-            || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
-            || player.ReloadTicksUntilNextShell != baselinePlayer.ReloadTicksUntilNextShell
-            || player.OffhandCooldownTicks != baselinePlayer.OffhandCooldownTicks
-            || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
+            || player.IsExperimentalOffhandEquipped != baselinePlayer.IsExperimentalOffhandEquipped;
     }
 
     private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -495,9 +444,7 @@ internal static class SnapshotContributionPlanner
             FacingDirectionX = baselinePlayer.FacingDirectionX,
             AimDirectionDegrees = baselinePlayer.AimDirectionDegrees,
             MovementState = baselinePlayer.MovementState,
-            IsTaunting = baselinePlayer.IsTaunting,
-            TauntFrameIndex = baselinePlayer.TauntFrameIndex,
-            BurnIntensity = baselinePlayer.BurnIntensity,
+            IsExperimentalOffhandEquipped = baselinePlayer.IsExperimentalOffhandEquipped,
         };
 
         return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);
@@ -579,9 +526,12 @@ internal static class SnapshotContributionPlanner
         int entityId,
         Func<T, T, bool> isMotionOnlyChange)
     {
-        // Only send projectile updates when there are non-motion state changes
-        // Motion-only updates are always skipped - clients predict projectile motion locally
-        return isMotionOnlyChange(state, baselineState);
+        if (!isMotionOnlyChange(state, baselineState))
+        {
+            return false;
+        }
+
+        return ((currentWorldFrame + entityId) % ProjectileSnapshotUpdateIntervalTicks) != 0;
     }
 
     private static bool IsShotMotionOnlyChange(SnapshotShotState state, SnapshotShotState baselineState)
@@ -657,24 +607,14 @@ internal static class SnapshotContributionPlanner
         (float X, float Y) focus,
         Func<T, float> xSelector,
         Func<T, float> ySelector,
-        Action<SnapshotDeltaBudgeter.Builder, T> addState,
-        float maxDistanceFromFocus = float.MaxValue)
+        Action<SnapshotDeltaBudgeter.Builder, T> addState)
     {
-        var maxDistanceSquared = maxDistanceFromFocus * maxDistanceFromFocus;
         for (var index = states.Count - 1; index >= 0; index -= 1)
         {
             var state = states[index];
-            var distanceSquared = DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state));
-            
-            // Skip events beyond max distance from player focus
-            if (distanceSquared > maxDistanceSquared)
-            {
-                continue;
-            }
-            
             contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                 priority - ((states.Count - 1) - index),
-                distanceSquared,
+                DistanceSquared(focus.X, focus.Y, xSelector(state), ySelector(state)),
                 estimateBytes(state),
                 builder => addState(builder, state)));
         }
@@ -775,11 +715,6 @@ internal static class SnapshotContributionPlanner
     private static int EstimatePlayerGibBytes(SnapshotPlayerGibState state)
     {
         return 42 + state.SpriteName.Length;
-    }
-
-    private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent state)
-    {
-        return 50 + state.SpriteName.Length;
     }
 
     private static int EstimateRocketBytes(SnapshotRocketState state)
