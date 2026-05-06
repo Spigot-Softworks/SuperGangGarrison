@@ -90,4 +90,21 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
                 currentFrame + transientEventReplayTicks));
         }
     }
+
+    private static SnapshotGibSpawnEvent ToSnapshotGibSpawnEvent(WorldGibSpawnEvent gibSpawnEvent, ulong eventId)
+    {
+        return new SnapshotGibSpawnEvent(
+            gibSpawnEvent.SpriteName,
+            gibSpawnEvent.FrameIndex,
+            gibSpawnEvent.X,
+            gibSpawnEvent.Y,
+            gibSpawnEvent.VelocityX,
+            gibSpawnEvent.VelocityY,
+            gibSpawnEvent.RotationSpeedDegrees,
+            gibSpawnEvent.HorizontalFriction,
+            gibSpawnEvent.RotationFriction,
+            gibSpawnEvent.LifetimeTicks,
+            gibSpawnEvent.BloodChance,
+            eventId);
+    }
 }

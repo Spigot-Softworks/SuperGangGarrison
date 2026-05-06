@@ -73,9 +73,7 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Rockets.Add(state),
-            static (builder, id) => builder.RemovedRocketIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsRocketMotionOnlyChange),
-            frame);
+            static (builder, id) => builder.RemovedRocketIds.Add(id));
         AddEntityDelta(
             contributions,
             fullSnapshot.Flames,
@@ -225,7 +223,7 @@ internal static class SnapshotContributionPlanner
         AddEntityDelta(
             contributions,
             fullSnapshot.PlayerGibs,
-            baseline?.PlayerGibs,
+            baselineStates: null,
             priority: 320,
             estimateUpdatedBytes: EstimatePlayerGibBytes,
             estimatedRemovedBytes: 4,
@@ -235,19 +233,6 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.PlayerGibs.Add(state),
             static (builder, id) => builder.RemovedPlayerGibIds.Add(id));
-        AddEntityDelta(
-            contributions,
-            fullSnapshot.BloodDrops,
-            baseline?.BloodDrops,
-            priority: 240,
-            estimateUpdatedBytes: static state => 29,
-            estimatedRemovedBytes: 4,
-            focus,
-            static state => state.Id,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.BloodDrops.Add(state),
-            static (builder, id) => builder.RemovedBloodDropIds.Add(id));
         AddPointEventContributions(
             contributions,
             fullSnapshot.SoundEvents,
@@ -414,7 +399,14 @@ internal static class SnapshotContributionPlanner
             player.FacingDirectionX,
             player.AimDirectionDegrees,
             player.MovementState,
-            player.IsExperimentalOffhandEquipped);
+                player.IsTaunting,
+                player.TauntFrameIndex,
+                player.BurnIntensity,
+                player.GameplayEquippedSlot,
+                player.PrimaryCooldownTicks,
+                player.ReloadTicksUntilNextShell,
+                player.OffhandCooldownTicks,
+                player.OffhandReloadTicks);
     }
 
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -428,7 +420,14 @@ internal static class SnapshotContributionPlanner
             || player.FacingDirectionX != baselinePlayer.FacingDirectionX
             || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
             || player.MovementState != baselinePlayer.MovementState
-            || player.IsExperimentalOffhandEquipped != baselinePlayer.IsExperimentalOffhandEquipped;
+            || player.IsTaunting != baselinePlayer.IsTaunting
+            || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
+            || player.BurnIntensity != baselinePlayer.BurnIntensity
+            || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
+            || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
+            || player.ReloadTicksUntilNextShell != baselinePlayer.ReloadTicksUntilNextShell
+            || player.OffhandCooldownTicks != baselinePlayer.OffhandCooldownTicks
+            || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
     }
 
     private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -444,7 +443,14 @@ internal static class SnapshotContributionPlanner
             FacingDirectionX = baselinePlayer.FacingDirectionX,
             AimDirectionDegrees = baselinePlayer.AimDirectionDegrees,
             MovementState = baselinePlayer.MovementState,
-            IsExperimentalOffhandEquipped = baselinePlayer.IsExperimentalOffhandEquipped,
+            IsTaunting = baselinePlayer.IsTaunting,
+            TauntFrameIndex = baselinePlayer.TauntFrameIndex,
+            BurnIntensity = baselinePlayer.BurnIntensity,
+            GameplayEquippedSlot = baselinePlayer.GameplayEquippedSlot,
+            PrimaryCooldownTicks = baselinePlayer.PrimaryCooldownTicks,
+            ReloadTicksUntilNextShell = baselinePlayer.ReloadTicksUntilNextShell,
+            OffhandCooldownTicks = baselinePlayer.OffhandCooldownTicks,
+            OffhandReloadTicks = baselinePlayer.OffhandReloadTicks,
         };
 
         return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);
@@ -497,7 +503,8 @@ internal static class SnapshotContributionPlanner
                 priority + 100,
                 DistanceSquared(focus.X, focus.Y, focus.X, focus.Y),
                 estimatedRemovedBytes,
-                builder => addRemovedId(builder, removedId)));
+                builder => addRemovedId(builder, removedId),
+                SnapshotDeltaBudgeter.ContributionKind.EntityRemoval));
         }
 
         for (var index = 0; index < delta.UpdatedStates.Count; index += 1)
