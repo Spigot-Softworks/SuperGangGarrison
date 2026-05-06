@@ -98,6 +98,45 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
         Assert.Equal(initialState, world.LocalPlayer.GameplayLoadoutState);
     }
 
+    [Fact]
+    public void TrySetLocalClassWithSameClassRespawnsWhenConfiguredTeamChanged()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+        var originalTeam = world.LocalPlayer.Team;
+        var oppositeTeam = originalTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+
+        var changed = world.TrySetLocalClass(PlayerClass.Soldier);
+
+        Assert.True(changed);
+        Assert.Equal(oppositeTeam, world.LocalPlayer.Team);
+        Assert.True(world.LocalPlayer.IsAlive);
+    }
+
+    [Fact]
+    public void ChangingLocalTeamDoesNotRespawnOtherJoinedPlayers()
+    {
+        var world = CreateWorldWithLocalClass(PlayerClass.Soldier);
+
+        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+
+        var expectedHealth = Math.Max(1, remotePlayer.MaxHealth - 5);
+        remotePlayer.ForceSetHealth(expectedHealth);
+        var expectedPositionX = remotePlayer.X;
+        var expectedPositionY = remotePlayer.Y;
+
+        var oppositeTeam = world.LocalPlayer.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, oppositeTeam));
+
+        Assert.Equal(expectedHealth, remotePlayer.Health);
+        Assert.Equal(expectedPositionX, remotePlayer.X);
+        Assert.Equal(expectedPositionY, remotePlayer.Y);
+        Assert.True(remotePlayer.IsAlive);
+    }
+
     private static SimulationWorld CreateWorldWithLocalClass(PlayerClass playerClass)
     {
         var world = new SimulationWorld();

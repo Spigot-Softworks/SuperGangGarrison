@@ -84,7 +84,7 @@ public partial class Game1
         }
 
         UpdateBuildMenuState(keyboard, mouse);
-        TryShowEngineerJumpPadBuildNoticeOnUtilityPress(fullInput);
+        TryShowEngineerJumpPadBuildNoticeOnUtilityPress(networkInput);
 
         return (gameplayInput, networkInput);
     }

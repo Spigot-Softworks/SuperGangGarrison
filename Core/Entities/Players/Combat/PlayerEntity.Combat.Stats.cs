@@ -40,6 +40,11 @@ public sealed partial class PlayerEntity
         Deaths += 1;
     }
 
+    public void AddGibDeath()
+    {
+        GibDeaths += 1;
+    }
+
     public void RegisterCombatComboHit(int comboTimeoutTicks)
     {
         if (!IsAlive || comboTimeoutTicks <= 0)
@@ -103,6 +108,7 @@ public sealed partial class PlayerEntity
     {
         Kills = 0;
         Deaths = 0;
+        GibDeaths = 0;
         Assists = 0;
         Caps = 0;
         Points = 0f;
