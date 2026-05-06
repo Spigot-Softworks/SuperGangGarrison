@@ -280,6 +280,8 @@ public sealed record SnapshotPlayerState(
     ulong BadgeMask = 0,
     bool IsMedicHealing = false,
     int MedicHealTargetId = -1,
+    float MedicUberCharge = 0f,
+    bool IsMedicUberReady = false,
     string GameplayModPackId = "",
     string GameplayLoadoutId = "",
     string GameplayPrimaryItemId = "",
@@ -304,7 +306,8 @@ public sealed record SnapshotPlayerState(
     // Offhand weapon animation state (e.g. soldier shotgun). Delivered via movement delta so animations
     // are visible to other players without waiting for the budget-limited full-state update.
     int OffhandCooldownTicks = 0,
-    int OffhandReloadTicks = 0);
+    int OffhandReloadTicks = 0,
+    short GibDeaths = 0);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -484,7 +487,7 @@ public sealed record SnapshotGibSpawnEvent(
     float RotationFriction,
     int LifetimeTicks,
     float BloodChance,
-    ulong EventId = 0);
+    ulong EventId);
 
 public sealed record SnapshotBloodDropState(
     int Id,

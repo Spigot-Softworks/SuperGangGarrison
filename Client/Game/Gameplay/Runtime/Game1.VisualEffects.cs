@@ -310,6 +310,14 @@ public partial class Game1
             return;
         }
 
+        for (var index = 0; index < _frozenSpyVisuals.Count; index += 1)
+        {
+            if (_frozenSpyVisuals[index].PlayerId == playerId)
+            {
+                return;
+            }
+        }
+
         _frozenSpyVisuals.Add(new FrozenSpyVisual(playerId, frameState, lifetimeTicks: 30));
     }
 

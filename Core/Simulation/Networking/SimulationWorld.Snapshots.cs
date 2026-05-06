@@ -104,6 +104,8 @@ public sealed partial class SimulationWorld
             snapshotPlayer.BadgeMask,
             snapshotPlayer.IsMedicHealing,
             snapshotPlayer.MedicHealTargetId,
+            snapshotPlayer.MedicUberCharge,
+            snapshotPlayer.IsMedicUberReady,
             modPackId,
             loadoutId,
             primaryItemId,
@@ -598,6 +600,8 @@ public sealed partial class SimulationWorld
     {
         _snapshotSeenRemotePlayerSlots.Clear();
         _remoteSnapshotPlayers.Clear();
+        _remoteSnapshotAwaitingJoinSlots.Clear();
+        _remoteSnapshotAwaitingJoinPlayerIds.Clear();
         foreach (var snapshotPlayer in snapshotPlayers)
         {
             _snapshotSeenRemotePlayerSlots.Add(snapshotPlayer.Slot);
@@ -612,6 +616,11 @@ public sealed partial class SimulationWorld
             }
 
             ApplySnapshotPlayer(player, snapshotPlayer);
+            if (snapshotPlayer.IsAwaitingJoin)
+            {
+                _remoteSnapshotAwaitingJoinSlots.Add(snapshotPlayer.Slot);
+                _remoteSnapshotAwaitingJoinPlayerIds.Add(snapshotPlayer.PlayerId);
+            }
             _remoteSnapshotPlayers.Add(player);
         }
 
@@ -713,7 +722,10 @@ public sealed partial class SimulationWorld
         {
             var staleId = _snapshotStaleEntityIds[index];
             _entities.Remove(staleId);
-            _clientPredictedProjectileIds.Remove(staleId);
+            if (_clientPredictedProjectileIds.Remove(staleId))
+            {
+                _terminatedProjectileIds.Add(staleId);
+            }
         }
     }
 

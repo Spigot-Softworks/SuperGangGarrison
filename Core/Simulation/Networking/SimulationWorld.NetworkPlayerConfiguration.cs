@@ -106,26 +106,6 @@ public sealed partial class SimulationWorld
 
         if (slot == LocalPlayerSlot)
         {
-            for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
-            {
-                var otherSlot = NetworkPlayerSlots[index];
-                if (otherSlot == LocalPlayerSlot || !IsNetworkPlayerEnabled(otherSlot) || !TryGetNetworkPlayer(otherSlot, out var otherPlayer))
-                {
-                    continue;
-                }
-
-                otherPlayer.SetClassDefinition(GetNetworkPlayerClassDefinition(otherSlot));
-                if (IsNetworkPlayerAwaitingJoin(otherSlot))
-                {
-                    otherPlayer.Kill();
-                }
-                else
-                {
-                    var otherTeam = GetNetworkPlayerConfiguredTeam(otherSlot);
-                    SpawnPlayerResolved(otherPlayer, otherTeam, ReserveSpawn(otherPlayer, otherTeam));
-                }
-            }
-
             if (FriendlyDummyEnabled && !IsNetworkPlayerAwaitingJoin(LocalPlayerSlot))
             {
                 var friendlySpawn = FindFriendlyDummySpawnNearLocalPlayer();

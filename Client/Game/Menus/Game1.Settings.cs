@@ -33,6 +33,7 @@ public partial class Game1
         _positionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
         _spriteDropShadowEnabled = _clientSettings.SpriteDropShadowEnabled;
         _uberOutlineEnabled = _clientSettings.ShowUberOutlinesEnabled;
+        _projectileTeamTintEnabled = _clientSettings.ProjectileTeamTintEnabled;
         _audioMuted = _clientSettings.AudioMuted;
         _menuMusicVolumePercent = Math.Clamp(_clientSettings.MenuMusicVolumePercent, 0, 100);
         _ingameMusicVolumePercent = Math.Clamp(_clientSettings.IngameMusicVolumePercent, 0, 100);
@@ -72,6 +73,7 @@ public partial class Game1
         _clientSettings.PositionSmoothingEnabled = _positionSmoothingEnabled;
         _clientSettings.SpriteDropShadowEnabled = _spriteDropShadowEnabled;
         _clientSettings.ShowUberOutlinesEnabled = _uberOutlineEnabled;
+        _clientSettings.ProjectileTeamTintEnabled = _projectileTeamTintEnabled;
         _clientSettings.AudioMuted = _audioMuted;
         _clientSettings.MenuMusicVolumePercent = _menuMusicVolumePercent;
         _clientSettings.IngameMusicVolumePercent = _ingameMusicVolumePercent;

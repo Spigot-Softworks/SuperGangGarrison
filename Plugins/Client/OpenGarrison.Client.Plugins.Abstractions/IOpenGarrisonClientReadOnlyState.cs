@@ -47,6 +47,8 @@ public interface IOpenGarrisonClientReadOnlyState
 
     bool IsLocalPlayerHealing { get; }
 
+    float SoundEffectsVolumeScale { get; }
+
     Vector2 CameraTopLeft { get; }
 
     bool TryGetLocalPlayerHealth(out int health, out int maxHealth);

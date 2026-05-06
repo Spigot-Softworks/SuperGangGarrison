@@ -54,9 +54,8 @@ public partial class Game1
                 var rightY = forwardX;
                 var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
                 var tailDistance = 5f * rocketScale;
-                var rocketRenderPosition = _game.GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
-                var anchorX = rocketRenderPosition.X;
-                var anchorY = rocketRenderPosition.Y;
+                var anchorX = rocket.X;
+                var anchorY = rocket.Y;
 
                 if (!CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {

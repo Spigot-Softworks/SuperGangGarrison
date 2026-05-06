@@ -372,6 +372,8 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int Deaths { get; private set; }
 
+    public int GibDeaths { get; private set; }
+
     public int Assists { get; private set; }
 
     public int Caps { get; private set; }

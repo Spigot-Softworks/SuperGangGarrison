@@ -2456,6 +2456,7 @@ public sealed class LuaPluginHostSmokeTests
         public bool IsLocalPlayerAlive { get; set; } = true;
         public bool IsLocalPlayerScoped { get; set; }
         public bool IsLocalPlayerHealing { get; set; }
+        public float SoundEffectsVolumeScale { get; set; } = 1f;
         public Vector2 CameraTopLeft { get; set; } = Vector2.Zero;
         public Vector2 LocalPlayerPosition { get; set; } = new(10f, 20f);
         public List<ClientPlayerMarker> PlayerMarkers { get; set; } = [];
