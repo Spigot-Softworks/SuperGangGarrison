@@ -218,31 +218,6 @@ public partial class Game1
         player.AdvanceAfterburnVisual((float)ClientUpdateStepSeconds);
     }
 
-    private void AdvanceGameplayGoreEffects()
-    {
-        if (!_networkClient.IsConnected)
-        {
-            return;
-        }
-
-        if (_world.PlayerGibs.Count == 0 && _world.BloodDrops.Count == 0)
-        {
-            return;
-        }
-
-        var level = _world.Level;
-        var bounds = _world.Bounds;
-        foreach (var gib in _world.PlayerGibs)
-        {
-            gib.Advance(level, bounds);
-        }
-
-        foreach (var drop in _world.BloodDrops)
-        {
-            drop.Advance(level, bounds);
-        }
-    }
-
     private void AdvanceGoreSourceTicks()
     {
         _goreSourceTickAccumulator += (float)(ClientUpdateStepSeconds * LegacyMovementModel.SourceTicksPerSecond);
@@ -250,7 +225,6 @@ public partial class Game1
         {
             _goreSourceTickAccumulator -= 1f;
             AdvanceBloodVisuals();
-            AdvanceGameplayGoreEffects();
         }
     }
 

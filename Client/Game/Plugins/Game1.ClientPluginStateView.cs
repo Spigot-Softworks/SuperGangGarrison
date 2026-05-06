@@ -33,6 +33,7 @@ public partial class Game1
         public bool IsLocalPlayerAlive => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsAlive;
         public bool IsLocalPlayerScoped => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsSniperScoped;
         public bool IsLocalPlayerHealing => !game._networkClient.IsSpectator && game._world.LocalPlayer.IsMedicHealing;
+        public float SoundEffectsVolumeScale => game.GetSoundEffectsVolumeScale();
         public Vector2 CameraTopLeft => game.GetCurrentClientPluginCameraTopLeft();
 
         public bool TryGetLocalPlayerHealth(out int health, out int maxHealth)

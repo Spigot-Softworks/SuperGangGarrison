@@ -171,7 +171,10 @@ public partial class Game1
             RecordAppliedSnapshot();
         }
 
-        _pendingClassSelectTeam = null;
+        if (!_classSelectOpen)
+        {
+            _pendingClassSelectTeam = null;
+        }
         var reconcileStartTimestamp = _networkDiagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
         _networkClient.AcknowledgeProcessedInput(snapshot.LastProcessedInputSequence);
         ReconcileLocalPrediction(snapshot.LastProcessedInputSequence);

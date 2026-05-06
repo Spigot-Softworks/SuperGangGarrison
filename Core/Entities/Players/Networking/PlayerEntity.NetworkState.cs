@@ -64,6 +64,8 @@ public sealed partial class PlayerEntity
         ulong badgeMask = 0,
         bool isMedicHealing = false,
         int medicHealTargetId = -1,
+        float medicUberCharge = 0f,
+        bool isMedicUberReady = false,
         string gameplayModPackId = "",
         string gameplayLoadoutId = "",
         string gameplayPrimaryItemId = "",
@@ -76,7 +78,8 @@ public sealed partial class PlayerEntity
         IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null,
         float playerScale = 1f,
         int offhandCooldownTicks = 0,
-        int offhandReloadTicks = 0)
+        int offhandReloadTicks = 0,
+        int gibDeaths = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -124,6 +127,7 @@ public sealed partial class PlayerEntity
             : 0;
         Kills = Math.Max(0, kills);
         Deaths = Math.Max(0, deaths);
+        GibDeaths = Math.Max(0, gibDeaths);
         Assists = Math.Max(0, assists);
         Caps = Math.Max(0, caps);
         Points = Math.Max(0f, points);
@@ -131,6 +135,12 @@ public sealed partial class PlayerEntity
         BadgeMask = BadgeCatalog.SanitizeBadgeMask(badgeMask);
         IsMedicHealing = isMedicHealing;
         MedicHealTargetId = medicHealTargetId >= 0 ? medicHealTargetId : null;
+        MedicUberCharge = ClassId == PlayerClass.Medic
+            ? float.Clamp(medicUberCharge, 0f, MedicUberMaxCharge)
+            : 0f;
+        IsMedicUberReady = ClassId == PlayerClass.Medic
+            && (isMedicUberReady || MedicUberCharge >= MedicUberMaxCharge);
+        IsMedicUbering = isUbered;
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
         IsDominatedByLocalViewer = isDominatedByLocalViewer;

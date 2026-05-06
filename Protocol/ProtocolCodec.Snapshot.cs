@@ -339,6 +339,8 @@ public static partial class ProtocolCodec
             writer.Write(player.BadgeMask);
             writer.Write(player.IsMedicHealing);
             writer.Write(player.MedicHealTargetId);
+            writer.Write(player.MedicUberCharge);
+            writer.Write(player.IsMedicUberReady);
             // String caching: write cache ID (ushort) if available, otherwise write full string
             writer.Write(player.GameplayModPackCacheId);
             if (player.GameplayModPackCacheId == 0)
@@ -369,6 +371,7 @@ public static partial class ProtocolCodec
             writer.Write(player.AimWorldY);
             writer.Write(player.OffhandCooldownTicks);
             writer.Write(player.OffhandReloadTicks);
+                writer.Write(player.GibDeaths);
         }
     }
 
@@ -443,6 +446,8 @@ public static partial class ProtocolCodec
             var badgeMask = reader.ReadUInt64();
             var isMedicHealing = reader.ReadBoolean();
             var medicHealTargetId = reader.ReadInt32();
+            var medicUberCharge = reader.ReadSingle();
+            var isMedicUberReady = reader.ReadBoolean();
             
             // String caching: read cache ID, then string if cache ID is 0
             var gameplayModPackCacheId = reader.ReadUInt16();
@@ -467,6 +472,7 @@ public static partial class ProtocolCodec
             var aimWorldY = reader.ReadSingle();
             var offhandCooldownTicks = reader.ReadInt32();
             var offhandReloadTicks = reader.ReadInt32();
+            var gibDeaths = reader.ReadInt16();
             
             players.Add(new SnapshotPlayerState(
                 slot, playerId, name, team, classId, isAlive, isAwaitingJoin, isSpectator,
@@ -483,7 +489,7 @@ public static partial class ProtocolCodec
                 medicNeedleRefillTicks, pyroAirblastCooldownTicks, pyroFlareCooldownTicks,
                 pyroPrimaryFuelScaled, isPyroPrimaryRefilling, pyroFlameLoopTicksRemaining,
                 pyroPrimaryRequiresReleaseAfterEmpty, heavyEatCooldownTicksRemaining,
-                assists, badgeMask, isMedicHealing, medicHealTargetId,
+                assists, badgeMask, isMedicHealing, medicHealTargetId, medicUberCharge, isMedicUberReady,
                 gameplayModPackId, gameplayLoadoutId, gameplayPrimaryItemId,
                 gameplaySecondaryItemId, gameplayUtilityItemId, gameplayEquippedSlot,
                 gameplayEquippedItemId, gameplayAcquiredItemId,
@@ -491,7 +497,7 @@ public static partial class ProtocolCodec
                 gameplaySecondaryItemCacheId, gameplayUtilityItemCacheId,
                 gameplayEquippedItemCacheId, gameplayAcquiredItemCacheId,
                 ownedGameplayItemIds, replicatedStates, playerScale, aimWorldX, aimWorldY,
-                offhandCooldownTicks, offhandReloadTicks));
+                offhandCooldownTicks, offhandReloadTicks, gibDeaths));
         }
 
         return players;

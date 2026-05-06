@@ -158,6 +158,8 @@ internal static partial class ServerHelpers
             player.BadgeMask,
             player.IsMedicHealing,
             player.MedicHealTargetId ?? -1,
+            player.MedicUberCharge,
+            player.IsMedicUberReady,
             player.GameplayLoadoutState.ModPackId,
             player.GameplayLoadoutState.LoadoutId,
             player.GameplayLoadoutState.PrimaryItemId,
@@ -179,7 +181,8 @@ internal static partial class ServerHelpers
             AimWorldX: player.AimWorldX,
             AimWorldY: player.AimWorldY,
             OffhandCooldownTicks: player.ExperimentalOffhandCooldownTicks,
-            OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell);
+                OffhandReloadTicks: player.ExperimentalOffhandReloadTicksUntilNextShell,
+                GibDeaths: (short)Math.Clamp(player.GibDeaths, 0, short.MaxValue));
     }
 
     internal static SnapshotIntelState ToSnapshotIntelState(TeamIntelligenceState intel)
@@ -437,23 +440,6 @@ internal static partial class ServerHelpers
             damageEvent.WasFatal,
             damageEvent.EventId == 0 ? fallbackEventId : damageEvent.EventId,
             damageEvent.SourceFrame);
-    }
-
-    internal static SnapshotGibSpawnEvent ToSnapshotGibSpawnEvent(WorldGibSpawnEvent gibSpawnEvent, ulong eventId)
-    {
-        return new SnapshotGibSpawnEvent(
-            gibSpawnEvent.SpriteName,
-            gibSpawnEvent.FrameIndex,
-            gibSpawnEvent.X,
-            gibSpawnEvent.Y,
-            gibSpawnEvent.VelocityX,
-            gibSpawnEvent.VelocityY,
-            gibSpawnEvent.RotationSpeedDegrees,
-            gibSpawnEvent.HorizontalFriction,
-            gibSpawnEvent.RotationFriction,
-            gibSpawnEvent.LifetimeTicks,
-            gibSpawnEvent.BloodChance,
-            eventId);
     }
 
     internal static SnapshotKillFeedEntry ToSnapshotKillFeedEntry(KillFeedEntry entry)

@@ -222,6 +222,7 @@ public sealed partial class SimulationWorld
     {
         var flame = _flames[flameIndex];
         _entities.Remove(flame.Id);
+        MarkProjectileTerminated(flame.Id);
         _flames.RemoveAt(flameIndex);
     }
 
@@ -229,6 +230,7 @@ public sealed partial class SimulationWorld
     {
         var flare = _flares[flareIndex];
         _entities.Remove(flare.Id);
+        MarkProjectileTerminated(flare.Id);
         _flares.RemoveAt(flareIndex);
     }
 
@@ -236,6 +238,7 @@ public sealed partial class SimulationWorld
     {
         var mine = _mines[mineIndex];
         _entities.Remove(mine.Id);
+        MarkProjectileTerminated(mine.Id);
         _mines.RemoveAt(mineIndex);
     }
 }
