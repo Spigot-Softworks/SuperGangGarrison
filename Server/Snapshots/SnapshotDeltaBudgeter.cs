@@ -20,6 +20,7 @@ internal static class SnapshotDeltaBudgeter
         PlayerFirstAppearance,
         PlayerRosterUpdate,
         PlayerRemoval,
+        EntityRemoval,
     }
 
     internal sealed record Contribution(
@@ -82,6 +83,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.PlayerRemoval,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.EntityRemoval,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
