@@ -98,6 +98,7 @@ public sealed record ExperimentalGameplaySettings(
     public const float DefaultGhostDashCooldownSeconds = 1f;
     public const float DefaultGhostDashNextAttackDamageMultiplier = 1.4f;
     public const float ComboTimeoutSeconds = 6f;
+    public const float DefaultCriticalDamageMultiplier = 2f;
     public const float MultiKillWindowSeconds = 3f;
     public const float EnemyHealthPackLargeChance = 0.5f;
     public const float EnemyDroppedWeaponChance = 0.5f;

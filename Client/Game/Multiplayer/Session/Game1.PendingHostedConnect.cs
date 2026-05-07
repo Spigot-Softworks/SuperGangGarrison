@@ -19,7 +19,7 @@ public partial class Game1
 
         if (_hostedServerRuntime.HasTrackedProcessExited)
         {
-            CancelPendingHostedLocalConnect("Local server exited before connect.");
+            CancelPendingHostedLocalConnect(BuildHostedServerExitMessage());
             return;
         }
 

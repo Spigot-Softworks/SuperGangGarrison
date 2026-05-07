@@ -46,6 +46,7 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Minigun, PrimaryWeaponKind.Minigun, FireSoundName: "ChaingunSnd"));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, PrimaryWeaponKind.Rifle, FireSoundName: "SniperSnd"));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, PrimaryWeaponKind.Medigun));
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.MedigunCrit, PrimaryWeaponKind.Medigun));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Revolver, PrimaryWeaponKind.Revolver, FireSoundName: "RevolverSnd"));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Blade, PrimaryWeaponKind.Blade));
         RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.EngineerPda, GameplaySecondaryAbilityActionKind.EngineerPda));
@@ -60,6 +61,7 @@ public sealed partial class GameplayRuntimeRegistry
         RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MineLauncher, GameplaySecondaryAbilityActionKind.DemomanDetonate, UsesHeldInput: true));
         RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Rifle, GameplaySecondaryAbilityActionKind.SniperScope));
         RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.Medigun, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
+        RegisterSecondaryAbilityBehavior(new GameplaySecondaryAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedigunCrit, GameplaySecondaryAbilityActionKind.MedicNeedlegun));
         RegisterUtilityAbilityBehavior(new GameplayUtilityAbilityRuntimeBinding(BuiltInGameplayBehaviorIds.MedicUber, GameplayUtilityAbilityActionKind.MedicUber));
     }
 

@@ -315,7 +315,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             timing);
         var firePrimary = ResolvePrimaryFire(world, player, combatTarget, healTarget, memory, useModernBehavior, isBeingHealed);
         var fireSecondary = ResolveSecondaryFire(world, player, combatTarget, healTarget, allPlayers, memory, hasVisibleEnemy, useModernBehavior, isBeingHealed);
-        var fireSecondaryWeapon = ResolveSecondaryWeaponFireFromLoadout(
+        var fireAbility = ResolveAbilityInputFromLoadout(
             player,
             combatTarget?.X,
             combatTarget?.Y,
@@ -325,7 +325,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         if (useModernBehavior)
         {
             ApplyModernSoldierCloseRangeAdjustment(world, player, combatTarget, memory, firePrimary, timing, ref horizontal, ref jump);
-            ApplyModernReloadDiscipline(player, memory, ref firePrimary, ref fireSecondary, ref fireSecondaryWeapon);
+            ApplyModernReloadDiscipline(player, memory, ref firePrimary, ref fireSecondary, ref fireAbility);
             UpdateModernCombatMemory(player, memory);
         }
         var buildSentry = ResolveBuildSentry(world, player, destination);
@@ -360,7 +360,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             AimWorldY: aimTarget.Y,
             DebugKill: false,
             DropIntel: dropIntel,
-            FireSecondaryWeapon: fireSecondaryWeapon);
+            UseAbility: fireAbility);
     }
 
     private Dictionary<byte, ControlledPlayerState> BuildControlledPlayerRoster(
@@ -4075,7 +4075,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         return false;
     }
 
-    internal static bool ResolveSecondaryWeaponFireFromLoadout(
+    internal static bool ResolveAbilityInputFromLoadout(
         PlayerEntity player,
         float? combatTargetX,
         float? combatTargetY,
@@ -4102,7 +4102,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
             return combatTargetX.HasValue
                 && combatTargetY.HasValue
                 && !fireSecondary
-                && (!firePrimary || player.CurrentShells <= 0 || player.PrimaryCooldownTicks > 0)
+                && (!firePrimary || player.CurrentShells <= 0)
                 && player.ExperimentalOffhandCurrentShells > 0
                 && DistanceBetween(player.X, player.Y, combatTargetX.Value, combatTargetY.Value) <= ModernSoldierShotgunDistance;
         }
@@ -4238,7 +4238,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         BotMemory memory,
         ref bool firePrimary,
         ref bool fireSecondary,
-        ref bool fireSecondaryWeapon)
+        ref bool fireAbility)
     {
         if (memory.ModernReloadCounterTicks <= 0)
         {
@@ -4248,7 +4248,7 @@ public sealed partial class ModernPracticeBotController : IPracticeBotController
         if (player.ClassId == PlayerClass.Medic)
         {
             fireSecondary = false;
-            fireSecondaryWeapon = false;
+            fireAbility = false;
             return;
         }
 

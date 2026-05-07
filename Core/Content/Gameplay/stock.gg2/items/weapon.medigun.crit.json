@@ -1,0 +1,27 @@
+{
+  "id": "weapon.medigun.crit",
+  "displayName": "Kritzkrieg",
+  "slot": "Secondary",
+  "behaviorId": "builtin.weapon.medigun.crit",
+  "ammo": {
+    "maxAmmo": 40,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 3,
+    "reloadSourceTicks": 0,
+    "autoReloads": false,
+    "ammoRegenPerTick": 0,
+    "refillsAllAtOnce": false
+  },
+  "presentation": {
+    "worldSpriteName": "MedigunCritS",
+    "recoilSpriteName": "MedigunCritFS",
+    "reloadSpriteName": "MedigunCritFRS",
+    "hudSpriteName": "NeedleAmmoS",
+    "weaponOffsetX": -7.0,
+    "weaponOffsetY": 0.0,
+    "recoilDurationSourceTicks": 4,
+    "reloadDurationSourceTicks": 55,
+    "blueTeamHudFrameOffset": 1
+  }
+}

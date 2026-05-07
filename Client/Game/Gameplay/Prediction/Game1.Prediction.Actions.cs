@@ -362,12 +362,42 @@ public partial class Game1
     private static bool IsPredictedPyroSelfAirblastInput(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         return player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
-            && predictedInput.SecondaryWeaponPressed;
+            && predictedInput.AbilityPressed;
     }
 
     private bool TryPredictedToggleSoldierOffhand(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+        else
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
+        SyncPredictedLocalPlayerState(player);
+        return true;
+    }
+
+    private bool TryPredictedToggleMedicOffhand(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Medic || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsMedicUbering || player.IsUbered)
         {
             return false;
         }
@@ -414,7 +444,7 @@ public partial class Game1
     private void ApplyPredictedSecondaryWeaponFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         if (player.IsTaunting
-            || !predictedInput.SecondaryWeaponPressed)
+            || !predictedInput.AbilityPressed)
         {
             return;
         }
@@ -438,6 +468,11 @@ public partial class Game1
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
+            if (TryPredictedToggleMedicOffhand(player))
+            {
+                return;
+            }
+
             if (_predictedLocalActionState.IsMedicUberReady)
             {
                 TryPredictedStartMedicUber(player);

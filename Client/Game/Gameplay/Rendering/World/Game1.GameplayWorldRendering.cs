@@ -38,21 +38,26 @@ public partial class Game1
         var medicBeamTargetIds = GetActiveMedicBeamTargetIds();
         var medicBeamMedicIds = GetActiveMedicBeamMedicIds();
         var localPlayerInActiveMedicBeam = IsLocalPlayerInActiveMedicBeam();
+        var uberedPlayerIds = GetUberedPlayerIds();
+        var skipBelowUber = new System.Collections.Generic.HashSet<int>(medicBeamPlayerIds);
+        skipBelowUber.UnionWith(uberedPlayerIds);
 
         if (localPlayerInActiveMedicBeam)
         {
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: skipBelowUber);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
             DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: uberedPlayerIds);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
         else
         {
             DrawMedicBeams(cameraPosition);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: medicBeamPlayerIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamMedicIds);
-            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: skipBelowUber);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamMedicIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, skipPlayerIds: uberedPlayerIds, onlyPlayerIds: medicBeamTargetIds);
+            DrawGameplayPlayers(cameraPosition, playerRectangle, onlyPlayerIds: uberedPlayerIds);
             DrawLocalPlayer(cameraPosition, playerRectangle);
         }
         DrawFrozenSpyVisuals(cameraPosition);
@@ -292,6 +297,21 @@ public partial class Game1
 
             DrawDeadBody(deadBody, cameraPosition);
         }
+    }
+
+    private System.Collections.Generic.HashSet<int> GetUberedPlayerIds()
+    {
+        var ids = new System.Collections.Generic.HashSet<int>();
+        var localId = _world.LocalPlayer.Id;
+        foreach (var player in EnumerateRenderablePlayers())
+        {
+            if (player.Id != localId && (player.IsUbered || player.IsKritzCritBoosted))
+            {
+                ids.Add(player.Id);
+            }
+        }
+
+        return ids;
     }
 
     private System.Collections.Generic.HashSet<int> GetActiveMedicBeamPlayerIds()

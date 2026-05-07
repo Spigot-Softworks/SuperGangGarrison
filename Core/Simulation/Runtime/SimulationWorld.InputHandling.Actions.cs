@@ -57,6 +57,13 @@ public sealed partial class SimulationWorld
             return false;
         }
 
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            UpdateMedicHealing(player, input.AimWorldX, input.AimWorldY);
+            return true;
+        }
+
         if (!player.TryFireExperimentalOffhandWeapon())
         {
             return true;
@@ -347,6 +354,35 @@ public sealed partial class SimulationWorld
         return true;
     }
 
+    private static bool TryHandleMedicOffhandToggle(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Medic || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsMedicUbering || player.IsUbered)
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+        else
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
+        return true;
+    }
+
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
@@ -375,9 +411,15 @@ public sealed partial class SimulationWorld
         return detonatedAnyRocket;
     }
 
-    private void TryHandleNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    private void TryHandleNetworkAbilityInput(PlayerEntity player, PlayerInputSnapshot input)
     {
         if (player.IsTaunting)
+        {
+            return;
+        }
+
+        // Offhand weapon swapping should remain available even if secondary abilities are disabled.
+        if (TryHandleSoldierOffhandToggle(player) || TryHandleMedicOffhandToggle(player))
         {
             return;
         }
@@ -414,6 +456,11 @@ public sealed partial class SimulationWorld
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
+            if (TryHandleMedicOffhandToggle(player))
+            {
+                return true;
+            }
+
             if (player.IsMedicUberReady && player.TryStartMedicUber())
             {
                 AwardMedicUberActivationPoints(player);
