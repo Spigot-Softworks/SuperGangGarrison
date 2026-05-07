@@ -153,7 +153,8 @@ public sealed partial class SimulationWorld
                     continue;
                 }
 
-                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier * distanceFactor;
+                var critMultiplier = (player.Id == rocket.OwnerId && player.Team == rocket.Team) ? 1f : rocket.CriticalDamageMultiplier;
+                var appliedDamage = rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * critMultiplier * distanceFactor;
                 world.RegisterBloodEffect(player.X, player.Y, SimulationWorld.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
                 hitEnemyPlayer |= player.Team != rocket.Team;
                 if (world.ApplyPlayerContinuousDamage(player, appliedDamage, owner, PlayerEntity.SpyDamageRevealAlpha))

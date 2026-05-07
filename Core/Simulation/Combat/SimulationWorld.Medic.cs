@@ -113,7 +113,11 @@ public sealed partial class SimulationWorld
 
             var isKritz = player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
 
-            if (!isKritz && !player.IsCarryingIntel)
+            if (isKritz)
+            {
+                player.RefreshKritzCritBoost();
+            }
+            else
             {
                 player.RefreshUber();
             }

@@ -8,4 +8,5 @@ public readonly record struct CombatTrace(
     int TicksRemaining,
     bool HitCharacter,
     PlayerTeam Team,
-    bool IsSniperTracer);
+    bool IsSniperTracer,
+    bool IsCritical = false);

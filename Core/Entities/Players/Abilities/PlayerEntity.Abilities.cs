@@ -219,7 +219,6 @@ public sealed partial class PlayerEntity
             || ClassId != PlayerClass.Medic
             || IsTaunting
             || IsMedicHealing
-            || IsMedicUbering
             || MedicNeedleCooldownTicks > 0
             || CurrentShells <= 0)
         {

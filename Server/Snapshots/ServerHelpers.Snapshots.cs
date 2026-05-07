@@ -126,6 +126,7 @@ internal static partial class ServerHelpers
             player.IsSpyCloaked,
             player.SpyCloakAlpha,
             player.IsUbered,
+            player.IsKritzCritBoosted,
             player.IsHeavyEating,
             player.HeavyEatTicksRemaining,
             player.IsSniperScoped,
@@ -233,12 +234,12 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotBulletState(ShotProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining);
+        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
     }
 
     internal static SnapshotShotState ToSnapshotNeedleState(NeedleProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining);
+        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
     }
 
     internal static SnapshotShotState ToSnapshotBubbleState(BubbleProjectileEntity bubble)
@@ -248,12 +249,12 @@ internal static partial class ServerHelpers
 
     internal static SnapshotShotState ToSnapshotBladeState(BladeProjectileEntity blade)
     {
-        return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining);
+        return new SnapshotShotState(blade.Id, (byte)blade.Team, blade.OwnerId, blade.X, blade.Y, blade.VelocityX, blade.VelocityY, blade.TicksRemaining, blade.IsCritical);
     }
 
     internal static SnapshotShotState ToSnapshotRevolverState(RevolverProjectileEntity shot)
     {
-        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining);
+        return new SnapshotShotState(shot.Id, (byte)shot.Team, shot.OwnerId, shot.X, shot.Y, shot.VelocityX, shot.VelocityY, shot.TicksRemaining, shot.IsCritical);
     }
 
     internal static SnapshotRocketState ToSnapshotRocketState(RocketProjectileEntity rocket)
@@ -281,7 +282,8 @@ internal static partial class ServerHelpers
             rocket.DistanceToTravel,
             rocket.IsFading,
             rocket.FadeSourceTicksRemaining,
-            passedFriendlyPlayerIds);
+            passedFriendlyPlayerIds,
+            rocket.IsCritical);
     }
 
     internal static SnapshotFlameState ToSnapshotFlameState(FlameProjectileEntity flame)
@@ -299,12 +301,13 @@ internal static partial class ServerHelpers
             flame.TicksRemaining,
             flame.AttachedPlayerId ?? -1,
             flame.AttachedOffsetX,
-            flame.AttachedOffsetY);
+            flame.AttachedOffsetY,
+            flame.IsCritical);
     }
 
     internal static SnapshotShotState ToSnapshotFlareState(FlareProjectileEntity flare)
     {
-        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining);
+        return new SnapshotShotState(flare.Id, (byte)flare.Team, flare.OwnerId, flare.X, flare.Y, flare.VelocityX, flare.VelocityY, flare.TicksRemaining, flare.IsCritical);
     }
 
     internal static SnapshotMineState ToSnapshotMineState(MineProjectileEntity mine)
@@ -319,7 +322,8 @@ internal static partial class ServerHelpers
             mine.VelocityY,
             mine.IsStickied,
             mine.IsDestroyed,
-            mine.ExplosionDamage);
+            mine.ExplosionDamage,
+            mine.IsCritical);
     }
 
     internal static SnapshotDeadBodyState ToSnapshotDeadBodyState(DeadBodyEntity deadBody)
@@ -409,7 +413,8 @@ internal static partial class ServerHelpers
             trace.TicksRemaining,
             trace.HitCharacter,
             (byte)trace.Team,
-            trace.IsSniperTracer);
+            trace.IsSniperTracer,
+            trace.IsCritical);
     }
 
     internal static SnapshotSoundEvent ToSnapshotSoundEvent(WorldSoundEvent soundEvent, ulong fallbackEventId)

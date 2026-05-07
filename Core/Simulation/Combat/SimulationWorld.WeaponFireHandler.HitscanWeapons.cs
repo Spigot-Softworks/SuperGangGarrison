@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
             var directionX = aimDeltaX / distance;
             var directionY = aimDeltaY / distance;
             var result = ResolveRifleHit(attacker, weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, rifleDistance);
-            RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true);
+            RegisterCombatTrace(weaponOrigin.BaseX, weaponOrigin.BaseY, directionX, directionY, result.Distance, result.HitPlayer is not null, attacker.Team, isSniperTracer: true, isCritical: attacker.IsKritzCritBoosted);
             var damage = attacker.GetSniperRifleDamage();
             if (result.HitPlayer is not null)
             {
