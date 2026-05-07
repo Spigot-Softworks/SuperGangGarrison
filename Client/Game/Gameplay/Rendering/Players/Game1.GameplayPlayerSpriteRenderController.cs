@@ -59,6 +59,12 @@ public partial class Game1
 
             if (player.IsUbered)
             {
+                if (_game.IsKritzUberWeaponOnlyVisual(player))
+                {
+                    _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
+                }
+                else
+                {
                 var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
                 var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
                 _game.DrawSpriteFrameShadow(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
@@ -68,6 +74,7 @@ public partial class Game1
                 }
                 _game.DrawSpriteFrame(sprite.Frames[frameIndex], position, tint, 0f, sprite.Origin.ToVector2(), scale);
                 _game.DrawSpriteFrameMultiplyColor(sprite.Frames[frameIndex], position, teamColor, 0f, sprite.Origin.ToVector2(), scale);
+                }
             }
             else
             {

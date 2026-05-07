@@ -30,7 +30,7 @@ public partial class Game1
             {
                 FirePrimary = false,
                 FireSecondary = false,
-                FireSecondaryWeapon = false,
+                UseAbility = false,
                 InteractWeapon = false,
             };
         }
@@ -52,12 +52,12 @@ public partial class Game1
             gameplayInput = gameplayInput with
             {
                 FirePrimary = false,
-                FireSecondaryWeapon = false,
+                UseAbility = false,
             };
             networkInput = networkInput with
             {
                 FirePrimary = false,
-                FireSecondaryWeapon = false,
+                UseAbility = false,
             };
         }
 
@@ -67,7 +67,7 @@ public partial class Game1
             {
                 FirePrimary = false,
                 FireSecondary = false,
-                FireSecondaryWeapon = false,
+                UseAbility = false,
                 InteractWeapon = false,
                 BuildSentry = false,
                 DestroySentry = false,
@@ -76,7 +76,7 @@ public partial class Game1
             {
                 FirePrimary = false,
                 FireSecondary = false,
-                FireSecondaryWeapon = false,
+                UseAbility = false,
                 InteractWeapon = false,
                 BuildSentry = false,
                 DestroySentry = false,
@@ -126,7 +126,7 @@ public partial class Game1
             Taunt = false,
             FirePrimary = false,
             FireSecondary = false,
-            FireSecondaryWeapon = false,
+            UseAbility = false,
             InteractWeapon = false,
             DebugKill = false,
             DropIntel = false,

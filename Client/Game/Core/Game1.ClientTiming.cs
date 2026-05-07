@@ -18,7 +18,7 @@ public partial class Game1
     private bool _pendingPredictedJumpPress;
     private bool _pendingPredictedPrimaryPress;
     private bool _pendingPredictedSecondaryAbilityPress;
-    private bool _pendingPredictedSecondaryWeaponPress;
+    private bool _pendingPredictedAbilityPress;
     private uint _latchedJumpPressSequence;
 
     private bool _hasLatestLocalAimWorldPosition;
@@ -49,7 +49,7 @@ public partial class Game1
         _pendingPredictedJumpPress = false;
         _pendingPredictedPrimaryPress = false;
         _pendingPredictedSecondaryAbilityPress = false;
-        _pendingPredictedSecondaryWeaponPress = false;
+        _pendingPredictedAbilityPress = false;
         _latchedJumpPressSequence = 0;
         _hasLatestLocalAimWorldPosition = false;
         _latestLocalAimWorldX = 0f;
@@ -61,7 +61,7 @@ public partial class Game1
         var previousPredictedInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
 
-        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.FireSecondaryWeapon)
+        if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.UseAbility)
         {
             return;
         }
@@ -92,12 +92,12 @@ public partial class Game1
             _pendingPredictedSecondaryAbilityPress = true;
         }
 
-        var secondaryWeaponPressed = networkInput.FireSecondaryWeapon
-            && keyboard.IsKeyDown(_inputBindings.FireSecondaryWeapon)
-            && !_previousKeyboard.IsKeyDown(_inputBindings.FireSecondaryWeapon);
-        if (secondaryWeaponPressed)
+        var abilityPressed = networkInput.UseAbility
+            && keyboard.IsKeyDown(_inputBindings.UseAbility)
+            && !_previousKeyboard.IsKeyDown(_inputBindings.UseAbility);
+        if (abilityPressed)
         {
-            _pendingPredictedSecondaryWeaponPress = true;
+            _pendingPredictedAbilityPress = true;
         }
     }
 
@@ -128,11 +128,11 @@ public partial class Game1
                 _pendingPredictedJumpPress,
                 _pendingPredictedPrimaryPress,
                 _pendingPredictedSecondaryAbilityPress,
-                _pendingPredictedSecondaryWeaponPress);
+                _pendingPredictedAbilityPress);
             _pendingPredictedJumpPress = false;
             _pendingPredictedPrimaryPress = false;
             _pendingPredictedSecondaryAbilityPress = false;
-            _pendingPredictedSecondaryWeaponPress = false;
+            _pendingPredictedAbilityPress = false;
         }
     }
 

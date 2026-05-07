@@ -90,7 +90,7 @@ public partial class Game1 : Game
         MoveDown,
         Taunt,
         CallMedic,
-        FireSecondaryWeapon,
+        UseAbility,
         InteractWeapon,
         ChangeTeam,
         ChangeClass,

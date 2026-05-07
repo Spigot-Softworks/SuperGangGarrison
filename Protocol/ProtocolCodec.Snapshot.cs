@@ -307,6 +307,7 @@ public static partial class ProtocolCodec
             writer.Write(player.IsSpyCloaked);
             writer.Write(player.SpyCloakAlpha);
             writer.Write(player.IsUbered);
+            writer.Write(player.IsKritzCritBoosted);
             writer.Write(player.IsHeavyEating);
             writer.Write(player.HeavyEatTicksRemaining);
             writer.Write(player.IsSniperScoped);
@@ -414,6 +415,7 @@ public static partial class ProtocolCodec
             var isSpyCloaked = reader.ReadBoolean();
             var spyCloakAlpha = reader.ReadSingle();
             var isUbered = reader.ReadBoolean();
+            var isKritzCritBoosted = reader.ReadBoolean();
             var isHeavyEating = reader.ReadBoolean();
             var heavyEatTicksRemaining = reader.ReadInt32();
             var isSniperScoped = reader.ReadBoolean();
@@ -480,7 +482,7 @@ public static partial class ProtocolCodec
                 health, maxHealth, ammo, maxAmmo, kills, deaths, caps, points, healPoints,
                 activeDominationCount, isDominatingLocalViewer, isDominatedByLocalViewer,
                 metal, isGrounded, remainingAirJumps, isCarryingIntel, intelRechargeTicks,
-                isSpyCloaked, spyCloakAlpha, isUbered, isHeavyEating, heavyEatTicksRemaining,
+                isSpyCloaked, spyCloakAlpha, isUbered, isKritzCritBoosted, isHeavyEating, heavyEatTicksRemaining,
                 isSniperScoped, sniperChargeTicks, facingDirectionX, aimDirectionDegrees,
                 isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
                 burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,

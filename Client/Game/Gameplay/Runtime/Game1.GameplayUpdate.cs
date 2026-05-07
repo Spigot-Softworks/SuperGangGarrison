@@ -16,7 +16,7 @@ public partial class Game1
             || _inputBindings.MoveRight == key
             || _inputBindings.Taunt == key
             || _inputBindings.CallMedic == key
-            || _inputBindings.FireSecondaryWeapon == key
+            || _inputBindings.UseAbility == key
             || _inputBindings.InteractWeapon == key
             || _inputBindings.ChangeTeam == key
             || _inputBindings.ChangeClass == key

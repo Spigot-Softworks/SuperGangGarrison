@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -355,6 +356,32 @@ public partial class Game1
     private static Color GetUberOverlayColor(PlayerTeam team)
     {
         return GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(team);
+    }
+
+    private bool IsKritzUberWeaponOnlyVisual(PlayerEntity player)
+    {
+        if (player.ClassId == PlayerClass.Medic
+            && player.IsMedicUbering
+            && player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            return true;
+        }
+
+        foreach (var candidate in EnumerateRenderablePlayers())
+        {
+            if (candidate.ClassId != PlayerClass.Medic
+                || !candidate.IsMedicUbering
+                || !candidate.MedicHealTargetId.HasValue
+                || candidate.MedicHealTargetId.Value != player.Id
+                || !candidate.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void DrawAfterburnOverlay(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha)

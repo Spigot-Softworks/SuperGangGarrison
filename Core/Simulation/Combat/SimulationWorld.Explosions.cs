@@ -123,7 +123,8 @@ public sealed partial class SimulationWorld
             if (CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))
             {
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
-                var damage = mine.ExplosionDamage * factor;
+                var critMultiplier = (player.Id == mine.OwnerId && player.Team == mine.Team) ? 1f : mine.CriticalDamageMultiplier;
+                var damage = mine.ExplosionDamage * critMultiplier * factor;
                 if (player.Id == mine.OwnerId && player.Team == mine.Team)
                 {
                     damage *= MineProjectileEntity.SelfDamageScale;
@@ -155,7 +156,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * factor;
+            var damage = mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * mine.CriticalDamageMultiplier * factor;
             if (ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
                 DestroySentry(sentry, owner);
@@ -177,7 +178,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            var damage = mine.ExplosionDamage * damageFactor;
+            var damage = mine.ExplosionDamage * mine.CriticalDamageMultiplier * damageFactor;
             TryDamageGenerator(generator.Team, damage, owner);
         }
 

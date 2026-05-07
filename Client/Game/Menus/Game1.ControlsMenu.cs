@@ -20,7 +20,7 @@ public partial class Game1
             (ControlsMenuBinding.MoveDown, "Move Down:", _inputBindings.MoveDown),
             (ControlsMenuBinding.Taunt, "Taunt:", _inputBindings.Taunt),
             (ControlsMenuBinding.CallMedic, "Call Medic:", _inputBindings.CallMedic),
-            (ControlsMenuBinding.FireSecondaryWeapon, "Secondary Weapon:", _inputBindings.FireSecondaryWeapon),
+            (ControlsMenuBinding.UseAbility, "Secondary Weapon:", _inputBindings.UseAbility),
             (ControlsMenuBinding.InteractWeapon, "Interact Weapon:", _inputBindings.InteractWeapon),
             (ControlsMenuBinding.ChangeTeam, "Change Team:", _inputBindings.ChangeTeam),
             (ControlsMenuBinding.ChangeClass, "Change Class:", _inputBindings.ChangeClass),
@@ -54,8 +54,8 @@ public partial class Game1
             case ControlsMenuBinding.CallMedic:
                 _inputBindings.CallMedic = key;
                 break;
-            case ControlsMenuBinding.FireSecondaryWeapon:
-                _inputBindings.FireSecondaryWeapon = key;
+            case ControlsMenuBinding.UseAbility:
+                _inputBindings.UseAbility = key;
                 break;
             case ControlsMenuBinding.InteractWeapon:
                 _inputBindings.InteractWeapon = key;
@@ -95,7 +95,7 @@ public partial class Game1
             ControlsMenuBinding.MoveDown => "Move Down",
             ControlsMenuBinding.Taunt => "Taunt",
             ControlsMenuBinding.CallMedic => "Call Medic",
-            ControlsMenuBinding.FireSecondaryWeapon => "Secondary Weapon",
+            ControlsMenuBinding.UseAbility => "Secondary Weapon",
             ControlsMenuBinding.InteractWeapon => "Interact Weapon",
             ControlsMenuBinding.ChangeTeam => "Change Team",
             ControlsMenuBinding.ChangeClass => "Change Class",

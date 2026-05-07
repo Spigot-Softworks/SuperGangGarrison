@@ -35,7 +35,7 @@ public sealed partial class SimulationWorld
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
                     var bulletKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
                     hitResult.HitPlayer.AddImpulse(directionX * bulletKnockbackPerSecond, directionY * bulletKnockbackPerSecond);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(
@@ -44,13 +44,13 @@ public sealed partial class SimulationWorld
                             weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? GetKillFeedWeaponSprite(owner));
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), owner))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), owner))
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue, owner);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue * shot.CriticalDamageMultiplier, owner);
                 }
                 else
                 {
@@ -97,19 +97,19 @@ public sealed partial class SimulationWorld
                         hitResult.HitPlayer.AddImpulse(
                             blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
                             blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
-                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, blade.HitDamage, out var damageFlags);
+                        var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), out var damageFlags);
                         if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                         {
                             KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
                         }
                     }
-                    else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, blade.HitDamage, owner))
+                    else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), owner))
                     {
                         DestroySentry(hitResult.HitSentry, owner);
                     }
                     else if (hitResult.HitGenerator is not null)
                     {
-                        TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage, owner);
+                        TryDamageGenerator(hitResult.HitGenerator.Team, blade.HitDamage * blade.CriticalDamageMultiplier, owner);
                     }
                     else
                     {
@@ -163,19 +163,19 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, NeedleProjectileEntity.DamagePerHit, out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "NeedleKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, NeedleProjectileEntity.DamagePerHit, owner))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier), owner))
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit, owner);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, NeedleProjectileEntity.DamagePerHit * needle.CriticalDamageMultiplier, owner);
                 }
                 else
                 {
@@ -227,7 +227,7 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue), out var damageFlags);
+                    var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
                         KillPlayer(
@@ -236,13 +236,13 @@ public sealed partial class SimulationWorld
                             weaponSpriteName: shot.KillFeedWeaponSpriteNameOverride ?? "RevolverKL");
                     }
                 }
-                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue), owner))
+                else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), owner))
                 {
                     DestroySentry(hitResult.HitSentry, owner);
                 }
                 else if (hitResult.HitGenerator is not null)
                 {
-                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue, owner);
+                    TryDamageGenerator(hitResult.HitGenerator.Team, shot.DamageValue * shot.CriticalDamageMultiplier, owner);
                 }
                 else
                 {

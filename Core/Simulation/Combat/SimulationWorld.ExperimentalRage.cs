@@ -117,7 +117,10 @@ public sealed partial class SimulationWorld
             return false;
         }
 
-        player.RefreshUber();
+        if (!player.IsCarryingIntel)
+        {
+            player.RefreshUber();
+        }
         if (ExperimentalGameplaySettings.EnableDemoknightPostRageRegeneration
             && player.IsExperimentalDemoknightEnabled)
         {
@@ -141,7 +144,7 @@ public sealed partial class SimulationWorld
 
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (player.IsRaging)
+            if (player.IsRaging && !player.IsCarryingIntel)
             {
                 player.RefreshUber();
             }

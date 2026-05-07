@@ -25,10 +25,11 @@ public sealed partial class SimulationWorld
             float directionY,
             float distance,
             bool hitCharacter,
-            PlayerTeam team = PlayerTeam.Red,
-            bool isSniperTracer = false)
+            PlayerTeam team,
+            bool isSniperTracer = false,
+            bool isCritical = false)
         {
-            _world.RegisterCombatTrace(originX, originY, directionX, directionY, distance, hitCharacter, team, isSniperTracer);
+            _world.RegisterCombatTrace(originX, originY, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
         }
 
         private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
