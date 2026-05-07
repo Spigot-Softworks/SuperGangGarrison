@@ -30,6 +30,7 @@ public sealed partial class PlayerEntity
         bool isSpyCloaked,
         float spyCloakAlpha,
         bool isUbered,
+        bool isKritzCritBoosted,
         bool isHeavyEating,
         int heavyEatTicksRemaining,
         bool isSniperScoped,
@@ -165,6 +166,7 @@ public sealed partial class PlayerEntity
         BurnedByPlayerId = burnedByPlayerId > 0 ? burnedByPlayerId : null;
         NapalmCoveredSourceTicks = 0f;
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
+        KritzCritBoostTicksRemaining = isKritzCritBoosted ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
         HeavyEatCooldownTicksRemaining = ClassId == PlayerClass.Heavy

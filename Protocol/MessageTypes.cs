@@ -248,6 +248,7 @@ public sealed record SnapshotPlayerState(
     bool IsSpyCloaked,
     float SpyCloakAlpha,
     bool IsUbered,
+    bool IsKritzCritBoosted,
     bool IsHeavyEating,
     int HeavyEatTicksRemaining,
     bool IsSniperScoped,
@@ -367,7 +368,8 @@ public sealed record SnapshotShotState(
     float Y,
     float VelocityX,
     float VelocityY,
-    int TicksRemaining);
+    int TicksRemaining,
+    bool IsCritical = false);
 
 public sealed record SnapshotRocketState(
     int Id,
@@ -388,7 +390,8 @@ public sealed record SnapshotRocketState(
     float DistanceToTravel = 800f,
     bool IsFading = false,
     float FadeSourceTicksRemaining = 0f,
-    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
+    bool IsCritical = false);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -403,7 +406,8 @@ public sealed record SnapshotFlameState(
     int TicksRemaining,
     int AttachedPlayerId,
     float AttachedOffsetX,
-    float AttachedOffsetY);
+    float AttachedOffsetY,
+    bool IsCritical = false);
 
 public sealed record SnapshotMineState(
     int Id,
@@ -415,7 +419,8 @@ public sealed record SnapshotMineState(
     float VelocityY,
     bool IsStickied,
     bool IsDestroyed,
-    float ExplosionDamage);
+    float ExplosionDamage,
+    bool IsCritical = false);
 
 public sealed record SnapshotControlPointState(
     byte Index,
@@ -518,7 +523,8 @@ public sealed record SnapshotCombatTraceState(
     int TicksRemaining,
     bool HitCharacter,
     byte Team,
-    bool IsSniperTracer);
+    bool IsSniperTracer,
+    bool IsCritical = false);
 
 public sealed record SnapshotSoundEvent(
     string SoundName,

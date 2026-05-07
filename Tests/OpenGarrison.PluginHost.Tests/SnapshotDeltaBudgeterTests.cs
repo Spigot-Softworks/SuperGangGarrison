@@ -745,6 +745,7 @@ public sealed class SnapshotDeltaBudgeterTests
             IsSpyCloaked: false,
             SpyCloakAlpha: 1f,
             IsUbered: false,
+            IsKritzCritBoosted: false,
             IsHeavyEating: false,
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,

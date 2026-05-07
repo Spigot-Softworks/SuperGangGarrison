@@ -123,7 +123,8 @@ public sealed partial class SimulationWorld
             if (CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))
             {
                 RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
-                var damage = mine.ExplosionDamage * mine.CriticalDamageMultiplier * factor;
+                var critMultiplier = (player.Id == mine.OwnerId && player.Team == mine.Team) ? 1f : mine.CriticalDamageMultiplier;
+                var damage = mine.ExplosionDamage * critMultiplier * factor;
                 if (player.Id == mine.OwnerId && player.Team == mine.Team)
                 {
                     damage *= MineProjectileEntity.SelfDamageScale;

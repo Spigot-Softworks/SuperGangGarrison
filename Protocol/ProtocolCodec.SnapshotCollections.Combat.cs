@@ -76,6 +76,7 @@ public static partial class ProtocolCodec
             writer.Write(shot.VelocityX);
             writer.Write(shot.VelocityY);
             writer.Write(shot.TicksRemaining);
+            writer.Write(shot.IsCritical);
         }
     }
 
@@ -93,7 +94,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadInt32()));
+                reader.ReadInt32(),
+                reader.ReadBoolean()));
         }
 
         return shots;
@@ -123,6 +125,7 @@ public static partial class ProtocolCodec
             writer.Write(rocket.DistanceToTravel);
             writer.Write(rocket.IsFading);
             writer.Write(rocket.FadeSourceTicksRemaining);
+            writer.Write(rocket.IsCritical);
             var passedFriendlyPlayerIds = rocket.PassedFriendlyPlayerIds;
             writer.Write((ushort)(passedFriendlyPlayerIds?.Count ?? 0));
             if (passedFriendlyPlayerIds is not null)
@@ -159,6 +162,7 @@ public static partial class ProtocolCodec
             var distanceToTravel = reader.ReadSingle();
             var isFading = reader.ReadBoolean();
             var fadeSourceTicksRemaining = reader.ReadSingle();
+            var isCritical = reader.ReadBoolean();
             var passedFriendlyCount = reader.ReadUInt16();
             var passedFriendlyPlayerIds = new int[passedFriendlyCount];
             for (var passedIndex = 0; passedIndex < passedFriendlyCount; passedIndex += 1)
@@ -185,7 +189,8 @@ public static partial class ProtocolCodec
                 distanceToTravel,
                 isFading,
                 fadeSourceTicksRemaining,
-                passedFriendlyPlayerIds));
+                passedFriendlyPlayerIds,
+                isCritical));
         }
 
         return rockets;
@@ -210,6 +215,7 @@ public static partial class ProtocolCodec
             writer.Write(flame.AttachedPlayerId);
             writer.Write(flame.AttachedOffsetX);
             writer.Write(flame.AttachedOffsetY);
+            writer.Write(flame.IsCritical);
         }
     }
 
@@ -232,7 +238,8 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadInt32(),
                 reader.ReadSingle(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean()));
         }
 
         return flames;
@@ -254,6 +261,7 @@ public static partial class ProtocolCodec
             writer.Write(mine.IsStickied);
             writer.Write(mine.IsDestroyed);
             writer.Write(mine.ExplosionDamage);
+            writer.Write(mine.IsCritical);
         }
     }
 
@@ -273,7 +281,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadBoolean()));
         }
 
         return mines;
@@ -293,6 +302,7 @@ public static partial class ProtocolCodec
             writer.Write(trace.HitCharacter);
             writer.Write(trace.Team);
             writer.Write(trace.IsSniperTracer);
+            writer.Write(trace.IsCritical);
         }
     }
 
@@ -310,6 +320,7 @@ public static partial class ProtocolCodec
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadByte(),
+                reader.ReadBoolean(),
                 reader.ReadBoolean()));
         }
 
