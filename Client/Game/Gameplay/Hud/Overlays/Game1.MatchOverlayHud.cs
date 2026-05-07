@@ -361,21 +361,23 @@ public partial class Game1
         var backgroundWidth = contentWidth + leftPadding + rightPadding;
         var backgroundLeft = viewportWidth - backgroundWidth - 4f;
         var backgroundHeight = Math.Max(16f, MeasureBitmapFontHeight(1f) + 8f);
-        DrawInsetHudPanel(
+        DrawInsetRoundedHudPanel(
             new Rectangle(
                 (int)MathF.Floor(backgroundLeft),
                 (int)MathF.Floor(y - 3f),
                 (int)MathF.Ceiling(backgroundWidth),
                 (int)MathF.Ceiling(backgroundHeight)),
             isLocalInvolved ? new Color(217, 217, 183) : new Color(49, 45, 26),
-            isLocalInvolved ? new Color(235, 232, 198) : new Color(68, 61, 38));
+            isLocalInvolved ? new Color(235, 232, 198) : new Color(68, 61, 38),
+            6);
 
         var currentX = backgroundLeft + leftPadding;
+        var textY = y + 2f;
         var messageColor = isLocalInvolved ? Color.Black : Color.White;
         var highlightColor = new Color(232, 46, 46);
         if (!string.IsNullOrEmpty(entry.KillerName))
         {
-            DrawBitmapFontText(entry.KillerName, new Vector2(currentX, y), GetKillFeedTextColor(entry.KillerTeam), 1f);
+            DrawBitmapFontText(entry.KillerName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.KillerTeam), 1f);
             currentX += killerWidth;
         }
 
@@ -385,31 +387,31 @@ public partial class Game1
             var frameIndex = resolvedWeaponSprite.Frames.Count > 1 && isLocalInvolved ? 1 : 0;
             currentX += iconSpacing * 0.5f;
             var iconCenterX = currentX + (weaponWidth / 2f);
-            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 5f), Color.White, Vector2.One);
+            DrawCenteredHudSprite(entry.WeaponSpriteName, frameIndex, new Vector2(iconCenterX, y + 7f), Color.White, Vector2.One);
             currentX += weaponWidth + (iconSpacing * 0.5f);
         }
 
         if (!string.IsNullOrEmpty(messagePrefix))
         {
-            DrawBitmapFontText(messagePrefix, new Vector2(currentX, y), messageColor, 1f);
+            DrawBitmapFontText(messagePrefix, new Vector2(currentX, textY), messageColor, 1f);
             currentX += messagePrefixWidth;
         }
 
         if (!string.IsNullOrEmpty(messageHighlight))
         {
-            DrawBitmapFontText(messageHighlight, new Vector2(currentX, y), highlightColor, 1f);
+            DrawBitmapFontText(messageHighlight, new Vector2(currentX, textY), highlightColor, 1f);
             currentX += messageHighlightWidth;
         }
 
         if (!string.IsNullOrEmpty(messageSuffix))
         {
-            DrawBitmapFontText(messageSuffix, new Vector2(currentX, y), messageColor, 1f);
+            DrawBitmapFontText(messageSuffix, new Vector2(currentX, textY), messageColor, 1f);
             currentX += messageSuffixWidth;
         }
 
         if (!string.IsNullOrEmpty(victimName))
         {
-            DrawBitmapFontText(victimName, new Vector2(currentX, y), GetKillFeedTextColor(entry.VictimTeam), 1f);
+            DrawBitmapFontText(victimName, new Vector2(currentX, textY), GetKillFeedTextColor(entry.VictimTeam), 1f);
         }
     }
 

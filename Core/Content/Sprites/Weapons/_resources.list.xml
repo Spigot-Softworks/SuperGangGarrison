@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <resources>
   <resource name="Firing" type="GROUP"/>
   <resource name="Reloading" type="GROUP"/>
   <resource name="Other" type="GROUP"/>
   <resource name="MedigunS" type="RESOURCE"/>
+  <resource name="MedigunCritS" type="RESOURCE"/>
   <resource name="MinigunS" type="RESOURCE"/>
   <resource name="MinegunS" type="RESOURCE"/>
   <resource name="FlamethrowerS" type="RESOURCE"/>

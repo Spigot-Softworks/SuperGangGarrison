@@ -89,6 +89,7 @@ public sealed partial class PlayerEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         UberTicksRemaining = 0;
+        KritzCritBoostTicksRemaining = 0;
         MedicHealTargetId = null;
         IsMedicHealing = false;
         IsMedicUbering = false;

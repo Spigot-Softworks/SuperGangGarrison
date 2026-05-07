@@ -258,7 +258,7 @@ internal sealed class NetworkGameClient : IDisposable
         if (input.FirePrimary) buttons |= InputButtons.FirePrimary;
         if (input.FireSecondary) buttons |= InputButtons.FireSecondary;
         if (input.DropIntel) buttons |= InputButtons.DropIntel;
-        if (input.FireSecondaryWeapon) buttons |= InputButtons.FireSecondaryWeapon;
+        if (input.UseAbility) buttons |= InputButtons.UseAbility;
         if (input.InteractWeapon) buttons |= InputButtons.InteractWeapon;
 
         SendPendingControlCommands();

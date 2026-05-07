@@ -258,6 +258,10 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int UberTicksRemaining { get; private set; }
 
+    public bool IsKritzCritBoosted => KritzCritBoostTicksRemaining > 0;
+
+    public int KritzCritBoostTicksRemaining { get; private set; }
+
     public float RageCharge { get; private set; }
 
     public bool IsRageReady { get; private set; }
@@ -562,6 +566,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         UberTicksRemaining = 0;
+        KritzCritBoostTicksRemaining = 0;
         MedicHealTargetId = null;
         IsMedicHealing = false;
         if (resetMedicUberCharge)

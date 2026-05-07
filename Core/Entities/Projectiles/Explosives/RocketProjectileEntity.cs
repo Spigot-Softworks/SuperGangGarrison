@@ -156,6 +156,12 @@ public sealed class RocketProjectileEntity : SimulationEntity
         ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultSoldierStingerBlastRadiusMultiplier
         : 1f;
 
+    public bool IsCritical { get; private set; }
+
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+
+    public void SetCritical() { IsCritical = true; }
+
     public void AdvanceOneTick(float deltaSeconds)
     {
         PreviousX = X;

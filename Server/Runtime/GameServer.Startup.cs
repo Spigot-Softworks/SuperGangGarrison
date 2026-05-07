@@ -367,7 +367,7 @@ partial class GameServer
 
     private void InitializeHttpRegistryHeartbeat()
     {
-        if (_registryUrl is null)
+        if (!_useLobbyServer || _registryUrl is null)
         {
             return;
         }
