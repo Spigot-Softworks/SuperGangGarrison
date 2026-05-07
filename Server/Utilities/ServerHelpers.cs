@@ -143,7 +143,7 @@ internal static partial class ServerHelpers
             AimWorldY: message.AimWorldY,
             DebugKill: buttons.HasFlag(InputButtons.DebugKill),
             DropIntel: buttons.HasFlag(InputButtons.DropIntel),
-            FireSecondaryWeapon: buttons.HasFlag(InputButtons.FireSecondaryWeapon),
+            UseAbility: buttons.HasFlag(InputButtons.UseAbility),
             InteractWeapon: buttons.HasFlag(InputButtons.InteractWeapon));
     }
 }

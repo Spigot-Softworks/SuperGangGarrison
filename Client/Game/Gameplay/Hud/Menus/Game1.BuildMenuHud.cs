@@ -97,7 +97,7 @@ public partial class Game1
 
     private void TryShowEngineerJumpPadBuildNoticeOnUtilityPress(PlayerInputSnapshot input)
     {
-        if (!input.FireSecondaryWeapon || _latestPredictedLocalInput.FireSecondaryWeapon)
+        if (!input.UseAbility || _latestPredictedLocalInput.UseAbility)
         {
             return;
         }

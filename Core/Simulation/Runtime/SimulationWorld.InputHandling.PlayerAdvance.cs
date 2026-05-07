@@ -36,9 +36,9 @@ public sealed partial class SimulationWorld
         var killPressed = input.DebugKill && !previousInput.DebugKill;
         var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
-        var secondaryWeaponPressed = input.FireSecondaryWeapon && !previousInput.FireSecondaryWeapon;
+        var abilityPressed = input.UseAbility && !previousInput.UseAbility;
         var secondaryWeaponTriggeredPyroSelfAirblast = player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.PyroUtility)
-            && secondaryWeaponPressed
+            && abilityPressed
             && player.CanFirePyroAirblast();
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         var allowHeldSecondaryAbility = ShouldUseHeldSecondaryAbility(player)
@@ -117,9 +117,9 @@ public sealed partial class SimulationWorld
             TryHandleNetworkSecondaryAbility(player, input, preAdvanceX, preAdvanceY);
         }
 
-        if (secondaryWeaponPressed)
+        if (abilityPressed)
         {
-            TryHandleNetworkSecondaryWeaponFire(player, input);
+            TryHandleNetworkAbilityInput(player, input);
         }
 
         if (interactWeaponPressed)

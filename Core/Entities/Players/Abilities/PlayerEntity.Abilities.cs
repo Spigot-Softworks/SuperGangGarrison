@@ -274,6 +274,16 @@ public sealed partial class PlayerEntity
         UberTicksRemaining = int.Max(UberTicksRemaining, ticks);
     }
 
+    public void RefreshKritzCritBoost(int ticks = DefaultUberRefreshTicks)
+    {
+        if (!IsAlive)
+        {
+            return;
+        }
+
+        KritzCritBoostTicksRemaining = int.Max(KritzCritBoostTicksRemaining, ticks);
+    }
+
     public int ApplyContinuousHealingAndGetAmount(float healing)
     {
         if (!IsAlive || healing <= 0f)
@@ -378,6 +388,11 @@ public sealed partial class PlayerEntity
         if (UberTicksRemaining > 0)
         {
             UberTicksRemaining -= 1;
+        }
+
+        if (KritzCritBoostTicksRemaining > 0)
+        {
+            KritzCritBoostTicksRemaining -= 1;
         }
     }
 

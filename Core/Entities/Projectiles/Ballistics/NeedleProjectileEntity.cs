@@ -44,6 +44,12 @@ public sealed class NeedleProjectileEntity : SimulationEntity
 
     public bool IsExpired => TicksRemaining <= 0;
 
+    public bool IsCritical { get; private set; }
+
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+
+    public void SetCritical() { IsCritical = true; }
+
     public void AdvanceOneTick(float gravityScale = 1f)
     {
         PreviousX = X;
