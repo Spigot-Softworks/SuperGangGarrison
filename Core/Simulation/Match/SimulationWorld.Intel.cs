@@ -17,7 +17,9 @@ public sealed partial class SimulationWorld
 
     public bool ForceGiveEnemyIntelToLocalPlayer()
     {
-        if (!LocalPlayer.IsAlive || LocalPlayer.IsCarryingIntel)
+        if (!LocalPlayer.IsAlive 
+            || LocalPlayer.IsCarryingIntel
+            || (LocalPlayer.ClassId == PlayerClass.Spy && LocalPlayer.IsSpyCloaked))
         {
             return false;
         }
@@ -60,7 +62,8 @@ public sealed partial class SimulationWorld
     {
         if (player.IsCarryingIntel
             || player.IntelPickupCooldownTicks > 0
-            || player.IsInsideBlockingTeamGate(Level, player.Team))
+            || player.IsInsideBlockingTeamGate(Level, player.Team)
+            || (player.ClassId == PlayerClass.Spy && player.IsSpyCloaked))
         {
             return;
         }

@@ -306,6 +306,10 @@ public static partial class ProtocolCodec
             writer.Write(player.IntelRechargeTicks);
             writer.Write(player.IsSpyCloaked);
             writer.Write(player.SpyCloakAlpha);
+            writer.Write(player.IsSpySuperjumping);
+            writer.Write(player.SpySuperjumpHorizontalVelocity);
+            writer.Write(player.SpySuperjumpCooldownTicksRemaining);
+            writer.Write(player.SpyBackstabVisualTicksRemaining);
             writer.Write(player.IsUbered);
             writer.Write(player.IsKritzCritBoosted);
             writer.Write(player.IsHeavyEating);
@@ -414,6 +418,10 @@ public static partial class ProtocolCodec
             var intelRechargeTicks = reader.ReadSingle();
             var isSpyCloaked = reader.ReadBoolean();
             var spyCloakAlpha = reader.ReadSingle();
+            var isSpySuperjumping = reader.ReadBoolean();
+            var spySuperjumpHorizontalVelocity = reader.ReadSingle();
+            var spySuperjumpCooldownTicksRemaining = reader.ReadInt32();
+            var spyBackstabVisualTicksRemaining = reader.ReadInt32();
             var isUbered = reader.ReadBoolean();
             var isKritzCritBoosted = reader.ReadBoolean();
             var isHeavyEating = reader.ReadBoolean();
@@ -482,7 +490,9 @@ public static partial class ProtocolCodec
                 health, maxHealth, ammo, maxAmmo, kills, deaths, caps, points, healPoints,
                 activeDominationCount, isDominatingLocalViewer, isDominatedByLocalViewer,
                 metal, isGrounded, remainingAirJumps, isCarryingIntel, intelRechargeTicks,
-                isSpyCloaked, spyCloakAlpha, isUbered, isKritzCritBoosted, isHeavyEating, heavyEatTicksRemaining,
+                isSpyCloaked, spyCloakAlpha, isSpySuperjumping, spySuperjumpHorizontalVelocity,
+                spySuperjumpCooldownTicksRemaining, spyBackstabVisualTicksRemaining,
+                isUbered, isKritzCritBoosted, isHeavyEating, heavyEatTicksRemaining,
                 isSniperScoped, sniperChargeTicks, facingDirectionX, aimDirectionDegrees,
                 isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
                 burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,

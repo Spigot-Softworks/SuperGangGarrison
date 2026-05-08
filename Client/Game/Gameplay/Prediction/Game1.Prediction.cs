@@ -22,6 +22,7 @@ public partial class Game1
     private PredictedLocalActionState _predictedLocalActionState;
     private bool _hasPredictedLocalActionState;
     private PlayerInputSnapshot _latestPredictedLocalInput;
+    private PlayerInputSnapshot _previousPredictedLocalInput;
 
     private void RecordPredictedInput(
         uint sequence,
@@ -159,6 +160,8 @@ public partial class Game1
             SniperChargeTicks = player.SniperChargeTicks,
             IsSpyCloaked = player.IsSpyCloaked,
             SpyCloakAlpha = player.SpyCloakAlpha,
+            IsSpySuperjumping = player.IsSpySuperjumping,
+            SpySuperjumpHorizontalVelocity = player.SpySuperjumpHorizontalVelocity,
             IsSpyVisibleToEnemies = player.IsSpyVisibleToEnemies,
             SpyBackstabWindupTicksRemaining = player.SpyBackstabWindupTicksRemaining,
             SpyBackstabRecoveryTicksRemaining = player.SpyBackstabRecoveryTicksRemaining,
@@ -256,6 +259,8 @@ public partial class Game1
         public int SniperChargeTicks;
         public bool IsSpyCloaked;
         public float SpyCloakAlpha;
+        public bool IsSpySuperjumping;
+        public float SpySuperjumpHorizontalVelocity;
         public bool IsSpyVisibleToEnemies;
         public int SpyBackstabWindupTicksRemaining;
         public int SpyBackstabRecoveryTicksRemaining;

@@ -182,6 +182,13 @@ public sealed partial class PlayerEntity
             return false;
         }
 
+        // Medic carrying intel cannot activate regular uber, but can activate kritz
+        var isKritz = HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+        if (IsCarryingIntel && !isKritz)
+        {
+            return false;
+        }
+
         IsMedicUbering = true;
         IsMedicUberReady = false;
         return true;
@@ -434,6 +441,112 @@ public sealed partial class PlayerEntity
         {
             CurrentShells = MaxShells;
             MedicNeedleRefillTicks = 0;
+        }
+    }
+
+    public bool TryStartSpySuperjumpCharge(float aimDirectionDegrees, bool leftHeld, bool rightHeld, bool upHeld, bool downHeld)
+    {
+        // Can't start charging while already superjumping or already charging or on cooldown or backstabbing or carrying intel
+        if (!IsAlive || ClassId != PlayerClass.Spy || IsTaunting || IsSpyBackstabAnimating || IsCarryingIntel || SpySuperjumpChargeTicks > 0 || IsSpySuperjumping || SpySuperjumpCooldownTicksRemaining > 0)
+        {
+            return false;
+        }
+
+        SpySuperjumpChargeTicks = 1;
+        SpySuperjumpChargeDirectionDegrees = aimDirectionDegrees;
+        
+        // Store which movement buttons are currently held
+        // These buttons will be treated as "released" for movement input purposes,
+        // allowing the spy to smoothly decelerate to a stop while charging
+        byte heldButtons = 0;
+        if (leftHeld) heldButtons |= 0x01;
+        if (rightHeld) heldButtons |= 0x02;
+        if (upHeld) heldButtons |= 0x04;
+        if (downHeld) heldButtons |= 0x08;
+        SpySuperjumpChargeStartMovementButtons = heldButtons;
+        
+        return true;
+    }
+
+    public void CancelSpySuperjumpCharge()
+    {
+        SpySuperjumpChargeTicks = 0;
+        SpySuperjumpChargeDirectionDegrees = 0f;
+        SpySuperjumpChargeStartMovementButtons = 0;
+    }
+
+    public void IncrementSpySuperjumpCharge(float aimDirectionDegrees)
+    {
+        if (SpySuperjumpChargeTicks < SpySuperjumpMaxChargeTicks)
+        {
+            SpySuperjumpChargeTicks += 1;
+        }
+        
+        // Update aim direction every frame while charging
+        SpySuperjumpChargeDirectionDegrees = aimDirectionDegrees;
+    }
+
+    public bool TryReleaseSpySuperjump(out float velocityX, out float velocityY)
+    {
+        velocityX = 0f;
+        velocityY = 0f;
+
+        if (!IsAlive || ClassId != PlayerClass.Spy || SpySuperjumpChargeTicks <= 0)
+        {
+            return false;
+        }
+
+        // Calculate velocity before clearing state
+        var chargeFraction = float.Min(1f, SpySuperjumpChargeTicks / (float)SpySuperjumpMaxChargeTicks);
+        var velocity = SpySuperjumpMinVelocity + (SpySuperjumpMaxVelocity - SpySuperjumpMinVelocity) * chargeFraction;
+        
+        var radians = SpySuperjumpChargeDirectionDegrees * (MathF.PI / 180f);
+        var calculatedVelocityX = MathF.Cos(radians) * velocity;
+        var calculatedVelocityY = MathF.Sin(radians) * velocity;
+        
+        // Only execute jump if grounded, but always clear charge state
+        var wasGrounded = IsGrounded;
+        
+        SpySuperjumpChargeTicks = 0;
+        SpySuperjumpChargeDirectionDegrees = 0f;
+        SpySuperjumpChargeStartMovementButtons = 0;
+        
+        if (!wasGrounded)
+        {
+            return false;
+        }
+
+        velocityX = calculatedVelocityX;
+        velocityY = calculatedVelocityY;
+        IsSpySuperjumping = true;
+        SpySuperjumpHorizontalVelocity = velocityX; // Store horizontal velocity to maintain during flight
+        SpySuperjumpCooldownTicksRemaining = SpySuperjumpCooldownTicks; // Start cooldown
+        
+        return true;
+    }
+
+    private void AdvanceSpySuperjumpState()
+    {
+        if (ClassId != PlayerClass.Spy)
+        {
+            SpySuperjumpChargeTicks = 0;
+            IsSpySuperjumping = false;
+            SpySuperjumpHorizontalVelocity = 0f;
+            SpySuperjumpCooldownTicksRemaining = 0;
+            return;
+        }
+
+        // Decrement cooldown
+        if (SpySuperjumpCooldownTicksRemaining > 0)
+        {
+            SpySuperjumpCooldownTicksRemaining -= 1;
+        }
+
+        // Clear superjumping flag and stored velocity when grounded
+        if (IsSpySuperjumping && IsGrounded)
+        {
+            IsSpySuperjumping = false;
+            SpySuperjumpHorizontalVelocity = 0f;
         }
     }
 }

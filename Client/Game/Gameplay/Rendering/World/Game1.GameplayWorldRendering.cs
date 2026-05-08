@@ -62,6 +62,7 @@ public partial class Game1
         }
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
+        DrawSpySuperjumpVisuals(cameraPosition);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
