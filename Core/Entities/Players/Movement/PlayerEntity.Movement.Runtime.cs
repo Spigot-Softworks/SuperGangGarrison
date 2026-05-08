@@ -129,6 +129,7 @@ public sealed partial class PlayerEntity
             AdvanceUberState();
             AdvanceMedicState();
             AdvanceSpyState();
+            AdvanceSpySuperjumpState();
             AdvanceIntelCarryState();
         }
 
@@ -157,11 +158,22 @@ public sealed partial class PlayerEntity
         }
         else if (!isDemoknightChargeDriving)
         {
-            if (canMove && input.Left)
+            // During spy superjump charging, ignore movement buttons that were held when charging started
+            var leftInput = input.Left;
+            var rightInput = input.Right;
+            
+            if (SpySuperjumpChargeTicks > 0)
+            {
+                var heldButtons = SpySuperjumpChargeStartMovementButtons;
+                if ((heldButtons & 0x01) != 0) leftInput = false;  // Left was held
+                if ((heldButtons & 0x02) != 0) rightInput = false; // Right was held
+            }
+            
+            if (canMove && leftInput)
             {
                 horizontalDirection -= 1f;
             }
-            if (canMove && input.Right)
+            if (canMove && rightInput)
             {
                 horizontalDirection += 1f;
             }
@@ -185,7 +197,18 @@ public sealed partial class PlayerEntity
             ApplyExperimentalDemoknightChargeDrive(dt);
         }
 
+        // Calculate hasHorizontalInput with filtering for spy superjump charging
         var hasHorizontalInput = canMove && (input.Left || input.Right);
+        
+        // During spy superjump charging, ignore movement buttons that were held when charging started
+        if (SpySuperjumpChargeTicks > 0 && !isDemoknightChargeDriving)
+        {
+            var heldButtons = SpySuperjumpChargeStartMovementButtons;
+            var leftInput = input.Left && (heldButtons & 0x01) == 0;  // Only if left wasn't held
+            var rightInput = input.Right && (heldButtons & 0x02) == 0; // Only if right wasn't held
+            hasHorizontalInput = canMove && (leftInput || rightInput);
+        }
+        
         if (isDemoknightChargeDriving)
         {
             hasHorizontalInput = allowChargeFullControl ? hasHorizontalInput : false;
@@ -195,16 +218,30 @@ public sealed partial class PlayerEntity
             }
         }
 
-        HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
-            HorizontalSpeed,
-            RunPower,
-            GetMovementScale(input),
-            hasHorizontalInput,
-            horizontalDirection,
-            MovementState,
-            IsCarryingIntel,
-            dt,
-            isHumiliated);
+        // Special handling for spy superjump: preserve momentum but allow air control
+        if (IsSpySuperjumping && !IsGrounded)
+        {
+            // Apply limited air control input directly to the base velocity
+            if (hasHorizontalInput && horizontalDirection != 0f)
+            {
+                var airControlPower = RunPower * GetMovementScale(input) * 0.85f * dt; // 0.85 is base control factor
+                SpySuperjumpHorizontalVelocity += horizontalDirection * airControlPower * LegacyMovementModel.SourceTicksPerSecond;
+            }
+            HorizontalSpeed = SpySuperjumpHorizontalVelocity;
+        }
+        else
+        {
+            HorizontalSpeed = LegacyMovementModel.AdvanceHorizontalSpeed(
+                HorizontalSpeed,
+                RunPower,
+                GetMovementScale(input),
+                hasHorizontalInput,
+                horizontalDirection,
+                MovementState,
+                IsCarryingIntel,
+                dt,
+                isHumiliated);
+        }
 
         ClampMovementSpeedsToMovementMaximum();
 
@@ -351,6 +388,11 @@ public sealed partial class PlayerEntity
                 else
                 {
                     HorizontalSpeed = 0f;
+                    // Also zero superjump horizontal velocity when hitting a wall
+                    if (IsSpySuperjumping)
+                    {
+                        SpySuperjumpHorizontalVelocity = 0f;
+                    }
                     remainingX = 0f;
                     collisionRectified = true;
                 }

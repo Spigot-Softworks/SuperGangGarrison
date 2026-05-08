@@ -120,6 +120,60 @@ public sealed partial class SimulationWorld
         if (abilityPressed)
         {
             TryHandleNetworkAbilityInput(player, input);
+            
+            // Start charging spy superjump when Space is pressed
+            if (player.ClassId == PlayerClass.Spy)
+            {
+                var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
+                player.TryStartSpySuperjumpCharge(directionDegrees, input.Left, input.Right, input.Up, input.Down);
+            }
+        }
+        // Also start charging if space is being held and not already charging (handles holding space while landing)
+        else if (player.ClassId == PlayerClass.Spy && input.UseAbility && player.SpySuperjumpChargeTicks == 0 && !player.IsSpySuperjumping)
+        {
+            var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
+            player.TryStartSpySuperjumpCharge(directionDegrees, input.Left, input.Right, input.Up, input.Down);
+        }
+
+        // Handle spy superjump charging and cancellation
+        if (player.ClassId == PlayerClass.Spy && player.SpySuperjumpChargeTicks > 0)
+        {
+            // Cancel if NEW movement buttons are pressed (not ones held when charging started)
+            var heldButtons = player.SpySuperjumpChargeStartMovementButtons;
+            var leftWasHeld = (heldButtons & 0x01) != 0;
+            var rightWasHeld = (heldButtons & 0x02) != 0;
+            var upWasHeld = (heldButtons & 0x04) != 0;
+            var downWasHeld = (heldButtons & 0x08) != 0;
+            
+            var newButtonPressed = (input.Left && !leftWasHeld) 
+                || (input.Right && !rightWasHeld) 
+                || (input.Up && !upWasHeld) 
+                || (input.Down && !downWasHeld);
+            
+            if (newButtonPressed)
+            {
+                player.CancelSpySuperjumpCharge();
+            }
+            // Cancel if backstab starts or intel is picked up
+            else if (player.IsSpyBackstabAnimating || player.IsCarryingIntel)
+            {
+                player.CancelSpySuperjumpCharge();
+            }
+            // Continue charging while Space is held
+            else if (input.UseAbility)
+            {
+                var directionDegrees = PointDirectionDegrees(player.X, player.Y, input.AimWorldX, input.AimWorldY);
+                player.IncrementSpySuperjumpCharge(directionDegrees);
+            }
+            // Release when Space is released (jump only executes if grounded)
+            else if (!input.UseAbility && player.SpySuperjumpChargeTicks > 0)
+            {
+                if (player.TryReleaseSpySuperjump(out var velocityX, out var velocityY))
+                {
+                    player.ApplyVelocityImpulse(velocityX, velocityY);
+                    RegisterWorldSoundEvent("JumpSnd", player.X, player.Y);
+                }
+            }
         }
 
         if (interactWeaponPressed)

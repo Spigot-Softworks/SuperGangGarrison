@@ -29,6 +29,10 @@ public sealed partial class PlayerEntity
         float intelRechargeTicks,
         bool isSpyCloaked,
         float spyCloakAlpha,
+        bool isSpySuperjumping,
+        float spySuperjumpHorizontalVelocity,
+        int spySuperjumpCooldownTicksRemaining,
+        int spyBackstabVisualTicksRemaining,
         bool isUbered,
         bool isKritzCritBoosted,
         bool isHeavyEating,
@@ -153,9 +157,16 @@ public sealed partial class PlayerEntity
         IntelRechargeTicks = isCarryingIntel ? float.Clamp(intelRechargeTicks, 0f, IntelRechargeMaxTicks) : 0f;
         IsSpyCloaked = isSpyCloaked;
         SpyCloakAlpha = float.Clamp(spyCloakAlpha, 0f, 1f);
+        IsSpySuperjumping = isSpySuperjumping;
+        SpySuperjumpHorizontalVelocity = spySuperjumpHorizontalVelocity;
+        SpySuperjumpCooldownTicksRemaining = ClassId == PlayerClass.Spy
+            ? Math.Max(0, spySuperjumpCooldownTicksRemaining)
+            : 0;
         SpyBackstabWindupTicksRemaining = 0;
         SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = 0;
+        SpyBackstabVisualTicksRemaining = ClassId == PlayerClass.Spy
+            ? Math.Max(0, spyBackstabVisualTicksRemaining)
+            : 0;
         SpyBackstabDirectionDegrees = 0f;
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = IsSpyCloaked && SpyCloakAlpha > 0f;

@@ -26,7 +26,9 @@ public partial class Game1
         var barRectangle = new Rectangle(0, viewportHeight - 110, viewportWidth, 18);
         var noticeTextY = viewportHeight - 106f;
         _spriteBatch.Draw(_pixel, barRectangle, Color.Black * alpha);
-        TryDrawScreenSprite("GameNoticeS", 0, new Vector2(25f, noticeTextY), tint, new Vector2(2f, 2f));
+        var textHeight = MeasureBitmapFontHeight(1f);
+        var spriteY = noticeTextY + (textHeight / 2f);
+        TryDrawScreenSprite("GameNoticeS", 0, new Vector2(25f, spriteY), tint, new Vector2(2f, 2f));
 
         var text = _notice.Text;
         if (!string.IsNullOrEmpty(text))
