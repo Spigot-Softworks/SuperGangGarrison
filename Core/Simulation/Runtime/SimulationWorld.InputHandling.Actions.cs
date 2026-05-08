@@ -496,6 +496,13 @@ public sealed partial class SimulationWorld
                 return true;
             }
 
+            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
+            {
+                // Spy superjump ability - do NOT call TryHandleNetworkSecondaryAbility
+                // which would trigger cloak
+                return true;
+            }
+
             TryHandleNetworkSecondaryAbility(player, input, player.X, player.Y);
             return true;
         }
