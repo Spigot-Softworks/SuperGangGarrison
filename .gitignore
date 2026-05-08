@@ -17,6 +17,12 @@ test-results/
 *.log
 build_output*.txt
 tmp_*.cs
+tmp_*.txt
+tmp_*.json
+tmp_*.json.gz
+tmp-*.txt
+temp_*.json.gz
+temp_*.json
 .DS_Store
 Thumbs.db
 *.user
