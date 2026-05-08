@@ -14,6 +14,24 @@ public sealed partial class PlayerEntity
             return 0f;
         }
 
+        // Limited air control during superjump (more control if velocity was reduced by wall collision)
+        if (IsSpySuperjumping && !IsGrounded)
+        {
+            var absVelocity = MathF.Abs(SpySuperjumpHorizontalVelocity);
+            if (absVelocity < 50f)
+            {
+                // Higher control when velocity is very low (50% control when stopped)
+                return 0.5f;
+            }
+            else if (absVelocity < 200f)
+            {
+                // Interpolate between 50% and 20% control based on velocity
+                var t = (absVelocity - 50f) / 150f; // 0 at 50, 1 at 200
+                return 0.5f - (t * 0.3f); // 0.5 at 50, 0.2 at 200
+            }
+            return 0.2f;
+        }
+
         if (HasScopedSniperWeaponEquipped && IsSniperScoped)
         {
             return SniperScopedMoveScale;
@@ -197,5 +215,11 @@ public sealed partial class PlayerEntity
             : GetServerVerticalSpeedClampPerTick();
         HorizontalSpeed = float.Clamp(HorizontalSpeed, -maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxHorizontalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
         VerticalSpeed = float.Clamp(VerticalSpeed, -maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond, maxVerticalSpeedPerTick * LegacyMovementModel.SourceTicksPerSecond);
+    }
+
+    public void ApplyVelocityImpulse(float velocityX, float velocityY)
+    {
+        HorizontalSpeed = velocityX;
+        VerticalSpeed = velocityY;
     }
 }

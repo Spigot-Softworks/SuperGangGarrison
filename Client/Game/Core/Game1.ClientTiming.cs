@@ -58,8 +58,9 @@ public partial class Game1
 
     private void CapturePendingPredictedInputEdges(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot networkInput)
     {
-        var previousPredictedInput = _latestPredictedLocalInput;
+        _previousPredictedLocalInput = _latestPredictedLocalInput;
         _latestPredictedLocalInput = networkInput;
+        var previousPredictedInput = _previousPredictedLocalInput;
 
         if (!networkInput.Up && !networkInput.FireSecondary && !networkInput.UseAbility)
         {
@@ -167,6 +168,8 @@ public partial class Game1
         for (var tick = 0; tick < ticks; tick += 1)
         {
             AdvancePredictedAfterburnVisuals();
+            AdvanceClientSideSuperjumpCharging();
+            AdvanceSpySuperjumpTrajectoryAnimation();
             AdvanceChatHud();
             UpdateNoticeState();
             AdvanceExplosionVisuals();
@@ -216,6 +219,109 @@ public partial class Game1
         }
 
         player.AdvanceAfterburnVisual((float)ClientUpdateStepSeconds);
+    }
+
+    private void AdvanceClientSideSuperjumpCharging()
+    {
+        // Only run client-side charging in online mode (client prediction)
+        // In offline mode, the server-side simulation handles everything
+        if (!_networkClient.IsConnected)
+        {
+            return;
+        }
+
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer == null || !localPlayer.IsAlive || localPlayer.ClassId != PlayerClass.Spy)
+        {
+            return;
+        }
+
+        var input = _latestPredictedLocalInput;
+        var previousInput = _previousPredictedLocalInput;
+        
+        // Calculate aim direction
+        var degrees = MathF.Atan2(input.AimWorldY - localPlayer.Y, input.AimWorldX - localPlayer.X) * (180f / MathF.PI);
+        if (degrees < 0f)
+        {
+            degrees += 360f;
+        }
+        var aimDirectionDegrees = degrees;
+
+        // Detect ability button edge (transition from off to on)
+        var abilityPressed = input.UseAbility && !previousInput.UseAbility;
+
+        // Start charging when UseAbility is first pressed (edge detection)
+        // Don't start during backstab animation (TryStartSpySuperjumpCharge also checks this)
+        if (abilityPressed && !localPlayer.IsSpyBackstabAnimating)
+        {
+            localPlayer.TryStartSpySuperjumpCharge(aimDirectionDegrees, input.Left, input.Right, input.Up, input.Down);
+        }
+        // Also start charging if UseAbility is being held and not already charging (handles holding space while landing)
+        else if (input.UseAbility && localPlayer.SpySuperjumpChargeTicks == 0 && !localPlayer.IsSpySuperjumping && !localPlayer.IsSpyBackstabAnimating)
+        {
+            localPlayer.TryStartSpySuperjumpCharge(aimDirectionDegrees, input.Left, input.Right, input.Up, input.Down);
+        }
+
+        // Process charging state
+        if (localPlayer.SpySuperjumpChargeTicks > 0)
+        {
+            // Cancel if NEW movement buttons are pressed (not ones held when charging started)
+            var heldButtons = localPlayer.SpySuperjumpChargeStartMovementButtons;
+            var leftWasHeld = (heldButtons & 0x01) != 0;
+            var rightWasHeld = (heldButtons & 0x02) != 0;
+            var upWasHeld = (heldButtons & 0x04) != 0;
+            var downWasHeld = (heldButtons & 0x08) != 0;
+            
+            var newButtonPressed = (input.Left && !leftWasHeld) 
+                || (input.Right && !rightWasHeld) 
+                || (input.Up && !upWasHeld) 
+                || (input.Down && !downWasHeld);
+            
+            if (newButtonPressed)
+            {
+                localPlayer.CancelSpySuperjumpCharge();
+            }
+            // Cancel if backstab starts
+            else if (localPlayer.IsSpyBackstabAnimating)
+            {
+                localPlayer.CancelSpySuperjumpCharge();
+            }
+            // Continue charging while UseAbility is held
+            else if (input.UseAbility)
+            {
+                localPlayer.IncrementSpySuperjumpCharge(aimDirectionDegrees);
+            }
+            // Release when UseAbility is released (server will handle actual jump, only if grounded)
+            else
+            {
+                localPlayer.CancelSpySuperjumpCharge();
+            }
+        }
+    }
+
+    private void AdvanceSpySuperjumpTrajectoryAnimation()
+    {
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer != null && localPlayer.ClassId == PlayerClass.Spy && localPlayer.SpySuperjumpChargeTicks > 0 && !localPlayer.IsSpyBackstabAnimating && !localPlayer.IsCarryingIntel)
+        {
+            // Pre-populate 8 dots when charging first starts
+            if (_spySuperjumpTrajectoryAnimationTicks == 0)
+            {
+                // Start at a tick value that makes 8 dots spawn and be spread along trajectory
+                // With dotSpawnInterval=13.33 and dotSpeed=0.3, spacing dots ~13.33 ticks apart:
+                // Last dot (index 7) spawns at 93.31, needs to travel 280 ticks, requiring dotAge=933
+                // So animationProgress = 93.31 + 933 = 1026
+                _spySuperjumpTrajectoryAnimationTicks = 1020;
+            }
+            else
+            {
+                _spySuperjumpTrajectoryAnimationTicks++;
+            }
+        }
+        else
+        {
+            _spySuperjumpTrajectoryAnimationTicks = 0;
+        }
     }
 
     private void AdvanceGoreSourceTicks()
