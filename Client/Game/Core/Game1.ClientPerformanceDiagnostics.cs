@@ -1,8 +1,10 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
+using OpenGarrison.BotAI;
 using OpenGarrison.Core;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -27,6 +29,11 @@ public partial class Game1
     private const int ClientPerformanceDefaultEnemyBots = 3;
     private const int ClientPerformanceDefaultWarmupSeconds = 5;
     private const int ClientPerformanceDefaultMeasureSeconds = 30;
+    private const int ClientPerformanceBotMovementThresholdPixels = 16;
+    private const int ClientPerformanceBotRequiredDisplacementPixels = 96;
+    private const int ClientPerformanceBotObjectiveImprovementThresholdPixels = 64;
+    private const int ClientPerformanceBotMovementMaxTicks = 120;
+    private const int ClientPerformanceBotRouteMaxTicks = 900;
     private const string ClientPerformanceDefaultMap = "Valley";
     private const string ClientPerformanceDefaultMode = "practice";
     private const string ClientPerformanceDefaultLastToDieSurvivor = "soldier";
@@ -47,6 +54,16 @@ public partial class Game1
     private double _clientPerformanceTestDrawFpsTotal;
     private double _clientPerformanceTestMinUpdateFps = double.MaxValue;
     private double _clientPerformanceTestMinDrawFps = double.MaxValue;
+    private readonly Dictionary<byte, ClientPerformanceBotBehaviorSlot> _clientPerformanceBotBehaviorSlots = new();
+    private bool _clientPerformanceBotBehaviorActive;
+    private int _clientPerformanceBotBehaviorInitialRedCaps;
+    private int _clientPerformanceBotBehaviorInitialBlueCaps;
+    private int _clientPerformanceBotBehaviorFirstPickupTick = -1;
+    private int _clientPerformanceBotBehaviorFirstScoreTick = -1;
+    private int _clientPerformanceBotBehaviorFirstControlTick = -1;
+    private int _clientPerformanceBotBehaviorFirstRouteTick = -1;
+    private int _clientPerformanceBotBehaviorPendingRouteTicks;
+    private string _clientPerformanceBotBehaviorLastIssue = string.Empty;
 
     private enum ClientPerformanceMode
     {
@@ -137,6 +154,14 @@ public partial class Game1
             return;
         }
 
+        if (_startupSplashOpen && _bootstrapController.IsMenuBootstrapComplete)
+        {
+            _startupSplashOpen = false;
+            _mainMenuOpen = true;
+            StopFaucetMusic();
+            LogClientPerformanceLine("event=client_perf_test_skip_startup_splash");
+        }
+
         if (!_clientPerformanceTestSessionRequested)
         {
             if (_startupSplashOpen || !_mainMenuOpen || !_bootstrapController.CanEnterGameplaySession(out _))
@@ -166,6 +191,7 @@ public partial class Game1
             else
             {
                 TryStartPracticeFromSetup();
+                ResetClientPerformanceBotBehavior();
             }
             return;
         }
@@ -215,7 +241,8 @@ public partial class Game1
             _clientPerformanceTestDrawFpsTotal = 0d;
             _clientPerformanceTestMinUpdateFps = double.MaxValue;
             _clientPerformanceTestMinDrawFps = double.MaxValue;
-            LogClientPerformanceLine("event=client_perf_test_measurement_started");
+            ResetClientPerformanceMeasurementWindow();
+            LogClientPerformanceLine($"event=client_perf_test_measurement_started {FormatClientPerformanceBotBehaviorSummary()}");
         }
     }
 
@@ -259,9 +286,17 @@ public partial class Game1
             _clientPerformanceTestDrawFpsTotal = 0d;
             _clientPerformanceTestMinUpdateFps = double.MaxValue;
             _clientPerformanceTestMinDrawFps = double.MaxValue;
+            ResetClientPerformanceMeasurementWindow();
             LogClientPerformanceLine(
                 $"event=client_perf_test_measurement_started mode=lasttodie survivor={_lastToDieRun.SurvivorKind} round={_lastToDieRun.StageNumber} enemyBots={_lastToDieRun.EnemyBotCount}");
         }
+    }
+
+    private void ResetClientPerformanceMeasurementWindow()
+    {
+        _clientPerformance.Reset();
+        _clientPerformanceSummaryElapsedSeconds = 0d;
+        _clientPerformanceLastFrameTimestamp = Stopwatch.GetTimestamp();
     }
 
     private void EnsureClientPerformanceDiagnosticsInitialized()
@@ -339,19 +374,468 @@ public partial class Game1
         var averageDrawFps = _clientPerformanceTestDrawFpsTotal / samples;
         var minimumUpdateFps = _clientPerformanceTestMinUpdateFps == double.MaxValue ? 0d : _clientPerformanceTestMinUpdateFps;
         var minimumDrawFps = _clientPerformanceTestMinDrawFps == double.MaxValue ? 0d : _clientPerformanceTestMinDrawFps;
+        var botBehaviorPass = IsClientPerformanceBotBehaviorPass(out var botBehaviorFailureReason);
         var pass = averageUpdateFps >= 60d
             && averageDrawFps >= 60d
             && minimumUpdateFps >= 60d
-            && minimumDrawFps >= 60d;
+            && minimumDrawFps >= 60d
+            && botBehaviorPass;
         LogClientPerformanceLine(
             string.Create(
                 CultureInfo.InvariantCulture,
-                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} seconds={_clientPerformanceTestMeasuredSeconds:F1}"));
+                $"event=client_perf_test_result pass={pass} avgUpdateFps={averageUpdateFps:F1} avgDrawFps={averageDrawFps:F1} minUpdateFps={minimumUpdateFps:F1} minDrawFps={minimumDrawFps:F1} seconds={_clientPerformanceTestMeasuredSeconds:F1} botBehaviorPass={botBehaviorPass} botBehaviorReason={botBehaviorFailureReason}"));
+        LogClientPerformanceLine(
+            $"event=client_perf_test_bot_behavior pass={botBehaviorPass} reason={botBehaviorFailureReason} {FormatClientPerformanceBotBehaviorSummary()}");
 
         if (GetClientPerformanceEnvironmentFlag(ClientPerformanceAutoExitEnvironmentVariable))
         {
             Exit();
         }
+    }
+
+    private void ResetClientPerformanceBotBehavior()
+    {
+        if (!ClientPerformanceTestEnabled)
+        {
+            return;
+        }
+
+        _clientPerformanceBotBehaviorSlots.Clear();
+        _clientPerformanceBotBehaviorActive = true;
+        _clientPerformanceBotBehaviorInitialRedCaps = _world.RedCaps;
+        _clientPerformanceBotBehaviorInitialBlueCaps = _world.BlueCaps;
+        _clientPerformanceBotBehaviorFirstPickupTick = -1;
+        _clientPerformanceBotBehaviorFirstScoreTick = -1;
+        _clientPerformanceBotBehaviorFirstControlTick = -1;
+        _clientPerformanceBotBehaviorFirstRouteTick = -1;
+        _clientPerformanceBotBehaviorPendingRouteTicks = 0;
+        _clientPerformanceBotBehaviorLastIssue = string.Empty;
+    }
+
+    private void RecordClientPerformanceBotBehavior(
+        IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots,
+        BotControllerDiagnosticsSnapshot diagnostics)
+    {
+        if (!_clientPerformanceBotBehaviorActive || !ClientPerformanceTestEnabled)
+        {
+            return;
+        }
+
+        var tick = IsPracticeSessionActive ? _practiceSessionElapsedTicks : 0;
+        foreach (var entry in controlledSlots)
+        {
+            if (!_world.TryGetNetworkPlayer(entry.Key, out var player)
+                || _world.IsNetworkPlayerAwaitingJoin(entry.Key)
+                || !player.IsAlive)
+            {
+                continue;
+            }
+
+            var centerX = (player.Left + player.Right) * 0.5f;
+            var centerY = (player.Top + player.Bottom) * 0.5f;
+            if (!_clientPerformanceBotBehaviorSlots.TryGetValue(entry.Key, out var slot))
+            {
+                slot = new ClientPerformanceBotBehaviorSlot(centerX, centerY);
+                _clientPerformanceBotBehaviorSlots[entry.Key] = slot;
+            }
+
+            slot.Sample(centerX, centerY, tick, ClientPerformanceBotMovementThresholdPixels);
+            var slotDiagnostic = FindClientPerformanceBotDiagnostic(diagnostics, entry.Key);
+            if (slotDiagnostic.Slot == entry.Key)
+            {
+                slot.SampleDiagnostics(
+                    slotDiagnostic,
+                    centerX,
+                    player.Bottom,
+                    tick,
+                    ClientPerformanceBotObjectiveImprovementThresholdPixels);
+            }
+
+            if (player.IsCarryingIntel && _clientPerformanceBotBehaviorFirstPickupTick < 0)
+            {
+                _clientPerformanceBotBehaviorFirstPickupTick = tick;
+            }
+        }
+
+        if (_clientPerformanceBotBehaviorFirstScoreTick < 0
+            && (_world.RedCaps > _clientPerformanceBotBehaviorInitialRedCaps
+                || _world.BlueCaps > _clientPerformanceBotBehaviorInitialBlueCaps))
+        {
+            _clientPerformanceBotBehaviorFirstScoreTick = tick;
+        }
+
+        if (_clientPerformanceBotBehaviorFirstControlTick < 0)
+        {
+            foreach (var point in _world.ControlPoints)
+            {
+                if (point.Team.HasValue)
+                {
+                    _clientPerformanceBotBehaviorFirstControlTick = tick;
+                    break;
+                }
+            }
+        }
+
+        foreach (var diagnostic in diagnostics.Entries)
+        {
+            if (diagnostic.NavigationIssueLabel is "route_plan_pending" or "route_field_pending")
+            {
+                _clientPerformanceBotBehaviorPendingRouteTicks += 1;
+            }
+
+            if (!string.IsNullOrWhiteSpace(diagnostic.NavigationIssueLabel))
+            {
+                _clientPerformanceBotBehaviorLastIssue = diagnostic.NavigationIssueLabel;
+            }
+
+            if (_clientPerformanceBotBehaviorFirstRouteTick < 0
+                && IsClientPerformanceTraversalExecution(diagnostic))
+            {
+                _clientPerformanceBotBehaviorFirstRouteTick = tick;
+            }
+        }
+    }
+
+    private bool IsClientPerformanceBotBehaviorPass(out string failureReason)
+    {
+        if (GetClientPerformanceMode() != ClientPerformanceMode.Practice)
+        {
+            failureReason = "not_practice";
+            return true;
+        }
+
+        var expectedBotCount = Math.Clamp(
+            GetClientPerformanceEnvironmentInt(ClientPerformanceFriendlyBotsEnvironmentVariable, ClientPerformanceDefaultFriendlyBots),
+            0,
+            9)
+            + Math.Clamp(
+                GetClientPerformanceEnvironmentInt(ClientPerformanceEnemyBotsEnvironmentVariable, ClientPerformanceDefaultEnemyBots),
+                0,
+                9);
+        if (expectedBotCount <= 0)
+        {
+            failureReason = "no_bots_requested";
+            return true;
+        }
+
+        if (_clientPerformanceBotBehaviorSlots.Count < expectedBotCount)
+        {
+            failureReason = "missing_controlled_bots";
+            return false;
+        }
+
+        if (_clientPerformanceBotBehaviorSlots.Count == 0)
+        {
+            failureReason = "no_controlled_bots";
+            return false;
+        }
+
+        var movedCount = GetClientPerformanceMovedBotCount();
+        if (movedCount < _clientPerformanceBotBehaviorSlots.Count)
+        {
+            failureReason = "not_all_bots_moved";
+            return false;
+        }
+
+        if (GetClientPerformanceDisplacedBotCount() < _clientPerformanceBotBehaviorSlots.Count)
+        {
+            failureReason = "not_all_bots_displaced";
+            return false;
+        }
+
+        var firstMoveTick = GetClientPerformanceFirstMoveTick();
+        if (firstMoveTick < 0 || firstMoveTick > ClientPerformanceBotMovementMaxTicks)
+        {
+            failureReason = "first_move_late";
+            return false;
+        }
+
+        if (_clientPerformanceBotBehaviorFirstRouteTick < 0)
+        {
+            failureReason = "no_link_execution";
+            return false;
+        }
+
+        if (_clientPerformanceBotBehaviorFirstRouteTick > ClientPerformanceBotRouteMaxTicks)
+        {
+            failureReason = "certified_route_late";
+            return false;
+        }
+
+        if (GetClientPerformanceSurfaceChangeBotCount() < _clientPerformanceBotBehaviorSlots.Count)
+        {
+            failureReason = "not_all_bots_changed_surface";
+            return false;
+        }
+
+        if (GetClientPerformanceLinkExecutionBotCount() < _clientPerformanceBotBehaviorSlots.Count)
+        {
+            failureReason = "not_all_bots_executed_link";
+            return false;
+        }
+
+        if (GetClientPerformanceObjectiveProgressBotCount() < _clientPerformanceBotBehaviorSlots.Count)
+        {
+            failureReason = "not_all_bots_improved_objective_distance";
+            return false;
+        }
+
+        if (_clientPerformanceBotBehaviorFirstPickupTick < 0
+            && _clientPerformanceBotBehaviorFirstScoreTick < 0
+            && _clientPerformanceBotBehaviorFirstControlTick < 0)
+        {
+            failureReason = "no_objective_event";
+            return false;
+        }
+
+        failureReason = "ok";
+        return true;
+    }
+
+    private string FormatClientPerformanceBotBehaviorSummary()
+    {
+        var movedCount = GetClientPerformanceMovedBotCount();
+        var displacedCount = GetClientPerformanceDisplacedBotCount();
+        var firstMoveTick = GetClientPerformanceFirstMoveTick();
+        var maxFirstMoveTick = GetClientPerformanceMaxFirstMoveTick();
+        var firstSurfaceChangeTick = GetClientPerformanceFirstSurfaceChangeTick();
+        var firstLinkExecutionTick = GetClientPerformanceFirstLinkExecutionTick();
+        var firstObjectiveProgressTick = GetClientPerformanceFirstObjectiveProgressTick();
+        GetClientPerformanceBotRange(out var minX, out var maxX);
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"bots={_clientPerformanceBotBehaviorSlots.Count} movedBots={movedCount} displacedBots={displacedCount} surfaceBots={GetClientPerformanceSurfaceChangeBotCount()} linkBots={GetClientPerformanceLinkExecutionBotCount()} objectiveProgressBots={GetClientPerformanceObjectiveProgressBotCount()} firstMoveTick={firstMoveTick} maxFirstMoveTick={maxFirstMoveTick} firstSurfaceChangeTick={firstSurfaceChangeTick} firstLinkExecutionTick={firstLinkExecutionTick} firstObjectiveProgressTick={firstObjectiveProgressTick} xRange={minX:F1}-{maxX:F1} pendingRouteTicks={_clientPerformanceBotBehaviorPendingRouteTicks} firstRouteTick={_clientPerformanceBotBehaviorFirstRouteTick} firstPickupTick={_clientPerformanceBotBehaviorFirstPickupTick} firstScoreTick={_clientPerformanceBotBehaviorFirstScoreTick} firstControlTick={_clientPerformanceBotBehaviorFirstControlTick} lastIssue={SanitizeClientPerformanceToken(_clientPerformanceBotBehaviorLastIssue)} slots={FormatClientPerformanceBotSlotSummary()}");
+    }
+
+    private int GetClientPerformanceMovedBotCount()
+    {
+        var movedCount = 0;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstMoveTick >= 0)
+            {
+                movedCount += 1;
+            }
+        }
+
+        return movedCount;
+    }
+
+    private int GetClientPerformanceDisplacedBotCount()
+    {
+        var count = 0;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.MaxDisplacement >= ClientPerformanceBotRequiredDisplacementPixels)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetClientPerformanceSurfaceChangeBotCount()
+    {
+        var count = 0;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstSurfaceChangeTick >= 0)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetClientPerformanceLinkExecutionBotCount()
+    {
+        var count = 0;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstLinkExecutionTick >= 0)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetClientPerformanceObjectiveProgressBotCount()
+    {
+        var count = 0;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstObjectiveProgressTick >= 0)
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetClientPerformanceFirstMoveTick()
+    {
+        var firstMoveTick = -1;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstMoveTick < 0)
+            {
+                continue;
+            }
+
+            firstMoveTick = firstMoveTick < 0
+                ? slot.FirstMoveTick
+                : Math.Min(firstMoveTick, slot.FirstMoveTick);
+        }
+
+        return firstMoveTick;
+    }
+
+    private int GetClientPerformanceMaxFirstMoveTick()
+    {
+        var maxFirstMoveTick = -1;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (slot.FirstMoveTick >= 0)
+            {
+                maxFirstMoveTick = Math.Max(maxFirstMoveTick, slot.FirstMoveTick);
+            }
+        }
+
+        return maxFirstMoveTick;
+    }
+
+    private int GetClientPerformanceFirstSurfaceChangeTick()
+    {
+        return GetClientPerformanceFirstSlotTick(static slot => slot.FirstSurfaceChangeTick);
+    }
+
+    private int GetClientPerformanceFirstLinkExecutionTick()
+    {
+        return GetClientPerformanceFirstSlotTick(static slot => slot.FirstLinkExecutionTick);
+    }
+
+    private int GetClientPerformanceFirstObjectiveProgressTick()
+    {
+        return GetClientPerformanceFirstSlotTick(static slot => slot.FirstObjectiveProgressTick);
+    }
+
+    private int GetClientPerformanceFirstSlotTick(Func<ClientPerformanceBotBehaviorSlot, int> selector)
+    {
+        var firstTick = -1;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            var tick = selector(slot);
+            if (tick < 0)
+            {
+                continue;
+            }
+
+            firstTick = firstTick < 0
+                ? tick
+                : Math.Min(firstTick, tick);
+        }
+
+        return firstTick;
+    }
+
+    private void GetClientPerformanceBotRange(out float minX, out float maxX)
+    {
+        minX = 0f;
+        maxX = 0f;
+        var found = false;
+        foreach (var slot in _clientPerformanceBotBehaviorSlots.Values)
+        {
+            if (!found)
+            {
+                minX = slot.MinX;
+                maxX = slot.MaxX;
+                found = true;
+                continue;
+            }
+
+            minX = MathF.Min(minX, slot.MinX);
+            maxX = MathF.Max(maxX, slot.MaxX);
+        }
+    }
+
+    private static string SanitizeClientPerformanceToken(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "none";
+        }
+
+        return value.Replace(' ', '_').Replace(';', ',');
+    }
+
+    private string FormatClientPerformanceBotSlotSummary()
+    {
+        if (_clientPerformanceBotBehaviorSlots.Count == 0)
+        {
+            return "none";
+        }
+
+        var parts = new List<string>(_clientPerformanceBotBehaviorSlots.Count);
+        foreach (var entry in _clientPerformanceBotBehaviorSlots)
+        {
+            parts.Add(entry.Value.Format(entry.Key));
+        }
+
+        return string.Join("|", parts);
+    }
+
+    private static BotControllerDiagnosticsEntry FindClientPerformanceBotDiagnostic(
+        BotControllerDiagnosticsSnapshot diagnostics,
+        byte slot)
+    {
+        foreach (var entry in diagnostics.Entries)
+        {
+            if (entry.Slot == slot)
+            {
+                return entry;
+            }
+        }
+
+        return default;
+    }
+
+    private static bool IsClientPerformanceTraversalExecution(BotControllerDiagnosticsEntry diagnostic)
+    {
+        var debug = diagnostic.MoveDebug ?? string.Empty;
+        return debug.Contains("exec=ExecuteLinkProgram", StringComparison.Ordinal)
+            || debug.Contains("exec=SettleLinkLanding", StringComparison.Ordinal)
+            || debug.Contains("exec=SeekFinalTarget", StringComparison.Ordinal)
+            || (TryParseClientPerformanceRouteLinkIndex(debug, out var linkIndex) && linkIndex > 0);
+    }
+
+    private static bool TryParseClientPerformanceRouteLinkIndex(string debug, out int linkIndex)
+    {
+        linkIndex = -1;
+        const string Marker = "link=";
+        var markerIndex = debug.IndexOf(Marker, StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return false;
+        }
+
+        var startIndex = markerIndex + Marker.Length;
+        var endIndex = startIndex;
+        while (endIndex < debug.Length && char.IsDigit(debug[endIndex]))
+        {
+            endIndex += 1;
+        }
+
+        return endIndex > startIndex
+            && int.TryParse(
+                debug.AsSpan(startIndex, endIndex - startIndex),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out linkIndex);
     }
 
     private void LogClientPerformanceLine(string line)
@@ -477,6 +961,152 @@ public partial class Game1
             LastMilliseconds = 0d;
             TotalMilliseconds = 0d;
             MaxMilliseconds = 0d;
+        }
+    }
+
+    private sealed class ClientPerformanceBotBehaviorSlot
+    {
+        private readonly float _startX;
+        private readonly float _startY;
+        private int _firstSurfaceId = -1;
+        private float _initialObjectiveDistance = float.PositiveInfinity;
+        private float _bestObjectiveDistance = float.PositiveInfinity;
+
+        public ClientPerformanceBotBehaviorSlot(float startX, float startY)
+        {
+            _startX = startX;
+            _startY = startY;
+            MinX = startX;
+            MaxX = startX;
+            MinY = startY;
+            MaxY = startY;
+        }
+
+        public float MinX { get; private set; }
+
+        public float MaxX { get; private set; }
+
+        public float MinY { get; private set; }
+
+        public float MaxY { get; private set; }
+
+        public int FirstMoveTick { get; private set; } = -1;
+
+        public int FirstSurfaceChangeTick { get; private set; } = -1;
+
+        public int FirstLinkExecutionTick { get; private set; } = -1;
+
+        public int FirstObjectiveProgressTick { get; private set; } = -1;
+
+        public int PendingRouteTicks { get; private set; }
+
+        public int MaxRouteLinkIndex { get; private set; } = -1;
+
+        public float MaxDisplacement { get; private set; }
+
+        public float ObjectiveImprovement
+        {
+            get
+            {
+                if (float.IsPositiveInfinity(_initialObjectiveDistance)
+                    || float.IsPositiveInfinity(_bestObjectiveDistance))
+                {
+                    return 0f;
+                }
+
+                return MathF.Max(0f, _initialObjectiveDistance - _bestObjectiveDistance);
+            }
+        }
+
+        public string LastIssue { get; private set; } = string.Empty;
+
+        public void Sample(float x, float y, int tick, float movementThreshold)
+        {
+            MinX = MathF.Min(MinX, x);
+            MaxX = MathF.Max(MaxX, x);
+            MinY = MathF.Min(MinY, y);
+            MaxY = MathF.Max(MaxY, y);
+            var dx = x - _startX;
+            var dy = y - _startY;
+            MaxDisplacement = MathF.Max(MaxDisplacement, MathF.Sqrt((dx * dx) + (dy * dy)));
+            if (FirstMoveTick >= 0)
+            {
+                return;
+            }
+
+            if ((dx * dx) + (dy * dy) >= movementThreshold * movementThreshold)
+            {
+                FirstMoveTick = tick;
+            }
+        }
+
+        public void SampleDiagnostics(
+            BotControllerDiagnosticsEntry diagnostic,
+            float x,
+            float bottomY,
+            int tick,
+            float objectiveImprovementThreshold)
+        {
+            if (diagnostic.CurrentPointId >= 0)
+            {
+                if (_firstSurfaceId < 0)
+                {
+                    _firstSurfaceId = diagnostic.CurrentPointId;
+                }
+                else if (FirstSurfaceChangeTick < 0 && diagnostic.CurrentPointId != _firstSurfaceId)
+                {
+                    FirstSurfaceChangeTick = tick;
+                }
+            }
+
+            if (diagnostic.NavigationIssueLabel is "route_plan_pending" or "route_field_pending")
+            {
+                PendingRouteTicks += 1;
+            }
+
+            if (!string.IsNullOrWhiteSpace(diagnostic.NavigationIssueLabel))
+            {
+                LastIssue = diagnostic.NavigationIssueLabel;
+            }
+
+            if (TryParseClientPerformanceRouteLinkIndex(diagnostic.MoveDebug ?? string.Empty, out var linkIndex))
+            {
+                MaxRouteLinkIndex = Math.Max(MaxRouteLinkIndex, linkIndex);
+            }
+
+            if (FirstLinkExecutionTick < 0 && IsClientPerformanceTraversalExecution(diagnostic))
+            {
+                FirstLinkExecutionTick = tick;
+            }
+
+            if (diagnostic.FocusKind != BotFocusKind.Objective)
+            {
+                return;
+            }
+
+            var objectiveDx = x - diagnostic.RouteGoalX;
+            var objectiveDy = bottomY - diagnostic.RouteGoalY;
+            var objectiveDistance = MathF.Sqrt((objectiveDx * objectiveDx) + (objectiveDy * objectiveDy));
+            if (float.IsPositiveInfinity(_initialObjectiveDistance))
+            {
+                _initialObjectiveDistance = objectiveDistance;
+                _bestObjectiveDistance = objectiveDistance;
+                return;
+            }
+
+            _bestObjectiveDistance = MathF.Min(_bestObjectiveDistance, objectiveDistance);
+            if (FirstObjectiveProgressTick < 0
+                && ObjectiveImprovement >= objectiveImprovementThreshold)
+            {
+                FirstObjectiveProgressTick = tick;
+            }
+        }
+
+        public string Format(byte slot)
+        {
+            return string.Create(
+                CultureInfo.InvariantCulture,
+                $"{slot}:disp={MaxDisplacement:F0},move={FirstMoveTick},surf={FirstSurfaceChangeTick},exec={FirstLinkExecutionTick},goal={ObjectiveImprovement:F0}@{FirstObjectiveProgressTick},link={MaxRouteLinkIndex},pending={PendingRouteTicks},last={SanitizeClientPerformanceToken(LastIssue)}");
         }
     }
 }

@@ -425,7 +425,7 @@ public partial class Game1
             return;
         }
 
-        var collectDiagnostics = _botDiagnosticsEnabled || (_navEditorEnabled && _navEditorShowBotTags);
+        var collectDiagnostics = ClientPerformanceTestEnabled || _botDiagnosticsEnabled || (_navEditorEnabled && _navEditorShowBotTags);
         _practiceBotController.CollectDiagnostics = collectDiagnostics;
         if (_practiceBotSlots.Count == 0)
         {
@@ -449,6 +449,7 @@ public partial class Game1
         }
         var setInputsMilliseconds = GetDiagnosticsElapsedMilliseconds(setInputsStartTimestamp);
         LogBrowserPracticeBotPerformance(controlledSlots.Count, buildInputsMilliseconds, setInputsMilliseconds);
+        RecordClientPerformanceBotBehavior(controlledSlots, _practiceBotController.LastDiagnostics);
 
         if (_botDiagnosticsEnabled)
         {
