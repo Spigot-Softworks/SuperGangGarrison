@@ -67,6 +67,7 @@ public partial class Game1
     private int _networkDiagnosticRenderCorrectionSamples;
     private float _networkDiagnosticLatestRenderCorrectionPixels;
     private int _networkDiagnosticRenderCorrectionHardSnaps;
+    private int _networkDiagnosticLatestSnapshotBytes;
     private bool _networkDiagnosticGcBaselineInitialized;
     private int _networkDiagnosticLastGen0Collections;
     private int _networkDiagnosticLastGen1Collections;
@@ -144,6 +145,12 @@ public partial class Game1
         _networkDiagnosticSentControlMessages += Math.Max(0, totalSendDiagnostics.ControlMessagesSent - _networkDiagnosticPreviousSendTotals.ControlMessagesSent);
         _networkDiagnosticSentSnapshotAckMessages += Math.Max(0, totalSendDiagnostics.SnapshotAckMessagesSent - _networkDiagnosticPreviousSendTotals.SnapshotAckMessagesSent);
         _networkDiagnosticPreviousSendTotals = totalSendDiagnostics;
+
+        // Track latest snapshot size from payload
+        if (diagnostics.SnapshotMessages > 0 && diagnostics.MaxPayloadBytes > 0)
+        {
+            _networkDiagnosticLatestSnapshotBytes = diagnostics.MaxPayloadBytes;
+        }
     }
 
     private void RecordNetworkMessageProcessed(IProtocolMessage message)
@@ -371,7 +378,29 @@ public partial class Game1
         var position = new Vector2(rectangle.X + padding, rectangle.Y + padding);
         for (var index = 0; index < _networkDiagnosticOverlayLines.Count; index += 1)
         {
-            _spriteBatch.DrawString(_consoleFont, _networkDiagnosticOverlayLines[index], position, new Color(232, 238, 244));
+            var line = _networkDiagnosticOverlayLines[index];
+            Color lineColor = new Color(232, 238, 244);
+
+            // Color code snapshot size line
+            if (line.StartsWith("SNAPSIZE:", StringComparison.Ordinal))
+            {
+                var sizeText = line.Substring(9); // Remove "SNAPSIZE:" prefix
+                line = $"snapshot size {sizeText}";
+
+                // Green for low values, red if over 95% of 1400 bytes
+                const int maxSnapshotBytes = 1400;
+                const float redThreshold = 0.95f;
+                if (_networkDiagnosticLatestSnapshotBytes > maxSnapshotBytes * redThreshold)
+                {
+                    lineColor = new Color(255, 100, 100); // Red
+                }
+                else
+                {
+                    lineColor = new Color(100, 255, 100); // Green
+                }
+            }
+
+            _spriteBatch.DrawString(_consoleFont, line, position, lineColor);
             position.Y += lineHeight;
         }
     }
@@ -430,6 +459,8 @@ public partial class Game1
             string.Create(CultureInfo.InvariantCulture, $"view corr {averageRenderCorrectionPixels:F2}px max {_networkDiagnosticRenderCorrectionMaxPixels:F2}px last {_networkDiagnosticLatestRenderCorrectionPixels:F2}px snaps {_networkDiagnosticRenderCorrectionHardSnaps}"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"timeline int {_smoothedSnapshotIntervalSeconds * 1000f:F1}ms jitter {_smoothedSnapshotJitterSeconds * 1000f:F1}ms back {_remotePlayerInterpolationBackTimeSeconds * 1000f:F1}ms err {timelineErrorMilliseconds:F1}ms"));
+        _networkDiagnosticOverlayLines.Add(
+            string.Create(CultureInfo.InvariantCulture, $"SNAPSIZE:{_networkDiagnosticLatestSnapshotBytes}B"));
         _networkDiagnosticOverlayLines.Add(
             string.Create(CultureInfo.InvariantCulture, $"gc {gen0Collections}/{gen1Collections}/{gen2Collections} mem {currentMemoryMegabytes:F1}MB"));
 

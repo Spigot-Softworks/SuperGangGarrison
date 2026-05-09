@@ -87,6 +87,7 @@ public sealed partial class SimulationWorld
     {
         var rocket = _rockets[rocketIndex];
         _entities.Remove(rocket.Id);
+        MarkProjectileTerminated(rocket.Id);
         _rockets.RemoveAt(rocketIndex);
     }
 

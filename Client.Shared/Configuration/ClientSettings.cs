@@ -60,6 +60,8 @@ public sealed class ClientSettings
 
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
+    public bool ProjectileTeamTintEnabled { get; set; } = true;
+
     public bool AudioMuted { get; set; }
 
     public bool ShowPersistentSelfNameEnabled { get; set; }
@@ -152,6 +154,7 @@ public sealed class ClientSettings
             ShowHealingEnabled = document.ShowHealingEnabled,
             ShowHealthBarEnabled = document.ShowHealthBarEnabled,
             ShowUberOutlinesEnabled = document.ShowUberOutlinesEnabled,
+            ProjectileTeamTintEnabled = document.ProjectileTeamTintEnabled,
             AudioMuted = document.AudioMuted,
             MenuMusicVolumePercent = Math.Clamp(document.MenuMusicVolumePercent, 0, 100),
             IngameMusicVolumePercent = Math.Clamp(document.IngameMusicVolumePercent, 0, 100),
@@ -190,6 +193,7 @@ public sealed class ClientSettings
         preferences.ShowHealingEnabled = ShowHealingEnabled;
         preferences.ShowHealthBarEnabled = ShowHealthBarEnabled;
         preferences.ShowUberOutlinesEnabled = ShowUberOutlinesEnabled;
+        preferences.ProjectileTeamTintEnabled = ProjectileTeamTintEnabled;
         preferences.AudioMuted = AudioMuted;
         preferences.MenuMusicVolumePercent = MenuMusicVolumePercent;
         preferences.IngameMusicVolumePercent = IngameMusicVolumePercent;

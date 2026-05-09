@@ -29,7 +29,7 @@
       "id": "medic.stock",
       "displayName": "Stock",
       "primaryItemId": "weapon.medigun",
-      "secondaryItemId": "ability.medic-needlegun",
+      "secondaryItemId": "weapon.medigun.crit",
       "utilityItemId": "ability.medic-uber"
     }
   },

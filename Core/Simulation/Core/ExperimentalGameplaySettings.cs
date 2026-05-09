@@ -7,6 +7,7 @@ public sealed record ExperimentalGameplaySettings(
     bool EnableDemoknightKit = false,
     bool EnableCapturedPointHealingAura = false,
     bool EnableSoldierShotgunSecondaryWeapon = false,
+    bool EnableSoldierShotgunLtdPerk = false,
     bool EnableSoldierAmmoRegeneratesWhileSwappedOut = false,
     bool EnableSoldierStingerRockets = false,
     bool EnableSoldierInfiniteAmmoDuringRage = false,
@@ -236,6 +237,7 @@ public sealed record ExperimentalGameplaySettings(
     public const int DefaultEngineerFreezeRayTargetCount = 3;
     public const float DefaultEngineerFreezeRayChainRadius = 78f;
     public const float ComboTimeoutSeconds = 6f;
+    public const float DefaultCriticalDamageMultiplier = 2f;
     public const float MultiKillWindowSeconds = 3f;
     public const float EnemyHealthPackLargeChance = 0.5f;
     public const float EnemyDroppedWeaponChance = 0.5f;

@@ -277,11 +277,6 @@ public sealed class SnapshotDeltaBudgeterTests
                 new SnapshotPlayerGibState(1, "gib-a", 0, 100f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
                 new SnapshotPlayerGibState(8, "gib-b", 0, 120f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
             ],
-            BloodDrops =
-            [
-                new SnapshotBloodDropState(1, 100f, 100f, 1f, 0f, false, 30, 1f),
-                new SnapshotBloodDropState(8, 120f, 100f, 1f, 0f, false, 30, 1f),
-            ],
         };
         var current = baseline with
         {
@@ -295,11 +290,6 @@ public sealed class SnapshotDeltaBudgeterTests
             [
                 new SnapshotPlayerGibState(1, "gib-a", 1, 101f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
                 new SnapshotPlayerGibState(8, "gib-b", 1, 121f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
-            ],
-            BloodDrops =
-            [
-                new SnapshotBloodDropState(1, 101f, 100f, 1f, 0f, false, 29, 1f),
-                new SnapshotBloodDropState(8, 121f, 100f, 1f, 0f, false, 29, 1f),
             ],
         };
         var client = new ClientSession(
@@ -315,10 +305,8 @@ public sealed class SnapshotDeltaBudgeterTests
 
         var sentryGib = Assert.Single(result.Message.SentryGibs);
         var playerGib = Assert.Single(result.Message.PlayerGibs);
-        var bloodDrop = Assert.Single(result.Message.BloodDrops);
         Assert.Equal(8, sentryGib.Id);
         Assert.Equal(8, playerGib.Id);
-        Assert.Equal(8, bloodDrop.Id);
     }
 
     [Fact]
@@ -568,6 +556,97 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildBudgetedSnapshotForcesAllLocalPlayerUpdates()
+    {
+        var localPlayer = CreatePlayerState(1, 861, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var correctedLocalPlayer = localPlayer with
+        {
+            X = localPlayer.X + 10f,
+            Health = (short)Math.Max(1, localPlayer.Health - 5),
+        };
+        var baseline = CreateSnapshot(860) with
+        {
+            Players = [localPlayer],
+        };
+        var current = CreateSnapshot(861) with
+        {
+            Players = [correctedLocalPlayer],
+        };
+        var contributions = new List<SnapshotDeltaBudgeter.Contribution>
+        {
+            new(
+                Priority: 1800,
+                DistanceSquared: 0f,
+                EstimatedBytes: 32,
+                Apply: builder => builder.PlayerMovementStates.Add(CreateMovementState(correctedLocalPlayer)),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+            new(
+                Priority: 950,
+                DistanceSquared: 0f,
+                EstimatedBytes: 180,
+                Apply: builder => builder.Players.Add(correctedLocalPlayer),
+                Kind: SnapshotDeltaBudgeter.ContributionKind.LocalPlayerUpdate),
+        };
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.Contains(result.Message.PlayerMovementStates, player => player.Slot == localPlayer.Slot);
+        Assert.Contains(result.Message.Players, player => player.Slot == localPlayer.Slot);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == localPlayer.Slot);
+        Assert.Equal(correctedLocalPlayer.Health, mergedLocalPlayer.Health);
+    }
+
+    [Fact]
+    public void BuildContributionsKeepsLocalHealthUpdateUnderBudgetPressure()
+    {
+        var localPlayer = CreatePlayerState(1, 871, "Local Player") with
+        {
+            ClassId = (byte)PlayerClass.Soldier,
+        };
+        var remoteBot = CreatePlayerState(2, 872, "Remote Bot");
+        var baseline = CreateSnapshot(870) with
+        {
+            Players = [localPlayer, remoteBot],
+        };
+        var current = CreateSnapshot(871) with
+        {
+            Players =
+            [
+                localPlayer with { Health = (short)75 },
+                remoteBot with { X = remoteBot.X + 24f },
+            ],
+            SoundEvents = Enumerable.Range(0, 80)
+                .Select(index => new SnapshotSoundEvent(
+                    $"pressure-sound-{index:D3}",
+                    X: index,
+                    Y: index,
+                    EventId: (ulong)index,
+                    SourceFrame: 871))
+                .ToArray(),
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 900);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 900);
+        var mergedLocalPlayer = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.Equal(75, mergedLocalPlayer.Health);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotPreservesPlayerChatBubbleWhenFullDetailIsCrowdedOut()
     {
         var baselinePlayer = CreatePlayerState(1, 981, "Bubbly");
@@ -764,7 +843,7 @@ public sealed class SnapshotDeltaBudgeterTests
                 current,
                 baseline,
                 contributions,
-                targetPayloadBytes: 900);
+                targetPayloadBytes: 4 * 1024);
             var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
             baseline = SnapshotBaselineState.FromSnapshot(merged);
         }
@@ -870,8 +949,6 @@ public sealed class SnapshotDeltaBudgeterTests
             Flames: Array.Empty<SnapshotFlameState>(),
             Flares: Array.Empty<SnapshotShotState>(),
             Mines: Array.Empty<SnapshotMineState>(),
-            PlayerGibs: Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops: Array.Empty<SnapshotBloodDropState>(),
             DeadBodies: Array.Empty<SnapshotDeadBodyState>(),
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
@@ -927,7 +1004,12 @@ public sealed class SnapshotDeltaBudgeterTests
             IntelRechargeTicks: 0f,
             IsSpyCloaked: false,
             SpyCloakAlpha: 1f,
+            IsSpySuperjumping: false,
+            SpySuperjumpHorizontalVelocity: 0f,
+            SpySuperjumpCooldownTicksRemaining: 0,
+            SpyBackstabVisualTicksRemaining: 0,
             IsUbered: false,
+            IsKritzCritBoosted: false,
             IsHeavyEating: false,
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,
@@ -953,6 +1035,9 @@ public sealed class SnapshotDeltaBudgeterTests
             player.RemainingAirJumps,
             player.FacingDirectionX,
             player.AimDirectionDegrees,
-            player.MovementState);
+            player.MovementState,
+            player.IsTaunting,
+            player.TauntFrameIndex,
+            player.BurnIntensity);
     }
 }

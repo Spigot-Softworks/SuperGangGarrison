@@ -586,6 +586,6 @@ public static class TraversalLabRunner
             AimWorldY: aimWorldY,
             DebugKill: false,
             DropIntel: step.DropIntel,
-            FireSecondaryWeapon: step.FireSecondaryWeapon);
+            UseAbility: step.FireSecondaryWeapon);
     }
 }

@@ -48,6 +48,8 @@ public sealed class BotBrainController
 
     public SteeringOutput LastSteeringOutput { get; private set; }
 
+    public string LastSemanticRecoveryTrace { get; private set; } = string.Empty;
+
     /// <summary>
     /// Produce a PlayerInputSnapshot for this bot for the current tick.
     /// </summary>
@@ -56,6 +58,8 @@ public sealed class BotBrainController
         SimulationWorld world,
         PlayerTeam team)
     {
+        LastSemanticRecoveryTrace = string.Empty;
+
         // Rebuild nav graph if the level changed (map rotation).
         if (_lastLevel != world.Level)
         {
@@ -98,10 +102,18 @@ public sealed class BotBrainController
         {
             if (steeringOutput.FailedEdge.HasFailure)
             {
-                _blockedEdges[new NavEdgeBlock(
+                var failedBlock = new NavEdgeBlock(
                     steeringOutput.FailedEdge.FromNode,
                     steeringOutput.FailedEdge.ToNode,
-                    steeringOutput.FailedEdge.Kind)] = FailedEdgeBlockTicks;
+                    steeringOutput.FailedEdge.Kind);
+                if (TrySemanticContinuationAfterFailedEdge(self, team, steeringOutput.FailedEdge, failedBlock, out var recoveryTrace))
+                {
+                    LastSemanticRecoveryTrace = recoveryTrace;
+                }
+                else
+                {
+                    _blockedEdges[failedBlock] = FailedEdgeBlockTicks;
+                }
             }
 
             _currentPath = null;
@@ -153,6 +165,15 @@ public sealed class BotBrainController
             : null;
         var goalNode = exactGoalNode;
         var refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team);
+
+        if (refreshedPath is null && activeBlockedEdges is not null)
+        {
+            _blockedEdges.Clear();
+            activeBlockedEdges = null;
+            goalNode = exactGoalNode;
+            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team);
+        }
+
         if (refreshedPath is null)
         {
             goalNode = _navGraph.FindNearestReachableNode(
@@ -162,24 +183,9 @@ public sealed class BotBrainController
                 self.ClassId,
                 activeBlockedEdges,
                 team);
-            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team);
-        }
-
-        if (refreshedPath is null && activeBlockedEdges is not null)
-        {
-            _blockedEdges.Clear();
-            goalNode = exactGoalNode;
-            refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team);
-            if (refreshedPath is null)
-            {
-                goalNode = _navGraph.FindNearestReachableNode(
-                    _currentGoalPosition.X,
-                    _currentGoalPosition.Y,
-                    startNode,
-                    self.ClassId,
-                    team: team);
-                refreshedPath = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team);
-            }
+            refreshedPath = goalNode != startNode || exactGoalNode == startNode
+                ? _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team)
+                : null;
         }
 
         // Don't repath if goal hasn't changed and we have a valid path.
@@ -229,7 +235,81 @@ public sealed class BotBrainController
         _steering.Reset();
         _previousInput = default;
         LastSteeringOutput = default;
+        LastSemanticRecoveryTrace = string.Empty;
         _blockedEdges.Clear();
+    }
+
+    private bool TrySemanticContinuationAfterFailedEdge(
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringFailedEdge failedEdge,
+        NavEdgeBlock failedBlock,
+        out string trace)
+    {
+        trace = string.Empty;
+        if (_navGraph is null || _currentPath is null || _goalNodeIndex < 0)
+        {
+            return false;
+        }
+
+        if (!IsSemanticContinuationCandidate(failedEdge) || !self.IsGrounded)
+        {
+            return false;
+        }
+
+        var startNode = _navGraph.FindNearestTraversalStartNode(self.X, self.Y);
+        if (startNode < 0)
+        {
+            return false;
+        }
+
+        var activeBlockedEdges = _blockedEdges.Count > 0
+            ? _blockedEdges.Keys.ToHashSet()
+            : [];
+        activeBlockedEdges.Add(failedBlock);
+        var continuationPath = _navGraph.FindPath(startNode, _goalNodeIndex, self.ClassId, activeBlockedEdges, team);
+        if (continuationPath is null)
+        {
+            return false;
+        }
+
+        if (PathStartsWithFailedEdge(continuationPath, failedBlock))
+        {
+            return false;
+        }
+
+        var start = _navGraph.GetNode(startNode);
+        trace =
+            $"semanticRecovery=continuation reason:{failedEdge.Reason} failed:{failedEdge.FromNode}->{failedEdge.ToNode}/{failedEdge.Kind} " +
+            $"startNode:{startNode}@({start.X:0.0},{start.Y:0.0}) goalNode:{_goalNodeIndex} pathWaypoints:{continuationPath.Count} " +
+            $"pos:({self.X:0.0},{self.Y:0.0}) grounded:{(self.IsGrounded ? 1 : 0)} edgeTicks:{failedEdge.EdgeTicks}";
+        return true;
+    }
+
+    private static bool IsSemanticContinuationCandidate(SteeringFailedEdge failedEdge) =>
+        failedEdge.Reason is "walk_airborne_timeout"
+            or "walk_timeout"
+            or "landed_below_completion"
+            or "missed_completion"
+            or "wrong_fall_landing"
+            or "fall_not_completing"
+            or "edge_timeout_near";
+
+    private static bool PathStartsWithFailedEdge(NavPath path, NavEdgeBlock failedBlock)
+    {
+        if (path.Count < 2)
+        {
+            return false;
+        }
+
+        if (!path.TryGetIncomingEdge(1, out var firstEdge))
+        {
+            return false;
+        }
+
+        return path.GetWaypoint(0) == failedBlock.FromNode
+            && path.GetWaypoint(1) == failedBlock.ToNode
+            && firstEdge.Kind == failedBlock.Kind;
     }
 
     private void DecayBlockedEdges()

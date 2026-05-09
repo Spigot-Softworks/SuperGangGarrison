@@ -60,6 +60,9 @@ public sealed partial class PlayerEntity
         int PyroAirblastCooldownTicks,
         bool IsSpyCloaked,
         float SpyCloakAlpha,
+        bool IsSpySuperjumping,
+        float SpySuperjumpHorizontalVelocity,
+        int SpySuperjumpCooldownTicksRemaining,
         int SpyBackstabWindupTicksRemaining,
         int SpyBackstabRecoveryTicksRemaining,
         int SpyBackstabVisualTicksRemaining,
@@ -158,6 +161,9 @@ public sealed partial class PlayerEntity
             PyroAirblastCooldownTicks,
             IsSpyCloaked,
             SpyCloakAlpha,
+            IsSpySuperjumping,
+            SpySuperjumpHorizontalVelocity,
+            SpySuperjumpCooldownTicksRemaining,
             SpyBackstabWindupTicksRemaining,
             SpyBackstabRecoveryTicksRemaining,
             SpyBackstabVisualTicksRemaining,
@@ -260,6 +266,9 @@ public sealed partial class PlayerEntity
         PyroFlareCooldownTicks = state.PyroFlareCooldownTicks;
         IsSpyCloaked = state.IsSpyCloaked;
         SpyCloakAlpha = float.Clamp(state.SpyCloakAlpha, 0f, 1f);
+        IsSpySuperjumping = state.IsSpySuperjumping;
+        SpySuperjumpHorizontalVelocity = state.SpySuperjumpHorizontalVelocity;
+        SpySuperjumpCooldownTicksRemaining = state.SpySuperjumpCooldownTicksRemaining;
         SpyBackstabWindupTicksRemaining = state.SpyBackstabWindupTicksRemaining;
         SpyBackstabRecoveryTicksRemaining = state.SpyBackstabRecoveryTicksRemaining;
         SpyBackstabVisualTicksRemaining = state.SpyBackstabVisualTicksRemaining;

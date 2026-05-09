@@ -21,6 +21,16 @@ public partial class Game1
         AlphaBlendFunction = BlendFunction.Add,
     };
 
+    private static readonly BlendState _screenColorBlendState = new()
+    {
+        ColorSourceBlend = Blend.SourceAlpha,
+        ColorDestinationBlend = Blend.One,
+        ColorBlendFunction = BlendFunction.Add,
+        AlphaSourceBlend = Blend.One,
+        AlphaDestinationBlend = Blend.One,
+        AlphaBlendFunction = BlendFunction.Add,
+    };
+
     private static float RoundToSourcePixel(float value)
     {
         return MathF.Round(value, MidpointRounding.AwayFromZero);
@@ -494,6 +504,36 @@ public partial class Game1
         _spriteBatch.Begin(
             SpriteSortMode.Deferred,
             _multiplyColorBlendState,
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: RasterizerState.CullNone);
+        _spriteBatch.Draw(
+            mask,
+            position,
+            null,
+            tint,
+            rotation,
+            origin,
+            scale,
+            effects,
+            0f);
+        _spriteBatch.End();
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+    }
+
+    private void DrawSpriteFrameScreenColor(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects = SpriteEffects.None)
+    {
+        var mask = GetSpriteFrameAlphaMask(frame);
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            _screenColorBlendState,
             samplerState: SamplerState.PointClamp,
             rasterizerState: RasterizerState.CullNone);
         _spriteBatch.Draw(

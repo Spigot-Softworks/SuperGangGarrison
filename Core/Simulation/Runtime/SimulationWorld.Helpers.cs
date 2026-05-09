@@ -17,7 +17,7 @@ public sealed partial class SimulationWorld
         }
     }
 
-    private void RegisterCombatTrace(float originX, float originY, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team = PlayerTeam.Red, bool isSniperTracer = false)
+    private void RegisterCombatTrace(float originX, float originY, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team = PlayerTeam.Red, bool isSniperTracer = false, bool isCritical = false)
     {
         _combatTraces.Add(new CombatTrace(
             originX,
@@ -27,7 +27,8 @@ public sealed partial class SimulationWorld
             CombatTraceLifetimeTicks,
             hitCharacter,
             team,
-            isSniperTracer));
+            isSniperTracer,
+            isCritical));
     }
 
     private static float DegreesToRadians(float degrees)

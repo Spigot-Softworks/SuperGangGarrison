@@ -4,7 +4,7 @@
   "slot": "Secondary",
   "behaviorId": "builtin.weapon.pellet_gun",
   "ammo": {
-    "maxAmmo": 8,
+    "maxAmmo": 2,
     "ammoPerUse": 1,
     "projectilesPerUse": 4,
     "useDelaySourceTicks": 20,

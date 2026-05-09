@@ -242,7 +242,17 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            player.RefreshUber();
+            var isKritz = player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+
+            if (isKritz)
+            {
+                player.RefreshKritzCritBoost();
+            }
+            else
+            {
+                player.RefreshUber();
+            }
+
             if (!player.MedicHealTargetId.HasValue)
             {
                 continue;
@@ -251,7 +261,14 @@ public sealed partial class SimulationWorld
             var healTarget = FindPlayerById(player.MedicHealTargetId.Value);
             if (healTarget is not null && healTarget.IsAlive)
             {
-                healTarget.RefreshUber();
+                if (isKritz)
+                {
+                    healTarget.RefreshKritzCritBoost();
+                }
+                else if (!healTarget.IsCarryingIntel)
+                {
+                    healTarget.RefreshUber();
+                }
             }
         }
     }

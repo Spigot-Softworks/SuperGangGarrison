@@ -32,7 +32,9 @@ public partial class Game1
             _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
             var localGameplayInput = _game.ResolveNavEditorGameplayInput(gameplayInput);
             _game.CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
-            _game._world.SetLocalInput(localGameplayInput);
+            // Use networkInput for local input state (needed for medic beam visuals, etc.)
+            // even though gameplayInput is default in multiplayer (server authoritative)
+            _game._world.SetLocalInput(networkInput);
             _game.UpdateBubbleMenuState(keyboard, mouse);
             _game.UpdateScoreboardState(keyboard);
             return networkInput;

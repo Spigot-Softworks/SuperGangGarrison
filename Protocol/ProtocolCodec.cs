@@ -22,6 +22,20 @@ public static partial class ProtocolCodec
     private const int MaxGameplayIdBytes = 96;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
+    // Position quantization: 0.25 pixel precision using int16 (-8192 to +8191 pixels range)
+    private const float PositionQuantizationStep = 0.25f;
+    private const float InverseQuantizationStep = 1.0f / PositionQuantizationStep; // 4.0
+
+    private static short QuantizePosition(float position)
+    {
+        return (short)Math.Clamp((int)(position * InverseQuantizationStep), short.MinValue, short.MaxValue);
+    }
+
+    private static float DequantizePosition(short quantized)
+    {
+        return quantized * PositionQuantizationStep;
+    }
+
     public static byte[] Serialize(IProtocolMessage message)
     {
         var size = MeasureSerializedSize(message);

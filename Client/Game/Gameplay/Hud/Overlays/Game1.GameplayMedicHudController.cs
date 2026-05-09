@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -28,9 +29,21 @@ public partial class Game1
             var viewportHeight = _game.ViewportHeight;
             var hudFrameIndex = _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
             var uberRectangle = new Rectangle(viewportWidth - 135, viewportHeight - 100, 120, 32);
-            _game.DrawScreenHealthBar(uberRectangle, _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer), 2000f, false, Color.White, Color.Black);
-            _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, new Vector2(viewportWidth - 80f, viewportHeight - 85f), Color.White, new Vector2(2f, 2f));
-            _game.DrawMenuTextCentered("SUPERBURST", new Vector2(viewportWidth - 71f, viewportHeight - 89f), new Color(0xD9, 0xD9, 0xB7), 0.567f);
+            var uberCharge = _game.GetPlayerMedicUberCharge(_game._world.LocalPlayer);
+            var uberIsReady = uberCharge >= PlayerEntity.MedicUberMaxCharge;
+            var uberFullColor = _game._world.LocalPlayer.Team == PlayerTeam.Blue
+                ? new Color(92, 160, 238)
+                : new Color(238, 92, 92);
+            var uberFillColor = uberIsReady ? uberFullColor : Color.White;
+            _game.DrawScreenHealthBar(uberRectangle, uberCharge, PlayerEntity.MedicUberMaxCharge, false, uberFillColor, Color.Black);
+
+            // Darken the uber icon and text when carrying intel with regular medigun (kritz can still activate)
+            var isKritz = _game._world.LocalPlayer.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
+            var isUberDisabled = _game._world.LocalPlayer.IsCarryingIntel && !isKritz;
+            var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
+            var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
+            _game.TryDrawScreenSprite("UberHudS", hudFrameIndex, new Vector2(viewportWidth - 80f, viewportHeight - 85f), iconColor, new Vector2(2f, 2f));
+            _game.DrawMenuTextCentered("SUPERBURST", new Vector2(viewportWidth - 71f, viewportHeight - 89f), textColor, 0.567f);
         }
 
         public void DrawMedicAssistHud()

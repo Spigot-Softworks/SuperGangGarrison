@@ -139,7 +139,7 @@ public sealed class BotClientBotParityTests
         Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
         Assert.True(world.TryGetNetworkPlayer(2, out var soldier));
 
-        var shouldFireShotgun = ModernPracticeBotController.ResolveSecondaryWeaponFireFromLoadout(
+        var shouldFireShotgun = ModernPracticeBotController.ResolveAbilityInputFromLoadout(
             soldier,
             combatTargetX: soldier.X + 120f,
             combatTargetY: soldier.Y,

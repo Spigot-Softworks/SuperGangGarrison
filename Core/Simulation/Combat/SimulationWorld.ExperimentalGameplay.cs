@@ -182,7 +182,7 @@ public sealed partial class SimulationWorld
                 ExperimentalGameplaySettings.SpeedBoostMultiplier);
         }
 
-        if (ExperimentalGameplaySettings.EnableInvincibilityOnKill)
+        if (ExperimentalGameplaySettings.EnableInvincibilityOnKill && !killer.IsCarryingIntel)
         {
             killer.RefreshUber(GetExperimentalKillInvulnerabilityTicks());
         }

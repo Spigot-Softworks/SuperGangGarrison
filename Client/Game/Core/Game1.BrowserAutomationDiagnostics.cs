@@ -237,6 +237,7 @@ public partial class Game1
             new BrowserAutomationAction("Enemy Bots +", BrowserAutomationRect.FromRectangle(layout.EnemyBotsRightBounds)),
             new BrowserAutomationAction("Friendly Bots -", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsLeftBounds)),
             new BrowserAutomationAction("Friendly Bots +", BrowserAutomationRect.FromRectangle(layout.FriendlyBotsRightBounds)),
+            new BrowserAutomationAction("Special Abilities", BrowserAutomationRect.FromRectangle(layout.SpecialAbilitiesBounds)),
             new BrowserAutomationAction("Start Practice", BrowserAutomationRect.FromRectangle(layout.StartBounds), canEnterGameplaySession),
             new BrowserAutomationAction("Experimental", BrowserAutomationRect.FromRectangle(layout.ClientPowersBounds)),
             new BrowserAutomationAction("Back", BrowserAutomationRect.FromRectangle(layout.BackBounds)),

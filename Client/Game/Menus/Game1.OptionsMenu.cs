@@ -225,6 +225,12 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void ToggleProjectileTeamTintSetting()
+    {
+        _projectileTeamTintEnabled = !_projectileTeamTintEnabled;
+        PersistClientSettings();
+    }
+
     private void ToggleKillCamSetting()
     {
         _killCamEnabled = !_killCamEnabled;

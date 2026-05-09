@@ -169,7 +169,7 @@ public partial class Game1
 
             try
             {
-                instance.Volume = volume;
+                instance.Volume = volume * _game.GetSoundEffectsVolumeScale();
                 instance.Pan = pan;
                 if (instance.State != SoundState.Playing)
                 {
