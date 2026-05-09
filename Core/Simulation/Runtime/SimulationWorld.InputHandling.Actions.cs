@@ -22,11 +22,9 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        if (player.HasExperimentalOffhandWeapon
-            && input.FirePrimary
-            && player.ClassId != PlayerClass.Engineer)
+        if (TryHandleExperimentalOffhandPrimaryFire(player, input))
         {
-            player.StowExperimentalOffhandWeapon();
+            return;
         }
 
         if (TryHandleEquippedPrimaryFire(player, input, primaryPressed, suppressPyroPrimaryThisTick))
@@ -34,9 +32,10 @@ public sealed partial class SimulationWorld
             return;
         }
 
+        // Mine launcher at limit: explode oldest mine to make room
         if (player.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.MineLauncher) && input.FirePrimary && CountOwnedMines(player.Id) >= player.PrimaryWeapon.MaxAmmo)
         {
-            return;
+            ExplodeOldestMine(player.Id);
         }
 
         if (primaryPressed && TryHandleExperimentalSoldierStingerPrimaryBurst(player))
@@ -53,6 +52,31 @@ public sealed partial class SimulationWorld
         }
 
         FirePrimaryWeapon(player, input.AimWorldX, input.AimWorldY);
+    }
+
+    private bool TryHandleExperimentalOffhandPrimaryFire(PlayerEntity player, PlayerInputSnapshot input)
+    {
+        if (!input.FirePrimary
+            || !player.IsExperimentalOffhandEquipped
+            || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
+            || player.HasSecondaryBehavior(BuiltInGameplayBehaviorIds.MedigunCrit))
+        {
+            UpdateMedicHealing(player, input.AimWorldX, input.AimWorldY);
+            return true;
+        }
+
+        if (!player.TryFireExperimentalOffhandWeapon())
+        {
+            return true;
+        }
+
+        WeaponHandler.FireSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        return true;
     }
 
     private bool TryHandleExperimentalSoldierStingerPrimaryBurst(PlayerEntity player)
@@ -207,12 +231,27 @@ public sealed partial class SimulationWorld
 
     private void TryHandleNetworkSecondaryAbility(PlayerEntity player, PlayerInputSnapshot input, float sourceX, float sourceY)
     {
+        // Allow demoman to detonate mines even while taunting
+        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
+        if (runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding)
+            && secondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate
+            && !player.IsExperimentalDemoknightEnabled)
+        {
+            DetonateOwnedMines(player.Id);
+            return;
+        }
+
         if (player.IsTaunting)
         {
             return;
         }
 
         if (player.IsExperimentalCryoFrozen)
+        {
+            return;
+        }
+
+        if (TryHandleSoldierOffhandToggle(player))
         {
             return;
         }
@@ -289,21 +328,13 @@ public sealed partial class SimulationWorld
             return;
         }
 
-        var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         runtimeRegistry.TryGetSecondaryAbilityBinding(player.EquippedBehaviorId, out var equippedBinding);
-        runtimeRegistry.TryGetSecondaryAbilityBinding(player.SecondaryBehaviorId, out var secondaryBinding);
         runtimeRegistry.TryGetUtilityAbilityBinding(player.UtilityBehaviorId, out var utilityBinding);
         var resolvedSecondaryBinding = player.IsAcquiredWeaponEquipped ? equippedBinding : secondaryBinding;
 
         if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.SniperScope)
         {
             player.TryToggleSniperScope();
-            return;
-        }
-
-        if (resolvedSecondaryBinding.ActionKind == GameplaySecondaryAbilityActionKind.DemomanDetonate)
-        {
-            DetonateOwnedMines(player.Id);
             return;
         }
 
@@ -393,6 +424,59 @@ public sealed partial class SimulationWorld
         }
     }
 
+    private static bool TryHandleSoldierOffhandToggle(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Soldier || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+        else
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
+        return true;
+    }
+
+    private static bool TryHandleMedicOffhandToggle(PlayerEntity player)
+    {
+        if (player.ClassId != PlayerClass.Medic || !player.HasExperimentalOffhandWeapon)
+        {
+            return false;
+        }
+
+        if (player.IsMedicUbering || player.IsUbered)
+        {
+            return false;
+        }
+
+        if (player.IsAcquiredWeaponEquipped)
+        {
+            player.StowAcquiredWeapon();
+        }
+
+        if (player.IsExperimentalOffhandEquipped)
+        {
+            player.StowExperimentalOffhandWeapon();
+        }
+        else
+        {
+            player.EquipExperimentalOffhandWeapon();
+        }
+
+        return true;
+    }
+
     private bool TryHandleExperimentalSoldierStingerDetonation(PlayerEntity player)
     {
         if (player.ClassId != PlayerClass.Soldier
@@ -462,9 +546,15 @@ public sealed partial class SimulationWorld
         return true;
     }
 
-    private void TryHandleNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    private void TryHandleNetworkAbilityInput(PlayerEntity player, PlayerInputSnapshot input)
     {
         if (player.IsTaunting)
+        {
+            return;
+        }
+
+        // Offhand weapon swapping should remain available even if secondary abilities are disabled.
+        if (TryHandleSoldierOffhandToggle(player) || TryHandleMedicOffhandToggle(player))
         {
             return;
         }
@@ -501,6 +591,11 @@ public sealed partial class SimulationWorld
         if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUtility)
             || player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.MedicUber))
         {
+            if (TryHandleMedicOffhandToggle(player))
+            {
+                return true;
+            }
+
             if (player.IsMedicUberReady && player.TryStartMedicUber())
             {
                 AwardMedicUberActivationPoints(player);
@@ -536,6 +631,13 @@ public sealed partial class SimulationWorld
                 return true;
             }
 
+            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SpyUtility))
+            {
+                // Spy superjump ability - do NOT call TryHandleNetworkSecondaryAbility
+                // which would trigger cloak
+                return true;
+            }
+
             TryHandleNetworkSecondaryAbility(player, input, player.X, player.Y);
             return true;
         }
@@ -543,30 +645,10 @@ public sealed partial class SimulationWorld
         return false;
     }
 
-    private void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
+    private static void TryHandleLegacyNetworkSecondaryWeaponFire(PlayerEntity player, PlayerInputSnapshot input)
     {
-        if (player.ClassId != PlayerClass.Soldier
-            || !player.HasExperimentalOffhandWeapon)
-        {
-            return;
-        }
-
-        if (player.IsAcquiredWeaponEquipped)
-        {
-            player.StowAcquiredWeapon();
-        }
-
-        if (!player.IsExperimentalOffhandEquipped)
-        {
-            player.EquipExperimentalOffhandWeapon();
-        }
-
-        if (!player.TryFireExperimentalOffhandWeapon())
-        {
-            return;
-        }
-
-        WeaponHandler.FireExperimentalSoldierShotgun(player, input.AimWorldX, input.AimWorldY);
+        _ = input;
+        TryHandleSoldierOffhandToggle(player);
     }
 
     private void TryHandleNetworkWeaponInteraction(PlayerEntity player)

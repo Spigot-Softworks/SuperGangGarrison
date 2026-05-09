@@ -91,6 +91,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 null,
                 true,
                 true,
+                true,
             ]);
 
         Assert.True(world.LocalPlayer.IsExperimentalGhostDashing);

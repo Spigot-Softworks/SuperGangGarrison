@@ -33,6 +33,8 @@ sealed class SnapshotBroadcaster
     private readonly OpenGarrison.Server.SnapshotTransientEventBuffer _transientEventBuffer;
     private readonly Action<SnapshotMessage>? _recordCanonicalSnapshot;
     private readonly Func<bool>? _shouldRecordCanonicalSnapshot;
+    private readonly SnapshotStringCache _stringCache = new();
+    private readonly Dictionary<byte, ClientStringCacheTracker> _clientCacheTrackers = new();
 
     public SnapshotBroadcaster(
         SimulationWorld world,
@@ -59,14 +61,14 @@ sealed class SnapshotBroadcaster
     }
 
     public OpenGarrison.Server.SnapshotTransientEvents LastCapturedTransientEvents { get; private set; } =
-        new([], [], []);
+        new([], [], [], []);
 
     public SnapshotBroadcastMetrics Metrics { get; private set; }
 
     public void ResetTransientEvents()
     {
         _transientEventBuffer.Reset(_clientsBySlot.Values);
-        LastCapturedTransientEvents = new([], [], []);
+        LastCapturedTransientEvents = new([], [], [], []);
         Metrics = default;
     }
 
@@ -89,7 +91,8 @@ sealed class SnapshotBroadcaster
         var sharedSnapshot = CaptureSharedSnapshotData(
             transientEvents.VisualEvents,
             transientEvents.DamageEvents,
-            transientEvents.SoundEvents);
+            transientEvents.SoundEvents,
+            transientEvents.GibSpawnEvents);
         var sharedCaptureTicks = Stopwatch.GetTimestamp() - sharedCaptureStartTimestamp;
         var sharedCaptureAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - sharedCaptureStartAllocatedBytes;
         if (_recordCanonicalSnapshot is not null
@@ -219,7 +222,8 @@ sealed class SnapshotBroadcaster
     private SharedSnapshotData CaptureSharedSnapshotData(
         SnapshotVisualEvent[] visualEvents,
         SnapshotDamageEvent[] damageEvents,
-        SnapshotSoundEvent[] soundEvents)
+        SnapshotSoundEvent[] soundEvents,
+        SnapshotGibSpawnEvent[] gibSpawnEvents)
     {
         var orderedClients = _clientsBySlot.Values.ToArray();
         Array.Sort(orderedClients, static (left, right) => left.Slot.CompareTo(right.Slot));
@@ -271,8 +275,6 @@ sealed class SnapshotBroadcaster
             ConvertToArray(_world.Flames, static flame => ToSnapshotFlameState(flame)),
             ConvertToArray(_world.Flares, static flare => ToSnapshotFlareState(flare)),
             ConvertToArray(_world.Mines, static mine => ToSnapshotMineState(mine)),
-            ConvertToArray(_world.PlayerGibs, static gib => ToSnapshotPlayerGibState(gib)),
-            ConvertToArray(_world.BloodDrops, static drop => ToSnapshotBloodDropState(drop)),
             ConvertToArray(_world.DeadBodies, static body => ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
             _world.KothUnlockTicksRemaining,
@@ -285,6 +287,7 @@ sealed class SnapshotBroadcaster
             visualEvents,
             damageEvents,
             soundEvents,
+            StringCacheUpdates: null, // TODO: Implement string cache
             mapMetadata.IsCustomMap,
             mapMetadata.MapDownloadUrl,
             mapMetadata.MapContentHash,
@@ -300,6 +303,7 @@ sealed class SnapshotBroadcaster
             ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
             SentryGibs = ConvertToArray(_world.SentryGibs, static sentryGib => ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, static jumpPad => ToSnapshotJumpPadState(jumpPad)),
+            GibSpawnEvents = gibSpawnEvents,
         };
 
         return new SharedSnapshotData(orderedClients, template);
@@ -339,7 +343,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer));
+            players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer, _stringCache));
         }
 
         // Add server bot players
@@ -356,8 +360,13 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer));
+            players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer, _stringCache));
         }
+
+        // Build string cache updates for this client
+        var cacheTracker = GetOrCreateCacheTracker(client.Slot);
+        var referencedStrings = CollectReferencedCachedStrings(players);
+        var stringCacheUpdates = cacheTracker.BuildCacheUpdatesForSnapshot(referencedStrings);
 
         return sharedSnapshot.Template with
         {
@@ -365,6 +374,7 @@ sealed class SnapshotBroadcaster
             Players = players.ToArray(),
             RemovedPlayerIds = removedPlayerIds.Count == 0 ? Array.Empty<int>() : removedPlayerIds.ToArray(),
             LocalDeathCam = ToSnapshotDeathCamState(_world.GetNetworkPlayerDeathCam(client.Slot)),
+            StringCacheUpdates = stringCacheUpdates,
         };
     }
 
@@ -450,7 +460,12 @@ sealed class SnapshotBroadcaster
             IntelRechargeTicks: 0f,
             IsSpyCloaked: false,
             SpyCloakAlpha: 1f,
+            IsSpySuperjumping: false,
+            SpySuperjumpHorizontalVelocity: 0f,
+            SpySuperjumpCooldownTicksRemaining: 0,
+            SpyBackstabVisualTicksRemaining: 0,
             IsUbered: false,
+            IsKritzCritBoosted: false,
             IsHeavyEating: false,
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,
@@ -474,6 +489,42 @@ sealed class SnapshotBroadcaster
             GameplayAcquiredItemId: string.Empty,
             OwnedGameplayItemIds: Array.Empty<string>(),
             PlayerScale: 1f);
+    }
+
+    private ClientStringCacheTracker GetOrCreateCacheTracker(byte slot)
+    {
+        if (!_clientCacheTrackers.TryGetValue(slot, out var tracker))
+        {
+            tracker = new ClientStringCacheTracker(_stringCache);
+            _clientCacheTrackers[slot] = tracker;
+        }
+
+        return tracker;
+    }
+
+    private static List<(string value, ushort cacheId)> CollectReferencedCachedStrings(List<SnapshotPlayerState> players)
+    {
+        var referenced = new List<(string, ushort)>(players.Count * 7);
+
+        foreach (var player in players)
+        {
+            if (player.GameplayModPackCacheId != 0)
+                referenced.Add((player.GameplayModPackId, player.GameplayModPackCacheId));
+            if (player.GameplayLoadoutCacheId != 0)
+                referenced.Add((player.GameplayLoadoutId, player.GameplayLoadoutCacheId));
+            if (player.GameplayPrimaryItemCacheId != 0)
+                referenced.Add((player.GameplayPrimaryItemId, player.GameplayPrimaryItemCacheId));
+            if (player.GameplaySecondaryItemCacheId != 0)
+                referenced.Add((player.GameplaySecondaryItemId, player.GameplaySecondaryItemCacheId));
+            if (player.GameplayUtilityItemCacheId != 0)
+                referenced.Add((player.GameplayUtilityItemId, player.GameplayUtilityItemCacheId));
+            if (player.GameplayEquippedItemCacheId != 0)
+                referenced.Add((player.GameplayEquippedItemId, player.GameplayEquippedItemCacheId));
+            if (player.GameplayAcquiredItemCacheId != 0)
+                referenced.Add((player.GameplayAcquiredItemId, player.GameplayAcquiredItemCacheId));
+        }
+
+        return referenced;
     }
 
     private static SnapshotBaselineState? TryGetBaselineSnapshot(ClientSession client, SnapshotMessage fullSnapshot)
@@ -574,7 +625,8 @@ sealed class SnapshotBroadcaster
         var sharedSnapshot = CaptureSharedSnapshotData(
             Array.Empty<SnapshotVisualEvent>(),
             Array.Empty<SnapshotDamageEvent>(),
-            Array.Empty<SnapshotSoundEvent>());
+            Array.Empty<SnapshotSoundEvent>(),
+            Array.Empty<SnapshotGibSpawnEvent>());
         return CaptureCanonicalSnapshot(sharedSnapshot);
     }
 
@@ -592,7 +644,7 @@ sealed class SnapshotBroadcaster
 
             if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
             {
-                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null));
+                players.Add(ToSnapshotPlayerState(_world, entry.Slot, player, viewer: null, _stringCache));
             }
         }
 
@@ -600,7 +652,7 @@ sealed class SnapshotBroadcaster
         {
             if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
-                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null));
+                players.Add(ToSnapshotPlayerState(_world, botSlot, botPlayer, viewer: null, _stringCache));
             }
         }
 

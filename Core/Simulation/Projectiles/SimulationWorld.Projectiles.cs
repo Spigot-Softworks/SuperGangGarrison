@@ -27,6 +27,11 @@ public sealed partial class SimulationWorld
             killFeedWeaponSpriteNameOverride,
             sourceSentryId,
             applyExperimentalEngineerSentryPerkEffects);
+        if (owner.IsKritzCritBoosted)
+        {
+            shot.SetCritical();
+        }
+
         _shots.Add(shot);
         _entities.Add(shot.Id, shot);
     }
@@ -58,6 +63,11 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             hitDamage);
+        if (owner.IsKritzCritBoosted)
+        {
+            blade.SetCritical();
+        }
+
         owner.IncrementQuoteBladeCount();
         _blades.Add(blade);
         _entities.Add(blade.Id, blade);
@@ -73,6 +83,11 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY);
+        if (owner.IsKritzCritBoosted)
+        {
+            needle.SetCritical();
+        }
+
         _needles.Add(needle);
         _entities.Add(needle.Id, needle);
     }
@@ -89,6 +104,11 @@ public sealed partial class SimulationWorld
             velocityY,
             damagePerHit,
             killFeedWeaponSpriteNameOverride);
+        if (owner.IsKritzCritBoosted)
+        {
+            shot.SetCritical();
+        }
+
         _revolverShots.Add(shot);
         _entities.Add(shot.Id, shot);
     }
@@ -147,6 +167,11 @@ public sealed partial class SimulationWorld
             isPerseverant: _random.Next(8) == 0,
             directHitDamage: directHitDamage,
             burnDamagePerTick: burnDamagePerTick);
+        if (owner.IsKritzCritBoosted)
+        {
+            flame.SetCritical();
+        }
+
         _flames.Add(flame);
         _entities.Add(flame.Id, flame);
     }
@@ -161,6 +186,11 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY);
+        if (owner.IsKritzCritBoosted)
+        {
+            flare.SetCritical();
+        }
+
         _flares.Add(flare);
         _entities.Add(flare.Id, flare);
     }
@@ -209,6 +239,11 @@ public sealed partial class SimulationWorld
             rocket.DelayExplosionUntilNextTick(RocketProjectileEntity.DelayedExplosionReasonSpawnBlocked);
         }
 
+        if (owner.IsKritzCritBoosted)
+        {
+            rocket.SetCritical();
+        }
+
         _rockets.Add(rocket);
         _entities.Add(rocket.Id, rocket);
         _pendingNewRocketIds.Add(rocket.Id);
@@ -230,6 +265,11 @@ public sealed partial class SimulationWorld
             velocityX,
             velocityY,
             killFeedWeaponSpriteNameOverride);
+        if (owner.IsKritzCritBoosted)
+        {
+            mine.SetCritical();
+        }
+
         _mines.Add(mine);
         _entities.Add(mine.Id, mine);
     }

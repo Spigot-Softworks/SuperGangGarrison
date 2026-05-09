@@ -59,7 +59,12 @@ public sealed class ProtocolCodecTests
                     IntelRechargeTicks: 0f,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,
+                    IsSpySuperjumping: false,
+                    SpySuperjumpHorizontalVelocity: 0f,
+                    SpySuperjumpCooldownTicksRemaining: 0,
+                    SpyBackstabVisualTicksRemaining: 0,
                     IsUbered: false,
+                    IsKritzCritBoosted: false,
                     IsHeavyEating: false,
                     HeavyEatTicksRemaining: 0,
                     IsSniperScoped: false,
@@ -87,7 +92,7 @@ public sealed class ProtocolCodecTests
                         new SnapshotReplicatedStateEntry("plugin.example", "charge", SnapshotReplicatedStateValueKind.Scalar, IntValue: 0, FloatValue: 0.25f, BoolValue: false),
                     ],
                     PlayerScale: 1f,
-                    MedicHealTargetPlayerId: 9,
+                    MedicHealTargetId: 9,
                     IsMedicHealing: true),
             ],
             CombatTraces: [new SnapshotCombatTraceState(0f, 0f, 8f, 8f, 2, true, 1, false)],
@@ -101,8 +106,6 @@ public sealed class ProtocolCodecTests
             Flames: Array.Empty<SnapshotFlameState>(),
             Flares: Array.Empty<SnapshotShotState>(),
             Mines: Array.Empty<SnapshotMineState>(),
-            PlayerGibs: Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops: Array.Empty<SnapshotBloodDropState>(),
             DeadBodies: Array.Empty<SnapshotDeadBodyState>(),
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
@@ -122,7 +125,25 @@ public sealed class ProtocolCodecTests
         {
             BaselineFrame = 100,
             IsDelta = true,
-            PlayerMovementStates = [new SnapshotPlayerMovementState(1, 112f, 151f, 3f, 0f, true, 1, 1f, 22f, 1, 9, true)],
+            PlayerMovementStates =
+            [
+                new SnapshotPlayerMovementState(
+                    1,
+                    112f,
+                    151f,
+                    3f,
+                    0f,
+                    true,
+                    1,
+                    1f,
+                    22f,
+                    1,
+                    true,
+                    4f,
+                    5f,
+                    MedicHealTargetId: 9,
+                    IsMedicHealing: true)
+            ],
             PlayerStatusStates = [new SnapshotPlayerStatusState(1, 95, 125, 4, 6, 15f, false, 0f)],
             PlayerChatBubbleStates = [new SnapshotPlayerChatBubbleState(1, true, 49, 0.75f)],
             RemovedShotIds = [2, 4, 6],
@@ -142,13 +163,15 @@ public sealed class ProtocolCodecTests
         var chatBubbleState = Assert.Single(roundTrippedSnapshot.PlayerChatBubbleStates);
         Assert.Equal(112f, playerMovement.X);
         Assert.InRange(playerMovement.AimDirectionDegrees, 21.99f, 22.01f);
-        Assert.Equal(9, playerMovement.MedicHealTargetPlayerId);
+        Assert.Equal(9, playerMovement.MedicHealTargetId);
         Assert.True(playerMovement.IsMedicHealing);
+        Assert.True(playerMovement.IsTaunting);
+        Assert.Equal(5f, playerMovement.BurnIntensity);
         Assert.Equal(95, playerStatus.Health);
         Assert.Equal(49, chatBubbleState.ChatBubbleFrameIndex);
         Assert.InRange(chatBubbleState.ChatBubbleAlpha, 0.74f, 0.76f);
         var player = Assert.Single(roundTrippedSnapshot.Players);
-        Assert.Equal(9, player.MedicHealTargetPlayerId);
+        Assert.Equal(9, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
     }
 
@@ -206,7 +229,12 @@ public sealed class ProtocolCodecTests
                     IntelRechargeTicks: 0f,
                     IsSpyCloaked: false,
                     SpyCloakAlpha: 1f,
+                    IsSpySuperjumping: false,
+                    SpySuperjumpHorizontalVelocity: 0f,
+                    SpySuperjumpCooldownTicksRemaining: 0,
+                    SpyBackstabVisualTicksRemaining: 0,
                     IsUbered: false,
+                    IsKritzCritBoosted: false,
                     IsHeavyEating: false,
                     HeavyEatTicksRemaining: 0,
                     IsSniperScoped: false,
@@ -218,8 +246,8 @@ public sealed class ProtocolCodecTests
                     IsChatBubbleVisible: false,
                     ChatBubbleFrameIndex: 0,
                     ChatBubbleAlpha: 0f,
-                    MedicHealTargetPlayerId: -1,
-                    IsMedicHealing: false),
+                    IsMedicHealing: false,
+                    MedicHealTargetId: -1),
             ],
             CombatTraces: [],
             Sentries: [],
@@ -232,8 +260,6 @@ public sealed class ProtocolCodecTests
             Flames: [],
             Flares: [],
             Mines: [],
-            PlayerGibs: [],
-            BloodDrops: [],
             DeadBodies: [],
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
@@ -253,12 +279,12 @@ public sealed class ProtocolCodecTests
             BaselineFrame = 50,
             IsDelta = true,
             Players = [],
-            PlayerMovementStates = [new SnapshotPlayerMovementState(1, 50f, 75f, 0f, 0f, true, 1, 1f, 0f, 0, 8, true)],
+            PlayerMovementStates = [new SnapshotPlayerMovementState(1, 50f, 75f, 0f, 0f, true, 1, 1f, 0f, 0, false, 0f, 0f, MedicHealTargetId: 8, IsMedicHealing: true)],
         };
 
         var merged = SnapshotDelta.ToFullSnapshot(delta, baseline);
         var player = Assert.Single(merged.Players);
-        Assert.Equal(8, player.MedicHealTargetPlayerId);
+        Assert.Equal(8, player.MedicHealTargetId);
         Assert.True(player.IsMedicHealing);
     }
 }

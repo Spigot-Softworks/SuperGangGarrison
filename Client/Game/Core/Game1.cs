@@ -90,7 +90,7 @@ public partial class Game1 : Game
         MoveDown,
         Taunt,
         CallMedic,
-        FireSecondaryWeapon,
+        UseAbility,
         InteractWeapon,
         ChangeTeam,
         ChangeClass,
@@ -247,6 +247,7 @@ public partial class Game1 : Game
     private bool _showPersistentSelfNameEnabled;
     private bool _spriteDropShadowEnabled;
     private bool _uberOutlineEnabled = true;
+    private bool _projectileTeamTintEnabled = true;
     private bool _wasWindowActive = true;
     private int _menuImageFrame;
     private readonly List<ChatLine> _chatLines = new();
@@ -350,6 +351,17 @@ public partial class Game1 : Game
         {
             Window.AllowUserResizing = !_graphics.IsFullScreen;
         }
+
+        // Subscribe to game exit event to ensure proper server disconnection
+        Exiting += OnGameExiting;
+    }
+
+    private void OnGameExiting(object? sender, EventArgs e)
+    {
+        // Ensure we disconnect from the server before exiting
+        // This sends a proper close message (WebSocket close frame or UDP socket closure)
+        // so the server can immediately remove the player instead of waiting for timeout
+        _networkClient.Disconnect();
     }
 
     public void EnsureBrowserHostLifecycleInitialized()
@@ -400,7 +412,7 @@ public partial class Game1 : Game
     {
         var browserDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
         LogBrowserFrameState("draw", ref _browserDebugDrawCount, gameTime);
-        _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
+        // Use interpolation clock value from Update() - don't re-sample during Draw()
         ApplyFrameRateLimit();
         GraphicsDevice.Clear(new Color(24, 32, 48));
         _frameController.Draw(gameTime);

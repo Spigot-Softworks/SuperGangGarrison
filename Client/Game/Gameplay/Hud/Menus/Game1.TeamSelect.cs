@@ -214,6 +214,11 @@ public partial class Game1
         var redSuperiority = 0;
         foreach (var player in EnumerateRemotePlayersForView())
         {
+            if (_world.IsRemoteSnapshotPlayerAwaitingJoin(player))
+            {
+                continue;
+            }
+
             if (player.Team == PlayerTeam.Red)
             {
                 redSuperiority += 1;
@@ -247,6 +252,11 @@ public partial class Game1
 
         foreach (var player in EnumerateRemotePlayersForView())
         {
+            if (_world.IsRemoteSnapshotPlayerAwaitingJoin(player))
+            {
+                continue;
+            }
+
             if (player.Team == team)
             {
                 count += 1;

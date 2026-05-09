@@ -134,6 +134,14 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
+            // Cloaked spies should only be targetable while revealed.
+            if (player.ClassId == PlayerClass.Spy
+                && player.IsSpyCloaked
+                && !player.IsSpyVisibleToEnemies)
+            {
+                continue;
+            }
+
             var distance = DistanceBetween(sentry.X, sentry.Y, player.X, player.Y);
             if (distance > (owner is not null ? GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange))
             {

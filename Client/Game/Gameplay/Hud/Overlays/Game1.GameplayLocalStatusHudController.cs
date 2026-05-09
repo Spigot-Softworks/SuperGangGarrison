@@ -101,6 +101,12 @@ public partial class Game1
             DrawExperimentalOffhandHud();
             DrawAcquiredMedigunPrompt();
 
+            // Show spy superjump cooldown HUD for Spy class
+            if (_game._world.LocalPlayer.ClassId == PlayerClass.Spy)
+            {
+                DrawSpySuperjumpHud();
+            }
+
             if (_game._world.LocalPlayer.ClassId == PlayerClass.Demoman)
             {
                 DrawDemomanStickyHud();
@@ -132,6 +138,7 @@ public partial class Game1
         public void DrawPyroAmmoHud() => DrawPyroAmmoHudCore();
         public void DrawHeavyAmmoHud() => DrawHeavyAmmoHudCore();
         public void DrawHeavySandwichHud() => DrawHeavySandwichHudCore();
+        public void DrawSpySuperjumpHud() => DrawSpySuperjumpHudCore();
         public void DrawQuoteAmmoHud() => DrawQuoteAmmoHudCore();
         public void DrawDemomanStickyHud() => DrawDemomanStickyHudCore();
         public void DrawExperimentalOffhandHud() => DrawExperimentalOffhandHudCore();
@@ -236,6 +243,30 @@ public partial class Game1
 
             var cooldownRemaining = Math.Clamp(_game.GetPlayerHeavyEatCooldownTicksRemaining(_game._world.LocalPlayer), 0, PlayerEntity.HeavySandvichCooldownTicks);
             _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, 528f, 35f, 5f), PlayerEntity.HeavySandvichCooldownTicks - cooldownRemaining, PlayerEntity.HeavySandvichCooldownTicks, false, AmmoHudBarColor, Color.Black);
+        }
+
+        private void DrawSpySuperjumpHudCore()
+        {
+            if (_game._world.LocalPlayer.ClassId != PlayerClass.Spy)
+            {
+                return;
+            }
+
+            // Gray out the icon when carrying intel
+            var isDisabled = _game._world.LocalPlayer.IsCarryingIntel;
+            var iconColor = isDisabled ? DisabledAmmoHudColor : Color.White;
+
+            // Draw the charge jump sprite from the Spy HUD folder
+            if (!_game.TryDrawScreenSprite("ChargeJumpS", _game._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0, GetSourceHudPoint(730f, 515f), iconColor, new Vector2(2f, 2f)))
+            {
+                return;
+            }
+
+            // Draw cooldown bar (always visible to show when ability will be ready)
+            // Use darker colors when disabled to match the darkened icon
+            var barColor = isDisabled ? DisabledAmmoHudColor : AmmoHudBarColor;
+            var cooldownRemaining = Math.Clamp(_game._world.LocalPlayer.SpySuperjumpCooldownTicksRemaining, 0, PlayerEntity.SpySuperjumpCooldownTicks);
+            _game.DrawScreenHealthBar(GetSourceHudRectangle(715f, 528f, 35f, 5f), PlayerEntity.SpySuperjumpCooldownTicks - cooldownRemaining, PlayerEntity.SpySuperjumpCooldownTicks, false, barColor, Color.Black);
         }
 
         private void DrawQuoteAmmoHudCore()

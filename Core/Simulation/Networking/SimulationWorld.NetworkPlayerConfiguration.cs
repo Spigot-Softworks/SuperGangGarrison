@@ -111,26 +111,6 @@ public sealed partial class SimulationWorld
 
         if (slot == LocalPlayerSlot)
         {
-            for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)
-            {
-                var otherSlot = NetworkPlayerSlots[index];
-                if (otherSlot == LocalPlayerSlot || !IsNetworkPlayerEnabled(otherSlot) || !TryGetNetworkPlayer(otherSlot, out var otherPlayer))
-                {
-                    continue;
-                }
-
-                otherPlayer.SetClassDefinition(GetNetworkPlayerClassDefinition(otherSlot));
-                if (IsNetworkPlayerAwaitingJoin(otherSlot))
-                {
-                    otherPlayer.Kill();
-                }
-                else
-                {
-                    var otherTeam = GetNetworkPlayerConfiguredTeam(otherSlot);
-                    SpawnPlayerResolved(otherPlayer, otherTeam, ReserveSpawn(otherPlayer, otherTeam, otherSlot));
-                }
-            }
-
             if (FriendlyDummyEnabled && !IsNetworkPlayerAwaitingJoin(LocalPlayerSlot))
             {
                 var friendlySpawn = FindFriendlyDummySpawnNearLocalPlayer();
@@ -425,9 +405,10 @@ public sealed partial class SimulationWorld
             KillPlayer(
                 player,
                 weaponSpriteName: "DeadKL",
-                killFeedMessage: player.DisplayName + ClassChangeKillFeedSuffix,
+                killFeedMessage: player.IsInSpawnRoom ? null : player.DisplayName + ClassChangeKillFeedSuffix,
                 createDeathCam: false,
-                spawnRemains: !player.IsInSpawnRoom);
+                spawnRemains: !player.IsInSpawnRoom,
+                recordKillFeed: !player.IsInSpawnRoom);
         }
 
         player.SetClassDefinition(definition);

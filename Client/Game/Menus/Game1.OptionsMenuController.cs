@@ -415,6 +415,7 @@ public partial class Game1
                 new("Healthbar", _game._showHealthBarEnabled ? "Enabled" : "Disabled", _game.ToggleShowHealthBarSetting, OptionsMenuTab.Gameplay),
                 new("Persistent Name", _game._showPersistentSelfNameEnabled ? "Enabled" : "Disabled", _game.TogglePersistentSelfNameSetting, OptionsMenuTab.Gameplay),
                 new("Uber Outlines", _game._uberOutlineEnabled ? "Enabled" : "Disabled", _game.ToggleUberOutlinesSetting, OptionsMenuTab.Gameplay),
+                new("Projectile Team Tint", _game._projectileTeamTintEnabled ? "Enabled" : "Disabled", _game.ToggleProjectileTeamTintSetting, OptionsMenuTab.Gameplay),
                 new("Kill Cam", _game._killCamEnabled ? "Enabled" : "Disabled", _game.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
                 new("Controls", string.Empty, OpenControlsMenuFromOptions, OptionsMenuTab.Gameplay),
             };

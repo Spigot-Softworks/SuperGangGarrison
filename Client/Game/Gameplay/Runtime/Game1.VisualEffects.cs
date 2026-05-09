@@ -71,6 +71,7 @@ public partial class Game1
     private readonly HashSet<ulong> _processedNetworkVisualEventIds = new();
     private readonly Queue<ulong> _processedNetworkVisualEventOrder = new();
     private int _nextClientBackstabVisualId = -1;
+    private int _spySuperjumpTrajectoryAnimationTicks;
 
     private void ResetTransientPresentationEffects()
     {
@@ -203,6 +204,233 @@ public partial class Game1
         }
     }
 
+    private void DrawSpySuperjumpVisuals(Vector2 cameraPosition)
+    {
+        // Only show charging visuals for the local player (not synchronized over network)
+        var localPlayer = _world.LocalPlayer;
+        if (localPlayer == null || localPlayer.ClassId != PlayerClass.Spy || !localPlayer.IsAlive)
+        {
+            return;
+        }
+
+        var chargeTicks = localPlayer.SpySuperjumpChargeTicks;
+        if (chargeTicks <= 0 || localPlayer.IsSpyBackstabAnimating || localPlayer.IsCarryingIntel)
+        {
+            return;
+        }
+
+        var chargeDirection = localPlayer.SpySuperjumpChargeDirectionDegrees;
+        var chargeFraction = float.Min(1f, chargeTicks / (float)PlayerEntity.SpySuperjumpMaxChargeTicks);
+
+        // Draw trajectory preview
+        var radians = chargeDirection * (MathF.PI / 180f);
+        var velocity = PlayerEntity.SpySuperjumpMinVelocity + (PlayerEntity.SpySuperjumpMaxVelocity - PlayerEntity.SpySuperjumpMinVelocity) * chargeFraction;
+        var velocityX = MathF.Cos(radians) * velocity;
+        var velocityY = MathF.Sin(radians) * velocity;
+
+        // Apply velocity clamping to match game behavior (MaxStepSpeedPerTick = 15, SourceTicksPerSecond = 30)
+        const float maxSpeed = 15f * 30f; // 450 units/second
+        velocityX = float.Clamp(velocityX, -maxSpeed, maxSpeed);
+        velocityY = float.Clamp(velocityY, -maxSpeed, maxSpeed);
+
+        const int squareSize = 2;
+        const int squareOutlineSize = 2;
+        const float gravityPerSecond = 540f; // 0.6 * 30 * 30 from LegacyMovementModel
+        const float maxFallSpeed = 300f; // 10 * 30 from LegacyMovementModel (terminal velocity)
+        const float deltaTime = 1f / 30f; // Game physics tick duration (30 ticks per second)
+        const int trajectoryPointInterval = 2; // Record trajectory point every N ticks for smooth interpolation
+
+        // Simulate full trajectory and collect positions at regular time intervals
+        var dotPositions = new System.Collections.Generic.List<(float x, float y, int tick)>();
+        // Start from player's center
+        var simX = localPlayer.X;
+        var simY = localPlayer.Y;
+        var simVelX = velocityX;
+        var simVelY = velocityY;
+        var maxTicks = 300;
+        var collisionDetected = false;
+        var collisionTick = maxTicks;
+
+        // Add starting position
+        dotPositions.Add((simX, simY, 0));
+
+        // Get level solids for collision detection
+        var level = _world.Level;
+
+        // Use small hitbox matching the dot size (2x2 pixels) for trajectory collision detection
+        const float dotCollisionRadius = 1f; // Half of squareSize (2 pixels)
+
+        for (var tick = 0; tick < maxTicks && !collisionDetected; tick++)
+        {
+            var previousX = simX;
+            var previousY = simY;
+
+            // Skip gravity on tick 0 to match game behavior (gravity not applied on jump release frame when grounded)
+            if (tick > 0)
+            {
+                // Apply gravity (half-step integration with terminal velocity cap)
+                simVelY += gravityPerSecond * deltaTime * 0.5f;
+                simVelY = MathF.Min(simVelY, maxFallSpeed);
+            }
+
+            simX += simVelX * deltaTime;
+            simY += simVelY * deltaTime;
+
+            if (tick > 0)
+            {
+                simVelY += gravityPerSecond * deltaTime * 0.5f;
+                simVelY = MathF.Min(simVelY, maxFallSpeed);
+            }
+
+            // Check for wall collision at the new position using small dot-sized hitbox
+            foreach (var solid in level.Solids)
+            {
+                if (simX + dotCollisionRadius > solid.Left
+                    && simX - dotCollisionRadius < solid.Right
+                    && simY + dotCollisionRadius > solid.Top
+                    && simY - dotCollisionRadius < solid.Bottom)
+                {
+                    collisionDetected = true;
+                    collisionTick = tick;
+                    // Add the collision point so dots can travel to it
+                    dotPositions.Add((simX, simY, tick));
+                    break;
+                }
+            }
+
+            if (collisionDetected)
+            {
+                break;
+            }
+
+            // Record trajectory point at regular time intervals for smooth interpolation
+            if (tick % trajectoryPointInterval == 0)
+            {
+                dotPositions.Add((simX, simY, tick));
+            }
+        }
+
+        // Animate dots: they spawn at the start and flow linearly through the trajectory
+        // New dots spawn at regular intervals and move along the path until they hit a wall or expire
+        const float dotSpawnInterval = 26.66f; // Spawn a new dot every ~26 ticks
+        const float dotSpeed = 0.075f; // How fast dots move through the trajectory (75% slower than original)
+        const float dotMaxLifetime = 180f; // Maximum dot lifetime in ticks (3 seconds at 60 TPS)
+        var animationProgress = _spySuperjumpTrajectoryAnimationTicks;
+
+        // Calculate total trajectory length for normalization
+        var totalTicks = collisionDetected ? collisionTick : (dotPositions.Count > 0 ? dotPositions[dotPositions.Count - 1].tick : maxTicks);
+
+        // Calculate maximum number of dots that could exist based on animation time
+        var maxPossibleDots = (int)MathF.Ceiling(animationProgress / dotSpawnInterval) + 1;
+
+        // Draw the dots - each dot is at a different position along the trajectory
+        for (var dotIndex = 0; dotIndex < maxPossibleDots; dotIndex++)
+        {
+            // Calculate when this dot spawned
+            var dotSpawnTime = dotIndex * dotSpawnInterval;
+            var dotAge = animationProgress - dotSpawnTime;
+
+            // Skip if this dot hasn't spawned yet
+            if (dotAge < 0)
+            {
+                continue;
+            }
+
+            // Skip if this dot has exceeded its maximum lifetime
+            if (dotAge > dotMaxLifetime)
+            {
+                continue;
+            }
+
+            // Calculate how far along the trajectory this dot has traveled
+            var traveledTicks = dotAge * dotSpeed;
+
+            // Skip if the dot has traveled past the end or collision point
+            if (traveledTicks > totalTicks)
+            {
+                continue;
+            }
+
+            // Find the position along the trajectory for this traveled distance
+            // Linear interpolation between trajectory points
+            float dotX = localPlayer.X;
+            float dotY = localPlayer.Y;
+            var foundValidPosition = false;
+
+            if (dotPositions.Count > 0)
+            {
+                // Find the trajectory segment this dot is on using the full float value
+                for (var i = 0; i < dotPositions.Count; i++)
+                {
+                    if (dotPositions[i].tick >= traveledTicks)
+                    {
+                        if (i == 0)
+                        {
+                            // At or before the first point - use starting position
+                            dotX = dotPositions[0].x;
+                            dotY = dotPositions[0].y;
+                        }
+                        else
+                        {
+                            // Interpolate between previous and current point
+                            var prev = dotPositions[i - 1];
+                            var curr = dotPositions[i];
+                            var t = (traveledTicks - prev.tick) / (curr.tick - prev.tick);
+                            t = float.Clamp(t, 0f, 1f);
+                            dotX = prev.x + (curr.x - prev.x) * t;
+                            dotY = prev.y + (curr.y - prev.y) * t;
+                        }
+                        foundValidPosition = true;
+                        break;
+                    }
+                }
+            }
+
+            // Skip this dot if we couldn't find a valid position for it
+            // (it's beyond the last recorded trajectory point)
+            if (!foundValidPosition && dotPositions.Count > 0)
+            {
+                continue;
+            }
+
+            // Use constant alpha to avoid flickering
+            var alpha = 0.8f;
+
+            // Convert to screen coordinates (no quantization for smooth sub-pixel movement)
+            var screenX = dotX - cameraPosition.X;
+            var screenY = dotY - cameraPosition.Y;
+
+            // Draw black outline with rounded corners (draw in pieces, skip 1x1 corners)
+            var outlineSize = squareSize + squareOutlineSize * 2;
+            var outlineLeft = (int)(screenX - squareSize / 2 - squareOutlineSize);
+            var outlineTop = (int)(screenY - squareSize / 2 - squareOutlineSize);
+
+            // Top edge (excluding corners)
+            var topRect = new Rectangle(outlineLeft + 1, outlineTop, outlineSize - 2, 2);
+            _spriteBatch.Draw(_pixel, topRect, Color.Black * alpha);
+
+            // Bottom edge (excluding corners)
+            var bottomRect = new Rectangle(outlineLeft + 1, outlineTop + outlineSize - 2, outlineSize - 2, 2);
+            _spriteBatch.Draw(_pixel, bottomRect, Color.Black * alpha);
+
+            // Left edge (excluding corners)
+            var leftRect = new Rectangle(outlineLeft, outlineTop + 1, 2, outlineSize - 2);
+            _spriteBatch.Draw(_pixel, leftRect, Color.Black * alpha);
+
+            // Right edge (excluding corners)
+            var rightRect = new Rectangle(outlineLeft + outlineSize - 2, outlineTop + 1, 2, outlineSize - 2);
+            _spriteBatch.Draw(_pixel, rightRect, Color.Black * alpha);
+
+            // White square (center)
+            var squareRect = new Rectangle(
+                (int)(screenX - squareSize / 2),
+                (int)(screenY - squareSize / 2),
+                squareSize,
+                squareSize);
+            _spriteBatch.Draw(_pixel, squareRect, Color.White * alpha);
+        }
+    }
+
     private void DrawRocketSmokeVisuals(Vector2 cameraPosition)
     {
         _gameplaySmokeEffectsController.DrawRocketSmokeVisuals(cameraPosition);
@@ -310,6 +538,14 @@ public partial class Game1
         if (!_lastVisibleEnemySpyFrameStates.TryGetValue(playerId, out var frameState))
         {
             return;
+        }
+
+        for (var index = 0; index < _frozenSpyVisuals.Count; index += 1)
+        {
+            if (_frozenSpyVisuals[index].PlayerId == playerId)
+            {
+                return;
+            }
         }
 
         _frozenSpyVisuals.Add(new FrozenSpyVisual(playerId, frameState, lifetimeTicks: 30));

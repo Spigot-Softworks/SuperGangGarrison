@@ -31,6 +31,12 @@ public sealed partial class SimulationWorld
             _world.AdvanceSentryGibs();
         }
 
+        public void AdvanceLocalPlayerOnly()
+        {
+            // Only advance the local player for client-side prediction
+            _world.AdvancePlayableNetworkPlayer(SimulationWorld.LocalPlayerSlot);
+        }
+
         public void AdvancePlayerSimulationPhase()
         {
             for (var index = 0; index < NetworkPlayerSlots.Count; index += 1)

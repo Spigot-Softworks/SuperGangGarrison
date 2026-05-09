@@ -33,6 +33,7 @@ public partial class Game1
         Rectangle FriendlyBotsLeftBounds,
         Rectangle FriendlyBotsValueBounds,
         Rectangle FriendlyBotsRightBounds,
+        Rectangle SpecialAbilitiesBounds,
         Rectangle StartBounds,
         Rectangle ClientPowersBounds,
         Rectangle BackBounds,
@@ -141,6 +142,10 @@ public partial class Game1
         {
             CyclePracticeFriendlyBots(1);
         }
+        else if (layout.SpecialAbilitiesBounds.Contains(point))
+        {
+            TogglePracticeSpecialAbilities();
+        }
         else if (layout.StartBounds.Contains(point))
         {
             TryStartPracticeFromSetup();
@@ -243,6 +248,10 @@ public partial class Game1
             buttonScale,
             valueScale);
 
+        DrawBitmapFontText("Special Abilities", new Vector2(rowLabelX, layout.SpecialAbilitiesBounds.Y + rowTextOffset), Color.White, labelScale);
+        var specialAbilitiesLabel = _practiceSpecialAbilitiesEnabled ? "On" : "Off";
+        DrawMenuInputBoxScaled(layout.SpecialAbilitiesBounds, specialAbilitiesLabel, active: false, valueScale);
+
         DrawMenuButtonScaled(layout.StartBounds, "Start Practice", false, buttonScale);
         DrawMenuButtonScaled(layout.ClientPowersBounds, "Experimental", false, buttonScale);
         DrawMenuButtonScaled(layout.BackBounds, "Back", false, buttonScale);
@@ -310,6 +319,11 @@ public partial class Game1
         var friendlyBotsValueBounds = OffsetPracticeRow(enemyBotsValueBounds, rowHeight + rowGap);
         var friendlyBotsRightBounds = OffsetPracticeRow(enemyBotsRightBounds, rowHeight + rowGap);
 
+        var specialAbilitiesY = friendlyBotsLeftBounds.Y + rowHeight + rowGap;
+        var specialAbilitiesX = selectorLeft;
+        var specialAbilitiesWidth = selectorWidth;
+        var specialAbilitiesBounds = new Rectangle(specialAbilitiesX, specialAbilitiesY, specialAbilitiesWidth, rowHeight);
+
         var startBounds = new Rectangle(panel.X + padding, actionsY, actionWidth, buttonHeight);
         var clientPowersBounds = new Rectangle(startBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
         var backBounds = new Rectangle(clientPowersBounds.Right + actionGap, actionsY, actionWidth, buttonHeight);
@@ -337,6 +351,7 @@ public partial class Game1
             friendlyBotsLeftBounds,
             friendlyBotsValueBounds,
             friendlyBotsRightBounds,
+            specialAbilitiesBounds,
             startBounds,
             clientPowersBounds,
             backBounds,

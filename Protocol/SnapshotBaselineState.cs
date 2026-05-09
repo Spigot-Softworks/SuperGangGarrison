@@ -21,10 +21,9 @@ public interface ISnapshotBaselineState
     IReadOnlyList<SnapshotFlameState> Flames { get; }
     IReadOnlyList<SnapshotShotState> Flares { get; }
     IReadOnlyList<SnapshotMineState> Mines { get; }
-    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; }
-    IReadOnlyList<SnapshotBloodDropState> BloodDrops { get; }
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies { get; }
     IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; }
+    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; }
     IReadOnlyList<SnapshotJumpPadState> JumpPads { get; }
 }
 
@@ -45,10 +44,9 @@ public sealed record SnapshotBaselineState(
     IReadOnlyList<SnapshotFlameState> Flames,
     IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
-    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
-    IReadOnlyList<SnapshotBloodDropState> BloodDrops,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     IReadOnlyList<SnapshotSentryGibState> SentryGibs,
+    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
     IReadOnlyList<SnapshotJumpPadState> JumpPads) : ISnapshotBaselineState
 {
     public static SnapshotBaselineState FromSnapshot(SnapshotMessage snapshot)
@@ -71,10 +69,9 @@ public sealed record SnapshotBaselineState(
             snapshot.Flames,
             snapshot.Flares,
             snapshot.Mines,
-            snapshot.PlayerGibs,
-            snapshot.BloodDrops,
             snapshot.DeadBodies,
             snapshot.SentryGibs,
+            snapshot.PlayerGibs,
             snapshot.JumpPads);
     }
 }

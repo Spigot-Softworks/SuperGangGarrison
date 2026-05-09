@@ -127,8 +127,6 @@ public sealed class ServerDemoRecorderTests
             Flames: Array.Empty<SnapshotFlameState>(),
             Flares: Array.Empty<SnapshotShotState>(),
             Mines: Array.Empty<SnapshotMineState>(),
-            PlayerGibs: Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops: Array.Empty<SnapshotBloodDropState>(),
             DeadBodies: Array.Empty<SnapshotDeadBodyState>(),
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
@@ -142,7 +140,8 @@ public sealed class ServerDemoRecorderTests
             DamageEvents: Array.Empty<SnapshotDamageEvent>(),
             SoundEvents: Array.Empty<SnapshotSoundEvent>())
         {
-            TimeLimitTicks = 18000
+            TimeLimitTicks = 18000,
+            PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
         };
     }
 

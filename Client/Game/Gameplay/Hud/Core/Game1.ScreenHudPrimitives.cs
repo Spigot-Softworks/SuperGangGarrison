@@ -265,4 +265,62 @@ public partial class Game1
             new Rectangle(rectangle.X + 2, rectangle.Y + 2, rectangle.Width - 4, rectangle.Height - 4),
             innerColor);
     }
+
+    private void DrawInsetRoundedHudPanel(Rectangle rectangle, Color outerColor, Color innerColor, int radius)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0)
+        {
+            return;
+        }
+
+        DrawRoundedRectangleHud(rectangle, outerColor, radius);
+        if (rectangle.Width <= 4 || rectangle.Height <= 4)
+        {
+            return;
+        }
+
+        var inner = new Rectangle(rectangle.X + 2, rectangle.Y + 2, rectangle.Width - 4, rectangle.Height - 4);
+        if (inner.Width > 0 && inner.Height > 0)
+        {
+            DrawRoundedRectangleHud(inner, innerColor, Math.Max(0, radius - 2));
+        }
+    }
+
+    private void DrawRoundedRectangleHud(Rectangle bounds, Color color, int radius)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        radius = Math.Clamp(radius, 0, Math.Min(bounds.Width, bounds.Height) / 2);
+        var radiusSquared = radius * radius;
+
+        for (var y = 0; y < bounds.Height; y += 1)
+        {
+            float inset;
+            if (y < radius)
+            {
+                var dy = radius - y - 0.5f;
+                inset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dy * dy))));
+            }
+            else if (y >= bounds.Height - radius)
+            {
+                var dy = y - (bounds.Height - radius) + 0.5f;
+                inset = MathF.Round(radius - MathF.Sqrt(MathF.Max(0f, radiusSquared - (dy * dy))));
+            }
+            else
+            {
+                inset = 0f;
+            }
+
+            var rowX = bounds.X + (int)inset;
+            var rowWidth = bounds.Width - ((int)inset * 2);
+
+            if (rowWidth > 0)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(rowX, bounds.Y + y, rowWidth, 1), color);
+            }
+        }
+    }
 }

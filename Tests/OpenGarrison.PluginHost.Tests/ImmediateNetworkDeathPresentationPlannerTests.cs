@@ -122,7 +122,12 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             intelRechargeTicks: 0f,
             isSpyCloaked: false,
             spyCloakAlpha: 1f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
             isUbered: false,
+            isKritzCritBoosted: false,
             isHeavyEating: false,
             heavyEatTicksRemaining: 0,
             isSniperScoped: false,
@@ -169,8 +174,6 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             Flames: Array.Empty<SnapshotFlameState>(),
             Flares: Array.Empty<SnapshotShotState>(),
             Mines: Array.Empty<SnapshotMineState>(),
-            PlayerGibs: Array.Empty<SnapshotPlayerGibState>(),
-            BloodDrops: Array.Empty<SnapshotBloodDropState>(),
             DeadBodies: deadBodies,
             ControlPointSetupTicksRemaining: 0,
             KothUnlockTicksRemaining: 0,
@@ -182,6 +185,9 @@ public sealed class ImmediateNetworkDeathPresentationPlannerTests
             KillFeed: Array.Empty<SnapshotKillFeedEntry>(),
             VisualEvents: Array.Empty<SnapshotVisualEvent>(),
             DamageEvents: Array.Empty<SnapshotDamageEvent>(),
-            SoundEvents: Array.Empty<SnapshotSoundEvent>());
+            SoundEvents: Array.Empty<SnapshotSoundEvent>())
+        {
+            PlayerGibs = Array.Empty<SnapshotPlayerGibState>(),
+        };
     }
 }

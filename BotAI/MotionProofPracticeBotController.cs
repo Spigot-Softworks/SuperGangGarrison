@@ -6455,7 +6455,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
                 FireSecondary = fireSecondary,
                 AimWorldX = aimX,
                 AimWorldY = aimY,
-                FireSecondaryWeapon = fireSecondaryWeapon,
+                UseAbility = fireSecondaryWeapon,
             };
         }
 
@@ -6578,7 +6578,7 @@ public sealed class MotionProofPracticeBotController : IPracticeBotController
             FireSecondary = fireSecondary,
             AimWorldX = target.X,
             AimWorldY = target.Y,
-            FireSecondaryWeapon = fireSecondaryWeapon,
+            UseAbility = fireSecondaryWeapon,
         };
     }
 

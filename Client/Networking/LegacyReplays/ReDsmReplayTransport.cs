@@ -651,8 +651,6 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     Flames: CreateSnapshotFlames(),
                     Flares: Array.Empty<SnapshotShotState>(),
                     Mines: CreateSnapshotMines(),
-                    PlayerGibs: CreateSnapshotPlayerGibs(),
-                    BloodDrops: CreateSnapshotBloodDrops(),
                     DeadBodies: CreateSnapshotDeadBodies(),
                     ControlPointSetupTicksRemaining: Math.Max(0, ControlPointSetupTicksRemaining),
                     KothUnlockTicksRemaining: Math.Max(0, KothUnlockTicksRemaining),
@@ -675,7 +673,8 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     ArenaRedConsecutiveWins = GameMode == GameModeKind.Arena ? RedCaps : 0,
                     ArenaBlueConsecutiveWins = GameMode == GameModeKind.Arena ? BlueCaps : 0,
                     IsDelta = false,
-                    BaselineFrame = 0
+                    BaselineFrame = 0,
+                    PlayerGibs = CreateSnapshotPlayerGibs()
                 };
 
                 _pendingVisualEvents.Clear();
@@ -2213,7 +2212,12 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     IntelRechargeTicks: player.IntelRechargeTicks,
                     IsSpyCloaked: player.IsSpyCloaked,
                     SpyCloakAlpha: classId == PlayerClass.Spy ? player.SpyCloakAlpha : 0f,
+                    IsSpySuperjumping: false,
+                    SpySuperjumpHorizontalVelocity: 0f,
+                    SpySuperjumpCooldownTicksRemaining: 0,
+                    SpyBackstabVisualTicksRemaining: 0,
                     IsUbered: false,
+                    IsKritzCritBoosted: false,
                     IsHeavyEating: false,
                     HeavyEatTicksRemaining: 0,
                     IsSniperScoped: classId == PlayerClass.Sniper && player.IsScoped,

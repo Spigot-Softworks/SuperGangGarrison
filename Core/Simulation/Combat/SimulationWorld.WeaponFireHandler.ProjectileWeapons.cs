@@ -18,16 +18,22 @@ public sealed partial class SimulationWorld
             string? killFeedWeaponSpriteNameOverride)
         {
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
-            var aimDeltaX = aimWorldX - weaponOrigin.BaseX;
-            var aimDeltaY = aimWorldY - weaponOrigin.BaseY;
-            if (aimDeltaX == 0f && aimDeltaY == 0f)
-            {
-                aimDeltaX = attacker.FacingDirectionX;
-            }
 
-            var baseAngle = MathF.Atan2(aimDeltaY, aimDeltaX);
+            // Use weapon pivot system to spawn bullets relative to weapon sprite rotation
+            const float minigunPivotOffsetX = 0f;
+            const float minigunPivotAdditionalYOffset = 14f;
+            var pivotRay = GetWeaponPivotRay(
+                weaponOrigin.BaseX,
+                weaponOrigin.BaseY,
+                aimWorldX,
+                aimWorldY,
+                attacker.FacingDirectionX,
+                minigunPivotOffsetX,
+                minigunPivotAdditionalYOffset);
+
+            // Spawn bullets directly from the weapon pivot, moving forward along the firing direction
             var spreadRadians = GetWeaponSpreadRadians(attacker.Id, weaponDefinition.SpreadDegrees);
-            var pelletAngle = baseAngle + spreadRadians;
+            var pelletAngle = pivotRay.AngleRadians + spreadRadians;
             var directionX = MathF.Cos(pelletAngle);
             var directionY = MathF.Sin(pelletAngle);
             var shotSpeed = GetWeaponShotSpeed(weaponDefinition);
@@ -35,10 +41,16 @@ public sealed partial class SimulationWorld
                 attacker,
                 directionX * shotSpeed,
                 directionY * shotSpeed);
+
+            // Spawn bullets 14 pixels forward from the weapon pivot along the firing direction
+            const float minigunBarrelForwardOffset = 14f;
+            var spawnX = pivotRay.PivotX + (directionX * minigunBarrelForwardOffset);
+            var spawnY = pivotRay.PivotY + (directionY * minigunBarrelForwardOffset);
+
             SpawnShot(
                 attacker,
-                weaponOrigin.BaseX + directionX * 20f,
-                weaponOrigin.BaseY + 12f + directionY * 20f,
+                spawnX,
+                spawnY,
                 launchedVelocityX + (attacker.HorizontalSpeed * (float)Config.FixedDeltaSeconds),
                 launchedVelocityY,
                 weaponDefinition.DirectHitDamage ?? ShotProjectileEntity.DamagePerHit,
@@ -386,7 +398,7 @@ public sealed partial class SimulationWorld
         {
             if (CountOwnedMines(attacker.Id) >= weaponDefinition.MaxAmmo)
             {
-                return;
+                _world.ExplodeOldestMine(attacker.Id);
             }
 
             var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);

@@ -6,6 +6,7 @@ public sealed partial class SimulationWorld
     {
         var shot = _shots[shotIndex];
         _entities.Remove(shot.Id);
+        MarkProjectileTerminated(shot.Id);
         _shots.RemoveAt(shotIndex);
     }
 
@@ -18,6 +19,7 @@ public sealed partial class SimulationWorld
         }
 
         _entities.Remove(blade.Id);
+        MarkProjectileTerminated(blade.Id);
         _blades.RemoveAt(bladeIndex);
     }
 
@@ -25,6 +27,7 @@ public sealed partial class SimulationWorld
     {
         var needle = _needles[needleIndex];
         _entities.Remove(needle.Id);
+        MarkProjectileTerminated(needle.Id);
         _needles.RemoveAt(needleIndex);
     }
 
@@ -32,6 +35,7 @@ public sealed partial class SimulationWorld
     {
         var shot = _revolverShots[shotIndex];
         _entities.Remove(shot.Id);
+        MarkProjectileTerminated(shot.Id);
         _revolverShots.RemoveAt(shotIndex);
     }
 
@@ -121,6 +125,14 @@ public sealed partial class SimulationWorld
             {
                 RemoveFlareAt(flareIndex);
             }
+        }
+    }
+
+    private void MarkProjectileTerminated(int projectileId)
+    {
+        if (_clientPredictedProjectileIds.Remove(projectileId))
+        {
+            _terminatedProjectileIds.Add(projectileId);
         }
     }
 

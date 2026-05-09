@@ -29,7 +29,17 @@ public sealed partial class SimulationWorld
     {
         if (localPlayerState is not null && !localPlayerState.IsSpectator)
         {
+            var wasAlive = LocalPlayer.IsAlive;
+            var previousGibDeaths = LocalPlayer.GibDeaths;
+
             ApplySnapshotPlayer(LocalPlayer, localPlayerState);
+            var diedThisSnapshot = wasAlive && !LocalPlayer.IsAlive;
+            var wasGibbedDeath = localPlayerState.GibDeaths > previousGibDeaths;
+            if (diedThisSnapshot && wasGibbedDeath)
+            {
+                SpawnPlayerGibsForNetworkDeath(LocalPlayer);
+            }
+
             TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, localPlayerState.IsAwaitingJoin);
             TrySetNetworkPlayerRespawnTicks(LocalPlayerSlot, localPlayerState.RespawnTicks);
             TrySetNetworkPlayerConfiguredTeam(LocalPlayerSlot, LocalPlayer.Team);

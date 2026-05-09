@@ -257,6 +257,10 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int UberTicksRemaining { get; private set; }
 
+    public bool IsKritzCritBoosted => KritzCritBoostTicksRemaining > 0;
+
+    public int KritzCritBoostTicksRemaining { get; private set; }
+
     public float RageCharge { get; private set; }
 
     public bool IsRageReady { get; private set; }
@@ -367,9 +371,32 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public bool IsSpyVisibleToAllies => !IsSpyCloaked || IsSpyBackstabReady || SpyCloakAlpha > 0f;
 
+    public int SpySuperjumpChargeTicks { get; private set; }
+
+    public float SpySuperjumpChargeDirectionDegrees { get; private set; }
+
+    public bool IsSpySuperjumping { get; private set; }
+
+    public float SpySuperjumpHorizontalVelocity { get; private set; }
+
+    // Tracks which movement buttons were held when superjump charging started (client-side only)
+    public byte SpySuperjumpChargeStartMovementButtons { get; private set; }
+
+    public const int SpySuperjumpMaxChargeTicks = 30; // 0.5s at 60 ticks/sec
+
+    public const float SpySuperjumpMinVelocity = 200f; // units per second
+
+    public const float SpySuperjumpMaxVelocity = 600f; // units per second
+
+    public const int SpySuperjumpCooldownTicks = 240; // 8 seconds at 30 ticks/sec
+
+    public int SpySuperjumpCooldownTicksRemaining { get; private set; }
+
     public int Kills { get; private set; }
 
     public int Deaths { get; private set; }
+
+    public int GibDeaths { get; private set; }
 
     public int Assists { get; private set; }
 
@@ -567,6 +594,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsSniperScoped = false;
         SniperChargeTicks = 0;
         UberTicksRemaining = 0;
+        KritzCritBoostTicksRemaining = 0;
+        SpySuperjumpCooldownTicksRemaining = 0;
         MedicHealTargetId = null;
         IsMedicHealing = false;
         if (resetMedicUberCharge)

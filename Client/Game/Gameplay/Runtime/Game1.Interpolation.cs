@@ -20,7 +20,10 @@ public partial class Game1
     private const float ReplayMinimumInterpolationBackTimeSeconds = 0.02f;
     private const float ReplayMaximumInterpolationBackTimeSeconds = 0.06f;
     private const float SnapshotHistoryRetentionSeconds = 0.5f;
-    private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.25f;
+    // Projectiles are only sent on initial spawn, not updated regularly
+    // Client-side prediction handles all motion after spawn
+    private const float ProjectileInterpolationExtrapolationCeilingSeconds = 0.0f;
+    private const int ExpectedProjectileUpdateIntervalTicks = int.MaxValue;
 
     private int GetPlayerStateKey(PlayerEntity player)
     {

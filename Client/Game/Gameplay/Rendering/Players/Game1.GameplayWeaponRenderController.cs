@@ -63,6 +63,11 @@ public partial class Game1
                 return false;
             }
 
+            if (_game.IsKritzUberWeaponOnlyVisual(player))
+            {
+                return false;
+            }
+
             var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
             var frameIndex = GetWeaponSpriteFrameIndex(player, weaponAnimationMode, weaponDefinition, sprite.Frames.Count);
@@ -169,6 +174,13 @@ public partial class Game1
 
             var position = new Vector2(drawX - cameraPosition.X, drawY - cameraPosition.Y);
             var scale = new Vector2(facingScale * playerScale, playerScale);
+            if (_game.IsKritzUberWeaponOnlyVisual(player) && _game._uberOutlineEnabled)
+            {
+                var teamColor = GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(player.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+                _game.DrawSpriteFrameOutline(sprite.Frames[frameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), scale);
+            }
+
             if (player.IsUbered)
             {
                 _game.DrawSpriteFrameWithOptionalShadow(sprite.Frames[frameIndex], position, tint, rotation, sprite.Origin.ToVector2(), scale);

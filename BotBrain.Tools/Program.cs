@@ -1,10 +1,18 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using OpenGarrison.Core;
 using OpenGarrison.Core.BotBrain;
 
 const float ProbeSurfaceLandingHorizontalSlack = 25f;
 const float ProbeLandingVerticalSlack = 14f;
+const double ColdBuildBudgetMilliseconds = 5_000d;
+
+var artifactJsonOptions = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    WriteIndented = true,
+};
 
 var options = BotBrainCanaryOptions.Parse(args);
 var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
@@ -19,10 +27,26 @@ if (options.DumpRoomObjects)
     return;
 }
 
-var buildStopwatch = Stopwatch.StartNew();
-var asset = BotNavigationAssetStore.LoadOrBuild(level);
+var assetStopwatch = Stopwatch.StartNew();
+var assetSource = "cold-built";
+BotNavigationAsset asset;
+if (BotNavigationAssetStore.TryLoadShipped(level, out var shippedAsset))
+{
+    asset = shippedAsset;
+    assetSource = "shipped";
+}
+else if (BotNavigationAssetStore.TryLoadRuntimeCache(level, out var cachedAsset))
+{
+    asset = cachedAsset;
+    assetSource = "runtime-cache";
+}
+else
+{
+    asset = BotNavigationAssetStore.BuildAndSaveRuntimeCache(level);
+}
+
 var graph = BotNavigationAssetBuilder.ToGraph(asset);
-buildStopwatch.Stop();
+assetStopwatch.Stop();
 
 if (options.ProbeFromNode >= 0 && options.ProbeToNode >= 0)
 {
@@ -123,9 +147,11 @@ var initialPlayerCaps = bot.Caps;
 var lastPrintedGoalNode = -1;
 var lastPrintedPathCount = -1;
 var edgeDiagnostics = new EdgeExecutionDiagnostics();
+var semanticRecoveryTraces = new List<string>();
+var artifactDirectory = ResolveArtifactDirectory(options.ArtifactsDirectory);
 
 Console.WriteLine($"map={world.Level.Name} area={world.Level.MapAreaIndex} mode={world.MatchRules.Mode}");
-Console.WriteLine($"asset=format{asset.FormatVersion} surfaces={asset.Surfaces.Count} nodes={asset.Nodes.Count} edges={asset.Edges.Count} anchors={asset.Anchors.Count} buildMs={buildStopwatch.Elapsed.TotalMilliseconds:0.0}");
+Console.WriteLine($"asset=format{asset.FormatVersion} source={assetSource} surfaces={asset.Surfaces.Count} nodes={asset.Nodes.Count} edges={asset.Edges.Count} anchors={asset.Anchors.Count} loadMs={assetStopwatch.Elapsed.TotalMilliseconds:0.0}");
 if (asset.BuildStats is { } buildStats)
 {
     Console.WriteLine($"buildStats=surfacePairs:{buildStats.SurfacePairChecks} nodePairs:{buildStats.NodePairChecks} probeAttempts:{buildStats.CertifiedProbeAttempts} probeSuccesses:{buildStats.CertifiedProbeSuccesses}");
@@ -214,6 +240,12 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
         diagnosticPreVerticalSpeed,
         bot,
         input);
+    if (!string.IsNullOrWhiteSpace(brain.LastSemanticRecoveryTrace))
+    {
+        semanticRecoveryTraces.Add(brain.LastSemanticRecoveryTrace);
+        Console.WriteLine($"tick:{tick} {brain.LastSemanticRecoveryTrace}");
+    }
+
     if (edgeDiagnostics.TryConsumeBlocker(out var blockerLine))
     {
         Console.WriteLine(blockerLine);
@@ -290,9 +322,80 @@ var finalDistance = Distance(bot.X, bot.Y, goal.X, goal.Y);
 var finalNode = graph.FindNearestNode(bot.X, bot.Y);
 var finalPath = graph.FindPath(finalNode, goalNode, options.PlayerClass, team: options.Team);
 var progress = initialDistance - bestDistance;
-Console.WriteLine($"result={(scoreTick >= 0 ? "Scored" : carryingIntelTick >= 0 ? "PickedIntel" : progress > 100f ? "Progressed" : "NoUsefulProgress")}");
+var result = scoreTick >= 0 ? "Scored" : carryingIntelTick >= 0 ? "PickedIntel" : progress > 100f ? "Progressed" : "NoUsefulProgress";
+var failureBucket = ClassifyFailureBucket(
+    result,
+    assetSource,
+    assetStopwatch.Elapsed.TotalMilliseconds,
+    asset.ValidationIssues.Count,
+    exactPath is null,
+    goalNode != exactGoalNode,
+    reachableFromStart,
+    reachableToGoal,
+    graph.NodeCount,
+    edgeDiagnostics,
+    semanticRecoveryTraces,
+    fireTicks,
+    stagnantWindows,
+    options.Ticks,
+    options.ReportEveryTicks);
+Console.WriteLine($"result={result}");
 Console.WriteLine($"summary=finalDistance:{finalDistance:0.0} bestDistance:{bestDistance:0.0} progress:{progress:0.0} totalMovement:{totalMovement:0.0} jumps:{jumpTicks} dropdowns:{dropdownTicks} fire:{fireTicks} deadTicks:{deadTicks} stagnantWindows:{stagnantWindows} carryingIntelTick:{carryingIntelTick} scoreTick:{scoreTick} redCaps:{world.RedCaps} blueCaps:{world.BlueCaps} playerCaps:{bot.Caps} finalNode:{finalNode} finalPathWaypoints:{finalPath?.Count ?? 0}");
-Console.WriteLine(edgeDiagnostics.FormatSummary(graph, bot, brain.CurrentPathIndex, brain.CurrentPathCount, brain.CurrentPathNode));
+Console.WriteLine($"failureBucket={failureBucket}");
+var edgeSummary = edgeDiagnostics.FormatSummary(graph, bot, brain.CurrentPathIndex, brain.CurrentPathCount, brain.CurrentPathNode);
+Console.WriteLine(edgeSummary);
+WriteArtifacts(
+    artifactDirectory,
+    artifactJsonOptions,
+    options,
+    world,
+    asset,
+    assetSource,
+    assetStopwatch.Elapsed.TotalMilliseconds,
+    edgeCount,
+    walkEdges,
+    jumpEdges,
+    fallEdges,
+    dropdownEdges,
+    goal,
+    startNode,
+    exactGoalNode,
+    goalNode,
+    exactPath?.Count ?? 0,
+    path?.Count ?? 0,
+    path?.TotalCost ?? -1f,
+    reachableFromStart,
+    reachableToGoal,
+    components,
+    startComponent,
+    exactGoalComponent,
+    goalComponent,
+    result,
+    failureBucket,
+    initialDistance,
+    finalDistance,
+    bestDistance,
+    bestTick,
+    progress,
+    totalMovement,
+    jumpTicks,
+    dropdownTicks,
+    fireTicks,
+    deadTicks,
+    stagnantWindows,
+    carryingIntelTick,
+    scoreTick,
+    initialRedCaps,
+    initialBlueCaps,
+    initialPlayerCaps,
+    world.RedCaps,
+    world.BlueCaps,
+    bot.Caps,
+    finalNode,
+    finalPath?.Count ?? 0,
+    edgeSummary,
+    edgeDiagnostics,
+    semanticRecoveryTraces);
 
 if (path.Count == 0 || progress <= 100f || stagnantWindows >= Math.Max(3, options.Ticks / options.ReportEveryTicks / 2))
 {
@@ -716,6 +819,11 @@ internal sealed class EdgeExecutionDiagnostics
     private int _longestEdgeTicks;
     private string _longestEdgeSummary = "none";
     private int _lastObservedTick;
+    private bool _currentFinalized;
+
+    public List<EdgeExecutionArtifact> Edges { get; } = [];
+
+    public List<BlockerArtifact> Blockers { get; } = [];
 
     public void Observe(
         int tick,
@@ -794,6 +902,28 @@ internal sealed class EdgeExecutionDiagnostics
                     preGrounded,
                     preHorizontalSpeed,
                     preVerticalSpeed);
+                Blockers.Add(new BlockerArtifact(
+                    Tick: tick,
+                    FromNode: _currentFromNode,
+                    ToNode: _currentToNode,
+                    Kind: _currentEdge.Kind.ToString(),
+                    Phase: _lastPhase,
+                    EdgeTicks: edgeTicks,
+                    WindowMove: windowMove,
+                    BestNodeDistance: _bestTargetDistance,
+                    Movement: _edgeMovement,
+                    Jumps: _edgeJumps,
+                    RecipeReadyTicks: _edgeRecipeReadyTicks,
+                    FirstRecipeReason: _firstRecipeReason,
+                    LastRecipeReason: _lastRecipeReason,
+                    X: bot.X,
+                    Y: bot.Y,
+                    PreGrounded: preGrounded,
+                    PreHorizontalSpeed: preHorizontalSpeed,
+                    PreVerticalSpeed: preVerticalSpeed,
+                    PathIndex: pathIndex,
+                    PathCount: pathCount,
+                    PathNode: pathNode));
                 _blockerPrintedForEdge = true;
             }
 
@@ -839,22 +969,41 @@ internal sealed class EdgeExecutionDiagnostics
         _lastRecipeReason = "none";
         _lastPhase = "start";
         _blockerPrintedForEdge = false;
+        _currentFinalized = false;
     }
 
     private void FinalizeCurrentEdge(int tick)
     {
-        if (string.IsNullOrEmpty(_currentKey) || _currentKey == "none")
+        if (_currentFinalized || string.IsNullOrEmpty(_currentKey) || _currentKey == "none")
         {
             return;
         }
 
         var edgeTicks = Math.Max(0, tick - _edgeStartTick + 1);
+        Edges.Add(new EdgeExecutionArtifact(
+            FromNode: _currentFromNode,
+            ToNode: _currentToNode,
+            Kind: _currentEdge.Kind.ToString(),
+            StartTick: _edgeStartTick,
+            EndTick: tick,
+            Ticks: edgeTicks,
+            Phase: _lastPhase,
+            StartX: _edgeStartX,
+            StartY: _edgeStartY,
+            BestNodeDistance: _bestTargetDistance,
+            Movement: _edgeMovement,
+            Jumps: _edgeJumps,
+            RecipeReadyTicks: _edgeRecipeReadyTicks,
+            FirstRecipeReason: _firstRecipeReason,
+            LastRecipeReason: _lastRecipeReason));
         if (edgeTicks > _longestEdgeTicks)
         {
             _longestEdgeTicks = edgeTicks;
             _longestEdgeSummary =
                 $"edge={_currentFromNode}->{_currentToNode} kind={_currentEdge.Kind} ticks={edgeTicks} phase={_lastPhase} bestNodeDist={_bestTargetDistance:0.0} movement={_edgeMovement:0.0} jumps={_edgeJumps} recipeReadyTicks={_edgeRecipeReadyTicks} firstRecipe={_firstRecipeReason} lastRecipe={_lastRecipeReason}";
         }
+
+        _currentFinalized = true;
     }
 
     private string FormatBlocker(

@@ -11,6 +11,7 @@ public sealed partial class SimulationWorld
 
     private void RemoveBubbleAt(int bubbleIndex)
     {
+        MarkProjectileTerminated(_bubbles[bubbleIndex].Id);
         BubbleProjectileSystem.RemoveAt(this, bubbleIndex);
     }
 

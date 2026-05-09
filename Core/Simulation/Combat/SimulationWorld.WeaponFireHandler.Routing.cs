@@ -9,7 +9,7 @@ public sealed partial class SimulationWorld
             DispatchPrimaryWeaponFire(attacker, attacker.PrimaryWeapon, attacker.PrimaryBehaviorId, attacker.ClassId, aimWorldX, aimWorldY);
         }
 
-        public void FireExperimentalSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
+        public void FireSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
         {
             var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
             var pelletCountMultiplier = _world.IsExperimentalPracticePowerOwner(attacker)

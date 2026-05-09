@@ -46,8 +46,6 @@ public partial class Game1
         WriteGameplayRenderTrace("hud begin");
         DrawKillFeedHud();
         WriteGameplayRenderTrace("hud after killfeed");
-        DrawChatHud();
-        WriteGameplayRenderTrace("hud after chat");
         DrawClientPluginOverlayMenuHud();
         WriteGameplayRenderTrace("hud after clientpluginoverlaymenu");
         DrawScorePanelHud();
@@ -128,6 +126,8 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after clientpluginhud");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
+        DrawChatHud();
+        WriteGameplayRenderTrace("hud after chat");
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }
 

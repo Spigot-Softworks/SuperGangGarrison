@@ -29,7 +29,12 @@ public sealed partial class PlayerEntity
         float intelRechargeTicks,
         bool isSpyCloaked,
         float spyCloakAlpha,
+        bool isSpySuperjumping,
+        float spySuperjumpHorizontalVelocity,
+        int spySuperjumpCooldownTicksRemaining,
+        int spyBackstabVisualTicksRemaining,
         bool isUbered,
+        bool isKritzCritBoosted,
         bool isHeavyEating,
         int heavyEatTicksRemaining,
         bool isSniperScoped,
@@ -62,6 +67,10 @@ public sealed partial class PlayerEntity
         int heavyEatCooldownTicksRemaining = 0,
         int assists = 0,
         ulong badgeMask = 0,
+        bool isMedicHealing = false,
+        int medicHealTargetId = -1,
+        float medicUberCharge = 0f,
+        bool isMedicUberReady = false,
         string gameplayModPackId = "",
         string gameplayLoadoutId = "",
         string gameplayPrimaryItemId = "",
@@ -73,8 +82,9 @@ public sealed partial class PlayerEntity
         IReadOnlyList<string>? ownedGameplayItemIds = null,
         IReadOnlyList<GameplayReplicatedStateEntry>? replicatedStateEntries = null,
         float playerScale = 1f,
-        int medicHealTargetPlayerId = -1,
-        bool isMedicHealing = false)
+        int offhandCooldownTicks = 0,
+        int offhandReloadTicks = 0,
+        int gibDeaths = 0)
     {
         Team = team;
         ClassDefinition = classDefinition;
@@ -122,11 +132,20 @@ public sealed partial class PlayerEntity
             : 0;
         Kills = Math.Max(0, kills);
         Deaths = Math.Max(0, deaths);
+        GibDeaths = Math.Max(0, gibDeaths);
         Assists = Math.Max(0, assists);
         Caps = Math.Max(0, caps);
         Points = Math.Max(0f, points);
         HealPoints = Math.Max(0, healPoints);
         BadgeMask = BadgeCatalog.SanitizeBadgeMask(badgeMask);
+        IsMedicHealing = isMedicHealing;
+        MedicHealTargetId = medicHealTargetId >= 0 ? medicHealTargetId : null;
+        MedicUberCharge = ClassId == PlayerClass.Medic
+            ? float.Clamp(medicUberCharge, 0f, MedicUberMaxCharge)
+            : 0f;
+        IsMedicUberReady = ClassId == PlayerClass.Medic
+            && (isMedicUberReady || MedicUberCharge >= MedicUberMaxCharge);
+        IsMedicUbering = isUbered;
         ActiveDominationCount = Math.Max(0, activeDominationCount);
         IsDominatingLocalViewer = isDominatingLocalViewer;
         IsDominatedByLocalViewer = isDominatedByLocalViewer;
@@ -138,9 +157,16 @@ public sealed partial class PlayerEntity
         IntelRechargeTicks = isCarryingIntel ? float.Clamp(intelRechargeTicks, 0f, IntelRechargeMaxTicks) : 0f;
         IsSpyCloaked = isSpyCloaked;
         SpyCloakAlpha = float.Clamp(spyCloakAlpha, 0f, 1f);
+        IsSpySuperjumping = isSpySuperjumping;
+        SpySuperjumpHorizontalVelocity = spySuperjumpHorizontalVelocity;
+        SpySuperjumpCooldownTicksRemaining = ClassId == PlayerClass.Spy
+            ? Math.Max(0, spySuperjumpCooldownTicksRemaining)
+            : 0;
         SpyBackstabWindupTicksRemaining = 0;
         SpyBackstabRecoveryTicksRemaining = 0;
-        SpyBackstabVisualTicksRemaining = 0;
+        SpyBackstabVisualTicksRemaining = ClassId == PlayerClass.Spy
+            ? Math.Max(0, spyBackstabVisualTicksRemaining)
+            : 0;
         SpyBackstabDirectionDegrees = 0f;
         SpyBackstabHitboxPending = false;
         IsSpyVisibleToEnemies = IsSpyCloaked && SpyCloakAlpha > 0f;
@@ -151,6 +177,7 @@ public sealed partial class PlayerEntity
         BurnedByPlayerId = burnedByPlayerId > 0 ? burnedByPlayerId : null;
         NapalmCoveredSourceTicks = 0f;
         UberTicksRemaining = isUbered ? DefaultUberRefreshTicks : 0;
+        KritzCritBoostTicksRemaining = isKritzCritBoosted ? DefaultUberRefreshTicks : 0;
         IsHeavyEating = isHeavyEating;
         HeavyEatTicksRemaining = Math.Max(0, heavyEatTicksRemaining);
         HeavyEatCooldownTicksRemaining = ClassId == PlayerClass.Heavy
@@ -185,7 +212,7 @@ public sealed partial class PlayerEntity
         ChatBubbleAlpha = chatBubbleAlpha;
         IsChatBubbleFading = false;
         ChatBubbleTicksRemaining = 0;
-        MedicHealTargetId = isMedicHealing && medicHealTargetPlayerId > 0 ? medicHealTargetPlayerId : null;
+        MedicHealTargetId = isMedicHealing && medicHealTargetId >= 0 ? medicHealTargetId : null;
         IsMedicHealing = IsAlive && MedicHealTargetId.HasValue;
 
         if (!IsChatBubbleVisible)
@@ -220,6 +247,13 @@ public sealed partial class PlayerEntity
             ExtinguishAfterburn();
         }
 
+        // Pre-set the selected equipped slot so that if ApplyReplicatedGameplayLoadoutState falls back
+        // to RefreshGameplayLoadoutState (e.g., strings cleared under budget pressure), it uses the
+        // correct slot delivered via the movement delta rather than staying on its previous value.
+        if (Enum.IsDefined(typeof(GameplayEquipmentSlot), (int)gameplayEquippedSlot))
+        {
+            SelectedGameplayEquippedSlot = (GameplayEquipmentSlot)gameplayEquippedSlot;
+        }
         ApplyReplicatedGameplayLoadoutState(
             gameplayModPackId,
             gameplayLoadoutId,
@@ -231,6 +265,11 @@ public sealed partial class PlayerEntity
             gameplayAcquiredItemId);
         ReplaceOwnedGameplayItemIds(ownedGameplayItemIds ?? []);
         ReplaceReplicatedStateEntries(replicatedStateEntries ?? []);
+        // Apply offhand weapon animation state so recoil/reload animations are visible to other players.
+        // These values arrive via the movement delta (OffhandCooldownTicks / OffhandReloadTicks) so they
+        // are delivered every tick rather than only with the budget-limited full-state update.
+        ExperimentalOffhandCooldownTicks = Math.Max(0, offhandCooldownTicks);
+        ExperimentalOffhandReloadTicksUntilNextShell = Math.Max(0, offhandReloadTicks);
     }
 
     private void ApplyReplicatedGameplayLoadoutState(

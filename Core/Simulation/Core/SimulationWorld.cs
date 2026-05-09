@@ -53,6 +53,7 @@ public sealed partial class SimulationWorld
     private readonly List<WorldSoundEvent> _pendingSoundEvents = new();
     private readonly List<WorldVisualEvent> _pendingVisualEvents = new();
     private readonly List<WorldDamageEvent> _pendingDamageEvents = new();
+    private readonly List<WorldGibSpawnEvent> _pendingGibSpawnEvents = new();
     private readonly List<WorldHealingEvent> _pendingHealingEvents = new();
     private readonly Queue<DangerCloseExplosionRequest> _pendingDangerCloseExplosions = new();
     private readonly List<PlayerEntity> _remoteSnapshotPlayers = new();
@@ -60,8 +61,11 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, PlayerEntity> _remoteSnapshotPlayersBySlot = new();
     private readonly HashSet<int> _snapshotSeenEntityIds = new();
     private readonly List<int> _snapshotStaleEntityIds = new();
+    private readonly HashSet<ulong> _processedNetworkGibSpawnEventIds = new();
     private readonly HashSet<byte> _snapshotSeenRemotePlayerSlots = new();
     private readonly List<byte> _snapshotStaleRemotePlayerSlots = new();
+    private readonly HashSet<byte> _remoteSnapshotAwaitingJoinSlots = new();
+    private readonly HashSet<int> _remoteSnapshotAwaitingJoinPlayerIds = new();
     private readonly Dictionary<byte, PlayerEntity> _additionalNetworkPlayersBySlot = new();
     private readonly Dictionary<int, PlayerEntity> _activeNetworkPlayersById = new();
     private readonly Dictionary<int, byte> _networkPlayerSlotsByPlayerId = new();
@@ -76,6 +80,9 @@ public sealed partial class SimulationWorld
     private readonly Dictionary<byte, float> _networkPlayerMovementSpeedScaleOverrides = new();
     private readonly Dictionary<byte, float> _networkPlayerGravityScaleOverrides = new();
     private readonly Dictionary<byte, LocalDeathCamState> _networkPlayerDeathCams = new();
+    private readonly HashSet<int> _clientPredictedProjectileIds = new();
+    private readonly HashSet<int> _terminatedProjectileIds = new();
+    private readonly ClientSnapshotStringCache _snapshotStringCache = new();
     private readonly Random _random = new(1337);
     private int _configuredTimeLimitMinutes = DefaultTimeLimitMinutes;
     private int _configuredCapLimit = DefaultCapLimit;
@@ -161,6 +168,13 @@ public sealed partial class SimulationWorld
     public ExperimentalGameplaySettings ExperimentalGameplaySettings { get; private set; } = new();
 
     public bool RandomSpreadEnabled { get; set; } = true;
+
+    /// <summary>
+    /// When true, only the local player and projectiles are simulated.
+    /// Other network players, match logic, and structures are skipped.
+    /// Used for client-side prediction in multiplayer.
+    /// </summary>
+    public bool ClientPredictionMode { get; set; }
 
     public int GetDeterministicSpreadShotIndex(int attackerId)
     {
@@ -263,7 +277,12 @@ public sealed partial class SimulationWorld
 
     public IReadOnlyList<PlayerEntity> RemoteSnapshotPlayers => _remoteSnapshotPlayers;
 
+    public IReadOnlySet<byte> RemoteSnapshotAwaitingJoinSlots => _remoteSnapshotAwaitingJoinSlots;
+
     public bool EnemyPlayerEnabled { get; private set; } = true;
+
+    public bool IsRemoteSnapshotPlayerAwaitingJoin(PlayerEntity player)
+        => _remoteSnapshotAwaitingJoinPlayerIds.Contains(player.Id);
 
     public bool FriendlyDummyEnabled { get; private set; }
 
@@ -435,7 +454,9 @@ public sealed partial class SimulationWorld
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
         if (definition.Id == GetNetworkPlayerClassDefinition(LocalPlayerSlot).Id)
         {
-            return false;
+            // Allow same-class selection to commit a pending team swap by forcing respawn.
+            return LocalPlayer.Team != GetNetworkPlayerConfiguredTeam(LocalPlayerSlot)
+                && TryForceRespawnNetworkPlayer(LocalPlayerSlot);
         }
 
         return TryApplyNetworkPlayerClassChange(LocalPlayerSlot, definition);
@@ -495,6 +516,18 @@ public sealed partial class SimulationWorld
         return damageEvents;
     }
 
+    public IReadOnlyList<WorldGibSpawnEvent> DrainPendingGibSpawnEvents()
+    {
+        if (_pendingGibSpawnEvents.Count == 0)
+        {
+            return [];
+        }
+
+        var gibSpawnEvents = _pendingGibSpawnEvents.ToArray();
+        _pendingGibSpawnEvents.Clear();
+        return gibSpawnEvents;
+    }
+
     public IReadOnlyList<WorldHealingEvent> DrainPendingHealingEvents()
     {
         if (_pendingHealingEvents.Count == 0)
@@ -546,7 +579,7 @@ public sealed partial class SimulationWorld
             player.SetExperimentalDemoknightChargeFullControlEnabled(false);
             player.ConfigureExperimentalDemoknightPostRageRegeneration(0f);
             player.StartExperimentalDemoknightPostRageRegeneration(0);
-            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowExperimentalSoldierFallback: false));
+            player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(player, allowSoldierShotgun: false, allowSoldierShotgunLtd: false));
             player.SetAcquiredWeapon(null);
             return;
         }
@@ -591,7 +624,8 @@ public sealed partial class SimulationWorld
         }
         player.SetExperimentalOffhandWeapon(ResolveGameplaySecondaryWeapon(
             player,
-            allowExperimentalSoldierFallback: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon));
+            allowSoldierShotgun: ExperimentalGameplaySettings.EnableSoldierShotgunSecondaryWeapon,
+            allowSoldierShotgunLtd: ExperimentalGameplaySettings.EnableSoldierShotgunLtdPerk));
         if (!ExperimentalGameplaySettings.EnableEnemyDroppedWeapons
             || player.ClassId != PlayerClass.Soldier)
         {
@@ -601,7 +635,8 @@ public sealed partial class SimulationWorld
 
     private static PrimaryWeaponDefinition? ResolveGameplaySecondaryWeapon(
         PlayerEntity player,
-        bool allowExperimentalSoldierFallback)
+        bool allowSoldierShotgun,
+        bool allowSoldierShotgunLtd)
     {
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
         var secondaryItemId = player.GameplayLoadoutState.SecondaryItemId;
@@ -614,7 +649,12 @@ public sealed partial class SimulationWorld
             }
         }
 
-        return allowExperimentalSoldierFallback && player.ClassId == PlayerClass.Soldier
+        if (allowSoldierShotgunLtd && player.ClassId == PlayerClass.Soldier)
+        {
+            return CharacterClassCatalog.SoldierShotgunLtd;
+        }
+
+        return allowSoldierShotgun && player.ClassId == PlayerClass.Soldier
             ? CharacterClassCatalog.SoldierShotgun
             : null;
     }

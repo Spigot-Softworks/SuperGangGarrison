@@ -257,7 +257,7 @@ public partial class Game1
             FireSecondary = false,
             DebugKill = false,
             DropIntel = false,
-            FireSecondaryWeapon = false,
+            UseAbility = false,
             InteractWeapon = false,
         };
     }

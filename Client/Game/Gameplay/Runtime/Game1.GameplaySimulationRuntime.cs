@@ -2,6 +2,7 @@
 
 using Microsoft.Xna.Framework;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using System.Diagnostics;
 
 namespace OpenGarrison.Client;
@@ -18,6 +19,11 @@ public partial class Game1
         if (_networkClient.IsConnected)
         {
             AdvanceNetworkInputLane(networkInput);
+            // Run client prediction: simulate projectiles only
+            // Server snapshots remain authoritative and will correct any mispredictions
+            _simulator.World.ClientPredictionMode = true;
+            var elapsedSeconds = gameTime.ElapsedGameTime.TotalSeconds;
+            simulationTickCount = _simulator.Step(elapsedSeconds);
         }
         else
         {
@@ -27,6 +33,8 @@ public partial class Game1
                 return;
             }
 
+            // Offline mode: disable client prediction (run full simulation)
+            _simulator.World.ClientPredictionMode = false;
             BeginBotDiagnosticsFrame(gameTime);
             var elapsedSeconds = gameTime.ElapsedGameTime.TotalSeconds;
             if (OperatingSystem.IsBrowser())

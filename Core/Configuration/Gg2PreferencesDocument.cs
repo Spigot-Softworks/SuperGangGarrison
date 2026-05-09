@@ -55,6 +55,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool ShowUberOutlinesEnabled { get; set; } = true;
 
+    public bool ProjectileTeamTintEnabled { get; set; } = true;
+
     public bool AudioMuted { get; set; }
 
     public int MenuMusicVolumePercent { get; set; } = 70;
@@ -120,6 +122,7 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowHealingEnabled = ini.GetBool(SettingsSection, "Show Healing", true),
             ShowHealthBarEnabled = ini.GetBool(SettingsSection, "Show Healthbar", false),
             ShowUberOutlinesEnabled = ini.GetBool(SettingsSection, "Show Uber Outlines", true),
+            ProjectileTeamTintEnabled = ini.GetBool(SettingsSection, "Projectile Team Tint", true),
             AudioMuted = ini.GetBool(SettingsSection, "Audio Muted", false),
             MenuMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Menu Music Volume", 100), 0, 100),
             IngameMusicVolumePercent = Math.Clamp(ini.GetInt(SettingsSection, "Ingame Music Volume", 100), 0, 100),
@@ -169,6 +172,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Healing", ShowHealingEnabled);
         ini.SetBool(SettingsSection, "Show Healthbar", ShowHealthBarEnabled);
         ini.SetBool(SettingsSection, "Show Uber Outlines", ShowUberOutlinesEnabled);
+        ini.SetBool(SettingsSection, "Projectile Team Tint", ProjectileTeamTintEnabled);
         ini.SetBool(SettingsSection, "Audio Muted", AudioMuted);
         ini.SetInt(SettingsSection, "Menu Music Volume", MenuMusicVolumePercent);
         ini.SetInt(SettingsSection, "Ingame Music Volume", IngameMusicVolumePercent);

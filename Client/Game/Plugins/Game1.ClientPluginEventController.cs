@@ -95,13 +95,25 @@ public partial class Game1
             var localDamageEvents = _game._world.DrainPendingDamageEvents();
             for (var index = 0; index < localDamageEvents.Count; index += 1)
             {
-                TryTrackLastToDieDamageDealt(localDamageEvents[index].AttackerPlayerId, localDamageEvents[index].Amount);
-                _game.ObserveLastToDieDamageEvent(localDamageEvents[index]);
+                var damageEvent = localDamageEvents[index];
+                TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+                _game.ObserveLastToDieDamageEvent(damageEvent);
+
+                if (ShouldSpawnClientBloodFromDamage(damageEvent.TargetKind, damageEvent.Amount))
+                {
+                    _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                }
             }
 
             for (var index = 0; index < _game._pendingNetworkDamageEvents.Count; index += 1)
             {
-                TryTrackLastToDieDamageDealt(_game._pendingNetworkDamageEvents[index].AttackerPlayerId, _game._pendingNetworkDamageEvents[index].Amount);
+                var damageEvent = _game._pendingNetworkDamageEvents[index];
+                TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
+
+                if (ShouldSpawnClientBloodFromDamage((CoreDamageTargetKind)damageEvent.TargetKind, damageEvent.Amount))
+                {
+                    _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                }
             }
 
             if (_game._clientPluginHost is null)
@@ -128,6 +140,13 @@ public partial class Game1
             }
 
             _game._pendingNetworkDamageEvents.Clear();
+        }
+
+        private bool ShouldSpawnClientBloodFromDamage(CoreDamageTargetKind targetKind, int damageAmount)
+        {
+            return _game._gibLevel > 0
+                && targetKind == CoreDamageTargetKind.Player
+                && damageAmount > 0;
         }
 
         private void DispatchPendingHealingEventsToPlugins()

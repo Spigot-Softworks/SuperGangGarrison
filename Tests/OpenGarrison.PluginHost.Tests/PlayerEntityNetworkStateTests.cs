@@ -36,8 +36,11 @@ public sealed class PlayerEntityNetworkStateTests
             intelRechargeTicks: 0f,
             isSpyCloaked: false,
             spyCloakAlpha: 0f,
-            isUbered: false,
-            isHeavyEating: false,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,            isKritzCritBoosted: false,            isHeavyEating: false,
             heavyEatTicksRemaining: 0,
             isSniperScoped: false,
             sniperChargeTicks: 0,
@@ -96,7 +99,12 @@ public sealed class PlayerEntityNetworkStateTests
             intelRechargeTicks: 0f,
             isSpyCloaked: false,
             spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
             isUbered: false,
+            isKritzCritBoosted: false,
             isHeavyEating: false,
             heavyEatTicksRemaining: 0,
             isSniperScoped: false,
@@ -160,7 +168,12 @@ public sealed class PlayerEntityNetworkStateTests
             intelRechargeTicks: 0f,
             isSpyCloaked: true,
             spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
             isUbered: false,
+            isKritzCritBoosted: false,
             isHeavyEating: false,
             heavyEatTicksRemaining: 0,
             isSniperScoped: false,
@@ -219,7 +232,12 @@ public sealed class PlayerEntityNetworkStateTests
             intelRechargeTicks: 999f,
             isSpyCloaked: true,
             spyCloakAlpha: 5f,
+            isSpySuperjumping: false,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spySuperjumpHorizontalVelocity: 0f,
+            spyBackstabVisualTicksRemaining: 0,
             isUbered: true,
+            isKritzCritBoosted: false,
             isHeavyEating: true,
             heavyEatTicksRemaining: 50,
             isSniperScoped: true,
@@ -299,7 +317,12 @@ public sealed class PlayerEntityNetworkStateTests
             intelRechargeTicks: 0f,
             isSpyCloaked: false,
             spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
             isUbered: false,
+            isKritzCritBoosted: false,
             isHeavyEating: false,
             heavyEatTicksRemaining: 0,
             isSniperScoped: false,
@@ -347,5 +370,87 @@ public sealed class PlayerEntityNetworkStateTests
         player.ConfigureExperimentalMetal(80f, 0.1f);
         Assert.Equal(80f, player.MaxMetal);
         Assert.Equal(80f, player.Metal);
+    }
+
+    [Fact]
+    public void AdvanceAfterburnVisualDecaysBurnWithoutApplyingDamage()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Scout, "Test");
+        player.Spawn(PlayerTeam.Red, 0f, 0f);
+        player.IgniteAfterburn(2, 60f, 6f, afterburnFalloff: false, burnFalloffAmount: 0f);
+        var startingHealth = player.Health;
+        var startingIntensity = player.BurnIntensity;
+        var startingDuration = player.BurnDurationSourceTicks;
+
+        player.AdvanceAfterburnVisual(1f / 60f);
+
+        Assert.Equal(startingHealth, player.Health);
+        Assert.True(player.IsBurning);
+        Assert.Equal(startingIntensity, player.BurnIntensity);
+        Assert.True(player.BurnDurationSourceTicks < startingDuration);
+    }
+
+    [Fact]
+    public void BurnVisualCountUsesIntensityWhenDurationIsMissingFromSnapshot()
+    {
+        var player = new PlayerEntity(1, CharacterClassCatalog.Soldier, "Test");
+
+        player.ApplyNetworkState(
+            team: PlayerTeam.Red,
+            classDefinition: CharacterClassCatalog.Soldier,
+            isAlive: true,
+            x: 10f,
+            y: 20f,
+            horizontalSpeed: 0f,
+            verticalSpeed: 0f,
+            health: 200,
+            currentShells: 4,
+            kills: 0,
+            deaths: 0,
+            caps: 0,
+            points: 0f,
+            healPoints: 0,
+            activeDominationCount: 0,
+            isDominatingLocalViewer: false,
+            isDominatedByLocalViewer: false,
+            metal: 50f,
+            isGrounded: true,
+            remainingAirJumps: 0,
+            isCarryingIntel: false,
+            intelRechargeTicks: 0f,
+            isSpyCloaked: false,
+            spyCloakAlpha: 0f,
+            isSpySuperjumping: false,
+            spySuperjumpHorizontalVelocity: 0f,
+            spySuperjumpCooldownTicksRemaining: 0,
+            spyBackstabVisualTicksRemaining: 0,
+            isUbered: false,
+            isKritzCritBoosted: false,
+            isHeavyEating: false,
+            heavyEatTicksRemaining: 0,
+            isSniperScoped: false,
+            sniperChargeTicks: 0,
+            facingDirectionX: 1f,
+            aimDirectionDegrees: 0f,
+            aimWorldX: 0f,
+            aimWorldY: 0f,
+            isTaunting: false,
+            tauntFrameIndex: 0f,
+            isChatBubbleVisible: false,
+            chatBubbleFrameIndex: 0,
+            chatBubbleAlpha: 0f,
+            burnIntensity: 4f,
+            burnDurationSourceTicks: 0f,
+            burnDecayDelaySourceTicksRemaining: 45f,
+            burnIntensityDecayPerSourceTick: 0f,
+            burnedByPlayerId: 2);
+
+        Assert.True(player.IsBurning);
+        Assert.True(player.BurnVisualCount > 0);
+
+        player.AdvanceAfterburnVisual(1f / 60f);
+
+        Assert.True(player.IsBurning);
+        Assert.True(player.BurnVisualCount > 0);
     }
 }

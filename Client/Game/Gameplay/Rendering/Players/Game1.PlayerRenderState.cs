@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 
 namespace OpenGarrison.Client;
 
@@ -45,6 +46,10 @@ public partial class Game1
         public int PreviousCooldownTicks { get; set; }
 
         public int PreviousReloadTicks { get; set; }
+
+        // Identifies the weapon slot currently being animated (null = primary, "offhand:soldier" = soldier shotgun, "acquired" = acquired weapon).
+        // When this changes, animation state is reset to avoid stale comparisons from the previous weapon.
+        public string? ActiveWeaponTag { get; set; }
     }
 
     private readonly HashSet<int> _activePlayerRenderStateIds = new();
@@ -121,6 +126,18 @@ public partial class Game1
 
     private void UpdatePlayerWeaponAnimationState(PlayerEntity player, PlayerRenderState renderState, float elapsedSeconds)
     {
+        // Detect weapon switches (local or replicated) and reset animation state to avoid
+        // stale ammo/cooldown comparisons from the previous weapon driving incorrect transitions.
+        var activeWeaponTag = GetActiveWeaponTag(player);
+        if (activeWeaponTag != renderState.ActiveWeaponTag)
+        {
+            renderState.ActiveWeaponTag = activeWeaponTag;
+            StopWeaponAnimation(renderState);
+            renderState.PreviousAmmoCount = GetRenderWeaponAmmoCount(player);
+            renderState.PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player);
+            renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
+        }
+
         if (renderState.WeaponAnimationMode != WeaponAnimationMode.Idle && elapsedSeconds > 0f)
         {
             renderState.WeaponAnimationElapsedSeconds += elapsedSeconds;
@@ -429,6 +446,7 @@ public partial class Game1
             PreviousAmmoCount = GetRenderWeaponAmmoCount(player),
             PreviousCooldownTicks = GetRenderWeaponCooldownTicks(player),
             PreviousReloadTicks = GetRenderWeaponReloadTicks(player),
+            ActiveWeaponTag = GetActiveWeaponTag(player),
         };
         _playerRenderStates[playerStateKey] = renderState;
         return renderState;
@@ -607,12 +625,43 @@ public partial class Game1
             || (ShouldPresentAcquiredWeapon(player) && player.AcquiredWeaponClassId == PlayerClass.Medic);
     }
 
+    // Returns a stable tag string identifying which weapon slot is currently being rendered.
+    // null = primary weapon, "acquired" = a picked-up weapon, "offhand:soldier" = soldier shotgun.
+    // Add new tags here when additional alternate weapons are introduced for other classes.
+    private static string? GetActiveWeaponTag(PlayerEntity player)
+    {
+        if (ShouldPresentAcquiredWeapon(player))
+        {
+            return "acquired";
+        }
+
+        if (ShouldPresentExperimentalSoldierShotgun(player))
+        {
+            return "offhand:soldier";
+        }
+
+        return null;
+    }
+
     private static bool ShouldPresentExperimentalSoldierShotgun(PlayerEntity player)
     {
-        var isReplicatedEquipped = player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunEquippedKey, out var equipped)
+        if (player.ClassId != PlayerClass.Soldier) return false;
+        // Local player: IsExperimentalOffhandPresented reflects the live simulation state.
+        if (player.IsExperimentalOffhandPresented) return true;
+        // Remote players: GameplayEquippedSlot is delivered via the movement delta (required, never
+        // budget-dropped) and pre-sets SelectedGameplayEquippedSlot in ApplyNetworkState before the
+        // loadout validation runs, so GameplayLoadoutState.EquippedSlot is always up-to-date.
+        // We do NOT check SecondaryItemId here because it is null for remote players (ExperimentalOffhandWeapon
+        // is never set on network-applied entities); the server only sends Secondary slot when a valid
+        // offhand weapon is actually equipped, so the check is redundant.
+        if (player.GameplayLoadoutState.EquippedSlot == GameplayEquipmentSlot.Secondary)
+        {
+            return true;
+        }
+        // Fallback: ReplicatedStates full-state path (may be delayed by budget, but serves as a
+        // safety net for the initial join frame before any movement delta has been merged).
+        return player.TryGetReplicatedStateBool(CoreReplicatedOwnerId, SoldierShotgunEquippedKey, out var equipped)
             && equipped;
-        return player.ClassId == PlayerClass.Soldier
-            && (player.IsExperimentalOffhandPresented || isReplicatedEquipped);
     }
 
     private static float WrapAnimationImage(float animationImage, float length)
@@ -733,7 +782,14 @@ public partial class Game1
                 && currentReloadTicks > 0;
         }
 
-        return currentAmmoCount < maxAmmoCount
-            && currentReloadTicks > 0;
+        // For remote players, ExperimentalOffhandMaxShells is always 0 (ExperimentalOffhandWeapon is null),
+        // so currentAmmoCount < maxAmmoCount would be 0 < 0 = false even while reloading. Trust the
+        // server-authoritative reload ticks as the primary signal: if ticks > 0 the gun IS reloading.
+        if (currentReloadTicks > 0)
+        {
+            return true;
+        }
+
+        return currentAmmoCount < maxAmmoCount;
     }
 }

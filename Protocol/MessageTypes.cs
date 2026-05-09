@@ -56,7 +56,7 @@ public enum InputButtons : ushort
     DebugKill = 1 << 8,
     DestroySentry = 1 << 9,
     DropIntel = 1 << 10,
-    FireSecondaryWeapon = 1 << 11,
+    UseAbility = 1 << 11,
     InteractWeapon = 1 << 12,
 }
 
@@ -248,7 +248,12 @@ public sealed record SnapshotPlayerState(
     float IntelRechargeTicks,
     bool IsSpyCloaked,
     float SpyCloakAlpha,
+    bool IsSpySuperjumping,
+    float SpySuperjumpHorizontalVelocity,
+    int SpySuperjumpCooldownTicksRemaining,
+    int SpyBackstabVisualTicksRemaining,
     bool IsUbered,
+    bool IsKritzCritBoosted,
     bool IsHeavyEating,
     int HeavyEatTicksRemaining,
     bool IsSniperScoped,
@@ -279,6 +284,10 @@ public sealed record SnapshotPlayerState(
     int HeavyEatCooldownTicksRemaining = 0,
     short Assists = 0,
     ulong BadgeMask = 0,
+    bool IsMedicHealing = false,
+    int MedicHealTargetId = -1,
+    float MedicUberCharge = 0f,
+    bool IsMedicUberReady = false,
     string GameplayModPackId = "",
     string GameplayLoadoutId = "",
     string GameplayPrimaryItemId = "",
@@ -287,13 +296,24 @@ public sealed record SnapshotPlayerState(
     byte GameplayEquippedSlot = 0,
     string GameplayEquippedItemId = "",
     string GameplayAcquiredItemId = "",
+    // Cached string IDs (0 = not cached, use string value)
+    ushort GameplayModPackCacheId = 0,
+    ushort GameplayLoadoutCacheId = 0,
+    ushort GameplayPrimaryItemCacheId = 0,
+    ushort GameplaySecondaryItemCacheId = 0,
+    ushort GameplayUtilityItemCacheId = 0,
+    ushort GameplayEquippedItemCacheId = 0,
+    ushort GameplayAcquiredItemCacheId = 0,
     IReadOnlyList<string>? OwnedGameplayItemIds = null,
     IReadOnlyList<SnapshotReplicatedStateEntry>? ReplicatedStates = null,
     float PlayerScale = 1f,
     float AimWorldX = 0f,
     float AimWorldY = 0f,
-    int MedicHealTargetPlayerId = -1,
-    bool IsMedicHealing = false);
+    // Offhand weapon animation state (e.g. soldier shotgun). Delivered via movement delta so animations
+    // are visible to other players without waiting for the budget-limited full-state update.
+    int OffhandCooldownTicks = 0,
+    int OffhandReloadTicks = 0,
+    short GibDeaths = 0);
 
 public sealed record SnapshotPlayerMovementState(
     byte Slot,
@@ -306,7 +326,17 @@ public sealed record SnapshotPlayerMovementState(
     float FacingDirectionX,
     float AimDirectionDegrees,
     byte MovementState,
-    int MedicHealTargetPlayerId = -1,
+    bool IsTaunting,
+    float TauntFrameIndex,
+    float BurnIntensity,
+    // Animation-critical weapon state. Included in movement delta so weapon switches and
+    // recoil/reload animations are visible to all players every tick, not subject to budget trimming.
+    byte GameplayEquippedSlot = 0,
+    int PrimaryCooldownTicks = 0,
+    int ReloadTicksUntilNextShell = 0,
+    int OffhandCooldownTicks = 0,
+    int OffhandReloadTicks = 0,
+    int MedicHealTargetId = -1,
     bool IsMedicHealing = false);
 
 public sealed record SnapshotPlayerStatusState(
@@ -361,7 +391,8 @@ public sealed record SnapshotShotState(
     float Y,
     float VelocityX,
     float VelocityY,
-    int TicksRemaining);
+    int TicksRemaining,
+    bool IsCritical = false);
 
 public sealed record SnapshotRocketState(
     int Id,
@@ -382,7 +413,8 @@ public sealed record SnapshotRocketState(
     float DistanceToTravel = 800f,
     bool IsFading = false,
     float FadeSourceTicksRemaining = 0f,
-    IReadOnlyList<int>? PassedFriendlyPlayerIds = null);
+    IReadOnlyList<int>? PassedFriendlyPlayerIds = null,
+    bool IsCritical = false);
 
 public sealed record SnapshotFlameState(
     int Id,
@@ -397,7 +429,8 @@ public sealed record SnapshotFlameState(
     int TicksRemaining,
     int AttachedPlayerId,
     float AttachedOffsetX,
-    float AttachedOffsetY);
+    float AttachedOffsetY,
+    bool IsCritical = false);
 
 public sealed record SnapshotMineState(
     int Id,
@@ -409,7 +442,8 @@ public sealed record SnapshotMineState(
     float VelocityY,
     bool IsStickied,
     bool IsDestroyed,
-    float ExplosionDamage);
+    float ExplosionDamage,
+    bool IsCritical = false);
 
 public sealed record SnapshotControlPointState(
     byte Index,
@@ -469,6 +503,20 @@ public sealed record SnapshotPlayerGibState(
     int TicksRemaining,
     float BloodChance);
 
+public sealed record SnapshotGibSpawnEvent(
+    string SpriteName,
+    int FrameIndex,
+    float X,
+    float Y,
+    float VelocityX,
+    float VelocityY,
+    float RotationSpeedDegrees,
+    float HorizontalFriction,
+    float RotationFriction,
+    int LifetimeTicks,
+    float BloodChance,
+    ulong EventId);
+
 public sealed record SnapshotBloodDropState(
     int Id,
     float X,
@@ -498,7 +546,8 @@ public sealed record SnapshotCombatTraceState(
     int TicksRemaining,
     bool HitCharacter,
     byte Team,
-    bool IsSniperTracer);
+    bool IsSniperTracer,
+    bool IsCritical = false);
 
 public sealed record SnapshotSoundEvent(
     string SoundName,
@@ -584,8 +633,6 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotFlameState> Flames,
     IReadOnlyList<SnapshotShotState> Flares,
     IReadOnlyList<SnapshotMineState> Mines,
-    IReadOnlyList<SnapshotPlayerGibState> PlayerGibs,
-    IReadOnlyList<SnapshotBloodDropState> BloodDrops,
     IReadOnlyList<SnapshotDeadBodyState> DeadBodies,
     int ControlPointSetupTicksRemaining,
     int KothUnlockTicksRemaining,
@@ -598,6 +645,7 @@ public sealed record SnapshotMessage(
     IReadOnlyList<SnapshotVisualEvent> VisualEvents,
     IReadOnlyList<SnapshotDamageEvent> DamageEvents,
     IReadOnlyList<SnapshotSoundEvent> SoundEvents,
+    IReadOnlyDictionary<ushort, string>? StringCacheUpdates = null,
     bool IsCustomMap = false,
     string MapDownloadUrl = "",
     string MapContentHash = "",
@@ -629,12 +677,13 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<int> RemovedFlareIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedMineIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedPlayerGibIds { get; init; } = Array.Empty<int>();
-    public IReadOnlyList<int> RemovedBloodDropIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedDeadBodyIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryGibIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<SnapshotSentryGibState> SentryGibs { get; init; } = Array.Empty<SnapshotSentryGibState>();
     public IReadOnlyList<SnapshotJumpPadState> JumpPads { get; init; } = Array.Empty<SnapshotJumpPadState>();
     public IReadOnlyList<int> RemovedJumpPadIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyList<SnapshotPlayerGibState> PlayerGibs { get; init; } = Array.Empty<SnapshotPlayerGibState>();
+    public IReadOnlyList<SnapshotGibSpawnEvent> GibSpawnEvents { get; init; } = Array.Empty<SnapshotGibSpawnEvent>();
 
     public MessageType Type => MessageType.Snapshot;
 }

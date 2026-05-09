@@ -7,6 +7,8 @@ public sealed class FixedStepSimulator
 
     public bool DroppedSimulationBacklogOnLastAdvance { get; private set; }
 
+    public SimulationWorld World => _world;
+
     public FixedStepSimulator(SimulationWorld world)
     {
         _world = world;

@@ -60,6 +60,12 @@ public sealed class ShotProjectileEntity : SimulationEntity
 
     public bool ApplyExperimentalEngineerSentryPerkEffects { get; }
 
+    public bool IsCritical { get; private set; }
+
+    public float CriticalDamageMultiplier => IsCritical ? ExperimentalGameplaySettings.DefaultCriticalDamageMultiplier : 1f;
+
+    public void SetCritical() { IsCritical = true; }
+
     public int TicksRemaining { get; private set; }
 
     public bool IsExpired => TicksRemaining <= 0;

@@ -1,6 +1,7 @@
 #nullable enable
 
 using OpenGarrison.Core;
+using OpenGarrison.GameplayModding;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -10,6 +11,62 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2> _spriteFrameCenterOfMassCache = new();
+
+    private Color ResolveProjectileTint(PlayerTeam team, Color blueColor, Color redColor, Color neutralColor)
+    {
+        if (!_projectileTeamTintEnabled)
+        {
+            return neutralColor;
+        }
+
+        return team == PlayerTeam.Blue ? blueColor : redColor;
+    }
+
+    private Color GetCriticalProjectileOverlayColor(PlayerTeam team)
+    {
+        return GameplayPlayerStatusEffectRenderController.GetUberOverlayColor(team);
+    }
+
+    private void DrawCriticalProjectileOverlay(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, PlayerTeam team, float rotation = 0f, Vector2? scale = null)
+    {
+        var sprite = GetResolvedSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return;
+        }
+
+        var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
+        var teamColor = GetCriticalProjectileOverlayColor(team);
+        var position = new Vector2(worldX - cameraPosition.X, worldY - cameraPosition.Y);
+        var spriteScale = scale ?? Vector2.One;
+
+        // Draw screen blend overlay (on top of sprite)
+        DrawSpriteFrameScreenColor(
+            sprite.Frames[clampedFrameIndex],
+            position,
+            teamColor * 0.5f,
+            rotation,
+            sprite.Origin.ToVector2(),
+            spriteScale);
+    }
+
+    private void DrawCriticalProjectileOutline(string spriteName, int frameIndex, float worldX, float worldY, Vector2 cameraPosition, PlayerTeam team, float rotation = 0f, Vector2? scale = null)
+    {
+        var sprite = GetResolvedSprite(spriteName);
+        if (sprite is null || sprite.Frames.Count == 0 || !_uberOutlineEnabled)
+        {
+            return;
+        }
+
+        var clampedFrameIndex = Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1);
+        var teamColor = GetCriticalProjectileOverlayColor(team);
+        var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+        var position = new Vector2(worldX - cameraPosition.X, worldY - cameraPosition.Y);
+        var spriteScale = scale ?? Vector2.One;
+
+        // Draw outline (behind sprite)
+        DrawSpriteFrameOutline(sprite.Frames[clampedFrameIndex], position, outlineTint, rotation, sprite.Origin.ToVector2(), spriteScale);
+    }
 
     private void DrawMedicBeams(Vector2 cameraPosition)
     {
@@ -33,9 +90,21 @@ public partial class Game1
             return;
         }
 
-        var aimRadians = MathF.PI * medic.AimDirectionDegrees / 180f;
-        var aimDirection = new Vector2(MathF.Cos(aimRadians), MathF.Sin(aimRadians));
-        var beamOrigin = GetMedicBeamOrigin(medic);
+        var healTargetRenderPosition = GetRenderPosition(healTarget, allowInterpolation: !ReferenceEquals(healTarget, _world.LocalPlayer));
+        var beamOrigin = GetMedicBeamOrigin(medic, out var weaponForwardDirection);
+        var toTarget = healTargetRenderPosition - beamOrigin;
+        if (toTarget.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
+        var aimDirection = weaponForwardDirection;
+        if (aimDirection.LengthSquared() <= 0.0001f)
+        {
+            aimDirection = Vector2.Normalize(toTarget);
+        }
+
+        var isCritMedigun = medic.HasEquippedBehavior(BuiltInGameplayBehaviorIds.MedigunCrit);
         var isFreezeRayBeam = medic.IsExperimentalEngineerFreezeRayPresented;
         var isEssenceExtractorBeam = medic.IsExperimentalEngineerEssenceExtractorPresented && !isFreezeRayBeam;
         var beamColor = isFreezeRayBeam
@@ -59,8 +128,8 @@ public partial class Game1
                 : healTarget.Team == PlayerTeam.Blue
                     ? new Color(140, 195, 255, 190)
                     : new Color(255, 175, 175, 200);
-        var beamStartX = beamOrigin.X + aimDirection.X * 24f;
-        var beamStartY = beamOrigin.Y + aimDirection.Y * 24f;
+        var beamStartX = beamOrigin.X;
+        var beamStartY = beamOrigin.Y;
         DrawMedicBeamSegment(healTarget);
         TryDrawAdditionalMedicBeamSegment(medic.ExperimentalAdditionalMedicBeamTargetPlayerId1);
         TryDrawAdditionalMedicBeamSegment(medic.ExperimentalAdditionalMedicBeamTargetPlayerId2);
@@ -83,11 +152,12 @@ public partial class Game1
 
         void DrawMedicBeamSegment(PlayerEntity target)
         {
+            var targetRenderPosition = GetRenderPosition(target, allowInterpolation: !ReferenceEquals(target, _world.LocalPlayer));
             DrawCurvedWorldLine(
                 beamStartX,
                 beamStartY,
-                target.X,
-                target.Y,
+                targetRenderPosition.X,
+                targetRenderPosition.Y,
                 cameraPosition,
                 beamStartColor,
                 beamColor,
@@ -96,11 +166,25 @@ public partial class Game1
                 tailThickness: 2f,
                 rampDistPixels: 8f,
                 aimDirection);
+            if (isCritMedigun)
+            {
+                DrawMedicBeamCritHelix(
+                    beamStartX,
+                    beamStartY,
+                    targetRenderPosition.X,
+                    targetRenderPosition.Y,
+                    cameraPosition,
+                    aimDirection,
+                    helixStartColor,
+                    beamColor);
+                return;
+            }
+
             DrawMedicBeamHelix(
                 beamStartX,
                 beamStartY,
-                target.X,
-                target.Y,
+                targetRenderPosition.X,
+                targetRenderPosition.Y,
                 cameraPosition,
                 aimDirection,
                 helixStartColor,
@@ -234,8 +318,155 @@ public partial class Game1
         }
     }
 
-    private Vector2 GetMedicBeamOrigin(PlayerEntity medic)
+    private void DrawMedicBeamCritHelix(
+        float startX, float startY,
+        float endX, float endY,
+        Vector2 cameraPosition,
+        Vector2 aimDirection,
+        Color helixStartColor,
+        Color helixEndColor)
     {
+        const int steps = 64;
+        const float maxRadius = 8f;
+        const float helixTurns = 3f;
+        const float helixFrequency = helixTurns * MathF.PI * 2f;
+        const float pixelSize = 2f;
+        const float mainWaveAmplitude = 0.6f;
+        const float noiseAmplitude = 0.8f;
+
+        var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
+        var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
+        var toTarget = end - start;
+        var distToTarget = toTarget.Length();
+        if (distToTarget <= 0.01f) return;
+
+        var aimDir = aimDirection;
+        aimDir.Normalize();
+        var targetDir = toTarget / distToTarget;
+        var alignment = Vector2.Dot(aimDir, targetDir);
+
+        Vector2 controlPoint;
+        if (alignment > 0.98f)
+        {
+            controlPoint = (start + end) * 0.5f;
+        }
+        else
+        {
+            var controlDist = distToTarget * 0.5f;
+            controlPoint = start + aimDir * controlDist;
+            var perpToAim = new Vector2(-aimDir.Y, aimDir.X);
+            if (Vector2.Dot(perpToAim, targetDir) < 0)
+                perpToAim = -perpToAim;
+            var turnAngle = MathF.Acos(MathF.Max(-1f, MathF.Min(1f, alignment)));
+            var offsetAmount = distToTarget * 0.12f * (turnAngle / MathF.PI);
+            controlPoint += perpToAim * offsetAmount;
+        }
+
+        var phaseAtOrigin = _medigunBeamHelixPhase;
+        var pixelatedCells = new System.Collections.Generic.Dictionary<(int, int), (float alpha, Color color)>();
+
+        // Use a simple hash-based noise function for consistent jaggedness
+        float GetNoise(int seed)
+        {
+            var hash = seed * 2654435761;
+            hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+            hash = ((hash >> 16) ^ hash) * 0x45d9f3b;
+            hash = (hash >> 16) ^ hash;
+            return ((hash & 0xFFFF) / 65536f) * 2f - 1f;
+        }
+
+        // Two strands, 180° apart, with jagged noise
+        for (int strand = 0; strand < 2; strand++)
+        {
+            var strandOffset = strand * MathF.PI;
+            Vector2? prevPos = null;
+            float prevAlpha = 0f;
+            float prevT = 0f;
+
+            for (int i = 0; i <= steps; i++)
+            {
+                var t = (float)i / steps;
+                var oneMinusT = 1f - t;
+
+                var bezierPos = oneMinusT * oneMinusT * start
+                              + 2f * oneMinusT * t * controlPoint
+                              + t * t * end;
+
+                var tangent = 2f * oneMinusT * (controlPoint - start) + 2f * t * (end - controlPoint);
+                var tangentLen = tangent.Length();
+                if (tangentLen < 0.01f) { prevPos = null; continue; }
+                tangent /= tangentLen;
+                var perp = new Vector2(-tangent.Y, tangent.X);
+
+                var radius = maxRadius * oneMinusT;
+                var alpha = oneMinusT;
+
+                // Jagged wave with random noise
+                var angle = phaseAtOrigin + t * helixFrequency + strandOffset;
+                var angleAtOrigin = phaseAtOrigin + strandOffset;
+                var baseWave = (MathF.Sin(angle) - MathF.Sin(angleAtOrigin)) * mainWaveAmplitude;
+
+                // Add jaggedness with multiple noise samples
+                var noiseSeed = (int)(t * 100) + strand * 1000 + (int)(_medigunBeamHelixPhase * 10);
+                var noise1 = GetNoise(noiseSeed);
+                var noise2 = GetNoise(noiseSeed + 123);
+                var noise3 = GetNoise(noiseSeed + 456);
+
+                // Combine base wave with noisy variations
+                var jaggedOffset = baseWave + (noise1 * noiseAmplitude) + (noise2 * noiseAmplitude * 0.5f) + (noise3 * noiseAmplitude * 0.25f);
+
+                var pos = bezierPos + perp * (jaggedOffset * radius);
+
+                // Interpolate from previous sample to fill any skipped grid cells
+                if (prevPos.HasValue)
+                {
+                    var delta = pos - prevPos.Value;
+                    var segLen = delta.Length();
+                    int substeps = Math.Max(1, (int)MathF.Ceiling(segLen / pixelSize));
+                    for (int s = 0; s <= substeps; s++)
+                    {
+                        var frac = (float)s / substeps;
+                        var interp = prevPos.Value + delta * frac;
+                        var interpT = prevT + (t - prevT) * frac;
+                        var interpAlpha = prevAlpha + (alpha - prevAlpha) * frac;
+                        var cellColor = Color.Lerp(helixStartColor, helixEndColor, interpT) * interpAlpha;
+                        var gx = (int)MathF.Floor(interp.X / pixelSize);
+                        var gy = (int)MathF.Floor(interp.Y / pixelSize);
+                        var key = (gx, gy);
+                        if (!pixelatedCells.TryGetValue(key, out var existing) || interpAlpha > existing.alpha)
+                            pixelatedCells[key] = (interpAlpha, cellColor);
+                    }
+                }
+                else
+                {
+                    var cellColor = Color.Lerp(helixStartColor, helixEndColor, t) * alpha;
+                    var gx = (int)MathF.Floor(pos.X / pixelSize);
+                    var gy = (int)MathF.Floor(pos.Y / pixelSize);
+                    var key = (gx, gy);
+                    if (!pixelatedCells.TryGetValue(key, out var existing) || alpha > existing.alpha)
+                        pixelatedCells[key] = (alpha, cellColor);
+                }
+
+                prevPos = pos;
+                prevAlpha = alpha;
+                prevT = t;
+            }
+        }
+
+        foreach (var ((gridX, gridY), (_, cellColor)) in pixelatedCells)
+        {
+            var pixelRect = new Rectangle(
+                gridX * (int)pixelSize,
+                gridY * (int)pixelSize,
+                (int)pixelSize,
+                (int)pixelSize);
+            _spriteBatch.Draw(_pixel, pixelRect, cellColor);
+        }
+    }
+
+    private Vector2 GetMedicBeamOrigin(PlayerEntity medic, out Vector2 weaponForwardDirection)
+    {
+        weaponForwardDirection = Vector2.Zero;
         var renderPosition = GetRenderPosition(medic, allowInterpolation: !ReferenceEquals(medic, _world.LocalPlayer));
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var weaponDefinition = GetWeaponRenderDefinition(medic);
@@ -250,12 +481,40 @@ public partial class Game1
             return roundedOrigin;
         }
 
+        if (sprite.Frames.Count == 0)
+        {
+            return roundedOrigin;
+        }
+
         var bodySelection = GetPlayerBodySpriteSelection(medic);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
-        var facingScale = GetPlayerFacingScale(medic);
+        var renderAim = GetRenderAimWorldPosition(medic);
+        var playerScale = medic.PlayerScale;
+
+        var facingScale = MathF.Abs(renderAim.X - roundedOrigin.X) > 0.001f
+            ? (renderAim.X < roundedOrigin.X ? -1f : 1f)
+            : (medic.FacingDirectionX < 0f ? -1f : 1f);
+
+        var drawX = roundedOrigin.X + ((weaponDefinition.XOffset + anchorOrigin.X) * facingScale * playerScale);
+        var drawY = roundedOrigin.Y + ((weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y) * playerScale);
+
+        var aimDeltaX = renderAim.X - drawX;
+        var aimDeltaY = renderAim.Y - drawY;
+        var aimLength = MathF.Sqrt((aimDeltaX * aimDeltaX) + (aimDeltaY * aimDeltaY));
+        if (aimLength <= 0.001f)
+        {
+            weaponForwardDirection = new Vector2(facingScale, 0f);
+            return new Vector2(drawX, drawY);
+        }
+
+        var aimDirectionX = aimDeltaX / aimLength;
+        var aimDirectionY = aimDeltaY / aimLength;
+        weaponForwardDirection = new Vector2(aimDirectionX, aimDirectionY);
+
+        var tipDistance = Math.Max(0f, (sprite.Frames[0].Width - anchorOrigin.X) * playerScale);
         return new Vector2(
-            roundedOrigin.X + (weaponDefinition.XOffset + anchorOrigin.X) * facingScale,
-            roundedOrigin.Y + weaponDefinition.YOffset + bodySelection.EquipmentOffset + anchorOrigin.Y);
+            drawX + aimDirectionX * tipDistance,
+            drawY + aimDirectionY * tipDistance);
     }
 
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
@@ -346,8 +605,17 @@ public partial class Game1
     private void DrawShotProjectile(ShotProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
-        var shotColor = shot.Team == PlayerTeam.Blue ? blueColor : redColor;
-        if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, GetVelocityRotation(shot.VelocityX, shot.VelocityY)))
+        var shotColor = ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(235, 228, 210));
+        var rotation = GetVelocityRotation(shot.VelocityX, shot.VelocityY);
+
+        // Draw outline first (behind sprite) if critical
+        if (shot.IsCritical)
+        {
+            DrawCriticalProjectileOutline("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shot.Team, rotation);
+        }
+
+        // Draw main sprite
+        if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, rotation))
         {
             var shotRectangle = new Rectangle(
                 (int)(renderPosition.X - 2f - cameraPosition.X),
@@ -355,14 +623,41 @@ public partial class Game1
                 4,
                 4);
             _spriteBatch.Draw(_pixel, shotRectangle, shotColor);
+            if (shot.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(shot.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, shotRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (shot.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shot.Team, rotation);
         }
     }
 
     private void DrawShotProjectile(RevolverProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
-        var shotColor = shot.Team == PlayerTeam.Blue ? blueColor : redColor;
-        if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, GetVelocityRotation(shot.VelocityX, shot.VelocityY)))
+        var shotColor = ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(245, 236, 214));
+        var rotation = GetVelocityRotation(shot.VelocityX, shot.VelocityY);
+
+        // Draw outline first (behind sprite) if critical
+        if (shot.IsCritical)
+        {
+            DrawCriticalProjectileOutline("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shot.Team, rotation);
+        }
+
+        // Draw main sprite
+        if (!TryDrawSprite("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shotColor, rotation))
         {
             var shotRectangle = new Rectangle(
                 (int)(renderPosition.X - 2f - cameraPosition.X),
@@ -370,16 +665,44 @@ public partial class Game1
                 4,
                 4);
             _spriteBatch.Draw(_pixel, shotRectangle, shotColor);
+            if (shot.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(shot.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, shotRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (shot.IsCritical)
+        {
+            DrawCriticalProjectileOverlay("ShotS", 0, renderPosition.X, renderPosition.Y, cameraPosition, shot.Team, rotation);
         }
     }
 
     private void DrawNeedleProjectile(NeedleProjectileEntity needle, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(needle.Id, needle.X, needle.Y);
-        var needleColor = needle.Team == PlayerTeam.Blue
-            ? new Color(150, 220, 255)
-            : new Color(240, 240, 220);
-        if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, GetVelocityRotation(needle.VelocityX, needle.VelocityY)))
+        var needleColor = ResolveProjectileTint(
+            needle.Team,
+            new Color(150, 220, 255),
+            new Color(240, 240, 220),
+            new Color(236, 236, 228));
+        var rotation = GetVelocityRotation(needle.VelocityX, needle.VelocityY);
+
+        // Draw outline first (behind sprite) if critical
+        if (needle.IsCritical)
+        {
+            DrawCriticalProjectileOutline("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation);
+        }
+
+        // Draw main sprite
+        if (!TryDrawSprite("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needleColor, rotation))
         {
             var needleRectangle = new Rectangle(
                 (int)(renderPosition.X - 3f - cameraPosition.X),
@@ -387,15 +710,35 @@ public partial class Game1
                 6,
                 2);
             _spriteBatch.Draw(_pixel, needleRectangle, needleColor);
+            if (needle.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(needle.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, needleRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (needle.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("NeedleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, needle.Team, rotation);
         }
     }
 
     private void DrawBubbleProjectile(BubbleProjectileEntity bubble, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(bubble.Id, bubble.X, bubble.Y);
-        var bubbleColor = bubble.Team == PlayerTeam.Blue
-            ? new Color(170, 225, 255)
-            : new Color(245, 245, 255);
+        var bubbleColor = ResolveProjectileTint(
+            bubble.Team,
+            new Color(170, 225, 255),
+            new Color(245, 245, 255),
+            new Color(242, 242, 248));
         if (!TryDrawSprite("BubbleS", 0, renderPosition.X, renderPosition.Y, cameraPosition, bubbleColor))
         {
             var bubbleRectangle = new Rectangle(
@@ -410,11 +753,22 @@ public partial class Game1
     private void DrawBladeProjectile(BladeProjectileEntity blade, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(blade.Id, blade.X, blade.Y);
-        var bladeColor = blade.Team == PlayerTeam.Blue
-            ? new Color(180, 220, 255)
-            : new Color(255, 235, 170);
+        var bladeColor = ResolveProjectileTint(
+            blade.Team,
+            new Color(180, 220, 255),
+            new Color(255, 235, 170),
+            new Color(244, 232, 208));
         var bladeFrameIndex = Math.Max(0, PlayerEntity.QuoteBladeLifetimeTicks - blade.TicksRemaining) % 4;
-        if (!TryDrawSprite("BladeProjectileS", bladeFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, bladeColor, GetVelocityRotation(blade.VelocityX, blade.VelocityY)))
+        var rotation = GetVelocityRotation(blade.VelocityX, blade.VelocityY);
+
+        // Draw outline first (behind sprite) if critical
+        if (blade.IsCritical)
+        {
+            DrawCriticalProjectileOutline("BladeProjectileS", bladeFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, blade.Team, rotation);
+        }
+
+        // Draw main sprite
+        if (!TryDrawSprite("BladeProjectileS", bladeFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, bladeColor, rotation))
         {
             var bladeRectangle = new Rectangle(
                 (int)(renderPosition.X - 6f - cameraPosition.X),
@@ -422,6 +776,24 @@ public partial class Game1
                 12,
                 4);
             _spriteBatch.Draw(_pixel, bladeRectangle, bladeColor);
+            if (blade.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(blade.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, bladeRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (blade.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("BladeProjectileS", bladeFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, blade.Team, rotation);
         }
     }
 
@@ -431,21 +803,35 @@ public partial class Game1
 
     private void DrawFlameProjectiles(Vector2 cameraPosition)
     {
-        var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
+        var normalCells = new System.Collections.Generic.Dictionary<(int, int), float>();
+        var criticalBlueCells = new System.Collections.Generic.Dictionary<(int, int), float>();
+        var criticalRedCells = new System.Collections.Generic.Dictionary<(int, int), float>();
 
         foreach (var flame in _world.Flames)
         {
-            AccumulateFlameParticle(cells, flame);
+            if (flame.IsCritical)
+            {
+                var critCells = flame.Team == PlayerTeam.Blue ? criticalBlueCells : criticalRedCells;
+                AccumulateFlameParticle(critCells, flame);
+            }
+            else
+            {
+                AccumulateFlameParticle(normalCells, flame);
+            }
         }
 
-        DrawProceduralFlameCells(cells, cameraPosition);
+        DrawProceduralFlameCells(normalCells, cameraPosition, useCriticalColors: false, criticalTeam: PlayerTeam.Blue);
+        DrawProceduralFlameCells(criticalBlueCells, cameraPosition, useCriticalColors: true, criticalTeam: PlayerTeam.Blue);
+        DrawProceduralFlameCells(criticalRedCells, cameraPosition, useCriticalColors: true, criticalTeam: PlayerTeam.Red);
     }
 
     private void DrawProceduralFlameCells(
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         Vector2 cameraPosition,
         bool topOutlineOnly = false,
-        bool useFlareColors = false)
+        bool useFlareColors = false,
+        bool useCriticalColors = false,
+        PlayerTeam criticalTeam = PlayerTeam.Blue)
     {
         const float cellSize = 2f;
 
@@ -485,7 +871,37 @@ public partial class Game1
                 ? IsTopBoundaryCell(cells, gx, gy)
                 : IsBoundaryCell(cells, gx, gy);
             Color pixelColor;
-            if (useFlareColors)
+            if (useCriticalColors)
+            {
+                // Critical flames/flares use team colors with fire-like gradients
+                if (criticalTeam == PlayerTeam.Blue)
+                {
+                    if (hasOutline)
+                        pixelColor = new Color(0, 80, 200);      // deep blue outline
+                    else if (retainedAlpha < 0.75f)
+                        pixelColor = new Color(20, 100, 220);    // blue
+                    else if (retainedAlpha < 1.30f)
+                        pixelColor = new Color(80, 150, 255);    // bright blue
+                    else if (retainedAlpha < 2.10f)
+                        pixelColor = new Color(150, 200, 255);   // light blue
+                    else
+                        pixelColor = new Color(220, 240, 255);   // white-blue core
+                }
+                else // Red team
+                {
+                    if (hasOutline)
+                        pixelColor = new Color(180, 0, 0);       // deep red outline
+                    else if (retainedAlpha < 0.75f)
+                        pixelColor = new Color(220, 20, 20);     // red
+                    else if (retainedAlpha < 1.30f)
+                        pixelColor = new Color(255, 80, 80);     // bright red
+                    else if (retainedAlpha < 2.10f)
+                        pixelColor = new Color(255, 150, 150);   // light red
+                    else
+                        pixelColor = new Color(255, 220, 220);   // white-red core
+                }
+            }
+            else if (useFlareColors)
             {
                 if (hasOutline)
                     pixelColor = new Color(255,  40,  10);  // deep red outline
@@ -526,7 +942,7 @@ public partial class Game1
         Vector2 cameraPosition,
         bool topOutlineOnly = false)
     {
-        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly);
+        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly, useFlareColors: false, useCriticalColors: false);
     }
 
     private void AccumulateFlameParticle(
@@ -810,16 +1226,45 @@ public partial class Game1
         if (flameSprite is not null && flameSprite.Frames.Count > 0)
         {
             var frameIndex = GetFlameProjectileFrameIndex(flame, flameSprite.Frames.Count);
+            var position = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y);
+            var scale = new Vector2(flameScale, flameScale);
+
+            // Draw outline first (behind sprite) if critical
+            if (flame.IsCritical)
+            {
+                var teamColor = GetCriticalProjectileOverlayColor(flame.Team);
+                var outlineTint = Color.Lerp(teamColor, Color.White, 0.75f);
+
+                if (_uberOutlineEnabled)
+                {
+                    DrawSpriteFrameOutline(flameSprite.Frames[frameIndex], position, outlineTint, 0f, flameSprite.Origin.ToVector2(), scale);
+                }
+            }
+
+            // Draw main sprite
             DrawLoadedSpriteFrame(
                 flameSprite.Frames[frameIndex],
-                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                position,
                 null,
                 flameColor,
                 0f,
                 flameSprite.Origin.ToVector2(),
-                new Vector2(flameScale, flameScale),
+                scale,
                 SpriteEffects.None,
                 0f);
+
+            // Draw screen blend overlay on top if critical
+            if (flame.IsCritical)
+            {
+                var teamColor = GetCriticalProjectileOverlayColor(flame.Team);
+                DrawSpriteFrameScreenColor(
+                    flameSprite.Frames[frameIndex],
+                    position,
+                    teamColor * 0.5f,
+                    0f,
+                    flameSprite.Origin.ToVector2(),
+                    scale);
+            }
             return;
         }
 
@@ -834,6 +1279,20 @@ public partial class Game1
             flameSize,
             flameSize);
         _spriteBatch.Draw(_pixel, flameRectangle, fallbackColor);
+        if (flame.IsCritical)
+        {
+            // Additive blend for critical effect on fallback rectangle
+            var overlayColor = GetCriticalProjectileOverlayColor(flame.Team) * 0.3f;
+            _spriteBatch.End();
+            _spriteBatch.Begin(
+                SpriteSortMode.Deferred,
+                BlendState.Additive,
+                samplerState: SamplerState.PointClamp,
+                rasterizerState: RasterizerState.CullNone);
+            _spriteBatch.Draw(_pixel, flameRectangle, overlayColor);
+            _spriteBatch.End();
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+        }
     }
 
     private static float GetFlameProjectileScale(FlameProjectileEntity flame)
@@ -943,7 +1402,16 @@ public partial class Game1
         }
 
         var renderPosition = GetRenderPosition(flare.Id, flare.X, flare.Y);
-        if (!TryDrawSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, GetVelocityRotation(flare.VelocityX, flare.VelocityY)))
+        var rotation = GetVelocityRotation(flare.VelocityX, flare.VelocityY);
+
+        // Draw outline first (behind sprite) if critical
+        if (flare.IsCritical)
+        {
+            DrawCriticalProjectileOutline("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flare.Team, rotation);
+        }
+
+        // Draw main sprite
+        if (!TryDrawSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, rotation))
         {
             var flareRectangle = new Rectangle(
                 (int)(renderPosition.X - 4f - cameraPosition.X),
@@ -951,6 +1419,24 @@ public partial class Game1
                 8,
                 4);
             _spriteBatch.Draw(_pixel, flareRectangle, Color.White);
+            if (flare.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(flare.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, flareRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (flare.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flare.Team, rotation);
         }
     }
 
@@ -958,7 +1444,7 @@ public partial class Game1
     {
         var cells = new System.Collections.Generic.Dictionary<(int, int), float>();
         AccumulateFlareParticle(cells, flare);
-        DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: true);
+        DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: !flare.IsCritical, useCriticalColors: flare.IsCritical, criticalTeam: flare.Team);
     }
 
     private void AccumulateFlareParticle(
@@ -997,11 +1483,21 @@ public partial class Game1
     private void DrawRocketProjectile(RocketProjectileEntity rocket, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
-        var rocketColor = rocket.Team == PlayerTeam.Blue
-            ? new Color(120, 180, 255)
-            : new Color(255, 110, 90);
+        var rocketColor = ResolveProjectileTint(
+            rocket.Team,
+            new Color(120, 180, 255),
+            new Color(255, 110, 90),
+            new Color(230, 220, 210));
         var rocketFrame = rocket.Team == PlayerTeam.Blue ? 0 : 1;
         var rocketScale = rocket.ExperimentalVisualScale;
+
+        // Draw outline first (behind sprite) if critical
+        if (rocket.IsCritical)
+        {
+            DrawCriticalProjectileOutline("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocket.Team, rocket.DirectionRadians, new Vector2(rocketScale, rocketScale));
+        }
+
+        // Draw main sprite
         if (!TryDrawSprite("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocketColor, rocket.DirectionRadians, scale: rocketScale))
         {
             var halfWidth = (int)MathF.Round(5f * rocketScale);
@@ -1012,6 +1508,24 @@ public partial class Game1
                 Math.Max(1, halfWidth * 2),
                 Math.Max(1, halfHeight * 2));
             _spriteBatch.Draw(_pixel, rocketRectangle, rocketColor);
+            if (rocket.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(rocket.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, rocketRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (rocket.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("RocketS", rocketFrame, renderPosition.X, renderPosition.Y, cameraPosition, rocket.Team, rocket.DirectionRadians, new Vector2(rocketScale, rocketScale));
         }
     }
 
@@ -1020,6 +1534,14 @@ public partial class Game1
         var renderPosition = GetRenderPosition(mine.Id, mine.X, mine.Y);
         var frameIndex = (mine.Team == PlayerTeam.Blue ? 2 : 0)
             + (mine.IsStickied ? 1 : 0);
+
+        // Draw outline first (behind sprite) if critical
+        if (mine.IsCritical)
+        {
+            DrawCriticalProjectileOutline("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team);
+        }
+
+        // Draw main sprite
         if (!TryDrawSprite("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White))
         {
             var mineRectangle = new Rectangle(
@@ -1028,6 +1550,24 @@ public partial class Game1
                 10,
                 10);
             _spriteBatch.Draw(_pixel, mineRectangle, Color.White);
+            if (mine.IsCritical)
+            {
+                var overlayColor = GetCriticalProjectileOverlayColor(mine.Team) * 0.3f;
+                _spriteBatch.End();
+                _spriteBatch.Begin(
+                    SpriteSortMode.Deferred,
+                    BlendState.Additive,
+                    samplerState: SamplerState.PointClamp,
+                    rasterizerState: RasterizerState.CullNone);
+                _spriteBatch.Draw(_pixel, mineRectangle, overlayColor);
+                _spriteBatch.End();
+                _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
+            }
+        }
+        else if (mine.IsCritical)
+        {
+            // Draw screen blend overlay on top
+            DrawCriticalProjectileOverlay("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team);
         }
     }
 }

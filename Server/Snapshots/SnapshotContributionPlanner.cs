@@ -79,9 +79,7 @@ internal static class SnapshotContributionPlanner
             static state => state.X,
             static state => state.Y,
             static (builder, state) => builder.Rockets.Add(state),
-            static (builder, id) => builder.RemovedRocketIds.Add(id),
-            (state, baselineState, currentFrame, id) => ShouldSkipScheduledProjectileUpdate(state, baselineState, currentFrame, id, IsRocketMotionOnlyChange),
-            frame);
+            static (builder, id) => builder.RemovedRocketIds.Add(id));
         AddEntityDelta(
             contributions,
             fullSnapshot.Flames,
@@ -243,21 +241,6 @@ internal static class SnapshotContributionPlanner
             static state => state.Y,
             static (builder, state) => builder.PlayerGibs.Add(state),
             static (builder, id) => builder.RemovedPlayerGibIds.Add(id),
-            (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
-            frame);
-        AddEntityDelta(
-            contributions,
-            fullSnapshot.BloodDrops,
-            baseline?.BloodDrops,
-            priority: 240,
-            estimateUpdatedBytes: static state => 29,
-            estimatedRemovedBytes: 4,
-            focus,
-            static state => state.Id,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.BloodDrops.Add(state),
-            static (builder, id) => builder.RemovedBloodDropIds.Add(id),
             (state, baselineState, currentFrame, id) => ((currentFrame + id) % CosmeticEntityUpdateIntervalTicks) != 0,
             frame);
         AddPointEventContributions(
@@ -452,7 +435,15 @@ internal static class SnapshotContributionPlanner
             player.FacingDirectionX,
             player.AimDirectionDegrees,
             player.MovementState,
-            player.MedicHealTargetPlayerId,
+            player.IsTaunting,
+            player.TauntFrameIndex,
+            player.BurnIntensity,
+            player.GameplayEquippedSlot,
+            player.PrimaryCooldownTicks,
+            player.ReloadTicksUntilNextShell,
+            player.OffhandCooldownTicks,
+            player.OffhandReloadTicks,
+            player.MedicHealTargetId,
             player.IsMedicHealing);
     }
 
@@ -488,9 +479,17 @@ internal static class SnapshotContributionPlanner
             || player.RemainingAirJumps != baselinePlayer.RemainingAirJumps
             || player.FacingDirectionX != baselinePlayer.FacingDirectionX
             || player.AimDirectionDegrees != baselinePlayer.AimDirectionDegrees
-            || player.MedicHealTargetPlayerId != baselinePlayer.MedicHealTargetPlayerId
+            || player.MedicHealTargetId != baselinePlayer.MedicHealTargetId
             || player.IsMedicHealing != baselinePlayer.IsMedicHealing
-            || player.MovementState != baselinePlayer.MovementState;
+            || player.MovementState != baselinePlayer.MovementState
+            || player.IsTaunting != baselinePlayer.IsTaunting
+            || player.TauntFrameIndex != baselinePlayer.TauntFrameIndex
+            || player.BurnIntensity != baselinePlayer.BurnIntensity
+            || player.GameplayEquippedSlot != baselinePlayer.GameplayEquippedSlot
+            || player.PrimaryCooldownTicks != baselinePlayer.PrimaryCooldownTicks
+            || player.ReloadTicksUntilNextShell != baselinePlayer.ReloadTicksUntilNextShell
+            || player.OffhandCooldownTicks != baselinePlayer.OffhandCooldownTicks
+            || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
     }
 
     private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
@@ -505,9 +504,17 @@ internal static class SnapshotContributionPlanner
             RemainingAirJumps = baselinePlayer.RemainingAirJumps,
             FacingDirectionX = baselinePlayer.FacingDirectionX,
             AimDirectionDegrees = baselinePlayer.AimDirectionDegrees,
-            MedicHealTargetPlayerId = baselinePlayer.MedicHealTargetPlayerId,
+            MedicHealTargetId = baselinePlayer.MedicHealTargetId,
             IsMedicHealing = baselinePlayer.IsMedicHealing,
             MovementState = baselinePlayer.MovementState,
+            IsTaunting = baselinePlayer.IsTaunting,
+            TauntFrameIndex = baselinePlayer.TauntFrameIndex,
+            BurnIntensity = baselinePlayer.BurnIntensity,
+            GameplayEquippedSlot = baselinePlayer.GameplayEquippedSlot,
+            PrimaryCooldownTicks = baselinePlayer.PrimaryCooldownTicks,
+            ReloadTicksUntilNextShell = baselinePlayer.ReloadTicksUntilNextShell,
+            OffhandCooldownTicks = baselinePlayer.OffhandCooldownTicks,
+            OffhandReloadTicks = baselinePlayer.OffhandReloadTicks,
         };
 
         return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);
@@ -578,7 +585,8 @@ internal static class SnapshotContributionPlanner
                 priority + 100,
                 DistanceSquared(focus.X, focus.Y, focus.X, focus.Y),
                 estimatedRemovedBytes,
-                builder => addRemovedId(builder, removedId)));
+                builder => addRemovedId(builder, removedId),
+                SnapshotDeltaBudgeter.ContributionKind.EntityRemoval));
         }
 
         for (var index = 0; index < delta.UpdatedStates.Count; index += 1)
