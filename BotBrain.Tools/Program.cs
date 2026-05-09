@@ -30,7 +30,12 @@ if (options.DumpRoomObjects)
 var assetStopwatch = Stopwatch.StartNew();
 var assetSource = "cold-built";
 BotNavigationAsset asset;
-if (BotNavigationAssetStore.TryLoadShipped(level, out var shippedAsset))
+if (options.RebuildAsset)
+{
+    asset = BotNavigationAssetStore.BuildAndSaveRuntimeCache(level);
+    assetSource = "rebuilt-runtime-cache";
+}
+else if (BotNavigationAssetStore.TryLoadShipped(level, out var shippedAsset))
 {
     asset = shippedAsset;
     assetSource = "shipped";
@@ -173,6 +178,61 @@ Console.WriteLine($"bot=slot:{options.BotSlot} team:{options.Team} class:{option
 if (path is null)
 {
     Console.WriteLine("result=NoPath");
+    const string noPathResult = "NoPath";
+    const string noPathFailureBucket = "NoGraphPath";
+    Console.WriteLine($"failureBucket={noPathFailureBucket}");
+    WriteArtifacts(
+        artifactDirectory,
+        artifactJsonOptions,
+        options,
+        world,
+        asset,
+        assetSource,
+        assetStopwatch.Elapsed.TotalMilliseconds,
+        edgeCount,
+        walkEdges,
+        jumpEdges,
+        fallEdges,
+        dropdownEdges,
+        goal,
+        startNode,
+        exactGoalNode,
+        goalNode,
+        exactPath?.Count ?? 0,
+        path?.Count ?? 0,
+        path?.TotalCost ?? -1f,
+        reachableFromStart,
+        reachableToGoal,
+        components,
+        startComponent,
+        exactGoalComponent,
+        goalComponent,
+        noPathResult,
+        noPathFailureBucket,
+        initialDistance,
+        initialDistance,
+        initialDistance,
+        0,
+        0f,
+        0f,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        -1,
+        initialRedCaps,
+        initialBlueCaps,
+        initialPlayerCaps,
+        world.RedCaps,
+        world.BlueCaps,
+        bot.Caps,
+        graph.FindNearestNode(bot.X, bot.Y),
+        0,
+        "edgeMax=none",
+        edgeDiagnostics,
+        semanticRecoveryTraces);
     Environment.ExitCode = 2;
     return;
 }
@@ -397,9 +457,269 @@ WriteArtifacts(
     edgeDiagnostics,
     semanticRecoveryTraces);
 
-if (path.Count == 0 || progress <= 100f || stagnantWindows >= Math.Max(3, options.Ticks / options.ReportEveryTicks / 2))
+if (progress <= 100f || stagnantWindows >= Math.Max(3, options.Ticks / options.ReportEveryTicks / 2))
 {
     Environment.ExitCode = 1;
+}
+
+string? ResolveArtifactDirectory(string artifactsDirectory)
+{
+    if (string.IsNullOrWhiteSpace(artifactsDirectory))
+    {
+        return null;
+    }
+
+    var directory = Path.GetFullPath(artifactsDirectory);
+    Directory.CreateDirectory(directory);
+    return directory;
+}
+
+void WriteArtifacts(
+    string? artifactDirectory,
+    JsonSerializerOptions jsonOptions,
+    BotBrainCanaryOptions options,
+    SimulationWorld world,
+    BotNavigationAsset asset,
+    string assetSource,
+    double assetLoadMilliseconds,
+    int edgeCount,
+    int walkEdges,
+    int jumpEdges,
+    int fallEdges,
+    int dropdownEdges,
+    (float X, float Y) goal,
+    int startNode,
+    int exactGoalNode,
+    int fallbackGoalNode,
+    int exactPathWaypoints,
+    int pathWaypoints,
+    float pathCost,
+    int reachableFromStart,
+    int reachableToGoal,
+    ComponentDiagnostics components,
+    int startComponent,
+    int exactGoalComponent,
+    int fallbackGoalComponent,
+    string result,
+    string failureBucket,
+    float initialDistance,
+    float finalDistance,
+    float bestDistance,
+    int bestTick,
+    float progress,
+    float totalMovement,
+    int jumpTicks,
+    int dropdownTicks,
+    int fireTicks,
+    int deadTicks,
+    int stagnantWindows,
+    int carryingIntelTick,
+    int scoreTick,
+    int initialRedCaps,
+    int initialBlueCaps,
+    int initialPlayerCaps,
+    int finalRedCaps,
+    int finalBlueCaps,
+    int finalPlayerCaps,
+    int finalNode,
+    int finalPathWaypoints,
+    string edgeSummary,
+    EdgeExecutionDiagnostics edgeDiagnostics,
+    IReadOnlyList<string> semanticRecoveryTraces)
+{
+    if (artifactDirectory is null)
+    {
+        return;
+    }
+
+    WriteJson(
+        Path.Combine(artifactDirectory, "run.json"),
+        new
+        {
+            map = world.Level.Name,
+            area = world.Level.MapAreaIndex,
+            mode = world.MatchRules.Mode.ToString(),
+            team = options.Team.ToString(),
+            playerClass = options.PlayerClass.ToString(),
+            ticks = options.Ticks,
+            result,
+            failureBucket,
+            assetSource,
+            assetLoadMilliseconds,
+            coldBuildBudgetMilliseconds = ColdBuildBudgetMilliseconds,
+            initialDistance,
+            finalDistance,
+            bestDistance,
+            bestTick,
+            progress,
+            totalMovement,
+            jumpTicks,
+            dropdownTicks,
+            fireTicks,
+            deadTicks,
+            stagnantWindows,
+            carryingIntelTick,
+            scoreTick,
+            initialRedCaps,
+            initialBlueCaps,
+            initialPlayerCaps,
+            finalRedCaps,
+            finalBlueCaps,
+            finalPlayerCaps,
+            finalNode,
+            finalPathWaypoints,
+            edgeSummary,
+            semanticRecoveryTraces,
+        },
+        jsonOptions);
+
+    WriteJson(
+        Path.Combine(artifactDirectory, "asset.json"),
+        new
+        {
+            formatVersion = asset.FormatVersion,
+            asset.LevelName,
+            asset.MapAreaIndex,
+            asset.LevelFingerprint,
+            assetSource,
+            assetLoadMilliseconds,
+            surfaces = asset.Surfaces.Count,
+            nodes = asset.Nodes.Count,
+            edges = asset.Edges.Count,
+            graphEdges = edgeCount,
+            walkEdges,
+            jumpEdges,
+            fallEdges,
+            dropdownEdges,
+            anchors = asset.Anchors.Count,
+            portals = asset.Portals.Count,
+            asset.BuildStats,
+            validationIssues = asset.ValidationIssues,
+        },
+        jsonOptions);
+
+    WriteJson(
+        Path.Combine(artifactDirectory, "objective.json"),
+        new
+        {
+            rawGoal = new { goal.X, goal.Y },
+            startNode,
+            exactGoalNode,
+            fallbackGoalNode,
+            fallbackUsed = fallbackGoalNode != exactGoalNode,
+            exactPathWaypoints,
+            pathWaypoints,
+            pathCost,
+            reachableFromStart,
+            reachableToGoal,
+            graphNodeCount = asset.Nodes.Count,
+            components = new
+            {
+                count = components.Summaries.Count,
+                startComponent,
+                exactGoalComponent,
+                fallbackGoalComponent,
+                top = components.Summaries
+                    .OrderByDescending(static component => component.NodeCount)
+                    .Take(5)
+                    .ToArray(),
+            },
+        },
+        jsonOptions);
+
+    WriteJsonLines(Path.Combine(artifactDirectory, "edges.jsonl"), edgeDiagnostics.Edges, jsonOptions);
+    WriteJsonLines(Path.Combine(artifactDirectory, "blockers.jsonl"), edgeDiagnostics.Blockers, jsonOptions);
+}
+
+void WriteJson(string path, object value, JsonSerializerOptions jsonOptions)
+{
+    File.WriteAllText(path, JsonSerializer.Serialize(value, jsonOptions));
+}
+
+void WriteJsonLines<T>(string path, IEnumerable<T> values, JsonSerializerOptions jsonOptions)
+{
+    var lineOptions = new JsonSerializerOptions(jsonOptions)
+    {
+        WriteIndented = false,
+    };
+
+    using var writer = new StreamWriter(path);
+    foreach (var value in values)
+    {
+        writer.WriteLine(JsonSerializer.Serialize(value, lineOptions));
+    }
+}
+
+string ClassifyFailureBucket(
+    string result,
+    string assetSource,
+    double assetLoadMilliseconds,
+    int validationIssueCount,
+    bool exactPathMissing,
+    bool fallbackGoalUsed,
+    int reachableFromStart,
+    int reachableToGoal,
+    int graphNodeCount,
+    EdgeExecutionDiagnostics edgeDiagnostics,
+    IReadOnlyList<string> semanticRecoveryTraces,
+    int fireTicks,
+    int stagnantWindows,
+    int totalTicks,
+    int reportEveryTicks)
+{
+    if (assetSource == "cold-built" && assetLoadMilliseconds > ColdBuildBudgetMilliseconds)
+    {
+        return "ColdBuildTooSlow";
+    }
+
+    if (result == "Scored")
+    {
+        return validationIssueCount > 0 ? "ScoredWithAssetValidationIssue" : "Scored";
+    }
+
+    if (graphNodeCount == 0 || reachableFromStart <= 0 || reachableToGoal <= 0)
+    {
+        return "NoGraphPath";
+    }
+
+    if (exactPathMissing || fallbackGoalUsed)
+    {
+        return "ObjectiveFallback";
+    }
+
+    var blocker = edgeDiagnostics.Blockers.LastOrDefault();
+    if (blocker is not null)
+    {
+        if (blocker.RecipeReadyTicks == 0 && blocker.LastRecipeReason is not "none" and not "ready")
+        {
+            return "RecipeNeverReady";
+        }
+
+        if (blocker.RecipeReadyTicks > 0 && blocker.Phase == "CommitRecipe")
+        {
+            return "RecipeReadyNoLaunch";
+        }
+
+        if (semanticRecoveryTraces.Count > 0)
+        {
+            return "SemanticRecoveryStillStalled";
+        }
+
+        return "LoopingOrStalledEdge";
+    }
+
+    var reportWindows = Math.Max(1, totalTicks / Math.Max(1, reportEveryTicks));
+    if (fireTicks > totalTicks / 4 && stagnantWindows >= Math.Max(2, reportWindows / 3))
+    {
+        return "CombatStall";
+    }
+
+    if (semanticRecoveryTraces.Count > 0)
+    {
+        return "SemanticRecoveryUsed";
+    }
+
+    return result;
 }
 
 static string FindRepoRoot(string startPath)
@@ -791,6 +1111,46 @@ internal sealed record ComponentDiagnostics(int[] ComponentByNode, List<Componen
 
 internal sealed record ComponentSummary(int Id, int NodeCount, float MinX, float MaxX, float MinY, float MaxY);
 
+internal sealed record EdgeExecutionArtifact(
+    int FromNode,
+    int ToNode,
+    string Kind,
+    int StartTick,
+    int EndTick,
+    int Ticks,
+    string Phase,
+    float StartX,
+    float StartY,
+    float BestNodeDistance,
+    float Movement,
+    int Jumps,
+    int RecipeReadyTicks,
+    string FirstRecipeReason,
+    string LastRecipeReason);
+
+internal sealed record BlockerArtifact(
+    int Tick,
+    int FromNode,
+    int ToNode,
+    string Kind,
+    string Phase,
+    int EdgeTicks,
+    float WindowMove,
+    float BestNodeDistance,
+    float Movement,
+    int Jumps,
+    int RecipeReadyTicks,
+    string FirstRecipeReason,
+    string LastRecipeReason,
+    float X,
+    float Y,
+    bool PreGrounded,
+    float PreHorizontalSpeed,
+    float PreVerticalSpeed,
+    int PathIndex,
+    int PathCount,
+    int PathNode);
+
 internal sealed class EdgeExecutionDiagnostics
 {
     private const int StallWindowTicks = 90;
@@ -1124,7 +1484,9 @@ internal sealed record BotBrainCanaryOptions(
     int ProbeToNode,
     int ProbeJumpTick,
     bool DumpRoomObjects,
-    bool PrintPathChanges)
+    bool PrintPathChanges,
+    bool RebuildAsset,
+    string ArtifactsDirectory)
 {
     public static BotBrainCanaryOptions Parse(string[] args)
     {
@@ -1164,7 +1526,9 @@ internal sealed record BotBrainCanaryOptions(
             GetInt(options, "probe-to", -1),
             GetInt(options, "probe-jump", 0),
             GetBool(options, "dump-room-objects", false),
-            GetBool(options, "print-routes", false));
+            GetBool(options, "print-routes", false),
+            GetBool(options, "rebuild-asset", false),
+            GetString(options, "artifacts-dir", string.Empty));
     }
 
     private static string GetString(Dictionary<string, string> options, string key, string fallback)

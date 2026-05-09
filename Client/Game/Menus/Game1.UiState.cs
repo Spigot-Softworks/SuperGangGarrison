@@ -47,7 +47,7 @@ public partial class Game1
 
     private bool HasOpenGameplayBlockingMenu()
     {
-        return HasOpenGameplayOverlay() || ShouldBlockGameplayForNavEditor();
+        return HasOpenGameplayOverlay() || ShouldBlockGameplayForNavEditor() || ShouldBlockGameplayForGarrisonBuilder();
     }
 
     private bool IsGameplayDeathCamActive()
@@ -139,6 +139,7 @@ public partial class Game1
             && _world.LocalPlayer.IsAlive
             && !IsGameplayDeathCamActive()
             && !ShouldBlockGameplayForNavEditor()
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !ShouldSuppressGameplayHudForActiveOverlay();
     }
@@ -147,6 +148,7 @@ public partial class Game1
     {
         return _passwordPromptOpen
             || IsGameplaySelectionOverlayVisible()
-            || HasOpenGameplayBlockingMenu();
+            || HasOpenGameplayBlockingMenu()
+            || ShouldBlockGameplayForGarrisonBuilder();
     }
 }

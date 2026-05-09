@@ -28,6 +28,9 @@ public sealed class BotBrainController
 
     private const int FailedEdgeBlockTicks = 900; // 30 seconds at 30 tps.
 
+    private const float GroundedStartNodeMaxAboveDistance = 48f;
+    private const float FallingStartNodeMaxAboveDistance = 8f;
+
     /// <summary>
     /// How often (in ticks) the bot re-evaluates its objective.
     /// </summary>
@@ -147,7 +150,10 @@ public sealed class BotBrainController
             return;
         }
 
-        var startNode = _navGraph.FindNearestTraversalStartNode(self.X, self.Y);
+        var startNode = _navGraph.FindNearestTraversalStartNode(
+            self.X,
+            self.Y,
+            ResolveTraversalStartMaxAboveDistance(self));
         var exactGoalNode = _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
         if (startNode < 0 || exactGoalNode < 0)
         {
@@ -223,6 +229,18 @@ public sealed class BotBrainController
             && MathF.Abs(targetNode.X - self.X) < 128f;
     }
 
+    private static float ResolveTraversalStartMaxAboveDistance(PlayerEntity self)
+    {
+        if (self.IsGrounded)
+        {
+            return GroundedStartNodeMaxAboveDistance;
+        }
+
+        return self.ClassId != PlayerClass.Heavy && self.VerticalSpeed > 0f
+            ? FallingStartNodeMaxAboveDistance
+            : float.PositiveInfinity;
+    }
+
     /// <summary>
     /// Reset the bot brain state. Call on respawn or team change.
     /// </summary>
@@ -257,7 +275,10 @@ public sealed class BotBrainController
             return false;
         }
 
-        var startNode = _navGraph.FindNearestTraversalStartNode(self.X, self.Y);
+        var startNode = _navGraph.FindNearestTraversalStartNode(
+            self.X,
+            self.Y,
+            ResolveTraversalStartMaxAboveDistance(self));
         if (startNode < 0)
         {
             return false;

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Suite = "BotBrain.Tools/canaries/current-passing-canaries.json",
+    [string[]]$CaseId = @(),
     [string]$Waivers = "",
     [switch]$NoBuild,
     [switch]$FailOnKnownFailRegression,
@@ -140,6 +141,16 @@ function Get-WaiverReason {
 
 $suiteJson = Get-Content -Raw -Path $suitePath | ConvertFrom-Json
 $cases = @(ConvertTo-Array (Get-PropertyValue $suiteJson "cases" @()))
+if ($CaseId.Count -gt 0) {
+    $caseIdSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($requestedCaseId in $CaseId) {
+        foreach ($caseIdToken in ([string]$requestedCaseId).Split(",", [System.StringSplitOptions]::RemoveEmptyEntries)) {
+            [void]$caseIdSet.Add($caseIdToken.Trim())
+        }
+    }
+
+    $cases = @($cases | Where-Object { $caseIdSet.Contains([string](Get-PropertyValue $_ "id" "")) })
+}
 
 $waiverCases = @()
 if (-not [string]::IsNullOrWhiteSpace($Waivers)) {
@@ -198,6 +209,9 @@ foreach ($case in $cases) {
 
     $safeId = $id -replace "[^A-Za-z0-9_.-]", "_"
     $logPath = Join-Path $logRoot "$safeId.log"
+    $artifactPath = Join-Path $logRoot $safeId
+    $arguments.Add("--artifacts-dir")
+    $arguments.Add($artifactPath)
 
     Write-Host "[$index/$($cases.Count)] $id map=$map area=$area team=$team class=$class ticks=$ticks expected=$expected min=$minimumResult"
 
@@ -223,6 +237,7 @@ foreach ($case in $cases) {
     }
 
     $summary = Get-LineValue $lines "summary="
+    $failureBucket = Get-LineValue $lines "failureBucket="
     $scoreTick = Get-SummaryField $summary "scoreTick"
     $carryingIntelTick = Get-SummaryField $summary "carryingIntelTick"
     $progress = Get-SummaryField $summary "progress"
@@ -263,6 +278,7 @@ foreach ($case in $cases) {
         Expected = $expected
         Minimum = $minimumResult
         Actual = $actualResult
+        FailureBucket = $failureBucket
         ExitCode = $exitCode
         ScoreTick = $scoreTick
         CarryTick = $carryingIntelTick
@@ -271,10 +287,11 @@ foreach ($case in $cases) {
         AssetIssue = if ($hasAssetValidationIssue) { "yes" } else { "no" }
         Waiver = $waiverReason
         Log = $logPath
+        Artifacts = $artifactPath
     }
     $rows.Add($row) | Out-Null
 
-    $detail = "result=$actualResult exit=$exitCode progress=$progress scoreTick=$scoreTick carryTick=$carryingIntelTick stagnant=$stagnantWindows"
+    $detail = "result=$actualResult bucket=$failureBucket exit=$exitCode progress=$progress scoreTick=$scoreTick carryTick=$carryingIntelTick stagnant=$stagnantWindows"
     if ($hasAssetValidationIssue) { $detail += " assetIssue=1" }
     if (-not [string]::IsNullOrWhiteSpace($blockerLine)) { $detail += " blocker=1" }
     if ($status -eq "CONTROLLED") { $detail += " waiver='$waiverReason'" }
@@ -286,7 +303,7 @@ $rows | Export-Csv -Path $summaryPath -NoTypeInformation
 
 Write-Host ""
 Write-Host "[botbrain-canaries] summary"
-$rows | Format-Table -AutoSize Status, Id, Minimum, Actual, ExitCode, ScoreTick, Progress, Stagnant, AssetIssue
+$rows | Format-Table -AutoSize Status, Id, Minimum, Actual, FailureBucket, ExitCode, ScoreTick, Progress, Stagnant, AssetIssue
 Write-Host "[botbrain-canaries] summaryCsv=$summaryPath"
 
 if (-not $KeepLogs) {

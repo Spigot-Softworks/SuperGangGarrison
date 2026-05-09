@@ -23,6 +23,7 @@ public partial class Game1
             _game.UpdateGameplayMenuState(keyboard, mouse);
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
             var cameraPosition = _game.GetCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
+            _game.UpdateGarrisonBuilderEditor(keyboard, rawMouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
             var (gameplayInput, networkInput) = _game.BuildGameplayInputs(keyboard, mouse, cameraPosition);
             _game._latestLocalAimWorldX = cameraPosition.X + mouse.X;

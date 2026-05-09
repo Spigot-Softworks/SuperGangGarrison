@@ -51,17 +51,22 @@ public sealed class NavGraph
         return bestIndex;
     }
 
-    public int FindNearestTraversalStartNode(float x, float y)
+    public int FindNearestTraversalStartNode(float x, float y, float maxAboveDistance = float.PositiveInfinity)
     {
         if (_nodes.Length == 0)
         {
             return -1;
         }
 
-        var bestIndex = 0;
+        var bestIndex = -1;
         var bestScore = float.MaxValue;
         for (var i = 0; i < _nodes.Length; i++)
         {
+            if (_nodes[i].Y < y - maxAboveDistance)
+            {
+                continue;
+            }
+
             var dx = _nodes[i].X - x;
             var dy = _nodes[i].Y - y;
             var score = (dx * dx) + (dy * dy * 4f);
@@ -78,7 +83,9 @@ public sealed class NavGraph
             }
         }
 
-        return bestIndex;
+        return bestIndex >= 0
+            ? bestIndex
+            : FindNearestTraversalStartNode(x, y);
     }
 
     public int FindNearestReachableNode(

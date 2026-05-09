@@ -13,6 +13,7 @@ public partial class Game1
     {
         return !IsGameplayWindowInputActive()
             || IsGameplayMenuOpen()
+            || ShouldBlockGameplayForGarrisonBuilder()
             || _consoleOpen
             || _chatOpen
             || _teamSelectOpen
@@ -30,6 +31,7 @@ public partial class Game1
     private bool CanOpenGameplayChat()
     {
         return !_passwordPromptOpen
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !_teamSelectOpen
             && !_classSelectOpen
@@ -39,6 +41,7 @@ public partial class Game1
     private bool CanUseGameplayChatShortcut()
     {
         return !_chatSubmitAwaitingOpenKeyRelease
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !IsGameplayMenuOpen();
     }
 
@@ -57,6 +60,7 @@ public partial class Game1
     {
         return _networkClient.IsSpectator
             && !_consoleOpen
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !_chatOpen
             && !_passwordPromptOpen
             && !_teamSelectOpen
@@ -68,6 +72,7 @@ public partial class Game1
     {
         return !_passwordPromptOpen
             && !HasOpenGameplayOverlay()
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !_consoleOpen
             && !_chatOpen
             && !IsLastToDieSessionActive
@@ -78,6 +83,7 @@ public partial class Game1
     private bool CanOpenInGamePauseMenu()
     {
         return !_consoleOpen
+            && !ShouldBlockGameplayForGarrisonBuilder()
             && !_teamSelectOpen
             && !_classSelectOpen
             && !HasOpenGameplayOverlay();
