@@ -26,6 +26,12 @@ public partial class Game1
             _game.StopIngameMusic();
 
             _game.UpdateLobbyBrowserResponses();
+            if (_game._builderEditorEnabled)
+            {
+                _game.UpdateGarrisonBuilderEditor(keyboard, mouse, 1f / 60f);
+                return;
+            }
+
             if (_game.UpdateDevMessagePopup(keyboard, mouse))
             {
                 return;
@@ -60,6 +66,14 @@ public partial class Game1
             }
 
             DrawMenuBackgroundAttribution();
+
+            if (_game._builderEditorEnabled)
+            {
+                var mouse = _game.GetScaledMouseState(_game.GetConstrainedMouseState(Game1.GetCurrentMouseState()));
+                _game.DrawGarrisonBuilderEditorOverlay(mouse);
+                _game.DrawDevMessagePopup();
+                return;
+            }
 
             if (!_game._mainMenuOverlayController.TryDraw())
             {

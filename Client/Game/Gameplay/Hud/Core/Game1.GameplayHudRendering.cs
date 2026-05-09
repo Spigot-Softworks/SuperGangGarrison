@@ -124,6 +124,8 @@ public partial class Game1
 
         DrawClientPluginHud(cameraPosition);
         WriteGameplayRenderTrace("hud after clientpluginhud");
+        DrawGarrisonBuilderEditorOverlay(mouse);
+        WriteGameplayRenderTrace("hud after garrisonbuilder");
         DrawNavEditorOverlay(mouse, cameraPosition);
         WriteGameplayRenderTrace("hud after naveditor");
         DrawChatHud();

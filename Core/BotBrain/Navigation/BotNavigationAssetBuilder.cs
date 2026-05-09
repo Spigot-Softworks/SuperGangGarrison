@@ -24,6 +24,7 @@ public static class BotNavigationAssetBuilder
     private const int DefaultMaxPortalCandidatesPerKindDirection = 24;
     private const int CompactObjectiveMaxPortalCandidatesPerKindDirection = 8;
     private const int CompactObjectiveSurfaceCountThreshold = 600;
+    private const float BlockedMicroStepRelayWalkPenalty = 250f;
 
     public static BotNavigationAsset BuildAsset(SimpleLevel level)
     {
@@ -1143,13 +1144,19 @@ public static class BotNavigationAssetBuilder
                     && surfaceById.TryGetValue(portalB.SurfaceId!.Value, out var surfaceB)
                     && IsMicroStepRelay(surfaceA, surfaceB, a, b);
                 if (dx > StepRelayHorizontalReach
-                    || dy > StepRelayVerticalReach
-                    || (!isMicroStepRelay && HasBlockingSolidAt(level, (a.X + b.X) * 0.5f, MathF.Min(a.Y, b.Y))))
+                    || dy > StepRelayVerticalReach)
                 {
                     continue;
                 }
 
-                AddBidirectionalEdge(portalA.NodeIndex, portalB.NodeIndex, NavEdgeKind.Walk, Distance(a, b), edges, edgeSet);
+                var hasBlockingSolid = HasBlockingSolidAt(level, (a.X + b.X) * 0.5f, MathF.Min(a.Y, b.Y));
+                if (hasBlockingSolid && !isMicroStepRelay)
+                {
+                    continue;
+                }
+
+                var cost = Distance(a, b) + (hasBlockingSolid ? BlockedMicroStepRelayWalkPenalty : 0f);
+                AddBidirectionalEdge(portalA.NodeIndex, portalB.NodeIndex, NavEdgeKind.Walk, cost, edges, edgeSet);
             }
         }
     }

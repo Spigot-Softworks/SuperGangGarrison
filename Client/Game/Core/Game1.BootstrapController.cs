@@ -314,6 +314,7 @@ public partial class Game1
             _game._gameplayLoadoutHelmetTexture?.Dispose();
             _game._gameplayLoadoutDogTagsTexture?.Dispose();
             _game._lastToDieLogoTexture?.Dispose();
+            _game.DisposeGarrisonBuilderEditorAssets();
             _game._gameRenderTarget?.Dispose();
             _game._gameRenderTarget = null;
             _game._deathCamCaptureTarget?.Dispose();
