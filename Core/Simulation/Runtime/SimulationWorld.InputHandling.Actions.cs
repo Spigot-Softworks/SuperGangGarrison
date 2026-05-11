@@ -502,6 +502,14 @@ public sealed partial class SimulationWorld
                 // which would trigger cloak
                 return true;
             }
+            
+            if (player.HasUtilityBehavior(BuiltInGameplayBehaviorIds.SniperUtility))
+            {
+                // Sniper binoculars ability - do NOT call TryHandleNetworkSecondaryAbility
+                // which would trigger scope
+                player.TryToggleBinoculars();
+                return true;
+            }
 
             TryHandleNetworkSecondaryAbility(player, input, player.X, player.Y);
             return true;

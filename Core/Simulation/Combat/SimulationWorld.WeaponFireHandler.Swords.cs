@@ -118,7 +118,10 @@ public sealed partial class SimulationWorld
                     result.HitPlayer.Y,
                     PointDirectionDegrees(originX, originY, result.HitPlayer.X, result.HitPlayer.Y) - 180f,
                     count: attacker.IsExperimentalDemoknightCharging ? 2 : 1);
-                result.HitPlayer.AddImpulse(directionX * 2.5f * LegacyMovementModel.SourceTicksPerSecond, -1.5f * LegacyMovementModel.SourceTicksPerSecond);
+                if (!result.HitPlayer.IsUbered)
+                {
+                    result.HitPlayer.AddImpulse(directionX * 2.5f * LegacyMovementModel.SourceTicksPerSecond, -1.5f * LegacyMovementModel.SourceTicksPerSecond);
+                }
                 if (ApplyPlayerDamage(result.HitPlayer, damage, attacker, PlayerEntity.SpyDamageRevealAlpha))
                 {
                     KillPlayer(

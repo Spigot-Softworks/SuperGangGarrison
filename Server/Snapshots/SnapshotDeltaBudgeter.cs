@@ -268,7 +268,7 @@ internal static class SnapshotDeltaBudgeter
     private static byte[] Serialize(SnapshotMessage snapshot, ref int serializePassCount)
     {
         serializePassCount += 1;
-        return ProtocolCodec.Serialize(snapshot);
+        return ProtocolCodec.Serialize(snapshot, ServerProtocolCompression.Settings);
     }
 
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
@@ -500,6 +500,7 @@ internal static class SnapshotDeltaBudgeter
             Players = seedFromTemplateCollections ? new List<SnapshotPlayerState>(template.Players) : [];
             PlayerMovementStates = seedFromTemplateCollections ? new List<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
             Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
+            SentryUpdateStates = seedFromTemplateCollections ? new List<SnapshotSentryUpdateState>(template.SentryUpdateStates) : [];
             Shots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Shots) : [];
             Bubbles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Bubbles) : [];
             Blades = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Blades) : [];
@@ -543,6 +544,7 @@ internal static class SnapshotDeltaBudgeter
             Players = new List<SnapshotPlayerState>(other.Players);
             PlayerMovementStates = new List<SnapshotPlayerMovementState>(other.PlayerMovementStates);
             Sentries = new List<SnapshotSentryState>(other.Sentries);
+            SentryUpdateStates = new List<SnapshotSentryUpdateState>(other.SentryUpdateStates);
             Shots = new List<SnapshotShotState>(other.Shots);
             Bubbles = new List<SnapshotShotState>(other.Bubbles);
             Blades = new List<SnapshotShotState>(other.Blades);
@@ -583,6 +585,7 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotPlayerState> Players { get; }
         public List<SnapshotPlayerMovementState> PlayerMovementStates { get; }
         public List<SnapshotSentryState> Sentries { get; } = new();
+        public List<SnapshotSentryUpdateState> SentryUpdateStates { get; } = new();
         public List<SnapshotShotState> Shots { get; } = new();
         public List<SnapshotShotState> Bubbles { get; } = new();
         public List<SnapshotShotState> Blades { get; } = new();
@@ -627,6 +630,7 @@ internal static class SnapshotDeltaBudgeter
                 PlayerMovementStates = PlayerMovementStates.ToArray(),
                 CombatTraces = CombatTraces.ToArray(),
                 Sentries = Sentries.ToArray(),
+                SentryUpdateStates = SentryUpdateStates.ToArray(),
                 Shots = Shots.ToArray(),
                 Bubbles = Bubbles.ToArray(),
                 Blades = Blades.ToArray(),

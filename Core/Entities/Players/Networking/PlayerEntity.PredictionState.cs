@@ -46,6 +46,9 @@ public sealed partial class PlayerEntity
         float TauntFrameIndex,
         bool IsSniperScoped,
         int SniperChargeTicks,
+        bool IsUsingBinoculars,
+        float BinocularsFocusX,
+        float BinocularsFocusY,
         int UberTicksRemaining,
         int? MedicHealTargetId,
         bool IsMedicHealing,
@@ -147,6 +150,9 @@ public sealed partial class PlayerEntity
             TauntFrameIndex,
             IsSniperScoped,
             SniperChargeTicks,
+            IsUsingBinoculars,
+            BinocularsFocusX,
+            BinocularsFocusY,
             UberTicksRemaining,
             MedicHealTargetId,
             IsMedicHealing,
@@ -251,6 +257,9 @@ public sealed partial class PlayerEntity
         TauntFrameIndex = state.TauntFrameIndex;
         IsSniperScoped = state.IsSniperScoped;
         SniperChargeTicks = state.SniperChargeTicks;
+        IsUsingBinoculars = state.IsUsingBinoculars;
+        BinocularsFocusX = state.BinocularsFocusX;
+        BinocularsFocusY = state.BinocularsFocusY;
         UberTicksRemaining = state.UberTicksRemaining;
         MedicHealTargetId = state.MedicHealTargetId;
         IsMedicHealing = state.IsMedicHealing;
