@@ -120,7 +120,7 @@ public partial class Game1
                 var healthRatio = teammate.Health / (float)Math.Max(1, teammate.MaxHealth);
                 var arrowFrame = Math.Clamp((int)MathF.Floor(healthRatio * 19f), 0, 19);
                 var defaultAlertFrame = teammate.ChatBubbleFrameIndex == 49 ? 1 : 0;
-                var detailedAlertFrame = ((int)teammate.Team * 10) + (int)teammate.ClassId + 2;
+                var detailedAlertFrame = ChatBubbleFrameCatalog.GetClassPortraitFrame(teammate.ClassId, teammate.Team);
                 var drawX = 0f;
                 var drawY = 0f;
                 var hovered = false;

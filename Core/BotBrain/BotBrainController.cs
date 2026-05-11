@@ -69,6 +69,7 @@ public sealed class BotBrainController
     private const float AtaliaCentralRecoveryRunupSpeed = 80f;
     private const float CarrierCapFinishDirectSeekDistance = 620f;
     private const float CarrierCapFinishDirectSeekVerticalRange = 96f;
+    private const float EigerCarrierCapFinishDirectSeekVerticalRange = 180f;
     private const float SoldierCarrierCapFinishRunupDistance = 100f;
     private const float SoldierCarrierCapFinishStuckSpeed = 8f;
     private const int SoldierCarrierCapFinishRunupTicks = 14;
@@ -177,7 +178,19 @@ public sealed class BotBrainController
         }
 
         // 3. Find/update path.
-        UpdatePath(self, team);
+        var graphSuspendedForPointCapture = ShouldSuspendGraphRoutingForControlPointCapture(world, self, team);
+        if (graphSuspendedForPointCapture)
+        {
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = RepathIntervalTicks;
+            _steering.Reset();
+        }
+        else
+        {
+            UpdatePath(self, team);
+        }
+
         var routeMissingAfterUpdate = _currentPath is null;
 
         // 4. Run steering.
@@ -233,6 +246,19 @@ public sealed class BotBrainController
             UpdatePath(self, team);
             steeringOutput = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
             routeRecoveryRequested = _currentPath is null || steeringOutput.RequestRepath;
+        }
+        else if (_objectiveTapeExecutor.LastTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
+        {
+            LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
+        }
+
+        if (tapeResolved
+            && self.IsCarryingIntel
+            && TryResolveCarrierCapFinishDirectSeek(world, self, team, steeringOutput, out var tapeFinishSteering, out var tapeFinishTrace))
+        {
+            steeringOutput = tapeFinishSteering;
+            LastDirectDriveTrace = tapeFinishTrace;
+            tapeResolved = false;
         }
 
         if (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
@@ -757,6 +783,12 @@ public sealed class BotBrainController
             return true;
         }
 
+        if (self.IsCarryingIntel
+            && TryResolveTruefortBlueSoldierCarrierPocketEscape(world, self, team, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
         if (self.IsCarryingIntel)
         {
             return false;
@@ -865,6 +897,37 @@ public sealed class BotBrainController
         return false;
     }
 
+    private static bool TryResolveTruefortBlueSoldierCarrierPocketEscape(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag
+            || !world.Level.Name.Equals("Truefort", StringComparison.OrdinalIgnoreCase)
+            || team != PlayerTeam.Blue
+            || self.ClassId != PlayerClass.Soldier
+            || self.X < 700f
+            || self.X > 1_150f
+            || self.Y < 600f
+            || self.Y > 900f)
+        {
+            return false;
+        }
+
+        return PrimitiveDirectDrive.TryResolveRecovery(
+            world,
+            self,
+            new DirectDriveTarget(DirectDriveTargetKind.Objective, 1_206f, 612f, "truefortBlueCarrierPocketEscape"),
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+    }
+
     private bool TryRouteToDirectSeekTarget(
         SimulationWorld world,
         PlayerEntity self,
@@ -938,6 +1001,11 @@ public sealed class BotBrainController
     {
         directSteering = steeringOutput;
         directTrace = string.Empty;
+        if (world.Level.Name.Equals("Orange", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var ownBase = world.Level.GetIntelBase(team);
         if (!ownBase.HasValue)
         {
@@ -947,15 +1015,16 @@ public sealed class BotBrainController
         var dx = ownBase.Value.X - self.X;
         var dy = ownBase.Value.Y - self.Y;
         var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+        var verticalRange = ResolveCarrierCapFinishDirectSeekVerticalRange(world.Level);
         if (distance > CarrierCapFinishDirectSeekDistance
-            || MathF.Abs(dy) > CarrierCapFinishDirectSeekVerticalRange)
+            || MathF.Abs(dy) > verticalRange)
         {
             _carrierCapFinishRunupUntilTick = 0;
             _carrierCapFinishAttackUntilTick = 0;
             return false;
         }
 
-        if (!ShouldAllowCarrierCapFinishDirectDrive(ownBase.Value.X, ownBase.Value.Y))
+        if (!ShouldAllowCarrierCapFinishDirectDrive(self, ownBase.Value.X, ownBase.Value.Y))
         {
             return false;
         }
@@ -981,8 +1050,18 @@ public sealed class BotBrainController
             out directTrace);
     }
 
-    private bool ShouldAllowCarrierCapFinishDirectDrive(float ownBaseX, float ownBaseY)
+    private static float ResolveCarrierCapFinishDirectSeekVerticalRange(SimpleLevel level) =>
+        level.Name.Equals("Eiger", StringComparison.OrdinalIgnoreCase)
+            ? EigerCarrierCapFinishDirectSeekVerticalRange
+            : CarrierCapFinishDirectSeekVerticalRange;
+
+    private bool ShouldAllowCarrierCapFinishDirectDrive(PlayerEntity self, float ownBaseX, float ownBaseY)
     {
+        if (DistanceBetween(self.X, self.Y, ownBaseX, ownBaseY) <= 260f)
+        {
+            return true;
+        }
+
         if (_navGraph is null || _currentPath is null || _currentPath.IsComplete)
         {
             return false;
@@ -1114,6 +1193,28 @@ public sealed class BotBrainController
         }
 
         return false;
+    }
+
+    private static bool ShouldSuspendGraphRoutingForControlPointCapture(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team)
+    {
+        if (TryFindActivePointBeingCaptured(world, self, team, out _))
+        {
+            return true;
+        }
+
+        if (!TryFindNearestUnownedControlPoint(world, self, team, CapturePointHoldHorizontalRange, out var point))
+        {
+            return false;
+        }
+
+        var dx = point.HealingAuraCenterX - self.X;
+        var dy = point.HealingAuraCenterY - self.Y;
+        return MathF.Abs(dx) <= CapturePointHoldHorizontalRange
+            && MathF.Abs(dy) <= CapturePointHoldVerticalRange
+            && dy >= -24f;
     }
 
     private bool TryResolveControlPointPlatformLadderDrive(
@@ -1394,13 +1495,13 @@ public sealed class BotBrainController
         {
             return self.X >= 2528f
                 && self.X <= 2640f
-                && self.Y >= 1228f
+                && self.Y >= 1180f
                 && self.Y <= 1278f;
         }
 
         return self.X >= 2290f
             && self.X <= 2392f
-            && self.Y >= 1228f
+            && self.Y >= 1180f
             && self.Y <= 1278f;
     }
 
@@ -1434,6 +1535,7 @@ public sealed class BotBrainController
         trace = string.Empty;
         if (self.ClassId == PlayerClass.Scout
             || !world.Level.Name.Contains("Atalia", StringComparison.OrdinalIgnoreCase)
+            || _navGraph is null
             || _currentPath is null
             || !_currentPath.TryGetCurrentEdge(out var edge)
             || _currentPath.CurrentIndex <= 0)
@@ -1442,6 +1544,55 @@ public sealed class BotBrainController
         }
 
         var fromNode = _currentPath.GetWaypoint(_currentPath.CurrentIndex - 1);
+        var from = _navGraph.GetNode(fromNode);
+        var to = _navGraph.GetNode(edge.ToNode);
+        if (IsAtaliaUpperMidRelay(from, to, fromX: 2597f, fromY: 1194f, toX: 2554f, toY: 1122f)
+            && self.X >= 2528f
+            && self.X <= 2630f
+            && self.Y >= 1180f
+            && self.Y <= 1232f)
+        {
+            if (self.X < 2608f)
+            {
+                edgeSteering.MoveDirection = 1;
+                edgeSteering.Jump = false;
+                edgeSteering.DropDown = false;
+                trace = $"ataliaUpperMidJump edge:{fromNode}->{edge.ToNode} stage:right dx:{2554f - self.X:0.0} dy:{1122f - self.Y:0.0} move:1";
+                return true;
+            }
+
+            edgeSteering.MoveDirection = -1;
+            edgeSteering.DropDown = false;
+            edgeSteering.Jump = self.IsGrounded
+                && self.X <= 2624f
+                && self.HorizontalSpeed <= -52f;
+            trace = $"ataliaUpperMidJump edge:{fromNode}->{edge.ToNode} dx:{2554f - self.X:0.0} dy:{1122f - self.Y:0.0} move:-1 jump:{(edgeSteering.Jump ? 1 : 0)} speed:{self.HorizontalSpeed:0.0}";
+            return true;
+        }
+
+        if (IsAtaliaUpperMidRelay(from, to, fromX: 2284f, fromY: 1158f, toX: 2366f, toY: 1122f)
+            && self.X >= 2248f
+            && self.X <= 2384f
+            && self.Y >= 1132f
+            && self.Y <= 1232f)
+        {
+            if (self.X > 2276f)
+            {
+                edgeSteering.MoveDirection = -1;
+                edgeSteering.Jump = false;
+                edgeSteering.DropDown = false;
+                trace = $"ataliaUpperMidJump edge:{fromNode}->{edge.ToNode} stage:left dx:{2366f - self.X:0.0} dy:{1122f - self.Y:0.0} move:-1";
+                return true;
+            }
+
+            edgeSteering.MoveDirection = 1;
+            edgeSteering.DropDown = false;
+            edgeSteering.Jump = self.IsGrounded
+                && self.HorizontalSpeed >= 52f;
+            trace = $"ataliaUpperMidJump edge:{fromNode}->{edge.ToNode} dx:{2366f - self.X:0.0} dy:{1122f - self.Y:0.0} move:1 jump:{(edgeSteering.Jump ? 1 : 0)} speed:{self.HorizontalSpeed:0.0}";
+            return true;
+        }
+
         if (fromNode == 70
             && edge.ToNode == 115
             && edge.Kind == NavEdgeKind.Fall
@@ -1510,6 +1661,18 @@ public sealed class BotBrainController
 
         return false;
     }
+
+    private static bool IsAtaliaUpperMidRelay(
+        NavNode from,
+        NavNode to,
+        float fromX,
+        float fromY,
+        float toX,
+        float toY) =>
+        MathF.Abs(from.X - fromX) <= 8f
+        && MathF.Abs(from.Y - fromY) <= 8f
+        && MathF.Abs(to.X - toX) <= 8f
+        && MathF.Abs(to.Y - toY) <= 8f;
 
     private bool ShouldKeepGraphControlForBelowPointClimb(PlayerEntity self, ControlPointState point)
     {

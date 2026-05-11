@@ -586,7 +586,15 @@ if (options.AutoBakeProofCorridor)
 }
 var edgeSummary = edgeDiagnostics.FormatSummary(graph, bot, brain.CurrentPathIndex, brain.CurrentPathCount, brain.CurrentPathNode);
 Console.WriteLine(edgeSummary);
-foreach (var profileLine in FormatCaptureProfileLines(edgeDiagnostics, graph, carryingIntelTick, scoreTick, totalMovement))
+foreach (var profileLine in FormatCaptureProfileLines(
+             edgeDiagnostics,
+             graph,
+             carryingIntelTick,
+             scoreTick,
+             totalMovement,
+             jumpTicks,
+             dropdownTicks,
+             semanticRecoveryTraces.Count))
 {
     Console.WriteLine(profileLine);
 }
@@ -666,7 +674,10 @@ static IEnumerable<string> FormatCaptureProfileLines(
     NavGraph graph,
     int carryingIntelTick,
     int scoreTick,
-    float totalMovement)
+    float totalMovement,
+    int jumpTicks,
+    int dropdownTicks,
+    int semanticRecoveryCount)
 {
     if (scoreTick < 0)
     {
@@ -706,6 +717,8 @@ static IEnumerable<string> FormatCaptureProfileLines(
         yield return FormatCaptureStage("captureStage=return", returnEdges);
     }
 
+    yield return FormatCaptureQuality(scoredEdges, graph, jumpTicks, dropdownTicks, semanticRecoveryCount, edgeDiagnostics.Blockers.Count);
+
     foreach (var edge in scoredEdges
         .OrderByDescending(static edge => edge.Ticks)
         .ThenByDescending(static edge => edge.Movement)
@@ -743,6 +756,96 @@ static IEnumerable<string> FormatCaptureProfileLines(
             $"movement:{blocker.Movement:0.0} jumps:{blocker.Jumps} recipeReadyTicks:{blocker.RecipeReadyTicks} " +
             $"pos:({blocker.X:0.0},{blocker.Y:0.0}) path:{blocker.PathIndex}/{blocker.PathCount}";
     }
+}
+
+static string FormatCaptureQuality(
+    IReadOnlyCollection<EdgeExecutionArtifact> edges,
+    NavGraph graph,
+    int jumpTicks,
+    int dropdownTicks,
+    int semanticRecoveryCount,
+    int blockerCount)
+{
+    const float ticksPerSecond = SimulationConfig.DefaultTicksPerSecond;
+    var repeated = edges
+        .GroupBy(static edge => $"{edge.FromNode}->{edge.ToNode}/{edge.Kind}")
+        .Where(static group => group.Count() > 1)
+        .ToArray();
+    var repeatedEdgeVisits = repeated.Sum(static group => group.Count() - 1);
+    var repeatedTicks = repeated.Sum(static group => group.Skip(1).Sum(static edge => edge.Ticks));
+    var nonWalkEdges = 0;
+    var verticalRelayEdges = 0;
+    var uncertifiedNonWalkEdges = 0;
+    var missingCompletionEdges = 0;
+    var weakProbeEdges = 0;
+    var recipeEdges = 0;
+
+    foreach (var edgeArtifact in edges)
+    {
+        if (!TryFindGraphEdge(graph, edgeArtifact.FromNode, edgeArtifact.ToNode, edgeArtifact.Kind, out var edge))
+        {
+            continue;
+        }
+
+        if (edge.Kind != NavEdgeKind.Walk)
+        {
+            nonWalkEdges += 1;
+            var hasCertifiedProof = edge.ProbeTicks > 0 || edge.ProbeVariantAttempts > 0 || edge.Completion.HasWindow;
+            if (!hasCertifiedProof)
+            {
+                uncertifiedNonWalkEdges += 1;
+            }
+
+            if (!edge.Completion.HasWindow)
+            {
+                missingCompletionEdges += 1;
+            }
+        }
+
+        if (edge.LaunchRecipe.HasRecipe)
+        {
+            recipeEdges += 1;
+        }
+
+        if (edge.ProbeVariantAttempts > 0 && edge.ProbeVariantSuccesses * 2 < edge.ProbeVariantAttempts)
+        {
+            weakProbeEdges += 1;
+        }
+
+        var from = graph.GetNode(edgeArtifact.FromNode);
+        var to = graph.GetNode(edgeArtifact.ToNode);
+        if (edge.Kind != NavEdgeKind.Walk && MathF.Abs(to.Y - from.Y) > 48f)
+        {
+            verticalRelayEdges += 1;
+        }
+    }
+
+    return
+        $"captureQuality=nonWalkEdges:{nonWalkEdges} verticalRelayEdges:{verticalRelayEdges} " +
+        $"uncertifiedNonWalkEdges:{uncertifiedNonWalkEdges} missingCompletionEdges:{missingCompletionEdges} weakProbeEdges:{weakProbeEdges} " +
+        $"recipeEdges:{recipeEdges} repeatedEdgeVisits:{repeatedEdgeVisits} repeatedSeconds:{repeatedTicks / ticksPerSecond:0.0} " +
+        $"jumps:{jumpTicks} dropdowns:{dropdownTicks} semanticRecoveries:{semanticRecoveryCount} blockers:{blockerCount}";
+}
+
+static bool TryFindGraphEdge(NavGraph graph, int fromNode, int toNode, string kindText, out NavEdge edge)
+{
+    edge = default;
+    if (!Enum.TryParse<NavEdgeKind>(kindText, ignoreCase: true, out var kind))
+    {
+        return false;
+    }
+
+    var edges = graph.GetEdges(fromNode);
+    for (var i = 0; i < edges.Length; i += 1)
+    {
+        if (edges[i].ToNode == toNode && edges[i].Kind == kind)
+        {
+            edge = edges[i];
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static string FormatCaptureStage(string prefix, IReadOnlyCollection<EdgeExecutionArtifact> edges)

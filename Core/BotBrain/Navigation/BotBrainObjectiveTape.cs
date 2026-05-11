@@ -92,7 +92,7 @@ public static class BotBrainObjectiveTapeStore
         var path = ResolvePath(level.Name, level.MapAreaIndex);
         if (!File.Exists(path))
         {
-            return false;
+            return TryLoadFromAuthoredCorridors(level, out asset);
         }
 
         try
@@ -108,10 +108,111 @@ public static class BotBrainObjectiveTapeStore
             && string.Equals(asset.LevelName, level.Name, StringComparison.OrdinalIgnoreCase)
             && asset.MapAreaIndex == level.MapAreaIndex)
         {
+            AddMirroredCaptureTheFlagTapes(level, asset);
+            return true;
+        }
+
+        return TryLoadFromAuthoredCorridors(level, out asset);
+    }
+
+    private static bool TryLoadFromAuthoredCorridors(SimpleLevel level, out BotBrainObjectiveTapeAsset asset)
+    {
+        if (!level.Name.Equals("Eiger", StringComparison.OrdinalIgnoreCase))
+        {
+            asset = null!;
+            return false;
+        }
+
+        if (TryBuildFromAuthoredCorridors(level, out asset))
+        {
+            if (level.Mode == GameModeKind.CaptureTheFlag)
+            {
+                KeepOnlyCarrierReturnSegments(asset);
+            }
+
+            AddMirroredCaptureTheFlagTapes(level, asset);
             return true;
         }
 
         return false;
+    }
+
+    private static void KeepOnlyCarrierReturnSegments(BotBrainObjectiveTapeAsset asset)
+    {
+        foreach (var tape in asset.Tapes)
+        {
+            tape.Segments = tape.Segments
+                .Where(static segment => segment.RequiresCarryingIntel)
+                .ToList();
+        }
+
+        asset.Tapes = asset.Tapes
+            .Where(static tape => tape.Segments.Count > 0)
+            .ToList();
+    }
+
+    private static void AddMirroredCaptureTheFlagTapes(SimpleLevel level, BotBrainObjectiveTapeAsset asset)
+    {
+        if (level.Mode != GameModeKind.CaptureTheFlag
+            || !level.GetIntelBase(PlayerTeam.Red).HasValue
+            || !level.GetIntelBase(PlayerTeam.Blue).HasValue)
+        {
+            return;
+        }
+
+        var redBase = level.GetIntelBase(PlayerTeam.Red)!.Value;
+        var blueBase = level.GetIntelBase(PlayerTeam.Blue)!.Value;
+        var mirrorSumX = redBase.X + blueBase.X;
+        var sourceTapes = asset.Tapes.ToArray();
+        foreach (var source in sourceTapes)
+        {
+            var mirroredSegments = source.Segments
+                .Select(segment => new BotBrainObjectiveTapeSegment
+                {
+                    RequiresCarryingIntel = segment.RequiresCarryingIntel,
+                    Samples = segment.Samples.Select(sample => new BotBrainObjectiveTapeSample
+                    {
+                        Tick = sample.Tick,
+                        X = mirrorSumX - sample.X,
+                        Y = sample.Y,
+                        Bottom = sample.Bottom,
+                        HorizontalSpeed = -sample.HorizontalSpeed,
+                        VerticalSpeed = sample.VerticalSpeed,
+                        IsGrounded = sample.IsGrounded,
+                        MoveDirection = -sample.MoveDirection,
+                        Jump = sample.Jump,
+                        DropDown = sample.DropDown,
+                        IsCarryingIntel = sample.IsCarryingIntel,
+                    }).ToList(),
+                    Actions = segment.Actions.Select(action => new BotBrainObjectiveTapeAction
+                    {
+                        Kind = action.Kind,
+                        Direction = -action.Direction,
+                        Ticks = action.Ticks,
+                    }).ToList(),
+                })
+                .Where(static segment => segment.Samples.Count >= 2)
+                .ToList();
+            if (mirroredSegments.Count == 0)
+            {
+                continue;
+            }
+
+            var mirroredTeam = source.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+            var mirroredName = $"{source.Name}.Mirrored{mirroredTeam}";
+            if (asset.Tapes.Any(tape => tape.Name.Equals(mirroredName, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            asset.Tapes.Add(new BotBrainObjectiveTapeEntry
+            {
+                Name = mirroredName,
+                Team = mirroredTeam,
+                PlayerClass = source.PlayerClass,
+                Segments = mirroredSegments,
+            });
+        }
     }
 
     private static bool TryBuildFromAuthoredCorridors(SimpleLevel level, out BotBrainObjectiveTapeAsset asset)
