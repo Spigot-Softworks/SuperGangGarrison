@@ -154,7 +154,7 @@ sealed class SnapshotBroadcaster
         var targetPayloadBytes = GetTargetSnapshotPayloadBytes(client);
         if (fullSnapshotPayloadBytes <= targetPayloadBytes)
         {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot);
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
@@ -425,6 +425,9 @@ sealed class SnapshotBroadcaster
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,
             SniperChargeTicks: 0,
+            IsUsingBinoculars: false,
+            BinocularsFocusX: 0f,
+            BinocularsFocusY: 0f,
             FacingDirectionX: 1f,
             AimDirectionDegrees: 0f,
             IsTaunting: false,

@@ -35,6 +35,7 @@ public static partial class ProtocolCodec
         WriteEntityIdList(writer, snapshot.RemovedPlayerIds);
         WriteCombatTraces(writer, snapshot.CombatTraces);
         WriteSentryStates(writer, snapshot.Sentries);
+        WriteSentryUpdateStates(writer, snapshot.SentryUpdateStates);
         WriteEntityIdList(writer, snapshot.RemovedSentryIds);
         WriteShotStates(writer, snapshot.Shots);
         WriteEntityIdList(writer, snapshot.RemovedShotIds);
@@ -104,6 +105,7 @@ public static partial class ProtocolCodec
         var removedPlayerIds = ReadEntityIdList(reader);
         var combatTraces = ReadCombatTraces(reader);
         var sentries = ReadSentryStates(reader);
+        var sentryUpdateStates = ReadSentryUpdateStates(reader);
         var removedSentryIds = ReadEntityIdList(reader);
         var shots = ReadShotStates(reader);
         var removedShotIds = ReadEntityIdList(reader);
@@ -192,6 +194,7 @@ public static partial class ProtocolCodec
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             PlayerMovementStates = playerMovementStates,
+            SentryUpdateStates = sentryUpdateStates,
             RemovedPlayerIds = removedPlayerIds,
             RemovedSentryIds = removedSentryIds,
             RemovedShotIds = removedShotIds,
@@ -316,6 +319,9 @@ public static partial class ProtocolCodec
             writer.Write(player.HeavyEatTicksRemaining);
             writer.Write(player.IsSniperScoped);
             writer.Write(player.SniperChargeTicks);
+            writer.Write(player.IsUsingBinoculars);
+            writer.Write(player.BinocularsFocusX);
+            writer.Write(player.BinocularsFocusY);
             writer.Write(player.FacingDirectionX);
             writer.Write(player.AimDirectionDegrees);
             writer.Write(player.IsTaunting);
@@ -428,6 +434,9 @@ public static partial class ProtocolCodec
             var heavyEatTicksRemaining = reader.ReadInt32();
             var isSniperScoped = reader.ReadBoolean();
             var sniperChargeTicks = reader.ReadInt32();
+            var isUsingBinoculars = reader.ReadBoolean();
+            var binocularsFocusX = reader.ReadSingle();
+            var binocularsFocusY = reader.ReadSingle();
             var facingDirectionX = reader.ReadSingle();
             var aimDirectionDegrees = reader.ReadSingle();
             var isTaunting = reader.ReadBoolean();
@@ -493,7 +502,8 @@ public static partial class ProtocolCodec
                 isSpyCloaked, spyCloakAlpha, isSpySuperjumping, spySuperjumpHorizontalVelocity,
                 spySuperjumpCooldownTicksRemaining, spyBackstabVisualTicksRemaining,
                 isUbered, isKritzCritBoosted, isHeavyEating, heavyEatTicksRemaining,
-                isSniperScoped, sniperChargeTicks, facingDirectionX, aimDirectionDegrees,
+                isSniperScoped, sniperChargeTicks, isUsingBinoculars, binocularsFocusX, binocularsFocusY,
+                facingDirectionX, aimDirectionDegrees,
                 isTaunting, tauntFrameIndex, isChatBubbleVisible, chatBubbleFrameIndex, chatBubbleAlpha,
                 burnIntensity, burnDurationSourceTicks, burnDecayDelaySourceTicksRemaining,
                 burnIntensityDecayPerSourceTick, burnedByPlayerId, movementState,

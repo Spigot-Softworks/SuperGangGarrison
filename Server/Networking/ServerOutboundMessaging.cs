@@ -19,7 +19,7 @@ internal sealed class ServerOutboundMessaging(
 {
     public void SendMessage(ServerTransportPeer remotePeer, IProtocolMessage message)
     {
-        var payload = ProtocolCodec.Serialize(message);
+        var payload = ProtocolCodec.Serialize(message, ServerProtocolCompression.Settings);
         SendPayload(remotePeer, payload);
     }
 

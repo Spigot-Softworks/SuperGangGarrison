@@ -248,6 +248,16 @@ public partial class Game1 : Game
     private int _browserDebugUpdateCount;
     private int _browserDebugDrawCount;
     private int _browserDebugMenuCount;
+    private float _binocularsFocusX;
+    private float _binocularsFocusY;
+    private float _binocularsFocusTargetX;
+    private float _binocularsFocusTargetY;
+    private bool _wasBinocularsActive;
+    private const float BinocularsMovementSpeed = 66.5f;
+    private const float BinocularsSmoothingFactor = 0.15f;
+    private Texture2D? _binocularOverlayMask;
+    private int _binocularOverlayMaskWidth;
+    private int _binocularOverlayMaskHeight;
     private int _browserHostLifecycleEnsureCallCount;
 
     public Game1(GameStartupMode startupMode = GameStartupMode.Client)

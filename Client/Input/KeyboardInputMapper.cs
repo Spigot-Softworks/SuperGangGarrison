@@ -12,8 +12,14 @@ internal static class KeyboardInputMapper
         float cameraX,
         float cameraY,
         float localPlayerX,
-        float localPlayerY)
+        float localPlayerY,
+        bool isUsingBinoculars = false,
+        float binocularsFocusX = 0f,
+        float binocularsFocusY = 0f)
     {
+        var mouseWorldX = cameraX + mouse.X;
+        var mouseWorldY = cameraY + mouse.Y;
+        
         return new PlayerInputSnapshot(
             Left: keyboard.IsKeyDown(bindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left),
             Right: keyboard.IsKeyDown(bindings.MoveRight) || keyboard.IsKeyDown(Keys.Right),
@@ -26,9 +32,12 @@ internal static class KeyboardInputMapper
             FireSecondary: mouse.RightButton == ButtonState.Pressed,
             UseAbility: keyboard.IsKeyDown(bindings.UseAbility),
             InteractWeapon: keyboard.IsKeyDown(bindings.InteractWeapon),
-            AimWorldX: cameraX + mouse.X,
-            AimWorldY: cameraY + mouse.Y,
+            AimWorldX: mouseWorldX,
+            AimWorldY: mouseWorldY,
             DebugKill: false,
-            DropIntel: keyboard.IsKeyDown(Keys.B));
+            DropIntel: keyboard.IsKeyDown(Keys.B),
+            IsUsingBinoculars: isUsingBinoculars,
+            BinocularsFocusX: isUsingBinoculars ? binocularsFocusX : localPlayerX,
+            BinocularsFocusY: isUsingBinoculars ? binocularsFocusY : localPlayerY);
     }
 }

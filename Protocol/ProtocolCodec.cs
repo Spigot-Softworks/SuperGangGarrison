@@ -36,7 +36,46 @@ public static partial class ProtocolCodec
         return quantized * PositionQuantizationStep;
     }
 
+    /// <summary>
+    /// Serialize a protocol message with optional compression.
+    /// Uses default compression settings (compression enabled for snapshots).
+    /// </summary>
     public static byte[] Serialize(IProtocolMessage message)
+    {
+        return Serialize(message, ProtocolCompressionSettings.Default);
+    }
+
+    /// <summary>
+    /// Serialize a protocol message with custom compression settings.
+    /// </summary>
+    public static byte[] Serialize(IProtocolMessage message, ProtocolCompressionSettings compressionSettings)
+    {
+        var uncompressed = SerializeUncompressed(message);
+
+        // Check if compression should be attempted
+        if (!compressionSettings.EnableCompression)
+        {
+            return ProtocolCodecCompression.PrependEncoding(uncompressed, MessageEncoding.None);
+        }
+
+        // Only compress snapshots if configured that way
+        if (compressionSettings.CompressOnlySnapshots && message is not SnapshotMessage)
+        {
+            return ProtocolCodecCompression.PrependEncoding(uncompressed, MessageEncoding.None);
+        }
+
+        // Try to compress
+        var compressed = ProtocolCodecCompression.TryCompress(uncompressed, compressionSettings);
+        if (compressed != null)
+        {
+            return ProtocolCodecCompression.PrependEncoding(compressed, MessageEncoding.LZ4);
+        }
+
+        // Compression not beneficial - use uncompressed
+        return ProtocolCodecCompression.PrependEncoding(uncompressed, MessageEncoding.None);
+    }
+
+    private static byte[] SerializeUncompressed(IProtocolMessage message)
     {
         var size = MeasureSerializedSize(message);
         using var stream = new MemoryStream(size);
@@ -63,10 +102,13 @@ public static partial class ProtocolCodec
         return checked((int)stream.Length);
     }
 
+    /// <summary>
+    /// Deserialize a protocol message, automatically decompressing if needed.
+    /// </summary>
     public static bool TryDeserialize(byte[] payload, out IProtocolMessage? message)
     {
         ArgumentNullException.ThrowIfNull(payload);
-        if (payload.Length < 1)
+        if (payload.Length < 2) // Need at least encoding byte + message type
         {
             message = null;
             return false;
@@ -74,7 +116,18 @@ public static partial class ProtocolCodec
 
         try
         {
-            using var stream = new MemoryStream(payload, 0, payload.Length, writable: false, publiclyVisible: true);
+            // Read encoding and extract actual payload
+            var (encoding, actualPayload) = ProtocolCodecCompression.ReadEncoding(payload);
+
+            // Decompress if needed
+            byte[] decompressed = encoding switch
+            {
+                MessageEncoding.None => actualPayload,
+                MessageEncoding.LZ4 => ProtocolCodecCompression.Decompress(actualPayload),
+                _ => throw new InvalidDataException($"Unknown message encoding: {encoding}")
+            };
+
+            using var stream = new MemoryStream(decompressed, 0, decompressed.Length, writable: false, publiclyVisible: true);
             return TryDeserializeCore(stream, out message);
         }
         catch (IOException)
@@ -82,11 +135,19 @@ public static partial class ProtocolCodec
             message = null;
             return false;
         }
+        catch (InvalidDataException)
+        {
+            message = null;
+            return false;
+        }
     }
 
+    /// <summary>
+    /// Deserialize a protocol message from a span, automatically decompressing if needed.
+    /// </summary>
     public static bool TryDeserialize(ReadOnlySpan<byte> payload, out IProtocolMessage? message)
     {
-        if (payload.Length < 1)
+        if (payload.Length < 2) // Need at least encoding byte + message type
         {
             message = null;
             return false;
@@ -94,8 +155,9 @@ public static partial class ProtocolCodec
 
         try
         {
-            using var stream = new MemoryStream(payload.ToArray(), writable: false);
-            return TryDeserializeCore(stream, out message);
+            // Convert span to array for processing (required for compression)
+            var payloadArray = payload.ToArray();
+            return TryDeserialize(payloadArray, out message);
         }
         catch (IOException)
         {
@@ -155,7 +217,10 @@ public static partial class ProtocolCodec
                     (InputButtons)reader.ReadUInt16(),
                     reader.ReadSingle(),
                     reader.ReadSingle(),
-                    reader.ReadInt32()),
+                    reader.ReadInt32(),
+                    reader.ReadBoolean(),
+                    reader.ReadSingle(),
+                    reader.ReadSingle()),
                 MessageType.ControlCommand => new ControlCommandMessage(
                     reader.ReadUInt32(),
                     (ControlCommandKind)reader.ReadByte(),
@@ -339,6 +404,9 @@ public static partial class ProtocolCodec
                 writer.Write(input.AimWorldX);
                 writer.Write(input.AimWorldY);
                 writer.Write(input.ChatBubbleFrameIndex);
+                writer.Write(input.IsUsingBinoculars);
+                writer.Write(input.BinocularsFocusX);
+                writer.Write(input.BinocularsFocusY);
                 break;
             case ControlCommandMessage command:
                 writer.Write(command.Sequence);

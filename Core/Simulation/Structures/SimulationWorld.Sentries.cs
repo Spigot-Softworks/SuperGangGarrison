@@ -6,7 +6,7 @@ public sealed partial class SimulationWorld
     private const float SentryBuildProximityRadius = 50f;
     private const float SentryDestroyBlastRadius = 65f;
     private const float SentryDestroyKnockbackPerTick = 4f;
-    private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, float X, float Y, int? PlayerId);
+    private readonly record struct SentryTarget(PlayerEntity? Player, GeneratorState? Generator, SentryEntity? Sentry, float X, float Y, int? PlayerId);
 
     public bool TryBuildLocalSentry()
     {
@@ -91,6 +91,13 @@ public sealed partial class SimulationWorld
             if (target.Value.Player is not null)
             {
                 RegisterBloodEffect(target.Value.Player.X, target.Value.Player.Y, sentry.AimDirectionDegrees - 180f, 2);
+                if (!target.Value.Player.IsUbered)
+                {
+                    var sentryKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
+                    var directionX = (target.Value.X - sentry.X) / distance;
+                    var directionY = (target.Value.Y - sentry.Y) / distance;
+                    target.Value.Player.AddImpulse(directionX * sentryKnockbackPerSecond, directionY * sentryKnockbackPerSecond);
+                }
                 if (ApplyPlayerDamage(target.Value.Player, SentryEntity.HitDamage, ownerPlayer, PlayerEntity.SpyDamageRevealAlpha))
                 {
                     KillPlayer(target.Value.Player, killer: ownerPlayer, weaponSpriteName: "TurretKL", deathCamMessage: "You were killed by the autogun of", deathCamSentry: sentry);
@@ -99,6 +106,13 @@ public sealed partial class SimulationWorld
             else if (target.Value.Generator is not null)
             {
                 TryDamageGenerator(target.Value.Generator.Team, SentryEntity.HitDamage, ownerPlayer);
+            }
+            else if (target.Value.Sentry is not null)
+            {
+                if (target.Value.Sentry.ApplyDamage(SentryEntity.HitDamage))
+                {
+                    DestroySentry(target.Value.Sentry, attacker: ownerPlayer);
+                }
             }
         }
     }
@@ -176,7 +190,7 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(player, null, player.X, player.Y, player.Id);
+            nearestTarget = new SentryTarget(player, null, null, player.X, player.Y, player.Id);
             nearestDistance = distance;
         }
 
@@ -208,7 +222,39 @@ public sealed partial class SimulationWorld
                 continue;
             }
 
-            nearestTarget = new SentryTarget(null, generator, generator.Marker.CenterX, generator.Marker.CenterY, null);
+            nearestTarget = new SentryTarget(null, generator, null, generator.Marker.CenterX, generator.Marker.CenterY, null);
+            nearestDistance = distance;
+        }
+
+        for (var index = 0; index < _sentries.Count; index += 1)
+        {
+            var targetSentry = _sentries[index];
+            if (ReferenceEquals(targetSentry, sentry) || targetSentry.Team == sentry.Team)
+            {
+                continue;
+            }
+
+            var distance = DistanceBetween(sentry.X, sentry.Y, targetSentry.X, targetSentry.Y);
+            if (distance > SentryEntity.TargetRange || distance >= nearestDistance)
+            {
+                continue;
+            }
+
+            var targetAngle = PointDirectionDegrees(sentry.X, sentry.Y, targetSentry.X, targetSentry.Y);
+            var withinAllowedArc = targetAngle <= 45f
+                || targetAngle >= 315f
+                || (targetAngle >= 135f && targetAngle <= 225f);
+            if (!withinAllowedArc)
+            {
+                continue;
+            }
+
+            if (!HasObstacleLineOfSight(sentry.X, sentry.Y, targetSentry.X, targetSentry.Y))
+            {
+                continue;
+            }
+
+            nearestTarget = new SentryTarget(null, null, targetSentry, targetSentry.X, targetSentry.Y, null);
             nearestDistance = distance;
         }
 
