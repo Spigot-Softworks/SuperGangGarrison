@@ -144,6 +144,9 @@ internal static partial class ServerHelpers
             DebugKill: buttons.HasFlag(InputButtons.DebugKill),
             DropIntel: buttons.HasFlag(InputButtons.DropIntel),
             UseAbility: buttons.HasFlag(InputButtons.UseAbility),
-            InteractWeapon: buttons.HasFlag(InputButtons.InteractWeapon));
+            InteractWeapon: buttons.HasFlag(InputButtons.InteractWeapon),
+            IsUsingBinoculars: message.IsUsingBinoculars,
+            BinocularsFocusX: message.BinocularsFocusX,
+            BinocularsFocusY: message.BinocularsFocusY);
     }
 }

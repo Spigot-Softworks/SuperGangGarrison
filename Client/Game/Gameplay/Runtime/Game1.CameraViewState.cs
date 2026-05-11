@@ -27,19 +27,34 @@ public partial class Game1
             return cameraTopLeft;
         }
 
-        if (_networkClient.IsSpectator && GetSpectatorFocusPlayer() is PlayerEntity trackedPlayer && GetPlayerIsSniperScoped(trackedPlayer))
+        if (_networkClient.IsSpectator && GetSpectatorFocusPlayer() is PlayerEntity trackedPlayer)
         {
-            cameraTopLeft = GetSpectatorScopedSniperCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
-            if (trackLiveCamera)
+            if (GetPlayerIsUsingBinoculars(trackedPlayer))
             {
-                TrackLiveCamera(cameraTopLeft);
+                cameraTopLeft = GetBinocularsCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
+                if (trackLiveCamera)
+                {
+                    TrackLiveCamera(cameraTopLeft);
+                }
+                return cameraTopLeft;
             }
-
-            return cameraTopLeft;
+            else if (GetPlayerIsSniperScoped(trackedPlayer))
+            {
+                cameraTopLeft = GetSpectatorScopedSniperCameraTopLeft(trackedPlayer, viewportWidth, viewportHeight);
+                if (trackLiveCamera)
+                {
+                    TrackLiveCamera(cameraTopLeft);
+                }
+                return cameraTopLeft;
+            }
         }
 
         var localViewPosition = GetLocalViewPosition();
-        if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
+        if (_world.LocalPlayer.IsAlive && GetPlayerIsUsingBinoculars(_world.LocalPlayer))
+        {
+            cameraTopLeft = GetBinocularsCameraTopLeft(_world.LocalPlayer, viewportWidth, viewportHeight);
+        }
+        else if (_world.LocalPlayer.IsAlive && GetPlayerIsSniperScoped(_world.LocalPlayer))
         {
             cameraTopLeft = new Vector2(
                 localViewPosition.X + mouseX - viewportWidth,
@@ -126,5 +141,35 @@ public partial class Game1
         return new Vector2(
             scopedCameraCenter.X - (viewportWidth / 2f),
             scopedCameraCenter.Y - (viewportHeight / 2f));
+    }
+
+    private Vector2 GetBinocularsCameraTopLeft(PlayerEntity player, int viewportWidth, int viewportHeight)
+    {
+        var playerPosition = GetRenderPosition(player);
+        var binocularsFocusX = player.BinocularsFocusX;
+        var binocularsFocusY = player.BinocularsFocusY;
+        
+        // Clamp the view distance to max binoculars range
+        var deltaX = binocularsFocusX - playerPosition.X;
+        var deltaY = binocularsFocusY - playerPosition.Y;
+        var distance = MathF.Sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        Vector2 focusPosition;
+        if (distance > PlayerEntity.BinocularsMaxViewDistance)
+        {
+            var scale = PlayerEntity.BinocularsMaxViewDistance / distance;
+            focusPosition = new Vector2(
+                playerPosition.X + deltaX * scale,
+                playerPosition.Y + deltaY * scale);
+        }
+        else
+        {
+            focusPosition = new Vector2(binocularsFocusX, binocularsFocusY);
+        }
+        
+        // Center camera on the focus position
+        return new Vector2(
+            focusPosition.X - (viewportWidth / 2f),
+            focusPosition.Y - (viewportHeight / 2f));
     }
 }

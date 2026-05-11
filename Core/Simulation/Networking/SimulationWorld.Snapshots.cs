@@ -79,6 +79,9 @@ public sealed partial class SimulationWorld
             snapshotPlayer.HeavyEatTicksRemaining,
             snapshotPlayer.IsSniperScoped,
             snapshotPlayer.SniperChargeTicks,
+            snapshotPlayer.IsUsingBinoculars,
+            snapshotPlayer.BinocularsFocusX,
+            snapshotPlayer.BinocularsFocusY,
             snapshotPlayer.FacingDirectionX,
             snapshotPlayer.AimDirectionDegrees,
             snapshotPlayer.AimWorldX,
@@ -157,6 +160,7 @@ public sealed partial class SimulationWorld
     private void ApplySnapshotTransientEntities(SnapshotMessage snapshot)
     {
         ApplySnapshotSentries(snapshot.Sentries);
+        ApplySnapshotSentryUpdates(snapshot.SentryUpdateStates);
         ApplySnapshotJumpPads(snapshot.JumpPads);
         ApplySnapshotShots(
             snapshot.Shots,
@@ -301,16 +305,43 @@ public sealed partial class SimulationWorld
                 state.Health,
                 state.IsBuilt,
                 state.FacingDirectionX,
-                state.DesiredFacingDirectionX,
                 state.AimDirectionDegrees,
-                state.ReloadTicksRemaining,
-                state.AlertTicksRemaining,
                 state.ShotTraceTicksRemaining,
                 state.HasLanded,
                 state.HasActiveTarget,
-                state.CurrentTargetPlayerId < 0 ? null : state.CurrentTargetPlayerId,
                 state.LastShotTargetX,
                 state.LastShotTargetY));
+    }
+
+    private void ApplySnapshotSentryUpdates(IReadOnlyList<SnapshotSentryUpdateState> updates)
+    {
+        if (updates.Count == 0)
+        {
+            return;
+        }
+
+        // Apply lightweight updates to existing sentries
+        for (var index = 0; index < updates.Count; index += 1)
+        {
+            var update = updates[index];
+            var sentry = _sentries.FirstOrDefault(s => s.Id == update.Id);
+            if (sentry is not null)
+            {
+                // Apply only the dynamic fields
+                sentry.ApplyNetworkState(
+                    update.X,
+                    update.Y,
+                    update.Health,
+                    sentry.IsBuilt, // Keep existing static fields
+                    update.FacingDirectionX,
+                    update.AimDirectionDegrees,
+                    update.ShotTraceTicksRemaining,
+                    sentry.HasLanded, // Keep existing static fields
+                    update.HasActiveTarget,
+                    update.LastShotTargetX,
+                    update.LastShotTargetY);
+            }
+        }
     }
 
     private void ApplySnapshotShots<T>(

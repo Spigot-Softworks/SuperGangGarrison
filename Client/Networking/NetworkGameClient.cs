@@ -263,7 +263,15 @@ internal sealed class NetworkGameClient : IDisposable
 
         SendPendingControlCommands();
         var sequence = _nextInputSequence++;
-        var inputMessage = new InputStateMessage(sequence, buttons, input.AimWorldX, input.AimWorldY, _pendingChatBubbleFrameIndex);
+        var inputMessage = new InputStateMessage(
+            sequence, 
+            buttons, 
+            input.AimWorldX, 
+            input.AimWorldY, 
+            _pendingChatBubbleFrameIndex,
+            input.IsUsingBinoculars,
+            input.BinocularsFocusX,
+            input.BinocularsFocusY);
         if (NetworkInputDelayTicks > 0 && !IsLoopbackConnection())
         {
             _pendingDelayedInputs.Enqueue(new PendingDelayedInput(_networkInputTick + (ulong)NetworkInputDelayTicks, inputMessage, sequence));

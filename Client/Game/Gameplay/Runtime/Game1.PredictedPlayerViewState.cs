@@ -47,6 +47,13 @@ public partial class Game1
             : player.IsSniperScoped;
     }
 
+    private bool GetPlayerIsUsingBinoculars(PlayerEntity player)
+    {
+        return IsUsingPredictedLocalState(player)
+            ? _predictedLocalActionState.IsUsingBinoculars
+            : player.IsUsingBinoculars;
+    }
+
     private int GetPlayerSniperChargeTicks(PlayerEntity player)
     {
         return IsUsingPredictedLocalState(player)

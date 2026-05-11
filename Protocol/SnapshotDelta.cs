@@ -32,7 +32,7 @@ public static class SnapshotDelta
             BaselineFrame = 0,
             IsDelta = false,
             Players = MergePlayers(baseline?.Players, snapshot.Players, snapshot.PlayerMovementStates, snapshot.RemovedPlayerIds),
-            Sentries = MergeEntities(baseline?.Sentries, snapshot.Sentries, snapshot.RemovedSentryIds, static state => state.Id),
+            Sentries = MergeSentries(baseline?.Sentries, snapshot.Sentries, snapshot.SentryUpdateStates, snapshot.RemovedSentryIds),
             Shots = MergeEntities(baseline?.Shots, snapshot.Shots, snapshot.RemovedShotIds, static state => state.Id),
             Bubbles = MergeEntities(baseline?.Bubbles, snapshot.Bubbles, snapshot.RemovedBubbleIds, static state => state.Id),
             Blades = MergeEntities(baseline?.Blades, snapshot.Blades, snapshot.RemovedBladeIds, static state => state.Id),
@@ -71,6 +71,7 @@ public static class SnapshotDelta
             BaselineFrame = 0,
             IsDelta = false,
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            SentryUpdateStates = Array.Empty<SnapshotSentryUpdateState>(),
             RemovedPlayerIds = Array.Empty<int>(),
             RemovedSentryIds = Array.Empty<int>(),
             RemovedShotIds = Array.Empty<int>(),
@@ -159,6 +160,71 @@ public static class SnapshotDelta
         }
 
         return mergedBySlot
+            .OrderBy(static entry => entry.Key)
+            .Select(static entry => entry.Value)
+            .ToList();
+    }
+
+    private static List<SnapshotSentryState> MergeSentries(
+        IReadOnlyList<SnapshotSentryState>? baseline,
+        IReadOnlyList<SnapshotSentryState> updates,
+        IReadOnlyList<SnapshotSentryUpdateState> lightweightUpdates,
+        IReadOnlyList<int> removedIds)
+    {
+        var removed = removedIds.Count == 0 ? null : new HashSet<int>(removedIds);
+        var mergedById = new Dictionary<int, SnapshotSentryState>((baseline?.Count ?? 0) + updates.Count);
+
+        if (baseline is not null)
+        {
+            for (var index = 0; index < baseline.Count; index += 1)
+            {
+                var sentry = baseline[index];
+                if (removed?.Contains(sentry.Id) == true)
+                {
+                    continue;
+                }
+
+                mergedById[sentry.Id] = sentry;
+            }
+        }
+
+        // Apply full state updates
+        for (var index = 0; index < updates.Count; index += 1)
+        {
+            var sentry = updates[index];
+            if (removed?.Contains(sentry.Id) == true)
+            {
+                continue;
+            }
+
+            mergedById[sentry.Id] = sentry;
+        }
+
+        // Apply lightweight updates to dynamic fields only
+        for (var index = 0; index < lightweightUpdates.Count; index += 1)
+        {
+            var update = lightweightUpdates[index];
+            if (removed?.Contains(update.Id) == true
+                || !mergedById.TryGetValue(update.Id, out var sentry))
+            {
+                continue;
+            }
+
+            mergedById[update.Id] = sentry with
+            {
+                X = update.X,
+                Y = update.Y,
+                Health = update.Health,
+                FacingDirectionX = update.FacingDirectionX,
+                AimDirectionDegrees = update.AimDirectionDegrees,
+                ShotTraceTicksRemaining = update.ShotTraceTicksRemaining,
+                HasActiveTarget = update.HasActiveTarget,
+                LastShotTargetX = update.LastShotTargetX,
+                LastShotTargetY = update.LastShotTargetY,
+            };
+        }
+
+        return mergedById
             .OrderBy(static entry => entry.Key)
             .Select(static entry => entry.Value)
             .ToList();
