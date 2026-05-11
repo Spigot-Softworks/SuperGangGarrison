@@ -1298,7 +1298,9 @@ public partial class Game1
         // Weighted by circle area (∝ r²): base r=6, horn large r=4 ×2, horn small r=2.5 ×2.
         // Symmetric in X, net Y offset ≈ -3.4 * scale upward from base centre.
         var scale = GetFlameProjectileScale(flame);
-        return new Vector2(flame.X, flame.Y - 3.4f * scale);
+        // Use interpolated render position for smoke spawning consistency
+        var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
+        return new Vector2(renderPosition.X, renderPosition.Y - 3.4f * scale);
     }
 
     private Vector2 GetSpriteFrameCenterOfMass(LoadedSpriteFrame frame)
