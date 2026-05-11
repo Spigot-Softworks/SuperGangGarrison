@@ -54,8 +54,10 @@ public partial class Game1
                 var rightY = forwardX;
                 var rocketScale = rocket.EnableExperimentalStingerTracking ? 1.4f : 1f;
                 var tailDistance = 5f * rocketScale;
-                var anchorX = rocket.X;
-                var anchorY = rocket.Y;
+                // Use interpolated render position for smoke spawning to match rocket visual position
+                var renderPosition = _game.GetRenderPosition(rocket.Id, rocket.X, rocket.Y);
+                var anchorX = renderPosition.X;
+                var anchorY = renderPosition.Y;
 
                 if (!CanEmitBrowserVisual(_game._rocketSmokeVisuals.Count, BrowserRocketSmokeVisualLimit))
                 {
@@ -110,8 +112,8 @@ public partial class Game1
                 {
                     var flameOffset = _game._particleMode == 2 ? 0.9f : 0.55f;
                     _game._blastJumpFlameVisuals.Add(new BlastJumpFlameVisual(
-                        rocket.X - (velocityX * flameOffset),
-                        rocket.Y - (velocityY * flameOffset),
+                        anchorX - (velocityX * flameOffset),
+                        anchorY - (velocityY * flameOffset),
                         velocityX,
                         velocityY,
                         _game._visualRandom.Next(GetBlastJumpFlameMinimumLifetimeTicks(), GetBlastJumpFlameMaximumLifetimeTicks() + 1),
@@ -160,9 +162,11 @@ public partial class Game1
                     continue;
                 }
 
+                // Use interpolated render position for smoke spawning to match flare visual position
+                var renderPosition = _game.GetRenderPosition(flare.Id, flare.X, flare.Y);
                 _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
-                    flare.X - (velocityX * 1.3f),
-                    flare.Y - (velocityY * 1.3f),
+                    renderPosition.X - (velocityX * 1.3f),
+                    renderPosition.Y - (velocityY * 1.3f),
                     ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
                     ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
                     ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
@@ -176,8 +180,8 @@ public partial class Game1
                     && CanEmitBrowserVisual(_game._flameSmokeVisuals.Count, BrowserFlameSmokeVisualLimit))
                 {
                     _game._flameSmokeVisuals.Add(new FlameSmokeVisual(
-                        flare.X - (velocityX * 0.75f),
-                        flare.Y - (velocityY * 0.75f),
+                        renderPosition.X - (velocityX * 0.75f),
+                        renderPosition.Y - (velocityY * 0.75f),
                         ((_game._visualRandom.NextSingle() * 3f) - 1.5f) * FlareSmokeSizeScale,
                         ((_game._visualRandom.NextSingle() * 4f) - 2f) * FlareSmokeSizeScale,
                         ((_game._visualRandom.NextSingle() * 6f) - 3f) * FlareSmokeSizeScale,
