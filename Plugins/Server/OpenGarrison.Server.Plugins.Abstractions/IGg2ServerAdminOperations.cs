@@ -11,6 +11,11 @@ public readonly record struct OpenGarrisonServerBotSlotInfo(
     PlayerClass PlayerClass,
     string DisplayName);
 
+public readonly record struct OpenGarrisonServerDemoRecordingResult(
+    bool Success,
+    string Status,
+    string Error);
+
 public interface IOpenGarrisonServerAdminOperations
 {
     void BroadcastSystemMessage(string text);
@@ -87,4 +92,10 @@ public interface IOpenGarrisonServerAdminOperations
     IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots();
 
     int TryClearAllBots();
+
+    string GetDemoRecordingStatus();
+
+    OpenGarrisonServerDemoRecordingResult TryStartDemoRecording(string? requestedPath);
+
+    OpenGarrisonServerDemoRecordingResult TryStopDemoRecording();
 }

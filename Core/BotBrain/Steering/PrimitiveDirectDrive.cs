@@ -1,0 +1,236 @@
+namespace OpenGarrison.Core.BotBrain;
+
+/// <summary>
+/// Small combat steering overlay for nearby visible enemies.
+/// </summary>
+public static class PrimitiveDirectDrive
+{
+    private const float MaxDriveDistance = 375f;
+    private const float MaxRecoveryEnemyDriveDistance = 900f;
+    private const float HorizontalDeadZone = 18f;
+    private const float RiseJumpThreshold = 24f;
+    private const float WallProbeDistance = 18f;
+    private const float WallProbeThickness = 3f;
+    private const float WallProbeBottomInset = 4f;
+
+    public static bool TryResolve(
+        SimulationWorld world,
+        PlayerEntity self,
+        BotBrainCombatTarget? combatTarget,
+        SteeringOutput pathSteering,
+        out SteeringOutput directSteering,
+        out string trace)
+    {
+        if (combatTarget is not { Kind: BotBrainCombatTargetKind.Player, Player: { } target }
+            || !self.IsAlive
+            || !target.IsAlive)
+        {
+            directSteering = pathSteering;
+            trace = string.Empty;
+            return false;
+        }
+
+        return TryResolveTarget(
+            world,
+            self,
+            new DirectDriveTarget(DirectDriveTargetKind.Enemy, target.X, target.Y, $"enemy player:{target.Id}"),
+            pathSteering,
+            MaxDriveDistance,
+            useCombatRange: false,
+            out directSteering,
+            out trace);
+    }
+
+    public static bool TryResolveRecovery(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput pathSteering,
+        out SteeringOutput directSteering,
+        out string trace)
+    {
+        var maxDistance = target.Kind == DirectDriveTargetKind.Enemy
+            || target.Kind == DirectDriveTargetKind.Carrier
+            || target.Kind == DirectDriveTargetKind.Escort
+            ? MaxRecoveryEnemyDriveDistance
+            : float.PositiveInfinity;
+        return TryResolveTarget(
+            world,
+            self,
+            target,
+            pathSteering,
+            maxDistance,
+            useCombatRange: false,
+            out directSteering,
+            out trace);
+    }
+
+    private static bool TryResolveTarget(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        SteeringOutput pathSteering,
+        float maxDistance,
+        bool useCombatRange,
+        out SteeringOutput directSteering,
+        out string trace)
+    {
+        directSteering = pathSteering;
+        trace = string.Empty;
+
+        if (!self.IsAlive)
+        {
+            return false;
+        }
+
+        var dx = target.X - self.X;
+        var dy = target.Y - self.Y;
+        var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+        if (distance > maxDistance)
+        {
+            return false;
+        }
+
+        var moveDirection = useCombatRange
+            ? ResolveCombatMoveDirection(self, distance, dx)
+            : GetMoveDirection(dx);
+        var jump = ShouldJumpTowardTarget(world, self, target.Y, moveDirection);
+        if (moveDirection == 0 && !jump)
+        {
+            return false;
+        }
+
+        directSteering.MoveDirection = moveDirection;
+        directSteering.Jump = jump || pathSteering.Jump;
+        directSteering.DropDown = false;
+        trace = $"directDrive={target.Label} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+        return true;
+    }
+
+    private static int ResolveCombatMoveDirection(PlayerEntity self, float distance, float dx)
+    {
+        var preferredRange = ResolvePreferredRange(self);
+        if (distance < preferredRange.Min)
+        {
+            return GetMoveDirection(-dx);
+        }
+
+        if (distance > preferredRange.Max)
+        {
+            return GetMoveDirection(dx);
+        }
+
+        return MathF.Abs(dx) > preferredRange.HorizontalTolerance
+            ? GetMoveDirection(dx)
+            : 0;
+    }
+
+    private static (float Min, float Max, float HorizontalTolerance) ResolvePreferredRange(PlayerEntity self)
+    {
+        return self.PrimaryWeapon.Kind switch
+        {
+            PrimaryWeaponKind.Blade => (0f, 56f, 10f),
+            PrimaryWeaponKind.FlameThrower => (0f, 130f, 20f),
+            PrimaryWeaponKind.Minigun => (90f, 260f, 48f),
+            PrimaryWeaponKind.Rifle => (170f, 340f, 72f),
+            PrimaryWeaponKind.RocketLauncher => (120f, 300f, 56f),
+            PrimaryWeaponKind.MineLauncher => (100f, 240f, 56f),
+            PrimaryWeaponKind.Revolver => (80f, 280f, 48f),
+            _ => (70f, 230f, 48f),
+        };
+    }
+
+    private static bool ShouldJumpTowardTarget(
+        SimulationWorld world,
+        PlayerEntity self,
+        float targetY,
+        int moveDirection)
+    {
+        if (!self.IsGrounded)
+        {
+            return false;
+        }
+
+        if (targetY < self.Y - RiseJumpThreshold)
+        {
+            return true;
+        }
+
+        return moveDirection != 0 && WouldMoveIntoObstacle(world, self, moveDirection);
+    }
+
+    private static bool WouldMoveIntoObstacle(SimulationWorld world, PlayerEntity player, int horizontalDirection)
+    {
+        if (horizontalDirection == 0)
+        {
+            return false;
+        }
+
+        var probeLeft = horizontalDirection > 0
+            ? player.Right + WallProbeDistance
+            : player.Left - WallProbeDistance - WallProbeThickness;
+        var probeRight = probeLeft + WallProbeThickness;
+        var probeTop = player.Top;
+        var probeBottom = player.Bottom - WallProbeBottomInset;
+
+        foreach (var solid in world.Level.Solids)
+        {
+            if (RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, solid.Left, solid.Top, solid.Right, solid.Bottom))
+            {
+                return true;
+            }
+        }
+
+        foreach (var gate in world.Level.GetBlockingTeamGates(player.Team, player.IsCarryingIntel))
+        {
+            if (RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, gate.Left, gate.Top, gate.Right, gate.Bottom))
+            {
+                return true;
+            }
+        }
+
+        foreach (var wall in world.Level.RoomObjects)
+        {
+            if ((wall.Type == RoomObjectType.PlayerWall || wall.Type == RoomObjectType.BulletWall)
+                && RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, wall.Left, wall.Top, wall.Right, wall.Bottom))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int GetMoveDirection(float deltaX)
+    {
+        if (MathF.Abs(deltaX) <= HorizontalDeadZone)
+        {
+            return 0;
+        }
+
+        return deltaX > 0f ? 1 : -1;
+    }
+
+    private static bool RectanglesOverlap(float leftA, float topA, float rightA, float bottomA, float leftB, float topB, float rightB, float bottomB)
+    {
+        return leftA <= rightB
+            && rightA >= leftB
+            && topA <= bottomB
+            && bottomA >= topB;
+    }
+}
+
+public enum DirectDriveTargetKind
+{
+    Enemy,
+    Carrier,
+    Intel,
+    Escort,
+    Objective,
+}
+
+public readonly record struct DirectDriveTarget(
+    DirectDriveTargetKind Kind,
+    float X,
+    float Y,
+    string Label);

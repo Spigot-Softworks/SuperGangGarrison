@@ -5,6 +5,7 @@ using DiscordRPC;
 using DiscordRPC.Logging;
 using OpenGarrison.Core;
 using System;
+using System.Globalization;
 using System.Linq;
 #endif
 
@@ -90,6 +91,16 @@ public partial class Game1
 
     private double GetDiscordRichPresencePumpIntervalSeconds()
     {
+        if (_builderEditorEnabled)
+        {
+            return DiscordMenuPumpIntervalSeconds;
+        }
+
+        if (_networkClient.IsConnected && _networkClient.IsReplayConnection)
+        {
+            return DiscordOfflinePumpIntervalSeconds;
+        }
+
         if (_networkClient.IsConnected && _gameplaySessionKind == GameplaySessionKind.Online)
         {
             return DiscordOnlinePumpIntervalSeconds;
@@ -128,6 +139,11 @@ public partial class Game1
 
     private string BuildDiscordRichPresenceState()
     {
+        if (_builderEditorEnabled)
+        {
+            return "garrison_builder";
+        }
+
         if (_mainMenuOpen || _gameplaySessionKind == GameplaySessionKind.None)
         {
             return "main_menu";
@@ -143,6 +159,11 @@ public partial class Game1
             return $"practice:{_world.Level.Name}";
         }
 
+        if (_networkClient.IsConnected && _networkClient.IsReplayConnection)
+        {
+            return $"replay:{_networkClient.ReplayDisplayName}:{_networkClient.ReplayServerName}:{ResolveDiscordReplayMapName()}:{FormatDiscordReplayDate(_networkClient.ReplayDateUtc)}";
+        }
+
         if (_networkClient.IsConnected && _gameplaySessionKind == GameplaySessionKind.Online)
         {
             return $"online:{_networkClient.ServerDescription}:{_world.Level.Name}:{GetDiscordOnlineTakenSlots()}:{_networkClient.ServerMaxPlayerCount}";
@@ -153,6 +174,15 @@ public partial class Game1
 
     private RichPresence BuildDiscordRichPresencePayload(DateTime startTimestampUtc)
     {
+        if (_builderEditorEnabled)
+        {
+            return new RichPresence
+            {
+                Details = "Garrison Builder",
+                Timestamps = new Timestamps(startTimestampUtc)
+            };
+        }
+
         if (_mainMenuOpen || _gameplaySessionKind == GameplaySessionKind.None)
         {
             return new RichPresence
@@ -178,6 +208,16 @@ public partial class Game1
             return new RichPresence
             {
                 Details = $"Practice | {_world.Level.Name}",
+                Timestamps = new Timestamps(startTimestampUtc)
+            };
+        }
+
+        if (_networkClient.IsConnected && _networkClient.IsReplayConnection)
+        {
+            return new RichPresence
+            {
+                Details = "Watching Replay",
+                State = $"{ResolveDiscordReplayServerName()}, {ResolveDiscordReplayMapName()}, {FormatDiscordReplayDate(_networkClient.ReplayDateUtc)}",
                 Timestamps = new Timestamps(startTimestampUtc)
             };
         }
@@ -227,6 +267,46 @@ public partial class Game1
         }
 
         return takenSlots;
+    }
+
+    private string ResolveDiscordReplayServerName()
+    {
+        return FirstNonBlank(
+            _networkClient.ReplayServerName,
+            _networkClient.ServerDescription,
+            _networkClient.ReplayDisplayName,
+            "Replay");
+    }
+
+    private string ResolveDiscordReplayMapName()
+    {
+        return FirstNonBlank(
+            _networkClient.ReplayMapName,
+            _world.Level.Name,
+            "Unknown Map");
+    }
+
+    private static string FormatDiscordReplayDate(DateTime? replayDateUtc)
+    {
+        if (replayDateUtc is null)
+        {
+            return "Unknown Date";
+        }
+
+        return replayDateUtc.Value.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    private static string FirstNonBlank(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return string.Empty;
     }
 
     private static string FormatDiscordDuration(int elapsedTicks, int ticksPerSecond)
@@ -328,7 +408,9 @@ public partial class Game1
             }
 
             if (stateKey.StartsWith("practice:", StringComparison.Ordinal)
-                || stateKey.StartsWith("last_to_die:", StringComparison.Ordinal))
+                || stateKey.StartsWith("last_to_die:", StringComparison.Ordinal)
+                || stateKey.StartsWith("replay:", StringComparison.Ordinal)
+                || stateKey.Equals("garrison_builder", StringComparison.Ordinal))
             {
                 return DiscordOfflineClientUpdateInterval;
             }

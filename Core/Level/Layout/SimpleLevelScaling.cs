@@ -29,7 +29,8 @@ internal static class SimpleLevelScaling
             level.Solids.Select(solid => Scale(solid, clampedScale)).ToArray(),
             level.ImportedFromSource,
             level.AreaTransitionMarkers.Select(marker => Scale(marker, clampedScale)).ToArray(),
-            level.UnsupportedSourceEntities.ToArray())
+            level.UnsupportedSourceEntities.ToArray(),
+            Scale(level.CustomMapVisuals, clampedScale))
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
@@ -54,4 +55,14 @@ internal static class SimpleLevelScaling
     private static LevelSolid Scale(LevelSolid solid, float scale) => new(solid.X * scale, solid.Y * scale, solid.Width * scale, solid.Height * scale);
 
     private static AreaTransitionMarker Scale(AreaTransitionMarker marker, float scale) => new(marker.X * scale, marker.Y * scale, marker.Direction, marker.SourceName);
+
+    private static CustomMapVisualMetadata Scale(CustomMapVisualMetadata metadata, float scale)
+    {
+        if (ReferenceEquals(metadata, CustomMapVisualMetadata.Empty))
+        {
+            return metadata;
+        }
+
+        return metadata with { ImageScale = metadata.ImageScale * scale };
+    }
 }

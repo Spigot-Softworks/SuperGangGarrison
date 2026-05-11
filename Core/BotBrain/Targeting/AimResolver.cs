@@ -25,29 +25,46 @@ public sealed class AimResolver
 
     public (float AimX, float AimY) Resolve(
         PlayerEntity self,
-        PlayerEntity? combatTarget,
+        BotBrainCombatTarget? combatTarget,
+        PlayerEntity? healTarget,
         NavGraph? graph,
         NavPath? path,
         SteeringOutput steering)
     {
-        if (combatTarget is not null && combatTarget.IsAlive)
+        if (healTarget is not null && healTarget.IsAlive)
         {
-            return ResolveCombatAim(self, combatTarget);
+            return ResolvePlayerAim(self, healTarget);
+        }
+
+        if (combatTarget is { } target)
+        {
+            return ResolveCombatAim(self, target);
         }
 
         return ResolveTraversalAim(self, graph, path, steering);
     }
 
-    private (float AimX, float AimY) ResolveCombatAim(PlayerEntity self, PlayerEntity target)
+    private (float AimX, float AimY) ResolveCombatAim(PlayerEntity self, BotBrainCombatTarget target)
+    {
+        return target.Player is { } player
+            ? ResolvePlayerAim(self, player)
+            : ApplyJitter(target.X, target.Y);
+    }
+
+    private (float AimX, float AimY) ResolvePlayerAim(PlayerEntity self, PlayerEntity target)
     {
         // Aim at center-mass with slight upward bias and jitter.
         var targetCenterX = target.X;
         var targetCenterY = target.Y - (target.Height * CombatAimVerticalOffset);
+        return ApplyJitter(targetCenterX, targetCenterY);
+    }
 
+    private (float AimX, float AimY) ApplyJitter(float targetX, float targetY)
+    {
         var jitterX = ((float)_random.NextDouble() - 0.5f) * MaxAimJitter * 2f;
         var jitterY = ((float)_random.NextDouble() - 0.5f) * MaxAimJitter * 2f;
 
-        return (targetCenterX + jitterX, targetCenterY + jitterY);
+        return (targetX + jitterX, targetY + jitterY);
     }
 
     private static (float AimX, float AimY) ResolveTraversalAim(
@@ -56,6 +73,11 @@ public sealed class AimResolver
         NavPath? path,
         SteeringOutput steering)
     {
+        if (steering.HasAimOverride)
+        {
+            return (steering.AimOverrideX, steering.AimOverrideY);
+        }
+
         // If we have a path, aim toward the current waypoint.
         if (graph is not null && path is not null && !path.IsComplete)
         {

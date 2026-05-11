@@ -1,18 +1,18 @@
-﻿{
+{
     "id":  "TimerS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 1.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 2.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 3.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 4.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 5.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 6.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 7.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 8.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 9.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 10.png",
-                       "assets/legacy-sprites/HUDs/Timer/TimerS/image 11.png"
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 0.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 1.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 2.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 3.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 4.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 5.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 6.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 7.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 8.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 9.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 10.png",
+                       "Content/Sprites/HUDs/Timer/TimerS.images/image 11.png"
                    ],
     "originX":  5,
     "originY":  5,

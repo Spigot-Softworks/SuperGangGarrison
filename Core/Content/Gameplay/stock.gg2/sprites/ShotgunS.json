@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ShotgunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/ShotgunS/image 0.png",
-                       "assets/legacy-sprites/Weapons/ShotgunS/image 1.png"
+                       "Content/Sprites/Weapons/ShotgunS.images/image 0.png",
+                       "Content/Sprites/Weapons/ShotgunS.images/image 1.png"
                    ],
     "originX":  8,
     "originY":  -1,

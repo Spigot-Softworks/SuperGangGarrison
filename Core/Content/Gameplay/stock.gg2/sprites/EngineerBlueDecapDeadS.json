@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "EngineerBlueDecapDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueDecapDeadS/image 0.png"
+                       "Content/Sprites/Characters/Engineer/EngineerBlueDecapDeadS.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  40,

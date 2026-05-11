@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "BladeMask",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/BladeMask/image 0.png"
+                       "Content/Sprites/Projectiles/BladeMask.images/image 0.png"
                    ],
     "originX":  6,
     "originY":  6,

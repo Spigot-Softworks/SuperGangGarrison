@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "sprite3",
     "framePaths":  [
-                       "assets/legacy-sprites/Obstacles/sprite3/image 0.png"
+                       "Content/Sprites/Obstacles/sprite3.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

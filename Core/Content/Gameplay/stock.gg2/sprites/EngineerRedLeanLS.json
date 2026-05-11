@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "EngineerRedLeanLS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedLeanLS/image 0.png"
+                       "Content/Sprites/Characters/Engineer/EngineerRedLeanLS.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  40,

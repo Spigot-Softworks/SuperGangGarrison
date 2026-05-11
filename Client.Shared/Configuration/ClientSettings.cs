@@ -26,7 +26,7 @@ public sealed class ClientSettings
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
-    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.MotionProof;
+    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.BotBrain;
 
     public bool IngameMusicEnabled
     {

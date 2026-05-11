@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "gbButtonS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 1.png",
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 2.png",
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 3.png",
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 4.png",
-                       "assets/legacy-sprites/HUDs/Builder/gbButtonS/image 5.png"
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 0.png",
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 1.png",
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 2.png",
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 3.png",
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 4.png",
+                       "Content/Sprites/HUDs/Builder/gbButtonS.images/image 5.png"
                    ],
     "originX":  0,
     "originY":  0,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyBlueDecapDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueDecapDeadS/image 0.png"
+                       "Content/Sprites/Characters/Heavy/HeavyBlueDecapDeadS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  40,

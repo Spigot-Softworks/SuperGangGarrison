@@ -93,6 +93,43 @@ public sealed class CustomMapBuilderDocumentTests
     }
 
     [Fact]
+    public void BuildExportMetadataEmbedsResourceBytesAsLegacyStrings()
+    {
+        var resourceBytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3 };
+        var document = CustomMapBuilderDocument.CreateEmpty("resources") with
+        {
+            Resources = new Dictionary<string, CustomMapBuilderResource>
+            {
+                ["sky"] = new("sky", string.Empty, CustomMapBuilderResourceKind.ParallaxLayer, resourceBytes),
+            },
+            ParallaxLayers =
+            [
+                new CustomMapBuilderParallaxLayer(0, "sky", 0.25f, 0.5f),
+            ],
+        };
+
+        var metadata = document.BuildExportMetadata();
+        var decoded = CustomMapBuilderResourceCodec.DecodeLegacyString(metadata["bg_layer0"]);
+
+        Assert.Equal(resourceBytes, decoded);
+        Assert.Equal(resourceBytes, CustomMapBuilderResourceCodec.DecodeLegacyString(metadata["sky"]));
+        Assert.Equal("0.25", metadata["layer0xfactor"]);
+        Assert.Equal("0.5", metadata["layer0yfactor"]);
+    }
+
+    [Fact]
+    public void ResourceCodecRejectsNonImageLegacyStrings()
+    {
+        var decoded = CustomMapBuilderResourceCodec.TryDecodeLegacyString(
+            "bad",
+            "not image data",
+            CustomMapBuilderResourceKind.GenericImage,
+            out _);
+
+        Assert.False(decoded);
+    }
+
+    [Fact]
     public void EntityCatalogIncludesLegacyBuilderInitEntitiesAndDefaults()
     {
         Assert.True(CustomMapBuilderEntityCatalog.TryGetDefinition("redspawn4", out var redSpawn4));

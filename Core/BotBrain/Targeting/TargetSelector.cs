@@ -9,12 +9,20 @@ public static class TargetSelector
     /// <summary>
     /// Maximum engagement distance. Beyond this, the bot won't try to fight.
     /// </summary>
-    private const float MaxEngagementRange = 600f;
+    private const float MaxEngagementRange = 375f;
 
     /// <summary>
     /// Find the best target to engage, or null if no valid target exists.
     /// </summary>
     public static PlayerEntity? SelectTarget(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam ownTeam)
+    {
+        return SelectCombatTarget(self, world, ownTeam)?.Player;
+    }
+
+    public static BotBrainCombatTarget? SelectCombatTarget(
         PlayerEntity self,
         SimulationWorld world,
         PlayerTeam ownTeam)
@@ -25,39 +33,75 @@ public static class TargetSelector
         }
 
         var opposingTeam = ownTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-        PlayerEntity? bestTarget = null;
-        var bestDistSq = MaxEngagementRange * MaxEngagementRange;
+        BotBrainCombatTarget? bestTarget = null;
+        var bestDistance = ResolveMaxEngagementRange(self);
 
-        // Check all network player slots.
-        for (var slotIndex = 0; slotIndex < SimulationWorld.NetworkPlayerSlots.Count; slotIndex++)
+        foreach (var generator in world.Generators)
         {
-            var slot = SimulationWorld.NetworkPlayerSlots[slotIndex];
-            if (!world.TryGetNetworkPlayer(slot, out var candidate))
+            if (generator.Team == ownTeam || generator.IsDestroyed)
             {
                 continue;
             }
 
+            var targetX = generator.Marker.CenterX;
+            var targetY = generator.Marker.CenterY;
+            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, targetX, targetY, self.Team, self.IsCarryingIntel))
+            {
+                continue;
+            }
+
+            var distance = Distance(self.X, self.Y, targetX, targetY);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Generator, generator.Team, targetX, targetY, Generator: generator);
+        }
+
+        foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
+        {
             if (!IsValidTarget(candidate, self, opposingTeam))
             {
                 continue;
             }
 
-            var distSq = DistanceSquared(self, candidate);
-            if (distSq < bestDistSq)
+            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, candidate.X, candidate.Y, self.Team, self.IsCarryingIntel))
             {
-                bestDistSq = distSq;
-                bestTarget = candidate;
+                continue;
             }
+
+            var distance = Distance(self.X, self.Y, candidate.X, candidate.Y);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Player, candidate.Team, candidate.X, candidate.Y, Player: candidate);
         }
 
-        // Also check enemy dummy if enabled.
-        if (world.EnemyPlayerEnabled && IsValidTarget(world.EnemyPlayer, self, opposingTeam))
+        foreach (var sentry in world.Sentries)
         {
-            var distSq = DistanceSquared(self, world.EnemyPlayer);
-            if (distSq < bestDistSq)
+            if (sentry.Team == ownTeam || sentry.Health <= 0)
             {
-                bestTarget = world.EnemyPlayer;
+                continue;
             }
+
+            if (!CombatDecisionResolver.HasLineOfSight(world, self.X, self.Y, sentry.X, sentry.Y, self.Team, self.IsCarryingIntel))
+            {
+                continue;
+            }
+
+            var distance = Distance(self.X, self.Y, sentry.X, sentry.Y);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestTarget = new BotBrainCombatTarget(BotBrainCombatTargetKind.Sentry, sentry.Team, sentry.X, sentry.Y, Sentry: sentry);
         }
 
         return bestTarget;
@@ -70,7 +114,8 @@ public static class TargetSelector
             return false;
         }
 
-        if (candidate.Team != opposingTeam)
+        var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
+        if (candidate.Team != opposingTeam && !treatAsFriendlyFireTarget)
         {
             return false;
         }
@@ -84,10 +129,15 @@ public static class TargetSelector
         return true;
     }
 
-    private static float DistanceSquared(PlayerEntity a, PlayerEntity b)
+    private static float Distance(float ax, float ay, float bx, float by)
     {
-        var dx = b.X - a.X;
-        var dy = b.Y - a.Y;
-        return (dx * dx) + (dy * dy);
+        var dx = bx - ax;
+        var dy = by - ay;
+        return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    private static float ResolveMaxEngagementRange(PlayerEntity self)
+    {
+        return self.ClassId == PlayerClass.Sniper ? 760f : MaxEngagementRange;
     }
 }

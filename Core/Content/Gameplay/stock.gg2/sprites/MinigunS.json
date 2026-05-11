@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "MinigunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/MinigunS/image 0.png",
-                       "assets/legacy-sprites/Weapons/MinigunS/image 1.png"
+                       "Content/Sprites/Weapons/MinigunS.images/image 0.png",
+                       "Content/Sprites/Weapons/MinigunS.images/image 1.png"
                    ],
     "originX":  14,
     "originY":  3,

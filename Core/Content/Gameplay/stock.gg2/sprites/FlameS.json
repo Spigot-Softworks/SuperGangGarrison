@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "FlameS",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/FlameS/image 0.png",
-                       "assets/legacy-sprites/Projectiles/FlameS/image 1.png",
-                       "assets/legacy-sprites/Projectiles/FlameS/image 2.png",
-                       "assets/legacy-sprites/Projectiles/FlameS/image 3.png"
+                       "Content/Sprites/Projectiles/FlameS.images/image 0.png",
+                       "Content/Sprites/Projectiles/FlameS.images/image 1.png",
+                       "Content/Sprites/Projectiles/FlameS.images/image 2.png",
+                       "Content/Sprites/Projectiles/FlameS.images/image 3.png"
                    ],
     "originX":  10,
     "originY":  9,

@@ -1,10 +1,10 @@
 {
     "id":  "MedigunCritS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/MedigunCritS/image 0.png",
-                       "assets/legacy-sprites/Weapons/MedigunCritS/image 1.png",
-                       "assets/legacy-sprites/Weapons/MedigunCritS/image 2.png",
-                       "assets/legacy-sprites/Weapons/MedigunCritS/image 3.png"
+                       "Content/Sprites/Weapons/MedigunCritS.images/image 0.png",
+                       "Content/Sprites/Weapons/MedigunCritS.images/image 1.png",
+                       "Content/Sprites/Weapons/MedigunCritS.images/image 2.png",
+                       "Content/Sprites/Weapons/MedigunCritS.images/image 3.png"
                    ],
     "originX":  8,
     "originY":  3,

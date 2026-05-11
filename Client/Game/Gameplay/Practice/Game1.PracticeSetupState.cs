@@ -120,6 +120,7 @@ public partial class Game1
 
         public static List<PracticeMapEntry> BuildMapEntries()
         {
+            SimpleLevelFactory.ClearCachedCatalog();
             var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
                 .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
 

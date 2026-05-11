@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "MontaneS",
     "framePaths":  [
-                       "assets/legacy-sprites/Collision Maps/MontaneS/image 0.png"
+                       "Content/Sprites/Collision Maps/MontaneS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

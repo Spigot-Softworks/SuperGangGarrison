@@ -26,6 +26,7 @@ internal static class SnapshotDeltaBudgeter
         PlayerRosterUpdate,
         PlayerRemoval,
         EntityRemoval,
+        ProjectileSpawn,
     }
 
     internal sealed record Contribution(
@@ -94,6 +95,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.EntityRemoval,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
@@ -444,7 +451,6 @@ internal static class SnapshotDeltaBudgeter
         static builder => builder.CombatTraces.Clear(),
         static builder =>
         {
-            builder.PlayerGibs.Clear();
             builder.GibSpawnEvents.Clear();
             builder.SentryGibs.Clear();
             builder.DeadBodies.Clear();
@@ -457,8 +463,6 @@ internal static class SnapshotDeltaBudgeter
             builder.Needles.Clear();
             builder.RevolverShots.Clear();
             builder.Shots.Clear();
-            // Drop damage events only after cosmetic projectiles are gone
-            builder.DamageEvents.Clear();
         },
         static builder =>
         {
@@ -471,7 +475,6 @@ internal static class SnapshotDeltaBudgeter
         static builder =>
         {
             builder.RemovedPlayerIds.Clear();
-            builder.RemovedPlayerGibIds.Clear();
             builder.RemovedSentryGibIds.Clear();
             builder.RemovedJumpPadIds.Clear();
             builder.RemovedDeadBodyIds.Clear();

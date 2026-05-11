@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "EngineerRedS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedS/image 0.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedS/image 1.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedS/image 2.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedS/image 3.png"
+                       "Content/Sprites/Characters/Engineer/EngineerRedS.images/image 0.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedS.images/image 1.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedS.images/image 2.png",
+                       "Content/Sprites/Characters/Engineer/EngineerRedS.images/image 3.png"
                    ],
     "originX":  32,
     "originY":  40,

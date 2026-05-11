@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "MedicRedDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Medic/MedicRedDeadS/image 0.png"
+                       "Content/Sprites/Characters/Medic/MedicRedDeadS.images/image 0.png"
                    ],
     "originX":  27,
     "originY":  40,

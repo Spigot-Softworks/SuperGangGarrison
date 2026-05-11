@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "DeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/DeadS/image 0.png"
+                       "Content/Sprites/InGameElements/DeadS.images/image 0.png"
                    ],
     "originX":  6,
     "originY":  4,

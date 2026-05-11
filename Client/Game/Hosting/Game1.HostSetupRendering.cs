@@ -86,7 +86,7 @@ public partial class Game1
             DrawHostSetupContentBlock(layout, settingsSection, new Color(46, 40, 35, 170));
         }
 
-        DrawHostSetupContentText(layout, "Stock Map Rotation", new Vector2(listBounds.X, listBounds.Y - 24f), Color.White, 1f);
+        DrawHostSetupContentText(layout, "Map Rotation", new Vector2(listBounds.X, listBounds.Y - 24f), Color.White, 1f);
         if (_hostMapEntries.Count > layout.VisibleRowCapacity)
         {
             var visibleStart = _hostMapScrollOffset + 1;
@@ -149,7 +149,8 @@ public partial class Game1
 
             var rowTextY = rowBounds.Y + (compactLayout ? 4f : 6f);
             DrawHostSetupContentText(layout, orderLabel, new Vector2(listBounds.X + 10f, rowTextY), Color.White, rowScale);
-            DrawHostSetupContentText(layout, entry.DisplayName, new Vector2(listBounds.X + (compactLayout ? 54f : 78f), rowTextY), Color.White, rowScale);
+            var displayName = entry.IsCustomMap ? $"{entry.DisplayName} (Custom)" : entry.DisplayName;
+            DrawHostSetupContentText(layout, displayName, new Vector2(listBounds.X + (compactLayout ? 54f : 78f), rowTextY), Color.White, rowScale);
             DrawHostSetupContentText(layout, modeLabel, new Vector2(listBounds.Right - (compactLayout ? 98f : 112f), rowTextY), new Color(210, 210, 210), rowScale);
             DrawHostSetupContentText(layout, enabledLabel, new Vector2(listBounds.Right - (compactLayout ? 40f : 50f), rowTextY), enabledColor, rowScale);
         }

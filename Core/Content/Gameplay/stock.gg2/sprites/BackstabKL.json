@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "BackstabKL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/BackstabKL/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/BackstabKL/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/BackstabKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/BackstabKL.images/image 1.png"
                    ],
     "originX":  7,
     "originY":  6,

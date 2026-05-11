@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "TimerOutlineS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Timer/TimerOutlineS/image 0.png"
+                       "Content/Sprites/HUDs/Timer/TimerOutlineS.images/image 0.png"
                    ],
     "originX":  23,
     "originY":  9,

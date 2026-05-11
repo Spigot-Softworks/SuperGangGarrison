@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "sprite74",
     "framePaths":  [
-                       "assets/legacy-sprites/MapElements/sprite74/image 0.png"
+                       "Content/Sprites/MapElements/sprite74.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

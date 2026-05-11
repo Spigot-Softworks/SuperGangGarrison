@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "MineReflectKL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/MineReflectKL/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/MineReflectKL/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/MineReflectKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/MineReflectKL.images/image 1.png"
                    ],
     "originX":  15,
     "originY":  6,

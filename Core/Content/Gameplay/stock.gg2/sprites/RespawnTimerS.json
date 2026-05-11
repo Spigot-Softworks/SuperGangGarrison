@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "RespawnTimerS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Timer/RespawnTimerS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Timer/RespawnTimerS/image 1.png"
+                       "Content/Sprites/HUDs/Timer/RespawnTimerS.images/image 0.png",
+                       "Content/Sprites/HUDs/Timer/RespawnTimerS.images/image 1.png"
                    ],
     "originX":  62,
     "originY":  11,

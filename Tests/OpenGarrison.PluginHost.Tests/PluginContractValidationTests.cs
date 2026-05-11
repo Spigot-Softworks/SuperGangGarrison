@@ -564,6 +564,12 @@ public sealed class PluginContractValidationTests
         public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
 
         public int TryClearAllBots() => 0;
+
+        public string GetDemoRecordingStatus() => "[server] demo | status=idle";
+
+        public OpenGarrisonServerDemoRecordingResult TryStartDemoRecording(string? requestedPath) => new(true, "[server] demo recording started: test.ogdemo", string.Empty);
+
+        public OpenGarrisonServerDemoRecordingResult TryStopDemoRecording() => new(true, "[server] demo recording stopped: test.ogdemo", string.Empty);
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

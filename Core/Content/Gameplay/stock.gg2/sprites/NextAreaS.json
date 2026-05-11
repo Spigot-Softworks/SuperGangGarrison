@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "NextAreaS",
     "framePaths":  [
-                       "assets/legacy-sprites/MapElements/NextAreaS/image 0.png"
+                       "Content/Sprites/MapElements/NextAreaS.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  16,

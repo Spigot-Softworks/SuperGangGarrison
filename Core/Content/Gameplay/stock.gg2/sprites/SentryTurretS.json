@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "SentryTurretS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/SentryTurretS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/SentryTurretS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/SentryTurretS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/SentryTurretS/image 3.png"
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 0.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 1.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 2.png",
+                       "Content/Sprites/InGameElements/SentryTurretS.images/image 3.png"
                    ],
     "originX":  15,
     "originY":  12,

@@ -6,6 +6,9 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public static class ObjectiveEvaluator
 {
+    private const float SniperDroppedIntelInterestDistance = 520f;
+    private const float ObjectiveAllyIntelPressureDistance = 640f;
+
     /// <summary>
     /// Determine the bot's current goal position based on game mode and state.
     /// Returns a world (X, Y) position the bot should navigate toward.
@@ -18,11 +21,11 @@ public static class ObjectiveEvaluator
     {
         return world.MatchRules.Mode switch
         {
-            GameModeKind.CaptureTheFlag => EvaluateCTFGoal(self, world, ownTeam),
+            GameModeKind.CaptureTheFlag => EvaluateCTFGoal(self, world, ownTeam, combatTarget),
             GameModeKind.Arena => EvaluateArenaGoal(self, world),
             GameModeKind.ControlPoint => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.KingOfTheHill => EvaluateControlPointGoal(self, world, ownTeam),
-            GameModeKind.DoubleKingOfTheHill => EvaluateControlPointGoal(self, world, ownTeam),
+            GameModeKind.DoubleKingOfTheHill => EvaluateDoubleKingOfTheHillGoal(self, world, ownTeam),
             GameModeKind.Generator => EvaluateGeneratorGoal(self, world, ownTeam),
             GameModeKind.TeamDeathmatch => EvaluateTDMGoal(self, world, ownTeam),
             _ => EvaluateTDMGoal(self, world, ownTeam),
@@ -32,9 +35,18 @@ public static class ObjectiveEvaluator
     private static (float X, float Y) EvaluateCTFGoal(
         PlayerEntity self,
         SimulationWorld world,
-        PlayerTeam ownTeam)
+        PlayerTeam ownTeam,
+        PlayerEntity? combatTarget)
     {
         var level = world.Level;
+
+        if (self.ClassId == PlayerClass.Sniper
+            && combatTarget is not null
+            && !self.IsCarryingIntel
+            && HasOtherAllyAvailableForObjective(self, world, ownTeam))
+        {
+            return (self.X, self.Y);
+        }
 
         // If carrying intel, go to our own base.
         if (self.IsCarryingIntel)
@@ -44,6 +56,49 @@ public static class ObjectiveEvaluator
             {
                 return (ownBase.Value.X, ownBase.Value.Y);
             }
+        }
+
+        var enemyIntel = GetEnemyIntelState(world, ownTeam);
+        if (enemyIntel.IsDropped)
+        {
+            if (self.ClassId == PlayerClass.Sniper
+                && Distance(self.X, self.Y, enemyIntel.X, enemyIntel.Y) > SniperDroppedIntelInterestDistance
+                && HasOtherAllyAvailableForObjective(self, world, ownTeam))
+            {
+                return EvaluateSniperFallbackGoal(self, world);
+            }
+
+            return (enemyIntel.X, enemyIntel.Y);
+        }
+
+        var ownIntel = GetOwnIntelState(world, ownTeam);
+        if (ownIntel.IsDropped)
+        {
+            if (self.ClassId == PlayerClass.Sniper
+                && Distance(self.X, self.Y, ownIntel.X, ownIntel.Y) > SniperDroppedIntelInterestDistance
+                && HasOtherAllyAvailableForObjective(self, world, ownTeam))
+            {
+                return EvaluateSniperFallbackGoal(self, world);
+            }
+
+            return (ownIntel.X, ownIntel.Y);
+        }
+
+        foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
+        {
+            if (candidate.IsAlive
+                && candidate.Id != self.Id
+                && candidate.Team == ownTeam
+                && candidate.IsCarryingIntel)
+            {
+                return (candidate.X, candidate.Y);
+            }
+        }
+
+        if (self.ClassId == PlayerClass.Sniper
+            && HasOtherAllyAvailableForObjective(self, world, ownTeam))
+        {
+            return EvaluateSniperFallbackGoal(self, world);
         }
 
         // Otherwise, go grab the enemy intel.
@@ -56,6 +111,64 @@ public static class ObjectiveEvaluator
 
         // Fallback: go to center of the map.
         return (level.Bounds.Width * 0.5f, level.Bounds.Height * 0.5f);
+    }
+
+    private static bool HasOtherAllyAvailableForObjective(PlayerEntity self, SimulationWorld world, PlayerTeam ownTeam)
+    {
+        foreach (var candidate in CombatDecisionResolver.EnumeratePlayers(world))
+        {
+            if (candidate.IsAlive
+                && candidate.Id != self.Id
+                && candidate.Team == ownTeam
+                && candidate.ClassId != PlayerClass.Sniper
+                && IsAllyApplyingObjectivePressure(candidate, world, ownTeam))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAllyApplyingObjectivePressure(PlayerEntity candidate, SimulationWorld world, PlayerTeam ownTeam)
+    {
+        if (candidate.IsCarryingIntel)
+        {
+            return true;
+        }
+
+        var enemyIntel = GetEnemyIntelState(world, ownTeam);
+        if (!enemyIntel.IsCarried
+            && Distance(candidate.X, candidate.Y, enemyIntel.X, enemyIntel.Y) <= ObjectiveAllyIntelPressureDistance)
+        {
+            return true;
+        }
+
+        var ownIntel = GetOwnIntelState(world, ownTeam);
+        return ownIntel.IsDropped
+            && Distance(candidate.X, candidate.Y, ownIntel.X, ownIntel.Y) <= ObjectiveAllyIntelPressureDistance;
+    }
+
+    private static (float X, float Y) EvaluateSniperFallbackGoal(PlayerEntity self, SimulationWorld world)
+    {
+        return (self.X, self.Y);
+    }
+
+    private static TeamIntelligenceState GetEnemyIntelState(SimulationWorld world, PlayerTeam team)
+    {
+        return team == PlayerTeam.Blue ? world.RedIntel : world.BlueIntel;
+    }
+
+    private static TeamIntelligenceState GetOwnIntelState(SimulationWorld world, PlayerTeam team)
+    {
+        return team == PlayerTeam.Blue ? world.BlueIntel : world.RedIntel;
+    }
+
+    private static float Distance(float ax, float ay, float bx, float by)
+    {
+        var dx = bx - ax;
+        var dy = by - ay;
+        return MathF.Sqrt((dx * dx) + (dy * dy));
     }
 
     private static (float X, float Y) EvaluateArenaGoal(
@@ -101,6 +214,82 @@ public static class ObjectiveEvaluator
         }
 
         return (world.Level.Bounds.Width * 0.5f, world.Level.Bounds.Height * 0.5f);
+    }
+
+    private static (float X, float Y) EvaluateDoubleKingOfTheHillGoal(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam ownTeam)
+    {
+        var ownPoint = ResolveDualKothPoint(world, ownTeam);
+        var enemyTeam = GetOpposingTeam(ownTeam);
+        var enemyPoint = ResolveDualKothPoint(world, enemyTeam);
+
+        if (ownPoint is not null
+            && (ownPoint.Team != ownTeam || ownPoint.CappingTeam.HasValue))
+        {
+            return GetControlPointGoal(ownPoint);
+        }
+
+        if (enemyPoint is not null
+            && (enemyPoint.Team != ownTeam || enemyPoint.CappingTeam.HasValue))
+        {
+            return GetControlPointGoal(enemyPoint);
+        }
+
+        if (ownPoint is not null)
+        {
+            return GetControlPointGoal(ownPoint);
+        }
+
+        return EvaluateControlPointGoal(self, world, ownTeam);
+    }
+
+    private static ControlPointState? ResolveDualKothPoint(SimulationWorld world, PlayerTeam homeTeam)
+    {
+        for (var index = 0; index < world.ControlPoints.Count; index += 1)
+        {
+            var point = world.ControlPoints[index];
+            var marker = point.Marker;
+            if ((homeTeam == PlayerTeam.Red && marker.IsRedKothControlPoint())
+                || (homeTeam == PlayerTeam.Blue && marker.IsBlueKothControlPoint()))
+            {
+                return point;
+            }
+        }
+
+        if (world.ControlPoints.Count != 2)
+        {
+            return null;
+        }
+
+        ControlPointState? left = null;
+        ControlPointState? right = null;
+        for (var index = 0; index < world.ControlPoints.Count; index += 1)
+        {
+            var point = world.ControlPoints[index];
+            if (left is null || point.Marker.CenterX < left.Marker.CenterX)
+            {
+                left = point;
+            }
+
+            if (right is null || point.Marker.CenterX > right.Marker.CenterX)
+            {
+                right = point;
+            }
+        }
+
+        return homeTeam == PlayerTeam.Red ? left : right;
+    }
+
+    private static PlayerTeam GetOpposingTeam(PlayerTeam team)
+    {
+        return team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+    }
+
+    private static (float X, float Y) GetControlPointGoal(ControlPointState point)
+    {
+        return (point.HealingAuraCenterX, point.HealingAuraCenterY);
     }
 
     private static (float X, float Y) EvaluateGeneratorGoal(

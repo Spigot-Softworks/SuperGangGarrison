@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "NutsNBoltsHudS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/NutsNBoltsHudS/image 0.png",
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/NutsNBoltsHudS/image 1.png"
+                       "Content/Sprites/HUDs/WeaponHUDS/Engineer/NutsNBoltsHudS.images/image 0.png",
+                       "Content/Sprites/HUDs/WeaponHUDS/Engineer/NutsNBoltsHudS.images/image 1.png"
                    ],
     "originX":  19,
     "originY":  9,

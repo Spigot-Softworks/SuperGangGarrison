@@ -1,0 +1,11 @@
+namespace OpenGarrison.Core.BotBrain;
+
+public enum BotRole
+{
+    None = 0,
+    AttackObjective = 1,
+    DefendObjective = 2,
+    EscortCarrier = 3,
+    ReturnWithIntel = 5,
+    ContestArena = 6,
+}

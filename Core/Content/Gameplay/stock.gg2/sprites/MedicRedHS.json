@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "MedicRedHS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 0.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 1.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 2.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 3.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 4.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedHS/image 5.png"
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 0.png",
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 1.png",
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 2.png",
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 3.png",
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 4.png",
+                       "Content/Sprites/Characters/Medic/MedicRedHS.images/image 5.png"
                    ],
     "originX":  27,
     "originY":  40,

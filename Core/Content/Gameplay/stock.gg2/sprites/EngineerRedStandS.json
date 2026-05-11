@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "EngineerRedStandS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedStandS/image 0.png"
+                       "Content/Sprites/Characters/Engineer/EngineerRedStandS.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  40,

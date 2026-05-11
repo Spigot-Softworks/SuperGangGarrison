@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ControlPointLockS",
     "framePaths":  [
-                       "assets/legacy-sprites/MapElements/ControlPointLockS/image 0.png"
+                       "Content/Sprites/MapElements/ControlPointLockS.images/image 0.png"
                    ],
     "originX":  4,
     "originY":  5,

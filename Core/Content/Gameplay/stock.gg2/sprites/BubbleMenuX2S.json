@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "BubbleMenuX2S",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Menus/BubbleMenuX2S/image 0.png",
-                       "assets/legacy-sprites/HUDs/Menus/BubbleMenuX2S/image 1.png"
+                       "Content/Sprites/HUDs/Menus/BubbleMenuX2S.images/image 0.png",
+                       "Content/Sprites/HUDs/Menus/BubbleMenuX2S.images/image 1.png"
                    ],
     "originX":  31,
     "originY":  126,

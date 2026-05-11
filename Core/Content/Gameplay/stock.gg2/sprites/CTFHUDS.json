@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "CTFHUDS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/CTFHUDS/image 0.png"
+                       "Content/Sprites/HUDs/Gamemode HUDS/CTF/CTFHUDS.images/image 0.png"
                    ],
     "originX":  57,
     "originY":  72,

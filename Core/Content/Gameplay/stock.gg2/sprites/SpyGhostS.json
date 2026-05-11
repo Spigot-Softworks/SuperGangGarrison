@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "SpyGhostS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 0.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 1.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 2.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 3.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 4.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyGhostS/image 5.png"
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 0.png",
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 1.png",
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 2.png",
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 3.png",
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 4.png",
+                       "Content/Sprites/Characters/Spy/SpyGhostS.images/image 5.png"
                    ],
     "originX":  28,
     "originY":  40,

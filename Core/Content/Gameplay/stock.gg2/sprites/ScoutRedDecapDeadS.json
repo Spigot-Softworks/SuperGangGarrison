@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ScoutRedDecapDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedDecapDeadS/image 0.png"
+                       "Content/Sprites/Characters/Scout/ScoutRedDecapDeadS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

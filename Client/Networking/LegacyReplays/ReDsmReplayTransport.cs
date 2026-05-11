@@ -18,6 +18,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
     private readonly long _ticksPerSecond;
     private readonly string _remoteDescription;
     private readonly string _completionReason;
+    private readonly string _playbackDisplayName;
+    private readonly string _playbackServerName;
+    private readonly string _playbackMapName;
+    private readonly DateTime? _playbackDateUtc;
 
     private int _nextPayloadIndex;
     private bool _disconnectAvailable;
@@ -30,10 +34,18 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
     private ReDsmReplayTransport(
         string remoteDescription,
         string completionReason,
+        string playbackDisplayName,
+        string playbackServerName,
+        string playbackMapName,
+        DateTime? playbackDateUtc,
         List<ScheduledReplayPayload> payloads)
     {
         _remoteDescription = remoteDescription;
         _completionReason = completionReason;
+        _playbackDisplayName = playbackDisplayName;
+        _playbackServerName = playbackServerName;
+        _playbackMapName = playbackMapName;
+        _playbackDateUtc = playbackDateUtc;
         _payloads = payloads;
         _ticksPerSecond = Stopwatch.Frequency;
         _lastPlaybackTimestamp = Stopwatch.GetTimestamp();
@@ -64,6 +76,14 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
     public int CurrentTick => _nextPayloadIndex <= 0 ? 0 : Math.Max(0, _nextPayloadIndex - 1);
 
     public int TotalTicks => Math.Max(0, _payloads.Count - 1);
+
+    public string PlaybackDisplayName => _playbackDisplayName;
+
+    public string PlaybackServerName => _playbackServerName;
+
+    public string PlaybackMapName => _playbackMapName;
+
+    public DateTime? PlaybackDateUtc => _playbackDateUtc;
 
     public bool TryReceive(out byte[] payload)
     {
@@ -147,6 +167,10 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
             transport = new ReDsmReplayTransport(
                 $"replay:{Path.GetFileName(translation.ResolvedReplayPath)}",
                 "Replay ended.",
+                Path.GetFileName(translation.ResolvedReplayPath),
+                translation.Replay.Header.ServerName,
+                translation.Replay.Header.MapName,
+                File.GetLastWriteTimeUtc(translation.ResolvedReplayPath),
                 translation.Timeline.Payloads);
             return true;
         }

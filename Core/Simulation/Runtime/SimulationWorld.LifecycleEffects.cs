@@ -67,6 +67,13 @@ public sealed partial class SimulationWorld
         }
     }
 
+    public void SpawnClientPlayerGibsFromNetworkDeath(PlayerEntity player)
+    {
+        SpawnPlayerGibsForNetworkDeath(player);
+        RegisterVisualEffect("GibBlood", player.X, player.Y, count: DefaultGibLevel);
+        SpawnBloodDrops(player.X, player.Y, DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen);
+    }
+
     private void SpawnPlayerGibSet(
         PlayerEntity player,
         string spriteName,

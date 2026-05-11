@@ -1,6 +1,6 @@
 #nullable enable
 
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 using System;
 using System.Collections.Generic;
@@ -39,9 +39,9 @@ public partial class Game1
     private readonly Dictionary<byte, PlayerInputSnapshot> _browserPracticeBotInputCache = new();
     private readonly Dictionary<byte, ControlledBotSlot> _controlledPracticeBotSlotsBuffer = new();
     private readonly PracticeBotDisplayNamePool _practiceBotDisplayNamePool = new();
-    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so the practice session can select MotionProof, Modern, or ML controllers without leaking implementation details into the client plumbing.")]
-    private IPracticeBotController _practiceBotController = new MotionProofPracticeBotController();
-    private string _practiceBotControllerSelectionKey = nameof(OfflineBotControllerMode.MotionProof);
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Practice bots intentionally sit behind a controller seam so client and server bot plumbing stay aligned on the BotBrain entry point.")]
+    private IPracticeBotController _practiceBotController = new BotBrainPracticeBotController();
+    private string _practiceBotControllerSelectionKey = nameof(OfflineBotControllerMode.BotBrain);
     private static readonly (PlayerClass Medic, PlayerClass Partner)[] LastToDieOpeningEnemyCombos =
     [
         (PlayerClass.Medic, PlayerClass.Heavy),
@@ -636,7 +636,7 @@ public partial class Game1
 
     private static string DescribeNavEditorScoreTrioClasses()
     {
-        return string.Join("/", NavEditorScoreTrioClasses.Select(BotNavigationClasses.GetShortLabel));
+        return string.Join("/", NavEditorScoreTrioClasses.Select(static classId => classId.ToString()));
     }
 
     private void ResetPracticeBotControllerState()
@@ -686,21 +686,6 @@ public partial class Game1
 
     private static (string SelectionKey, IPracticeBotController Controller) CreatePracticeBotController()
     {
-        var botController = Environment.GetEnvironmentVariable("OG_BOT_CONTROLLER");
-        if (string.Equals(botController, "motion_proof", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(botController, "MotionProof", StringComparison.OrdinalIgnoreCase))
-        {
-            return (nameof(OfflineBotControllerMode.MotionProof), new MotionProofPracticeBotController());
-        }
-
-        if (string.Equals(botController, "modern", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(botController, "ModernGraphRoute", StringComparison.OrdinalIgnoreCase))
-        {
-            return (nameof(OfflineBotControllerMode.ModernGraphRoute), new ModernPracticeBotController());
-        }
-
-        return ("AdaptiveMapPolicy", new AdaptiveMapPracticeBotController(
-            new MotionProofPracticeBotController(),
-            new ModernPracticeBotController()));
+        return (nameof(OfflineBotControllerMode.BotBrain), new BotBrainPracticeBotController());
     }
 }

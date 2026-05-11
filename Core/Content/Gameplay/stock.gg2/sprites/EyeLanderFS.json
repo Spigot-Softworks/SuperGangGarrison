@@ -1,14 +1,14 @@
-﻿{
+{
     "id":  "EyeLanderFS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 0.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 1.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 2.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 3.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 4.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 5.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 6.png",
-                       "assets/legacy-sprites/Weapons/Firing/EyeLanderFS/image 7.png"
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 0.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 1.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 2.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 3.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 4.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 5.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 6.png",
+                       "Content/Sprites/Weapons/Firing/EyeLanderFS.images/image 7.png"
                    ],
     "originX":  11,
     "originY":  33,

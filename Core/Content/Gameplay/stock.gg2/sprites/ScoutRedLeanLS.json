@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ScoutRedLeanLS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedLeanLS/image 0.png"
+                       "Content/Sprites/Characters/Scout/ScoutRedLeanLS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

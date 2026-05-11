@@ -88,13 +88,43 @@ public sealed class NavGraph
             : FindNearestTraversalStartNode(x, y);
     }
 
+    public bool IsOnAcceptedCompletionSurface(float x, float y, NavEdgeCompletion completion)
+    {
+        if (completion.AcceptedSurfaceIds.Length == 0)
+        {
+            return true;
+        }
+
+        var nodeIndex = FindNearestTraversalStartNode(x, y, maxAboveDistance: 12f);
+        var nodeSurfaceId = nodeIndex >= 0 ? _nodes[nodeIndex].SurfaceId : null;
+        if (!nodeSurfaceId.HasValue)
+        {
+            return false;
+        }
+
+        var surfaceId = nodeSurfaceId.Value;
+        for (var i = 0; i < completion.AcceptedSurfaceIds.Length; i += 1)
+        {
+            if (completion.AcceptedSurfaceIds[i] == surfaceId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsEdgeCompletionSatisfied(float x, float y, NavEdgeCompletion completion) =>
+        completion.Contains(x, y) && IsOnAcceptedCompletionSurface(x, y, completion);
+
     public int FindNearestReachableNode(
         float x,
         float y,
         int startNode,
         PlayerClass? playerClass = null,
         IReadOnlySet<NavEdgeBlock>? blockedEdges = null,
-        PlayerTeam? team = null)
+        PlayerTeam? team = null,
+        bool carryingIntel = false)
     {
         if (startNode < 0 || startNode >= _nodes.Length)
         {
@@ -132,7 +162,7 @@ public sealed class NavGraph
             for (var i = 0; i < edges.Length; i++)
             {
                 var edge = edges[i];
-                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team))
+                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team, carryingIntel))
                 {
                     continue;
                 }
@@ -148,7 +178,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                var tentativeG = gScore[current] + edge.Cost;
+                var tentativeG = gScore[current] + ResolveTraversalCost(edge);
                 if (tentativeG >= gScore[neighbor])
                 {
                     continue;
@@ -171,7 +201,8 @@ public sealed class NavGraph
         int goalNode,
         PlayerClass? playerClass = null,
         IReadOnlySet<NavEdgeBlock>? blockedEdges = null,
-        PlayerTeam? team = null)
+        PlayerTeam? team = null,
+        bool carryingIntel = false)
     {
         if (startNode < 0 || startNode >= _nodes.Length || goalNode < 0 || goalNode >= _nodes.Length)
         {
@@ -213,7 +244,7 @@ public sealed class NavGraph
             for (var i = 0; i < edges.Length; i++)
             {
                 var edge = edges[i];
-                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team))
+                if (playerClass.HasValue && !edge.Supports(playerClass.Value, team, carryingIntel))
                 {
                     continue;
                 }
@@ -229,7 +260,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                var tentativeG = gScore[current] + edge.Cost;
+                var tentativeG = gScore[current] + ResolveTraversalCost(edge);
                 if (tentativeG >= gScore[neighbor])
                 {
                     continue;
@@ -250,6 +281,11 @@ public sealed class NavGraph
         var dx = _nodes[toNode].X - _nodes[fromNode].X;
         var dy = _nodes[toNode].Y - _nodes[fromNode].Y;
         return MathF.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    private static float ResolveTraversalCost(NavEdge edge)
+    {
+        return edge.Cost;
     }
 
     private float ScoreReachableGoalCandidate(int nodeIndex, float x, float y)
@@ -317,21 +353,25 @@ public readonly record struct NavEdge(
     int JumpTriggerTick,
     int ProbeTicks,
     float ProbeMoveDirectionX,
+    int ProbeVariantAttempts,
+    int ProbeVariantSuccesses,
     int SupportedClassMask,
     int SupportedTeamMask,
     bool RequiresGroundedContinuation,
+    bool RequiresCarryingIntel,
     NavEdgeLaunchRecipe LaunchRecipe)
 {
     public NavEdge(int toNode, NavEdgeKind kind, float cost)
-        : this(toNode, kind, cost, NavEdgeCompletion.None, 0, 0, 0f, BotBrainClassMask.All, BotBrainTeamMask.All, false, NavEdgeLaunchRecipe.None)
+        : this(toNode, kind, cost, NavEdgeCompletion.None, 0, 0, 0f, 0, 0, BotBrainClassMask.All, BotBrainTeamMask.All, false, false, NavEdgeLaunchRecipe.None)
     {
     }
 
     public bool Supports(PlayerClass playerClass) => BotBrainClassMask.Contains(SupportedClassMask, playerClass);
 
-    public bool Supports(PlayerClass playerClass, PlayerTeam? team) =>
+    public bool Supports(PlayerClass playerClass, PlayerTeam? team, bool carryingIntel = false) =>
         BotBrainClassMask.Contains(SupportedClassMask, playerClass)
-        && (!team.HasValue || BotBrainTeamMask.Contains(SupportedTeamMask, team.Value));
+        && (!team.HasValue || BotBrainTeamMask.Contains(SupportedTeamMask, team.Value))
+        && (!RequiresCarryingIntel || carryingIntel);
 }
 
 public readonly record struct NavEdgeCompletion(

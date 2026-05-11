@@ -1,6 +1,6 @@
 #nullable enable
 
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 using System.Diagnostics;
 

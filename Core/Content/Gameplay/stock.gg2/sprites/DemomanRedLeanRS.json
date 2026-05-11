@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "DemomanRedLeanRS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Demoman/DemomanRedLeanRS/image 0.png"
+                       "Content/Sprites/Characters/Demoman/DemomanRedLeanRS.images/image 0.png"
                    ],
     "originX":  33,
     "originY":  40,

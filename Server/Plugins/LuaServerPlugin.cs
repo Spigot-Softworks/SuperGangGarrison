@@ -757,6 +757,26 @@ internal sealed class LuaServerPlugin(
 
             return DynValue.NewNumber(context.AdminOperations.TryClearAllBots());
         });
+        host["get_demo_recording_status"] = DynValue.NewCallback((_, _) =>
+            DynValue.NewString(context.AdminOperations.GetDemoRecordingStatus()));
+        host["try_start_demo_recording"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanIssueServerMutation("try_start_demo_recording", "demo recording"))
+            {
+                return ToDynValue(new OpenGarrisonServerDemoRecordingResult(false, string.Empty, "Admin access required."));
+            }
+
+            return ToDynValue(context.AdminOperations.TryStartDemoRecording(ReadOptionalStringArgument(args, 0)));
+        });
+        host["try_stop_demo_recording"] = DynValue.NewCallback((_, _) =>
+        {
+            if (!CanIssueServerMutation("try_stop_demo_recording", "demo recording"))
+            {
+                return ToDynValue(new OpenGarrisonServerDemoRecordingResult(false, string.Empty, "Admin access required."));
+            }
+
+            return ToDynValue(context.AdminOperations.TryStopDemoRecording());
+        });
         host["send_message_to_client"] = DynValue.NewCallback((_, args) =>
         {
             var slot = ReadByteArgument(args, 0);

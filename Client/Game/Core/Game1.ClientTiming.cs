@@ -102,6 +102,21 @@ public partial class Game1
         }
     }
 
+    private PlayerInputSnapshot ApplyPendingInputEdges(PlayerInputSnapshot input)
+    {
+        if (_pendingPredictedSecondaryAbilityPress && !input.FireSecondary)
+        {
+            input = input with { FireSecondary = true };
+        }
+
+        return input;
+    }
+
+    private void ClearPendingSecondaryAbilityPress()
+    {
+        _pendingPredictedSecondaryAbilityPress = false;
+    }
+
     private void AdvanceNetworkInputLane(PlayerInputSnapshot networkInput)
     {
         _networkInputAccumulatorSeconds += _clientUpdateElapsedSeconds;
@@ -109,7 +124,7 @@ public partial class Game1
         {
             _networkClient.AdvanceNetworkInputTick();
             _networkInputAccumulatorSeconds -= _config.FixedDeltaSeconds;
-            var outboundNetworkInput = networkInput;
+            var outboundNetworkInput = ApplyPendingInputEdges(networkInput);
             if (_latchedJumpPressSequence != 0 && !outboundNetworkInput.Up)
             {
                 // Keep jump held in the outbound stream until authority confirms it

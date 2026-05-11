@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "OrangeS",
     "framePaths":  [
-                       "assets/legacy-sprites/Collision Maps/OrangeS/image 0.png"
+                       "Content/Sprites/Collision Maps/OrangeS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

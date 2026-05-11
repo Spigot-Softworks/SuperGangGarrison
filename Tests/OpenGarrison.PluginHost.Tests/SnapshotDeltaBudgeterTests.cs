@@ -61,6 +61,44 @@ public sealed class SnapshotDeltaBudgeterTests
     }
 
     [Fact]
+    public void BuildContributionsTreatsNewRocketsAsRequiredProjectileSpawns()
+    {
+        var baseline = CreateSnapshot(110);
+        var current = CreateSnapshot(111) with
+        {
+            Rockets =
+            [
+                new SnapshotRocketState(
+                    Id: 42,
+                    Team: 1,
+                    OwnerId: 7,
+                    X: 128f,
+                    Y: 64f,
+                    PreviousX: 120f,
+                    PreviousY: 60f,
+                    DirectionRadians: 0.5f,
+                    Speed: 240f,
+                    TicksRemaining: 40),
+            ],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var contributions = SnapshotContributionPlanner.BuildContributions(
+            client,
+            current,
+            baseline,
+            new SimulationWorld());
+
+        Assert.Contains(
+            contributions,
+            static contribution => contribution.Kind == SnapshotDeltaBudgeter.ContributionKind.ProjectileSpawn);
+    }
+
+    [Fact]
     public void BuildBudgetedSnapshotWithReliableStreamBudgetPreservesPlayers()
     {
         var players = Enumerable.Range(0, 12)
@@ -272,11 +310,6 @@ public sealed class SnapshotDeltaBudgeterTests
                 new SnapshotSentryGibState(1, 1, 100f, 100f, 30),
                 new SnapshotSentryGibState(8, 1, 120f, 100f, 30),
             ],
-            PlayerGibs =
-            [
-                new SnapshotPlayerGibState(1, "gib-a", 0, 100f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
-                new SnapshotPlayerGibState(8, "gib-b", 0, 120f, 100f, 1f, 0f, 0f, 0f, 30, 0.5f),
-            ],
         };
         var current = baseline with
         {
@@ -285,11 +318,6 @@ public sealed class SnapshotDeltaBudgeterTests
             [
                 new SnapshotSentryGibState(1, 1, 101f, 100f, 29),
                 new SnapshotSentryGibState(8, 1, 121f, 100f, 29),
-            ],
-            PlayerGibs =
-            [
-                new SnapshotPlayerGibState(1, "gib-a", 1, 101f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
-                new SnapshotPlayerGibState(8, "gib-b", 1, 121f, 100f, 1f, 0f, 0f, 0f, 29, 0.5f),
             ],
         };
         var client = new ClientSession(
@@ -304,9 +332,8 @@ public sealed class SnapshotDeltaBudgeterTests
         var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 64 * 1024);
 
         var sentryGib = Assert.Single(result.Message.SentryGibs);
-        var playerGib = Assert.Single(result.Message.PlayerGibs);
         Assert.Equal(8, sentryGib.Id);
-        Assert.Equal(8, playerGib.Id);
+        Assert.Empty(result.Message.PlayerGibs);
     }
 
     [Fact]

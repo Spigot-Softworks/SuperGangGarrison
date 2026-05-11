@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SpyRedDecapDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyRedDecapDeadS/image 0.png"
+                       "Content/Sprites/Characters/Spy/SpyRedDecapDeadS.images/image 0.png"
                    ],
     "originX":  28,
     "originY":  40,

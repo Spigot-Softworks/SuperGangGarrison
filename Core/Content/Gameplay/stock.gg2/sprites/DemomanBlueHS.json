@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "DemomanBlueHS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 0.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 1.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 2.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 3.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 4.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueHS/image 5.png"
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 0.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 1.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 2.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 3.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 4.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueHS.images/image 5.png"
                    ],
     "originX":  33,
     "originY":  40,

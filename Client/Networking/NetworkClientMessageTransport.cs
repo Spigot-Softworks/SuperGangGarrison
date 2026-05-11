@@ -24,6 +24,10 @@ public interface IPlaybackMessageTransport : INetworkClientMessageTransport
     float PlaybackRate { get; }
     int CurrentTick { get; }
     int TotalTicks { get; }
+    string PlaybackDisplayName { get; }
+    string PlaybackServerName { get; }
+    string PlaybackMapName { get; }
+    DateTime? PlaybackDateUtc { get; }
 
     void SetPaused(bool paused);
     void TogglePaused();

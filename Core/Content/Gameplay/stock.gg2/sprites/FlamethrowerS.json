@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "FlamethrowerS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/FlamethrowerS/image 0.png",
-                       "assets/legacy-sprites/Weapons/FlamethrowerS/image 1.png"
+                       "Content/Sprites/Weapons/FlamethrowerS.images/image 0.png",
+                       "Content/Sprites/Weapons/FlamethrowerS.images/image 1.png"
                    ],
     "originX":  8,
     "originY":  2,

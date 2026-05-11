@@ -15,6 +15,10 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     private readonly long _ticksPerSecond;
     private readonly string _remoteDescription;
     private readonly string _completionReason;
+    private readonly string _playbackDisplayName;
+    private readonly string _playbackServerName;
+    private readonly string _playbackMapName;
+    private readonly DateTime? _playbackDateUtc;
     private int _nextPayloadIndex;
     private bool _disconnectAvailable;
     private bool _disconnectConsumed;
@@ -26,10 +30,18 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     private OpenGarrisonDemoTransport(
         string remoteDescription,
         string completionReason,
+        string playbackDisplayName,
+        string playbackServerName,
+        string playbackMapName,
+        DateTime? playbackDateUtc,
         List<ScheduledDemoPayload> payloads)
     {
         _remoteDescription = remoteDescription;
         _completionReason = completionReason;
+        _playbackDisplayName = playbackDisplayName;
+        _playbackServerName = playbackServerName;
+        _playbackMapName = playbackMapName;
+        _playbackDateUtc = playbackDateUtc;
         _payloads = payloads;
         _ticksPerSecond = Stopwatch.Frequency;
         _lastPlaybackTimestamp = Stopwatch.GetTimestamp();
@@ -55,6 +67,10 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
     public float PlaybackRate => _playbackRate;
     public int CurrentTick => _nextPayloadIndex <= 0 ? 0 : Math.Max(0, _nextPayloadIndex - 1);
     public int TotalTicks => Math.Max(0, _payloads.Count - 1);
+    public string PlaybackDisplayName => _playbackDisplayName;
+    public string PlaybackServerName => _playbackServerName;
+    public string PlaybackMapName => _playbackMapName;
+    public DateTime? PlaybackDateUtc => _playbackDateUtc;
 
     public bool TryReceive(out byte[] payload)
     {
@@ -182,7 +198,41 @@ public sealed class OpenGarrisonDemoTransport : IPlaybackMessageTransport
         var completionReason = string.IsNullOrWhiteSpace(demo.CompletionReason)
             ? "Demo ended."
             : demo.CompletionReason.Trim();
-        return new OpenGarrisonDemoTransport(remoteDescription, completionReason, payloads);
+        TryResolveWelcomeMetadata(demo.Messages, out var serverName, out var mapName);
+        if (string.IsNullOrWhiteSpace(serverName))
+        {
+            serverName = remoteDescription;
+        }
+
+        return new OpenGarrisonDemoTransport(
+            remoteDescription,
+            completionReason,
+            Path.GetFileName(resolvedPath),
+            serverName.Trim(),
+            mapName.Trim(),
+            File.GetLastWriteTimeUtc(resolvedPath),
+            payloads);
+    }
+
+    private static void TryResolveWelcomeMetadata(
+        IReadOnlyList<OpenGarrisonDemoMessage> messages,
+        out string serverName,
+        out string mapName)
+    {
+        serverName = string.Empty;
+        mapName = string.Empty;
+        foreach (var message in messages)
+        {
+            if (!ProtocolCodec.TryDeserialize(message.Payload, out var protocolMessage)
+                || protocolMessage is not WelcomeMessage welcome)
+            {
+                continue;
+            }
+
+            serverName = welcome.ServerName;
+            mapName = welcome.LevelName;
+            return;
+        }
     }
 
     private static string ResolveDemoPath(string demoPath)

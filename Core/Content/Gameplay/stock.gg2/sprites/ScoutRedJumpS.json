@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ScoutRedJumpS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedJumpS/image 0.png"
+                       "Content/Sprites/Characters/Scout/ScoutRedJumpS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

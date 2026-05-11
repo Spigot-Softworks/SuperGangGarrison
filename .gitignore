@@ -35,6 +35,21 @@ Tests/BrowserSmoke/artifacts/
 Tests/BrowserSmoke/node_modules/
 /Client.Browser/wwwroot/Plugins/_browser-client-plugins.zip
 
+# Local planning/handoff notes
+/handoff.txt
+/task.md
+/botbrain_architecture_map.md
+/overall_architecture_map.md
+/botbrain-conflict-trace.txt
+
+# Generated bot navigation and canary artifacts
+/BotBrain.Tools/canaries/
+/scripts/run-botbrain-canaries.ps1
+/Core/Content/BotNav/Original/*.pts
+/Core/Content/BotNav/*.modern.botnav.json
+/Core/Content/BotNavHints/*.botnavhints.json
+/Core/Content/BotNavScoreRoutes/*.botnavscore.json
+
 # === .NET / NuGet / MonoGame caches - NEVER commit these ===
 .dotnet-home/
 .tools/
@@ -47,6 +62,8 @@ Tests/BrowserSmoke/node_modules/
 **/Content/obj/
 
 # MotionProof bake scratch outputs
+/MotionProof.Tools/
+/Core/Content/MotionProof/
 /MotionProof.Tools/candidates/
 /MotionProof.Tools/logs/
 

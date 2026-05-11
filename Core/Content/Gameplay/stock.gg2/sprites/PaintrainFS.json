@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "PaintrainFS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 0.png",
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 1.png",
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 2.png",
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 3.png",
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 4.png",
-                       "assets/legacy-sprites/Weapons/Firing/PaintrainFS/image 5.png"
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 0.png",
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 1.png",
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 2.png",
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 3.png",
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 4.png",
+                       "Content/Sprites/Weapons/Firing/PaintrainFS.images/image 5.png"
                    ],
     "originX":  11,
     "originY":  33,

@@ -1,15 +1,15 @@
-﻿{
+{
     "id":  "FeetS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 3.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 4.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 5.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 6.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 7.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/FeetS/image 8.png"
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 0.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 1.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 2.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 3.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 4.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 5.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 6.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 7.png",
+                       "Content/Sprites/InGameElements/Gibs/FeetS.images/image 8.png"
                    ],
     "originX":  2,
     "originY":  2,

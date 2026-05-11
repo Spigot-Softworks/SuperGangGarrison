@@ -12,8 +12,8 @@ This repository contains the OpenGarrison solution and supporting tools.
 - `Client.Shared/`: shared runtime bootstrap and browser/desktop asset-loading seams used by the client hosts.
 - `Server/`: dedicated server runtime, networking, sessions, snapshots, admin commands, plugins, and map rotation.
 - `Protocol/`: network message contracts and binary serialization.
-- `BotAI/`: bot behavior and navigation runtime.
-- `BotAI.Tools/`: offline bot navigation asset generation tools.
+- `Core/BotBrain/`: authoritative bot behavior and navigation runtime.
+- `BotBrain.Tools/`: offline BotBrain navigation asset generation and validation tools.
 - `Plugins/`: client and server plugin abstractions, Lua plugin packages, and legacy CLR migration references.
 - `GameplayModding.Abstractions/`: early gameplay-mod support contracts.
 - `ServerLauncher/`: launcher-focused entry point built on the client runtime.

@@ -11,7 +11,8 @@ public enum CustomMapBuilderResourceKind
 public readonly record struct CustomMapBuilderResource(
     string Name,
     string SourcePath,
-    CustomMapBuilderResourceKind Kind = CustomMapBuilderResourceKind.GenericImage)
+    CustomMapBuilderResourceKind Kind = CustomMapBuilderResourceKind.GenericImage,
+    byte[]? EmbeddedBytes = null)
 {
     public CustomMapBuilderResource NormalizeForEditing()
     {
@@ -19,6 +20,7 @@ public readonly record struct CustomMapBuilderResource(
         {
             Name = Name.Trim(),
             SourcePath = SourcePath.Trim(),
+            EmbeddedBytes = EmbeddedBytes is { Length: > 0 } ? (byte[])EmbeddedBytes.Clone() : null,
         };
     }
 }

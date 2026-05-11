@@ -1,16 +1,16 @@
-﻿{
+{
     "id":  "Icon",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 0.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 1.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 2.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 3.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 4.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 5.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 6.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 7.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 8.png",
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Icon/image 9.png"
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 0.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 1.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 2.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 3.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 4.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 5.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 6.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 7.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 8.png",
+                       "Content/Sprites/HUDs/ScoreBoard/Icon.images/image 9.png"
                    ],
     "originX":  0,
     "originY":  0,

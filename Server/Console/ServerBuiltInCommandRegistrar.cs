@@ -136,7 +136,8 @@ internal sealed class ServerBuiltInCommandRegistrar(
             "demo",
             (_, _, _) => Task.FromResult<IReadOnlyList<string>>([getDemoStatusLine()]),
             OpenGarrisonServerAdminPermissions.ViewServerState,
-            "demos");
+            "demos",
+            "replays");
         commandRegistry.RegisterBuiltIn(
             "demo start",
             "Start server-authoritative demo recording.",

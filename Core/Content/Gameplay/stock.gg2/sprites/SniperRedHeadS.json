@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SniperRedHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/SniperRedHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/SniperRedHeadS.images/image 0.png"
                    ],
     "originX":  5,
     "originY":  5,

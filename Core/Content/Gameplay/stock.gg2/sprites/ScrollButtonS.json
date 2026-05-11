@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ScrollButtonS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Lobby/ScrollButtonS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Lobby/ScrollButtonS/image 1.png"
+                       "Content/Sprites/HUDs/Lobby/ScrollButtonS.images/image 0.png",
+                       "Content/Sprites/HUDs/Lobby/ScrollButtonS.images/image 1.png"
                    ],
     "originX":  8,
     "originY":  8,

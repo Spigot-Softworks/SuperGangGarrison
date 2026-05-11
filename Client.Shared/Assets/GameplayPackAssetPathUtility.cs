@@ -19,7 +19,20 @@ public static class GameplayPackAssetPathUtility
     public static string BuildPackAssetPath(string packId, string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
-        return $"{GetPackContentRoot(packId)}/{NormalizePath(relativePath)}";
+        var normalizedPath = NormalizePath(relativePath);
+        return IsContentRootRelativePath(normalizedPath)
+            ? normalizedPath
+            : $"{GetPackContentRoot(packId)}/{normalizedPath}";
+    }
+
+    public static bool IsContentRootRelativePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return NormalizePath(path).StartsWith("Content/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePath(string path)

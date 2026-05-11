@@ -202,8 +202,9 @@ public static class TraversalLabRunner
         int? firstLeaveGroundTick = null;
         int? firstRegroundTick = null;
         int? firstCarryIntelTick = player.IsCarryingIntel ? 0 : null;
+        var everOverlapOwnIntelMarker = false;
         var samples = new List<TraversalLabTickSample>();
-        samples.Add(CreateSample(level, team, player, tick: 0, stepLabel: "start"));
+        samples.Add(CreateSample(level, team, player, tick: 0, stepLabel: "start", input: default));
         var totalTicks = scenario.MaxTicks > 0
             ? scenario.MaxTicks
             : Math.Max(1, scenario.Steps.Sum(static step => Math.Max(0, step.DurationTicks)));
@@ -258,9 +259,15 @@ public static class TraversalLabRunner
                 firstCarryIntelTick = tick + 1;
             }
 
+            if (TryGetIntelMarker(level, team, opposing: false, out var ownIntel)
+                && player.IntersectsMarker(ownIntel.X, ownIntel.Y, IntelMarkerSize, IntelMarkerSize))
+            {
+                everOverlapOwnIntelMarker = true;
+            }
+
             if (tick % traceEveryTicks == 0 || tick == totalTicks - 1)
             {
-                samples.Add(CreateSample(level, team, player, tick + 1, stepLabel));
+                samples.Add(CreateSample(level, team, player, tick + 1, stepLabel, input));
             }
         }
 
@@ -277,7 +284,8 @@ public static class TraversalLabRunner
             maxBottom,
             firstLeaveGroundTick,
             firstRegroundTick,
-            firstCarryIntelTick);
+            firstCarryIntelTick,
+            everOverlapOwnIntelMarker);
         return FinalizeResult(
             scenario,
             variant,
@@ -390,7 +398,8 @@ public static class TraversalLabRunner
         PlayerTeam team,
         PlayerEntity player,
         int tick,
-        string stepLabel)
+        string stepLabel,
+        PlayerInputSnapshot input)
     {
         var supportedBelow = !player.CanOccupy(level, team, player.X, player.Y + 1f);
         var blockedLeft = !player.CanOccupy(level, team, player.X - 1f, player.Y);
@@ -412,6 +421,14 @@ public static class TraversalLabRunner
             SupportedBelow: supportedBelow,
             BlockedLeft: blockedLeft,
             BlockedRight: blockedRight,
+            InputLeft: input.Left,
+            InputRight: input.Right,
+            InputUp: input.Up,
+            InputDown: input.Down,
+            InputFirePrimary: input.FirePrimary,
+            InputFireSecondary: input.FireSecondary,
+            InputUseAbility: input.UseAbility,
+            InputDropIntel: input.DropIntel,
             IsCarryingIntel: player.IsCarryingIntel,
             OverlapsEnemyIntelMarker: overlapsEnemyIntelMarker,
             OverlapsOwnIntelMarker: overlapsOwnIntelMarker,
@@ -432,7 +449,8 @@ public static class TraversalLabRunner
         float maxBottom,
         int? firstLeaveGroundTick,
         int? firstRegroundTick,
-        int? firstCarryIntelTick)
+        int? firstCarryIntelTick,
+        bool everOverlapOwnIntelMarker)
     {
         if (expectation is null)
         {
@@ -511,6 +529,18 @@ public static class TraversalLabRunner
                 && player.IntersectsMarker(enemyIntel.X, enemyIntel.Y, IntelMarkerSize, IntelMarkerSize)) != expectation.MustOverlapEnemyIntelMarker.Value)
         {
             return (false, expectation.MustOverlapEnemyIntelMarker.Value ? "final_not_overlapping_enemy_intel_marker" : "unexpected_enemy_intel_marker_overlap");
+        }
+
+        if (expectation.MustOverlapOwnIntelMarker.HasValue
+            && (TryGetIntelMarker(level, team, opposing: false, out var ownIntel)
+                && player.IntersectsMarker(ownIntel.X, ownIntel.Y, IntelMarkerSize, IntelMarkerSize)) != expectation.MustOverlapOwnIntelMarker.Value)
+        {
+            return (false, expectation.MustOverlapOwnIntelMarker.Value ? "final_not_overlapping_own_intel_marker" : "unexpected_own_intel_marker_overlap");
+        }
+
+        if (expectation.MustEverOverlapOwnIntelMarker && !everOverlapOwnIntelMarker)
+        {
+            return (false, "never_overlapped_own_intel_marker");
         }
 
         if (expectation.MustBeInsideBlockingTeamGate.HasValue

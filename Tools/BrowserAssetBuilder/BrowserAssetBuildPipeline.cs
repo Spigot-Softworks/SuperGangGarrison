@@ -267,7 +267,7 @@ internal static class BrowserAssetBuildPipeline
         var sourceBytes = new List<byte[]>();
         for (var sourceImageIndex = 0; sourceImageIndex < sprite.FramePaths.Count; sourceImageIndex += 1)
         {
-            var relativePath = $"Content/Gameplay/stock.gg2/{sprite.FramePaths[sourceImageIndex].Replace('\\', '/')}";
+            var relativePath = ResolveGameplaySpriteContentPath(sprite.FramePaths[sourceImageIndex]);
             if (!TryResolveStagedContentPath(context, relativePath, out var sourcePath) || !File.Exists(sourcePath))
             {
                 warnings.Add($"Gameplay atlas source was missing for sprite {sprite.Id}: {relativePath}");
@@ -295,6 +295,14 @@ internal static class BrowserAssetBuildPipeline
             NormalizeMask(sprite.Mask),
             frames,
             ComputeSourceHash(sourceBytes));
+    }
+
+    private static string ResolveGameplaySpriteContentPath(string framePath)
+    {
+        var normalizedPath = framePath.Replace('\\', '/').TrimStart('/');
+        return normalizedPath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase)
+            ? normalizedPath
+            : $"Content/Gameplay/stock.gg2/{normalizedPath}";
     }
 
     private static AtlasSpriteInput? CreateGameMakerSpriteInput(
@@ -488,20 +496,6 @@ internal static class BrowserAssetBuildPipeline
             yield return path;
         }
 
-        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "tapes"), "*.json", SearchOption.AllDirectories))
-        {
-            yield return path;
-        }
-
-        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "graphs"), "*.json", SearchOption.AllDirectories))
-        {
-            yield return path;
-        }
-
-        foreach (var path in EnumerateDirectoryFiles(context, Path.Combine("MotionProof", "graphs"), "*.json.gz", SearchOption.AllDirectories))
-        {
-            yield return path;
-        }
     }
 
     private static IEnumerable<string> EnumerateDirectoryFiles(

@@ -1,7 +1,7 @@
 #nullable enable
 
 using Microsoft.Xna.Framework;
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;

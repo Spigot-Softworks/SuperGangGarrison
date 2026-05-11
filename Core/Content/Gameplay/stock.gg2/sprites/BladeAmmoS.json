@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "BladeAmmoS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Ammo/BladeAmmoS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Ammo/BladeAmmoS/image 1.png"
+                       "Content/Sprites/HUDs/Ammo/BladeAmmoS.images/image 0.png",
+                       "Content/Sprites/HUDs/Ammo/BladeAmmoS.images/image 1.png"
                    ],
     "originX":  25,
     "originY":  8,

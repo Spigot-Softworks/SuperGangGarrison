@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "DemomanBlueStandS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueStandS/image 0.png"
+                       "Content/Sprites/Characters/Demoman/DemomanBlueStandS.images/image 0.png"
                    ],
     "originX":  33,
     "originY":  40,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PyroRedHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/PyroRedHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/PyroRedHeadS.images/image 0.png"
                    ],
     "originX":  5,
     "originY":  5,

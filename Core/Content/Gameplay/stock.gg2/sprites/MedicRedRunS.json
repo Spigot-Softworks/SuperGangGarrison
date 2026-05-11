@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "MedicRedRunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Medic/MedicRedRunS/image 0.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedRunS/image 1.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedRunS/image 2.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedRunS/image 3.png"
+                       "Content/Sprites/Characters/Medic/MedicRedRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Medic/MedicRedRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Medic/MedicRedRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Medic/MedicRedRunS.images/image 3.png"
                    ],
     "originX":  27,
     "originY":  40,

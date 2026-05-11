@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Linq;
 using System.Diagnostics;
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
@@ -718,6 +718,12 @@ public sealed class ServerAdminFoundationTests
         Assert.True(cvars.TryGet("sv_autobalance", out var afterAuthCvar));
         Assert.Equal("off", afterAuthCvar.CurrentValue);
         Assert.Contains(adminOperations.SystemMessages, message => message.Slot == 1 && message.Text.Contains("sv_autobalance", StringComparison.Ordinal));
+
+        Assert.True(router.TryHandlePrivateChatCommand(client, "!gt_demo status", teamOnly: false));
+        Assert.Contains(adminOperations.SystemMessages, message => message.Slot == 1 && message.Text.Contains("demo | status=idle", StringComparison.Ordinal));
+
+        Assert.True(router.TryHandlePrivateChatCommand(client, "!gt_demo start", teamOnly: false));
+        Assert.Contains(adminOperations.SystemMessages, message => message.Slot == 1 && message.Text.Contains("demo recording started", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -870,7 +876,7 @@ public sealed class ServerAdminFoundationTests
             var sessionManager = CreateSessionManager(world, clients);
             var sentMessages = new List<IProtocolMessage>();
             var banService = new ServerBanService(Path.Combine(root, "server-bans.json"), () => new DateTimeOffset(2026, 4, 8, 12, 0, 0, TimeSpan.Zero));
-            var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+            var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
             var operations = new ServerAdminOperations(
                 static _ => { },
                 (_, message) => sentMessages.Add(message),
@@ -1002,7 +1008,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             slot => !reservedSlots.Contains(slot));
 
         Assert.False(botManager.TryAddBot(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, PlayerClass.Soldier, "Local Bot"));
@@ -1017,7 +1023,7 @@ public sealed class ServerAdminFoundationTests
     public void ServerBotManagerAppliesRequestedTeamAndClassToWorldPlayer()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Pyro, "Pyro Bot"));
         Assert.True(world.TryGetNetworkPlayer(2, out var bot));
@@ -1042,7 +1048,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             slot => !reservedSlots.Contains(slot));
 
         var added = botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 2, PlayerClass.Soldier);
@@ -1057,7 +1063,7 @@ public sealed class ServerAdminFoundationTests
     public void ServerBotManagerFillCyclesClassesWhenClassIsNotSpecified()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         var added = botManager.TryFillTeam(PlayerTeam.Blue, targetCount: 4, requestedClass: null);
 
@@ -1075,7 +1081,7 @@ public sealed class ServerAdminFoundationTests
     public void ServerBotManagerFillUsesExplicitClassWhenSpecified()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         var added = botManager.FillBots(targetPerTeam: 2, PlayerClass.Medic);
 
@@ -1136,7 +1142,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             _ =>
             {
                 return false;
@@ -1157,7 +1163,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             _ =>
             {
                 return false;
@@ -1175,12 +1181,29 @@ public sealed class ServerAdminFoundationTests
     public async Task ServerBotManagerFirstBotThinkCompletesPromptlyAfterAdd()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Blue Bot"));
 
         var thinkTask = Task.Run(() => botManager.FeedBotInputsBeforeSimulationAdvance());
         var completedTask = await Task.WhenAny(thinkTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        Assert.Same(thinkTask, completedTask);
+        await thinkTask;
+    }
+
+    [Fact]
+    public async Task ServerBotManagerHarvestMixedTeamBotThinkDoesNotColdBuildSynchronously()
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TryLoadLevel("Harvest"));
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
+
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Scout, "Friendly Bot"));
+        Assert.True(botManager.TryAddBot(3, PlayerTeam.Blue, PlayerClass.Heavy, "Enemy Bot"));
+
+        var thinkTask = Task.Run(() => botManager.FeedBotInputsBeforeSimulationAdvance());
+        var completedTask = await Task.WhenAny(thinkTask, Task.Delay(TimeSpan.FromSeconds(1)));
 
         Assert.Same(thinkTask, completedTask);
         await thinkTask;
@@ -1196,7 +1219,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             botDisplayNamePool: new PracticeBotDisplayNamePool(practiceNames, shuffleNames: false));
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, string.Empty));
@@ -1210,7 +1233,7 @@ public sealed class ServerAdminFoundationTests
     public async Task ServerBotManagerSecondBotThinkCompletesPromptlyAfterFirstSimulationTick()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
 
@@ -1232,7 +1255,7 @@ public sealed class ServerAdminFoundationTests
     public async Task ServerBotManagerSecondSimulationTickCompletesPromptlyAfterFilledRosterThink()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
 
@@ -1256,7 +1279,7 @@ public sealed class ServerAdminFoundationTests
     public async Task ServerBotManagerFilledRosterTickSequenceCompletesPromptly()
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
 
@@ -1292,7 +1315,7 @@ public sealed class ServerAdminFoundationTests
     public async Task ServerBotManagerSingleTeamTickSequenceCompletesPromptly(bool fillViaHelper)
     {
         var world = new SimulationWorld();
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         if (fillViaHelper)
         {
@@ -1335,7 +1358,7 @@ public sealed class ServerAdminFoundationTests
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Truefort"));
 
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         Assert.Equal(2, botManager.FillBots(targetPerTeam: 1, PlayerClass.Soldier));
 
         const int tickCount = 8;
@@ -1395,7 +1418,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var broadcaster = new SnapshotBroadcaster(
             world,
@@ -1466,7 +1489,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var canonicalSnapshots = new List<SnapshotMessage>();
         var shouldRecordCanonicalSnapshot = false;
@@ -1511,7 +1534,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var broadcaster = new SnapshotBroadcaster(
             world,
@@ -1554,7 +1577,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         Assert.Equal(19, botManager.FillBots(targetPerTeam: 10, PlayerClass.Soldier));
 
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
@@ -1596,7 +1619,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var broadcaster = new SnapshotBroadcaster(
             world,
@@ -1657,7 +1680,7 @@ public sealed class ServerAdminFoundationTests
         {
             [client.Slot] = client,
         };
-        var botManager = new ServerBotManager(world, new SimulationConfig(), new ModernPracticeBotController());
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var broadcaster = new SnapshotBroadcaster(
             world,
@@ -1723,7 +1746,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController(),
+            new BotBrainPracticeBotController(),
             slot => !clients.ContainsKey(slot));
         var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
         var broadcaster = new SnapshotBroadcaster(
@@ -2057,6 +2080,12 @@ public sealed class ServerAdminFoundationTests
         public IReadOnlyList<OpenGarrisonServerBotSlotInfo> GetBotSlots() => [];
 
         public int TryClearAllBots() => 0;
+
+        public string GetDemoRecordingStatus() => "[server] demo | status=idle";
+
+        public OpenGarrisonServerDemoRecordingResult TryStartDemoRecording(string? requestedPath) => new(true, "[server] demo recording started: test.ogdemo", string.Empty);
+
+        public OpenGarrisonServerDemoRecordingResult TryStopDemoRecording() => new(true, "[server] demo recording stopped: test.ogdemo", string.Empty);
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

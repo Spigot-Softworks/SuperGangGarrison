@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "RifleChargedKL2",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/RifleChargedKL2/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/RifleChargedKL2/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/RifleChargedKL2.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/RifleChargedKL2.images/image 1.png"
                    ],
     "originX":  24,
     "originY":  5,

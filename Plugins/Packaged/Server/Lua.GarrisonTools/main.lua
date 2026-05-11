@@ -7,9 +7,6 @@ local default_burn_seconds = 10.0
 local default_announcement_notice_ticks = 300
 local client_effects_announcement_message_type = "announce.notice"
 local help_page_size = 6
-local command_catalog_count = 21
-local command_category_count = 6
-local help_page_count = 4
 local admin_menu_client_plugin_id = "open-garrison.client.lua-garrison-tools-menu"
 local admin_menu_client_source_plugin_id = "open-garrison.client.lua-garrison-tools-menu"
 local admin_menu_open_message_type = "adminmenu.open"
@@ -76,8 +73,6 @@ local default_config = {
 local config = default_config
 local active_effects = {}
 local admin_menu_sessions = {}
-local get_sequential_count
-local append_sequential
 local find_command_spec_by_name
 local get_admin_menu_action_title
 local get_admin_menu_action_breadcrumb
@@ -91,114 +86,52 @@ local command_categories = {
 }
 local command_specs = {}
 
-local function append_command_spec(spec)
-    command_specs[#command_specs + 1] = spec
+local function get_sequential_count(items)
+    if items == nil then
+        return 0
+    end
+
+    local count = 0
+    while items[count + 1] ~= nil do
+        count = count + 1
+    end
+
+    return count
 end
 
-append_command_spec({ name = "help", category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", keywords = "commands search page docs", detail = "Use a page number for paged output or a search term like cvar or ban." })
-append_command_spec({ name = "status", category = "Reference", usage = "!gt_status", summary = "Show server, admin, and player status details.", keywords = "players userid roster info" })
-append_command_spec({ name = "cvars", category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text.", keywords = "config variables settings server" })
-append_command_spec({ name = "cvar", category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar.", keywords = "config variable set get protect server", detail = "Use !gt_cvar protect <name> to add a cvar to the runtime protected list." })
-append_command_spec({ name = "adminmenu", category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog.", keywords = "menu categories catalog ui", detail = "Admin menu reads the shared command catalog so text help and UI can stay in sync." })
-append_command_spec({ name = "say", category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a top-screen notice to all players for 5 seconds.", keywords = "broadcast announcement notice top screen" })
-append_command_spec({ name = "psay", category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", keywords = "private whisper tell target", usesTargets = true })
-append_command_spec({ name = "kick", category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", keywords = "disconnect remove player", usesTargets = true })
-append_command_spec({ name = "ban", category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", keywords = "ban player timeout permanent", usesTargets = true })
-append_command_spec({ name = "banip", category = "Player Control", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", keywords = "ban address endpoint ip timeout permanent", usesTargets = true })
-append_command_spec({ name = "unban", category = "Player Control", usage = "!gt_unban <ip>", summary = "Remove an IP ban.", keywords = "unban pardon address ip" })
-append_command_spec({ name = "slay", category = "Player Control", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", keywords = "kill suicide eliminate", usesTargets = true })
-append_command_spec({ name = "burn", category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true })
-append_command_spec({ name = "gag", category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true })
-append_command_spec({ name = "rename", category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true })
-append_command_spec({ name = "bots", category = "Player Control", usage = "!gt_bots <list|add|remove|fill|clear> ...", summary = "Manage host bots through the authenticated GarrisonTools chat flow.", keywords = "bot bots add remove fill clear ai" })
-append_command_spec({ name = "map", category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map.", keywords = "level rotation change round" })
-append_command_spec({ name = "nextmap", category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map.", keywords = "level rotation next round future" })
-append_command_spec({ name = "seffect", category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", keywords = "blind earthquake scale speed lowgrav highgrav clear visual fx", usesTargets = true, showSeffectHelp = true })
-append_command_spec({ name = "auth", category = "Session", usage = "!gt_auth <password>", summary = "Authenticate this admin session.", keywords = "login password rcon session" })
-append_command_spec({ name = "logout", category = "Session", usage = "!gt_logout", summary = "End this admin session.", keywords = "log out unauthenticate session" })
-local command_catalog = {
-    help = { category = "Reference", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", detail = "Use a page number for paged output or a search term like cvar or ban." },
-    status = { category = "Reference", usage = "!gt_status", summary = "Show server, admin, and player status details." },
-    cvars = { category = "Reference", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text." },
-    cvar = { category = "Reference", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar." },
-    adminmenu = { category = "Reference", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog." },
-    say = { category = "Communication", usage = "!gt_say <text>", summary = "Broadcast a top-screen notice to all players for 5 seconds." },
-    psay = { category = "Communication", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", usesTargets = true },
-    kick = { category = "Player Control", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", usesTargets = true },
-    ban = { category = "Player Control", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", usesTargets = true },
-    banip = { category = "Player Control", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", usesTargets = true },
-    unban = { category = "Player Control", usage = "!gt_unban <ip>", summary = "Remove an IP ban." },
-    slay = { category = "Player Control", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", usesTargets = true },
-    burn = { category = "Player Control", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", usesTargets = true },
-    gag = { category = "Player Control", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", usesTargets = true },
-    rename = { category = "Player Control", usage = "!gt_rename <target> <name>", summary = "Rename one target.", usesTargets = true },
-    bots = { category = "Player Control", usage = "!gt_bots <list|add|remove|fill|clear> ...", summary = "Manage host bots through the authenticated GarrisonTools chat flow." },
-    map = { category = "Match Control", usage = "!gt_map <map> [area]", summary = "Change the current map." },
-    nextmap = { category = "Match Control", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map." },
-    seffect = { category = "Effects", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", usesTargets = true, showSeffectHelp = true },
-    auth = { category = "Session", usage = "!gt_auth <password>", summary = "Authenticate this admin session." },
-    logout = { category = "Session", usage = "!gt_logout", summary = "End this admin session." },
-}
-local help_page_command_keys = {
-    list("help", "status", "cvars", "cvar", "adminmenu", "say"),
-    list("psay", "kick", "ban", "banip", "unban", "slay"),
-    list("burn", "gag", "rename", "bots", "map", "nextmap"),
-    list("seffect", "auth", "logout"),
-}
-local admin_category_command_keys = {
-    { category = "Reference", keys = list("help", "status", "cvars", "cvar", "adminmenu") },
-    { category = "Communication", keys = list("say", "psay") },
-    { category = "Player Control", keys = list("kick", "ban", "banip", "unban", "slay", "burn", "gag", "rename", "bots") },
-    { category = "Match Control", keys = list("map", "nextmap") },
-    { category = "Effects", keys = list("seffect") },
-    { category = "Session", keys = list("auth", "logout") },
-}
-local help_search_aliases = {
-    ["help"] = "help",
-    ["commands"] = "help",
-    ["page"] = "help",
-    ["search"] = "help",
-    ["status"] = "status",
-    ["players"] = "status",
-    ["userid"] = "status",
-    ["cvars"] = "cvars",
-    ["cvar"] = "cvar",
-    ["protect"] = "cvar",
-    ["adminmenu"] = "adminmenu",
-    ["menu"] = "adminmenu",
-    ["say"] = "say",
-    ["psay"] = "psay",
-    ["kick"] = "kick",
-    ["ban"] = "ban",
-    ["banip"] = "banip",
-    ["unban"] = "unban",
-    ["slay"] = "slay",
-    ["burn"] = "burn",
-    ["gag"] = "gag",
-    ["rename"] = "rename",
-    ["bot"] = "bots",
-    ["bots"] = "bots",
-    ["map"] = "map",
-    ["nextmap"] = "nextmap",
-    ["seffect"] = "seffect",
-    ["effect"] = "seffect",
-    ["auth"] = "auth",
-    ["logout"] = "logout",
-}
-local help_page_lines = {
-    [1] = "[GT] commands | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu | !gt_say <text>",
-    [2] = "[GT] commands | !gt_psay <target> <message> | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target>",
-    [3] = "[GT] commands | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_bots <list|add|remove|fill|clear> ... | !gt_map <map> [area] | !gt_nextmap <map> [area]",
-    [4] = "[GT] commands | !gt_seffect <effect> <target> [time] | !gt_auth <password> | !gt_logout",
-}
-local admin_menu_lines = {
-    "[GT] category | Reference | count=5 | !gt_help [page|search] | !gt_status | !gt_cvars [filter] | !gt_cvar <name> [value] | !gt_adminmenu",
-    "[GT] category | Communication | count=2 | !gt_say <text> | !gt_psay <target> <message>",
-    "[GT] category | Player Control | count=9 | !gt_kick <target> [reason] | !gt_ban <target> [minutes|0] [reason] | !gt_banip <target|ip> [minutes|0] [reason] | !gt_unban <ip> | !gt_slay <target> | !gt_burn <target> [time] | !gt_gag <target> | !gt_rename <target> <name> | !gt_bots <list|add|remove|fill|clear> ...",
-    "[GT] category | Match Control | count=2 | !gt_map <map> [area] | !gt_nextmap <map> [area]",
-    "[GT] category | Effects | count=1 | !gt_seffect <effect> <target> [time]",
-    "[GT] category | Session | count=2 | !gt_auth <password> | !gt_logout",
-}
+local function append_sequential(items, value)
+    local next_index = get_sequential_count(items) + 1
+    items[next_index] = value
+    return next_index
+end
+
+local function append_command_spec(spec)
+    spec.commandUsage = spec.usage
+    append_sequential(command_specs, spec)
+end
+
+append_command_spec({ name = "help", label = "Help", category = "Reference", branch = "server_management", menuMode = "execute", usage = "!gt_help [page|search]", summary = "List commands, pages, or matching search results.", keywords = "commands search page docs", aliases = list("commands", "page", "search"), detail = "Use a page number for paged output or a search term like cvar or ban." })
+append_command_spec({ name = "status", label = "Status", category = "Reference", branch = "server_management", menuMode = "execute", usage = "!gt_status", summary = "Show server, admin, and player status details.", keywords = "players userid roster info", aliases = list("players", "userid") })
+append_command_spec({ name = "cvars", label = "Cvars", category = "Reference", branch = "server_management", menuMode = "execute", usage = "!gt_cvars [filter]", summary = "List server cvars, optionally filtered by text.", keywords = "config variables settings server" })
+append_command_spec({ name = "cvar", label = "Cvar", category = "Reference", branch = "server_management", menuMode = "detail", usage = "!gt_cvar <name> [value]", summary = "Read or update a single cvar.", keywords = "config variable set get protect server", aliases = list("protect"), detail = "Use !gt_cvar protect <name> to add a cvar to the runtime protected list." })
+append_command_spec({ name = "adminmenu", label = "Admin menu", category = "Reference", branch = "server_management", hidden = true, menuMode = "hidden", usage = "!gt_adminmenu", summary = "Show the categorized admin command catalog.", keywords = "menu categories catalog ui", aliases = list("menu"), detail = "Admin menu reads the shared command catalog so text help and UI can stay in sync." })
+append_command_spec({ name = "say", label = "Say", category = "Communication", branch = "server_management", menuMode = "detail", usage = "!gt_say <text>", summary = "Broadcast a top-screen notice to all players for 5 seconds.", keywords = "broadcast announcement notice top screen" })
+append_command_spec({ name = "psay", label = "Private say", category = "Communication", branch = "server_management", menuMode = "detail", usage = "!gt_psay <target> <message>", summary = "Send a private admin message to one target.", keywords = "private whisper tell target", usesTargets = true })
+append_command_spec({ name = "kick", label = "Kick", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_kick <target> [reason]", summary = "Kick one target from the server.", keywords = "disconnect remove player", usesTargets = true })
+append_command_spec({ name = "ban", label = "Ban", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_ban <target> [minutes|0] [reason]", summary = "Ban an active target by identity, 60 minutes by default.", keywords = "ban player timeout permanent", usesTargets = true })
+append_command_spec({ name = "banip", label = "Ban IP", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_banip <target|ip> [minutes|0] [reason]", summary = "Ban by target endpoint or raw IP with high-trust authority.", keywords = "ban address endpoint ip timeout permanent", usesTargets = true })
+append_command_spec({ name = "unban", label = "Unban", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_unban <ip>", summary = "Remove an IP ban.", keywords = "unban pardon address ip" })
+append_command_spec({ name = "slay", label = "Slay", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_slay <target>", summary = "Kill one or more live targets.", keywords = "kill suicide eliminate", usesTargets = true })
+append_command_spec({ name = "burn", label = "Burn", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_burn <target> [time]", summary = "Ignite one or more live targets for a duration.", keywords = "ignite fire afterburn", usesTargets = true })
+append_command_spec({ name = "gag", label = "Gag", category = "Player Control", branch = "player_management", menuMode = "action", usage = "!gt_gag <target>", summary = "Toggle chat gagging for one target.", keywords = "mute silence chat", usesTargets = true })
+append_command_spec({ name = "rename", label = "Rename", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_rename <target> <name>", summary = "Rename one target.", keywords = "name alias nick", usesTargets = true })
+append_command_spec({ name = "bots", label = "Bots", category = "Player Control", branch = "player_management", menuMode = "detail", usage = "!gt_bots <list|add|remove|fill|clear> ...", summary = "Manage host bots through the authenticated GarrisonTools chat flow.", keywords = "bot bots add remove fill clear ai", aliases = list("bot") })
+append_command_spec({ name = "map", label = "Map", category = "Match Control", branch = "game_management", menuMode = "detail", usage = "!gt_map <map> [area]", summary = "Change the current map.", keywords = "level rotation change round" })
+append_command_spec({ name = "nextmap", label = "Next map", category = "Match Control", branch = "game_management", menuMode = "detail", usage = "!gt_nextmap <map> [area]", summary = "Set the next-round map.", keywords = "level rotation next round future" })
+append_command_spec({ name = "demo", label = "Demo", category = "Match Control", branch = "game_management", menuMode = "detail", usage = "!gt_demo <status|start [path]|stop>", summary = "Manage server-authoritative demo recording.", keywords = "demo recording replay start stop status ogdemo", aliases = list("record", "recording", "replay") })
+append_command_spec({ name = "seffect", label = "Special effect", category = "Effects", branch = "fun", hidden = true, menuMode = "hidden", usage = "!gt_seffect <effect> <target> [time]", summary = "Apply, scale, or clear bundled timed effects on targets.", keywords = "blind earthquake scale speed lowgrav highgrav clear visual fx", aliases = list("effect"), usesTargets = true, showSeffectHelp = true })
+append_command_spec({ name = "auth", label = "Auth", category = "Session", branch = "server_management", hidden = true, menuMode = "hidden", usage = "!gt_auth <password>", summary = "Authenticate this admin session.", keywords = "login password rcon session" })
+append_command_spec({ name = "logout", label = "Logout", category = "Session", branch = "server_management", hidden = true, menuMode = "hidden", usage = "!gt_logout", summary = "End this admin session.", keywords = "log out unauthenticate session" })
 local function get_admin_menu_branch_title(branch_id)
     if branch_id == "server_management" then
         return "Server management"
@@ -260,30 +193,20 @@ local function get_admin_menu_branch_subtitle(branch_id)
 end
 
 local function get_admin_menu_command_mode(spec)
-    local name = spec ~= nil and spec.name or ""
-    if name == "adminmenu" or name == "auth" or name == "logout" or name == "seffect" then
+    if spec == nil or spec.hidden then
         return "hidden"
     end
-    if name == "help" or name == "status" or name == "cvars" then
-        return "execute"
-    end
-    if name == "kick" or name == "slay" or name == "gag" or name == "burn" then
-        return "action"
+
+    if spec.menuMode ~= nil and spec.menuMode ~= "" then
+        return spec.menuMode
     end
 
     return "detail"
 end
 
 local function get_admin_menu_command_branch(spec)
-    local category = spec ~= nil and spec.category or ""
-    if category == "Reference" or category == "Communication" or category == "Session" then
-        return "server_management"
-    end
-    if category == "Match Control" then
-        return "game_management"
-    end
-    if category == "Player Control" then
-        return "player_management"
+    if spec ~= nil and spec.branch ~= nil and spec.branch ~= "" then
+        return spec.branch
     end
 
     return nil
@@ -294,44 +217,8 @@ local function get_admin_menu_command_label(spec)
         return "Command"
     end
 
-    if spec.name == "help" then
-        return "Help"
-    end
-    if spec.name == "status" then
-        return "Status"
-    end
-    if spec.name == "cvars" then
-        return "Cvars"
-    end
-    if spec.name == "cvar" then
-        return "Cvar"
-    end
-    if spec.name == "say" then
-        return "Say"
-    end
-    if spec.name == "psay" then
-        return "Private say"
-    end
-    if spec.name == "ban" then
-        return "Ban"
-    end
-    if spec.name == "banip" then
-        return "Ban IP"
-    end
-    if spec.name == "unban" then
-        return "Unban"
-    end
-    if spec.name == "rename" then
-        return "Rename"
-    end
-    if spec.name == "map" then
-        return "Map"
-    end
-    if spec.name == "nextmap" then
-        return "Next map"
-    end
-    if spec.name == "logout" then
-        return "Logout"
+    if spec.label ~= nil and spec.label ~= "" then
+        return spec.label
     end
 
     return get_admin_menu_action_title(spec.name)
@@ -339,25 +226,13 @@ end
 
 local function get_admin_menu_command_specs_for_category(branch_id, category)
     local specs = {}
-    for index = 1, command_category_count do
-        local category_entry = admin_category_command_keys[index]
-        if category_entry ~= nil and category_entry.category == category then
-            local keys = category_entry.keys or {}
-            local spec_count = 0
-            local key_index = 1
-            while keys[key_index] ~= nil do
-                local spec = find_command_spec_by_name(keys[key_index])
-                if spec ~= nil
-                    and get_admin_menu_command_branch(spec) == branch_id
-                    and get_admin_menu_command_mode(spec) ~= "hidden" then
-                    spec_count = spec_count + 1
-                    specs[spec_count] = spec
-                end
-
-                key_index = key_index + 1
-            end
-
-            break
+    for index = 1, get_sequential_count(command_specs) do
+        local spec = command_specs[index]
+        if spec ~= nil
+            and spec.category == category
+            and get_admin_menu_command_branch(spec) == branch_id
+            and get_admin_menu_command_mode(spec) ~= "hidden" then
+            specs[get_sequential_count(specs) + 1] = spec
         end
     end
 
@@ -523,22 +398,40 @@ local function get_sorted_command_specs()
     return command_specs
 end
 
+local function get_command_catalog_count()
+    return get_sequential_count(command_specs)
+end
+
+local function get_help_page_count()
+    return math.max(1, math.ceil(get_command_catalog_count() / help_page_size))
+end
+
 find_command_spec_by_name = function(name)
     local normalized = normalize_command_lookup(name)
-    for index = 1, command_catalog_count do
+    for index = 1, get_command_catalog_count() do
         local spec = command_specs[index]
         if spec ~= nil and spec.name == normalized then
             return spec
         end
     end
 
-    local catalog_spec = command_catalog[normalized]
-    if catalog_spec ~= nil then
-        catalog_spec.name = catalog_spec.name or normalized
-        return catalog_spec
+    return nil
+end
+
+local function command_has_alias(spec, search_text)
+    local normalized = normalize_command_lookup(search_text)
+    local aliases = spec ~= nil and spec.aliases or nil
+    if aliases == nil then
+        return false
     end
 
-    return nil
+    for index = 1, #aliases do
+        if normalize_command_lookup(aliases[index]) == normalized then
+            return true
+        end
+    end
+
+    return false
 end
 
 local function command_matches_search(spec, search_text)
@@ -549,28 +442,27 @@ local function command_matches_search(spec, search_text)
 
     return string.find(spec.name, normalized, 1, true) ~= nil
         or string.find(string.lower(spec.category), normalized, 1, true) ~= nil
-        or string.find(string.lower(spec.usage), normalized, 1, true) ~= nil
+        or string.find(string.lower(spec.commandUsage or spec.usage or ""), normalized, 1, true) ~= nil
         or string.find(string.lower(spec.summary), normalized, 1, true) ~= nil
         or string.find(string.lower(spec.keywords or ""), normalized, 1, true) ~= nil
         or string.find(string.lower(spec.detail or ""), normalized, 1, true) ~= nil
+        or command_has_alias(spec, search_text)
 end
 
 local function find_matching_command_specs(search_text)
     local matches = {}
-    local normalized = normalize_search_text(search_text)
-    local alias_name = help_search_aliases[normalize_command_lookup(search_text)] or help_search_aliases[normalized]
-    if alias_name ~= nil then
-        local alias_spec = find_command_spec_by_name(alias_name)
-        if alias_spec ~= nil then
-            table.insert(matches, alias_spec)
+    for index = 1, get_command_catalog_count() do
+        local spec = command_specs[index]
+        if spec ~= nil and command_has_alias(spec, search_text) then
+            append_sequential(matches, spec)
             return matches
         end
     end
 
-    for index = 1, command_catalog_count do
+    for index = 1, get_command_catalog_count() do
         local spec = command_specs[index]
         if spec ~= nil and command_matches_search(spec, search_text) then
-            table.insert(matches, spec)
+            append_sequential(matches, spec)
         end
     end
 
@@ -578,16 +470,21 @@ local function find_matching_command_specs(search_text)
 end
 
 local function format_command_summary_text(spec)
-    return spec.usage
+    local usage = tostring(spec.commandUsage or spec.usage or "")
+    if usage ~= "" and usage ~= "nil" then
+        return usage
+    end
+
+    return "!gt_" .. tostring(spec.name or "command")
 end
 
 local function send_command_summary_line(slot, spec)
-    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. spec.usage)
+    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. format_command_summary_text(spec))
     send_private(slot, "[GT] summary | " .. spec.summary)
 end
 
 local function send_command_detail(slot, spec)
-    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. spec.usage)
+    send_private(slot, "[GT] command | category=" .. spec.category .. " | " .. format_command_summary_text(spec))
     send_private(slot, "[GT] summary | " .. spec.summary)
     if spec.detail ~= nil and spec.detail ~= "" then
         send_private(slot, "[GT] details | " .. spec.detail)
@@ -602,31 +499,49 @@ end
 
 local function send_batched_command_summaries(slot, commands, prefix)
     local batch = {}
-    for index = 1, #commands do
+    for index = 1, get_sequential_count(commands) do
         local spec = commands[index]
         if spec ~= nil then
-            table.insert(batch, format_command_summary_text(spec))
-            if #batch >= 3 then
-                send_private(slot, prefix .. " | " .. table.concat(batch, " || "))
+            append_sequential(batch, format_command_summary_text(spec))
+            if get_sequential_count(batch) >= 3 then
+                local text = ""
+                for batch_index = 1, get_sequential_count(batch) do
+                    if text ~= "" then
+                        text = text .. " || "
+                    end
+
+                    text = text .. tostring(batch[batch_index] or "")
+                end
+
+                send_private(slot, prefix .. " | " .. text)
                 batch = {}
             end
         end
     end
 
-    if #batch > 0 then
-        send_private(slot, prefix .. " | " .. table.concat(batch, " || "))
+    if get_sequential_count(batch) > 0 then
+        local text = ""
+        for index = 1, get_sequential_count(batch) do
+            if text ~= "" then
+                text = text .. " || "
+            end
+
+            text = text .. tostring(batch[index] or "")
+        end
+
+        send_private(slot, prefix .. " | " .. text)
     end
 end
 
 local function join_command_usages(commands)
     local text = ""
-    for index = 1, #commands do
+    for index = 1, get_sequential_count(commands) do
         local spec = commands[index]
         if spec ~= nil then
             if text ~= "" then
                 text = text .. " | "
             end
-            text = text .. spec.usage
+            text = text .. format_command_summary_text(spec)
         end
     end
 
@@ -635,20 +550,20 @@ end
 
 local function build_commands_by_category()
     local grouped = {}
-    for index = 1, command_category_count do
-        table.insert(grouped, {
+    for index = 1, get_sequential_count(command_categories) do
+        append_sequential(grouped, {
             category = command_categories[index],
             commands = {}
         })
     end
 
-    for index = 1, command_catalog_count do
+    for index = 1, get_command_catalog_count() do
         local spec = command_specs[index]
         if spec ~= nil then
-            for category_index = 1, command_category_count do
+            for category_index = 1, get_sequential_count(grouped) do
                 local entry = grouped[category_index]
                 if entry.category == spec.category then
-                    table.insert(entry.commands, spec)
+                    append_sequential(entry.commands, spec)
                     break
                 end
             end
@@ -667,7 +582,7 @@ local function get_command_specs_for_keys(keys)
     for index = 1, #keys do
         local spec = find_command_spec_by_name(keys[index])
         if spec ~= nil then
-            specs[#specs + 1] = spec
+            append_sequential(specs, spec)
         end
     end
 
@@ -677,11 +592,11 @@ end
 local function get_command_specs_for_page(page_index)
     local specs = {}
     local start_index = ((page_index - 1) * help_page_size) + 1
-    local end_index = math.min(start_index + help_page_size - 1, command_catalog_count)
+    local end_index = math.min(start_index + help_page_size - 1, get_command_catalog_count())
     for index = start_index, end_index do
         local spec = command_specs[index]
         if spec ~= nil then
-            table.insert(specs, spec)
+            append_sequential(specs, spec)
         end
     end
 
@@ -1326,32 +1241,18 @@ local function handle_help(event, arguments)
 
     local page_number = tonumber(search_text)
     if search_text ~= "" and page_number ~= nil and page_number == math.floor(page_number) then
-        local page_index = clamp(page_number, 1, help_page_count)
-        send_private(event.slot, "[GT] help | page=" .. tostring(page_index) .. "/" .. tostring(help_page_count) .. " | commands=" .. tostring(command_catalog_count))
-        send_private(event.slot, help_page_lines[page_index] or help_page_lines[1])
+        local page_count = get_help_page_count()
+        local page_index = clamp(page_number, 1, page_count)
+        send_private(event.slot, "[GT] help | page=" .. tostring(page_index) .. "/" .. tostring(page_count) .. " | commands=" .. tostring(get_command_catalog_count()))
+        send_batched_command_summaries(event.slot, get_command_specs_for_page(page_index), "[GT] commands")
         send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search> | targets: name | #userid | @me | @all | @alive | @dead | @red | @blue")
         return true
     end
 
     if search_text ~= "" then
-        if normalize_search_text(search_text) == "protect" then
-            send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=1")
-            send_private(event.slot, "[GT] usage: !gt_cvar protect <name>")
-            send_command_detail(event.slot, find_command_spec_by_name("cvar"))
-            return true
-        end
-
-        local match_count = 0
-        local first_match = nil
-        for index = 1, command_catalog_count do
-            local spec = command_specs[index]
-            if spec ~= nil and command_matches_search(spec, search_text) then
-                match_count = match_count + 1
-                if first_match == nil then
-                    first_match = spec
-                end
-            end
-        end
+        local matches = find_matching_command_specs(search_text)
+        local match_count = get_sequential_count(matches)
+        local first_match = matches[1]
 
         if match_count == 0 then
             send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=0")
@@ -1361,14 +1262,14 @@ local function handle_help(event, arguments)
         send_private(event.slot, "[GT] help | search=\"" .. search_text .. "\" | matches=" .. tostring(match_count))
         if match_count == 1 and first_match ~= nil then
             send_command_detail(event.slot, first_match)
-        elseif first_match ~= nil then
-            send_private(event.slot, "[GT] matches | " .. first_match.usage)
+        else
+            send_batched_command_summaries(event.slot, matches, "[GT] matches")
         end
         return true
     end
 
-    send_private(event.slot, "[GT] help | page=1/" .. tostring(help_page_count) .. " | commands=" .. tostring(command_catalog_count))
-    send_private(event.slot, help_page_lines[1])
+    send_private(event.slot, "[GT] help | page=1/" .. tostring(get_help_page_count()) .. " | commands=" .. tostring(get_command_catalog_count()))
+    send_batched_command_summaries(event.slot, get_command_specs_for_page(1), "[GT] commands")
     send_private(event.slot, "[GT] usage | !gt_help <page> | !gt_help <search> | targets: name | #userid | @me | @all | @alive | @dead | @red | @blue")
     return true
 end
@@ -2146,6 +2047,42 @@ local function handle_nextmap(event, arguments)
     return true
 end
 
+local function handle_demo(event, arguments)
+    local subcommand, remainder = split_first_word(arguments)
+    subcommand = string.lower(trim(subcommand))
+    remainder = trim(remainder)
+
+    if subcommand == "" or subcommand == "status" then
+        send_private(event.slot, plugin.host.get_demo_recording_status())
+        return true
+    end
+
+    if subcommand == "start" then
+        local result = plugin.host.try_start_demo_recording(remainder)
+        if result ~= nil and result.success then
+            send_private(event.slot, result.status)
+        else
+            local error_message = result ~= nil and result.error or "unknown error"
+            send_private(event.slot, "[GT] demo start failed: " .. tostring(error_message))
+        end
+        return true
+    end
+
+    if subcommand == "stop" then
+        local result = plugin.host.try_stop_demo_recording()
+        if result ~= nil and result.success then
+            send_private(event.slot, result.status)
+        else
+            local error_message = result ~= nil and result.error or "unknown error"
+            send_private(event.slot, "[GT] demo stop failed: " .. tostring(error_message))
+        end
+        return true
+    end
+
+    send_private(event.slot, "[GT] usage: !gt_demo <status|start [path]|stop>")
+    return true
+end
+
 local admin_menu_scale_values = { "1.0", "0.9", "0.8", "0.7", "0.6", "0.5", "0.4", "0.3", "0.2", "0.1" }
 local admin_menu_speed_values = { "0.5", "0.75", "1.0", "1.25", "1.5", "2.0", "2.5", "3.0", "4.0" }
 local admin_menu_gravity_values = { "0.1", "0.25", "0.5", "0.75", "1.0", "1.5", "2.0", "3.0", "4.0" }
@@ -2161,25 +2098,6 @@ local function shallow_copy_table(source)
     end
 
     return copy
-end
-
-get_sequential_count = function(items)
-    if items == nil then
-        return 0
-    end
-
-    local count = 0
-    while items[count + 1] ~= nil do
-        count = count + 1
-    end
-
-    return count
-end
-
-append_sequential = function(items, value)
-    local next_index = get_sequential_count(items) + 1
-    items[next_index] = value
-    return next_index
 end
 
 local function escape_admin_menu_value(text)
@@ -2522,6 +2440,38 @@ local function execute_admin_menu_action(session, action_kind, target_text, sele
 end
 
 local function build_admin_menu_branch_screen(branch_id, requested_page)
+    local categories = get_admin_menu_branch_categories(branch_id)
+    if get_sequential_count(categories) > 1 then
+        local page_items, page_index, total_pages = paginate_admin_menu_items(categories, requested_page or 1, 4)
+        local entries = {}
+        for index = 1, get_sequential_count(page_items) do
+            local category = page_items[index]
+            local category_specs = get_admin_menu_command_specs_for_category(branch_id, category)
+            append_sequential(entries, {
+                token = "category:" .. branch_id .. "|" .. category,
+                label = tostring(category) .. " (" .. tostring(get_sequential_count(category_specs)) .. ")",
+            })
+        end
+
+        if total_pages > 1 then
+            append_sequential(entries, {
+                token = "page:" .. tostring(next_admin_menu_page(page_index, total_pages)),
+                label = "Next",
+            })
+        end
+
+        append_sequential(entries, { token = "back", label = "Back" })
+        if get_sequential_count(entries) < 6 then
+            append_sequential(entries, { token = "close", label = "Close" })
+        end
+
+        return make_admin_menu_screen(
+            get_admin_menu_branch_title(branch_id),
+            get_admin_menu_branch_subtitle(branch_id) .. " | Page " .. tostring(page_index) .. "/" .. tostring(total_pages),
+            get_admin_menu_branch_title(branch_id),
+            entries)
+    end
+
     local specs = get_admin_menu_command_specs_for_branch(branch_id)
     local page_items, page_index, total_pages = paginate_admin_menu_items(specs, requested_page or 1, 3)
     local should_prefix_category = branch_id == "server_management"
@@ -2598,7 +2548,7 @@ local function build_admin_menu_command_detail_screen(state)
         })
     end
 
-    local subtitle = spec.usage or spec.summary or "Use chat for this command."
+    local subtitle = format_command_summary_text(spec)
     if spec.summary ~= nil and spec.summary ~= "" and spec.summary ~= subtitle then
         subtitle = subtitle .. " | " .. spec.summary
     end
@@ -3104,6 +3054,8 @@ function plugin.try_handle_chat_message(context, e)
         return handle_map(e, arguments)
     elseif command_name == "nextmap" then
         return handle_nextmap(e, arguments)
+    elseif command_name == "demo" then
+        return handle_demo(e, arguments)
     elseif command_name == "adminmenu" then
         return handle_admin_menu(context, e)
     end

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PyroBlueLeanLS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueLeanLS/image 0.png"
+                       "Content/Sprites/Characters/Pyro/PyroBlueLeanLS.images/image 0.png"
                    ],
     "originX":  31,
     "originY":  40,

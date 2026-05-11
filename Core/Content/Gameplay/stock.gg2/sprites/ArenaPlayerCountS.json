@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ArenaPlayerCountS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/Arena/ArenaPlayerCountS/image 0.png"
+                       "Content/Sprites/HUDs/Gamemode HUDS/Arena/ArenaPlayerCountS.images/image 0.png"
                    ],
     "originX":  18,
     "originY":  7,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SpyBlueHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/SpyBlueHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/SpyBlueHeadS.images/image 0.png"
                    ],
     "originX":  6,
     "originY":  6,

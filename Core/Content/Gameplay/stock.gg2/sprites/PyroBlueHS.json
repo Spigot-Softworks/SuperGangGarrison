@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "PyroBlueHS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 0.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 1.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 2.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 3.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 4.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueHS/image 5.png"
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 0.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 1.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 2.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 3.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 4.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueHS.images/image 5.png"
                    ],
     "originX":  31,
     "originY":  40,

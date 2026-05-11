@@ -81,6 +81,10 @@ internal sealed class NetworkGameClient : IDisposable
 
     public byte LocalPlayerSlot { get; private set; }
     public string? ServerDescription { get; private set; }
+    public string? ReplayDisplayName { get; private set; }
+    public string? ReplayServerName { get; private set; }
+    public string? ReplayMapName { get; private set; }
+    public DateTime? ReplayDateUtc { get; private set; }
     public int ServerMaxPlayerCount { get; private set; }
     public int SimulatedLatencyMilliseconds { get; private set; }
     public int EstimatedPingMilliseconds { get; private set; } = -1;
@@ -126,8 +130,29 @@ internal sealed class NetworkGameClient : IDisposable
         }
 
         _transport = transport;
-        IsReplayConnection = transport is ReDsmReplayTransport
-            || transport.RemoteDescription.StartsWith("replay:", StringComparison.OrdinalIgnoreCase);
+        if (transport is IPlaybackMessageTransport playbackTransport)
+        {
+            IsReplayConnection = true;
+            ReplayDisplayName = string.IsNullOrWhiteSpace(playbackTransport.PlaybackDisplayName)
+                ? null
+                : playbackTransport.PlaybackDisplayName.Trim();
+            ReplayServerName = string.IsNullOrWhiteSpace(playbackTransport.PlaybackServerName)
+                ? null
+                : playbackTransport.PlaybackServerName.Trim();
+            ReplayMapName = string.IsNullOrWhiteSpace(playbackTransport.PlaybackMapName)
+                ? null
+                : playbackTransport.PlaybackMapName.Trim();
+            ReplayDateUtc = playbackTransport.PlaybackDateUtc;
+        }
+        else
+        {
+            IsReplayConnection = transport.RemoteDescription.StartsWith("replay:", StringComparison.OrdinalIgnoreCase);
+            ReplayDisplayName = null;
+            ReplayServerName = null;
+            ReplayMapName = null;
+            ReplayDateUtc = null;
+        }
+
         NetworkInputDelayTicks = transport.IsLoopbackConnection ? 0 : 2;
         _pendingHelloPlayerName = playerName;
         _pendingHelloBadgeMask = badgeMask;
@@ -158,6 +183,10 @@ internal sealed class NetworkGameClient : IDisposable
         IsReplayConnection = false;
         LocalPlayerSlot = 0;
         ServerDescription = null;
+        ReplayDisplayName = null;
+        ReplayServerName = null;
+        ReplayMapName = null;
+        ReplayDateUtc = null;
         ServerMaxPlayerCount = 0;
         _pendingHelloPlayerName = null;
         _pendingHelloBadgeMask = 0UL;

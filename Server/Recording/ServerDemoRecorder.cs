@@ -274,8 +274,7 @@ internal sealed class ServerDemoRecorder : IDisposable
                 : fullPath;
         }
 
-        var directory = Path.Combine(RuntimePaths.ConfigDirectory, "demos");
-        Directory.CreateDirectory(directory);
+        var directory = RuntimePaths.ReplaysDirectory;
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss", CultureInfo.InvariantCulture);
         var serverName = SanitizePathSegment(_serverNameGetter());
         return Path.Combine(directory, $"{timestamp} {serverName}");

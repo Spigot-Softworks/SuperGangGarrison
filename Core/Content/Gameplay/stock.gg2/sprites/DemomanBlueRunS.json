@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "DemomanBlueRunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueRunS/image 0.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueRunS/image 1.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueRunS/image 2.png",
-                       "assets/legacy-sprites/Characters/Demoman/DemomanBlueRunS/image 3.png"
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Demoman/DemomanBlueRunS.images/image 3.png"
                    ],
     "originX":  33,
     "originY":  40,

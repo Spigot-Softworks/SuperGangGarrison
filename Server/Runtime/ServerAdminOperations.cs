@@ -21,7 +21,10 @@ internal sealed class ServerAdminOperations(
     Func<ServerBotManager> botManagerGetter,
     Action<ChatRelayMessage>? broadcastSystemChatMessage = null,
     Action<MapChangeTransition>? applyMapTransition = null,
-    ServerBanService? banService = null) : IOpenGarrisonServerAdminOperations
+    ServerBanService? banService = null,
+    Func<string>? demoRecordingStatusGetter = null,
+    Func<string?, OpenGarrisonServerDemoRecordingResult>? demoRecordingStarter = null,
+    Func<OpenGarrisonServerDemoRecordingResult>? demoRecordingStopper = null) : IOpenGarrisonServerAdminOperations
 {
     private const int MaxPlayerNameLength = 20;
     private const string DefaultPlayerName = "Player";
@@ -522,6 +525,23 @@ internal sealed class ServerAdminOperations(
         botManagerGetter().ClearAllBots();
         log($"[server] clearbots removed {count} bots");
         return count;
+    }
+
+    public string GetDemoRecordingStatus()
+    {
+        return demoRecordingStatusGetter?.Invoke() ?? "[server] demo | status=unavailable";
+    }
+
+    public OpenGarrisonServerDemoRecordingResult TryStartDemoRecording(string? requestedPath)
+    {
+        return demoRecordingStarter?.Invoke(requestedPath)
+            ?? new OpenGarrisonServerDemoRecordingResult(false, string.Empty, "Demo recording is not configured.");
+    }
+
+    public OpenGarrisonServerDemoRecordingResult TryStopDemoRecording()
+    {
+        return demoRecordingStopper?.Invoke()
+            ?? new OpenGarrisonServerDemoRecordingResult(false, string.Empty, "Demo recording is not configured.");
     }
 
     private static bool TryResolveGameplayLoadoutSelection(PlayerClass playerClass, string selection, out string loadoutId)

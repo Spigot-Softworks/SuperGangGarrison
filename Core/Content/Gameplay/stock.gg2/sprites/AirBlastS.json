@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "AirBlastS",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 0.png",
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 1.png",
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 2.png",
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 3.png",
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 4.png",
-                       "assets/legacy-sprites/Projectiles/AirBlastS/image 5.png"
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 0.png",
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 1.png",
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 2.png",
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 3.png",
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 4.png",
+                       "Content/Sprites/Projectiles/AirBlastS.images/image 5.png"
                    ],
     "originX":  0,
     "originY":  5,

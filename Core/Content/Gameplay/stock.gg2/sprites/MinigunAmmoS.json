@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "MinigunAmmoS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Ammo/MinigunAmmoS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Ammo/MinigunAmmoS/image 1.png"
+                       "Content/Sprites/HUDs/Ammo/MinigunAmmoS.images/image 0.png",
+                       "Content/Sprites/HUDs/Ammo/MinigunAmmoS.images/image 1.png"
                    ],
     "originX":  25,
     "originY":  8,

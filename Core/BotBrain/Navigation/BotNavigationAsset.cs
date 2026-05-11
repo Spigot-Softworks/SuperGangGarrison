@@ -84,6 +84,10 @@ public sealed class BotNavigationEdgeAssetEntry
 
     public float ProbeMoveDirectionX { get; set; }
 
+    public int ProbeVariantAttempts { get; set; }
+
+    public int ProbeVariantSuccesses { get; set; }
+
     public int SupportedClassMask { get; set; } = BotBrainClassMask.All;
 
     public int SupportedTeamMask { get; set; } = BotBrainTeamMask.All;

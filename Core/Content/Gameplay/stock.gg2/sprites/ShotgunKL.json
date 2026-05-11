@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ShotgunKL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/ShotgunKL/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/ShotgunKL/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/ShotgunKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/ShotgunKL.images/image 1.png"
                    ],
     "originX":  19,
     "originY":  4,

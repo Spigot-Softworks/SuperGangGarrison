@@ -23,9 +23,10 @@ public sealed class SteeringMachine
     private const int GroundedContinuationRecoveryTicks = 45;
     private const int LandedBelowCompletionRecoveryTicks = 90;
     private const float LandedBelowCompletionVerticalSlack = 8f;
+    private const float AirborneCompletionContinuationSlack = 8f;
     private const int MaximumCertifiedEdgeTicks = 180;
     private const int MaximumUncertifiedTraversalEdgeTicks = 180;
-    private const int MaximumWalkEdgeTicks = 180;
+    private const int MaximumWalkEdgeTicks = 60;
 
     private SteeringState _state = SteeringState.Grounded;
     private float _commitDirectionX;
@@ -89,13 +90,13 @@ public sealed class SteeringMachine
         UpdateCurrentEdgePhase(player, hasCurrentEdge);
         if (hasCurrentEdge)
         {
-            UpdateCurrentEdgeExecutionPhase(player, path, currentEdge);
+            UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge);
             TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, ref output);
         }
 
         var suppressJumpUntilLaunch = false;
         var steeringDx = hasCurrentEdge
-            ? ResolveEdgeSteeringDx(player, graph, path, currentEdge, dx, out suppressJumpUntilLaunch)
+            ? ResolveEdgeSteeringDx(player, level.Mode, graph, path, currentEdge, dx, out suppressJumpUntilLaunch)
             : dx;
         output.State = _state;
         output.EdgeKind = edgeKind;
@@ -113,7 +114,7 @@ public sealed class SteeringMachine
                     suppressJumpUntilLaunch,
                     ResolveJumpTriggerTick(player, currentEdge),
                     edgeTicks,
-                    RequiresCertifiedRunup(player, currentEdge),
+                    RequiresCertifiedRunup(player, currentEdge, level.Mode),
                     currentEdge.LaunchRecipe,
                     ref output);
                 break;
@@ -236,14 +237,37 @@ public sealed class SteeringMachine
         var distSq = (dx * dx) + (dy * dy);
         if (distSq < WaypointReachRadius * WaypointReachRadius)
         {
+            if (!player.IsGrounded
+                && player.ClassId != PlayerClass.Heavy
+                && NextEdgeRequiresGroundedLaunch(path))
+            {
+                return false;
+            }
+
             return true;
         }
 
         return path.TryGetCurrentEdge(out var edge)
             && edge.Completion.HasWindow
-            && player.IsGrounded
-            && edge.Completion.Contains(player.X, player.Y);
+            && (player.IsGrounded
+                ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
+                : player.ClassId != PlayerClass.Heavy && IsAirborneCompletionContinuation(player, edge));
     }
+
+    private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavEdge edge) =>
+        edge.Kind == NavEdgeKind.Jump
+        && !edge.RequiresGroundedContinuation
+        && edge.Completion.HasWindow
+        && player.VerticalSpeed >= -15f
+        && player.X >= edge.Completion.MinX
+        && player.X <= edge.Completion.MaxX
+        && player.Y >= edge.Completion.MinY
+        && player.Y <= edge.Completion.MaxY + AirborneCompletionContinuationSlack;
+
+    private static bool NextEdgeRequiresGroundedLaunch(NavPath path) =>
+        path.CurrentIndex + 1 < path.Count
+        && path.TryGetIncomingEdge(path.CurrentIndex + 1, out var nextEdge)
+        && RequiresVerticalCertifiedLaunch(nextEdge);
 
     private static int ResolveJumpTriggerTick(PlayerEntity player, NavEdge edge)
     {
@@ -255,12 +279,18 @@ public sealed class SteeringMachine
         return edge.JumpTriggerTick;
     }
 
-    private static bool RequiresCertifiedRunup(PlayerEntity player, NavEdge edge) =>
-        player.ClassId == PlayerClass.Heavy
-        && player.IsCarryingIntel
-        && edge.Kind == NavEdgeKind.Jump
+    private static bool RequiresCertifiedRunup(PlayerEntity player, NavEdge edge, GameModeKind mode) =>
+        edge.Kind == NavEdgeKind.Jump
+        && edge.LaunchRecipe.HasRecipe
         && edge.ProbeMoveDirectionX != 0f
-        && edge.JumpTriggerTick > 0;
+        && (player.ClassId == PlayerClass.Soldier
+            || (mode == GameModeKind.CaptureTheFlag && player.ClassId == PlayerClass.Heavy)
+            || RequiresVerticalCertifiedLaunch(edge));
+
+    private static bool RequiresVerticalCertifiedLaunch(NavEdge edge) =>
+        edge.Completion.HasWindow
+        && edge.LaunchRecipe.HasRecipe
+        && edge.LaunchRecipe.LaunchMinY - edge.Completion.MaxY >= 20f;
 
     private int UpdateCurrentEdgeTimer(PlayerEntity player, NavPath path, bool hasCurrentEdge)
     {
@@ -325,12 +355,12 @@ public sealed class SteeringMachine
         }
     }
 
-    private void UpdateCurrentEdgeExecutionPhase(PlayerEntity player, NavPath path, NavEdge edge)
+    private void UpdateCurrentEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavPath path, NavEdge edge)
     {
         if (_edgePhase != EdgeExecutionPhase.None)
         {
             _edgePhaseTicks += 1;
-            if (ShouldExitEdgeExecutionPhase(player, edge))
+            if (ShouldExitEdgeExecutionPhase(player, graph, edge))
             {
                 _edgePhase = EdgeExecutionPhase.None;
                 _edgePhaseTicks = 0;
@@ -339,7 +369,7 @@ public sealed class SteeringMachine
             return;
         }
 
-        if (ShouldEnterLandedBelowCompletionPhase(player, path, edge))
+        if (ShouldEnterLandedBelowCompletionPhase(player, graph, path, edge))
         {
             _edgePhase = EdgeExecutionPhase.LandedBelowCompletion;
             _edgePhaseTicks = 0;
@@ -348,6 +378,7 @@ public sealed class SteeringMachine
 
     private float ResolveEdgeSteeringDx(
         PlayerEntity player,
+        GameModeKind mode,
         NavGraph graph,
         NavPath path,
         NavEdge edge,
@@ -402,7 +433,7 @@ public sealed class SteeringMachine
             }
 
             if (travelDirection != 0f
-                && RequiresCertifiedRunup(player, edge)
+                && RequiresCertifiedRunup(player, edge, mode)
                 && !IsInLaunchPositionWindow(player, edge.LaunchRecipe)
                 && signedDistanceFromLaunch > ResolveCertifiedLaunchForwardTolerance(edge.JumpTriggerTick)
                 && player.Y > edge.Completion.MaxY + 8f)
@@ -499,6 +530,7 @@ public sealed class SteeringMachine
 
     private bool ShouldEnterLandedBelowCompletionPhase(
         PlayerEntity player,
+        NavGraph graph,
         NavPath path,
         NavEdge edge)
     {
@@ -516,7 +548,7 @@ public sealed class SteeringMachine
             return false;
         }
 
-        if (edge.Completion.Contains(player.X, player.Y))
+        if (graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
         {
             return false;
         }
@@ -525,9 +557,9 @@ public sealed class SteeringMachine
             || edge.JumpTriggerTick > 0;
     }
 
-    private bool ShouldExitEdgeExecutionPhase(PlayerEntity player, NavEdge edge)
+    private bool ShouldExitEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavEdge edge)
     {
-        if (edge.Completion.Contains(player.X, player.Y))
+        if (graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
         {
             return true;
         }
@@ -547,17 +579,7 @@ public sealed class SteeringMachine
         ref SteeringOutput output)
     {
         if (path.CurrentIndex <= 0
-            || edge.Completion.Contains(player.X, player.Y))
-        {
-            return;
-        }
-
-        var maxTicks = edge.Kind == NavEdgeKind.Walk
-            ? MaximumWalkEdgeTicks
-            : edge.Completion.HasWindow
-                ? MaximumCertifiedEdgeTicks
-                : MaximumUncertifiedTraversalEdgeTicks;
-        if (edgeTicks < maxTicks)
+            || graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion))
         {
             return;
         }
@@ -568,6 +590,16 @@ public sealed class SteeringMachine
         var targetDistance = MathF.Sqrt(
             ((targetNode.X - player.X) * (targetNode.X - player.X))
             + ((targetNode.Y - player.Y) * (targetNode.Y - player.Y)));
+        var maxTicks = edge.Kind == NavEdgeKind.Walk
+            ? MaximumWalkEdgeTicks
+            : edge.Completion.HasWindow
+                ? MaximumCertifiedEdgeTicks
+                : MaximumUncertifiedTraversalEdgeTicks;
+        if (edgeTicks < maxTicks)
+        {
+            return;
+        }
+
         output.RequestRepath = true;
         output.FailedEdge = new SteeringFailedEdge(
             HasFailure: true,
@@ -623,6 +655,19 @@ public sealed class SteeringMachine
             case NavEdgeKind.Jump:
                 output.MoveDirection = moveDir;
                 var jumpDelaySatisfied = edgeTicks >= jumpTriggerTick;
+                if (requiresCertifiedRunup
+                    && launchRecipe.HasRecipe
+                    && IsInLaunchPositionWindow(player, launchRecipe)
+                    && !IsInLaunchSpeedWindow(player, launchRecipe))
+                {
+                    output.MoveDirection = player.HorizontalSpeed > launchRecipe.LaunchMaxHorizontalSpeed
+                        ? -1f
+                        : player.HorizontalSpeed < launchRecipe.LaunchMinHorizontalSpeed
+                            ? 1f
+                            : output.MoveDirection;
+                    break;
+                }
+
                 var needsRunup = player.ClassId == PlayerClass.Soldier
                     || requiresCertifiedRunup
                     || (player.ClassId == PlayerClass.Heavy && moveDir < 0f);
@@ -635,8 +680,9 @@ public sealed class SteeringMachine
                     || (player.HorizontalSpeed * moveDir) >= minimumRunupSpeed
                     || (!requiresCertifiedRunup
                         && edgeTicks >= jumpTriggerTick + MaximumDelayedJumpRunupTicks);
-                var recipeReady = edgeTicks >= launchRecipe.LaunchTick
-                    && IsLaunchRecipeReady(player, launchRecipe, moveDir);
+                var recipeReady = !requiresCertifiedRunup && jumpDelaySatisfied
+                    || (edgeTicks >= launchRecipe.LaunchTick
+                        && IsLaunchRecipeReady(player, launchRecipe, moveDir));
                 if (jumpDelaySatisfied
                     && (recipeReady || runupSatisfied)
                     && (MathF.Abs(dx) <= JumpTriggerDistance
@@ -715,29 +761,26 @@ public sealed class SteeringMachine
         switch (_stuckEscapePhase)
         {
             case 1:
-                output.Jump = true;
-                if (_stuckEscapeTicks > 5)
+                if (_stuckEscapeTicks <= 5)
                 {
-                    _stuckEscapePhase = 0;
+                    output.Jump = true;
                 }
                 break;
             case 2:
-                output.MoveDirection = output.MoveDirection == 0f
-                    ? (player.FacingDirectionX > 0f ? -1f : 1f)
-                    : -output.MoveDirection;
-                output.Jump = true;
-                if (_stuckEscapeTicks > 8)
+                if (_stuckEscapeTicks <= 8)
                 {
-                    _stuckEscapePhase = 0;
+                    output.MoveDirection = output.MoveDirection == 0f
+                        ? (player.FacingDirectionX > 0f ? -1f : 1f)
+                        : -output.MoveDirection;
+                    output.Jump = true;
                 }
                 break;
             case 3:
-                output.MoveDirection = player.FacingDirectionX > 0f ? -1f : 1f;
-                output.Jump = true;
-                output.RequestRepath = true;
-                if (_stuckEscapeTicks > 10)
+                if (_stuckEscapeTicks <= 10)
                 {
-                    _stuckEscapePhase = 0;
+                    output.MoveDirection = player.FacingDirectionX > 0f ? -1f : 1f;
+                    output.Jump = true;
+                    output.RequestRepath = true;
                 }
                 break;
         }
@@ -839,6 +882,11 @@ public sealed class SteeringMachine
         && player.Y >= recipe.LaunchMinY
         && player.Y <= recipe.LaunchMaxY;
 
+    private static bool IsInLaunchSpeedWindow(PlayerEntity player, NavEdgeLaunchRecipe recipe) =>
+        recipe.HasRecipe
+        && player.HorizontalSpeed >= recipe.LaunchMinHorizontalSpeed
+        && player.HorizontalSpeed <= recipe.LaunchMaxHorizontalSpeed;
+
     private static float ResolveCertifiedRunupSpeed(int jumpTriggerTick) =>
         jumpTriggerTick <= 3 ? 55f : MinimumDelayedJumpRunupSpeed;
 
@@ -868,6 +916,12 @@ public struct SteeringOutput
     public bool Jump { get; set; }
 
     public bool DropDown { get; set; }
+
+    public bool HasAimOverride { get; set; }
+
+    public float AimOverrideX { get; set; }
+
+    public float AimOverrideY { get; set; }
 
     public bool RequestRepath { get; set; }
 

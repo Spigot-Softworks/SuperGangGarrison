@@ -1,9 +1,9 @@
-﻿{
+{
     "id":  "popupButtonS",
     "framePaths":  [
-                       "assets/legacy-sprites/GameElements/popupButtonS/image 0.png",
-                       "assets/legacy-sprites/GameElements/popupButtonS/image 1.png",
-                       "assets/legacy-sprites/GameElements/popupButtonS/image 2.png"
+                       "Content/Sprites/GameElements/popupButtonS.images/image 0.png",
+                       "Content/Sprites/GameElements/popupButtonS.images/image 1.png",
+                       "Content/Sprites/GameElements/popupButtonS.images/image 2.png"
                    ],
     "originX":  0,
     "originY":  0,

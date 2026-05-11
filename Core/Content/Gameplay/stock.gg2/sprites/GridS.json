@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "GridS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Builder/GridS/image 0.png"
+                       "Content/Sprites/HUDs/Builder/GridS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

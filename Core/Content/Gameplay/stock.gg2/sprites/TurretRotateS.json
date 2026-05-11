@@ -1,16 +1,16 @@
-﻿{
+{
     "id":  "TurretRotateS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 3.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 4.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 5.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 6.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 7.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 8.png",
-                       "assets/legacy-sprites/InGameElements/TurretRotateS/image 9.png"
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 0.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 1.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 2.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 3.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 4.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 5.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 6.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 7.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 8.png",
+                       "Content/Sprites/InGameElements/TurretRotateS.images/image 9.png"
                    ],
     "originX":  18,
     "originY":  10,

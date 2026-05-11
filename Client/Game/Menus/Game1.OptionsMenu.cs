@@ -14,11 +14,7 @@ public partial class Game1
 {
     private static OfflineBotControllerMode GetNextBotMode(OfflineBotControllerMode botMode)
     {
-        return botMode switch
-        {
-            OfflineBotControllerMode.MotionProof => OfflineBotControllerMode.ModernGraphRoute,
-            _ => OfflineBotControllerMode.MotionProof,
-        };
+        return OfflineBotControllerMode.BotBrain;
     }
 
     private static MusicMode GetNextMusicMode(MusicMode musicMode)

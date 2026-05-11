@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "EngineerRedJumpS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerRedJumpS/image 0.png"
+                       "Content/Sprites/Characters/Engineer/EngineerRedJumpS.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  40,

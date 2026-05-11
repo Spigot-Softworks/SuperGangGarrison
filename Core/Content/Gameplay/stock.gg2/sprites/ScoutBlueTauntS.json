@@ -1,15 +1,15 @@
-﻿{
+{
     "id":  "ScoutBlueTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueTauntS/image 8.png"
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Scout/ScoutBlueTauntS.images/image 8.png"
                    ],
     "originX":  30,
     "originY":  40,

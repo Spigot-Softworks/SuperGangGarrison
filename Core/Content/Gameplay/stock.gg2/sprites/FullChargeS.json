@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "FullChargeS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/FullChargeS/image 0.png"
+                       "Content/Sprites/HUDs/FullChargeS.images/image 0.png"
                    ],
     "originX":  5,
     "originY":  7,

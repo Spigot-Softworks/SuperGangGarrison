@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "SentryHUD",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/SentryHUD/image 0.png",
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Engineer/SentryHUD/image 1.png"
+                       "Content/Sprites/HUDs/WeaponHUDS/Engineer/SentryHUD.images/image 0.png",
+                       "Content/Sprites/HUDs/WeaponHUDS/Engineer/SentryHUD.images/image 1.png"
                    ],
     "originX":  0,
     "originY":  0,

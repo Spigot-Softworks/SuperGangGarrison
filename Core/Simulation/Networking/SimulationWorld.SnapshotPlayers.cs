@@ -37,7 +37,7 @@ public sealed partial class SimulationWorld
             var wasGibbedDeath = localPlayerState.GibDeaths > previousGibDeaths;
             if (diedThisSnapshot && wasGibbedDeath)
             {
-                SpawnPlayerGibsForNetworkDeath(LocalPlayer);
+                SpawnClientPlayerGibsFromNetworkDeath(LocalPlayer);
             }
 
             TrySetNetworkPlayerAwaitingJoin(LocalPlayerSlot, localPlayerState.IsAwaitingJoin);

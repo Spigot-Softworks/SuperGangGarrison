@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SetupGateS",
     "framePaths":  [
-                       "assets/legacy-sprites/Obstacles/SetupGateS/image 0.png"
+                       "Content/Sprites/Obstacles/SetupGateS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

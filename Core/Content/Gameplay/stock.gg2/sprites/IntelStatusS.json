@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "IntelStatusS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS/image 1.png",
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS/image 2.png",
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS/image 3.png"
+                       "Content/Sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS.images/image 0.png",
+                       "Content/Sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS.images/image 1.png",
+                       "Content/Sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS.images/image 2.png",
+                       "Content/Sprites/HUDs/Gamemode HUDS/CTF/IntelStatusS.images/image 3.png"
                    ],
     "originX":  13,
     "originY":  9,

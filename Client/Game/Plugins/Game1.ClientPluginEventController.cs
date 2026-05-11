@@ -32,6 +32,7 @@ public partial class Game1
                 }
 
                 _game._pendingNetworkDamageEvents.Add(damageEvent);
+                SpawnClientDamageVisuals(resolvedSnapshot, damageEvent);
                 _game.QueueImmediateNetworkDeathPresentation(resolvedSnapshot, damageEvent);
             }
         }
@@ -109,11 +110,6 @@ public partial class Game1
             {
                 var damageEvent = _game._pendingNetworkDamageEvents[index];
                 TryTrackLastToDieDamageDealt(damageEvent.AttackerPlayerId, damageEvent.Amount);
-
-                if (ShouldSpawnClientBloodFromDamage((CoreDamageTargetKind)damageEvent.TargetKind, damageEvent.Amount))
-                {
-                    _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
-                }
             }
 
             if (_game._clientPluginHost is null)
@@ -147,6 +143,50 @@ public partial class Game1
             return _game._gibLevel > 0
                 && targetKind == CoreDamageTargetKind.Player
                 && damageAmount > 0;
+        }
+
+        private void SpawnClientDamageVisuals(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
+        {
+            if (ShouldSpawnClientBloodFromDamage((CoreDamageTargetKind)damageEvent.TargetKind, damageEvent.Amount))
+            {
+                _game._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+            }
+
+            TrySpawnClientPlayerGibsFromDamage(resolvedSnapshot, damageEvent);
+        }
+
+        private void TrySpawnClientPlayerGibsFromDamage(SnapshotMessage resolvedSnapshot, SnapshotDamageEvent damageEvent)
+        {
+            if (_game._gibLevel <= 1
+                || !damageEvent.WasFatal
+                || damageEvent.TargetKind != (byte)CoreDamageTargetKind.Player)
+            {
+                return;
+            }
+
+            var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
+            if (targetPlayer is null || ReferenceEquals(targetPlayer, _game._world.LocalPlayer))
+            {
+                return;
+            }
+
+            var snapshotPlayer = default(SnapshotPlayerState?);
+            for (var playerIndex = 0; playerIndex < resolvedSnapshot.Players.Count; playerIndex += 1)
+            {
+                var candidate = resolvedSnapshot.Players[playerIndex];
+                if (candidate.PlayerId == damageEvent.TargetEntityId)
+                {
+                    snapshotPlayer = candidate;
+                    break;
+                }
+            }
+
+            if (snapshotPlayer is null || snapshotPlayer.GibDeaths <= targetPlayer.GibDeaths)
+            {
+                return;
+            }
+
+            _game._world.SpawnClientPlayerGibsFromNetworkDeath(targetPlayer);
         }
 
         private void DispatchPendingHealingEventsToPlugins()

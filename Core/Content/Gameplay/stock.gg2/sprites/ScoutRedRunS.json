@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "ScoutRedRunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedRunS/image 0.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedRunS/image 1.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedRunS/image 2.png",
-                       "assets/legacy-sprites/Characters/Scout/ScoutRedRunS/image 3.png"
+                       "Content/Sprites/Characters/Scout/ScoutRedRunS.images/image 0.png",
+                       "Content/Sprites/Characters/Scout/ScoutRedRunS.images/image 1.png",
+                       "Content/Sprites/Characters/Scout/ScoutRedRunS.images/image 2.png",
+                       "Content/Sprites/Characters/Scout/ScoutRedRunS.images/image 3.png"
                    ],
     "originX":  30,
     "originY":  40,

@@ -28,6 +28,8 @@ public partial class Game1
         int? skippedDeadBodySourcePlayerId = null)
     {
         var browserWorldDrawStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
+        DrawCustomMapBackdrop(worldRectangle);
+        DrawCustomMapParallaxBackgrounds(cameraPosition);
         var hasLevelBackground = DrawLevelBackground(worldRectangle);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground);
         DrawGameplayEffectsAndProjectiles(cameraPosition);
@@ -63,6 +65,7 @@ public partial class Game1
         DrawFrozenSpyVisuals(cameraPosition);
         DrawBackstabVisuals(cameraPosition);
         DrawSpySuperjumpVisuals(cameraPosition);
+        DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
         RecordBrowserWorldDrawDuration(browserWorldDrawStartTimestamp);
