@@ -1,19 +1,19 @@
-﻿{
+{
     "id":  "ExplosionS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 3.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 4.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 5.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 6.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 7.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 8.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 9.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 10.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 11.png",
-                       "assets/legacy-sprites/InGameElements/ExplosionS/image 12.png"
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 0.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 1.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 2.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 3.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 4.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 5.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 6.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 7.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 8.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 9.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 10.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 11.png",
+                       "Content/Sprites/InGameElements/ExplosionS.images/image 12.png"
                    ],
     "originX":  21,
     "originY":  21,

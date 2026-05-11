@@ -29,7 +29,7 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public MusicMode MusicMode { get; set; } = MusicMode.MenuAndInGame;
 
-    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.MotionProof;
+    public OfflineBotControllerMode BotMode { get; set; } = OfflineBotControllerMode.BotBrain;
 
     public bool IngameMusicEnabled
     {
@@ -112,7 +112,7 @@ public sealed class OpenGarrisonPreferencesDocument
             FrameRateLimit = ini.GetInt(SettingsSection, "Frame Rate Limit", 0),
             IngameResolution = NormalizeIngameResolution((IngameResolutionKind)ini.GetInt(SettingsSection, "Resolution", (int)IngameResolutionKind.Aspect4x3)),
             MusicMode = LoadMusicMode(ini),
-            BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.MotionProof.ToString())),
+            BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
@@ -243,15 +243,14 @@ public sealed class OpenGarrisonPreferencesDocument
     {
         return Enum.TryParse<OfflineBotControllerMode>(value, ignoreCase: true, out var mode)
             ? NormalizeBotMode(mode)
-            : OfflineBotControllerMode.MotionProof;
+            : OfflineBotControllerMode.BotBrain;
     }
 
     private static OfflineBotControllerMode NormalizeBotMode(OfflineBotControllerMode mode)
     {
         return mode switch
         {
-            OfflineBotControllerMode.ModernGraphRoute => OfflineBotControllerMode.ModernGraphRoute,
-            _ => OfflineBotControllerMode.MotionProof,
+            _ => OfflineBotControllerMode.BotBrain,
         };
     }
 
@@ -433,6 +432,8 @@ public sealed class OpenGarrisonMapRotationEntry
 
     public GameModeKind Mode { get; init; }
 
+    public bool IsCustomMap { get; init; }
+
     public int DefaultOrder { get; init; }
 
     public int Order { get; set; }
@@ -445,6 +446,7 @@ public sealed class OpenGarrisonMapRotationEntry
             LevelName = LevelName,
             DisplayName = DisplayName,
             Mode = Mode,
+            IsCustomMap = IsCustomMap,
             DefaultOrder = DefaultOrder,
             Order = Order,
         };
@@ -462,6 +464,7 @@ public readonly record struct OpenGarrisonStockMapDefinition(
 public static class OpenGarrisonStockMapCatalog
 {
     private const string MapsSection = "Maps";
+    private const string CustomMapsSection = "CustomMaps";
 
     public static IReadOnlyList<OpenGarrisonStockMapDefinition> Definitions { get; } =
     [
@@ -482,10 +485,16 @@ public static class OpenGarrisonStockMapCatalog
         new("dkoth_atalia", "Atalia", "Atalia", GameModeKind.DoubleKingOfTheHill, 15, "atalia"),
         new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 16, "sixties", "60s", "dkoth_60s"),
         new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 17, "mantic"),
-        new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 18, "avanti"),
-        new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 19, "gallery"),
-        new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 20, "eiger"),
+        new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 18, "gallery"),
+        new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 19, "eiger"),
     ];
+
+    private static IReadOnlyList<OpenGarrisonStockMapDefinition> HiddenDefinitions { get; } =
+    [
+        new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 20, "avanti"),
+    ];
+
+    private static IEnumerable<OpenGarrisonStockMapDefinition> AllDefinitions => Definitions.Concat(HiddenDefinitions);
 
     public static List<OpenGarrisonMapRotationEntry> CreateDefaultEntries()
     {
@@ -528,16 +537,54 @@ public static class OpenGarrisonStockMapCatalog
             }
         }
 
+        foreach (var (levelName, orderText) in ini.GetSectionEntries(CustomMapsSection))
+        {
+            if (string.IsNullOrWhiteSpace(levelName)
+                || TryGetDefinition(levelName, out _))
+            {
+                continue;
+            }
+
+            var resolvedLevel = SimpleLevelFactory.GetAvailableSourceLevels()
+                .FirstOrDefault(level => string.Equals(level.Name, levelName, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(resolvedLevel.Name))
+            {
+                continue;
+            }
+
+            entries.Add(new OpenGarrisonMapRotationEntry
+            {
+                IniKey = resolvedLevel.Name,
+                LevelName = resolvedLevel.Name,
+                DisplayName = resolvedLevel.Name,
+                Mode = resolvedLevel.Mode,
+                IsCustomMap = true,
+                DefaultOrder = entries.Count + 1,
+                Order = int.TryParse(orderText, out var order) ? Math.Max(0, order) : 0,
+            });
+        }
+
         return entries;
     }
 
     public static void SaveTo(IniConfigurationFile ini, IEnumerable<OpenGarrisonMapRotationEntry> entries)
     {
+        var entryList = entries.ToArray();
         foreach (var entry in Definitions)
         {
-            var configuredEntry = entries.FirstOrDefault(candidate =>
+            var configuredEntry = entryList.FirstOrDefault(candidate =>
                 string.Equals(candidate.IniKey, entry.IniKey, StringComparison.OrdinalIgnoreCase));
             ini.SetInt(MapsSection, entry.IniKey, Math.Max(0, configuredEntry?.Order ?? entry.DefaultOrder));
+        }
+
+        foreach (var entry in entryList.Where(entry => entry.IsCustomMap || !TryGetDefinition(entry.LevelName, out _)))
+        {
+            if (string.IsNullOrWhiteSpace(entry.LevelName))
+            {
+                continue;
+            }
+
+            ini.SetInt(CustomMapsSection, entry.LevelName, Math.Max(0, entry.Order));
         }
     }
 
@@ -560,7 +607,7 @@ public static class OpenGarrisonStockMapCatalog
     public static bool TryGetDefinition(string mapName, out OpenGarrisonStockMapDefinition definition)
     {
         var normalized = NormalizeMapName(mapName);
-        foreach (var candidate in Definitions)
+        foreach (var candidate in AllDefinitions)
         {
             if (string.Equals(candidate.IniKey, normalized, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(candidate.LevelName, normalized, StringComparison.OrdinalIgnoreCase)

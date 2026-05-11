@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "DestroyS",
     "framePaths":  [
-                       "assets/legacy-sprites/Collision Maps/DestroyS/image 0.png"
+                       "Content/Sprites/Collision Maps/DestroyS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

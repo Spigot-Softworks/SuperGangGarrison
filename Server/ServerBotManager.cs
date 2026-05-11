@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;

@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "NemesisS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/NemesisS/image 0.png",
-                       "assets/legacy-sprites/HUDs/NemesisS/image 1.png"
+                       "Content/Sprites/HUDs/NemesisS.images/image 0.png",
+                       "Content/Sprites/HUDs/NemesisS.images/image 1.png"
                    ],
     "originX":  20,
     "originY":  20,

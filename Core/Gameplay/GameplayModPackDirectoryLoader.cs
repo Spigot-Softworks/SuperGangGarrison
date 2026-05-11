@@ -337,14 +337,34 @@ public static class GameplayModPackDirectoryLoader
     private static string NormalizeAndValidatePackRelativeFilePath(string packDirectory, string? relativePath, string assetId, string filePath)
     {
         ValidateRequiredText(relativePath, "framePaths", filePath);
+        var normalizedRelativePath = relativePath!.Trim().Replace('\\', '/');
+        const string contentPrefix = "Content/";
+        if (normalizedRelativePath.StartsWith(contentPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var contentRelativePath = normalizedRelativePath[contentPrefix.Length..];
+            if (string.IsNullOrWhiteSpace(contentRelativePath) || contentRelativePath.Contains("..", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes content root in \"{filePath}\": {relativePath}");
+            }
+
+            var fullContentRoot = Path.GetFullPath(ContentRoot.Path);
+            var combinedContentPath = Path.GetFullPath(ContentRoot.GetPath(contentRelativePath));
+            if (!combinedContentPath.StartsWith(fullContentRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes content root in \"{filePath}\": {relativePath}");
+            }
+
+            return normalizedRelativePath;
+        }
+
         var fullPackDirectory = Path.GetFullPath(packDirectory);
-        var combinedPath = Path.GetFullPath(Path.Combine(fullPackDirectory, relativePath!.Trim()));
+        var combinedPath = Path.GetFullPath(Path.Combine(fullPackDirectory, normalizedRelativePath));
         if (!combinedPath.StartsWith(fullPackDirectory, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"Gameplay asset \"{assetId}\" frame path escapes pack directory in \"{filePath}\": {relativePath}");
         }
 
-        return relativePath.Trim();
+        return normalizedRelativePath;
     }
 
     private static JsonSerializerOptions CreateJsonOptions()

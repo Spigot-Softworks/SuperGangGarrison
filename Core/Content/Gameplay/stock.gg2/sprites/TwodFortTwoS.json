@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "TwodFortTwoS",
     "framePaths":  [
-                       "assets/legacy-sprites/Collision Maps/TwodFortTwoS/image 0.png"
+                       "Content/Sprites/Collision Maps/TwodFortTwoS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

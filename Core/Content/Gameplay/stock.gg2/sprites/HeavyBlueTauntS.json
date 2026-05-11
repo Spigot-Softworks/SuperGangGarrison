@@ -1,18 +1,18 @@
-﻿{
+{
     "id":  "HeavyBlueTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 8.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 9.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 10.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyBlueTauntS/image 11.png"
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 10.png",
+                       "Content/Sprites/Characters/Heavy/HeavyBlueTauntS.images/image 11.png"
                    ],
     "originX":  19,
     "originY":  40,

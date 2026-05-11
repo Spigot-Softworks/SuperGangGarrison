@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SoldierBlueLeanRS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Soldier/SoldierBlueLeanRS/image 0.png"
+                       "Content/Sprites/Characters/Soldier/SoldierBlueLeanRS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

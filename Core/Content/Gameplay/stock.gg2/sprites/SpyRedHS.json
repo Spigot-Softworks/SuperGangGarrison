@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "SpyRedHS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 0.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 1.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 2.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 3.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 4.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyRedHS/image 5.png"
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 0.png",
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 1.png",
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 2.png",
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 3.png",
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 4.png",
+                       "Content/Sprites/Characters/Spy/SpyRedHS.images/image 5.png"
                    ],
     "originX":  28,
     "originY":  40,

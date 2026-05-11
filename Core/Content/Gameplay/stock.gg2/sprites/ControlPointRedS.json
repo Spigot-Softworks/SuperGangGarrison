@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ControlPointRedS",
     "framePaths":  [
-                       "assets/legacy-sprites/MapElements/ControlPointRedS/image 0.png",
-                       "assets/legacy-sprites/MapElements/ControlPointRedS/image 1.png"
+                       "Content/Sprites/MapElements/ControlPointRedS.images/image 0.png",
+                       "Content/Sprites/MapElements/ControlPointRedS.images/image 1.png"
                    ],
     "originX":  12,
     "originY":  12,

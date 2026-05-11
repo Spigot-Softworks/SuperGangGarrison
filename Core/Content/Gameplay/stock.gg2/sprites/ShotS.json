@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ShotS",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/ShotS/image 0.png"
+                       "Content/Sprites/Projectiles/ShotS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  4,

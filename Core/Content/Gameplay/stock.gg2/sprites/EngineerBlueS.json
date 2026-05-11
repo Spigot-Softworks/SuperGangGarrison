@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "EngineerBlueS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueS/image 0.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueS/image 1.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueS/image 2.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueS/image 3.png"
+                       "Content/Sprites/Characters/Engineer/EngineerBlueS.images/image 0.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueS.images/image 1.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueS.images/image 2.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueS.images/image 3.png"
                    ],
     "originX":  32,
     "originY":  40,

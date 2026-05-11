@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SoldierRedJumpS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Soldier/SoldierRedJumpS/image 0.png"
+                       "Content/Sprites/Characters/Soldier/SoldierRedJumpS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

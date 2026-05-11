@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "SniperBlueCrouchS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Sniper/SniperBlueCrouchS/image 0.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperBlueCrouchS/image 1.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperBlueCrouchS/image 2.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperBlueCrouchS/image 3.png"
+                       "Content/Sprites/Characters/Sniper/SniperBlueCrouchS.images/image 0.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueCrouchS.images/image 1.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueCrouchS.images/image 2.png",
+                       "Content/Sprites/Characters/Sniper/SniperBlueCrouchS.images/image 3.png"
                    ],
     "originX":  26,
     "originY":  40,

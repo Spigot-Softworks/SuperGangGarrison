@@ -66,7 +66,7 @@ public partial class Game1
         {
             if (!_game.IsServerLauncherMode)
             {
-                return "Server rules and stock map rotation";
+                return "Server rules and map rotation";
             }
 
             return _game.IsHostedServerRunning

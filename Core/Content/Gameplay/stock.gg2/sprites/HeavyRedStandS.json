@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyRedStandS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedStandS/image 0.png"
+                       "Content/Sprites/Characters/Heavy/HeavyRedStandS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  40,

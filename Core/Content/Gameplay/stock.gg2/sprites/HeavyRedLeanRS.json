@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyRedLeanRS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedLeanRS/image 0.png"
+                       "Content/Sprites/Characters/Heavy/HeavyRedLeanRS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  40,

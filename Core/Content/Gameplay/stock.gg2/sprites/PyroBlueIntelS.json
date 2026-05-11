@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PyroBlueIntelS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueIntelS/image 0.png"
+                       "Content/Sprites/Characters/Pyro/PyroBlueIntelS.images/image 0.png"
                    ],
     "originX":  31,
     "originY":  40,

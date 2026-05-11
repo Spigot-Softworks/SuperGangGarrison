@@ -99,6 +99,31 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     }
 
     [Fact]
+    public void StockEngineerRightClickBuildsSentry()
+    {
+        var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
+
+        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        world.SetLocalInput(new PlayerInputSnapshot(
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            world.LocalPlayer.X + 96f,
+            world.LocalPlayer.Y,
+            false));
+
+        world.AdvanceOneTick();
+
+        Assert.Single(world.Sentries);
+    }
+
+    [Fact]
     public void OutputInducerEngineerPdaCanPlaceSecondSentry()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerOutputInducer: true));

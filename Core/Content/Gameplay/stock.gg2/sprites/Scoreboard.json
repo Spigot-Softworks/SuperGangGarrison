@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "Scoreboard",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/ScoreBoard/Scoreboard/image 0.png"
+                       "Content/Sprites/HUDs/ScoreBoard/Scoreboard.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "GeneratorHUDS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Gamemode HUDS/Generator/GeneratorHUDS/image 0.png"
+                       "Content/Sprites/HUDs/Gamemode HUDS/Generator/GeneratorHUDS.images/image 0.png"
                    ],
     "originX":  46,
     "originY":  17,

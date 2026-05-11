@@ -1,13 +1,13 @@
-﻿{
+{
     "id":  "MedalS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/MedalS/image 0.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 1.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 2.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 3.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 4.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 5.png",
-                       "assets/legacy-sprites/HUDs/MedalS/image 6.png"
+                       "Content/Sprites/HUDs/MedalS.images/image 0.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 1.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 2.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 3.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 4.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 5.png",
+                       "Content/Sprites/HUDs/MedalS.images/image 6.png"
                    ],
     "originX":  0,
     "originY":  0,

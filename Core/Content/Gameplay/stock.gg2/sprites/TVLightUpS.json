@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "TVLightUpS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Class and Team Select/TVLightUpS/image 0.png"
+                       "Content/Sprites/HUDs/Class and Team Select/TVLightUpS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

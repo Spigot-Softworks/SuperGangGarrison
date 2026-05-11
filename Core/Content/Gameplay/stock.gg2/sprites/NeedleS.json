@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "NeedleS",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/NeedleS/image 0.png"
+                       "Content/Sprites/Projectiles/NeedleS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

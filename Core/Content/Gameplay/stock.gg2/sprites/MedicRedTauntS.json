@@ -1,18 +1,18 @@
-﻿{
+{
     "id":  "MedicRedTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 8.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 9.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 10.png",
-                       "assets/legacy-sprites/Characters/Medic/MedicRedTauntS/image 11.png"
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 10.png",
+                       "Content/Sprites/Characters/Medic/MedicRedTauntS.images/image 11.png"
                    ],
     "originX":  27,
     "originY":  40,

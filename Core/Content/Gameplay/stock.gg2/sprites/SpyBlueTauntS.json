@@ -1,17 +1,17 @@
-﻿{
+{
     "id":  "SpyBlueTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 8.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 9.png",
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueTauntS/image 10.png"
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Spy/SpyBlueTauntS.images/image 10.png"
                    ],
     "originX":  28,
     "originY":  40,

@@ -54,8 +54,19 @@ internal static class ServerPluginRuntimeFactory
             () => snapshotBroadcaster,
             () => botManager,
             broadcastSystemChatMessage: message => demoRecorder.RecordBroadcastMessage(message),
-            applyMapTransition,
-            banService);
+            applyMapTransition: applyMapTransition,
+            banService: banService,
+            demoRecordingStatusGetter: demoRecorder.GetStatusLine,
+            demoRecordingStarter: requestedPath =>
+            {
+                var success = demoRecorder.TryStart(requestedPath, out var status, out var error);
+                return new OpenGarrisonServerDemoRecordingResult(success, status, error);
+            },
+            demoRecordingStopper: () =>
+            {
+                var success = demoRecorder.TryStop(out var status, out var error);
+                return new OpenGarrisonServerDemoRecordingResult(success, status, error);
+            });
         var consoleSummaryBuilder = new ServerConsoleSummaryBuilder(
             config,
             port,

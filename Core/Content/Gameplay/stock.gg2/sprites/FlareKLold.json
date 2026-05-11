@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "FlareKLold",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/FlareKLold/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/FlareKLold/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/FlareKLold.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/FlareKLold.images/image 1.png"
                    ],
     "originX":  21,
     "originY":  8,

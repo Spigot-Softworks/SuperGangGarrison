@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "BlueClumpS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/Gibs/BlueClumpS/image 3.png"
+                       "Content/Sprites/InGameElements/Gibs/BlueClumpS.images/image 0.png",
+                       "Content/Sprites/InGameElements/Gibs/BlueClumpS.images/image 1.png",
+                       "Content/Sprites/InGameElements/Gibs/BlueClumpS.images/image 2.png",
+                       "Content/Sprites/InGameElements/Gibs/BlueClumpS.images/image 3.png"
                    ],
     "originX":  3,
     "originY":  2,

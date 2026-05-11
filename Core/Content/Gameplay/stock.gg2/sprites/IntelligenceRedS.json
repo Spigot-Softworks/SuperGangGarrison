@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "IntelligenceRedS",
     "framePaths":  [
-                       "assets/legacy-sprites/MapElements/IntelligenceRedS/image 0.png"
+                       "Content/Sprites/MapElements/IntelligenceRedS.images/image 0.png"
                    ],
     "originX":  9,
     "originY":  12,

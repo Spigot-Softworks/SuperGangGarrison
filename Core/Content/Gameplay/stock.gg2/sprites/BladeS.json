@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "BladeS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/BladeS/image 0.png",
-                       "assets/legacy-sprites/Weapons/BladeS/image 1.png"
+                       "Content/Sprites/Weapons/BladeS.images/image 0.png",
+                       "Content/Sprites/Weapons/BladeS.images/image 1.png"
                    ],
     "originX":  5,
     "originY":  5,

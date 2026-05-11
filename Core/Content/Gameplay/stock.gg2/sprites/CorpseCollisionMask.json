@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "CorpseCollisionMask",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/CorpseCollisionMask/image 0.png"
+                       "Content/Sprites/InGameElements/CorpseCollisionMask.images/image 0.png"
                    ],
     "originX":  32,
     "originY":  32,

@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "HeavyRedS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedS/image 0.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedS/image 1.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedS/image 2.png",
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedS/image 3.png"
+                       "Content/Sprites/Characters/Heavy/HeavyRedS.images/image 0.png",
+                       "Content/Sprites/Characters/Heavy/HeavyRedS.images/image 1.png",
+                       "Content/Sprites/Characters/Heavy/HeavyRedS.images/image 2.png",
+                       "Content/Sprites/Characters/Heavy/HeavyRedS.images/image 3.png"
                    ],
     "originX":  19,
     "originY":  40,

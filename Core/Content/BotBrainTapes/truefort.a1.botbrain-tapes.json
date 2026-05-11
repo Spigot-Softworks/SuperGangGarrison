@@ -1,0 +1,5473 @@
+{
+  "FormatVersion": 1,
+  "LevelName": "Truefort",
+  "MapAreaIndex": 1,
+  "Tapes": [
+    {
+      "Name": "MotionProof.Truefort.Red.Soldier.ReturnAction",
+      "Team": "Red",
+      "PlayerClass": "Soldier",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4945.2,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": 151.7,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1227,
+              "X": 481.91586,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -134.99901,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 25
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 30
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 13
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 77
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Sniper.ReturnAction",
+      "Team": "Red",
+      "PlayerClass": "Sniper",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4945.4,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": 153,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1226,
+              "X": 481.9166,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -134.99901,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 18
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 26
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 33
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 0,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 82
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Demoman.ReturnStage2",
+      "Team": "Red",
+      "PlayerClass": "Demoman",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 1024.1,
+              "Y": 540,
+              "Bottom": 564,
+              "HorizontalSpeed": -150,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 227,
+              "X": 482.29105,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -149.99698,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 0,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 75
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Engineer.ReturnStage2",
+      "Team": "Red",
+      "PlayerClass": "Engineer",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4416,
+              "Y": 642,
+              "Bottom": 666,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 12,
+              "X": 4446.0933,
+              "Y": 613.6017,
+              "Bottom": 637.6017,
+              "HorizontalSpeed": 119.44337,
+              "VerticalSpeed": -177,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 24,
+              "X": 4500.7,
+              "Y": 586,
+              "Bottom": 610,
+              "HorizontalSpeed": 144.61346,
+              "VerticalSpeed": 39,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 36,
+              "X": 4551.2915,
+              "Y": 588,
+              "Bottom": 612,
+              "HorizontalSpeed": 71.829506,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 48,
+              "X": 4538.531,
+              "Y": 528.99854,
+              "Bottom": 552.99854,
+              "HorizontalSpeed": -102.02607,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 60,
+              "X": 4486.9946,
+              "Y": 492,
+              "Bottom": 516,
+              "HorizontalSpeed": -141.5432,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 72,
+              "X": 4428.4873,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -148.50919,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 84,
+              "X": 4368.7505,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -149.73712,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 96,
+              "X": 4308.798,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -149.95361,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 108,
+              "X": 4248.8066,
+              "Y": 492.3009,
+              "Bottom": 516.3009,
+              "HorizontalSpeed": -149.99173,
+              "VerticalSpeed": 198,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 120,
+              "X": 4188.806,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -149.99847,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 132,
+              "X": 4128.806,
+              "Y": 474,
+              "Bottom": 498,
+              "HorizontalSpeed": -149.99965,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 144,
+              "X": 4068.806,
+              "Y": 411.59946,
+              "Bottom": 435.59946,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -33,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 156,
+              "X": 4008.807,
+              "Y": 441.6007,
+              "Bottom": 465.6007,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 183,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 168,
+              "X": 3948.8037,
+              "Y": 548.9993,
+              "Bottom": 572.9993,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 180,
+              "X": 3888.8015,
+              "Y": 586.6045,
+              "Bottom": 610.6045,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 27,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 192,
+              "X": 3828.8037,
+              "Y": 652.60626,
+              "Bottom": 676.60626,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 243,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 204,
+              "X": 3768.804,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 216,
+              "X": 3708.804,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 228,
+              "X": 3648.8037,
+              "Y": 695.99976,
+              "Bottom": 719.99976,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 180,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 240,
+              "X": 3588.8037,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 252,
+              "X": 3528.8037,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 264,
+              "X": 3468.8037,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 276,
+              "X": 3408.8037,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 288,
+              "X": 3348.8037,
+              "Y": 726,
+              "Bottom": 750,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 300,
+              "X": 3288.804,
+              "Y": 668.5998,
+              "Bottom": 692.5998,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 312,
+              "X": 3228.8052,
+              "Y": 626.5983,
+              "Bottom": 650.5983,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 324,
+              "X": 3168.805,
+              "Y": 670.99866,
+              "Bottom": 694.99866,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 219,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 336,
+              "X": 3108.8052,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 348,
+              "X": 3048.8052,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 360,
+              "X": 2988.8052,
+              "Y": 690,
+              "Bottom": 714,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 372,
+              "X": 2928.8052,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 384,
+              "X": 2868.8066,
+              "Y": 668.99884,
+              "Bottom": 692.99884,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -141,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 396,
+              "X": 2808.8066,
+              "Y": 655.7984,
+              "Bottom": 679.7984,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 75,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 408,
+              "X": 2748.8066,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 420,
+              "X": 2688.808,
+              "Y": 668.99884,
+              "Bottom": 692.99884,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -141,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 432,
+              "X": 2628.808,
+              "Y": 655.7984,
+              "Bottom": 679.7984,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 75,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 444,
+              "X": 2568.8083,
+              "Y": 692.5998,
+              "Bottom": 716.5998,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 456,
+              "X": 2508.8096,
+              "Y": 650.5983,
+              "Bottom": 674.5983,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 468,
+              "X": 2448.8093,
+              "Y": 694.99866,
+              "Bottom": 718.99866,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 219,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 480,
+              "X": 2388.8096,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 492,
+              "X": 2328.8096,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 504,
+              "X": 2268.8096,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 516,
+              "X": 2208.811,
+              "Y": 627.5984,
+              "Bottom": 651.5984,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -33,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 528,
+              "X": 2148.8115,
+              "Y": 648,
+              "Bottom": 672,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 540,
+              "X": 2088.8115,
+              "Y": 650.6999,
+              "Bottom": 674.6999,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 54,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 552,
+              "X": 2028.8113,
+              "Y": 690,
+              "Bottom": 714,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 564,
+              "X": 1968.8113,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 576,
+              "X": 1908.8113,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 588,
+              "X": 1848.8113,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 600,
+              "X": 1788.8113,
+              "Y": 726,
+              "Bottom": 750,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 612,
+              "X": 1728.8113,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 624,
+              "X": 1668.8112,
+              "Y": 643.0001,
+              "Bottom": 667.0001,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 636,
+              "X": 1608.811,
+              "Y": 658.5995,
+              "Bottom": 682.5995,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 147,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 648,
+              "X": 1548.811,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 660,
+              "X": 1488.811,
+              "Y": 654,
+              "Bottom": 678,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 672,
+              "X": 1428.811,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 684,
+              "X": 1368.8109,
+              "Y": 555.60004,
+              "Bottom": 579.60004,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": -33,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 696,
+              "X": 1308.8108,
+              "Y": 576,
+              "Bottom": 600,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 708,
+              "X": 1248.8108,
+              "Y": 600.2998,
+              "Bottom": 624.2998,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 162,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 720,
+              "X": 1188.8109,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 732,
+              "X": 1128.8109,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 744,
+              "X": 1070.1576,
+              "Y": 564,
+              "Bottom": 588,
+              "HorizontalSpeed": -109.59961,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 756,
+              "X": 1084.3557,
+              "Y": 530,
+              "Bottom": 554,
+              "HorizontalSpeed": 104.2384,
+              "VerticalSpeed": -159,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 768,
+              "X": 1114.3314,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": 87.021866,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 780,
+              "X": 1096.1499,
+              "Y": 475.6,
+              "Bottom": 499.6,
+              "HorizontalSpeed": -108.218346,
+              "VerticalSpeed": -177,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 792,
+              "X": 1043.5215,
+              "Y": 447.99997,
+              "Bottom": 471.99997,
+              "HorizontalSpeed": -142.63478,
+              "VerticalSpeed": 39,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 804,
+              "X": 984.8209,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -148.70158,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 816,
+              "X": 925.05005,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -149.77106,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 828,
+              "X": 865.09045,
+              "Y": 486,
+              "Bottom": 510,
+              "HorizontalSpeed": -149.95956,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 840,
+              "X": 808.9562,
+              "Y": 526.7998,
+              "Bottom": 550.7998,
+              "HorizontalSpeed": -74.63296,
+              "VerticalSpeed": 72,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 852,
+              "X": 829.323,
+              "Y": 598.79987,
+              "Bottom": 622.79987,
+              "HorizontalSpeed": 110.40224,
+              "VerticalSpeed": 288,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 864,
+              "X": 826.99994,
+              "Y": 718.6998,
+              "Bottom": 742.6998,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 876,
+              "X": 822.0082,
+              "Y": 838.6998,
+              "Bottom": 862.6998,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 888,
+              "X": 788.47296,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -123.55833,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 900,
+              "X": 733.1383,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -145.33884,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 912,
+              "X": 673.9607,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -149.17825,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 924,
+              "X": 614.10565,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -149.85504,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 936,
+              "X": 554.1312,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -149.97438,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 948,
+              "X": 494.136,
+              "Y": 844.59973,
+              "Bottom": 868.59973,
+              "HorizontalSpeed": -149.99539,
+              "VerticalSpeed": -123,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 960,
+              "X": 434.13693,
+              "Y": 838.5993,
+              "Bottom": 862.5993,
+              "HorizontalSpeed": -149.9991,
+              "VerticalSpeed": 93,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 965,
+              "X": 409.13702,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": -149.99951,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 0,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 41
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 13
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Heavy.ReturnStage2",
+      "Team": "Red",
+      "PlayerClass": "Heavy",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4401,
+              "Y": 822,
+              "Bottom": 846,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 12,
+              "X": 4427.828,
+              "Y": 822,
+              "Bottom": 846,
+              "HorizontalSpeed": 98.84665,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 24,
+              "X": 4472.094,
+              "Y": 768.999,
+              "Bottom": 792.999,
+              "HorizontalSpeed": 116.27109,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 36,
+              "X": 4519.438,
+              "Y": 784.59784,
+              "Bottom": 808.59784,
+              "HorizontalSpeed": 119.34264,
+              "VerticalSpeed": 147,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 48,
+              "X": 4561.415,
+              "Y": 732.2992,
+              "Bottom": 756.2992,
+              "HorizontalSpeed": 35.39485,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 60,
+              "X": 4540.832,
+              "Y": 690.29877,
+              "Bottom": 714.29877,
+              "HorizontalSpeed": -92.607346,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 72,
+              "X": 4497.6655,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -115.17123,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 84,
+              "X": 4485.0967,
+              "Y": 650.6,
+              "Bottom": 674.6,
+              "HorizontalSpeed": 55.559376,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 96,
+              "X": 4521.7275,
+              "Y": 608.5996,
+              "Bottom": 632.5996,
+              "HorizontalSpeed": 108.6405,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 108,
+              "X": 4564.636,
+              "Y": 570,
+              "Bottom": 594,
+              "HorizontalSpeed": 57.709663,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 120,
+              "X": 4547.99,
+              "Y": 526.5997,
+              "Bottom": 550.5997,
+              "HorizontalSpeed": -88.67375,
+              "VerticalSpeed": -123,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 132,
+              "X": 4505.518,
+              "Y": 510,
+              "Bottom": 534,
+              "HorizontalSpeed": -114.47783,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 144,
+              "X": 4458.492,
+              "Y": 462,
+              "Bottom": 486,
+              "HorizontalSpeed": -119.026535,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 156,
+              "X": 4410.6646,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -119.82837,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 168,
+              "X": 4362.694,
+              "Y": 433.80072,
+              "Bottom": 457.80072,
+              "HorizontalSpeed": -119.9697,
+              "VerticalSpeed": -195,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 180,
+              "X": 4314.6987,
+              "Y": 399.00027,
+              "Bottom": 423.00027,
+              "HorizontalSpeed": -119.99462,
+              "VerticalSpeed": 21,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 192,
+              "X": 4266.7,
+              "Y": 450.6008,
+              "Bottom": 474.6008,
+              "HorizontalSpeed": -119.99902,
+              "VerticalSpeed": 237,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 204,
+              "X": 4218.698,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -119.99977,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 216,
+              "X": 4170.698,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 228,
+              "X": 4122.698,
+              "Y": 462,
+              "Bottom": 486,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 240,
+              "X": 4074.6968,
+              "Y": 408.80075,
+              "Bottom": 432.80075,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -105,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 252,
+              "X": 4026.6968,
+              "Y": 410.00018,
+              "Bottom": 434.00018,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 111,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 264,
+              "X": 3978.6975,
+              "Y": 497.00082,
+              "Bottom": 521.00085,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 276,
+              "X": 3930.703,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 288,
+              "X": 3882.703,
+              "Y": 624,
+              "Bottom": 648,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 300,
+              "X": 3834.703,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 312,
+              "X": 3786.703,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 324,
+              "X": 3738.703,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 336,
+              "X": 3690.703,
+              "Y": 666.29987,
+              "Bottom": 690.29987,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 18,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 348,
+              "X": 3642.7024,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 360,
+              "X": 3594.7024,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 372,
+              "X": 3546.7024,
+              "Y": 732,
+              "Bottom": 756,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 384,
+              "X": 3498.7024,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 396,
+              "X": 3450.7024,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 408,
+              "X": 3402.7024,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 420,
+              "X": 3354.7024,
+              "Y": 726,
+              "Bottom": 750,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 432,
+              "X": 3306.7014,
+              "Y": 668.6004,
+              "Bottom": 692.6004,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 444,
+              "X": 3258.7002,
+              "Y": 626.60126,
+              "Bottom": 650.60126,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 456,
+              "X": 3210.7002,
+              "Y": 648,
+              "Bottom": 672,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 468,
+              "X": 3162.7,
+              "Y": 658.7995,
+              "Bottom": 682.7995,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 108,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 480,
+              "X": 3114.6997,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 492,
+              "X": 3066.6997,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 504,
+              "X": 3018.6997,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 516,
+              "X": 2970.6997,
+              "Y": 702,
+              "Bottom": 726,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 528,
+              "X": 2922.6997,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 540,
+              "X": 2874.6985,
+              "Y": 685.80054,
+              "Bottom": 709.80054,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -195,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 552,
+              "X": 2826.6975,
+              "Y": 651.00116,
+              "Bottom": 675.00116,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 21,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 564,
+              "X": 2778.6982,
+              "Y": 702.60156,
+              "Bottom": 726.60156,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 237,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 576,
+              "X": 2730.6982,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 588,
+              "X": 2682.6982,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 600,
+              "X": 2634.6982,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 612,
+              "X": 2586.6982,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 624,
+              "X": 2538.696,
+              "Y": 664.6011,
+              "Bottom": 688.6011,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -123,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 636,
+              "X": 2490.696,
+              "Y": 658.60114,
+              "Bottom": 682.60114,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 93,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 648,
+              "X": 2442.6968,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 660,
+              "X": 2394.6968,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 672,
+              "X": 2346.6968,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 684,
+              "X": 2298.6968,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 696,
+              "X": 2250.6968,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 708,
+              "X": 2202.6946,
+              "Y": 629.00116,
+              "Bottom": 653.00116,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -51,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 720,
+              "X": 2154.6948,
+              "Y": 645.8012,
+              "Bottom": 669.8012,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 165,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 732,
+              "X": 2106.6948,
+              "Y": 648,
+              "Bottom": 672,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 744,
+              "X": 2058.6943,
+              "Y": 677.9995,
+              "Bottom": 701.9995,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 180,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 756,
+              "X": 2010.6943,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 768,
+              "X": 1962.6943,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 780,
+              "X": 1914.6943,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 792,
+              "X": 1866.6943,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 804,
+              "X": 1818.6943,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 816,
+              "X": 1770.6943,
+              "Y": 702,
+              "Bottom": 726,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 828,
+              "X": 1722.6941,
+              "Y": 673.8001,
+              "Bottom": 697.8001,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -195,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 840,
+              "X": 1674.6938,
+              "Y": 639.0007,
+              "Bottom": 663.0007,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 21,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 852,
+              "X": 1626.6938,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 864,
+              "X": 1578.6938,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 876,
+              "X": 1530.6938,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 888,
+              "X": 1482.6938,
+              "Y": 642,
+              "Bottom": 666,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 900,
+              "X": 1434.6938,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 912,
+              "X": 1386.6936,
+              "Y": 573.0001,
+              "Bottom": 597.0001,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -141,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 924,
+              "X": 1338.6934,
+              "Y": 559.80084,
+              "Bottom": 583.80084,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 75,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 936,
+              "X": 1290.6935,
+              "Y": 576,
+              "Bottom": 600,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 948,
+              "X": 1242.6937,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 960,
+              "X": 1194.6937,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 972,
+              "X": 1146.6937,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 984,
+              "X": 1098.6937,
+              "Y": 588,
+              "Bottom": 612,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 996,
+              "X": 1073.9645,
+              "Y": 564,
+              "Bottom": 588,
+              "HorizontalSpeed": 32.804825,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1008,
+              "X": 1099.9823,
+              "Y": 508.99973,
+              "Bottom": 532.99976,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": -51,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1020,
+              "X": 1108.5375,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -40.388313,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1032,
+              "X": 1074.5841,
+              "Y": 450.9997,
+              "Bottom": 474.9997,
+              "HorizontalSpeed": -105.96619,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1044,
+              "X": 1029.06,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -117.52613,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1056,
+              "X": 981.49664,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -119.56386,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1068,
+              "X": 933.57367,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -119.92309,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1080,
+              "X": 885.58716,
+              "Y": 462,
+              "Bottom": 486,
+              "HorizontalSpeed": -119.98639,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1092,
+              "X": 837.5896,
+              "Y": 510,
+              "Bottom": 534,
+              "HorizontalSpeed": -119.99755,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1104,
+              "X": 807.7673,
+              "Y": 541.2001,
+              "Bottom": 565.2001,
+              "HorizontalSpeed": 19.235462,
+              "VerticalSpeed": 144,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1116,
+              "X": 828.5716,
+              "Y": 638.7001,
+              "Bottom": 662.7001,
+              "HorizontalSpeed": -3.1940126,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1128,
+              "X": 823.9974,
+              "Y": 758.7,
+              "Bottom": 782.7,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1140,
+              "X": 832.64844,
+              "Y": 876,
+              "Bottom": 900,
+              "HorizontalSpeed": -40.388313,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1152,
+              "X": 798.6945,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -105.96619,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1164,
+              "X": 753.17053,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -117.52613,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1176,
+              "X": 705.60706,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -119.56386,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1188,
+              "X": 657.6841,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -119.92309,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1200,
+              "X": 609.69775,
+              "Y": 872.5999,
+              "Bottom": 896.5999,
+              "HorizontalSpeed": -119.98639,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1212,
+              "X": 561.6999,
+              "Y": 830.60034,
+              "Bottom": 854.60034,
+              "HorizontalSpeed": -119.99755,
+              "VerticalSpeed": 3,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1224,
+              "X": 513.7002,
+              "Y": 875.0003,
+              "Bottom": 899.0003,
+              "HorizontalSpeed": -119.999535,
+              "VerticalSpeed": 219,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1236,
+              "X": 465.7001,
+              "Y": 835.0001,
+              "Bottom": 859.0001,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 1247,
+              "X": 421.70016,
+              "Y": 846.00055,
+              "Bottom": 870.00055,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 129,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 18
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 33
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 44
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 35
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Spy.ReturnStage2",
+      "Team": "Red",
+      "PlayerClass": "Spy",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4477.2,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -153.6,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 12,
+              "X": 4486.3174,
+              "Y": 631.5998,
+              "Bottom": 655.5998,
+              "HorizontalSpeed": 106.3668,
+              "VerticalSpeed": -177,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 24,
+              "X": 4541.303,
+              "Y": 592,
+              "Bottom": 616,
+              "HorizontalSpeed": 152.1931,
+              "VerticalSpeed": 39,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 36,
+              "X": 4540.83,
+              "Y": 526.7012,
+              "Bottom": 550.7012,
+              "HorizontalSpeed": -97.72647,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 48,
+              "X": 4487.3706,
+              "Y": 492,
+              "Bottom": 516,
+              "HorizontalSpeed": -150.67003,
+              "VerticalSpeed": 0,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 60,
+              "X": 4424.5693,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -160.00276,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 72,
+              "X": 4360.122,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -161.64792,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 84,
+              "X": 4295.384,
+              "Y": 457.19995,
+              "Bottom": 481.19995,
+              "HorizontalSpeed": -161.93791,
+              "VerticalSpeed": 36,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 96,
+              "X": 4230.596,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -161.98903,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 108,
+              "X": 4165.7974,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -161.99806,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 120,
+              "X": 4100.9995,
+              "Y": 433.6003,
+              "Bottom": 457.6003,
+              "HorizontalSpeed": -161.99965,
+              "VerticalSpeed": -177,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 132,
+              "X": 4036.1997,
+              "Y": 406.0006,
+              "Bottom": 430.0006,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 39,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 144,
+              "X": 3971.4011,
+              "Y": 464.80234,
+              "Bottom": 488.80234,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 255,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 156,
+              "X": 3934.6042,
+              "Y": 583.0032,
+              "Bottom": 607.0032,
+              "HorizontalSpeed": -111.069275,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 168,
+              "X": 3878.7915,
+              "Y": 630,
+              "Bottom": 654,
+              "HorizontalSpeed": -153.02203,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 180,
+              "X": 3815.5752,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -160.41737,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 192,
+              "X": 3751.0544,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -161.72101,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 204,
+              "X": 3686.3037,
+              "Y": 667.1999,
+              "Bottom": 691.1999,
+              "HorizontalSpeed": -161.9508,
+              "VerticalSpeed": 36,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 216,
+              "X": 3621.513,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -161.9913,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 228,
+              "X": 3556.7144,
+              "Y": 726,
+              "Bottom": 750,
+              "HorizontalSpeed": -161.99844,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 240,
+              "X": 3491.9155,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -161.9997,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 252,
+              "X": 3427.1167,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 264,
+              "X": 3362.3179,
+              "Y": 738,
+              "Bottom": 762,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 276,
+              "X": 3297.6067,
+              "Y": 662.999,
+              "Bottom": 686.999,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -141,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 288,
+              "X": 3232.8066,
+              "Y": 648,
+              "Bottom": 672,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 300,
+              "X": 3168.0076,
+              "Y": 652.8002,
+              "Bottom": 676.8002,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 72,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 312,
+              "X": 3103.2075,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 324,
+              "X": 3038.4084,
+              "Y": 668.59985,
+              "Bottom": 692.59985,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -213,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 336,
+              "X": 2973.6096,
+              "Y": 667.6082,
+              "Bottom": 691.6082,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 153,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 348,
+              "X": 2908.8108,
+              "Y": 668.999,
+              "Bottom": 692.999,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -141,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 360,
+              "X": 2844.0107,
+              "Y": 655.79956,
+              "Bottom": 679.79956,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 75,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 372,
+              "X": 2779.2124,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 384,
+              "X": 2714.4136,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 396,
+              "X": 2649.6147,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 408,
+              "X": 2584.816,
+              "Y": 660.79895,
+              "Bottom": 684.79895,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -105,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 420,
+              "X": 2520.016,
+              "Y": 661.99994,
+              "Bottom": 685.99994,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 111,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 432,
+              "X": 2455.2178,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 444,
+              "X": 2390.419,
+              "Y": 708,
+              "Bottom": 732,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 456,
+              "X": 2325.62,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 468,
+              "X": 2260.8213,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 480,
+              "X": 2196.0225,
+              "Y": 655.5995,
+              "Bottom": 679.5995,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -177,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 492,
+              "X": 2131.2227,
+              "Y": 627.99915,
+              "Bottom": 651.99915,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 39,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 504,
+              "X": 2066.4243,
+              "Y": 684,
+              "Bottom": 708,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 516,
+              "X": 2001.6244,
+              "Y": 720,
+              "Bottom": 744,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 528,
+              "X": 1936.8241,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 540,
+              "X": 1872.0238,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 552,
+              "X": 1807.2235,
+              "Y": 744,
+              "Bottom": 768,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 564,
+              "X": 1742.4232,
+              "Y": 696,
+              "Bottom": 720,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 576,
+              "X": 1677.6239,
+              "Y": 642.99945,
+              "Bottom": 666.99945,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 588,
+              "X": 1612.8239,
+              "Y": 658.5999,
+              "Bottom": 682.5999,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 147,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 600,
+              "X": 1548.0236,
+              "Y": 666,
+              "Bottom": 690,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 612,
+              "X": 1483.2233,
+              "Y": 648,
+              "Bottom": 672,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 624,
+              "X": 1418.423,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 636,
+              "X": 1353.6237,
+              "Y": 558.99945,
+              "Bottom": 582.99945,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": -69,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 648,
+              "X": 1288.8236,
+              "Y": 574.5999,
+              "Bottom": 598.5999,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 147,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 660,
+              "X": 1224.0232,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 672,
+              "X": 1159.2229,
+              "Y": 612,
+              "Bottom": 636,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 684,
+              "X": 1094.4226,
+              "Y": 588,
+              "Bottom": 612,
+              "HorizontalSpeed": -161.9999,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 696,
+              "X": 1068.4426,
+              "Y": 564,
+              "Bottom": 588,
+              "HorizontalSpeed": 60.13866,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 708,
+              "X": 1103.7137,
+              "Y": 501.5997,
+              "Bottom": 525.59973,
+              "HorizontalSpeed": 21.816116,
+              "VerticalSpeed": -33,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 720,
+              "X": 1112.3651,
+              "Y": 504,
+              "Bottom": 528,
+              "HorizontalSpeed": -68.9977,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 732,
+              "X": 1063.9739,
+              "Y": 448.99985,
+              "Bottom": 472.99985,
+              "HorizontalSpeed": -145.60577,
+              "VerticalSpeed": -51,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 744,
+              "X": 1002.0662,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -159.11006,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 756,
+              "X": 937.7761,
+              "Y": 456,
+              "Bottom": 480,
+              "HorizontalSpeed": -161.49055,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 768,
+              "X": 873.0659,
+              "Y": 480,
+              "Bottom": 504,
+              "HorizontalSpeed": -161.9102,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 780,
+              "X": 809.7362,
+              "Y": 524.70013,
+              "Bottom": 548.70013,
+              "HorizontalSpeed": -118.351906,
+              "VerticalSpeed": 54,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 792,
+              "X": 825.0729,
+              "Y": 589.50024,
+              "Bottom": 613.50024,
+              "HorizontalSpeed": 112.58022,
+              "VerticalSpeed": 270,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 804,
+              "X": 825.5835,
+              "Y": 708.70026,
+              "Bottom": 732.70026,
+              "HorizontalSpeed": 9.351145,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 816,
+              "X": 822.0054,
+              "Y": 828.7003,
+              "Bottom": 852.7003,
+              "HorizontalSpeed": 0,
+              "VerticalSpeed": 300,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 828,
+              "X": 790.2358,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -128.99884,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 840,
+              "X": 731.25824,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -156.18262,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 852,
+              "X": 667.4846,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -160.97452,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 864,
+              "X": 602.8655,
+              "Y": 888,
+              "Bottom": 912,
+              "HorizontalSpeed": -161.81923,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 876,
+              "X": 538.09735,
+              "Y": 853.99994,
+              "Bottom": 877.99994,
+              "HorizontalSpeed": -161.96812,
+              "VerticalSpeed": -159,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 888,
+              "X": 473.30273,
+              "Y": 833.60016,
+              "Bottom": 857.60016,
+              "HorizontalSpeed": -161.99435,
+              "VerticalSpeed": 57,
+              "IsGrounded": false,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 899,
+              "X": 413.90384,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": -161.99883,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 35
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 18
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Demoman.ReturnStage1",
+      "Team": "Red",
+      "PlayerClass": "Demoman",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4943.4,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": 170,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 907,
+              "X": 1024.0555,
+              "Y": 540,
+              "Bottom": 564,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 31
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 18
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": 1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 10
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 25
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Engineer.ReturnStage1",
+      "Team": "Red",
+      "PlayerClass": "Engineer",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4943.9,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": 170,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 916,
+              "X": 1021.0502,
+              "Y": 540,
+              "Bottom": 564,
+              "HorizontalSpeed": -149.99982,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 0,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 42
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 43
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 31
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 28
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 34
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 21
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 24
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 23
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 8
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Heavy.ReturnStage1",
+      "Team": "Red",
+      "PlayerClass": "Heavy",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4950.8,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": -3.4,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 181,
+              "X": 4251.7773,
+              "Y": 822,
+              "Bottom": 846,
+              "HorizontalSpeed": -119.99986,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 22
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 20
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "MotionProof.Truefort.Red.Spy.ReturnStage1",
+      "Team": "Red",
+      "PlayerClass": "Spy",
+      "Segments": [
+        {
+          "RequiresCarryingIntel": true,
+          "Samples": [
+            {
+              "Tick": 0,
+              "X": 4951,
+              "Y": 858,
+              "Bottom": 882,
+              "HorizontalSpeed": 180.7,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            },
+            {
+              "Tick": 148,
+              "X": 4482.5977,
+              "Y": 672,
+              "Bottom": 696,
+              "HorizontalSpeed": -153.55864,
+              "VerticalSpeed": 0,
+              "IsGrounded": true,
+              "MoveDirection": 0,
+              "Jump": false,
+              "DropDown": false,
+              "IsCarryingIntel": true
+            }
+          ],
+          "Actions": [
+            {
+              "Kind": "Drop",
+              "Direction": -1,
+              "Ticks": 33
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 14
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 52
+            },
+            {
+              "Kind": "Drop",
+              "Direction": 1,
+              "Ticks": 7
+            },
+            {
+              "Kind": "Jump",
+              "Direction": 1,
+              "Ticks": 17
+            },
+            {
+              "Kind": "Jump",
+              "Direction": -1,
+              "Ticks": 19
+            },
+            {
+              "Kind": "Run",
+              "Direction": -1,
+              "Ticks": 6
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

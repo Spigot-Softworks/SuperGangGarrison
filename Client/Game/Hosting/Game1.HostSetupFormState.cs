@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using OpenGarrison.Core;
 
@@ -551,7 +552,7 @@ public partial class Game1
             var orderedNames = OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(MapEntries);
             if (orderedNames.Count == 0)
             {
-                return "Stock rotation: no maps selected.";
+                return "Map rotation: no maps selected.";
             }
 
             var preview = string.Join(" -> ", orderedNames.Take(Math.Max(1, previewCount)));
@@ -560,7 +561,7 @@ public partial class Game1
                 preview += " ...";
             }
 
-            return $"Stock rotation: {preview}";
+            return $"Map rotation: {preview}";
         }
 
         public void ScrollMapList(int deltaRows, int visibleRowCount)
@@ -622,26 +623,58 @@ public partial class Game1
 
         private static List<OpenGarrisonMapRotationEntry> BuildMapEntries(OpenGarrisonHostSettings hostDefaults)
         {
+            SimpleLevelFactory.ClearCachedCatalog();
             var configuredEntries = hostDefaults.StockMapRotation
-                .ToDictionary(entry => entry.IniKey, entry => entry, StringComparer.OrdinalIgnoreCase);
-            var mergedEntries = new List<OpenGarrisonMapRotationEntry>(OpenGarrisonStockMapCatalog.Definitions.Count);
-            foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
+                .GroupBy(entry => entry.LevelName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var stockDefinitions = OpenGarrisonStockMapCatalog.Definitions
+                .ToDictionary(definition => definition.LevelName, definition => definition, StringComparer.OrdinalIgnoreCase);
+            var sourceLevels = SimpleLevelFactory.GetAvailableSourceLevels();
+            var mergedEntries = new List<OpenGarrisonMapRotationEntry>(sourceLevels.Count);
+            var customDefaultOrder = OpenGarrisonStockMapCatalog.Definitions.Count + 1;
+            foreach (var sourceLevel in sourceLevels)
             {
-                if (configuredEntries.TryGetValue(definition.IniKey, out var existing))
+                var isCustomMap = Path.GetExtension(sourceLevel.RoomSourcePath).Equals(".png", StringComparison.OrdinalIgnoreCase)
+                    && !stockDefinitions.ContainsKey(sourceLevel.Name);
+                var hasStockDefinition = stockDefinitions.TryGetValue(sourceLevel.Name, out var definition);
+                var displayName = hasStockDefinition ? definition.DisplayName : sourceLevel.Name;
+                var iniKey = hasStockDefinition ? definition.IniKey : sourceLevel.Name;
+                var entryDefaultOrder = hasStockDefinition ? definition.DefaultOrder : customDefaultOrder;
+                var configuredEntry = configuredEntries.TryGetValue(sourceLevel.Name, out var existingByLevelName)
+                    ? existingByLevelName
+                    : hostDefaults.StockMapRotation.FirstOrDefault(entry =>
+                        string.Equals(entry.IniKey, iniKey, StringComparison.OrdinalIgnoreCase));
+
+                if (configuredEntry is not null)
                 {
-                    mergedEntries.Add(existing.Clone());
+                    mergedEntries.Add(new OpenGarrisonMapRotationEntry
+                    {
+                        IniKey = iniKey,
+                        LevelName = sourceLevel.Name,
+                        DisplayName = displayName,
+                        Mode = sourceLevel.Mode,
+                        IsCustomMap = isCustomMap,
+                        DefaultOrder = entryDefaultOrder,
+                        Order = configuredEntry.Order,
+                    });
                 }
                 else
                 {
                     mergedEntries.Add(new OpenGarrisonMapRotationEntry
                     {
-                        IniKey = definition.IniKey,
-                        LevelName = definition.LevelName,
-                        DisplayName = definition.DisplayName,
-                        Mode = definition.Mode,
-                        DefaultOrder = definition.DefaultOrder,
-                        Order = definition.DefaultOrder,
+                        IniKey = iniKey,
+                        LevelName = sourceLevel.Name,
+                        DisplayName = displayName,
+                        Mode = sourceLevel.Mode,
+                        IsCustomMap = isCustomMap,
+                        DefaultOrder = entryDefaultOrder,
+                        Order = isCustomMap ? 0 : entryDefaultOrder,
                     });
+                }
+
+                if (!hasStockDefinition)
+                {
+                    customDefaultOrder += 1;
                 }
             }
 

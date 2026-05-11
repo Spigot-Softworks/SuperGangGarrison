@@ -1,16 +1,16 @@
-﻿{
+{
     "id":  "PyroBlueTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 8.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueTauntS/image 9.png"
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Pyro/PyroBlueTauntS.images/image 9.png"
                    ],
     "originX":  31,
     "originY":  40,

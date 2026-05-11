@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyBlueHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/HeavyBlueHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/HeavyBlueHeadS.images/image 0.png"
                    ],
     "originX":  4,
     "originY":  5,

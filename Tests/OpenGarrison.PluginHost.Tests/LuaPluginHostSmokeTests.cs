@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -1700,6 +1701,100 @@ public sealed class LuaPluginHostSmokeTests
     }
 
     [Fact]
+    public void PackagedServerLuaGarrisonToolsEnumeratesHelpAndMenuFromCommandSpecs()
+    {
+        var repoRoot = FindRepositoryRoot();
+        var mainLuaPath = Path.Combine(repoRoot, "Plugins", "Packaged", "Server", "Lua.GarrisonTools", "main.lua");
+        var mainLua = File.ReadAllText(mainLuaPath);
+        var commandSpecs = ExtractGarrisonToolsCommandSpecs(mainLua);
+
+        Assert.NotEmpty(commandSpecs);
+        Assert.DoesNotContain("local command_catalog =", mainLua, StringComparison.Ordinal);
+        Assert.DoesNotContain("local help_page_lines =", mainLua, StringComparison.Ordinal);
+        Assert.DoesNotContain("local admin_menu_lines =", mainLua, StringComparison.Ordinal);
+
+        using var tempDirectory = new TempDirectory();
+        var logs = new List<string>();
+        var loadedPlugin = LoadPackagedServerLuaPlugin("Lua.GarrisonTools", "open-garrison.server.lua-garrison-tools", tempDirectory, logs);
+        var chatHooks = Assert.IsAssignableFrom<IOpenGarrisonServerChatCommandHooks>(loadedPlugin.Plugin);
+        var messageHooks = Assert.IsAssignableFrom<IOpenGarrisonServerPluginMessageHooks>(loadedPlugin.Plugin);
+        var context = CreateAdminChatContext(loadedPlugin.Context, slot: 1);
+
+        var helpPageCount = Math.Max(1, (int)Math.Ceiling(commandSpecs.Count / 6d));
+        var helpMessages = new List<string>();
+        for (var page = 1; page <= helpPageCount; page++)
+        {
+            Assert.True(chatHooks.TryHandleChatMessage(
+                context,
+                new ChatReceivedEvent(1, "Admin", $"!gt_help {page}", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+            helpMessages.AddRange(loadedPlugin.Context.AdminImpl.SystemMessages.Select(message => message.Text));
+            loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+        }
+
+        var helpText = string.Join("\n", helpMessages);
+        foreach (var spec in commandSpecs)
+        {
+            Assert.Contains(spec.Usage, helpText, StringComparison.Ordinal);
+        }
+
+        Assert.True(chatHooks.TryHandleChatMessage(
+            context,
+            new ChatReceivedEvent(1, "Admin", "!gt_help record", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+        Assert.Contains(loadedPlugin.Context.AdminImpl.SystemMessages, message => message.Text.Contains("!gt_demo <status|start [path]|stop>", StringComparison.Ordinal));
+        loadedPlugin.Context.AdminImpl.SystemMessages.Clear();
+
+        var menuPayloads = new List<string>();
+        void CaptureMenuPayloads()
+        {
+            menuPayloads.AddRange(loadedPlugin.Context.SentPluginMessages
+                .Where(message => message.MessageType == "adminmenu.open")
+                .Select(message => message.Payload));
+            loadedPlugin.Context.SentPluginMessages.Clear();
+        }
+
+        void OpenMenu()
+        {
+            Assert.True(chatHooks.TryHandleChatMessage(
+                context,
+                new ChatReceivedEvent(1, "Admin", "!gt_adminmenu", Team: null, TeamOnly: false)), string.Join(Environment.NewLine, logs));
+            CaptureMenuPayloads();
+        }
+
+        void SelectMenuToken(string token)
+        {
+            messageHooks.OnClientPluginMessage(new OpenGarrisonServerPluginMessageEnvelope(
+                1,
+                "Admin",
+                "open-garrison.client.lua-garrison-tools-menu",
+                "open-garrison.server.lua-garrison-tools",
+                "adminmenu.select",
+                token,
+                PluginMessagePayloadFormat.Text,
+                1));
+            CaptureMenuPayloads();
+        }
+
+        OpenMenu();
+        SelectMenuToken("nav:server_management");
+        SelectMenuToken("category:server_management|Reference");
+        OpenMenu();
+        SelectMenuToken("nav:server_management");
+        SelectMenuToken("category:server_management|Communication");
+        OpenMenu();
+        SelectMenuToken("nav:game_management");
+        OpenMenu();
+        SelectMenuToken("nav:player_management");
+        SelectMenuToken("page:2");
+        SelectMenuToken("page:3");
+
+        var menuText = string.Join("\n", menuPayloads);
+        foreach (var spec in commandSpecs.Where(spec => !spec.Hidden && !string.IsNullOrWhiteSpace(spec.Branch)))
+        {
+            Assert.Contains("|l=" + spec.Label + "|", menuText, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void PackagedServerLuaGarrisonToolsHandlesAdminActions()
     {
         using var tempDirectory = new TempDirectory();
@@ -2286,6 +2381,39 @@ public sealed class LuaPluginHostSmokeTests
                 slot));
     }
 
+    private static List<GarrisonToolsCommandSpec> ExtractGarrisonToolsCommandSpecs(string mainLua)
+    {
+        var specs = new List<GarrisonToolsCommandSpec>();
+        foreach (Match match in Regex.Matches(
+            mainLua,
+            @"append_command_spec\(\{(?<body>.*?)\}\)",
+            RegexOptions.Singleline))
+        {
+            var body = match.Groups["body"].Value;
+            specs.Add(new GarrisonToolsCommandSpec(
+                GetLuaStringProperty(body, "name"),
+                GetLuaStringProperty(body, "usage"),
+                GetLuaStringProperty(body, "label"),
+                GetOptionalLuaStringProperty(body, "branch"),
+                body.Contains("hidden = true", StringComparison.Ordinal)));
+        }
+
+        return specs;
+    }
+
+    private static string GetLuaStringProperty(string body, string propertyName)
+    {
+        var value = GetOptionalLuaStringProperty(body, propertyName);
+        Assert.False(string.IsNullOrWhiteSpace(value), $"Missing Lua command spec property '{propertyName}'.");
+        return value!;
+    }
+
+    private static string? GetOptionalLuaStringProperty(string body, string propertyName)
+    {
+        var match = Regex.Match(body, propertyName + @"\s*=\s*""(?<value>[^""]*)""");
+        return match.Success ? match.Groups["value"].Value : null;
+    }
+
     private static LoadedClientLuaTemplate LoadAdHocClientLuaPlugin(
         string pluginId,
         string displayName,
@@ -2375,6 +2503,13 @@ public sealed class LuaPluginHostSmokeTests
         IOpenGarrisonServerPlugin Plugin,
         FakeServerPluginContext Context,
         string ConfigDirectory);
+
+    private sealed record GarrisonToolsCommandSpec(
+        string Name,
+        string Usage,
+        string Label,
+        string? Branch,
+        bool Hidden);
 
     private sealed class FakeClientPluginContext : IOpenGarrisonClientPluginContext
     {
@@ -3208,6 +3343,12 @@ public sealed class LuaPluginHostSmokeTests
             ClearBotsCallCount += 1;
             return 0;
         }
+
+        public string GetDemoRecordingStatus() => "[server] demo | status=idle";
+
+        public OpenGarrisonServerDemoRecordingResult TryStartDemoRecording(string? requestedPath) => new(true, "[server] demo recording started: test.ogdemo", string.Empty);
+
+        public OpenGarrisonServerDemoRecordingResult TryStopDemoRecording() => new(true, "[server] demo recording stopped: test.ogdemo", string.Empty);
     }
 
     private sealed class FakeServerCvarRegistry : IOpenGarrisonServerCvarRegistry

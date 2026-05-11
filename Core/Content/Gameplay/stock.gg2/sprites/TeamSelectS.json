@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "TeamSelectS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Class and Team Select/TeamSelectS/image 0.png"
+                       "Content/Sprites/HUDs/Class and Team Select/TeamSelectS.images/image 0.png"
                    ],
     "originX":  400,
     "originY":  120,

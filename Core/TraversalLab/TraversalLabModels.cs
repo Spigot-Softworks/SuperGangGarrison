@@ -132,6 +132,10 @@ public sealed class TraversalLabExpectation
 
     public bool? MustOverlapEnemyIntelMarker { get; init; }
 
+    public bool? MustOverlapOwnIntelMarker { get; init; }
+
+    public bool MustEverOverlapOwnIntelMarker { get; init; }
+
     public bool? MustBeInsideBlockingTeamGate { get; init; }
 }
 
@@ -155,6 +159,14 @@ public readonly record struct TraversalLabTickSample(
     bool SupportedBelow,
     bool BlockedLeft,
     bool BlockedRight,
+    bool InputLeft,
+    bool InputRight,
+    bool InputUp,
+    bool InputDown,
+    bool InputFirePrimary,
+    bool InputFireSecondary,
+    bool InputUseAbility,
+    bool InputDropIntel,
     bool IsCarryingIntel,
     bool OverlapsEnemyIntelMarker,
     bool OverlapsOwnIntelMarker,

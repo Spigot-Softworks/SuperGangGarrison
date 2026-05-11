@@ -2,6 +2,5 @@ namespace OpenGarrison.Core;
 
 public enum OfflineBotControllerMode
 {
-    MotionProof = 0,
-    ModernGraphRoute = 1,
+    BotBrain = 0,
 }

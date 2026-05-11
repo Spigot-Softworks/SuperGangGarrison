@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "DemomanBlueHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/DemomanBlueHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/DemomanBlueHeadS.images/image 0.png"
                    ],
     "originX":  3,
     "originY":  3,

@@ -1,16 +1,16 @@
-﻿{
+{
     "id":  "Rocketclip",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 0.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 1.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 2.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 3.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 4.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 5.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 6.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 7.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 8.png",
-                       "assets/legacy-sprites/HUDs/Ammo/Rocketclip/image 9.png"
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 0.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 1.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 2.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 3.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 4.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 5.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 6.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 7.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 8.png",
+                       "Content/Sprites/HUDs/Ammo/Rocketclip.images/image 9.png"
                    ],
     "originX":  25,
     "originY":  8,

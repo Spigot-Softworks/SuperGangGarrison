@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "BubbleMenuZS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Menus/BubbleMenuZS/image 0.png"
+                       "Content/Sprites/HUDs/Menus/BubbleMenuZS.images/image 0.png"
                    ],
     "originX":  31,
     "originY":  138,

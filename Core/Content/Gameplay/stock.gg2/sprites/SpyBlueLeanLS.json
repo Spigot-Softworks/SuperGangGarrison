@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SpyBlueLeanLS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueLeanLS/image 0.png"
+                       "Content/Sprites/Characters/Spy/SpyBlueLeanLS.images/image 0.png"
                    ],
     "originX":  28,
     "originY":  40,

@@ -54,6 +54,11 @@ public partial class Game1
                     OnPracticeSimulationAfterTick);
             }
 
+            if (simulationTickCount > 0)
+            {
+                ClearPendingSecondaryAbilityPress();
+            }
+
             FinalizeBotDiagnosticsFrame();
         }
 

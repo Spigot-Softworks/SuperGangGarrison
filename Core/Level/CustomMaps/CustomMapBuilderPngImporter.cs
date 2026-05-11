@@ -37,6 +37,7 @@ public static class CustomMapBuilderPngImporter
             scale = parsedScale;
         }
 
+        var resources = CustomMapBuilderResourceCodec.DecodeResourcesFromMetadata(metadata);
         return new CustomMapBuilderDocument(
             Name: Path.GetFileNameWithoutExtension(pngPath),
             BackgroundImagePath: pngPath,
@@ -44,9 +45,8 @@ public static class CustomMapBuilderPngImporter
             Scale: scale,
             Metadata: new ReadOnlyDictionary<string, string>(metadata),
             Entities: entities,
-            Resources: new ReadOnlyDictionary<string, CustomMapBuilderResource>(
-                new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)),
-            ParallaxLayers: DecodeParallaxLayers(metadata),
+            Resources: resources,
+            ParallaxLayers: DecodeParallaxLayers(metadata, resources),
             EmbeddedWalkmaskSection: walkmaskSection.Trim());
     }
 
@@ -103,12 +103,20 @@ public static class CustomMapBuilderPngImporter
         return true;
     }
 
-    private static IReadOnlyList<CustomMapBuilderParallaxLayer> DecodeParallaxLayers(IReadOnlyDictionary<string, string> metadata)
+    private static List<CustomMapBuilderParallaxLayer> DecodeParallaxLayers(
+        Dictionary<string, string> metadata,
+        IReadOnlyDictionary<string, CustomMapBuilderResource> resources)
     {
         var layers = new List<CustomMapBuilderParallaxLayer>();
         for (var index = CustomMapBuilderParallaxLayer.MinIndex; index <= CustomMapBuilderParallaxLayer.MaxIndex; index += 1)
         {
-            var resourceName = metadata.TryGetValue($"bg_layer{index}", out var resource) ? resource : string.Empty;
+            var layerKey = $"bg_layer{index}";
+            var resourceName = metadata.TryGetValue(layerKey, out var resource) ? resource : string.Empty;
+            if (resources.ContainsKey(layerKey))
+            {
+                resourceName = layerKey;
+            }
+
             var xFactor = TryParseFloat(metadata, $"layer{index}xfactor", out var parsedXFactor) ? parsedXFactor : 1f;
             var yFactor = TryParseFloat(metadata, $"layer{index}yfactor", out var parsedYFactor) ? parsedYFactor : 1f;
             if (!string.IsNullOrWhiteSpace(resourceName)
@@ -136,7 +144,7 @@ public static class CustomMapBuilderPngImporter
         return values;
     }
 
-    private static bool TryParseFloat(IReadOnlyDictionary<string, string> values, string key, out float value)
+    private static bool TryParseFloat(Dictionary<string, string> values, string key, out float value)
     {
         value = 0f;
         return values.TryGetValue(key, out var text)

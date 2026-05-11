@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ScatterKL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/ScatterKL/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/ScatterKL/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/ScatterKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/ScatterKL.images/image 1.png"
                    ],
     "originX":  16,
     "originY":  8,

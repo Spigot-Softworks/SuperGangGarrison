@@ -8,6 +8,62 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class CustomMapPngExporterTests
 {
     [Fact]
+    public void UserMapsDirectoryIsDiscoveredAndCustomRotationPersists()
+    {
+        using var workspace = TempWorkspace.Create();
+        var previousMapsDirectory = Environment.GetEnvironmentVariable("OPENGARRISON_MAPS_DIR");
+        Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", workspace.PathFor("Maps"));
+        try
+        {
+            Directory.CreateDirectory(RuntimePaths.MapsDirectory);
+            var backgroundPath = workspace.PathFor("background.png");
+            var walkmaskPath = workspace.PathFor("walkmask.png");
+            var customMapPath = Path.Combine(RuntimePaths.MapsDirectory, "menu_custom.png");
+            WriteSolidPng(backgroundPath, 4, 2, new Rgba32(32, 64, 96, 255));
+            WriteWalkmaskPng(walkmaskPath);
+            CustomMapPngExporter.Export(CreateSpawnOnlyDocument(backgroundPath, walkmaskPath, 6f, 18f), customMapPath);
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var discovered = SimpleLevelFactory.GetAvailableSourceLevels();
+            Assert.Contains(discovered, entry => entry.Name == "menu_custom");
+
+            var preferencesPath = workspace.PathFor("OpenGarrison.ini");
+            var preferences = new OpenGarrisonPreferencesDocument
+            {
+                HostSettings = new OpenGarrisonHostSettings
+                {
+                    StockMapRotation = OpenGarrisonStockMapCatalog.CreateDefaultEntries()
+                        .Append(new OpenGarrisonMapRotationEntry
+                        {
+                            IniKey = "menu_custom",
+                            LevelName = "menu_custom",
+                            DisplayName = "menu_custom",
+                            Mode = GameModeKind.CaptureTheFlag,
+                            IsCustomMap = true,
+                            DefaultOrder = 21,
+                            Order = 3,
+                        })
+                        .ToList(),
+                },
+            };
+            preferences.Save(preferencesPath);
+
+            SimpleLevelFactory.ClearCachedCatalog();
+            var loaded = OpenGarrisonPreferencesDocument.Load(preferencesPath);
+            var customEntry = Assert.Single(
+                loaded.HostSettings.StockMapRotation,
+                entry => entry.LevelName == "menu_custom");
+            Assert.True(customEntry.IsCustomMap);
+            Assert.Equal(3, customEntry.Order);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENGARRISON_MAPS_DIR", previousMapsDirectory);
+            SimpleLevelFactory.ClearCachedCatalog();
+        }
+    }
+
+    [Fact]
     public void ExportWritesImportableCustomMapPng()
     {
         using var workspace = TempWorkspace.Create();
@@ -134,6 +190,99 @@ public sealed class CustomMapPngExporterTests
         Assert.NotNull(runtimeImport);
         Assert.Single(runtimeImport.Room.RedSpawns);
         Assert.Single(runtimeImport.Room.BlueSpawns);
+    }
+
+    [Fact]
+    public void BuilderImporterRehydratesEmbeddedResourcesFromExportedMetadata()
+    {
+        using var workspace = TempWorkspace.Create();
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var layerPath = workspace.PathFor("layer.png");
+        var foregroundPath = workspace.PathFor("foreground.gif");
+        var outputPath = workspace.PathFor("exported.png");
+        WriteSolidPng(backgroundPath, 4, 2, new Rgba32(20, 40, 60, 255));
+        WriteWalkmaskPng(walkmaskPath);
+        WriteSolidPng(layerPath, 2, 2, new Rgba32(100, 120, 140, 255));
+        File.WriteAllBytes(foregroundPath, "GIF89a"u8.ToArray());
+
+        var document = new CustomMapBuilderDocument(
+            Name: "resources",
+            BackgroundImagePath: backgroundPath,
+            WalkmaskImagePath: walkmaskPath,
+            Scale: 6f,
+            Metadata: new Dictionary<string, string>(),
+            Entities:
+            [
+                CustomMapBuilderEntity.Create("redspawn", 6f, 6f),
+                CustomMapBuilderEntity.Create("bluespawn", 18f, 6f),
+            ],
+            Resources: new Dictionary<string, CustomMapBuilderResource>
+            {
+                ["clouds"] = CustomMapBuilderResourceCodec.FromFile("clouds", layerPath, CustomMapBuilderResourceKind.ParallaxLayer),
+                ["front"] = CustomMapBuilderResourceCodec.FromFile("front", foregroundPath, CustomMapBuilderResourceKind.Foreground),
+            },
+            ParallaxLayers:
+            [
+                new CustomMapBuilderParallaxLayer(0, "clouds", 0.5f, 0.75f),
+            ]);
+
+        CustomMapPngExporter.Export(document, outputPath);
+        var editable = CustomMapBuilderPngImporter.Import(outputPath);
+
+        Assert.NotNull(editable);
+        Assert.True(editable.Resources.ContainsKey("bg_layer0"));
+        Assert.True(editable.Resources.ContainsKey("bg_foreground"));
+        Assert.True(editable.Resources.ContainsKey("clouds"));
+        Assert.Equal(CustomMapBuilderResourceKind.ParallaxLayer, editable.Resources["bg_layer0"].Kind);
+        Assert.Equal(CustomMapBuilderResourceKind.Foreground, editable.Resources["bg_foreground"].Kind);
+        Assert.Equal("bg_layer0", Assert.Single(editable.ParallaxLayers).ResourceName);
+        Assert.Equal(File.ReadAllBytes(layerPath), editable.Resources["bg_layer0"].EmbeddedBytes);
+        Assert.Equal(File.ReadAllBytes(foregroundPath), editable.Resources["bg_foreground"].EmbeddedBytes);
+
+        var runtimeImport = CustomMapPngImporter.Import(outputPath);
+        Assert.NotNull(runtimeImport);
+        var runtimeLayer = Assert.Single(runtimeImport.Room.CustomMapVisuals.ParallaxLayers);
+        Assert.Equal(0, runtimeLayer.Index);
+        Assert.Equal(0.5f, runtimeLayer.XFactor);
+        Assert.Equal(0.75f, runtimeLayer.YFactor);
+        Assert.Equal(File.ReadAllBytes(layerPath), runtimeLayer.Resource.Bytes);
+        Assert.NotNull(runtimeImport.Room.CustomMapVisuals.Foreground);
+        Assert.Equal(File.ReadAllBytes(foregroundPath), runtimeImport.Room.CustomMapVisuals.Foreground.Bytes);
+    }
+
+    [Fact]
+    public void RuntimeImporterKeepsGg2CompatibleScaleWhenEmbeddedScaleWouldClipEntities()
+    {
+        using var workspace = TempWorkspace.Create();
+        var backgroundPath = workspace.PathFor("background.png");
+        var walkmaskPath = workspace.PathFor("walkmask.png");
+        var outputPath = workspace.PathFor("exported.png");
+        WriteSolidPng(backgroundPath, 10, 10, new Rgba32(16, 32, 48, 255));
+        WriteSolidPng(walkmaskPath, 10, 10, new Rgba32(255, 255, 255, 255));
+
+        var document = new CustomMapBuilderDocument(
+            Name: "legacy-scale",
+            BackgroundImagePath: backgroundPath,
+            WalkmaskImagePath: walkmaskPath,
+            Scale: 3f,
+            Metadata: new Dictionary<string, string>(),
+            Entities:
+            [
+                CustomMapBuilderEntity.Create("redspawn", 50f, 10f),
+                CustomMapBuilderEntity.Create("bluespawn", 55f, 10f),
+            ],
+            Resources: new Dictionary<string, CustomMapBuilderResource>(),
+            ParallaxLayers: []);
+
+        CustomMapPngExporter.Export(document, outputPath);
+        var imported = CustomMapPngImporter.Import(outputPath);
+
+        Assert.NotNull(imported);
+        Assert.Equal(60f, imported.Room.Bounds.Width);
+        Assert.Equal(60f, imported.Room.Bounds.Height);
+        Assert.Equal(50f, Assert.Single(imported.Room.RedSpawns).X);
+        Assert.Equal(55f, Assert.Single(imported.Room.BlueSpawns).X);
     }
 
     [Fact]

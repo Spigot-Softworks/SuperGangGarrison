@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "SheetBurning",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 0.png",
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 1.png",
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 2.png",
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 3.png",
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 4.png",
-                       "assets/legacy-sprites/InGameElements/SheetBurning/image 5.png"
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 0.png",
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 1.png",
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 2.png",
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 3.png",
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 4.png",
+                       "Content/Sprites/InGameElements/SheetBurning.images/image 5.png"
                    ],
     "originX":  5,
     "originY":  5,

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +16,9 @@ public static class BotNavigationAssetStore
 
     private static readonly object AssetFileCacheSync = new();
     private static readonly Dictionary<string, CachedAssetFile> AssetFileCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object GraphCacheSync = new();
+    private static readonly ConditionalWeakTable<SimpleLevel, CachedLevelGraph> GraphCache = new();
+    private static readonly ConditionalWeakTable<SimpleLevel, CachedLevelFingerprint> FingerprintCache = new();
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
@@ -32,10 +36,51 @@ public static class BotNavigationAssetStore
     {
         ArgumentNullException.ThrowIfNull(level);
 
-        return TryLoadShipped(level, out var asset)
-            || TryLoadRuntimeCache(level, out asset)
-            ? BotNavigationAssetBuilder.ToGraph(asset)
-            : BotNavigationAssetBuilder.ToGraph(BuildAndSaveRuntimeCache(level));
+        lock (GraphCacheSync)
+        {
+            if (GraphCache.TryGetValue(level, out var cachedGraph)
+                && string.Equals(cachedGraph.LevelFingerprint, ComputeLevelFingerprint(level), StringComparison.OrdinalIgnoreCase)
+                && cachedGraph.FormatVersion == CurrentFormatVersion)
+            {
+                return cachedGraph.Graph;
+            }
+
+            return TryLoadShipped(level, out var asset)
+                || TryLoadRuntimeCache(level, out asset)
+                ? CacheGraph(level, asset, BotNavigationAssetBuilder.ToGraph(asset, level))
+                : CacheGraph(level, BuildAndSaveRuntimeCache(level));
+        }
+    }
+
+    public static bool TryLoadCachedGraph(SimpleLevel level, out NavGraph graph)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+
+        lock (GraphCacheSync)
+        {
+            if (GraphCache.TryGetValue(level, out var cachedGraph)
+                && string.Equals(cachedGraph.LevelFingerprint, ComputeLevelFingerprint(level), StringComparison.OrdinalIgnoreCase)
+                && cachedGraph.FormatVersion == CurrentFormatVersion)
+            {
+                graph = cachedGraph.Graph;
+                return true;
+            }
+
+            if (TryLoadShipped(level, out var shippedAsset))
+            {
+                graph = CacheGraph(level, shippedAsset, BotNavigationAssetBuilder.ToGraph(shippedAsset, level));
+                return true;
+            }
+
+            if (TryLoadRuntimeCache(level, out var cachedAsset))
+            {
+                graph = CacheGraph(level, cachedAsset, BotNavigationAssetBuilder.ToGraph(cachedAsset, level));
+                return true;
+            }
+        }
+
+        graph = null!;
+        return false;
     }
 
     public static BotNavigationAsset LoadOrBuild(SimpleLevel level)
@@ -98,6 +143,13 @@ public static class BotNavigationAssetStore
     public static string ComputeLevelFingerprint(SimpleLevel level)
     {
         ArgumentNullException.ThrowIfNull(level);
+        lock (GraphCacheSync)
+        {
+            if (FingerprintCache.TryGetValue(level, out var cached))
+            {
+                return cached.Fingerprint;
+            }
+        }
 
         var builder = new StringBuilder();
         Append(builder, level.Name);
@@ -153,7 +205,14 @@ public static class BotNavigationAssetStore
             Append(builder, intelBase.Y);
         }
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
+        lock (GraphCacheSync)
+        {
+            FingerprintCache.Remove(level);
+            FingerprintCache.Add(level, new CachedLevelFingerprint(fingerprint));
+        }
+
+        return fingerprint;
     }
 
     internal static bool IsCompatible(BotNavigationAsset asset, SimpleLevel level)
@@ -208,6 +267,22 @@ public static class BotNavigationAssetStore
 
         asset = loaded;
         return true;
+    }
+
+    private static NavGraph CacheGraph(SimpleLevel level, BotNavigationAsset asset)
+    {
+        return CacheGraph(level, asset, BotNavigationAssetBuilder.ToGraph(asset, level));
+    }
+
+    private static NavGraph CacheGraph(SimpleLevel level, BotNavigationAsset asset, NavGraph graph)
+    {
+        lock (GraphCacheSync)
+        {
+            GraphCache.Remove(level);
+            GraphCache.Add(level, new CachedLevelGraph(asset.FormatVersion, asset.LevelFingerprint, graph));
+        }
+
+        return graph;
     }
 
     private static string ResolveShippedPath(SimpleLevel level)
@@ -282,4 +357,8 @@ public static class BotNavigationAssetStore
     }
 
     private readonly record struct CachedAssetFile(long LastWriteTicks, long Length, BotNavigationAsset Asset);
+
+    private sealed record CachedLevelGraph(int FormatVersion, string LevelFingerprint, NavGraph Graph);
+
+    private sealed record CachedLevelFingerprint(string Fingerprint);
 }

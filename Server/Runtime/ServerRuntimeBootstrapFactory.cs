@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;
@@ -144,9 +144,7 @@ internal static class ServerRuntimeBootstrapFactory
             log,
             recordBroadcastNotice: notice => demoRecorder?.RecordBroadcastMessage(notice));
 
-        IPracticeBotController botController = new AdaptiveMapPracticeBotController(
-            new MotionProofPracticeBotController(),
-            new ModernPracticeBotController());
+        IPracticeBotController botController = new BotBrainPracticeBotController();
         botManager = new ServerBotManager(
             world,
             config,

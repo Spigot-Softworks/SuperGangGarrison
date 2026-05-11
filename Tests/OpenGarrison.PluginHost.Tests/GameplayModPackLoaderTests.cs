@@ -31,7 +31,7 @@ public sealed class GameplayModPackLoaderTests
                 Rewards = "rocketjumper,marketgardener",
                 Fullscreen = true,
                 VSync = true,
-                BotMode = OfflineBotControllerMode.ModernGraphRoute,
+                BotMode = OfflineBotControllerMode.BotBrain,
                 DisableLegacyGameplaySpriteFallback = true,
                 RecentConnection = new ClientRecentConnectionSettings
                 {
@@ -50,7 +50,7 @@ public sealed class GameplayModPackLoaderTests
             Assert.Equal("rocketjumper,marketgardener", loaded.Rewards);
             Assert.True(loaded.Fullscreen);
             Assert.True(loaded.VSync);
-            Assert.Equal(OfflineBotControllerMode.ModernGraphRoute, loaded.BotMode);
+            Assert.Equal(OfflineBotControllerMode.BotBrain, loaded.BotMode);
             Assert.True(loaded.DisableLegacyGameplaySpriteFallback);
             Assert.Equal("example.invalid", loaded.RecentConnection.Host);
             Assert.Equal(9001, loaded.RecentConnection.Port);
@@ -84,7 +84,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("StandS", soldierPresentation.StandSuffix);
         Assert.True(pack.Assets.Sprites.ContainsKey("ScoutRedStandS"));
         var scoutStandSprite = pack.Assets.Sprites["ScoutRedStandS"];
-        Assert.Equal("assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", scoutStandSprite.FramePaths[0]);
+        Assert.Equal("Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png", scoutStandSprite.FramePaths[0]);
         Assert.Equal(30, scoutStandSprite.OriginX);
         Assert.Equal(40, scoutStandSprite.OriginY);
         Assert.NotNull(scoutStandSprite.Mask);
@@ -94,19 +94,19 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(63, scoutStandSprite.Mask.Bottom);
         Assert.True(pack.Assets.Sprites.ContainsKey("gg2FontS"));
         var fontSprite = pack.Assets.Sprites["gg2FontS"];
-        Assert.Equal("assets/legacy-sprites/gg2FontS/image 0.png", fontSprite.FramePaths[0]);
-        Assert.Equal("assets/legacy-sprites/gg2FontS/image 10.png", fontSprite.FramePaths[10]);
+        Assert.Equal("Content/Sprites/gg2FontS.images/image 0.png", fontSprite.FramePaths[0]);
+        Assert.Equal("Content/Sprites/gg2FontS.images/image 10.png", fontSprite.FramePaths[10]);
         Assert.NotNull(fontSprite.Mask);
         Assert.Equal("MANUAL", fontSprite.Mask!.BoundsMode);
         Assert.True(pack.Assets.Sprites.ContainsKey("IntelTimerS"));
         var intelTimerSprite = pack.Assets.Sprites["IntelTimerS"];
         Assert.Equal(24, intelTimerSprite.FramePaths.Count);
-        Assert.Equal("assets/legacy-sprites/InGameElements/IntelTimerS/image 23.png", intelTimerSprite.FramePaths[23]);
+        Assert.Equal("Content/Sprites/InGameElements/IntelTimerS.images/image 23.png", intelTimerSprite.FramePaths[23]);
         Assert.Equal(5, intelTimerSprite.OriginX);
         Assert.True(pack.Assets.Sprites.ContainsKey("RocketlauncherFRS"));
         var reloadSprite = pack.Assets.Sprites["RocketlauncherFRS"];
         Assert.Equal(24, reloadSprite.FramePaths.Count);
-        Assert.Equal("assets/legacy-sprites/Weapons/Reloading/RocketlauncherFRS/image 23.png", reloadSprite.FramePaths[23]);
+        Assert.Equal("Content/Sprites/Weapons/Reloading/RocketlauncherFRS.images/image 23.png", reloadSprite.FramePaths[23]);
         Assert.NotNull(reloadSprite.Mask);
         Assert.Equal("PRECISE", reloadSprite.Mask!.Shape);
         Assert.True(pack.Assets.Sprites.ContainsKey("stock.gg2.weapon.directhit.world"));
@@ -379,7 +379,8 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal("Content/Gameplay/stock.gg2", GameplayPackAssetPathUtility.GetPackContentRoot("stock.gg2"));
         Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", GameplayPackAssetPathUtility.GetSpriteDefinitionPath("stock.gg2", "ScoutRedStandS"));
-        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", GameplayPackAssetPathUtility.BuildPackAssetPath("stock.gg2", "assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"));
+        Assert.Equal("Content/Gameplay/stock.gg2/assets/directhit/DirectHit.red.png", GameplayPackAssetPathUtility.BuildPackAssetPath("stock.gg2", "assets/directhit/DirectHit.red.png"));
+        Assert.Equal("Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png", GameplayPackAssetPathUtility.BuildPackAssetPath("stock.gg2", "Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"));
     }
 
     [Fact]
@@ -401,7 +402,7 @@ public sealed class GameplayModPackLoaderTests
                     {
                       "id": "ScoutRedStandS",
                       "framePaths": [
-                        "assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"
+                        "Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"
                       ],
                       "originX": 30,
                       "originY": 40
@@ -421,7 +422,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal("stock.gg2", loaded!.PackId);
         Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", loaded.DefinitionPath);
         Assert.Equal("ScoutRedStandS", loaded.Definition.Id);
-        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.FirstFrameContentPath);
+        Assert.Equal("Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png", loaded.FirstFrameContentPath);
     }
 
     [Fact]
@@ -429,19 +430,19 @@ public sealed class GameplayModPackLoaderTests
     {
         var spriteDefinition = new GameplaySpriteAssetDefinition(
             "ScoutRedStandS",
-            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"],
+            ["Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"],
             OriginX: 30,
             OriginY: 40);
         var assetSource = new StubAssetBinarySource(new Dictionary<string, byte[]>
         {
-            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"] = [1, 2, 3, 4],
+            ["Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"] = [1, 2, 3, 4],
         });
 
         var loaded = GameplaySpriteBinaryLoader.LoadSourceImages(assetSource, spriteDefinition);
 
         Assert.Equal("ScoutRedStandS", loaded.Definition.Id);
         Assert.Single(loaded.SourceImages);
-        Assert.Equal("assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.SourceImages[0].FramePath);
+        Assert.Equal("Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png", loaded.SourceImages[0].FramePath);
         Assert.Equal([1, 2, 3, 4], loaded.SourceImages[0].Bytes);
     }
 
@@ -450,12 +451,12 @@ public sealed class GameplayModPackLoaderTests
     {
         var spriteDefinition = new GameplaySpriteAssetDefinition(
             "ScoutRedStandS",
-            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"],
+            ["Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"],
             OriginX: 30,
             OriginY: 40);
         var assetSource = new StubAssetBinarySource(new Dictionary<string, byte[]>
         {
-            ["assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png"] = [5, 6, 7, 8],
+            ["Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png"] = [5, 6, 7, 8],
         });
         var spriteAssetService = new GameplayPackSpriteAssetService("stock.gg2", assetSource);
 
@@ -463,7 +464,7 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.Equal("stock.gg2", loaded.Definition.PackId);
         Assert.Equal("Content/Gameplay/stock.gg2/sprites/ScoutRedStandS.json", loaded.Definition.DefinitionPath);
-        Assert.Equal("Content/Gameplay/stock.gg2/assets/legacy-sprites/Characters/Scout/ScoutRedStandS/image 0.png", loaded.Definition.FirstFrameContentPath);
+        Assert.Equal("Content/Sprites/Characters/Scout/ScoutRedStandS.images/image 0.png", loaded.Definition.FirstFrameContentPath);
         Assert.Single(loaded.SourceSet.SourceImages);
         Assert.Equal([5, 6, 7, 8], loaded.SourceSet.SourceImages[0].Bytes);
     }

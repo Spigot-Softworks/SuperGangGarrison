@@ -24,6 +24,22 @@ public sealed class OfflinePracticeSelectionTests
     }
 
     [Fact]
+    public void PracticeMapSelectionDoesNotExposeHiddenShippedAvanti()
+    {
+        var entries = BuildPracticeMapEntries();
+        var levelNames = entries
+            .Select(GetPracticeMapLevelName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain("Avanti", levelNames);
+        Assert.DoesNotContain(
+            OpenGarrisonStockMapCatalog.GetOrderedIncludedMapLevelNames(OpenGarrisonStockMapCatalog.CreateDefaultEntries()),
+            levelName => string.Equals(levelName, "Avanti", StringComparison.OrdinalIgnoreCase));
+        Assert.True(OpenGarrisonStockMapCatalog.TryGetDefinition("ctf_avanti", out var hiddenDefinition));
+        Assert.Equal("Avanti", hiddenDefinition.LevelName);
+    }
+
+    [Fact]
     public void DefaultLastToDieRotationRemainsKingOfTheHillOnly()
     {
         var harvestEntry = CreatePracticeMapEntry("Harvest", GameModeKind.KingOfTheHill);

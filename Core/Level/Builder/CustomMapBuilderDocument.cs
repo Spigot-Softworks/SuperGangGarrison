@@ -67,11 +67,32 @@ public sealed record CustomMapBuilderDocument(
         {
             if (!string.IsNullOrWhiteSpace(layer.ResourceName))
             {
-                merged[$"bg_layer{layer.Index}"] = layer.ResourceName;
+                merged[$"bg_layer{layer.Index}"] = TryEncodeResource(normalized.Resources, layer.ResourceName, out var encodedResource)
+                    ? encodedResource
+                    : layer.ResourceName;
             }
 
             merged[$"layer{layer.Index}xfactor"] = layer.XFactor.ToString(CultureInfo.InvariantCulture);
             merged[$"layer{layer.Index}yfactor"] = layer.YFactor.ToString(CultureInfo.InvariantCulture);
+        }
+
+        foreach (var resource in normalized.Resources.Values)
+        {
+            if (!CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+                || !CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
+            {
+                continue;
+            }
+
+            var encodedResource = CustomMapBuilderResourceCodec.EncodeLegacyString(bytes);
+            if (resource.Kind == CustomMapBuilderResourceKind.Foreground)
+            {
+                merged["bg_foreground"] = encodedResource;
+            }
+            else
+            {
+                merged[resource.Name] = encodedResource;
+            }
         }
 
         return new ReadOnlyDictionary<string, string>(merged);
@@ -140,5 +161,22 @@ public sealed record CustomMapBuilderDocument(
         return metadata.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+    }
+
+    private static bool TryEncodeResource(
+        IReadOnlyDictionary<string, CustomMapBuilderResource> resources,
+        string name,
+        out string encodedResource)
+    {
+        if (resources.TryGetValue(name, out var resource)
+            && CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes)
+            && CustomMapBuilderResourceCodec.IsSupportedImage(bytes))
+        {
+            encodedResource = CustomMapBuilderResourceCodec.EncodeLegacyString(bytes);
+            return true;
+        }
+
+        encodedResource = string.Empty;
+        return false;
     }
 }

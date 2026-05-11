@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "HealthPackPulseS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 1.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 2.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 3.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 4.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackPulseS/image 5.png"
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 0.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 1.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 2.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 3.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 4.png",
+                       "Content/Sprites/InGameElements/HealthPackPulseS.images/image 5.png"
                    ],
     "originX":  15,
     "originY":  15,

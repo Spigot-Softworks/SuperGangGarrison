@@ -1,19 +1,19 @@
-﻿{
+{
     "id":  "SniperRedTauntS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 0.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 1.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 2.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 3.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 4.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 5.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 6.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 7.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 8.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 9.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 10.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 11.png",
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedTauntS/image 12.png"
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 0.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 1.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 2.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 3.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 4.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 5.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 6.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 7.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 8.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 9.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 10.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 11.png",
+                       "Content/Sprites/Characters/Sniper/SniperRedTauntS.images/image 12.png"
                    ],
     "originX":  26,
     "originY":  40,

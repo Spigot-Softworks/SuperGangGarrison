@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SpyBlueIntelS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Spy/SpyBlueIntelS/image 0.png"
+                       "Content/Sprites/Characters/Spy/SpyBlueIntelS.images/image 0.png"
                    ],
     "originX":  28,
     "originY":  40,

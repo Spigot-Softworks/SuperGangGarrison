@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "MenuBackgroundVersionS",
     "framePaths":  [
-                       "assets/legacy-sprites/GameElements/MenuBackgroundVersionS/image 0.png"
+                       "Content/Sprites/GameElements/MenuBackgroundVersionS.images/image 0.png"
                    ],
     "originX":  300,
     "originY":  300,

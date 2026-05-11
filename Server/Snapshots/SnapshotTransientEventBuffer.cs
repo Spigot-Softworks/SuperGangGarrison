@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenGarrison.Core;
@@ -65,6 +66,11 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
     {
         for (var index = 0; index < visualEvents.Count; index += 1)
         {
+            if (IsClientSideDamageVisualEvent(visualEvents[index]))
+            {
+                continue;
+            }
+
             _recentVisualEvents.Add(new RetainedSnapshotVisualEvent(
                 ToSnapshotVisualEvent(visualEvents[index], _nextTransientEventId++),
                 currentFrame + transientEventReplayTicks));
@@ -81,14 +87,16 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
         }
     }
 
-    private void AppendRetainedGibSpawnEvents(IReadOnlyList<WorldGibSpawnEvent> gibSpawnEvents, ulong currentFrame)
+    private static void AppendRetainedGibSpawnEvents(IReadOnlyList<WorldGibSpawnEvent> gibSpawnEvents, ulong currentFrame)
     {
-        for (var index = 0; index < gibSpawnEvents.Count; index += 1)
-        {
-            _recentGibSpawnEvents.Add(new RetainedSnapshotGibSpawnEvent(
-                ToSnapshotGibSpawnEvent(gibSpawnEvents[index], _nextTransientEventId++),
-                currentFrame + transientEventReplayTicks));
-        }
+        // Player gore is synthesized client-side from damage events and player death state.
+        // Keep draining the world queue here, but do not retain cosmetic gib payloads in snapshots.
+    }
+
+    private static bool IsClientSideDamageVisualEvent(WorldVisualEvent visualEvent)
+    {
+        return string.Equals(visualEvent.EffectName, "Blood", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(visualEvent.EffectName, "GibBlood", StringComparison.OrdinalIgnoreCase);
     }
 
     private static SnapshotGibSpawnEvent ToSnapshotGibSpawnEvent(WorldGibSpawnEvent gibSpawnEvent, ulong eventId)

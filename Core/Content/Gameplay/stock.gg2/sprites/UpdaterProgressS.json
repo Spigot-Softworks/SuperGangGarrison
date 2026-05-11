@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "UpdaterProgressS",
     "framePaths":  [
-                       "assets/legacy-sprites/Updater/UpdaterProgressS/image 0.png"
+                       "Content/Sprites/Updater/UpdaterProgressS.images/image 0.png"
                    ],
     "originX":  4,
     "originY":  8,

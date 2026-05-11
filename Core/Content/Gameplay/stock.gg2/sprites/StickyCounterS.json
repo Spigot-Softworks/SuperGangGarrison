@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "StickyCounterS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Demoman/StickyCounterS/image 0.png",
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Demoman/StickyCounterS/image 1.png"
+                       "Content/Sprites/HUDs/WeaponHUDS/Demoman/StickyCounterS.images/image 0.png",
+                       "Content/Sprites/HUDs/WeaponHUDS/Demoman/StickyCounterS.images/image 1.png"
                    ],
     "originX":  11,
     "originY":  7,

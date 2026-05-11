@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PyroBlueDecapDeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroBlueDecapDeadS/image 0.png"
+                       "Content/Sprites/Characters/Pyro/PyroBlueDecapDeadS.images/image 0.png"
                    ],
     "originX":  31,
     "originY":  40,

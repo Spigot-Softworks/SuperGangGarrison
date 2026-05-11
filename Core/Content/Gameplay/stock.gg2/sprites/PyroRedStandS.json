@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PyroRedStandS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroRedStandS/image 0.png"
+                       "Content/Sprites/Characters/Pyro/PyroRedStandS.images/image 0.png"
                    ],
     "originX":  31,
     "originY":  40,

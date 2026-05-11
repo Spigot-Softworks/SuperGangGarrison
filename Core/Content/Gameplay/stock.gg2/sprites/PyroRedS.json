@@ -1,10 +1,10 @@
-﻿{
+{
     "id":  "PyroRedS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Pyro/PyroRedS/image 0.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroRedS/image 1.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroRedS/image 2.png",
-                       "assets/legacy-sprites/Characters/Pyro/PyroRedS/image 3.png"
+                       "Content/Sprites/Characters/Pyro/PyroRedS.images/image 0.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedS.images/image 1.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedS.images/image 2.png",
+                       "Content/Sprites/Characters/Pyro/PyroRedS.images/image 3.png"
                    ],
     "originX":  31,
     "originY":  40,

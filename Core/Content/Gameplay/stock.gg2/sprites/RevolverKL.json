@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "RevolverKL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/RevolverKL/image 0.png",
-                       "assets/legacy-sprites/HUDs/Kill Icons/RevolverKL/image 1.png"
+                       "Content/Sprites/HUDs/Kill Icons/RevolverKL.images/image 0.png",
+                       "Content/Sprites/HUDs/Kill Icons/RevolverKL.images/image 1.png"
                    ],
     "originX":  15,
     "originY":  6,

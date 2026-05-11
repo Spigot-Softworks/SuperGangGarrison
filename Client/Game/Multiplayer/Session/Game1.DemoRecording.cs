@@ -57,9 +57,7 @@ public partial class Game1
             return requestedPath.Trim();
         }
 
-        var demosDirectory = Path.Combine(RuntimePaths.ConfigDirectory, "demos");
-        Directory.CreateDirectory(demosDirectory);
-        return Path.Combine(demosDirectory, BuildDefaultDemoRecordingFileName());
+        return Path.Combine(RuntimePaths.ReplaysDirectory, BuildDefaultDemoRecordingFileName());
     }
 
     private string BuildDefaultDemoRecordingFileName()

@@ -24,7 +24,15 @@ public static class BotNavigationAssetBuilder
     private const int DefaultMaxPortalCandidatesPerKindDirection = 24;
     private const int CompactObjectiveMaxPortalCandidatesPerKindDirection = 8;
     private const int CompactObjectiveSurfaceCountThreshold = 600;
+    private const int CtfVerticalBandPortalCandidatesPerKindDirection = 12;
+    private const float CtfVerticalBandMinAscent = 96f;
+    private const float CtfVerticalBandMaxAscent = 160f;
     private const float BlockedMicroStepRelayWalkPenalty = 250f;
+    private const float AuthoredCorridorMaxSnapDistance = 192f;
+    private const float AuthoredCorridorVirtualNodeSpacing = 48f;
+    private const float AuthoredCorridorDirectEdgeMaxDistance = 360f;
+    private const float AuthoredCorridorPreferredCostMultiplier = 0.2f;
+    private const float AuthoredCorridorObjectiveArrivalDistance = 96f;
 
     public static BotNavigationAsset BuildAsset(SimpleLevel level)
     {
@@ -74,6 +82,8 @@ public static class BotNavigationAssetBuilder
                         ProbeJumpTriggerTick = probeResult?.JumpTriggerTick ?? 0,
                         ProbeTicks = probeResult?.Ticks ?? 0,
                         ProbeMoveDirectionX = probeResult?.MoveDirectionX ?? 0f,
+                        ProbeVariantAttempts = probeResult?.VariantAttempts ?? 0,
+                        ProbeVariantSuccesses = probeResult?.VariantSuccesses ?? 0,
                         SupportedClassMask = edge.SupportedClassMask,
                         SupportedTeamMask = edge.SupportedTeamMask,
                         CompletionMinX = probeResult?.CompletionMinX ?? 0f,
@@ -131,6 +141,11 @@ public static class BotNavigationAssetBuilder
 
     public static NavGraph ToGraph(BotNavigationAsset asset)
     {
+        return ToGraph(asset, level: null);
+    }
+
+    public static NavGraph ToGraph(BotNavigationAsset asset, SimpleLevel? level)
+    {
         ArgumentNullException.ThrowIfNull(asset);
 
         var nodes = asset.Nodes
@@ -181,13 +196,164 @@ public static class BotNavigationAssetBuilder
                 Math.Max(0, edge.ProbeJumpTriggerTick),
                 Math.Max(0, edge.ProbeTicks),
                 MathF.Sign(edge.ProbeMoveDirectionX),
+                Math.Max(0, edge.ProbeVariantAttempts),
+                Math.Max(0, edge.ProbeVariantSuccesses),
                 edge.SupportedClassMask,
                 edge.SupportedTeamMask,
                 edge.RequiresGroundedContinuation,
+                RequiresCarryingIntel: false,
                 launchRecipe));
         }
 
+        if (level is not null)
+        {
+            AddAuthoredCorridorReturnEdges(level, nodes, adjacency);
+        }
+
         return new NavGraph(nodes, adjacency);
+    }
+
+    private static void AddAuthoredCorridorReturnEdges(SimpleLevel level, NavNode[] nodes, List<NavEdge>[] adjacency)
+    {
+        if (level.Mode != GameModeKind.CaptureTheFlag
+            || nodes.Length == 0
+            || !BotNavigationAuthoredCorridorStore.TryLoad(level, out var corridorAsset))
+        {
+            return;
+        }
+
+        foreach (var corridor in corridorAsset.Corridors)
+        {
+            if (!TryResolveCaptureTheFlagReturnRange(level, corridor, out var startIndex))
+            {
+                continue;
+            }
+
+            var supportedClassMask = corridor.PlayerClass == PlayerClass.Heavy
+                ? BotBrainClassMask.All
+                : BotBrainClassMask.For(corridor.PlayerClass);
+            var supportedTeamMask = BotBrainTeamMask.For(corridor.Team);
+            var previousNode = -1;
+            for (var i = startIndex; i < corridor.Waypoints.Count; i += 1)
+            {
+                var waypoint = corridor.Waypoints[i];
+                if (!waypoint.IsGrounded)
+                {
+                    continue;
+                }
+
+                var nodeIndex = FindNearestCorridorGraphNode(nodes, waypoint.X, waypoint.Y, maxDistance: 128f);
+                if (nodeIndex < 0)
+                {
+                    continue;
+                }
+
+                if (previousNode >= 0 && previousNode != nodeIndex)
+                {
+                    AddAuthoredCorridorGraphEdge(nodes, adjacency, previousNode, nodeIndex, supportedClassMask, supportedTeamMask);
+                }
+
+                previousNode = nodeIndex;
+            }
+        }
+    }
+
+    private static bool TryResolveCaptureTheFlagReturnRange(
+        SimpleLevel level,
+        BotNavigationAuthoredCorridorEntry corridor,
+        out int startIndex)
+    {
+        startIndex = -1;
+        var opposingTeam = corridor.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var enemyBase = level.GetIntelBase(opposingTeam);
+        var ownBase = level.GetIntelBase(corridor.Team);
+        if (!enemyBase.HasValue || !ownBase.HasValue || corridor.Waypoints.Count < 2)
+        {
+            return false;
+        }
+
+        var bestEnemyDistance = float.PositiveInfinity;
+        var bestEnemyIndex = -1;
+        for (var i = 0; i < corridor.Waypoints.Count; i += 1)
+        {
+            var waypoint = corridor.Waypoints[i];
+            var enemyDistance = DistanceSquared(waypoint.X, waypoint.Y, enemyBase.Value.X, enemyBase.Value.Y);
+            if (enemyDistance < bestEnemyDistance)
+            {
+                bestEnemyDistance = enemyDistance;
+                bestEnemyIndex = i;
+            }
+        }
+
+        var last = corridor.Waypoints[^1];
+        if (bestEnemyIndex < 0
+            || bestEnemyIndex >= corridor.Waypoints.Count - 1
+            || bestEnemyDistance > 260f * 260f
+            || DistanceSquared(last.X, last.Y, ownBase.Value.X, ownBase.Value.Y) > 960f * 960f)
+        {
+            return false;
+        }
+
+        startIndex = bestEnemyIndex;
+        return true;
+    }
+
+    private static int FindNearestCorridorGraphNode(NavNode[] nodes, float x, float y, float maxDistance)
+    {
+        var bestIndex = -1;
+        var bestDistanceSq = maxDistance * maxDistance;
+        for (var i = 0; i < nodes.Length; i += 1)
+        {
+            var dx = nodes[i].X - x;
+            var dy = nodes[i].Y - y;
+            var distanceSq = (dx * dx) + (dy * dy);
+            if (distanceSq >= bestDistanceSq)
+            {
+                continue;
+            }
+
+            bestDistanceSq = distanceSq;
+            bestIndex = i;
+        }
+
+        return bestIndex;
+    }
+
+    private static void AddAuthoredCorridorGraphEdge(
+        NavNode[] nodes,
+        List<NavEdge>[] adjacency,
+        int fromNode,
+        int toNode,
+        int supportedClassMask,
+        int supportedTeamMask)
+    {
+        var from = nodes[fromNode];
+        var to = nodes[toNode];
+        var distance = MathF.Sqrt(DistanceSquared(from.X, from.Y, to.X, to.Y));
+        if (distance <= 0f || distance > 560f)
+        {
+            return;
+        }
+
+        var edges = adjacency[fromNode];
+        for (var i = 0; i < edges.Count; i += 1)
+        {
+            var edge = edges[i];
+            if (edge.ToNode != toNode)
+            {
+                continue;
+            }
+
+            var cost = MathF.Max(1f, distance * 0.12f);
+            edges.Add(edge with
+            {
+                Cost = MathF.Min(edge.Cost, cost),
+                SupportedClassMask = edge.SupportedClassMask | supportedClassMask,
+                SupportedTeamMask = edge.SupportedTeamMask | supportedTeamMask,
+                RequiresCarryingIntel = true,
+            });
+            return;
+        }
     }
 
     private static GraphBuildData BuildGraphData(SimpleLevel level)
@@ -230,6 +396,12 @@ public static class BotNavigationAssetBuilder
         TraceBuild(tracePath, $"ledgeDrops edges={edges.Count} attempts={stats.CertifiedProbeAttempts} successes={stats.CertifiedProbeSuccesses}");
         AddTraversalEdges(level, surfaces, portals, probeSurfaces, nodes, edges, edgeSet, stats);
         TraceBuild(tracePath, $"traversal edges={edges.Count} attempts={stats.CertifiedProbeAttempts} successes={stats.CertifiedProbeSuccesses} nodePairs={stats.NodePairChecks}");
+        AddOrangeSpawnExitBridgeEdges(level, surfaces, portals, probeSurfaces, nodes, edges, edgeSet, stats);
+        TraceBuild(tracePath, $"orangeSpawnExitBridges edges={edges.Count} attempts={stats.CertifiedProbeAttempts} successes={stats.CertifiedProbeSuccesses}");
+        AddAuthoredCorridorVirtualNodes(level, surfaces, nodes);
+        TraceBuild(tracePath, $"authoredCorridorNodes surfaces={surfaces.Count} nodes={nodes.Count}");
+        AddAuthoredCorridorEdges(level, surfaces, portals, probeSurfaces, nodes, edges, edgeSet, stats);
+        TraceBuild(tracePath, $"authoredCorridors edges={edges.Count} attempts={stats.CertifiedProbeAttempts} successes={stats.CertifiedProbeSuccesses}");
         AddAnchorEdges(level, surfaces, portals, probeSurfaces, nodes, edges, edgeSet, stats);
         TraceBuild(tracePath, $"anchors edges={edges.Count} attempts={stats.CertifiedProbeAttempts} successes={stats.CertifiedProbeSuccesses}");
 
@@ -575,6 +747,11 @@ public static class BotNavigationAssetBuilder
             var canInset = rawWidth >= MinimumInsetSurfaceWidth;
             var left = canInset ? surface.LeftX + ProbeHalfWidth : (surface.LeftX + surface.RightX) * 0.5f;
             var right = canInset ? surface.RightX - ProbeHalfWidth : left;
+            if (!HasUsableSurfaceClearance(level, left, right, surface.TopY))
+            {
+                continue;
+            }
+
             surfaces.Add(new BuildSurface(
                 surfaces.Count,
                 left,
@@ -586,6 +763,28 @@ public static class BotNavigationAssetBuilder
         }
 
         return surfaces;
+    }
+
+    private static bool HasUsableSurfaceClearance(SimpleLevel level, float left, float right, float topY)
+    {
+        var nodeY = SurfaceNodeY(topY);
+        if (!HasBlockingSolidAt(level, left, nodeY))
+        {
+            return true;
+        }
+
+        if (MathF.Abs(right - left) <= 0.5f)
+        {
+            return false;
+        }
+
+        if (!HasBlockingSolidAt(level, right, nodeY))
+        {
+            return true;
+        }
+
+        var center = (left + right) * 0.5f;
+        return !HasBlockingSolidAt(level, center, nodeY);
     }
 
     private static IEnumerable<SurfaceInterval> BuildExposedSolidSurfaces(IReadOnlyList<LevelSolid> solids)
@@ -925,7 +1124,8 @@ public static class BotNavigationAssetBuilder
     private static IEnumerable<PortalTraversalCandidate> EnumeratePortalTraversalCandidates(
         IReadOnlyList<BuildPortal> portals,
         IReadOnlyList<BuildNode> nodes,
-        int maxPortalCandidatesPerKindDirection)
+        int maxPortalCandidatesPerKindDirection,
+        bool includeCtfVerticalBandRescue)
     {
         var surfacePortals = portals
             .Where(static portal => portal.SurfaceId.HasValue
@@ -986,12 +1186,10 @@ public static class BotNavigationAssetBuilder
                 candidates.Add(new ScoredPortalTraversalCandidate(source, target, kind, direction, score));
             }
 
-            foreach (var candidate in candidates
-                         .GroupBy(static candidate => (candidate.Kind, candidate.Direction))
-                         .SelectMany(group => group
-                             .OrderBy(static candidate => candidate.Score)
-                             .Take(maxPortalCandidatesPerKindDirection))
-                         .OrderBy(static candidate => candidate.Score))
+            foreach (var candidate in SelectPortalTraversalCandidates(
+                         candidates,
+                         maxPortalCandidatesPerKindDirection,
+                         includeCtfVerticalBandRescue))
             {
                 yield return new PortalTraversalCandidate(
                     candidate.FromPortal,
@@ -1001,6 +1199,59 @@ public static class BotNavigationAssetBuilder
                     candidate.Score);
             }
         }
+    }
+
+
+    private static IEnumerable<ScoredPortalTraversalCandidate> SelectPortalTraversalCandidates(
+        IEnumerable<ScoredPortalTraversalCandidate> candidates,
+        int maxPortalCandidatesPerKindDirection,
+        bool includeCtfVerticalBandRescue)
+    {
+        foreach (var group in candidates.GroupBy(static candidate => (candidate.Kind, candidate.Direction)))
+        {
+            var ordered = group
+                .OrderBy(static candidate => candidate.Score)
+                .ToArray();
+            var yieldedPortalIds = new HashSet<int>();
+            foreach (var candidate in ordered.Take(maxPortalCandidatesPerKindDirection))
+            {
+                yieldedPortalIds.Add(candidate.ToPortal.Id);
+                yield return candidate;
+            }
+
+            if (!includeCtfVerticalBandRescue || group.Key.Kind != NavEdgeKind.Jump || group.Key.Direction == 0)
+            {
+                continue;
+            }
+
+            foreach (var candidate in ordered
+                         .Where(static candidate => IsCtfVerticalBandRescueCandidate(candidate))
+                         .OrderBy(static candidate => CtfVerticalBandRescueScore(candidate))
+                         .Take(CtfVerticalBandPortalCandidatesPerKindDirection))
+            {
+                if (!yieldedPortalIds.Add(candidate.ToPortal.Id))
+                {
+                    continue;
+                }
+
+                yield return candidate;
+            }
+        }
+    }
+
+    private static bool IsCtfVerticalBandRescueCandidate(ScoredPortalTraversalCandidate candidate)
+    {
+        var ascent = candidate.FromPortal.Y - candidate.ToPortal.Y;
+        return ascent >= CtfVerticalBandMinAscent
+            && ascent <= CtfVerticalBandMaxAscent;
+    }
+
+    private static float CtfVerticalBandRescueScore(ScoredPortalTraversalCandidate candidate)
+    {
+        var dx = candidate.ToPortal.X - candidate.FromPortal.X;
+        var dy = candidate.ToPortal.Y - candidate.FromPortal.Y;
+        return MathF.Sqrt((dx * dx) + (dy * dy))
+            + PortalKindPenalty(candidate.ToPortal.Kind);
     }
 
     private static int FindFirstPortalAtOrAfterX(IReadOnlyList<BuildPortal> portals, float minX)
@@ -1047,7 +1298,11 @@ public static class BotNavigationAssetBuilder
     {
         var pairSet = new HashSet<NodePairKey>();
         var portalCandidateLimit = GetPortalCandidateLimit(level.Mode, surfaces.Count);
-        foreach (var candidate in EnumeratePortalTraversalCandidates(portals, nodes, portalCandidateLimit)
+        foreach (var candidate in EnumeratePortalTraversalCandidates(
+                         portals,
+                         nodes,
+                         portalCandidateLimit,
+                         includeCtfVerticalBandRescue: level.Mode == GameModeKind.CaptureTheFlag)
                      .OrderBy(static candidate => candidate.Score))
         {
             if (!pairSet.Add(new NodePairKey(candidate.FromPortal.NodeIndex, candidate.ToPortal.NodeIndex)))
@@ -1109,6 +1364,572 @@ public static class BotNavigationAssetBuilder
     {
         return level.Mode == GameModeKind.CaptureTheFlag
             && level.Name is "Conflict" or "Eiger" or "Waterway" or "ClassicWell";
+    }
+
+    private static void AddOrangeSpawnExitBridgeEdges(
+        SimpleLevel level,
+        IReadOnlyList<BuildSurface> surfaces,
+        IReadOnlyList<BuildPortal> portals,
+        IReadOnlyList<BotBrainProbeSurface> probeSurfaces,
+        IReadOnlyList<BuildNode> nodes,
+        List<BuildEdge> edges,
+        HashSet<EdgeKey> edgeSet,
+        BuildStats stats)
+    {
+        if (level.Mode != GameModeKind.CaptureTheFlag || level.Name != "Orange")
+        {
+            return;
+        }
+
+        TryAddOrangeSpawnExitBridge(778f, 1122f, 855f, 1158f);
+        TryAddOrangeSpawnExitBridge(4022f, 1122f, 3945f, 1158f);
+        TryAddOrangeSpawnExitBridge(206f, 1338f, 42f, 1212f);
+        TryAddOrangeSpawnExitBridge(42f, 1212f, 21f, 1206f);
+        TryAddOrangeSpawnExitBridge(21f, 1206f, 558f, 1458f, allowTeamSpecificFallback: true);
+        TryAddOrangeSpawnExitBridge(2355f, 1296f, 2271f, 1206f);
+        TryAddOrangeSpawnExitBridge(2271f, 1206f, 2882f, 1344f);
+        TryAddOrangeSpawnExitBridge(4594f, 1338f, 4758f, 1212f);
+        TryAddOrangeSpawnExitBridge(4758f, 1212f, 4779f, 1206f);
+        TryAddOrangeSpawnExitBridge(4779f, 1206f, 4242f, 1458f, allowTeamSpecificFallback: true);
+        TryAddOrangeSpawnExitBridge(2445f, 1296f, 2529f, 1206f);
+        TryAddOrangeSpawnExitBridge(2529f, 1206f, 1918f, 1344f);
+
+        void TryAddOrangeSpawnExitBridge(float fromX, float fromY, float toX, float toY, bool allowTeamSpecificFallback = false)
+        {
+            var fromNode = FindNearestNodeNear(nodes, fromX, fromY);
+            var toNode = FindNearestNodeNear(nodes, toX, toY);
+            if ((uint)fromNode >= (uint)nodes.Count || (uint)toNode >= (uint)nodes.Count)
+            {
+                return;
+            }
+
+            if (Distance(nodes[fromNode], new BuildNode(fromX, fromY, NavNodeKind.Surface, null)) > 2f
+                || Distance(nodes[toNode], new BuildNode(toX, toY, NavNodeKind.Surface, null)) > 2f)
+            {
+                return;
+            }
+
+            var targetSurface = FindSurface(surfaces, nodes[toNode].SurfaceId);
+            if (!targetSurface.HasValue)
+            {
+                return;
+            }
+
+            var fromPortalId = FindPortalForNode(portals, fromNode, BuildPortalKind.Ledge);
+            var cost = GetJumpCost(nodes[fromNode], nodes[toNode], Distance(nodes[fromNode], nodes[toNode]));
+            TryAddCertifiedTraversalEdge(
+                level,
+                probeSurfaces,
+                nodes,
+                fromNode,
+                toNode,
+                fromPortalId,
+                FindPortalForNode(portals, toNode, BuildPortalKind.Ledge),
+                targetSurface.Value,
+                NavEdgeKind.Jump,
+                cost,
+                edges,
+                edgeSet,
+                stats,
+                allowTeamSpecificFallback);
+        }
+    }
+
+    private static int FindNearestNodeNear(IReadOnlyList<BuildNode> nodes, float x, float y)
+    {
+        var bestNode = -1;
+        var bestDistance = float.MaxValue;
+        var target = new BuildNode(x, y, NavNodeKind.Surface, null);
+        for (var i = 0; i < nodes.Count; i += 1)
+        {
+            var distance = Distance(nodes[i], target);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestNode = i;
+        }
+
+        return bestNode;
+    }
+
+    private static void AddAuthoredCorridorEdges(
+        SimpleLevel level,
+        IReadOnlyList<BuildSurface> surfaces,
+        IReadOnlyList<BuildPortal> portals,
+        IReadOnlyList<BotBrainProbeSurface> probeSurfaces,
+        IReadOnlyList<BuildNode> nodes,
+        List<BuildEdge> edges,
+        HashSet<EdgeKey> edgeSet,
+        BuildStats stats)
+    {
+        if (!BotNavigationAuthoredCorridorStore.TryLoad(level, out var source))
+        {
+            return;
+        }
+
+        foreach (var corridor in source.Corridors)
+        {
+            if (corridor.Waypoints.Count < 2)
+            {
+                continue;
+            }
+
+            var routeWaypoints = ResolveAuthoredCorridorRouteWaypoints(level, corridor);
+            if (routeWaypoints.Count < 2)
+            {
+                continue;
+            }
+
+            var startTeam = ResolveCorridorStartTeam(level, corridor);
+            var supportedTeamMask = ResolveAuthoredCorridorTeamMask(level, corridor, startTeam);
+            var supportedClassMask = ResolveAuthoredCorridorClassMask(level, corridor, startTeam);
+            var corridorCostMultiplier = ResolveAuthoredCorridorCostMultiplier(level, corridor, startTeam);
+            var previousNode = SnapAuthoredCorridorWaypoint(nodes, routeWaypoints[0]);
+            for (var i = 1; i < routeWaypoints.Count; i += 1)
+            {
+                var nextNode = SnapAuthoredCorridorWaypoint(nodes, routeWaypoints[i]);
+                if ((uint)previousNode >= (uint)nodes.Count || (uint)nextNode >= (uint)nodes.Count)
+                {
+                    previousNode = nextNode;
+                    continue;
+                }
+
+                if (previousNode == nextNode)
+                {
+                    continue;
+                }
+
+                if (nodes[previousNode].SurfaceId == nodes[nextNode].SurfaceId)
+                {
+                    previousNode = nextNode;
+                    continue;
+                }
+
+                var distance = Distance(nodes[previousNode], nodes[nextNode]);
+                if (IsAuthoredCorridorWalkRelayCandidate(nodes[previousNode], nodes[nextNode]))
+                {
+                    AddEdge(
+                        previousNode,
+                        nextNode,
+                        NavEdgeKind.Walk,
+                        GetAuthoredCorridorPreferredCost(distance, corridorCostMultiplier),
+                        edges,
+                        edgeSet,
+                        supportedClassMask: supportedClassMask,
+                        supportedTeamMask: supportedTeamMask,
+                        preferLowerCost: true);
+                    previousNode = nextNode;
+                    continue;
+                }
+
+                if (distance <= AuthoredCorridorDirectEdgeMaxDistance)
+                {
+                    var directKind = ResolveAuthoredCorridorEdgeKind(nodes[previousNode], nodes[nextNode]);
+                    var directCost = directKind == NavEdgeKind.Fall
+                        ? distance * 0.8f
+                        : GetJumpCost(nodes[previousNode], nodes[nextNode], distance);
+                    var directTemplate = FindCertifiedTraversalTemplateEdge(
+                        edges,
+                        previousNode,
+                        nextNode,
+                        directKind,
+                        supportedTeamMask,
+                        supportedClassMask);
+                    if (directKind != NavEdgeKind.Jump || directTemplate.HasValue)
+                    {
+                        AddEdge(
+                            previousNode,
+                            nextNode,
+                            directKind,
+                            GetAuthoredCorridorPreferredCost(directCost, corridorCostMultiplier),
+                            edges,
+                            edgeSet,
+                            directTemplate?.ProbeResult,
+                            supportedClassMask: ResolveAuthoredCorridorDirectClassMask(directKind, supportedClassMask, directTemplate),
+                            supportedTeamMask: supportedTeamMask,
+                            preferLowerCost: true);
+                        previousNode = nextNode;
+                        continue;
+                    }
+                }
+
+                var targetSurface = FindSurface(surfaces, nodes[nextNode].SurfaceId);
+                if (!targetSurface.HasValue)
+                {
+                    previousNode = nextNode;
+                    continue;
+                }
+
+                var kind = ResolveAuthoredCorridorEdgeKind(nodes[previousNode], nodes[nextNode]);
+                var cost = kind == NavEdgeKind.Fall
+                    ? distance * 0.8f
+                    : GetJumpCost(nodes[previousNode], nodes[nextNode], distance);
+                TryAddCertifiedTraversalEdge(
+                    level,
+                    probeSurfaces,
+                    nodes,
+                    previousNode,
+                    nextNode,
+                    FindPortalForNode(portals, previousNode, BuildPortalKind.Ledge),
+                    FindPortalForNode(portals, nextNode, BuildPortalKind.Ledge),
+                    targetSurface.Value,
+                    kind,
+                    cost,
+                    edges,
+                    edgeSet,
+                    stats,
+                    allowTeamSpecificFallback: true,
+                    useProbeEnsemble: true);
+
+                var template = FindCertifiedTraversalTemplateEdge(
+                    edges,
+                    previousNode,
+                    nextNode,
+                    kind,
+                    supportedTeamMask,
+                    supportedClassMask);
+                if (kind != NavEdgeKind.Jump || template.HasValue)
+                {
+                    AddEdge(
+                        previousNode,
+                        nextNode,
+                        kind,
+                        GetAuthoredCorridorPreferredCost(cost, corridorCostMultiplier),
+                        edges,
+                        edgeSet,
+                        template?.ProbeResult,
+                        supportedClassMask: ResolveAuthoredCorridorDirectClassMask(kind, supportedClassMask, template),
+                        supportedTeamMask: supportedTeamMask,
+                        fromPortalId: FindPortalForNode(portals, previousNode, BuildPortalKind.Ledge),
+                        toPortalId: FindPortalForNode(portals, nextNode, BuildPortalKind.Ledge),
+                        preferLowerCost: true);
+                }
+
+                previousNode = nextNode;
+            }
+        }
+    }
+
+    private static BotBrainMovementProbeResult? FindCertifiedTraversalTemplate(
+        IReadOnlyList<BuildEdge> edges,
+        int fromNode,
+        int toNode,
+        NavEdgeKind kind,
+        int supportedTeamMask,
+        int supportedClassMask)
+    {
+        return FindCertifiedTraversalTemplateEdge(edges, fromNode, toNode, kind, supportedTeamMask, supportedClassMask)?.ProbeResult;
+    }
+
+    private static BuildEdge? FindCertifiedTraversalTemplateEdge(
+        IReadOnlyList<BuildEdge> edges,
+        int fromNode,
+        int toNode,
+        NavEdgeKind kind,
+        int supportedTeamMask,
+        int supportedClassMask)
+    {
+        BuildEdge? bestEdge = null;
+        var bestScore = int.MinValue;
+        for (var i = 0; i < edges.Count; i += 1)
+        {
+            var edge = edges[i];
+            if (edge.FromNode != fromNode
+                || edge.ToNode != toNode
+                || edge.Kind != kind
+                || edge.ProbeResult is null
+                || !MasksOverlapOrAll(edge.SupportedTeamMask, supportedTeamMask)
+                || !MasksOverlapOrAll(edge.SupportedClassMask, supportedClassMask))
+            {
+                continue;
+            }
+
+            var score = 0;
+            if (edge.SupportedTeamMask == supportedTeamMask)
+            {
+                score += 2;
+            }
+            else if (edge.SupportedTeamMask == BotBrainTeamMask.All)
+            {
+                score += 1;
+            }
+
+            if (edge.SupportedClassMask == supportedClassMask)
+            {
+                score += 2;
+            }
+            else if (edge.SupportedClassMask == BotBrainClassMask.All)
+            {
+                score += 1;
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestEdge = edge;
+            }
+        }
+
+        return bestEdge;
+    }
+
+    private static int ResolveAuthoredCorridorDirectClassMask(
+        NavEdgeKind kind,
+        int requestedClassMask,
+        BuildEdge? certifiedTemplate) =>
+        kind == NavEdgeKind.Jump && certifiedTemplate.HasValue
+            ? certifiedTemplate.Value.SupportedClassMask
+            : requestedClassMask;
+
+    private static bool MasksOverlapOrAll(int first, int second) =>
+        first == BotBrainClassMask.All
+        || second == BotBrainClassMask.All
+        || (first & second) != 0;
+
+    private static IReadOnlyList<BotNavigationAuthoredCorridorWaypoint> ResolveAuthoredCorridorRouteWaypoints(
+        SimpleLevel level,
+        BotNavigationAuthoredCorridorEntry corridor)
+    {
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+            || !TryFindNearestControlObjective(level, corridor.Waypoints[0].X, corridor.Waypoints[0].Y, out var objective))
+        {
+            return corridor.Waypoints;
+        }
+
+        for (var i = 1; i < corridor.Waypoints.Count; i += 1)
+        {
+            var waypoint = corridor.Waypoints[i];
+            if (DistanceSquared(waypoint.X, waypoint.Y, objective.CenterX, objective.CenterY)
+                <= AuthoredCorridorObjectiveArrivalDistance * AuthoredCorridorObjectiveArrivalDistance)
+            {
+                return corridor.Waypoints.Take(i + 1).ToArray();
+            }
+        }
+
+        return corridor.Waypoints;
+    }
+
+    private static void AddAuthoredCorridorVirtualNodes(
+        SimpleLevel level,
+        List<BuildSurface> surfaces,
+        List<BuildNode> nodes)
+    {
+        if (!BotNavigationAuthoredCorridorStore.TryLoad(level, out var source))
+        {
+            return;
+        }
+
+        foreach (var corridor in source.Corridors)
+        {
+            foreach (var waypoint in corridor.Waypoints)
+            {
+                if (!waypoint.IsGrounded
+                    || FindNearestAuthoredCorridorNode(nodes, waypoint, AuthoredCorridorVirtualNodeSpacing) >= 0)
+                {
+                    continue;
+                }
+
+                var nodeIndex = nodes.Count;
+                var surfaceId = surfaces.Count;
+                surfaces.Add(new BuildSurface(
+                    surfaceId,
+                    waypoint.X,
+                    waypoint.X,
+                    waypoint.Y + (ProbeHeight * 0.5f),
+                    IsDropdown: false,
+                    FirstNodeIndex: nodeIndex,
+                    LastNodeIndex: nodeIndex));
+                nodes.Add(new BuildNode(waypoint.X, waypoint.Y, NavNodeKind.Surface, surfaceId));
+            }
+        }
+    }
+
+    private static int SnapAuthoredCorridorWaypoint(
+        IReadOnlyList<BuildNode> nodes,
+        BotNavigationAuthoredCorridorWaypoint waypoint)
+    {
+        var bestNode = -1;
+        var bestScore = float.MaxValue;
+        for (var i = 0; i < nodes.Count; i += 1)
+        {
+            if (nodes[i].SurfaceId is null)
+            {
+                continue;
+            }
+
+            var dx = nodes[i].X - waypoint.X;
+            var dy = nodes[i].Y - waypoint.Y;
+            var absDy = MathF.Abs(dy);
+            if (MathF.Abs(dx) > 160f || absDy > 128f)
+            {
+                continue;
+            }
+
+            var distanceSq = (dx * dx) + (dy * dy);
+            if (distanceSq > AuthoredCorridorMaxSnapDistance * AuthoredCorridorMaxSnapDistance)
+            {
+                continue;
+            }
+
+            var score = MathF.Abs(dx) + absDy * 2f;
+            if (score >= bestScore)
+            {
+                continue;
+            }
+
+            bestScore = score;
+            bestNode = i;
+        }
+
+        return bestNode;
+    }
+
+    private static int FindNearestAuthoredCorridorNode(
+        IReadOnlyList<BuildNode> nodes,
+        BotNavigationAuthoredCorridorWaypoint waypoint,
+        float maxDistance)
+    {
+        var bestNode = -1;
+        var bestDistanceSq = maxDistance * maxDistance;
+        for (var i = 0; i < nodes.Count; i += 1)
+        {
+            if (nodes[i].SurfaceId is null)
+            {
+                continue;
+            }
+
+            var dx = nodes[i].X - waypoint.X;
+            var dy = nodes[i].Y - waypoint.Y;
+            var distanceSq = (dx * dx) + (dy * dy);
+            if (distanceSq >= bestDistanceSq)
+            {
+                continue;
+            }
+
+            bestDistanceSq = distanceSq;
+            bestNode = i;
+        }
+
+        return bestNode;
+    }
+
+    private static bool IsAuthoredCorridorWalkRelayCandidate(BuildNode from, BuildNode to)
+    {
+        var dx = MathF.Abs(to.X - from.X);
+        var dy = MathF.Abs(to.Y - from.Y);
+        return dx <= StepRelayHorizontalReach
+            && dy <= StepRelayVerticalReach;
+    }
+
+    private static float GetAuthoredCorridorPreferredCost(float baseCost, float costMultiplier) =>
+        MathF.Max(1f, baseCost * costMultiplier);
+
+    private static int ResolveAuthoredCorridorTeamMask(SimpleLevel level, BotNavigationAuthoredCorridorEntry corridor, PlayerTeam startTeam)
+    {
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        {
+            return BotBrainTeamMask.For(corridor.Team);
+        }
+
+        return BotBrainTeamMask.For(startTeam);
+    }
+
+    private static PlayerTeam ResolveCorridorStartTeam(SimpleLevel level, BotNavigationAuthoredCorridorEntry corridor)
+    {
+        if (corridor.Waypoints.Count == 0)
+        {
+            return corridor.Team;
+        }
+
+        var start = corridor.Waypoints[0];
+        var redDistance = MinSpawnDistanceSquared(level.RedSpawns, start.X, start.Y);
+        var blueDistance = MinSpawnDistanceSquared(level.BlueSpawns, start.X, start.Y);
+        if (!float.IsFinite(redDistance) || !float.IsFinite(blueDistance) || MathF.Abs(redDistance - blueDistance) < 1f)
+        {
+            return corridor.Team;
+        }
+
+        return redDistance < blueDistance ? PlayerTeam.Red : PlayerTeam.Blue;
+    }
+
+    private static float MinSpawnDistanceSquared(IReadOnlyList<SpawnPoint> spawns, float x, float y)
+    {
+        var best = float.PositiveInfinity;
+        foreach (var spawn in spawns)
+        {
+            var dx = spawn.X - x;
+            var dy = spawn.Y - y;
+            var distanceSq = (dx * dx) + (dy * dy);
+            if (distanceSq < best)
+            {
+                best = distanceSq;
+            }
+        }
+
+        return best;
+    }
+
+    private static bool TryFindNearestControlObjective(SimpleLevel level, float x, float y, out RoomObjectMarker objective)
+    {
+        objective = default;
+        var bestDistanceSq = float.PositiveInfinity;
+        foreach (var marker in level.RoomObjects)
+        {
+            if (marker.Type is not (RoomObjectType.ControlPoint or RoomObjectType.ArenaControlPoint))
+            {
+                continue;
+            }
+
+            var distanceSq = DistanceSquared(x, y, marker.CenterX, marker.CenterY);
+            if (distanceSq >= bestDistanceSq)
+            {
+                continue;
+            }
+
+            bestDistanceSq = distanceSq;
+            objective = marker;
+        }
+
+        return float.IsFinite(bestDistanceSq);
+    }
+
+    private static float DistanceSquared(float ax, float ay, float bx, float by)
+    {
+        var dx = bx - ax;
+        var dy = by - ay;
+        return (dx * dx) + (dy * dy);
+    }
+
+    private static int ResolveAuthoredCorridorClassMask(
+        SimpleLevel level,
+        BotNavigationAuthoredCorridorEntry corridor,
+        PlayerTeam startTeam) =>
+        level.Mode == GameModeKind.CaptureTheFlag
+        || corridor.PlayerClass == PlayerClass.Heavy
+        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+            && startTeam != corridor.Team)
+            ? BotBrainClassMask.All
+            : BotBrainClassMask.For(corridor.PlayerClass);
+
+    private static float ResolveAuthoredCorridorCostMultiplier(
+        SimpleLevel level,
+        BotNavigationAuthoredCorridorEntry corridor,
+        PlayerTeam startTeam) =>
+        level.Mode == GameModeKind.CaptureTheFlag
+        || corridor.PlayerClass == PlayerClass.Heavy
+        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+            && startTeam != corridor.Team)
+            ? AuthoredCorridorPreferredCostMultiplier
+            : 1f;
+
+    private static NavEdgeKind ResolveAuthoredCorridorEdgeKind(BuildNode from, BuildNode to)
+    {
+        return to.Y > from.Y + StepDownTolerance
+            ? NavEdgeKind.Fall
+            : NavEdgeKind.Jump;
     }
 
     private static void AddStepRelayEdges(
@@ -1745,7 +2566,9 @@ public static class BotNavigationAssetBuilder
         float cost,
         List<BuildEdge> edges,
         HashSet<EdgeKey> edgeSet,
-        BuildStats stats)
+        BuildStats stats,
+        bool allowTeamSpecificFallback = false,
+        bool useProbeEnsemble = false)
     {
         stats.CertifiedProbeAttempts += 1;
         if (stats.CertifiedProbeAttempts % 1_000 == 0)
@@ -1780,9 +2603,10 @@ public static class BotNavigationAssetBuilder
                 probeTargetSurface,
                 kind,
                 out var probeResult,
-                out var supportedClassMask))
+                out var supportedClassMask,
+                useProbeEnsemble))
         {
-            if (!ShouldUseCtfMicroStepRepairs(level))
+            if (!allowTeamSpecificFallback && !ShouldUseCtfMicroStepRepairs(level))
             {
                 stats.FailedCertifiedEdges.Add(allTeamsEdgeKey);
                 if (!string.IsNullOrWhiteSpace(stats.TracePath) && stats.CertifiedProbeAttempts <= 200)
@@ -1811,7 +2635,8 @@ public static class BotNavigationAssetBuilder
                         kind,
                         team,
                         out var teamProbeResult,
-                        out var teamSupportedClassMask))
+                        out var teamSupportedClassMask,
+                        useProbeEnsemble))
                 {
                     stats.FailedCertifiedEdges.Add(teamEdgeKey);
                     continue;
@@ -1862,7 +2687,43 @@ public static class BotNavigationAssetBuilder
         float cost,
         BotBrainMovementProbeResult probeResult)
     {
-        return cost;
+        var penalty = kind switch
+        {
+            NavEdgeKind.Jump => 24f,
+            NavEdgeKind.Dropdown => 18f,
+            NavEdgeKind.Fall => 12f,
+            _ => 0f,
+        };
+
+        if (probeResult.RequiresGroundedContinuation)
+        {
+            penalty += 18f;
+        }
+
+        if (probeResult.JumpTriggerTick > 0)
+        {
+            penalty += MathF.Min(36f, probeResult.JumpTriggerTick * 2f);
+        }
+
+        if (probeResult.Ticks > 0)
+        {
+            penalty += MathF.Min(36f, probeResult.Ticks * 0.5f);
+        }
+
+        if (probeResult.VariantAttempts > 0)
+        {
+            var successRate = Math.Clamp(
+                probeResult.VariantSuccesses / (float)probeResult.VariantAttempts,
+                0f,
+                1f);
+            penalty += (1f - successRate) * 60f;
+            if (probeResult.VariantSuccesses <= 1)
+            {
+                penalty += 24f;
+            }
+        }
+
+        return cost + penalty;
     }
 
 
@@ -2011,14 +2872,65 @@ public static class BotNavigationAssetBuilder
         int supportedClassMask = BotBrainClassMask.All,
         int supportedTeamMask = BotBrainTeamMask.All,
         int? fromPortalId = null,
-        int? toPortalId = null)
+        int? toPortalId = null,
+        bool preferLowerCost = false)
     {
-        if (fromNode == toNode || cost < 0f || !edgeSet.Add(new EdgeKey(fromNode, toNode, kind, supportedTeamMask)))
+        if (fromNode == toNode || cost < 0f)
         {
             return;
         }
 
+        var edgeKey = new EdgeKey(fromNode, toNode, kind, supportedTeamMask);
+        if (!edgeSet.Add(edgeKey))
+        {
+            MergeExistingEdgeSupport(fromNode, toNode, kind, supportedTeamMask, supportedClassMask, cost, probeResult, fromPortalId, toPortalId, preferLowerCost, edges);
+            return;
+        }
+
         edges.Add(new BuildEdge(fromNode, toNode, kind, cost, fromPortalId, toPortalId, probeResult, supportedClassMask, supportedTeamMask));
+    }
+
+    private static void MergeExistingEdgeSupport(
+        int fromNode,
+        int toNode,
+        NavEdgeKind kind,
+        int supportedTeamMask,
+        int supportedClassMask,
+        float cost,
+        BotBrainMovementProbeResult? probeResult,
+        int? fromPortalId,
+        int? toPortalId,
+        bool preferLowerCost,
+        List<BuildEdge> edges)
+    {
+        for (var i = 0; i < edges.Count; i += 1)
+        {
+            var edge = edges[i];
+            if (edge.FromNode != fromNode
+                || edge.ToNode != toNode
+                || edge.Kind != kind
+                || edge.SupportedTeamMask != supportedTeamMask)
+            {
+                continue;
+            }
+
+            edges[i] = edge with
+            {
+                SupportedClassMask = MergeClassMasks(edge.SupportedClassMask, supportedClassMask),
+                Cost = preferLowerCost ? MathF.Min(edge.Cost, cost) : edge.Cost,
+                ProbeResult = edge.ProbeResult ?? probeResult,
+                FromPortalId = edge.FromPortalId ?? fromPortalId,
+                ToPortalId = edge.ToPortalId ?? toPortalId,
+            };
+            return;
+        }
+    }
+
+    private static int MergeClassMasks(int first, int second)
+    {
+        return first == BotBrainClassMask.All || second == BotBrainClassMask.All
+            ? BotBrainClassMask.All
+            : first | second;
     }
 
     private static BuildSurface? FindSurface(IReadOnlyList<BuildSurface> surfaces, int? surfaceId)

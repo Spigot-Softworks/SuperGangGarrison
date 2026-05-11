@@ -70,10 +70,10 @@ public sealed partial class PlayerEntity
         var bestX = X;
         var bestY = Y;
 
-        ConsiderOutsideBlockingGeometry(level, team, 0f, -1f, Height / 2f, ref bestDistance, ref bestX, ref bestY);
-        ConsiderOutsideBlockingGeometry(level, team, 0f, 1f, Height / 2f, ref bestDistance, ref bestX, ref bestY);
-        ConsiderOutsideBlockingGeometry(level, team, 1f, 0f, Width / 2f, ref bestDistance, ref bestX, ref bestY);
-        ConsiderOutsideBlockingGeometry(level, team, -1f, 0f, Width / 2f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, 0f, -1f, Height * 1.5f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, 0f, 1f, Height * 1.5f, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, 1f, 0f, Width, ref bestDistance, ref bestX, ref bestY);
+        ConsiderOutsideBlockingGeometry(level, team, -1f, 0f, Width, ref bestDistance, ref bestX, ref bestY);
 
         if (bestDistance < float.PositiveInfinity)
         {

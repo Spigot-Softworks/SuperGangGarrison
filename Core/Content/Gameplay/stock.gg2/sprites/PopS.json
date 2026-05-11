@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "PopS",
     "framePaths":  [
-                       "assets/legacy-sprites/Projectiles/PopS/image 0.png"
+                       "Content/Sprites/Projectiles/PopS.images/image 0.png"
                    ],
     "originX":  0,
     "originY":  0,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SniperRedLeanRS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Sniper/SniperRedLeanRS/image 0.png"
+                       "Content/Sprites/Characters/Sniper/SniperRedLeanRS.images/image 0.png"
                    ],
     "originX":  26,
     "originY":  40,

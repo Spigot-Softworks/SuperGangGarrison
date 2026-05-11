@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "HealthPackLargeS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/HealthPackLargeS/image 0.png",
-                       "assets/legacy-sprites/InGameElements/HealthPackLargeS/image 1.png"
+                       "Content/Sprites/InGameElements/HealthPackLargeS.images/image 0.png",
+                       "Content/Sprites/InGameElements/HealthPackLargeS.images/image 1.png"
                    ],
     "originX":  15,
     "originY":  15,

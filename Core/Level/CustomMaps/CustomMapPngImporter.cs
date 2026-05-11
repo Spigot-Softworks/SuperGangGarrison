@@ -49,13 +49,14 @@ public static class CustomMapPngImporter
             return null;
         }
 
-        var mapScale = ResolveMapScale(metadata);
+        var mapScale = ResolveMapScale(metadata, entities, walkmaskSection);
         if (!TryDecodeWalkmask(walkmaskSection, mapScale, out var solids, out var bounds))
         {
             return null;
         }
 
-        var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entities);
+        var visuals = DecodeVisualMetadata(metadata, mapScale);
+        var room = BuildRoomMetadata(Path.GetFileNameWithoutExtension(pngPath), pngPath, bounds, entities, visuals);
         return new Result(room, solids);
     }
 
@@ -204,28 +205,19 @@ public static class CustomMapPngImporter
         return input[start..end];
     }
 
+    private readonly record struct WalkmaskDimensions(int Width, int Height);
+
     private static bool TryDecodeWalkmask(string walkmaskSection, float mapScale, out IReadOnlyList<LevelSolid> solids, out WorldBounds bounds)
     {
         solids = Array.Empty<LevelSolid>();
-        var lines = walkmaskSection
-            .Replace("\r", string.Empty, StringComparison.Ordinal)
-            .Split('\n');
-        var firstContentLine = 0;
-        while (firstContentLine < lines.Length && string.IsNullOrWhiteSpace(lines[firstContentLine]))
-        {
-            firstContentLine += 1;
-        }
-
-        if (firstContentLine + 2 >= lines.Length
-            || !int.TryParse(lines[firstContentLine].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
-            || !int.TryParse(lines[firstContentLine + 1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
-            || width <= 0
-            || height <= 0)
+        if (!TryReadWalkmask(walkmaskSection, out var lines, out var firstContentLine, out var dimensions))
         {
             bounds = default;
             return false;
         }
 
+        var width = dimensions.Width;
+        var height = dimensions.Height;
         var cells = new bool[width * height];
         var packed = string.Concat(lines.Skip(firstContentLine + 2));
         if (packed.Length == 0)
@@ -297,11 +289,41 @@ public static class CustomMapPngImporter
         return true;
     }
 
+    private static bool TryReadWalkmask(
+        string walkmaskSection,
+        out string[] lines,
+        out int firstContentLine,
+        out WalkmaskDimensions dimensions)
+    {
+        lines = walkmaskSection
+            .Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Split('\n');
+        firstContentLine = 0;
+        while (firstContentLine < lines.Length && string.IsNullOrWhiteSpace(lines[firstContentLine]))
+        {
+            firstContentLine += 1;
+        }
+
+        if (firstContentLine + 2 >= lines.Length
+            || !int.TryParse(lines[firstContentLine].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
+            || !int.TryParse(lines[firstContentLine + 1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
+            || width <= 0
+            || height <= 0)
+        {
+            dimensions = default;
+            return false;
+        }
+
+        dimensions = new WalkmaskDimensions(width, height);
+        return true;
+    }
+
     private static GameMakerRoomMetadata BuildRoomMetadata(
         string mapName,
         string pngPath,
         WorldBounds bounds,
-        IReadOnlyList<ImportedEntity> entities)
+        IReadOnlyList<ImportedEntity> entities,
+        CustomMapVisualMetadata visuals)
     {
         var redSpawns = new List<SpawnPoint>();
         var blueSpawns = new List<SpawnPoint>();
@@ -364,7 +386,68 @@ public static class CustomMapPngImporter
             UnsupportedEntities = unsupportedEntities
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
+            CustomMapVisuals = visuals,
         };
+    }
+
+    private static CustomMapVisualMetadata DecodeVisualMetadata(IReadOnlyDictionary<string, string> metadata, float mapScale)
+    {
+        var parallaxLayers = new List<CustomMapParallaxLayer>();
+        for (var index = 0; index < 7; index += 1)
+        {
+            var key = $"bg_layer{index}";
+            if (!metadata.TryGetValue(key, out var encodedResource)
+                || !CustomMapBuilderResourceCodec.TryDecodeLegacyString(
+                    key,
+                    encodedResource,
+                    CustomMapBuilderResourceKind.ParallaxLayer,
+                    out var resource)
+                || !CustomMapBuilderResourceCodec.TryGetResourceBytes(resource, out var bytes))
+            {
+                continue;
+            }
+
+            parallaxLayers.Add(new CustomMapParallaxLayer(
+                index,
+                ResolveParallaxFactor(metadata, $"layer{index}xfactor", 10f - index),
+                ResolveParallaxFactor(metadata, $"layer{index}yfactor", 10f - index),
+                new CustomMapVisualResource(resource.Name, bytes)));
+        }
+
+        CustomMapVisualResource? foreground = null;
+        if (metadata.TryGetValue("bg_foreground", out var encodedForeground)
+            && CustomMapBuilderResourceCodec.TryDecodeLegacyString(
+                "bg_foreground",
+                encodedForeground,
+                CustomMapBuilderResourceKind.Foreground,
+                out var foregroundResource)
+            && CustomMapBuilderResourceCodec.TryGetResourceBytes(foregroundResource, out var foregroundBytes))
+        {
+            foreground = new CustomMapVisualResource(foregroundResource.Name, foregroundBytes);
+        }
+
+        if (parallaxLayers.Count == 0 && foreground is null)
+        {
+            return CustomMapVisualMetadata.Empty;
+        }
+
+        return new CustomMapVisualMetadata(
+            ImageScale: mapScale,
+            BackgroundColor: metadata.TryGetValue("background", out var backgroundColor) ? backgroundColor : null,
+            VoidColor: metadata.TryGetValue("void", out var voidColor) ? voidColor : null,
+            ParallaxLayers: parallaxLayers,
+            Foreground: foreground);
+    }
+
+    private static float ResolveParallaxFactor(
+        IReadOnlyDictionary<string, string> metadata,
+        string key,
+        float fallback)
+    {
+        return metadata.TryGetValue(key, out var rawValue)
+            && float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : fallback;
     }
 
     private static bool TryCreateRoomObject(ImportedEntity entity, out RoomObjectMarker marker)
@@ -584,16 +667,61 @@ public static class CustomMapPngImporter
         return false;
     }
 
-    private static float ResolveMapScale(IReadOnlyDictionary<string, string> metadata)
+    private static float ResolveMapScale(
+        IReadOnlyDictionary<string, string> metadata,
+        IReadOnlyList<ImportedEntity> entities,
+        string walkmaskSection)
     {
+        var resolvedScale = DefaultCustomMapScale;
         if (metadata.TryGetValue("scale", out var scaleText)
             && float.TryParse(scaleText, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale)
             && scale > 0f)
         {
-            return scale;
+            resolvedScale = scale;
         }
 
-        return DefaultCustomMapScale;
+        return ShouldUseDefaultScaleForGg2Compatibility(entities, walkmaskSection, resolvedScale)
+            ? DefaultCustomMapScale
+            : resolvedScale;
+    }
+
+    private static bool ShouldUseDefaultScaleForGg2Compatibility(
+        IReadOnlyList<ImportedEntity> entities,
+        string walkmaskSection,
+        float resolvedScale)
+    {
+        if (resolvedScale >= DefaultCustomMapScale
+            || !TryReadWalkmask(walkmaskSection, out _, out _, out var dimensions)
+            || entities.Count == 0)
+        {
+            return false;
+        }
+
+        var scaledWidth = dimensions.Width * resolvedScale;
+        var scaledHeight = dimensions.Height * resolvedScale;
+        var defaultWidth = dimensions.Width * DefaultCustomMapScale;
+        var defaultHeight = dimensions.Height * DefaultCustomMapScale;
+        var hasEntityOutsideScaledBounds = false;
+        for (var index = 0; index < entities.Count; index += 1)
+        {
+            var entity = entities[index];
+            if (entity.X < 0f || entity.Y < 0f)
+            {
+                continue;
+            }
+
+            if (entity.X > scaledWidth || entity.Y > scaledHeight)
+            {
+                hasEntityOutsideScaledBounds = true;
+            }
+
+            if (entity.X > defaultWidth || entity.Y > defaultHeight)
+            {
+                return false;
+            }
+        }
+
+        return hasEntityOutsideScaledBounds;
     }
 
     private static float ResolveResetMoveStatus(IReadOnlyDictionary<string, string> properties)

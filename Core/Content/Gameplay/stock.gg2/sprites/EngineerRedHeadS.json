@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "EngineerRedHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/EngineerRedHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/EngineerRedHeadS.images/image 0.png"
                    ],
     "originX":  5,
     "originY":  5,

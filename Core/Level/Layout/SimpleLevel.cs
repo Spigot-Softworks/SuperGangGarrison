@@ -28,7 +28,8 @@ public sealed class SimpleLevel
         IReadOnlyList<LevelSolid> solids,
         bool importedFromSource,
         IReadOnlyList<AreaTransitionMarker>? areaTransitionMarkers = null,
-        IReadOnlyList<string>? unsupportedSourceEntities = null)
+        IReadOnlyList<string>? unsupportedSourceEntities = null,
+        CustomMapVisualMetadata? customMapVisuals = null)
     {
         Name = name;
         Mode = mode;
@@ -47,6 +48,7 @@ public sealed class SimpleLevel
         ImportedFromSource = importedFromSource;
         AreaTransitionMarkers = areaTransitionMarkers ?? Array.Empty<AreaTransitionMarker>();
         UnsupportedSourceEntities = unsupportedSourceEntities ?? Array.Empty<string>();
+        CustomMapVisuals = customMapVisuals ?? CustomMapVisualMetadata.Empty;
         _roomObjectsByType = RoomObjects
             .GroupBy(roomObject => roomObject.Type)
             .ToDictionary(group => group.Key, group => group.ToArray());
@@ -86,6 +88,8 @@ public sealed class SimpleLevel
     public IReadOnlyList<AreaTransitionMarker> AreaTransitionMarkers { get; }
 
     public IReadOnlyList<string> UnsupportedSourceEntities { get; }
+
+    public CustomMapVisualMetadata CustomMapVisuals { get; }
 
     public bool ControlPointSetupGatesActive
     {

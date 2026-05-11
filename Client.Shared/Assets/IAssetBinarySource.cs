@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.ClientShared;
 
@@ -17,8 +18,7 @@ public sealed class FileSystemAssetBinarySource(string baseDirectory) : IAssetBi
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(assetPath);
 
-        var fullPath = Path.GetFullPath(Path.Combine(_baseDirectory, assetPath));
-        if (!fullPath.StartsWith(_baseDirectory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+        if (!TryResolvePath(assetPath, out var fullPath) || !File.Exists(fullPath))
         {
             return null;
         }
@@ -29,6 +29,21 @@ public sealed class FileSystemAssetBinarySource(string baseDirectory) : IAssetBi
     public Task<byte[]?> TryReadAllBytesAsync(string assetPath, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(TryReadAllBytes(assetPath));
+    }
+
+    private bool TryResolvePath(string assetPath, out string fullPath)
+    {
+        if (GameplayPackAssetPathUtility.IsContentRootRelativePath(assetPath))
+        {
+            var normalizedPath = assetPath.Replace('\\', '/').TrimStart('/');
+            const string contentPrefix = "Content/";
+            fullPath = Path.GetFullPath(ContentRoot.GetPath(normalizedPath[contentPrefix.Length..]));
+            var fullContentRoot = Path.GetFullPath(ContentRoot.Path);
+            return fullPath.StartsWith(fullContentRoot, StringComparison.OrdinalIgnoreCase);
+        }
+
+        fullPath = Path.GetFullPath(Path.Combine(_baseDirectory, assetPath));
+        return fullPath.StartsWith(_baseDirectory, StringComparison.OrdinalIgnoreCase);
     }
 }
 
@@ -91,7 +106,10 @@ public sealed class HttpAssetBinarySource(HttpClient httpClient, string packBase
 
     private string BuildAssetUrl(string assetPath)
     {
-        return $"{_packBaseUrl}/{assetPath.TrimStart('/').Replace('\\', '/')}";
+        var normalizedPath = assetPath.TrimStart('/').Replace('\\', '/');
+        return GameplayPackAssetPathUtility.IsContentRootRelativePath(normalizedPath)
+            ? normalizedPath
+            : $"{_packBaseUrl}/{normalizedPath}";
     }
 
     private static string NormalizeBaseUrl(string packBaseUrl)

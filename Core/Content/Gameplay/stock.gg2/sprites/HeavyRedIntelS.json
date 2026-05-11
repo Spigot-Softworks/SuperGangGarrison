@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyRedIntelS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedIntelS/image 0.png"
+                       "Content/Sprites/Characters/Heavy/HeavyRedIntelS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  40,

@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "HealedHudHPS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/HealedHudHPS/image 0.png",
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Medic/HealedHudHPS/image 1.png"
+                       "Content/Sprites/HUDs/WeaponHUDS/Medic/HealedHudHPS.images/image 0.png",
+                       "Content/Sprites/HUDs/WeaponHUDS/Medic/HealedHudHPS.images/image 1.png"
                    ],
     "originX":  0,
     "originY":  0,

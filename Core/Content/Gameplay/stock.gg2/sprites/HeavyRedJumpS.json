@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "HeavyRedJumpS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Heavy/HeavyRedJumpS/image 0.png"
+                       "Content/Sprites/Characters/Heavy/HeavyRedJumpS.images/image 0.png"
                    ],
     "originX":  19,
     "originY":  40,

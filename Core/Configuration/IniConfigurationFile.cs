@@ -71,6 +71,13 @@ public sealed class IniConfigurationFile
         return TryGetValue(section, key, out _);
     }
 
+    public IReadOnlyDictionary<string, string> GetSectionEntries(string section)
+    {
+        return _sections.TryGetValue(section ?? string.Empty, out var entries)
+            ? new Dictionary<string, string>(entries, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
+
     public int GetInt(string section, string key, int fallback = 0)
     {
         return TryGetValue(section, key, out var value)

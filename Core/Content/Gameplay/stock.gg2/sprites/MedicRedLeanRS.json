@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "MedicRedLeanRS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Medic/MedicRedLeanRS/image 0.png"
+                       "Content/Sprites/Characters/Medic/MedicRedLeanRS.images/image 0.png"
                    ],
     "originX":  27,
     "originY":  40,

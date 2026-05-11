@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -13,12 +14,14 @@ public partial class Game1
     private sealed class OptionsMenuController
     {
         private readonly record struct OptionsMenuAction(string Label, string Value, Action Activate, OptionsMenuTab Tab);
+        private readonly record struct ReplayMenuEntry(string DisplayName, string Path, string Kind, bool IsOpenGarrisonDemo, DateTime LastWriteTimeUtc);
 
         private enum OptionsMenuTab
         {
             Graphics,
             Audio,
             Gameplay,
+            Replays,
             Other,
         }
 
@@ -27,6 +30,7 @@ public partial class Game1
             "Graphics",
             "Audio",
             "Gameplay",
+            "Replays",
             "Other",
         };
 
@@ -391,6 +395,7 @@ public partial class Game1
 
         private List<OptionsMenuAction> BuildOptionsMenuActions()
         {
+            var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
             var allActions = new List<OptionsMenuAction>
             {
                 new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
@@ -426,8 +431,11 @@ public partial class Game1
             }
 
             allActions.Add(new OptionsMenuAction("Map Builder", string.Empty, _game.OpenGarrisonBuilderFromOptions, OptionsMenuTab.Other));
+            if (currentTab == OptionsMenuTab.Replays)
+            {
+                allActions.AddRange(BuildReplayMenuActions());
+            }
 
-            var currentTab = GetOptionsMenuTab(_game._optionsPageIndex);
             var filteredActions = new List<OptionsMenuAction>(allActions.Count);
 
             foreach (var action in allActions)
@@ -448,11 +456,141 @@ public partial class Game1
                 0 => OptionsMenuTab.Graphics,
                 1 => OptionsMenuTab.Audio,
                 2 => OptionsMenuTab.Gameplay,
+                3 => OptionsMenuTab.Replays,
                 _ => OptionsMenuTab.Other,
             };
         }
 
-        private Rectangle[] GetOptionsMenuTabButtonBounds(Rectangle panel, bool compactLayout)
+        private List<OptionsMenuAction> BuildReplayMenuActions()
+        {
+            var actions = new List<OptionsMenuAction>();
+            if (OperatingSystem.IsBrowser())
+            {
+                actions.Add(new OptionsMenuAction("Replay Browser", "Unavailable in browser", NoOp, OptionsMenuTab.Replays));
+                return actions;
+            }
+
+            var entries = GetReplayMenuEntries(out var status);
+            actions.Add(new OptionsMenuAction("Replay Folders", status, NoOp, OptionsMenuTab.Replays));
+            if (entries.Count == 0)
+            {
+                actions.Add(new OptionsMenuAction("No replay files found", "config/replays", NoOp, OptionsMenuTab.Replays));
+                return actions;
+            }
+
+            foreach (var entry in entries)
+            {
+                var capturedEntry = entry;
+                actions.Add(new OptionsMenuAction(
+                    capturedEntry.DisplayName,
+                    capturedEntry.Kind,
+                    () => PlayReplayMenuEntry(capturedEntry),
+                    OptionsMenuTab.Replays));
+            }
+
+            return actions;
+        }
+
+        private List<ReplayMenuEntry> GetReplayMenuEntries(out string status)
+        {
+            var entries = new List<ReplayMenuEntry>();
+            var directories = GetReplaySearchDirectories();
+            var searched = 0;
+            foreach (var directory in directories)
+            {
+                try
+                {
+                    Directory.CreateDirectory(directory);
+                    searched += 1;
+                    foreach (var filePath in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+                    {
+                        if (!TryCreateReplayMenuEntry(filePath, out var entry))
+                        {
+                            continue;
+                        }
+
+                        entries.Add(entry);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    _game.AddConsoleLine($"replay folder skipped: {directory} ({ex.Message})");
+                }
+            }
+
+            entries.Sort((left, right) => right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc));
+            if (entries.Count > 40)
+            {
+                entries.RemoveRange(40, entries.Count - 40);
+            }
+
+            status = entries.Count == 1
+                ? $"1 file in {searched} folders"
+                : $"{entries.Count} files in {searched} folders";
+            return entries;
+        }
+
+        private static List<string> GetReplaySearchDirectories()
+        {
+            var directories = new List<string>();
+            AddDistinctReplayDirectory(directories, RuntimePaths.ReplaysDirectory);
+            return directories;
+        }
+
+        private static void AddDistinctReplayDirectory(List<string> directories, string directory)
+        {
+            var fullPath = Path.GetFullPath(directory);
+            foreach (var existing in directories)
+            {
+                if (string.Equals(existing, fullPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            directories.Add(fullPath);
+        }
+
+        private static bool TryCreateReplayMenuEntry(string filePath, out ReplayMenuEntry entry)
+        {
+            entry = default;
+            var extension = Path.GetExtension(filePath);
+            var isOpenGarrisonDemo = string.Equals(extension, ".ogdemo", StringComparison.OrdinalIgnoreCase);
+            var isLegacyReplay = string.Equals(extension, ".rply", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(extension, ".replay", StringComparison.OrdinalIgnoreCase);
+            if (!isOpenGarrisonDemo && !isLegacyReplay)
+            {
+                return false;
+            }
+
+            var fileInfo = new FileInfo(filePath);
+            var kind = isOpenGarrisonDemo ? "Demo" : "Legacy Replay";
+            entry = new ReplayMenuEntry(fileInfo.Name, fileInfo.FullName, kind, isOpenGarrisonDemo, fileInfo.LastWriteTimeUtc);
+            return true;
+        }
+
+        private void PlayReplayMenuEntry(ReplayMenuEntry entry)
+        {
+            var started = entry.IsOpenGarrisonDemo
+                ? _game.TryPlayOpenGarrisonDemo(entry.Path, addConsoleFeedback: true)
+                : _game.TryPlayLegacyReplay(entry.Path, addConsoleFeedback: true);
+            if (!started)
+            {
+                return;
+            }
+
+            _game._menuStatusMessage = string.Empty;
+            _game._optionsMenuOpen = false;
+            _game._optionsMenuOpenedFromGameplay = false;
+            _game._optionsHoverIndex = -1;
+            _game._optionsScrollOffset = 0;
+        }
+
+        private static void NoOp()
+        {
+        }
+
+        private static Rectangle[] GetOptionsMenuTabButtonBounds(Rectangle panel, bool compactLayout)
         {
             var padding = compactLayout ? 20 : 28;
             var buttonHeight = compactLayout ? 34 : 42;

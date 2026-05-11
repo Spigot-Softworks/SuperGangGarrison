@@ -22,6 +22,7 @@ public partial class Game1
             _game.UpdateGameplayScreenState(keyboard, mouse);
             _game.UpdateGameplayMenuState(keyboard, mouse);
             _game.UpdateRespawnCameraState((float)gameTime.ElapsedGameTime.TotalSeconds, keyboard);
+            _game.UpdateBotBrainCorridorRecorderHotkeys(keyboard);
             var cameraPosition = _game.GetCameraTopLeft(_game.ViewportWidth, _game.ViewportHeight, mouse.X, mouse.Y);
             _game.UpdateGarrisonBuilderEditor(keyboard, rawMouse, (float)gameTime.ElapsedGameTime.TotalSeconds);
             _game.UpdateNavEditor(keyboard, mouse, rawMouse, cameraPosition, (float)gameTime.ElapsedGameTime.TotalSeconds);
@@ -31,8 +32,14 @@ public partial class Game1
             _game._hasLatestLocalAimWorldPosition = true;
             _game.SetNavEditorTraversalCaptureInput(gameplayInput);
             _game.SetScoreRouteRecorderCaptureInput(gameplayInput);
-            var localGameplayInput = _game.ResolveNavEditorGameplayInput(gameplayInput);
+            _game.ResolveNavEditorGameplayInput(gameplayInput);
             _game.CapturePendingPredictedInputEdges(keyboard, mouse, networkInput);
+            if (_game.IsGameplayInputBlocked())
+            {
+                _game.ClearPendingSecondaryAbilityPress();
+            }
+
+            networkInput = _game.ApplyPendingInputEdges(networkInput);
             // Use networkInput for local input state (needed for medic beam visuals, etc.)
             // even though gameplayInput is default in multiplayer (server authoritative)
             _game._world.SetLocalInput(networkInput);

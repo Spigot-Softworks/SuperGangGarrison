@@ -1,4 +1,4 @@
-using OpenGarrison.BotAI;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Core;
 using OpenGarrison.Server;
 using Xunit;
@@ -39,7 +39,7 @@ public sealed class ServerBotAutofillTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController());
+            new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Scout, "Red 1"));
         Assert.True(botManager.TryAddBot(3, PlayerTeam.Red, PlayerClass.Soldier, "Red 2"));
@@ -59,7 +59,7 @@ public sealed class ServerBotAutofillTests
         var botManager = new ServerBotManager(
             world,
             new SimulationConfig(),
-            new ModernPracticeBotController());
+            new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Soldier, "Red 1"));
         Assert.True(botManager.TryAddBot(3, PlayerTeam.Blue, PlayerClass.Medic, "Blue 1"));

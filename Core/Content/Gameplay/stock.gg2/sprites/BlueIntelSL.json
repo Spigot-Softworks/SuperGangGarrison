@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "BlueIntelSL",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Kill Icons/BlueIntelSL/image 0.png"
+                       "Content/Sprites/HUDs/Kill Icons/BlueIntelSL.images/image 0.png"
                    ],
     "originX":  10,
     "originY":  11,

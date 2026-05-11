@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "ScoutBlueStandS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Scout/ScoutBlueStandS/image 0.png"
+                       "Content/Sprites/Characters/Scout/ScoutBlueStandS.images/image 0.png"
                    ],
     "originX":  30,
     "originY":  40,

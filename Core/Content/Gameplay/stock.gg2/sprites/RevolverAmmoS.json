@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "RevolverAmmoS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/Ammo/RevolverAmmoS/image 0.png",
-                       "assets/legacy-sprites/HUDs/Ammo/RevolverAmmoS/image 1.png"
+                       "Content/Sprites/HUDs/Ammo/RevolverAmmoS.images/image 0.png",
+                       "Content/Sprites/HUDs/Ammo/RevolverAmmoS.images/image 1.png"
                    ],
     "originX":  25,
     "originY":  8,

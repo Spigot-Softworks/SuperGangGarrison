@@ -107,7 +107,7 @@ sealed class ServerSessionManager
         }
     }
 
-    private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
+    private static PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
     {
         return input;
     }

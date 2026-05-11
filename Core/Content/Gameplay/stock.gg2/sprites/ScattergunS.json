@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "ScattergunS",
     "framePaths":  [
-                       "assets/legacy-sprites/Weapons/ScattergunS/image 0.png",
-                       "assets/legacy-sprites/Weapons/ScattergunS/image 1.png"
+                       "Content/Sprites/Weapons/ScattergunS.images/image 0.png",
+                       "Content/Sprites/Weapons/ScattergunS.images/image 1.png"
                    ],
     "originX":  8,
     "originY":  -2,

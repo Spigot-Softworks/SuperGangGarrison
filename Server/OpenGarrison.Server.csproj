@@ -9,7 +9,6 @@
     <ProjectReference Include="..\Plugins\Server\OpenGarrison.Server.Plugins.Abstractions\OpenGarrison.Server.Plugins.Abstractions.csproj" />
     <ProjectReference Include="..\Core\OpenGarrison.Core.csproj" />
     <ProjectReference Include="..\Protocol\OpenGarrison.Protocol.csproj" />
-    <ProjectReference Include="..\BotAI\OpenGarrison.BotAI.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -39,6 +38,18 @@
     <None Include="..\Core\Content\BotNavHints\**\*">
       <TargetPath>Content\BotNavHints\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="..\Core\Content\BotBrainNav\**\*">
+      <TargetPath>Content\BotBrainNav\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Visible>false</Visible>
+    </None>
+    <None Include="..\Core\Content\BotBrainCorridors\**\*">
+      <TargetPath>Content\BotBrainCorridors\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Visible>false</Visible>
     </None>
     <None Include="..\Client\practice-bot-names.txt">

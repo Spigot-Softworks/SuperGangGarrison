@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "SoldierRedHeadS",
     "framePaths":  [
-                       "assets/legacy-sprites/InGameElements/Gibs/SoldierRedHeadS/image 0.png"
+                       "Content/Sprites/InGameElements/Gibs/SoldierRedHeadS.images/image 0.png"
                    ],
     "originX":  5,
     "originY":  5,

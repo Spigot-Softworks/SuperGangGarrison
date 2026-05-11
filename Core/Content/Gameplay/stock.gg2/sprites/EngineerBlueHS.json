@@ -1,12 +1,12 @@
-﻿{
+{
     "id":  "EngineerBlueHS",
     "framePaths":  [
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 0.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 1.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 2.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 3.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 4.png",
-                       "assets/legacy-sprites/Characters/Engineer/EngineerBlueHS/image 5.png"
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 0.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 1.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 2.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 3.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 4.png",
+                       "Content/Sprites/Characters/Engineer/EngineerBlueHS.images/image 5.png"
                    ],
     "originX":  32,
     "originY":  40,

@@ -1,7 +1,7 @@
-﻿{
+{
     "id":  "CreditsS",
     "framePaths":  [
-                       "assets/legacy-sprites/GameElements/CreditsS/image 0.png"
+                       "Content/Sprites/GameElements/CreditsS.images/image 0.png"
                    ],
     "originX":  100,
     "originY":  244,

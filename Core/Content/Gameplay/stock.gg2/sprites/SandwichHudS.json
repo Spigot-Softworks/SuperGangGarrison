@@ -1,8 +1,8 @@
-﻿{
+{
     "id":  "SandwichHudS",
     "framePaths":  [
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS/image 0.png",
-                       "assets/legacy-sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS/image 1.png"
+                       "Content/Sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS.images/image 0.png",
+                       "Content/Sprites/HUDs/WeaponHUDS/Heavy/SandwichHudS.images/image 1.png"
                    ],
     "originX":  19,
     "originY":  14,
