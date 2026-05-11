@@ -15,6 +15,11 @@ public static class BotNavigationAssetBuilder
     private const float MinimumInsetSurfaceWidth = ProbeHalfWidth * 2f;
     private const float StepRelayHorizontalReach = 96f;
     private const float StepRelayVerticalReach = 14f;
+    private const float StairRampRelayHorizontalReach = 132f;
+    private const float StairRampRelayVerticalReach = 88f;
+    private const float StairRampRelayJumpVerticalReach = 74f;
+    private const float StairRampRelayMinimumHorizontal = 8f;
+    private const float StairRampRelayCostMultiplier = 0.18f;
     private const float ReverseFallJumpVerticalReach = 120f;
     private const float MinimumPortalSpacing = 36f;
     private const float LongSurfacePortalSpacing = 320f;
@@ -70,6 +75,7 @@ public static class BotNavigationAssetBuilder
                 .Select(static edge =>
                 {
                     var probeResult = edge.ProbeResult;
+                    var completionResult = probeResult ?? edge.SemanticCompletion;
                     return new BotNavigationEdgeAssetEntry
                     {
                         FromNode = edge.FromNode,
@@ -86,12 +92,12 @@ public static class BotNavigationAssetBuilder
                         ProbeVariantSuccesses = probeResult?.VariantSuccesses ?? 0,
                         SupportedClassMask = edge.SupportedClassMask,
                         SupportedTeamMask = edge.SupportedTeamMask,
-                        CompletionMinX = probeResult?.CompletionMinX ?? 0f,
-                        CompletionMaxX = probeResult?.CompletionMaxX ?? 0f,
-                        CompletionMinY = probeResult?.CompletionMinY ?? 0f,
-                        CompletionMaxY = probeResult?.CompletionMaxY ?? 0f,
-                        AcceptedLandingSurfaceIds = probeResult?.AcceptedLandingSurfaceIds.ToList() ?? [],
-                        RequiresGroundedContinuation = probeResult?.RequiresGroundedContinuation ?? false,
+                        CompletionMinX = completionResult?.CompletionMinX ?? 0f,
+                        CompletionMaxX = completionResult?.CompletionMaxX ?? 0f,
+                        CompletionMinY = completionResult?.CompletionMinY ?? 0f,
+                        CompletionMaxY = completionResult?.CompletionMaxY ?? 0f,
+                        AcceptedLandingSurfaceIds = completionResult?.AcceptedLandingSurfaceIds.ToList() ?? [],
+                        RequiresGroundedContinuation = completionResult?.RequiresGroundedContinuation ?? false,
                         LaunchRecipe = probeResult?.LaunchRecipe is { } launchRecipe
                             ? new BotNavigationLaunchRecipeAssetEntry
                             {
@@ -168,7 +174,9 @@ public static class BotNavigationAssetBuilder
                 continue;
             }
 
-            var completion = edge.ProbeCertified
+            var hasCompletion = edge.CompletionMaxX > edge.CompletionMinX
+                && edge.CompletionMaxY > edge.CompletionMinY;
+            var completion = hasCompletion
                 ? new NavEdgeCompletion(
                     edge.CompletionMinX,
                     edge.CompletionMaxX,
@@ -210,7 +218,7 @@ public static class BotNavigationAssetBuilder
             AddAuthoredCorridorReturnEdges(level, nodes, adjacency);
         }
 
-        return new NavGraph(nodes, adjacency);
+        return new NavGraph(nodes, adjacency, level?.Name, level?.Mode);
     }
 
     private static void AddAuthoredCorridorReturnEdges(SimpleLevel level, NavNode[] nodes, List<NavEdge>[] adjacency)
@@ -1525,6 +1533,26 @@ public static class BotNavigationAssetBuilder
                     continue;
                 }
 
+                if (IsGroundedStairRampRelayCandidate(level, surfaces, nodes[previousNode], nodes[nextNode]))
+                {
+                    var stairKind = ResolveStairRampRelayKind(surfaces, nodes[previousNode], nodes[nextNode]);
+                    AddEdge(
+                        previousNode,
+                        nextNode,
+                        stairKind,
+                        MathF.Min(
+                            GetAuthoredCorridorPreferredCost(distance, corridorCostMultiplier),
+                            GetStairRampRelayCost(distance)),
+                        edges,
+                        edgeSet,
+                        semanticCompletion: CreateStairRampCompletion(surfaces, nodes[previousNode], nodes[nextNode], stairKind),
+                        supportedClassMask: supportedClassMask,
+                        supportedTeamMask: supportedTeamMask,
+                        preferLowerCost: true);
+                    previousNode = nextNode;
+                    continue;
+                }
+
                 if (distance <= AuthoredCorridorDirectEdgeMaxDistance)
                 {
                     var directKind = ResolveAuthoredCorridorEdgeKind(nodes[previousNode], nodes[nextNode]);
@@ -1827,6 +1855,78 @@ public static class BotNavigationAssetBuilder
     private static float GetAuthoredCorridorPreferredCost(float baseCost, float costMultiplier) =>
         MathF.Max(1f, baseCost * costMultiplier);
 
+    private static float GetStairRampRelayCost(float baseCost) =>
+        MathF.Max(2f, baseCost * StairRampRelayCostMultiplier);
+
+    private static NavEdgeKind ResolveStairRampRelayKind(
+        IReadOnlyList<BuildSurface> surfaces,
+        BuildNode from,
+        BuildNode to)
+    {
+        var fromSurface = FindSurface(surfaces, from.SurfaceId);
+        var toSurface = FindSurface(surfaces, to.SurfaceId);
+        return fromSurface.HasValue && toSurface.HasValue
+            ? ResolveStairRampRelayKind(fromSurface.Value, toSurface.Value, from, to)
+            : ResolveStairRampRelayKind(from, to, forceJumpToNarrowTarget: false);
+    }
+
+    private static NavEdgeKind ResolveStairRampRelayKind(
+        BuildSurface fromSurface,
+        BuildSurface toSurface,
+        BuildNode from,
+        BuildNode to)
+    {
+        var targetWidth = toSurface.RightX - toSurface.LeftX;
+        return ResolveStairRampRelayKind(
+            from,
+            to,
+            forceJumpToNarrowTarget: targetWidth <= MinimumPortalSpacing);
+    }
+
+    private static NavEdgeKind ResolveStairRampRelayKind(BuildNode from, BuildNode to, bool forceJumpToNarrowTarget) =>
+        to.Y < from.Y - StepDownTolerance
+        && (from.Y - to.Y <= StairRampRelayJumpVerticalReach || forceJumpToNarrowTarget)
+            ? NavEdgeKind.Jump
+            : NavEdgeKind.Walk;
+
+    private static BotBrainMovementProbeResult? CreateStairRampCompletion(
+        IReadOnlyList<BuildSurface> surfaces,
+        BuildNode from,
+        BuildNode to,
+        NavEdgeKind kind)
+    {
+        var targetSurface = FindSurface(surfaces, to.SurfaceId);
+        return targetSurface.HasValue
+            ? CreateStairRampCompletion(targetSurface.Value, from, to, kind)
+            : null;
+    }
+
+    private static BotBrainMovementProbeResult CreateStairRampCompletion(
+        BuildSurface targetSurface,
+        BuildNode from,
+        BuildNode to,
+        NavEdgeKind kind)
+    {
+        var surfacePadding = kind == NavEdgeKind.Jump ? 32f : 20f;
+        var verticalPadding = kind == NavEdgeKind.Jump ? 132f : 96f;
+        var minX = MathF.Min(targetSurface.LeftX, to.X) - surfacePadding;
+        var maxX = MathF.Max(targetSurface.RightX, to.X) + surfacePadding;
+        var moveDirection = MathF.Sign(to.X - from.X);
+        return new BotBrainMovementProbeResult(
+            minX,
+            maxX,
+            to.Y - verticalPadding,
+            to.Y + verticalPadding,
+            [],
+            Ticks: 0,
+            JumpTriggerTick: 0,
+            MoveDirectionX: moveDirection,
+            VariantAttempts: 0,
+            VariantSuccesses: 0,
+            RequiresGroundedContinuation: false,
+            LaunchRecipe: null);
+    }
+
     private static int ResolveAuthoredCorridorTeamMask(SimpleLevel level, BotNavigationAuthoredCorridorEntry corridor, PlayerTeam startTeam)
     {
         if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
@@ -1960,10 +2060,29 @@ public static class BotNavigationAssetBuilder
                 var b = nodes[portalB.NodeIndex];
                 var dx = MathF.Abs(a.X - b.X);
                 var dy = MathF.Abs(a.Y - b.Y);
+                var hasSurfaceA = surfaceById.TryGetValue(portalA.SurfaceId!.Value, out var surfaceA);
+                var hasSurfaceB = surfaceById.TryGetValue(portalB.SurfaceId!.Value, out var surfaceB);
                 var isMicroStepRelay = allowMicroStepRelay
-                    && surfaceById.TryGetValue(portalA.SurfaceId!.Value, out var surfaceA)
-                    && surfaceById.TryGetValue(portalB.SurfaceId!.Value, out var surfaceB)
+                    && hasSurfaceA
+                    && hasSurfaceB
                     && IsMicroStepRelay(surfaceA, surfaceB, a, b);
+                if (hasSurfaceA
+                    && hasSurfaceB
+                    && IsGroundedStairRampRelayCandidate(level, surfaceA, surfaceB, a, b))
+                {
+                    AddBidirectionalPreferredStairRampEdges(
+                        portalA.NodeIndex,
+                        portalB.NodeIndex,
+                        a,
+                        b,
+                        surfaceA,
+                        surfaceB,
+                        GetStairRampRelayCost(Distance(a, b)),
+                        edges,
+                        edgeSet);
+                    continue;
+                }
+
                 if (dx > StepRelayHorizontalReach
                     || dy > StepRelayVerticalReach)
                 {
@@ -1990,6 +2109,67 @@ public static class BotNavigationAssetBuilder
             && widthB <= MinimumSurfaceWidth
             && MathF.Abs(a.X - b.X) <= MinimumPortalSpacing
             && MathF.Abs(a.Y - b.Y) <= StepDownTolerance;
+    }
+
+    private static bool IsGroundedStairRampRelayCandidate(
+        SimpleLevel level,
+        IReadOnlyList<BuildSurface> surfaces,
+        BuildNode from,
+        BuildNode to)
+    {
+        var surfaceA = FindSurface(surfaces, from.SurfaceId);
+        var surfaceB = FindSurface(surfaces, to.SurfaceId);
+        return surfaceA.HasValue
+            && surfaceB.HasValue
+            && IsGroundedStairRampRelayCandidate(level, surfaceA.Value, surfaceB.Value, from, to);
+    }
+
+    private static bool IsGroundedStairRampRelayCandidate(
+        SimpleLevel level,
+        BuildSurface surfaceA,
+        BuildSurface surfaceB,
+        BuildNode a,
+        BuildNode b)
+    {
+        var dx = MathF.Abs(a.X - b.X);
+        var dy = MathF.Abs(a.Y - b.Y);
+        if (dx > StairRampRelayHorizontalReach
+            || dy <= StepRelayVerticalReach
+            || dy > StairRampRelayVerticalReach
+            || (dx < StairRampRelayMinimumHorizontal && dy > StepDownTolerance * 2f))
+        {
+            return false;
+        }
+
+        var widthA = surfaceA.RightX - surfaceA.LeftX;
+        var widthB = surfaceB.RightX - surfaceB.LeftX;
+        var narrowA = widthA <= StepRelayHorizontalReach * 1.5f;
+        var narrowB = widthB <= StepRelayHorizontalReach * 1.5f;
+        if (!narrowA && !narrowB)
+        {
+            return false;
+        }
+
+        return HasGroundedStairRampSupport(level, a, b);
+    }
+
+    private static bool HasGroundedStairRampSupport(SimpleLevel level, BuildNode a, BuildNode b)
+    {
+        var samples = Math.Clamp((int)MathF.Ceiling(Distance(a, b) / 24f), 3, 8);
+        var supported = 0;
+        for (var i = 0; i <= samples; i += 1)
+        {
+            var t = i / (float)samples;
+            var x = a.X + ((b.X - a.X) * t);
+            var y = a.Y + ((b.Y - a.Y) * t);
+            var feetY = y + (ProbeHeight * 0.5f);
+            if (level.IntersectsSolid(x - ProbeHalfWidth * 0.35f, feetY, x + ProbeHalfWidth * 0.35f, feetY + 18f))
+            {
+                supported += 1;
+            }
+        }
+
+        return supported >= Math.Max(2, samples / 2);
     }
 
     private static void AddMicroStepExitJumpEdges(
@@ -2196,11 +2376,11 @@ public static class BotNavigationAssetBuilder
             cost,
             edges,
             edgeSet,
-            probeResult,
-            supportedClassMask,
-            BotBrainTeamMask.All,
-            portal.Id,
-            landingPortalId);
+            probeResult: probeResult,
+            supportedClassMask: supportedClassMask,
+            supportedTeamMask: BotBrainTeamMask.All,
+            fromPortalId: portal.Id,
+            toPortalId: landingPortalId);
         stats.CertifiedProbeSuccesses += 1;
         return true;
     }
@@ -2553,6 +2733,39 @@ public static class BotNavigationAssetBuilder
         AddEdge(toNode, fromNode, kind, cost, edges, edgeSet, supportedClassMask: BotBrainClassMask.All, supportedTeamMask: BotBrainTeamMask.All, fromPortalId: toPortalId, toPortalId: fromPortalId);
     }
 
+    private static void AddBidirectionalPreferredStairRampEdges(
+        int fromNode,
+        int toNode,
+        BuildNode from,
+        BuildNode to,
+        BuildSurface fromSurface,
+        BuildSurface toSurface,
+        float cost,
+        List<BuildEdge> edges,
+        HashSet<EdgeKey> edgeSet)
+    {
+        var forwardKind = ResolveStairRampRelayKind(fromSurface, toSurface, from, to);
+        var reverseKind = ResolveStairRampRelayKind(toSurface, fromSurface, to, from);
+        AddEdge(
+            fromNode,
+            toNode,
+            forwardKind,
+            cost,
+            edges,
+            edgeSet,
+            semanticCompletion: CreateStairRampCompletion(toSurface, from, to, forwardKind),
+            preferLowerCost: true);
+        AddEdge(
+            toNode,
+            fromNode,
+            reverseKind,
+            cost,
+            edges,
+            edgeSet,
+            semanticCompletion: CreateStairRampCompletion(fromSurface, to, from, reverseKind),
+            preferLowerCost: true);
+    }
+
     private static bool TryAddCertifiedTraversalEdge(
         SimpleLevel level,
         IReadOnlyList<BotBrainProbeSurface> probeSurfaces,
@@ -2649,11 +2862,11 @@ public static class BotNavigationAssetBuilder
                     AdjustCertifiedTraversalCost(kind, cost, teamProbeResult),
                     edges,
                     edgeSet,
-                    teamProbeResult,
-                    teamSupportedClassMask,
-                    teamMask,
-                    fromPortalId,
-                    toPortalId);
+                    probeResult: teamProbeResult,
+                    supportedClassMask: teamSupportedClassMask,
+                    supportedTeamMask: teamMask,
+                    fromPortalId: fromPortalId,
+                    toPortalId: toPortalId);
                 stats.CertifiedProbeSuccesses += 1;
                 addedTeamSpecificEdge = true;
             }
@@ -2672,7 +2885,18 @@ public static class BotNavigationAssetBuilder
             return true;
         }
 
-        AddEdge(fromNode, toNode, kind, AdjustCertifiedTraversalCost(kind, cost, probeResult), edges, edgeSet, probeResult, supportedClassMask, BotBrainTeamMask.All, fromPortalId, toPortalId);
+        AddEdge(
+            fromNode,
+            toNode,
+            kind,
+            AdjustCertifiedTraversalCost(kind, cost, probeResult),
+            edges,
+            edgeSet,
+            probeResult: probeResult,
+            supportedClassMask: supportedClassMask,
+            supportedTeamMask: BotBrainTeamMask.All,
+            fromPortalId: fromPortalId,
+            toPortalId: toPortalId);
         stats.CertifiedProbeSuccesses += 1;
         if (!string.IsNullOrWhiteSpace(stats.TracePath) && stats.CertifiedProbeAttempts <= 200)
         {
@@ -2851,7 +3075,18 @@ public static class BotNavigationAssetBuilder
         var landingCost = MathF.Max(cost, Distance(from, nodes[landingNode]));
         var landingPortalId = FindPortalForNode(portals, landingNode, BuildPortalKind.Ledge);
         var beforeCount = edges.Count;
-        AddEdge(fromNode, landingNode, kind, landingCost, edges, edgeSet, probeResult, supportedClassMask, supportedTeamMask, fromPortalId, landingPortalId);
+        AddEdge(
+            fromNode,
+            landingNode,
+            kind,
+            landingCost,
+            edges,
+            edgeSet,
+            probeResult: probeResult,
+            supportedClassMask: supportedClassMask,
+            supportedTeamMask: supportedTeamMask,
+            fromPortalId: fromPortalId,
+            toPortalId: landingPortalId);
         if (edges.Count == beforeCount)
         {
             return false;
@@ -2869,6 +3104,7 @@ public static class BotNavigationAssetBuilder
         List<BuildEdge> edges,
         HashSet<EdgeKey> edgeSet,
         BotBrainMovementProbeResult? probeResult = null,
+        BotBrainMovementProbeResult? semanticCompletion = null,
         int supportedClassMask = BotBrainClassMask.All,
         int supportedTeamMask = BotBrainTeamMask.All,
         int? fromPortalId = null,
@@ -2883,11 +3119,11 @@ public static class BotNavigationAssetBuilder
         var edgeKey = new EdgeKey(fromNode, toNode, kind, supportedTeamMask);
         if (!edgeSet.Add(edgeKey))
         {
-            MergeExistingEdgeSupport(fromNode, toNode, kind, supportedTeamMask, supportedClassMask, cost, probeResult, fromPortalId, toPortalId, preferLowerCost, edges);
+            MergeExistingEdgeSupport(fromNode, toNode, kind, supportedTeamMask, supportedClassMask, cost, probeResult, semanticCompletion, fromPortalId, toPortalId, preferLowerCost, edges);
             return;
         }
 
-        edges.Add(new BuildEdge(fromNode, toNode, kind, cost, fromPortalId, toPortalId, probeResult, supportedClassMask, supportedTeamMask));
+        edges.Add(new BuildEdge(fromNode, toNode, kind, cost, fromPortalId, toPortalId, probeResult, semanticCompletion, supportedClassMask, supportedTeamMask));
     }
 
     private static void MergeExistingEdgeSupport(
@@ -2898,6 +3134,7 @@ public static class BotNavigationAssetBuilder
         int supportedClassMask,
         float cost,
         BotBrainMovementProbeResult? probeResult,
+        BotBrainMovementProbeResult? semanticCompletion,
         int? fromPortalId,
         int? toPortalId,
         bool preferLowerCost,
@@ -2919,6 +3156,7 @@ public static class BotNavigationAssetBuilder
                 SupportedClassMask = MergeClassMasks(edge.SupportedClassMask, supportedClassMask),
                 Cost = preferLowerCost ? MathF.Min(edge.Cost, cost) : edge.Cost,
                 ProbeResult = edge.ProbeResult ?? probeResult,
+                SemanticCompletion = edge.SemanticCompletion ?? semanticCompletion,
                 FromPortalId = edge.FromPortalId ?? fromPortalId,
                 ToPortalId = edge.ToPortalId ?? toPortalId,
             };
@@ -3119,6 +3357,7 @@ public static class BotNavigationAssetBuilder
         int? FromPortalId,
         int? ToPortalId,
         BotBrainMovementProbeResult? ProbeResult,
+        BotBrainMovementProbeResult? SemanticCompletion,
         int SupportedClassMask,
         int SupportedTeamMask);
 

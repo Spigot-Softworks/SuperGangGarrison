@@ -4,17 +4,17 @@ namespace OpenGarrison.Core.BotBrain;
 
 public sealed class BotBrainChatBubbleController
 {
-    private const int FrameAlert = 20;
-    private const int FrameQuestion = 21;
-    private const int FrameHappy = 24;
-    private const int FrameObjectiveAlert = 33;
-    private const int FrameThumbsUp = 36;
-    private const int FrameAttack = 41;
-    private const int FrameShield = 42;
-    private const int FrameConfirm = 43;
-    private const int FrameDeny = 44;
-    private const int FrameMedic = 45;
-    private const int FrameBurning = 49;
+    private const int FrameAlert = ChatBubbleFrameCatalog.Alert;
+    private const int FrameQuestion = ChatBubbleFrameCatalog.Question;
+    private const int FrameHappy = ChatBubbleFrameCatalog.Happy;
+    private const int FrameObjectiveAlert = ChatBubbleFrameCatalog.ObjectiveAlert;
+    private const int FrameThumbsUp = ChatBubbleFrameCatalog.ThumbsUp;
+    private const int FrameAttack = ChatBubbleFrameCatalog.Attack;
+    private const int FrameShield = ChatBubbleFrameCatalog.Shield;
+    private const int FrameConfirm = ChatBubbleFrameCatalog.Confirm;
+    private const int FrameDeny = ChatBubbleFrameCatalog.Deny;
+    private const int FrameMedic = ChatBubbleFrameCatalog.Medic;
+    private const int FrameBurning = ChatBubbleFrameCatalog.Burning;
     private const float ObjectiveAwarenessDistance = 900f;
     private const float CarrierAwarenessDistance = 1200f;
     private const float ControlPointAwarenessDistance = 220f;
@@ -201,7 +201,7 @@ public sealed class BotBrainChatBubbleController
         if (enemyCarrier is not null
             && DistanceSquared(self.X, self.Y, enemyCarrier.X, enemyCarrier.Y) <= CarrierAwarenessDistance * CarrierAwarenessDistance)
         {
-            reaction = new BotBrainChatBubbleReaction(FrameObjectiveAlert, BotBrainChatBubbleCategory.Objective, Priority: 90);
+            reaction = new BotBrainChatBubbleReaction(ResolveOwnIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 90);
             return true;
         }
 
@@ -209,7 +209,7 @@ public sealed class BotBrainChatBubbleController
         if (enemyIntel.IsDropped
             && DistanceSquared(self.X, self.Y, enemyIntel.X, enemyIntel.Y) <= ObjectiveAwarenessDistance * ObjectiveAwarenessDistance)
         {
-            reaction = new BotBrainChatBubbleReaction(FrameAttack, BotBrainChatBubbleCategory.Objective, Priority: 85);
+            reaction = new BotBrainChatBubbleReaction(ResolveEnemyIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 85);
             return true;
         }
 
@@ -217,7 +217,7 @@ public sealed class BotBrainChatBubbleController
         if (ownIntel.IsDropped
             && DistanceSquared(self.X, self.Y, ownIntel.X, ownIntel.Y) <= ObjectiveAwarenessDistance * ObjectiveAwarenessDistance)
         {
-            reaction = new BotBrainChatBubbleReaction(FrameDeny, BotBrainChatBubbleCategory.Objective, Priority: 82);
+            reaction = new BotBrainChatBubbleReaction(ResolveOwnIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 82);
             return true;
         }
 
@@ -226,7 +226,7 @@ public sealed class BotBrainChatBubbleController
             && friendlyCarrier.Id != self.Id
             && DistanceSquared(self.X, self.Y, friendlyCarrier.X, friendlyCarrier.Y) <= ObjectiveAwarenessDistance * ObjectiveAwarenessDistance)
         {
-            reaction = new BotBrainChatBubbleReaction(FrameThumbsUp, BotBrainChatBubbleCategory.Objective, Priority: 65);
+            reaction = new BotBrainChatBubbleReaction(ResolveEnemyIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 65);
             return true;
         }
 
@@ -440,21 +440,21 @@ public sealed class BotBrainChatBubbleController
             && TryFindCarrier(world, team, self, out var enemyCarrier))
         {
             signal = CreateSignal(slot, self, team, BotBubbleSignalKind.EnemyCarrier, $"enemyCarrier:{enemyCarrier.Id}");
-            firstReaction = new BotBrainChatBubbleReaction(FrameObjectiveAlert, BotBrainChatBubbleCategory.Objective, Priority: 91);
+            firstReaction = new BotBrainChatBubbleReaction(ResolveOwnIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 91);
             return true;
         }
 
         if (directTrace.Contains("droppedEnemyIntel", StringComparison.OrdinalIgnoreCase))
         {
             signal = CreateSignal(slot, self, team, BotBubbleSignalKind.DroppedEnemyIntel, "droppedEnemyIntel");
-            firstReaction = new BotBrainChatBubbleReaction(FrameAttack, BotBrainChatBubbleCategory.Objective, Priority: 86);
+            firstReaction = new BotBrainChatBubbleReaction(ResolveEnemyIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 86);
             return true;
         }
 
         if (directTrace.Contains("ownDroppedIntel", StringComparison.OrdinalIgnoreCase))
         {
             signal = CreateSignal(slot, self, team, BotBubbleSignalKind.OwnDroppedIntel, "ownDroppedIntel");
-            firstReaction = new BotBrainChatBubbleReaction(FrameDeny, BotBrainChatBubbleCategory.Objective, Priority: 87);
+            firstReaction = new BotBrainChatBubbleReaction(ResolveOwnIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 87);
             return true;
         }
 
@@ -462,7 +462,7 @@ public sealed class BotBrainChatBubbleController
             && TryFindCarrier(world, GetOpposingTeam(team), self, out var friendlyCarrier))
         {
             signal = CreateSignal(slot, self, team, BotBubbleSignalKind.EscortCarrier, $"escortCarrier:{friendlyCarrier.Id}");
-            firstReaction = new BotBrainChatBubbleReaction(FrameShield, BotBrainChatBubbleCategory.Objective, Priority: 72);
+            firstReaction = new BotBrainChatBubbleReaction(ResolveEnemyIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 72);
             return true;
         }
 
@@ -483,7 +483,7 @@ public sealed class BotBrainChatBubbleController
             && IsEnemyIntelAvailable(world, team))
         {
             signal = CreateSignal(slot, self, team, BotBubbleSignalKind.GoEnemyIntel, "goEnemyIntel");
-            firstReaction = new BotBrainChatBubbleReaction(FrameAttack, BotBrainChatBubbleCategory.Objective, Priority: 52);
+            firstReaction = new BotBrainChatBubbleReaction(ResolveEnemyIntelFrame(team), BotBrainChatBubbleCategory.Objective, Priority: 52);
             return true;
         }
 
@@ -889,20 +889,17 @@ public sealed class BotBrainChatBubbleController
 
     private static int ResolveClassPortraitFrame(PlayerEntity target)
     {
-        var offset = target.Team == PlayerTeam.Blue ? 10 : 0;
-        return target.ClassId switch
-        {
-            PlayerClass.Scout => offset,
-            PlayerClass.Soldier => offset + 1,
-            PlayerClass.Pyro => offset + 2,
-            PlayerClass.Demoman => offset + 3,
-            PlayerClass.Heavy => offset + 4,
-            PlayerClass.Engineer => offset + 5,
-            PlayerClass.Medic => offset + 6,
-            PlayerClass.Sniper => offset + 7,
-            PlayerClass.Spy => offset + 8,
-            _ => FrameAlert,
-        };
+        return ChatBubbleFrameCatalog.GetClassPortraitFrame(target.ClassId, target.Team);
+    }
+
+    private static int ResolveOwnIntelFrame(PlayerTeam team)
+    {
+        return ChatBubbleFrameCatalog.GetIntelFrame(team);
+    }
+
+    private static int ResolveEnemyIntelFrame(PlayerTeam team)
+    {
+        return ChatBubbleFrameCatalog.GetIntelFrame(GetOpposingTeam(team));
     }
 
     private static float GetHealthFraction(PlayerEntity player)

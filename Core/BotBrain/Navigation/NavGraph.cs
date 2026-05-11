@@ -8,11 +8,17 @@ public sealed class NavGraph
 {
     private readonly NavNode[] _nodes;
     private readonly List<NavEdge>[] _adjacency;
+    private readonly bool[] _spawnAdjacentNodes;
+    private readonly string? _levelName;
+    private readonly GameModeKind? _mode;
 
-    public NavGraph(NavNode[] nodes, List<NavEdge>[] adjacency)
+    public NavGraph(NavNode[] nodes, List<NavEdge>[] adjacency, string? levelName = null, GameModeKind? mode = null)
     {
         _nodes = nodes;
         _adjacency = adjacency;
+        _spawnAdjacentNodes = ResolveSpawnAdjacentNodes(nodes);
+        _levelName = levelName;
+        _mode = mode;
     }
 
     public int NodeCount => _nodes.Length;
@@ -178,7 +184,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                var tentativeG = gScore[current] + ResolveTraversalCost(edge);
+                var tentativeG = gScore[current] + ResolveTraversalCost(edge, current, neighbor, playerClass, carryingIntel, team);
                 if (tentativeG >= gScore[neighbor])
                 {
                     continue;
@@ -260,7 +266,7 @@ public sealed class NavGraph
                     continue;
                 }
 
-                var tentativeG = gScore[current] + ResolveTraversalCost(edge);
+                var tentativeG = gScore[current] + ResolveTraversalCost(edge, current, neighbor, playerClass, carryingIntel, team);
                 if (tentativeG >= gScore[neighbor])
                 {
                     continue;
@@ -283,10 +289,246 @@ public sealed class NavGraph
         return MathF.Sqrt((dx * dx) + (dy * dy));
     }
 
-    private static float ResolveTraversalCost(NavEdge edge)
+    private float ResolveTraversalCost(NavEdge edge, int fromNodeIndex, int toNodeIndex, PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
     {
-        return edge.Cost;
+        var fromNode = _nodes[fromNodeIndex];
+        var toNode = _nodes[toNodeIndex];
+        var cost = MathF.Max(1f, edge.Cost);
+        if (edge.Kind == NavEdgeKind.Walk || ShouldUseRawTraversalCost(playerClass, carryingIntel, team))
+        {
+            return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode);
+        }
+
+        var difficultyPenalty = edge.Kind switch
+        {
+            NavEdgeKind.Jump => 36f,
+            NavEdgeKind.Fall => 28f,
+            NavEdgeKind.Dropdown => 18f,
+            _ => 0f,
+        };
+
+        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        if (verticalDelta > 48f)
+        {
+            difficultyPenalty += MathF.Min(96f, (verticalDelta - 48f) * 0.45f);
+        }
+
+        var hasCertifiedProof = edge.ProbeTicks > 0 || edge.ProbeVariantAttempts > 0;
+        if (!hasCertifiedProof)
+        {
+            difficultyPenalty += edge.Kind switch
+            {
+                NavEdgeKind.Jump => 150f,
+                NavEdgeKind.Fall => 120f,
+                NavEdgeKind.Dropdown => 80f,
+                _ => 0f,
+            };
+
+            if (edge.Kind == NavEdgeKind.Jump && toNode.Y < fromNode.Y - 48f)
+            {
+                difficultyPenalty += 1_200f;
+            }
+        }
+        else
+        {
+            if (!edge.Completion.HasWindow)
+            {
+                difficultyPenalty += 45f;
+            }
+
+            if (edge.ProbeTicks > 0)
+            {
+                difficultyPenalty += MathF.Min(90f, edge.ProbeTicks * 0.35f);
+            }
+
+            if (edge.ProbeVariantAttempts > 0)
+            {
+                var successRate = edge.ProbeVariantSuccesses / (float)edge.ProbeVariantAttempts;
+                difficultyPenalty += MathF.Max(0f, 1f - successRate) * 120f;
+            }
+        }
+
+        if (edge.RequiresGroundedContinuation)
+        {
+            difficultyPenalty += 24f;
+        }
+
+        if (carryingIntel && edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall)
+        {
+            difficultyPenalty += 20f;
+        }
+
+        return cost
+            + difficultyPenalty
+            + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode)
+            + ResolveMapSpecificTraversalPenalty(edge, fromNode, toNode, playerClass, carryingIntel, team);
     }
+
+    private float ResolveCarrierSpawnAdjacencyPenalty(
+        int fromNodeIndex,
+        int toNodeIndex,
+        bool carryingIntel,
+        NavNode fromNode,
+        NavNode toNode)
+    {
+        if (!carryingIntel
+            || _mode != GameModeKind.CaptureTheFlag
+            || !string.Equals(_levelName, "Eiger", StringComparison.OrdinalIgnoreCase)
+            || fromNode.Kind == NavNodeKind.Objective
+            || toNode.Kind == NavNodeKind.Objective)
+        {
+            return 0f;
+        }
+
+        return _spawnAdjacentNodes[fromNodeIndex] || _spawnAdjacentNodes[toNodeIndex]
+            ? 3_000f
+            : 0f;
+    }
+
+    private static bool[] ResolveSpawnAdjacentNodes(NavNode[] nodes)
+    {
+        const float spawnHorizontalRange = 170f;
+        const float spawnVerticalRange = 80f;
+        var spawnAdjacent = new bool[nodes.Length];
+        for (var i = 0; i < nodes.Length; i += 1)
+        {
+            if (nodes[i].Kind is NavNodeKind.Spawn or NavNodeKind.Objective)
+            {
+                continue;
+            }
+
+            for (var j = 0; j < nodes.Length; j += 1)
+            {
+                if (nodes[j].Kind != NavNodeKind.Spawn)
+                {
+                    continue;
+                }
+
+                if (MathF.Abs(nodes[i].X - nodes[j].X) <= spawnHorizontalRange
+                    && MathF.Abs(nodes[i].Y - nodes[j].Y) <= spawnVerticalRange)
+                {
+                    spawnAdjacent[i] = true;
+                    break;
+                }
+            }
+        }
+
+        return spawnAdjacent;
+    }
+
+    private bool ShouldUseRawTraversalCost(PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
+    {
+        if (_mode == GameModeKind.CaptureTheFlag
+            && string.Equals(_levelName, "Orange", StringComparison.OrdinalIgnoreCase)
+            && carryingIntel)
+        {
+            return true;
+        }
+
+        return !carryingIntel
+            && playerClass == PlayerClass.Soldier
+            && _mode == GameModeKind.CaptureTheFlag
+            && string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private float ResolveMapSpecificTraversalPenalty(
+        NavEdge edge,
+        NavNode fromNode,
+        NavNode toNode,
+        PlayerClass? playerClass,
+        bool carryingIntel,
+        PlayerTeam? team)
+    {
+        if (edge.Kind == NavEdgeKind.Walk
+            || playerClass != PlayerClass.Soldier
+            || !team.HasValue
+            || _mode != GameModeKind.CaptureTheFlag
+            || !string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0f;
+        }
+
+        if (!carryingIntel)
+        {
+            return 0f;
+        }
+
+        if (team.Value == PlayerTeam.Blue && IsTruefortBlueReturnChurnEdge(edge, fromNode, toNode))
+        {
+            return 1_600f;
+        }
+
+        if (team.Value == PlayerTeam.Red && IsTruefortRedReturnChurnEdge(edge, fromNode, toNode))
+        {
+            return 1_600f;
+        }
+
+        return 0f;
+    }
+
+    private static bool IsTruefortBlueReturnChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
+    {
+        if (!IsInBox(fromNode, minX: 680f, maxX: 1_160f, minY: 430f, maxY: 920f)
+            || !IsInBox(toNode, minX: 680f, maxX: 1_160f, minY: 430f, maxY: 920f))
+        {
+            return false;
+        }
+
+        if (IsKnownTruefortBlueChurnEdge(edge, fromNode, toNode))
+        {
+            return true;
+        }
+
+        return edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
+            && MathF.Abs(toNode.Y - fromNode.Y) >= 48f
+            && MathF.Abs(toNode.X - fromNode.X) <= 180f;
+    }
+
+    private static bool IsTruefortRedReturnChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
+    {
+        if (!IsInBox(fromNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f)
+            || !IsInBox(toNode, minX: 4_180f, maxX: 4_680f, minY: 430f, maxY: 920f))
+        {
+            return false;
+        }
+
+        if (IsKnownTruefortRedChurnEdge(edge, fromNode, toNode))
+        {
+            return true;
+        }
+
+        return edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
+            && MathF.Abs(toNode.Y - fromNode.Y) >= 48f
+            && MathF.Abs(toNode.X - fromNode.X) <= 180f;
+    }
+
+    private static bool IsKnownTruefortBlueChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
+    {
+        return edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
+            && ((IsNear(fromNode, 820f, 888f) && IsNear(toNode, 860f, 760f))
+                || (IsNear(fromNode, 1_075f, 640f) && IsNear(toNode, 1_105f, 760f))
+                || (IsNear(fromNode, 1_115f, 760f) && IsNear(toNode, 1_105f, 888f))
+                || (IsNear(fromNode, 735f, 504f) && IsNear(toNode, 735f, 632f))
+                || (IsNear(fromNode, 1_150f, 504f) && IsNear(toNode, 1_105f, 632f))
+                || (IsNear(fromNode, 950f, 760f) && IsNear(toNode, 950f, 632f)));
+    }
+
+    private static bool IsKnownTruefortRedChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
+    {
+        return edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
+            && ((IsNear(fromNode, 4_575f, 888f) && IsNear(toNode, 4_540f, 760f))
+                || (IsNear(fromNode, 4_325f, 640f) && IsNear(toNode, 4_290f, 760f))
+                || (IsNear(fromNode, 4_290f, 760f) && IsNear(toNode, 4_290f, 888f))
+                || (IsNear(fromNode, 4_660f, 504f) && IsNear(toNode, 4_660f, 632f))
+                || (IsNear(fromNode, 4_245f, 504f) && IsNear(toNode, 4_290f, 632f))
+                || (IsNear(fromNode, 4_450f, 760f) && IsNear(toNode, 4_450f, 632f)));
+    }
+
+    private static bool IsInBox(NavNode node, float minX, float maxX, float minY, float maxY) =>
+        node.X >= minX && node.X <= maxX && node.Y >= minY && node.Y <= maxY;
+
+    private static bool IsNear(NavNode node, float x, float y) =>
+        MathF.Abs(node.X - x) <= 56f && MathF.Abs(node.Y - y) <= 56f;
 
     private float ScoreReachableGoalCandidate(int nodeIndex, float x, float y)
     {

@@ -23,6 +23,7 @@ public sealed class SteeringMachine
     private const int GroundedContinuationRecoveryTicks = 45;
     private const int LandedBelowCompletionRecoveryTicks = 90;
     private const float LandedBelowCompletionVerticalSlack = 8f;
+    private const float GroundedContinuationCompletionSlack = 8f;
     private const float AirborneCompletionContinuationSlack = 8f;
     private const int MaximumCertifiedEdgeTicks = 180;
     private const int MaximumUncertifiedTraversalEdgeTicks = 180;
@@ -65,7 +66,7 @@ public sealed class SteeringMachine
             return output;
         }
 
-        if (ShouldAdvanceWaypoint(player, graph, path))
+        if (ShouldAdvanceWaypoint(player, graph, path, level))
         {
             path.Advance();
             if (path.IsComplete)
@@ -229,7 +230,7 @@ public sealed class SteeringMachine
         _stuckTicks = 0;
     }
 
-    private static bool ShouldAdvanceWaypoint(PlayerEntity player, NavGraph graph, NavPath path)
+    private bool ShouldAdvanceWaypoint(PlayerEntity player, NavGraph graph, NavPath path, SimpleLevel level)
     {
         var targetNode = graph.GetNode(path.CurrentNode);
         var dx = targetNode.X - player.X;
@@ -251,8 +252,21 @@ public sealed class SteeringMachine
             && edge.Completion.HasWindow
             && (player.IsGrounded
                 ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
-                : player.ClassId != PlayerClass.Heavy && IsAirborneCompletionContinuation(player, edge));
+                    || IsNearGroundedContinuationCompletion(player, edge, level)
+                : player.ClassId != PlayerClass.Heavy
+                    && (IsAirborneCompletionContinuation(player, edge)
+                        || IsNearGroundedContinuationCompletion(player, edge, level)));
     }
+
+    private bool IsNearGroundedContinuationCompletion(PlayerEntity player, NavEdge edge, SimpleLevel level) =>
+        level.Name.Equals("ClassicWell", StringComparison.OrdinalIgnoreCase)
+        && edge.Kind == NavEdgeKind.Jump
+        && edge.RequiresGroundedContinuation
+        && _currentEdgeWasAirborne
+        && player.X >= edge.Completion.MinX - GroundedContinuationCompletionSlack
+        && player.X <= edge.Completion.MaxX + GroundedContinuationCompletionSlack
+        && player.Y >= edge.Completion.MinY - GroundedContinuationCompletionSlack
+        && player.Y <= edge.Completion.MaxY + GroundedContinuationCompletionSlack;
 
     private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavEdge edge) =>
         edge.Kind == NavEdgeKind.Jump
