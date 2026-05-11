@@ -33,8 +33,11 @@ public sealed partial class SimulationWorld
                 if (hitResult.HitPlayer is not null)
                 {
                     RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
-                    var bulletKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
-                    hitResult.HitPlayer.AddImpulse(directionX * bulletKnockbackPerSecond, directionY * bulletKnockbackPerSecond);
+                    if (!hitResult.HitPlayer.IsUbered)
+                    {
+                        var bulletKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
+                        hitResult.HitPlayer.AddImpulse(directionX * bulletKnockbackPerSecond, directionY * bulletKnockbackPerSecond);
+                    }
                     var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(shot.DamageValue * shot.CriticalDamageMultiplier), out var damageFlags);
                     if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                     {
@@ -94,9 +97,12 @@ public sealed partial class SimulationWorld
                     if (hitResult.HitPlayer is not null)
                     {
                         RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, MathF.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
-                        hitResult.HitPlayer.AddImpulse(
-                            blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
-                            blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
+                        if (!hitResult.HitPlayer.IsUbered)
+                        {
+                            hitResult.HitPlayer.AddImpulse(
+                                blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
+                                blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
+                        }
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), out var damageFlags);
                         if (ApplyPlayerDamage(hitResult.HitPlayer, hitDamage, owner, PlayerEntity.SpyDamageRevealAlpha, damageFlags))
                         {

@@ -35,19 +35,12 @@ internal static class SnapshotContributionPlanner
             client.Slot,
             focus);
 
-        AddEntityDelta(
+        AddSentryDelta(
             contributions,
             fullSnapshot.Sentries,
             baseline?.Sentries,
             priority: 1200,
-            estimateUpdatedBytes: static state => 60,
-            estimatedRemovedBytes: 4,
-            focus,
-            static state => state.Id,
-            static state => state.X,
-            static state => state.Y,
-            static (builder, state) => builder.Sentries.Add(state),
-            static (builder, id) => builder.RemovedSentryIds.Add(id));
+            focus);
         AddEntityDelta(
             contributions,
             fullSnapshot.JumpPads,
@@ -276,6 +269,15 @@ internal static class SnapshotContributionPlanner
             && world.TryGetNetworkPlayer(client.Slot, out var player)
             && player.IsAlive)
         {
+            // When using binoculars, use midpoint between player and binoculars focus
+            // This ensures entities near both the player and the viewed area are included
+            if (player.IsUsingBinoculars)
+            {
+                return (
+                    (player.X + player.BinocularsFocusX) / 2f,
+                    (player.Y + player.BinocularsFocusY) / 2f);
+            }
+            
             return (player.X, player.Y);
         }
 
@@ -785,6 +787,95 @@ internal static class SnapshotContributionPlanner
         var deltaX = x2 - x1;
         var deltaY = y2 - y1;
         return (deltaX * deltaX) + (deltaY * deltaY);
+    }
+
+    private static void AddSentryDelta(
+        List<SnapshotDeltaBudgeter.Contribution> contributions,
+        IReadOnlyList<SnapshotSentryState> currentStates,
+        IReadOnlyList<SnapshotSentryState>? baselineStates,
+        int priority,
+        (float X, float Y) focus)
+    {
+        var delta = DiffEntities(currentStates, baselineStates, static state => state.Id);
+        Dictionary<int, SnapshotSentryState>? baselineById = null;
+        if (baselineStates is not null)
+        {
+            baselineById = new Dictionary<int, SnapshotSentryState>(baselineStates.Count);
+            for (var index = 0; index < baselineStates.Count; index += 1)
+            {
+                var state = baselineStates[index];
+                baselineById[state.Id] = state;
+            }
+        }
+
+        // Add removed sentries
+        for (var index = 0; index < delta.RemovedIds.Count; index += 1)
+        {
+            var removedId = delta.RemovedIds[index];
+            contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                priority + 100,
+                DistanceSquared(focus.X, focus.Y, focus.X, focus.Y),
+                4, // Just the ID
+                builder => builder.RemovedSentryIds.Add(removedId),
+                SnapshotDeltaBudgeter.ContributionKind.EntityRemoval));
+        }
+
+        // Add updated/new sentries
+        for (var index = 0; index < delta.UpdatedStates.Count; index += 1)
+        {
+            var current = delta.UpdatedStates[index];
+            SnapshotSentryState? baseline = null;
+            var isNew = baselineById is null || !baselineById.TryGetValue(current.Id, out baseline);
+
+            if (isNew)
+            {
+                // New sentry - send full state (44 bytes)
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    priority,
+                    DistanceSquared(focus.X, focus.Y, current.X, current.Y),
+                    44, // Full state: 4 (id) + 4 (owner) + 1 (team) + 8 (x,y) + 4 (health) + 1 (isBuilt) + 4 (facing) + 4 (aim) + 4 (shotTrace) + 1 (hasLanded) + 1 (hasTarget) + 8 (lastShot)
+                    builder => builder.Sentries.Add(current)));
+            }
+            else
+            {
+                // Check if static fields changed
+                var staticFieldsChanged = current.OwnerPlayerId != baseline!.OwnerPlayerId
+                    || current.Team != baseline.Team
+                    || current.IsBuilt != baseline.IsBuilt
+                    || current.HasLanded != baseline.HasLanded;
+
+                if (staticFieldsChanged)
+                {
+                    // Static fields changed - send full state (44 bytes)
+                    contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                        priority,
+                        DistanceSquared(focus.X, focus.Y, current.X, current.Y),
+                        44,
+                        builder => builder.Sentries.Add(current)));
+                }
+                else
+                {
+                    // Only dynamic fields changed - send lightweight update (39 bytes)
+                    var update = new SnapshotSentryUpdateState(
+                        current.Id,
+                        current.X,
+                        current.Y,
+                        current.Health,
+                        current.FacingDirectionX,
+                        current.AimDirectionDegrees,
+                        current.ShotTraceTicksRemaining,
+                        current.HasActiveTarget,
+                        current.LastShotTargetX,
+                        current.LastShotTargetY);
+
+                    contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                        priority,
+                        DistanceSquared(focus.X, focus.Y, current.X, current.Y),
+                        39, // Lightweight update: 4 (id) + 8 (x,y) + 4 (health) + 4 (facing) + 4 (aim) + 4 (shotTrace) + 1 (hasTarget) + 8 (lastShot) + 2 (overhead)
+                        builder => builder.SentryUpdateStates.Add(update)));
+                }
+            }
+        }
     }
 
     private sealed record EntityDelta<T>(List<T> UpdatedStates, List<int> RemovedIds);

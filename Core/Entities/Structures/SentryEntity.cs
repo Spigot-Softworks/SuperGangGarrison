@@ -194,14 +194,10 @@ public sealed class SentryEntity : SimulationEntity
         int health,
         bool isBuilt,
         float facingDirectionX,
-        float desiredFacingDirectionX,
         float aimDirectionDegrees,
-        int reloadTicksRemaining,
-        int alertTicksRemaining,
         int shotTraceTicksRemaining,
         bool hasLanded,
         bool hasActiveTarget,
-        int? currentTargetPlayerId,
         float lastShotTargetX,
         float lastShotTargetY)
     {
@@ -210,18 +206,20 @@ public sealed class SentryEntity : SimulationEntity
         Health = health;
         IsBuilt = isBuilt;
         FacingDirectionX = facingDirectionX >= 0f ? 1f : -1f;
-        DesiredFacingDirectionX = desiredFacingDirectionX >= 0f ? 1f : -1f;
+        DesiredFacingDirectionX = FacingDirectionX; // Match current facing since we don't sync desired
         AimDirectionDegrees = aimDirectionDegrees;
-        ReloadTicksRemaining = reloadTicksRemaining;
-        AlertTicksRemaining = alertTicksRemaining;
         ShotTraceTicksRemaining = shotTraceTicksRemaining;
         HasLanded = hasLanded;
         HasActiveTarget = hasActiveTarget;
-        CurrentTargetPlayerId = currentTargetPlayerId;
+        CurrentTargetPlayerId = null; // Client doesn't need to know which player
         LastShotTargetX = lastShotTargetX;
         LastShotTargetY = lastShotTargetY;
+        // Reset client-side animation state
         RotationTicksRemaining = 0;
         RotationStartDirectionX = FacingDirectionX;
+        // Client can infer reload state from shot trace visibility
+        ReloadTicksRemaining = shotTraceTicksRemaining > 0 ? ReloadTicks : 0;
+        AlertTicksRemaining = 0; // Server handles alert sounds via events
     }
 
     private void SetDesiredFacing(float desiredFacingDirectionX)

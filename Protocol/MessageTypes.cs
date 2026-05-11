@@ -160,7 +160,10 @@ public sealed record InputStateMessage(
     InputButtons Buttons,
     float AimWorldX,
     float AimWorldY,
-    int ChatBubbleFrameIndex) : IProtocolMessage
+    int ChatBubbleFrameIndex,
+    bool IsUsingBinoculars = false,
+    float BinocularsFocusX = 0f,
+    float BinocularsFocusY = 0f) : IProtocolMessage
 {
     public MessageType Type => MessageType.InputState;
 }
@@ -257,6 +260,9 @@ public sealed record SnapshotPlayerState(
     int HeavyEatTicksRemaining,
     bool IsSniperScoped,
     int SniperChargeTicks,
+    bool IsUsingBinoculars,
+    float BinocularsFocusX,
+    float BinocularsFocusY,
     float FacingDirectionX,
     float AimDirectionDegrees,
     bool IsTaunting,
@@ -353,14 +359,25 @@ public sealed record SnapshotSentryState(
     int Health,
     bool IsBuilt,
     float FacingDirectionX,
-    float DesiredFacingDirectionX,
     float AimDirectionDegrees,
-    int ReloadTicksRemaining,
-    int AlertTicksRemaining,
     int ShotTraceTicksRemaining,
     bool HasLanded,
     bool HasActiveTarget,
-    int CurrentTargetPlayerId,
+    float LastShotTargetX,
+    float LastShotTargetY);
+
+/// <summary>
+/// Lightweight sentry update for delta compression. Contains only frequently-changing fields.
+/// </summary>
+public sealed record SnapshotSentryUpdateState(
+    int Id,
+    float X,
+    float Y,
+    int Health,
+    float FacingDirectionX,
+    float AimDirectionDegrees,
+    int ShotTraceTicksRemaining,
+    bool HasActiveTarget,
     float LastShotTargetX,
     float LastShotTargetY);
 
@@ -637,6 +654,7 @@ public sealed record SnapshotMessage(
     public ulong BaselineFrame { get; init; }
     public bool IsDelta { get; init; }
     public IReadOnlyList<SnapshotPlayerMovementState> PlayerMovementStates { get; init; } = Array.Empty<SnapshotPlayerMovementState>();
+    public IReadOnlyList<SnapshotSentryUpdateState> SentryUpdateStates { get; init; } = Array.Empty<SnapshotSentryUpdateState>();
     public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedShotIds { get; init; } = Array.Empty<int>();

@@ -93,6 +93,8 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public string PersistentGameplayOwnershipFile { get; set; } = "gameplay-ownership.json";
 
+    public bool SnapshotCompressionEnabled { get; set; } = true;
+
     public static OpenGarrisonPreferencesDocument Load(string? path = null)
     {
         var resolvedPath = path ?? RuntimePaths.GetConfigPath(DefaultFileName);
@@ -138,6 +140,7 @@ public sealed class OpenGarrisonPreferencesDocument
             PersistentGameplayOwnershipIdentityMode = ParsePersistentGameplayOwnershipIdentityMode(
                 ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipIdentityMode", PersistentGameplayOwnershipIdentityMode.Disabled.ToString())),
             PersistentGameplayOwnershipFile = ini.GetString(ServerAdvancedSection, "PersistentGameplayOwnershipFile", "gameplay-ownership.json"),
+            SnapshotCompressionEnabled = ini.GetBool(ServerAdvancedSection, "SnapshotCompressionEnabled", true),
         };
     }
 
@@ -199,6 +202,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(ServerAdvancedSection, "PersistentGameplayOwnershipEnabled", PersistentGameplayOwnershipEnabled);
         ini.SetString(ServerAdvancedSection, "PersistentGameplayOwnershipIdentityMode", PersistentGameplayOwnershipIdentityMode.ToString());
         ini.SetString(ServerAdvancedSection, "PersistentGameplayOwnershipFile", PersistentGameplayOwnershipFile);
+        ini.SetBool(ServerAdvancedSection, "SnapshotCompressionEnabled", SnapshotCompressionEnabled);
 
         ini.Save(resolvedPath);
     }
