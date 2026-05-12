@@ -24,7 +24,10 @@ public sealed class SteeringMachine
     private const int MaximumDelayedJumpRunupTicks = 18;
     private const int GroundedContinuationRecoveryTicks = 45;
     private const int LandedBelowCompletionRecoveryTicks = 90;
+    private const int LandedBelowCompletionFastFailSlackTicks = 8;
     private const float LandedBelowCompletionVerticalSlack = 8f;
+    private const int GroundedWalkBelowTargetFastFailTicks = 8;
+    private const float GroundedWalkBelowTargetVerticalSlack = 48f;
     private const float GroundedContinuationCompletionSlack = 8f;
     private const float AirborneCompletionContinuationSlack = 8f;
     private const int MaximumCertifiedEdgeTicks = 120;
@@ -96,7 +99,7 @@ public sealed class SteeringMachine
         if (hasCurrentEdge)
         {
             UpdateCurrentEdgeExecutionPhase(player, graph, path, currentEdge);
-            TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, ref output);
+            TryFailExpiredEdge(player, graph, path, currentEdge, edgeTicks, level.Mode, ref output);
         }
 
         var suppressJumpUntilLaunch = false;
@@ -628,12 +631,13 @@ public sealed class SteeringMachine
         return _edgePhaseTicks > maxTicks;
     }
 
-    private static void TryFailExpiredEdge(
+    private void TryFailExpiredEdge(
         PlayerEntity player,
         NavGraph graph,
         NavPath path,
         NavEdge edge,
         int edgeTicks,
+        GameModeKind mode,
         ref SteeringOutput output)
     {
         if (path.CurrentIndex <= 0
@@ -645,6 +649,32 @@ public sealed class SteeringMachine
         var fromNode = path.GetWaypoint(path.CurrentIndex - 1);
         var toNode = path.CurrentNode;
         var targetNode = graph.GetNode(toNode);
+        if (ShouldFastFailGroundedWalkBelowTarget(player, edge, targetNode, edgeTicks))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "walk_timeout");
+            return;
+        }
+
+        if (ShouldFastFailLandedBelowCompletion(player, edge, edgeTicks, mode))
+        {
+            output.RequestRepath = true;
+            output.FailedEdge = new SteeringFailedEdge(
+                HasFailure: true,
+                FromNode: fromNode,
+                ToNode: toNode,
+                Kind: edge.Kind,
+                EdgeTicks: edgeTicks,
+                Reason: "landed_below_completion");
+            return;
+        }
+
         var targetDistance = MathF.Sqrt(
             ((targetNode.X - player.X) * (targetNode.X - player.X))
             + ((targetNode.Y - player.Y) * (targetNode.Y - player.Y)));
@@ -662,6 +692,30 @@ public sealed class SteeringMachine
             Kind: edge.Kind,
             EdgeTicks: edgeTicks,
             Reason: ResolveEdgeFailureReason(player, edge, targetDistance));
+    }
+
+    private bool ShouldFastFailLandedBelowCompletion(PlayerEntity player, NavEdge edge, int edgeTicks, GameModeKind mode)
+    {
+        return _edgePhase == EdgeExecutionPhase.None
+            && mode == GameModeKind.CaptureTheFlag
+            && edge.Kind == NavEdgeKind.Jump
+            && edge.Completion.HasWindow
+            && _currentEdgeLandedAfterAirborne
+            && _currentEdgeJumpRequested
+            && player.IsGrounded
+            && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
+            && !edge.Completion.Contains(player.X, player.Y)
+            && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack
+            && edgeTicks >= Math.Max(0, ResolveMaximumEdgeTicks(edge) - LandedBelowCompletionFastFailSlackTicks);
+    }
+
+    private static bool ShouldFastFailGroundedWalkBelowTarget(PlayerEntity player, NavEdge edge, NavNode targetNode, int edgeTicks)
+    {
+        return edge.Kind == NavEdgeKind.Walk
+            && player.IsGrounded
+            && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
+            && player.Y > targetNode.Y + GroundedWalkBelowTargetVerticalSlack
+            && edgeTicks >= GroundedWalkBelowTargetFastFailTicks;
     }
 
     private static string ResolveEdgeFailureReason(PlayerEntity player, NavEdge edge, float targetDistance)

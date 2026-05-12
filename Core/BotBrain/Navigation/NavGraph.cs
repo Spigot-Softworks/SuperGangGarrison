@@ -6,6 +6,11 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public sealed class NavGraph
 {
+    private const float SignificantWalkVerticalDelta = 24f;
+    private const float SuspiciousRelayVerticalDelta = 24f;
+    private const float SuspiciousRelayHorizontalReach = 260f;
+    private const float SuspiciousRelayCostFloorMultiplier = 0.55f;
+
     private readonly NavNode[] _nodes;
     private readonly List<NavEdge>[] _adjacency;
     private readonly bool[] _spawnAdjacentNodes;
@@ -296,7 +301,11 @@ public sealed class NavGraph
         var fromNode = _nodes[fromNodeIndex];
         var toNode = _nodes[toNodeIndex];
         var cost = MathF.Max(1f, edge.Cost);
-        if (edge.Kind == NavEdgeKind.Walk || ShouldUseRawTraversalCost(playerClass, carryingIntel, team))
+        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
+        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
+        var isSuspiciousVerticalRelay = IsSuspiciousVerticalRelay(edge, cost, verticalDelta, horizontalDelta, euclideanDistance);
+        if (ShouldReturnRawTraversalCost(edge, verticalDelta, isSuspiciousVerticalRelay, playerClass, carryingIntel, team))
         {
             return cost + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode);
         }
@@ -309,19 +318,14 @@ public sealed class NavGraph
             _ => 0f,
         };
 
-        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
-        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
-        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
         if (verticalDelta > 48f)
         {
             difficultyPenalty += MathF.Min(96f, (verticalDelta - 48f) * 0.45f);
         }
 
-        if (edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
-            && verticalDelta >= 24f
-            && horizontalDelta <= 260f)
+        if (isSuspiciousVerticalRelay)
         {
-            var stableRelayFloor = euclideanDistance * 0.55f;
+            var stableRelayFloor = euclideanDistance * SuspiciousRelayCostFloorMultiplier;
             if (cost < stableRelayFloor)
             {
                 difficultyPenalty += MathF.Min(260f, (stableRelayFloor - cost) * 1.35f);
@@ -336,6 +340,7 @@ public sealed class NavGraph
                 NavEdgeKind.Jump => 150f,
                 NavEdgeKind.Fall => 120f,
                 NavEdgeKind.Dropdown => 80f,
+                NavEdgeKind.Walk when isSuspiciousVerticalRelay => 110f,
                 _ => 0f,
             };
 
@@ -368,7 +373,7 @@ public sealed class NavGraph
             difficultyPenalty += 24f;
         }
 
-        if (carryingIntel && edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall)
+        if (carryingIntel && (edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall || isSuspiciousVerticalRelay))
         {
             difficultyPenalty += 20f;
         }
@@ -377,6 +382,41 @@ public sealed class NavGraph
             + difficultyPenalty
             + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode)
             + ResolveMapSpecificTraversalPenalty(edge, fromNode, toNode, playerClass, carryingIntel, team);
+    }
+
+    private bool ShouldReturnRawTraversalCost(
+        NavEdge edge,
+        float verticalDelta,
+        bool isSuspiciousVerticalRelay,
+        PlayerClass? playerClass,
+        bool carryingIntel,
+        PlayerTeam? team)
+    {
+        if (edge.Kind == NavEdgeKind.Walk
+            && verticalDelta <= SignificantWalkVerticalDelta)
+        {
+            return true;
+        }
+
+        return ShouldUseRawTraversalCost(playerClass, carryingIntel, team)
+            && !isSuspiciousVerticalRelay;
+    }
+
+    private static bool IsSuspiciousVerticalRelay(
+        NavEdge edge,
+        float cost,
+        float verticalDelta,
+        float horizontalDelta,
+        float euclideanDistance)
+    {
+        if (edge.Kind is not (NavEdgeKind.Walk or NavEdgeKind.Jump or NavEdgeKind.Fall)
+            || verticalDelta < SuspiciousRelayVerticalDelta
+            || horizontalDelta > SuspiciousRelayHorizontalReach)
+        {
+            return false;
+        }
+
+        return cost < euclideanDistance * SuspiciousRelayCostFloorMultiplier;
     }
 
     private float ResolveCarrierSpawnAdjacencyPenalty(

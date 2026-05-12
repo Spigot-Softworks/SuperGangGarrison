@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using OpenGarrison.Core;
+using OpenGarrison.Core.BotBrain;
 using OpenGarrison.Protocol;
 using OpenGarrison.Server;
 using OpenGarrison.Server.Plugins;
@@ -181,6 +182,13 @@ partial class GameServer
         Console.WriteLine($"Secondary abilities: {(_secondaryAbilitiesEnabled ? "Enabled" : "Disabled")}");
         Console.WriteLine($"Level: {_world.Level.Name} area={_world.Level.MapAreaIndex}/{_world.Level.MapAreaCount} imported={_world.Level.ImportedFromSource} mode={_world.MatchRules.Mode}");
         Console.WriteLine($"World bounds: {_world.Bounds.Width}x{_world.Bounds.Height}");
+        var botNavigationDiagnostic = BotNavigationAssetStore.GetLoadDiagnostic(_world.Level);
+        Console.WriteLine(
+            "[botbrain] startup-nav " +
+            $"level={_world.Level.Name} area={_world.Level.MapAreaIndex} " +
+            $"expectedFingerprint={TrimDiagnosticFingerprint(botNavigationDiagnostic.ExpectedFingerprint)} " +
+            $"shipped={botNavigationDiagnostic.ShippedStatus} shippedPath=\"{botNavigationDiagnostic.ShippedPath}\" " +
+            $"runtimeCache={botNavigationDiagnostic.RuntimeCacheStatus}");
         Console.WriteLine($"Event log: {eventLog.FilePath}");
         Console.WriteLine(_passwordRequired ? "[server] password required" : "[server] no password set");
         if (_useLobbyServer)
@@ -220,6 +228,13 @@ partial class GameServer
             ("map_area_count", _world.Level.MapAreaCount),
             ("mode", _world.MatchRules.Mode));
         _pluginHost?.NotifyServerStarted();
+    }
+
+    private static string TrimDiagnosticFingerprint(string fingerprint)
+    {
+        return string.IsNullOrWhiteSpace(fingerprint)
+            ? string.Empty
+            : fingerprint[..Math.Min(12, fingerprint.Length)];
     }
 
     private void RunMainLoop(PersistentServerEventLog eventLog, CancellationToken cancellationToken)
@@ -320,6 +335,13 @@ partial class GameServer
                             "server_bot_perf",
                             ("frame", _world.Frame),
                             ("controlled_bot_count", botMetrics.ControlledBotCount),
+                            ("active_input_count", botMetrics.ActiveInputCount),
+                            ("zero_input_count", botMetrics.ZeroInputCount),
+                            ("botbrain_active_controller_count", botMetrics.BotBrainActiveControllerCount),
+                            ("botbrain_navigation_loaded_count", botMetrics.BotBrainNavigationLoadedCount),
+                            ("botbrain_navigation_missing_count", botMetrics.BotBrainNavigationMissingCount),
+                            ("botbrain_objective_tape_loaded_count", botMetrics.BotBrainObjectiveTapeLoadedCount),
+                            ("botbrain_active_path_count", botMetrics.BotBrainActivePathCount),
                             ("sample_count", botMetrics.SampleCount),
                             ("last_build_input_ms", botMetrics.LastBuildInputMilliseconds),
                             ("average_build_input_ms", botMetrics.AverageBuildInputMilliseconds),

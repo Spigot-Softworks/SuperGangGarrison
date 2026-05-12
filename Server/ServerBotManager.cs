@@ -39,6 +39,8 @@ internal sealed class ServerBotManager
     private readonly Dictionary<byte, PlayerInputSnapshot> _inputCache = new();
     private readonly HashSet<byte> _staleSlotsBuffer = new();
     private int _perfSamples;
+    private int _lastActiveInputCount;
+    private int _lastZeroInputCount;
     private double _perfBuildInputLastMs;
     private double _perfBuildInputTotalMs;
     private double _perfBuildInputMaxMs;
@@ -63,16 +65,32 @@ internal sealed class ServerBotManager
 
     public IReadOnlyDictionary<byte, ServerBotSlotState> BotSlots => _botSlots;
 
-    public ServerBotRuntimeMetrics Metrics => new(
-        HasMeasurements: _perfSamples > 0,
-        ControlledBotCount: _controlledSlotsBuffer.Count,
-        SampleCount: _perfSamples,
-        LastBuildInputMilliseconds: _perfBuildInputLastMs,
-        AverageBuildInputMilliseconds: _perfSamples == 0 ? 0d : _perfBuildInputTotalMs / _perfSamples,
-        MaxBuildInputMilliseconds: _perfBuildInputMaxMs,
-        LastApplyInputMilliseconds: _perfApplyInputLastMs,
-        AverageApplyInputMilliseconds: _perfSamples == 0 ? 0d : _perfApplyInputTotalMs / _perfSamples,
-        MaxApplyInputMilliseconds: _perfApplyInputMaxMs);
+    public ServerBotRuntimeMetrics Metrics
+    {
+        get
+        {
+            var botBrainSnapshot = _botController is BotBrainPracticeBotController botBrainController
+                ? botBrainController.RuntimeSnapshot
+                : default;
+            return new ServerBotRuntimeMetrics(
+                HasMeasurements: _perfSamples > 0,
+                ControlledBotCount: _controlledSlotsBuffer.Count,
+                ActiveInputCount: _lastActiveInputCount,
+                ZeroInputCount: _lastZeroInputCount,
+                BotBrainActiveControllerCount: botBrainSnapshot.ActiveControllerCount,
+                BotBrainNavigationLoadedCount: botBrainSnapshot.NavigationLoadedCount,
+                BotBrainNavigationMissingCount: botBrainSnapshot.NavigationMissingCount,
+                BotBrainObjectiveTapeLoadedCount: botBrainSnapshot.ObjectiveTapeLoadedCount,
+                BotBrainActivePathCount: botBrainSnapshot.ActivePathCount,
+                SampleCount: _perfSamples,
+                LastBuildInputMilliseconds: _perfBuildInputLastMs,
+                AverageBuildInputMilliseconds: _perfSamples == 0 ? 0d : _perfBuildInputTotalMs / _perfSamples,
+                MaxBuildInputMilliseconds: _perfBuildInputMaxMs,
+                LastApplyInputMilliseconds: _perfApplyInputLastMs,
+                AverageApplyInputMilliseconds: _perfSamples == 0 ? 0d : _perfApplyInputTotalMs / _perfSamples,
+                MaxApplyInputMilliseconds: _perfApplyInputMaxMs);
+        }
+    }
 
     /// <summary>
     /// Adds a bot to the specified slot with the given configuration.
@@ -430,6 +448,7 @@ internal sealed class ServerBotManager
 
         // Build fresh authoritative inputs every simulation tick.
         var inputs = GetBotInputs();
+        RecordInputActivity(inputs);
         
         var buildMs = GetElapsedMilliseconds(buildStartTimestamp);
         RecordBuildInputPerformance(buildMs);
@@ -500,6 +519,44 @@ internal sealed class ServerBotManager
         {
             _inputCache[slot] = refreshedInputs.GetValueOrDefault(slot);
         }
+    }
+
+    private void RecordInputActivity(IReadOnlyDictionary<byte, PlayerInputSnapshot> inputs)
+    {
+        var active = 0;
+        var zero = 0;
+        foreach (var slot in _controlledSlotsBuffer.Keys)
+        {
+            if (inputs.TryGetValue(slot, out var input) && IsActiveInput(input))
+            {
+                active += 1;
+            }
+            else
+            {
+                zero += 1;
+            }
+        }
+
+        _lastActiveInputCount = active;
+        _lastZeroInputCount = zero;
+    }
+
+    private static bool IsActiveInput(PlayerInputSnapshot input)
+    {
+        return input.Left
+            || input.Right
+            || input.Up
+            || input.Down
+            || input.BuildSentry
+            || input.DestroySentry
+            || input.Taunt
+            || input.FirePrimary
+            || input.FireSecondary
+            || input.DebugKill
+            || input.DropIntel
+            || input.UseAbility
+            || input.InteractWeapon
+            || input.IsUsingBinoculars;
     }
 
     private static double GetElapsedMilliseconds(long startTimestamp)

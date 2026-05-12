@@ -144,6 +144,23 @@ function Invoke-GenerateDistributionAtlases {
     )
 }
 
+function Restore-CollisionMaskImages {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    $sourceDirectory = Join-Path $repoRoot "Core/Content/Sprites/Collision Maps"
+    if (-not (Test-Path $sourceDirectory)) {
+        return
+    }
+
+    $destinationDirectory = Join-Path $ContentDirectory "Sprites/Collision Maps"
+    Copy-DirectoryContents -SourceDirectory $sourceDirectory -DestinationDirectory $destinationDirectory
+}
+
 function New-UnixLauncherScript {
     param(
         [Parameter(Mandatory = $true)]
@@ -345,6 +362,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Core/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force

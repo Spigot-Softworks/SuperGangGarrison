@@ -14,6 +14,52 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
 
     public BotControllerDiagnosticsSnapshot LastDiagnostics => BotControllerDiagnosticsSnapshot.Empty;
 
+    public BotBrainPracticeBotRuntimeSnapshot RuntimeSnapshot
+    {
+        get
+        {
+            var activeControllerCount = 0;
+            var navigationLoadedCount = 0;
+            var navigationMissingCount = 0;
+            var objectiveTapeLoadedCount = 0;
+            var activePathCount = 0;
+            foreach (var slot in _configuredSlots.Keys)
+            {
+                if (!_controllersBySlot.TryGetValue(slot, out var controller))
+                {
+                    continue;
+                }
+
+                activeControllerCount += 1;
+                if (controller.HasNavigationGraph)
+                {
+                    navigationLoadedCount += 1;
+                }
+                else
+                {
+                    navigationMissingCount += 1;
+                }
+
+                if (controller.HasObjectiveTapeAsset)
+                {
+                    objectiveTapeLoadedCount += 1;
+                }
+
+                if (controller.HasActivePath)
+                {
+                    activePathCount += 1;
+                }
+            }
+
+            return new BotBrainPracticeBotRuntimeSnapshot(
+                ActiveControllerCount: activeControllerCount,
+                NavigationLoadedCount: navigationLoadedCount,
+                NavigationMissingCount: navigationMissingCount,
+                ObjectiveTapeLoadedCount: objectiveTapeLoadedCount,
+                ActivePathCount: activePathCount);
+        }
+    }
+
     public void Reset()
     {
         foreach (var controller in _controllersBySlot.Values)
@@ -21,6 +67,9 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
             controller.Reset();
         }
 
+        _controllersBySlot.Clear();
+        _configuredSlots.Clear();
+        _controlledTeamsBySlot.Clear();
         _chatBubbles.Reset();
     }
 
@@ -61,6 +110,8 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         SimulationWorld world,
         IReadOnlyDictionary<byte, ControlledBotSlot> controlledSlots)
     {
+        ConfigureSpawnOverrides(world, controlledSlots);
+
         var inputs = new Dictionary<byte, PlayerInputSnapshot>(controlledSlots.Count);
         _controlledTeamsBySlot.Clear();
         foreach (var (slot, controlledSlot) in controlledSlots)
@@ -96,3 +147,10 @@ public sealed class BotBrainPracticeBotController : IPracticeBotController
         return inputs;
     }
 }
+
+public readonly record struct BotBrainPracticeBotRuntimeSnapshot(
+    int ActiveControllerCount,
+    int NavigationLoadedCount,
+    int NavigationMissingCount,
+    int ObjectiveTapeLoadedCount,
+    int ActivePathCount);
