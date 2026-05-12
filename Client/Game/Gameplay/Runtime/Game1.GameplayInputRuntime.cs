@@ -16,6 +16,8 @@ public partial class Game1
             _suppressPrimaryFireUntilMouseRelease = false;
         }
 
+        UpdateBinocularsFocusPosition(keyboard, (float)_config.FixedDeltaSeconds);
+
         var fullInput = KeyboardInputMapper.BuildGameplaySnapshot(
             _inputBindings,
             keyboard,
@@ -23,7 +25,10 @@ public partial class Game1
             cameraPosition.X,
             cameraPosition.Y,
             _world.LocalPlayer.X,
-            _world.LocalPlayer.Y);
+            _world.LocalPlayer.Y,
+            _world.LocalPlayer.IsUsingBinoculars,
+            _binocularsFocusX,
+            _binocularsFocusY);
         if (_bubbleMenuKind != BubbleMenuKind.None && !_bubbleMenuClosing)
         {
             fullInput = fullInput with
@@ -134,5 +139,80 @@ public partial class Game1
             DebugKill = false,
             DropIntel = false,
         };
+    }
+
+    private void UpdateBinocularsFocusPosition(KeyboardState keyboard, float deltaSeconds)
+    {
+        var isUsingBinoculars = _world.LocalPlayer.IsUsingBinoculars;
+        
+        // Initialize focus position when binoculars are first activated
+        if (isUsingBinoculars && !_wasBinocularsActive)
+        {
+            _binocularsFocusX = _world.LocalPlayer.X;
+            _binocularsFocusY = _world.LocalPlayer.Y;
+            _binocularsFocusTargetX = _world.LocalPlayer.X;
+            _binocularsFocusTargetY = _world.LocalPlayer.Y;
+        }
+        
+        _wasBinocularsActive = isUsingBinoculars;
+        
+        // Reset focus position when binoculars are deactivated
+        if (!isUsingBinoculars)
+        {
+            return;
+        }
+
+        // Calculate movement direction from WSAD input
+        var moveDirectionX = 0f;
+        var moveDirectionY = 0f;
+        
+        if (keyboard.IsKeyDown(_inputBindings.MoveLeft) || keyboard.IsKeyDown(Keys.Left))
+        {
+            moveDirectionX -= 1f;
+        }
+        if (keyboard.IsKeyDown(_inputBindings.MoveRight) || keyboard.IsKeyDown(Keys.Right))
+        {
+            moveDirectionX += 1f;
+        }
+        if (keyboard.IsKeyDown(_inputBindings.MoveUp) || keyboard.IsKeyDown(Keys.Up))
+        {
+            moveDirectionY -= 1f;
+        }
+        if (keyboard.IsKeyDown(_inputBindings.MoveDown) || keyboard.IsKeyDown(Keys.Down))
+        {
+            moveDirectionY += 1f;
+        }
+        
+        // Normalize direction to prevent faster diagonal movement
+        var directionLength = MathF.Sqrt(moveDirectionX * moveDirectionX + moveDirectionY * moveDirectionY);
+        if (directionLength > 0f)
+        {
+            moveDirectionX /= directionLength;
+            moveDirectionY /= directionLength;
+            
+            // Apply movement to target position
+            var moveSpeed = BinocularsMovementSpeed * deltaSeconds;
+            _binocularsFocusTargetX += moveDirectionX * moveSpeed;
+            _binocularsFocusTargetY += moveDirectionY * moveSpeed;
+        }
+
+        // Clamp target to max distance from player
+        var playerX = _world.LocalPlayer.X;
+        var playerY = _world.LocalPlayer.Y;
+        var deltaX = _binocularsFocusTargetX - playerX;
+        var deltaY = _binocularsFocusTargetY - playerY;
+        var distance = MathF.Sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance > PlayerEntity.BinocularsMaxViewDistance)
+        {
+            var scale = PlayerEntity.BinocularsMaxViewDistance / distance;
+            _binocularsFocusTargetX = playerX + deltaX * scale;
+            _binocularsFocusTargetY = playerY + deltaY * scale;
+        }
+        
+        // Smoothly interpolate current position toward target using frame-rate independent exponential smoothing
+        var smoothing = 1f - MathF.Pow(1f - BinocularsSmoothingFactor, deltaSeconds * 60f);
+        _binocularsFocusX = MathHelper.Lerp(_binocularsFocusX, _binocularsFocusTargetX, smoothing);
+        _binocularsFocusY = MathHelper.Lerp(_binocularsFocusY, _binocularsFocusTargetY, smoothing);
     }
 }

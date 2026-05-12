@@ -253,6 +253,16 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public int SniperChargeTicks { get; private set; }
 
+    public bool IsUsingBinoculars { get; private set; }
+
+    public float BinocularsFocusX { get; private set; }
+
+    public float BinocularsFocusY { get; private set; }
+
+    public const float BinocularsMaxViewDistance = 1000f;
+
+    public const float BinocularsMoveScale = 0.0f;
+
     public bool IsUbered => UberTicksRemaining > 0;
 
     public int UberTicksRemaining { get; private set; }
@@ -487,6 +497,12 @@ public sealed partial class PlayerEntity : SimulationEntity
         AimWorldY = y;
     }
 
+    public void SetBinocularsFocusPosition(float x, float y)
+    {
+        BinocularsFocusX = x;
+        BinocularsFocusY = y;
+    }
+
     public static float ClampPlayerScale(float scale) => float.Clamp(scale, MinPlayerScale, MaxPlayerScale);
 
     public void Spawn(PlayerTeam team, float x, float y)
@@ -593,6 +609,9 @@ public sealed partial class PlayerEntity : SimulationEntity
         TauntFrameIndex = 0f;
         IsSniperScoped = false;
         SniperChargeTicks = 0;
+        IsUsingBinoculars = false;
+        BinocularsFocusX = X;
+        BinocularsFocusY = Y;
         UberTicksRemaining = 0;
         KritzCritBoostTicksRemaining = 0;
         SpySuperjumpCooldownTicksRemaining = 0;

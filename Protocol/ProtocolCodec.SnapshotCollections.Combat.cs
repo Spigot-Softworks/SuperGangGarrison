@@ -19,14 +19,10 @@ public static partial class ProtocolCodec
             writer.Write(sentry.Health);
             writer.Write(sentry.IsBuilt);
             writer.Write(sentry.FacingDirectionX);
-            writer.Write(sentry.DesiredFacingDirectionX);
             writer.Write(sentry.AimDirectionDegrees);
-            writer.Write(sentry.ReloadTicksRemaining);
-            writer.Write(sentry.AlertTicksRemaining);
             writer.Write(sentry.ShotTraceTicksRemaining);
             writer.Write(sentry.HasLanded);
             writer.Write(sentry.HasActiveTarget);
-            writer.Write(sentry.CurrentTargetPlayerId);
             writer.Write(sentry.LastShotTargetX);
             writer.Write(sentry.LastShotTargetY);
         }
@@ -48,18 +44,55 @@ public static partial class ProtocolCodec
                 reader.ReadBoolean(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadSingle(),
-                reader.ReadInt32(),
-                reader.ReadInt32(),
                 reader.ReadInt32(),
                 reader.ReadBoolean(),
                 reader.ReadBoolean(),
-                reader.ReadInt32(),
                 reader.ReadSingle(),
                 reader.ReadSingle()));
         }
 
         return sentries;
+    }
+
+    private static void WriteSentryUpdateStates(BinaryWriter writer, IReadOnlyList<SnapshotSentryUpdateState> updates)
+    {
+        writer.Write((ushort)updates.Count);
+        for (var index = 0; index < updates.Count; index += 1)
+        {
+            var update = updates[index];
+            writer.Write(update.Id);
+            writer.Write(update.X);
+            writer.Write(update.Y);
+            writer.Write(update.Health);
+            writer.Write(update.FacingDirectionX);
+            writer.Write(update.AimDirectionDegrees);
+            writer.Write(update.ShotTraceTicksRemaining);
+            writer.Write(update.HasActiveTarget);
+            writer.Write(update.LastShotTargetX);
+            writer.Write(update.LastShotTargetY);
+        }
+    }
+
+    private static List<SnapshotSentryUpdateState> ReadSentryUpdateStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        var updates = new List<SnapshotSentryUpdateState>(count);
+        for (var index = 0; index < count; index += 1)
+        {
+            updates.Add(new SnapshotSentryUpdateState(
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadInt32(),
+                reader.ReadBoolean(),
+                reader.ReadSingle(),
+                reader.ReadSingle()));
+        }
+
+        return updates;
     }
 
     private static void WriteShotStates(BinaryWriter writer, IReadOnlyList<SnapshotShotState> shots)

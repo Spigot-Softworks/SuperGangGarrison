@@ -51,6 +51,8 @@ sealed class ServerSettings
 
     public int BotAutofillPerTeam { get; set; }
 
+    public bool SnapshotCompressionEnabled { get; set; } = true;
+
     public bool PersistentGameplayOwnershipEnabled { get; set; }
 
     public PersistentGameplayOwnershipIdentityMode PersistentGameplayOwnershipIdentityMode { get; set; } = PersistentGameplayOwnershipIdentityMode.Disabled;
@@ -137,6 +139,7 @@ sealed class ServerSettings
             PersistentGameplayOwnershipEnabled = preferences.PersistentGameplayOwnershipEnabled,
             PersistentGameplayOwnershipIdentityMode = preferences.PersistentGameplayOwnershipIdentityMode,
             PersistentGameplayOwnershipFile = preferences.PersistentGameplayOwnershipFile,
+            SnapshotCompressionEnabled = preferences.SnapshotCompressionEnabled,
         };
     }
 
@@ -173,5 +176,6 @@ sealed class ServerSettings
         preferences.PersistentGameplayOwnershipEnabled = PersistentGameplayOwnershipEnabled;
         preferences.PersistentGameplayOwnershipIdentityMode = PersistentGameplayOwnershipIdentityMode;
         preferences.PersistentGameplayOwnershipFile = PersistentGameplayOwnershipFile;
+        preferences.SnapshotCompressionEnabled = SnapshotCompressionEnabled;
     }
 }

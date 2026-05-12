@@ -15,4 +15,7 @@ public readonly record struct PlayerInputSnapshot(
     bool DebugKill,
     bool DropIntel = false,
     bool UseAbility = false,
-    bool InteractWeapon = false);
+    bool InteractWeapon = false,
+    bool IsUsingBinoculars = false,
+    float BinocularsFocusX = 0f,
+    float BinocularsFocusY = 0f);

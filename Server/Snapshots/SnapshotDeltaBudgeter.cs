@@ -295,7 +295,7 @@ internal static class SnapshotDeltaBudgeter
     private static byte[] Serialize(SnapshotMessage snapshot, ref int serializePassCount)
     {
         serializePassCount += 1;
-        return ProtocolCodec.Serialize(snapshot);
+        return ProtocolCodec.Serialize(snapshot, ServerProtocolCompression.Settings);
     }
 
     private static byte[] Serialize(SnapshotMessage snapshot, int measuredSize, ref int serializePassCount)
@@ -516,6 +516,7 @@ internal static class SnapshotDeltaBudgeter
             PlayerStatusStates = seedFromTemplateCollections ? new List<SnapshotPlayerStatusState>(template.PlayerStatusStates) : [];
             PlayerChatBubbleStates = seedFromTemplateCollections ? new List<SnapshotPlayerChatBubbleState>(template.PlayerChatBubbleStates) : [];
             Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
+            SentryUpdateStates = seedFromTemplateCollections ? new List<SnapshotSentryUpdateState>(template.SentryUpdateStates) : [];
             Shots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Shots) : [];
             Bubbles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Bubbles) : [];
             Blades = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Blades) : [];
@@ -561,6 +562,7 @@ internal static class SnapshotDeltaBudgeter
             PlayerStatusStates = new List<SnapshotPlayerStatusState>(other.PlayerStatusStates);
             PlayerChatBubbleStates = new List<SnapshotPlayerChatBubbleState>(other.PlayerChatBubbleStates);
             Sentries = new List<SnapshotSentryState>(other.Sentries);
+            SentryUpdateStates = new List<SnapshotSentryUpdateState>(other.SentryUpdateStates);
             Shots = new List<SnapshotShotState>(other.Shots);
             Bubbles = new List<SnapshotShotState>(other.Bubbles);
             Blades = new List<SnapshotShotState>(other.Blades);
@@ -603,6 +605,7 @@ internal static class SnapshotDeltaBudgeter
         public List<SnapshotPlayerStatusState> PlayerStatusStates { get; }
         public List<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; }
         public List<SnapshotSentryState> Sentries { get; } = new();
+        public List<SnapshotSentryUpdateState> SentryUpdateStates { get; } = new();
         public List<SnapshotShotState> Shots { get; } = new();
         public List<SnapshotShotState> Bubbles { get; } = new();
         public List<SnapshotShotState> Blades { get; } = new();
@@ -649,6 +652,7 @@ internal static class SnapshotDeltaBudgeter
                 PlayerChatBubbleStates = PlayerChatBubbleStates.ToArray(),
                 CombatTraces = CombatTraces.ToArray(),
                 Sentries = Sentries.ToArray(),
+                SentryUpdateStates = SentryUpdateStates.ToArray(),
                 Shots = Shots.ToArray(),
                 Bubbles = Bubbles.ToArray(),
                 Blades = Blades.ToArray(),

@@ -275,6 +275,12 @@ public sealed partial class PlayerEntity
 
     public bool TryJumpIfPossible(bool canMove, bool jumpPressed)
     {
+        // Disable jumping while using binoculars
+        if (IsUsingBinoculars)
+        {
+            return false;
+        }
+        
         var allowHeldChargeJump = IsExperimentalDemoknightCharging
             && ExperimentalDemoknightChargeFullControlEnabled
             && ExperimentalDemoknightChargeWantsLift

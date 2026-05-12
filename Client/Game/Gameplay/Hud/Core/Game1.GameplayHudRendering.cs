@@ -130,6 +130,14 @@ public partial class Game1
         WriteGameplayRenderTrace("hud after naveditor");
         DrawChatHud();
         WriteGameplayRenderTrace("hud after chat");
+        
+        // Draw binocular overlay last so HUD elements show through the transparent circles
+        if (!_networkClient.IsSpectator && localPlayerAlive && !deathCamActive)
+        {
+            DrawBinocularOverlay();
+            WriteGameplayRenderTrace("hud after binocular");
+        }
+        
         RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
     }
 

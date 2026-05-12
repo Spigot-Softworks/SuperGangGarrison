@@ -176,12 +176,12 @@ sealed class SnapshotBroadcaster
         if (baseline is null
             && fullSnapshotPayloadBytes <= InitialRemoteFullSnapshotPayloadBytes)
         {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, fullSnapshotPayloadBytes);
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
-                SentPayloadBytes: fullSnapshotPayloadBytes,
+                SentPayloadBytes: fullSnapshotPayload.Length,
                 SerializePassCount: 1,
                 WasBudgeted: false,
                 BaselineHit: false,
@@ -193,12 +193,12 @@ sealed class SnapshotBroadcaster
         // baseline. Reserve full snapshots for join/resync/fallback.
         if (baseline is null && fullSnapshotPayloadBytes <= targetPayloadBytes)
         {
-            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, fullSnapshotPayloadBytes);
+            var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
             client.RememberSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
-                SentPayloadBytes: fullSnapshotPayloadBytes,
+                SentPayloadBytes: fullSnapshotPayload.Length,
                 SerializePassCount: 1,
                 WasBudgeted: false,
                 BaselineHit: false,
@@ -470,6 +470,9 @@ sealed class SnapshotBroadcaster
             HeavyEatTicksRemaining: 0,
             IsSniperScoped: false,
             SniperChargeTicks: 0,
+            IsUsingBinoculars: false,
+            BinocularsFocusX: 0f,
+            BinocularsFocusY: 0f,
             FacingDirectionX: 1f,
             AimDirectionDegrees: 0f,
             IsTaunting: false,
