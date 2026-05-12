@@ -92,7 +92,7 @@ public sealed partial class PlayerEntity
 
     public bool TryToggleSniperScope()
     {
-        if (!IsAlive || !HasScopedSniperWeaponEquipped || IsTaunting)
+        if (!IsAlive || !HasScopedSniperWeaponEquipped || IsTaunting || IsUsingBinoculars)
         {
             return false;
         }
@@ -101,6 +101,25 @@ public sealed partial class PlayerEntity
         if (!IsSniperScoped)
         {
             SniperChargeTicks = 0;
+        }
+
+        return true;
+    }
+
+    public bool TryToggleBinoculars()
+    {
+        if (!IsAlive || ClassId != PlayerClass.Sniper || IsTaunting || IsHeavyEating || IsSniperScoped)
+        {
+            return false;
+        }
+
+        IsUsingBinoculars = !IsUsingBinoculars;
+        
+        if (!IsUsingBinoculars)
+        {
+            // Reset focus position when exiting binoculars
+            BinocularsFocusX = X;
+            BinocularsFocusY = Y;
         }
 
         return true;

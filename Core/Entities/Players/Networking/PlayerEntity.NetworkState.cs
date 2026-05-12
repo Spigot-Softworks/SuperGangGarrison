@@ -39,6 +39,9 @@ public sealed partial class PlayerEntity
         int heavyEatTicksRemaining,
         bool isSniperScoped,
         int sniperChargeTicks,
+        bool isUsingBinoculars,
+        float binocularsFocusX,
+        float binocularsFocusY,
         float facingDirectionX,
         float aimDirectionDegrees,
         float aimWorldX,
@@ -185,6 +188,9 @@ public sealed partial class PlayerEntity
             : 0;
         IsSniperScoped = isSniperScoped;
         SniperChargeTicks = Math.Max(0, sniperChargeTicks);
+        IsUsingBinoculars = isUsingBinoculars;
+        BinocularsFocusX = binocularsFocusX;
+        BinocularsFocusY = binocularsFocusY;
         if (!IsHeavyEating)
         {
             HeavyHealingAccumulator = 0f;
@@ -237,6 +243,7 @@ public sealed partial class PlayerEntity
             SniperChargeTicks = 0;
             MedicHealTargetId = null;
             IsMedicHealing = false;
+            IsUsingBinoculars = false;
             MovementState = LegacyMovementState.None;
             ExtinguishAfterburn();
         }

@@ -26,6 +26,10 @@ var config = new SimulationConfig
     EnableLocalDummies = false,
 };
 
+// Configure protocol compression based on server settings
+ServerProtocolCompression.Configure(launchOptions.Settings.SnapshotCompressionEnabled);
+Console.WriteLine($"[server] snapshot compression: {(launchOptions.Settings.SnapshotCompressionEnabled ? "enabled (LZ4)" : "disabled")}");
+
 var server = new GameServer(
     config,
     launchOptions.Port,

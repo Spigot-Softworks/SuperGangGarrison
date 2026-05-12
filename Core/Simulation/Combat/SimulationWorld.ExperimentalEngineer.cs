@@ -897,6 +897,18 @@ public sealed partial class SimulationWorld
             (int)MathF.Round(
                 baseDamage * GetExperimentalOutgoingSentryDamageMultiplier(owner, target)));
         RegisterBloodEffect(target.X, target.Y, sentry.AimDirectionDegrees - 180f, 2);
+        if (!target.IsUbered)
+        {
+            var distance = DistanceBetween(sentry.X, sentry.Y, target.X, target.Y);
+            if (distance > 0.001f)
+            {
+                var sentryKnockbackPerSecond = 0.5f * LegacyMovementModel.SourceTicksPerSecond;
+                var directionX = (target.X - sentry.X) / distance;
+                var directionY = (target.Y - sentry.Y) / distance;
+                target.AddImpulse(directionX * sentryKnockbackPerSecond, directionY * sentryKnockbackPerSecond);
+            }
+        }
+
         var healthBefore = target.Health;
         if (ApplyPlayerDamage(target, appliedBaseDamage, owner, PlayerEntity.SpyDamageRevealAlpha, allowOsmosisHealOwnedSentries: false))
         {

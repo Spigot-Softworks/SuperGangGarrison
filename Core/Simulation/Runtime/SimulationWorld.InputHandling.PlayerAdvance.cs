@@ -25,8 +25,24 @@ public sealed partial class SimulationWorld
                 DestroySentry = false,
             };
         }
+        
+        // Disable shooting while using binoculars
+        if (player.IsUsingBinoculars)
+        {
+            input = input with
+            {
+                FirePrimary = false,
+                FireSecondary = false,
+            };
+        }
 
         player.SetAimWorldPosition(input.AimWorldX, input.AimWorldY);
+        
+        // Update binoculars focus position if active
+        if (input.IsUsingBinoculars)
+        {
+            player.SetBinocularsFocusPosition(input.BinocularsFocusX, input.BinocularsFocusY);
+        }
 
         var jumpPressed = input.Up && !previousInput.Up;
         var dropPressed = input.DropIntel && !previousInput.DropIntel;

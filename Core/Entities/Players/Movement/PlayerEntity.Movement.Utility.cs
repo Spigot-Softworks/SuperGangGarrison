@@ -34,6 +34,12 @@ public sealed partial class PlayerEntity
             return 0f;
         }
 
+        // Sniper cannot move while using binoculars
+        if (IsUsingBinoculars)
+        {
+            return BinocularsMoveScale;
+        }
+
         // Limited air control during superjump (more control if velocity was reduced by wall collision)
         if (IsSpySuperjumping && !IsGrounded)
         {
