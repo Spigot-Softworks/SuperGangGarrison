@@ -481,6 +481,12 @@ internal static class BrowserAssetBuildPipeline
 
     private static IEnumerable<string> EnumerateRuntimeContentPaths(BrowserAssetBuildContext context)
     {
+        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
+        {
+            yield return NormalizeContentRelativePath(Path.Combine(context.ContentRoot, "Rooms", "Maps", $"{definition.LevelName}.xml"));
+            yield return NormalizeContentRelativePath(Path.Combine(context.ContentRoot, "Sprites", "Collision Maps", $"{definition.LevelName}S.images", "image 0.png"));
+        }
+
         foreach (var path in EnumerateDirectoryFiles(context, "BotNav", "*.json", SearchOption.TopDirectoryOnly))
         {
             yield return path;

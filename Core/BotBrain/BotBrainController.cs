@@ -10,6 +10,9 @@ namespace OpenGarrison.Core.BotBrain;
 /// </summary>
 public sealed class BotBrainController
 {
+    private static readonly object NavigationDiagnosticSync = new();
+    private static readonly HashSet<string> ReportedNavigationDiagnostics = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly SteeringMachine _steering = new();
     private readonly AimResolver _aimResolver = new();
     private readonly CombatDecisionMemory _combatMemory = new();
@@ -114,6 +117,12 @@ public sealed class BotBrainController
 
     public NavPath? CurrentPath => _currentPath;
 
+    public bool HasNavigationGraph => _navGraph is not null;
+
+    public bool HasObjectiveTapeAsset => _objectiveTapeAsset is not null;
+
+    public bool HasActivePath => _currentPath is not null && !_currentPath.IsComplete;
+
     public SteeringOutput LastSteeringOutput { get; private set; }
 
     public int? LastMedicHealTargetId { get; private set; }
@@ -154,6 +163,8 @@ public sealed class BotBrainController
             _steering.Reset();
             _objectiveTapeExecutor.Reset();
             _lastCarryingIntel = self.IsCarryingIntel;
+
+            ReportNavigationLoadDiagnostic(world.Level, _navGraph is not null);
         }
 
         if (_navGraph is null || !self.IsAlive)
@@ -306,6 +317,32 @@ public sealed class BotBrainController
         return input;
     }
 
+    private static void ReportNavigationLoadDiagnostic(SimpleLevel level, bool loaded)
+    {
+        var key = $"{level.Name}:{level.MapAreaIndex}:{loaded}";
+        lock (NavigationDiagnosticSync)
+        {
+            if (!ReportedNavigationDiagnostics.Add(key))
+            {
+                return;
+            }
+        }
+
+        var diagnostic = BotNavigationAssetStore.GetLoadDiagnostic(level);
+        var fingerprint = diagnostic.ExpectedFingerprint;
+        if (fingerprint.Length > 12)
+        {
+            fingerprint = fingerprint[..12];
+        }
+
+        Console.WriteLine(
+            "[botbrain] nav " +
+            $"level={level.Name} area={level.MapAreaIndex} loaded={loaded} " +
+            $"expectedFingerprint={fingerprint} " +
+            $"shipped={diagnostic.ShippedStatus} shippedPath=\"{diagnostic.ShippedPath}\" " +
+            $"runtimeCache={diagnostic.RuntimeCacheStatus} runtimeCachePath=\"{diagnostic.RuntimeCachePath}\"");
+    }
+
     private void UpdatePath(PlayerEntity self, PlayerTeam team)
     {
         if (_navGraph is null)
@@ -440,6 +477,7 @@ public sealed class BotBrainController
     /// </summary>
     public void Reset()
     {
+        _navGraph = null;
         _currentPath = null;
         _goalNodeIndex = -1;
         _repathCooldownTicks = 0;
@@ -452,6 +490,10 @@ public sealed class BotBrainController
         _ataliaPointClimbSide = 0f;
         _ataliaCentralRecoveryStage = 0;
         _objectiveReevalCooldown = 0;
+        _lastLevel = null;
+        _objectiveTapeAsset = null;
+        _currentGoalPosition = default;
+        _lastCarryingIntel = false;
         _steering.Reset();
         _previousInput = default;
         LastSteeringOutput = default;

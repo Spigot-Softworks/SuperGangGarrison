@@ -334,7 +334,8 @@ public static class SimpleLevelFactory
         var collisionSpriteName = $"{definition.LevelName}S.images";
         var runtimeRoomPath = ContentRoot.GetPath("Rooms", "Maps", roomFileName);
         var runtimeCollisionPath = ContentRoot.GetPath("Sprites", "Collision Maps", collisionSpriteName, "image 0.png");
-        if (File.Exists(runtimeRoomPath) && File.Exists(runtimeCollisionPath))
+        if ((File.Exists(runtimeRoomPath) || BrowserContentCatalog.TryGetBinaryForPath(runtimeRoomPath, out _))
+            && (File.Exists(runtimeCollisionPath) || BrowserContentCatalog.TryGetBinaryForPath(runtimeCollisionPath, out _)))
         {
             return (runtimeRoomPath, runtimeCollisionPath);
         }

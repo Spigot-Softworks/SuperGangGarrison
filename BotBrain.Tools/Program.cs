@@ -240,6 +240,7 @@ var lastPrintedGoalNode = -1;
 var lastPrintedPathCount = -1;
 var edgeDiagnostics = new EdgeExecutionDiagnostics();
 var semanticRecoveryTraces = new List<string>();
+var semanticRecoveryEvents = new List<SemanticRecoveryArtifact>();
 var validationIssues = FilterControlMarkerValidationIssues(asset);
 var artifactDirectory = ResolveArtifactDirectory(options.ArtifactsDirectory);
 var proofCorridorSamples = new List<BotBrainCorridorRecordingSample>();
@@ -250,6 +251,9 @@ var proofTapeName = rawOptions.TryGetValue("proof-tape-name", out var providedPr
     ? providedProofTapeName
     : $"{options.MapName}.a{options.AreaIndex}.{options.Team}.{options.PlayerClass}.proof";
 var proofTapeSamples = new List<BotBrainProofTapeSample>();
+var initialRouteEdges = path is not null ? BuildRouteEdgeArtifacts(graph, path) : [];
+var initialRouteQuality = AnalyzeRouteQuality(initialRouteEdges, path?.TotalCost ?? -1f);
+var authorityDiagnostics = new AuthorityTransitionDiagnostics();
 
 Console.WriteLine($"map={world.Level.Name} area={world.Level.MapAreaIndex} mode={world.MatchRules.Mode}");
 Console.WriteLine($"asset=format{asset.FormatVersion} source={assetSource} surfaces={asset.Surfaces.Count} nodes={asset.Nodes.Count} edges={asset.Edges.Count} anchors={asset.Anchors.Count} loadMs={assetStopwatch.Elapsed.TotalMilliseconds:0.0}");
@@ -268,6 +272,11 @@ Console.WriteLine($"components=count:{components.Summaries.Count} start:{FormatC
 if (path is not null)
 {
     Console.WriteLine($"route={FormatRoute(graph, path)}");
+    Console.WriteLine(
+        $"routeQuality=edges:{initialRouteQuality.EdgeCount} cheapVertical:{initialRouteQuality.CheapVerticalRelayEdges} " +
+        $"verticalWalk:{initialRouteQuality.VerticalWalkEdges} verticalNonWalk:{initialRouteQuality.VerticalNonWalkEdges} " +
+        $"suspiciousVerticalWalk:{initialRouteQuality.SuspiciousVerticalWalkEdges} repeatedNodes:{initialRouteQuality.RepeatedNodes} " +
+        $"runtimePenalty:{initialRouteQuality.RuntimePenaltyCost:0.0}");
 }
 Console.WriteLine($"bot=slot:{options.BotSlot} team:{options.Team} class:{options.PlayerClass} start=({bot.X:0.0},{bot.Y:0.0}) goal=({goal.X:0.0},{goal.Y:0.0}) initialDistance={initialDistance:0.0} redCaps={world.RedCaps} blueCaps={world.BlueCaps} playerCaps={bot.Caps}");
 BotBrainToolCommandHelpers.AddProofCorridorSample(proofCorridorSamples, world, bot, default, tick: 0, "Start");
@@ -306,6 +315,7 @@ if (path is null)
         goalComponent,
         noPathResult,
         noPathFailureBucket,
+        false,
         initialDistance,
         initialDistance,
         initialDistance,
@@ -329,7 +339,8 @@ if (path is null)
         0,
         "edgeMax=none",
         edgeDiagnostics,
-        semanticRecoveryTraces);
+        semanticRecoveryTraces,
+        semanticRecoveryEvents);
     Environment.ExitCode = 2;
     return;
 }
@@ -337,6 +348,16 @@ if (path is null)
 for (var tick = 1; tick <= options.Ticks; tick += 1)
 {
     var input = brain.Think(bot, world, options.Team);
+    authorityDiagnostics.Observe(
+        tick,
+        ResolveMovementAuthority(brain),
+        bot.IsCarryingIntel,
+        brain.CurrentPathIndex,
+        brain.CurrentPathCount,
+        brain.CurrentPathNode,
+        brain.LastObjectiveTapeTrace,
+        brain.LastDirectDriveTrace,
+        brain.LastSemanticRecoveryTrace);
     if (input.Up)
     {
         jumpTicks += 1;
@@ -363,6 +384,23 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
     var diagnosticPreVerticalSpeed = bot.VerticalSpeed;
     var diagnosticSteering = brain.LastSteeringOutput;
     var diagnosticHasEdge = TryGetActiveEdge(brain.CurrentPath, out var diagnosticFromNode, out var diagnosticToNode, out var diagnosticEdge);
+    if (!string.IsNullOrWhiteSpace(brain.LastSemanticRecoveryTrace))
+    {
+        semanticRecoveryTraces.Add(brain.LastSemanticRecoveryTrace);
+        semanticRecoveryEvents.Add(new SemanticRecoveryArtifact(
+            Tick: tick,
+            Reason: ExtractSemanticRecoveryReason(brain.LastSemanticRecoveryTrace),
+            Trace: brain.LastSemanticRecoveryTrace,
+            CarryingIntel: bot.IsCarryingIntel,
+            PathIndex: tracePathIndex,
+            PathCount: tracePathCount,
+            PathNode: tracePathNode,
+            X: diagnosticPreX,
+            Y: diagnosticPreY,
+            Grounded: diagnosticPreGrounded));
+        Console.WriteLine($"tick:{tick} {brain.LastSemanticRecoveryTrace}");
+    }
+
     if (options.PrintPathChanges
         && brain.CurrentPath is not null
         && (brain.CurrentGoalNode != lastPrintedGoalNode || brain.CurrentPathCount != lastPrintedPathCount))
@@ -397,11 +435,6 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
         diagnosticPreVerticalSpeed,
         bot,
         input);
-    if (!string.IsNullOrWhiteSpace(brain.LastSemanticRecoveryTrace))
-    {
-        semanticRecoveryTraces.Add(brain.LastSemanticRecoveryTrace);
-        Console.WriteLine($"tick:{tick} {brain.LastSemanticRecoveryTrace}");
-    }
 
     if (edgeDiagnostics.TryConsumeBlocker(out var blockerLine))
     {
@@ -634,6 +667,7 @@ WriteArtifacts(
     goalComponent,
     result,
     failureBucket,
+    proofPassed,
     initialDistance,
     finalDistance,
     bestDistance,
@@ -657,7 +691,8 @@ WriteArtifacts(
     finalPath?.Count ?? 0,
     edgeSummary,
     edgeDiagnostics,
-    semanticRecoveryTraces);
+    semanticRecoveryTraces,
+    semanticRecoveryEvents);
 
 if (!proofPassed)
 {
@@ -1022,6 +1057,7 @@ void WriteArtifacts(
     int fallbackGoalComponent,
     string result,
     string failureBucket,
+    bool proofPassed,
     float initialDistance,
     float finalDistance,
     float bestDistance,
@@ -1045,7 +1081,8 @@ void WriteArtifacts(
     int finalPathWaypoints,
     string edgeSummary,
     EdgeExecutionDiagnostics edgeDiagnostics,
-    IReadOnlyList<string> semanticRecoveryTraces)
+    IReadOnlyList<string> semanticRecoveryTraces,
+    IReadOnlyList<SemanticRecoveryArtifact> semanticRecoveryEvents)
 {
     if (artifactDirectory is null)
     {
@@ -1064,6 +1101,7 @@ void WriteArtifacts(
             ticks = options.Ticks,
             result,
             failureBucket,
+            proofPassed,
             assetSource,
             assetLoadMilliseconds,
             coldBuildBudgetMilliseconds = ColdBuildBudgetMilliseconds,
@@ -1149,6 +1187,12 @@ void WriteArtifacts(
 
     WriteJsonLines(Path.Combine(artifactDirectory, "edges.jsonl"), edgeDiagnostics.Edges, jsonOptions);
     WriteJsonLines(Path.Combine(artifactDirectory, "blockers.jsonl"), edgeDiagnostics.Blockers, jsonOptions);
+    WriteJson(Path.Combine(artifactDirectory, "initial-route-quality.json"), initialRouteQuality, jsonOptions);
+    WriteJsonLines(Path.Combine(artifactDirectory, "initial-route.jsonl"), initialRouteEdges, jsonOptions);
+    WriteJson(Path.Combine(artifactDirectory, "authority-summary.json"), authorityDiagnostics.BuildSummary(scoreTick), jsonOptions);
+    WriteJsonLines(Path.Combine(artifactDirectory, "authority-transitions.jsonl"), authorityDiagnostics.Transitions, jsonOptions);
+    WriteJsonLines(Path.Combine(artifactDirectory, "semantic-recoveries.jsonl"), semanticRecoveryEvents, jsonOptions);
+    WriteJson(Path.Combine(artifactDirectory, "churn-summary.json"), BuildChurnSummary(edgeDiagnostics.Edges, semanticRecoveryEvents, semanticRecoveryTraces, scoreTick), jsonOptions);
 }
 
 void WriteJson(string path, object value, JsonSerializerOptions jsonOptions)
@@ -1680,19 +1724,186 @@ List<BotNavigationValidationIssueAssetEntry> FilterControlMarkerValidationIssues
         return sourceAsset.ValidationIssues;
     }
 
-    var controlPointAnchors = sourceAsset.Anchors
-        .Where(static anchor => anchor.Kind == "ControlPoint")
+    var controlObjectiveAnchors = sourceAsset.Anchors
+        .Where(static anchor => anchor.Kind is "ControlPoint" or "CaptureZone")
         .ToArray();
-    if (controlPointAnchors.Length == 0)
+    if (controlObjectiveAnchors.Length <= 1)
     {
         return sourceAsset.ValidationIssues;
     }
 
     return sourceAsset.ValidationIssues
-        .Where(issue => !controlPointAnchors.Any(anchor =>
+        .Where(issue => !controlObjectiveAnchors.Any(anchor =>
             MathF.Abs(anchor.X - issue.X) <= 1f
             && MathF.Abs(anchor.Y - issue.Y) <= 1f))
         .ToList();
+}
+
+static string ResolveMovementAuthority(BotBrainController brain)
+{
+    if (!string.IsNullOrWhiteSpace(brain.LastDirectDriveTrace))
+    {
+        return "direct-drive";
+    }
+
+    if (brain.LastObjectiveTapeTrace.StartsWith("objectiveTape=tape:", StringComparison.Ordinal))
+    {
+        return "tape";
+    }
+
+    if (brain.CurrentPathCount > 0)
+    {
+        return "graph";
+    }
+
+    if (!string.IsNullOrWhiteSpace(brain.LastSemanticRecoveryTrace))
+    {
+        return "semantic-recovery";
+    }
+
+    if (brain.LastObjectiveTapeTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
+    {
+        return "tape-idle";
+    }
+
+    return "none";
+}
+
+static RouteEdgeArtifact[] BuildRouteEdgeArtifacts(NavGraph graph, NavPath path)
+{
+    var edges = new List<RouteEdgeArtifact>(Math.Max(0, path.Count - 1));
+    for (var i = 1; i < path.Count; i += 1)
+    {
+        var fromNodeIndex = path.GetWaypoint(i - 1);
+        var toNodeIndex = path.GetWaypoint(i);
+        var from = graph.GetNode(fromNodeIndex);
+        var to = graph.GetNode(toNodeIndex);
+        var hasIncomingEdge = path.TryGetIncomingEdge(i, out var edge);
+        var kind = hasIncomingEdge ? edge.Kind : NavEdgeKind.Walk;
+        var cost = hasIncomingEdge ? edge.Cost : Distance(from.X, from.Y, to.X, to.Y);
+        var dx = MathF.Abs(to.X - from.X);
+        var dy = MathF.Abs(to.Y - from.Y);
+        var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+        var cheapVerticalRelay = dy >= 24f
+            && cost < distance * 0.55f;
+        edges.Add(new RouteEdgeArtifact(
+            Index: i - 1,
+            FromNode: fromNodeIndex,
+            ToNode: toNodeIndex,
+            Kind: kind.ToString(),
+            Cost: cost,
+            Distance: distance,
+            HorizontalDelta: dx,
+            VerticalDelta: dy,
+            CheapVerticalRelay: cheapVerticalRelay,
+            VerticalWalk: kind == NavEdgeKind.Walk && dy > 24f,
+            SuspiciousVerticalWalk: kind == NavEdgeKind.Walk && cheapVerticalRelay));
+    }
+
+    return edges.ToArray();
+}
+
+static RouteQualityArtifact AnalyzeRouteQuality(IReadOnlyList<RouteEdgeArtifact> edges, float resolvedPathCost)
+{
+    var rawCost = edges.Sum(static edge => edge.Cost);
+    var runtimePenaltyCost = resolvedPathCost >= 0f
+        ? MathF.Max(0f, resolvedPathCost - rawCost)
+        : 0f;
+    var repeatedEdges = edges
+        .GroupBy(static edge => $"{edge.FromNode}->{edge.ToNode}/{edge.Kind}")
+        .Where(static group => group.Count() > 1)
+        .Sum(static group => group.Count() - 1);
+    var routeNodes = edges.Count > 0
+        ? edges.Select(static edge => edge.ToNode).Prepend(edges[0].FromNode).ToArray()
+        : [];
+    var repeatedNodes = routeNodes
+        .GroupBy(static node => node)
+        .Where(static group => group.Count() > 1)
+        .Sum(static group => group.Count() - 1);
+
+    return new RouteQualityArtifact(
+        EdgeCount: edges.Count,
+        RawCost: rawCost,
+        ResolvedCost: resolvedPathCost,
+        RuntimePenaltyCost: runtimePenaltyCost,
+        CheapVerticalRelayEdges: edges.Count(static edge => edge.CheapVerticalRelay),
+        VerticalWalkEdges: edges.Count(static edge => edge.VerticalWalk),
+        VerticalNonWalkEdges: edges.Count(static edge => !edge.VerticalWalk && edge.VerticalDelta > 24f),
+        SuspiciousVerticalWalkEdges: edges.Count(static edge => edge.SuspiciousVerticalWalk),
+        RepeatedEdges: repeatedEdges,
+        RepeatedNodes: repeatedNodes);
+}
+
+static object BuildChurnSummary(
+    IReadOnlyList<EdgeExecutionArtifact> edges,
+    IReadOnlyList<SemanticRecoveryArtifact> semanticRecoveryEvents,
+    IReadOnlyList<string> semanticRecoveryTraces,
+    int scoreTick)
+{
+    var scoredEdges = scoreTick >= 0
+        ? edges.Where(edge => edge.StartTick <= scoreTick).ToArray()
+        : edges.ToArray();
+    var scoredSemanticRecoveries = scoreTick >= 0
+        ? semanticRecoveryEvents.Where(recovery => recovery.Tick <= scoreTick).ToArray()
+        : semanticRecoveryEvents.ToArray();
+    var repeatedEdges = scoredEdges
+        .GroupBy(static edge => $"{edge.FromNode}->{edge.ToNode}/{edge.Kind}")
+        .Where(static group => group.Count() > 1)
+        .ToArray();
+    var repeatedEdgeVisits = repeatedEdges.Sum(static group => group.Count() - 1);
+    var repeatedEdgeTicks = repeatedEdges.Sum(static group => group.Sum(static edge => edge.Ticks));
+    var slowEdges = scoredEdges
+        .OrderByDescending(static edge => edge.Ticks)
+        .Take(8)
+        .ToArray();
+    var semanticRecoveryReasons = scoredSemanticRecoveries.Length > 0
+        ? scoredSemanticRecoveries.Select(static recovery => recovery.Reason)
+        : semanticRecoveryTraces.Select(ExtractSemanticRecoveryReason);
+    var semanticRecoveriesByReason = semanticRecoveryReasons
+        .Where(static reason => !string.IsNullOrWhiteSpace(reason))
+        .GroupBy(static reason => reason)
+        .Select(static group => new { reason = group.Key, count = group.Count() })
+        .OrderByDescending(static item => item.count)
+        .ThenBy(static item => item.reason)
+        .ToArray();
+
+    return new
+    {
+        scoreTick,
+        scoredEdgeCount = scoredEdges.Length,
+        maxEdgeTicks = scoredEdges.Length > 0 ? scoredEdges.Max(static edge => edge.Ticks) : 0,
+        slowEdgeCount60 = scoredEdges.Count(static edge => edge.Ticks >= 60),
+        repeatedEdgeVisits,
+        repeatedEdgeTicks,
+        semanticRecoveries = semanticRecoveryEvents.Count > 0 ? scoredSemanticRecoveries.Length : semanticRecoveryTraces.Count,
+        semanticRecoveriesTotal = semanticRecoveryEvents.Count > 0 ? semanticRecoveryEvents.Count : semanticRecoveryTraces.Count,
+        failedJumpRecoveries = semanticRecoveryEvents.Count > 0
+            ? scoredSemanticRecoveries.Count(static recovery => recovery.Reason is "landed_below_completion" or "missed_completion")
+            : semanticRecoveryTraces.Count(static trace =>
+                trace.Contains("landed_below_completion", StringComparison.Ordinal)
+                || trace.Contains("missed_completion", StringComparison.Ordinal)),
+        walkTimeoutRecoveries = semanticRecoveryEvents.Count > 0
+            ? scoredSemanticRecoveries.Count(static recovery => recovery.Reason is "walk_timeout" or "walk_airborne_timeout")
+            : semanticRecoveryTraces.Count(static trace =>
+                trace.Contains("walk_timeout", StringComparison.Ordinal)
+                || trace.Contains("walk_airborne_timeout", StringComparison.Ordinal)),
+        semanticRecoveriesByReason,
+        slowEdges,
+    };
+}
+
+static string ExtractSemanticRecoveryReason(string trace)
+{
+    const string prefix = "semanticRecovery=continuation reason:";
+    if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+    {
+        return string.Empty;
+    }
+
+    var end = trace.IndexOf(' ', prefix.Length);
+    return end > prefix.Length
+        ? trace[prefix.Length..end]
+        : trace[prefix.Length..];
 }
 
 static string FormatRoute(NavGraph graph, NavPath path)
@@ -1718,6 +1929,56 @@ static string FormatRoute(NavGraph graph, NavPath path)
 internal sealed record ComponentDiagnostics(int[] ComponentByNode, List<ComponentSummary> Summaries);
 
 internal sealed record ComponentSummary(int Id, int NodeCount, float MinX, float MaxX, float MinY, float MaxY);
+
+internal sealed record RouteQualityArtifact(
+    int EdgeCount,
+    float RawCost,
+    float ResolvedCost,
+    float RuntimePenaltyCost,
+    int CheapVerticalRelayEdges,
+    int VerticalWalkEdges,
+    int VerticalNonWalkEdges,
+    int SuspiciousVerticalWalkEdges,
+    int RepeatedEdges,
+    int RepeatedNodes);
+
+internal sealed record RouteEdgeArtifact(
+    int Index,
+    int FromNode,
+    int ToNode,
+    string Kind,
+    float Cost,
+    float Distance,
+    float HorizontalDelta,
+    float VerticalDelta,
+    bool CheapVerticalRelay,
+    bool VerticalWalk,
+    bool SuspiciousVerticalWalk);
+
+internal sealed record AuthorityTransitionArtifact(
+    int StartTick,
+    int EndTick,
+    int Ticks,
+    string Authority,
+    bool CarryingIntel,
+    int PathIndex,
+    int PathCount,
+    int PathNode,
+    string TapeName,
+    string DirectDriveLabel,
+    string SemanticRecoveryReason);
+
+internal sealed record SemanticRecoveryArtifact(
+    int Tick,
+    string Reason,
+    string Trace,
+    bool CarryingIntel,
+    int PathIndex,
+    int PathCount,
+    int PathNode,
+    float X,
+    float Y,
+    bool Grounded);
 
 internal sealed record EdgeExecutionArtifact(
     int FromNode,
@@ -1758,6 +2019,155 @@ internal sealed record BlockerArtifact(
     int PathIndex,
     int PathCount,
     int PathNode);
+
+internal sealed class AuthorityTransitionDiagnostics
+{
+    private string _currentKey = string.Empty;
+    private int _startTick;
+    private int _lastTick;
+    private string _authority = "none";
+    private bool _carryingIntel;
+    private int _pathIndex = -1;
+    private int _pathCount;
+    private int _pathNode = -1;
+    private string _tapeName = string.Empty;
+    private string _directDriveLabel = string.Empty;
+    private string _semanticRecoveryReason = string.Empty;
+
+    public List<AuthorityTransitionArtifact> Transitions { get; } = [];
+
+    public void Observe(
+        int tick,
+        string authority,
+        bool carryingIntel,
+        int pathIndex,
+        int pathCount,
+        int pathNode,
+        string objectiveTapeTrace,
+        string directDriveTrace,
+        string semanticRecoveryTrace)
+    {
+        var tapeName = ExtractTapeName(objectiveTapeTrace);
+        var directDriveLabel = ExtractDirectDriveLabel(directDriveTrace);
+        var semanticRecoveryReason = ExtractSemanticRecoveryReason(semanticRecoveryTrace);
+        var key = $"{authority}|{carryingIntel}|{tapeName}|{directDriveLabel}|{semanticRecoveryReason}";
+        if (!string.Equals(_currentKey, key, StringComparison.Ordinal))
+        {
+            FinalizeCurrent(tick - 1);
+            _currentKey = key;
+            _startTick = tick;
+            _authority = authority;
+            _carryingIntel = carryingIntel;
+            _pathIndex = pathIndex;
+            _pathCount = pathCount;
+            _pathNode = pathNode;
+            _tapeName = tapeName;
+            _directDriveLabel = directDriveLabel;
+            _semanticRecoveryReason = semanticRecoveryReason;
+        }
+
+        _lastTick = tick;
+    }
+
+    public object BuildSummary(int scoreTick)
+    {
+        FinalizeCurrent(_lastTick);
+        var scoredTransitions = scoreTick >= 0
+            ? Transitions.Where(transition => transition.StartTick <= scoreTick).ToArray()
+            : Transitions.ToArray();
+        var authorityTicks = scoredTransitions
+            .GroupBy(static transition => transition.Authority)
+            .Select(static group => new
+            {
+                authority = group.Key,
+                ticks = group.Sum(static transition => transition.Ticks),
+                transitions = group.Count(),
+            })
+            .OrderByDescending(static item => item.ticks)
+            .ThenBy(static item => item.authority)
+            .ToArray();
+        return new
+        {
+            scoreTick,
+            transitionCount = scoredTransitions.Length,
+            authorityTicks,
+            first = scoredTransitions.FirstOrDefault(),
+            last = scoredTransitions.LastOrDefault(),
+        };
+    }
+
+    private void FinalizeCurrent(int endTick)
+    {
+        if (string.IsNullOrEmpty(_currentKey) || _startTick <= 0 || endTick < _startTick)
+        {
+            return;
+        }
+
+        var previous = Transitions.LastOrDefault();
+        if (previous is not null
+            && previous.StartTick == _startTick
+            && previous.Authority == _authority
+            && previous.CarryingIntel == _carryingIntel)
+        {
+            return;
+        }
+
+        Transitions.Add(new AuthorityTransitionArtifact(
+            StartTick: _startTick,
+            EndTick: endTick,
+            Ticks: endTick - _startTick + 1,
+            Authority: _authority,
+            CarryingIntel: _carryingIntel,
+            PathIndex: _pathIndex,
+            PathCount: _pathCount,
+            PathNode: _pathNode,
+            TapeName: _tapeName,
+            DirectDriveLabel: _directDriveLabel,
+            SemanticRecoveryReason: _semanticRecoveryReason));
+    }
+
+    private static string ExtractTapeName(string trace)
+    {
+        const string prefix = "objectiveTape=tape:";
+        if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var end = trace.IndexOf(' ', prefix.Length);
+        return end > prefix.Length
+            ? trace[prefix.Length..end]
+            : trace[prefix.Length..];
+    }
+
+    private static string ExtractDirectDriveLabel(string trace)
+    {
+        const string prefix = "directDrive=";
+        if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var end = trace.IndexOf(" dx:", StringComparison.Ordinal);
+        return end > prefix.Length
+            ? trace[prefix.Length..end]
+            : trace[prefix.Length..];
+    }
+
+    private static string ExtractSemanticRecoveryReason(string trace)
+    {
+        const string prefix = "semanticRecovery=continuation reason:";
+        if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var end = trace.IndexOf(' ', prefix.Length);
+        return end > prefix.Length
+            ? trace[prefix.Length..end]
+            : trace[prefix.Length..];
+    }
+}
 
 internal sealed class EdgeExecutionDiagnostics
 {

@@ -9,58 +9,71 @@ public static class GameMakerCollisionMaskImporter
 {
     public static IReadOnlyList<LevelSolid> Import(string collisionMaskPath, WorldBounds bounds)
     {
-        if (!File.Exists(collisionMaskPath))
+        Image<Rgba32>? image = null;
+        if (File.Exists(collisionMaskPath))
+        {
+            image = Image.Load<Rgba32>(collisionMaskPath);
+        }
+        else if (BrowserContentCatalog.TryGetBinaryForPath(collisionMaskPath, out var collisionBytes)
+            && collisionBytes.Length > 0)
+        {
+            image = Image.Load<Rgba32>(collisionBytes);
+        }
+
+        if (image is null)
         {
             return [];
         }
 
-        using var image = Image.Load<Rgba32>(collisionMaskPath);
-        if (image.Width <= 0 || image.Height <= 0)
+        using (image)
         {
-            return [];
-        }
-
-        var pixelWidth = bounds.Width / image.Width;
-        var pixelHeight = bounds.Height / image.Height;
-        var activeRects = new Dictionary<(int X, int Width), RectanglePixels>();
-        var mergedRects = new List<RectanglePixels>();
-
-        for (var y = 0; y < image.Height; y++)
-        {
-            var rowRuns = ReadOpaqueRuns(image, y);
-            var nextActiveRects = new Dictionary<(int X, int Width), RectanglePixels>();
-
-            foreach (var run in rowRuns)
+            if (image.Width <= 0 || image.Height <= 0)
             {
-                var key = (run.StartX, run.Width);
-                if (activeRects.Remove(key, out var existing))
+                return [];
+            }
+
+            var pixelWidth = bounds.Width / image.Width;
+            var pixelHeight = bounds.Height / image.Height;
+            var activeRects = new Dictionary<(int X, int Width), RectanglePixels>();
+            var mergedRects = new List<RectanglePixels>();
+
+            for (var y = 0; y < image.Height; y++)
+            {
+                var rowRuns = ReadOpaqueRuns(image, y);
+                var nextActiveRects = new Dictionary<(int X, int Width), RectanglePixels>();
+
+                foreach (var run in rowRuns)
                 {
-                    existing.Height += 1;
-                    nextActiveRects[key] = existing;
+                    var key = (run.StartX, run.Width);
+                    if (activeRects.Remove(key, out var existing))
+                    {
+                        existing.Height += 1;
+                        nextActiveRects[key] = existing;
+                    }
+                    else
+                    {
+                        nextActiveRects[key] = new RectanglePixels(run.StartX, y, run.Width, 1);
+                    }
                 }
-                else
-                {
-                    nextActiveRects[key] = new RectanglePixels(run.StartX, y, run.Width, 1);
-                }
+
+                mergedRects.AddRange(activeRects.Values);
+                activeRects = nextActiveRects;
             }
 
             mergedRects.AddRange(activeRects.Values);
-            activeRects = nextActiveRects;
+
+            var solids = new List<LevelSolid>(mergedRects.Count);
+            foreach (var rect in mergedRects)
+            {
+                solids.Add(new LevelSolid(
+                    rect.X * pixelWidth,
+                    rect.Y * pixelHeight,
+                    rect.Width * pixelWidth,
+                    rect.Height * pixelHeight));
+            }
+
+            return solids;
         }
-
-        mergedRects.AddRange(activeRects.Values);
-
-        var solids = new List<LevelSolid>(mergedRects.Count);
-        foreach (var rect in mergedRects)
-        {
-            solids.Add(new LevelSolid(
-                rect.X * pixelWidth,
-                rect.Y * pixelHeight,
-                rect.Width * pixelWidth,
-                rect.Height * pixelHeight));
-        }
-
-        return solids;
     }
 
     private static List<RowRun> ReadOpaqueRuns(Image<Rgba32> image, int y)

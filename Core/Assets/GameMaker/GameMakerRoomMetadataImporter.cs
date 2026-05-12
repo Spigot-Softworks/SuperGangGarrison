@@ -8,12 +8,23 @@ public static class GameMakerRoomMetadataImporter
 {
     public static GameMakerRoomMetadata? Import(string roomFilePath)
     {
-        if (!File.Exists(roomFilePath))
+        XDocument? document = null;
+        if (File.Exists(roomFilePath))
+        {
+            document = XDocument.Load(roomFilePath);
+        }
+        else if (BrowserContentCatalog.TryGetBinaryForPath(roomFilePath, out var roomBytes)
+            && roomBytes.Length > 0)
+        {
+            using var stream = new MemoryStream(roomBytes, writable: false);
+            document = XDocument.Load(stream);
+        }
+
+        if (document is null)
         {
             return null;
         }
 
-        var document = XDocument.Load(roomFilePath);
         var room = document.Root;
         if (room is null)
         {
