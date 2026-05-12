@@ -38,6 +38,7 @@ Tests/BrowserSmoke/node_modules/
 # Local planning/handoff notes
 /handoff.txt
 /task.md
+/history.txt
 /botbrain_architecture_map.md
 /overall_architecture_map.md
 /botbrain-conflict-trace.txt
