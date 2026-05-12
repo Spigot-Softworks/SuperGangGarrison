@@ -478,17 +478,17 @@ public static class OpenGarrisonStockMapCatalog
         new("ctf_classicwell", "ClassicWell", "ClassicWell", GameModeKind.CaptureTheFlag, 4, "classicwell"),
         new("ctf_waterway", "Waterway", "Waterway", GameModeKind.CaptureTheFlag, 5, "waterway"),
         new("ctf_orange", "Orange", "Orange", GameModeKind.CaptureTheFlag, 6, "orange"),
-        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 7, "dirtbowl", "cp_dirtbowl_stage1", "cp_dirtbowl_stage2", "cp_dirtbowl_stage3"),
-        new("cp_egypt", "Egypt", "Egypt", GameModeKind.ControlPoint, 8, "egypt"),
-        new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 9, "montane"),
-        new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 10, "lumberyard"),
-        new("gen_destroy", "Destroy", "Destroy", GameModeKind.Generator, 11, "destroy"),
+        new("cp_dirtbowl", "Dirtbowl", "Dirtbowl", GameModeKind.ControlPoint, 0, "dirtbowl", "cp_dirtbowl_stage1", "cp_dirtbowl_stage2", "cp_dirtbowl_stage3"),
+        new("cp_egypt", "Egypt", "Egypt", GameModeKind.ControlPoint, 0, "egypt"),
+        new("arena_montane", "Montane", "Montane", GameModeKind.Arena, 0, "montane"),
+        new("arena_lumberyard", "Lumberyard", "Lumberyard", GameModeKind.Arena, 0, "lumberyard"),
+        new("gen_destroy", "Destroy", "Destroy", GameModeKind.Generator, 0, "destroy"),
         new("koth_valley", "Valley", "Valley", GameModeKind.KingOfTheHill, 12, "valley"),
         new("koth_corinth", "Corinth", "Corinth", GameModeKind.KingOfTheHill, 13, "corinth"),
         new("koth_harvest", "Harvest", "Harvest", GameModeKind.KingOfTheHill, 14, "harvest"),
         new("dkoth_atalia", "Atalia", "Atalia", GameModeKind.DoubleKingOfTheHill, 15, "atalia"),
-        new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 16, "sixties", "60s", "dkoth_60s"),
-        new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 17, "mantic"),
+        new("dkoth_sixties", "Sixties", "Sixties", GameModeKind.DoubleKingOfTheHill, 0, "sixties", "60s", "dkoth_60s"),
+        new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 0, "mantic"),
         new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 18, "gallery"),
         new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 19, "eiger"),
     ];
@@ -530,14 +530,15 @@ public static class OpenGarrisonStockMapCatalog
             entry.Order = Math.Max(0, ini.GetInt(MapsSection, entry.IniKey, entry.DefaultOrder));
         }
 
-        if (!hasExplicitMaps && TryGetDefinition(legacySelectedMap, out var legacyDefinition))
+        if (!hasExplicitMaps && TryGetDefinition(legacySelectedMap, out var legacyDefinition) && legacyDefinition.DefaultOrder > 0)
         {
             var selectedEntry = entries.First(entry => string.Equals(entry.LevelName, legacyDefinition.LevelName, StringComparison.OrdinalIgnoreCase));
             entries.Remove(selectedEntry);
             entries.Insert(0, selectedEntry);
-            for (var index = 0; index < entries.Count; index += 1)
+            var order = 1;
+            foreach (var entry in entries)
             {
-                entries[index].Order = index + 1;
+                entry.Order = entry.DefaultOrder > 0 ? order++ : 0;
             }
         }
 

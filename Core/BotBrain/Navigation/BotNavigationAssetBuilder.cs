@@ -14,6 +14,7 @@ public static class BotNavigationAssetBuilder
     private const float MinimumSurfaceWidth = 4f;
     private const float MinimumInsetSurfaceWidth = ProbeHalfWidth * 2f;
     private const float StepRelayHorizontalReach = 96f;
+    private const float ShallowStepRelayWalkHorizontalReach = 192f;
     private const float StepRelayVerticalReach = 14f;
     private const float StairRampRelayHorizontalReach = 132f;
     private const float StairRampRelayVerticalReach = 88f;
@@ -241,28 +242,77 @@ public static class BotNavigationAssetBuilder
                 ? BotBrainClassMask.All
                 : BotBrainClassMask.For(corridor.PlayerClass);
             var supportedTeamMask = BotBrainTeamMask.For(corridor.Team);
-            var previousNode = -1;
-            for (var i = startIndex; i < corridor.Waypoints.Count; i += 1)
+            var allowInsertedCorridorEdges = ShouldInsertAuthoredCorridorRuntimeEdges(level);
+            if (allowInsertedCorridorEdges)
             {
-                var waypoint = corridor.Waypoints[i];
-                if (!waypoint.IsGrounded)
-                {
-                    continue;
-                }
-
-                var nodeIndex = FindNearestCorridorGraphNode(nodes, waypoint.X, waypoint.Y, maxDistance: 128f);
-                if (nodeIndex < 0)
-                {
-                    continue;
-                }
-
-                if (previousNode >= 0 && previousNode != nodeIndex)
-                {
-                    AddAuthoredCorridorGraphEdge(nodes, adjacency, previousNode, nodeIndex, supportedClassMask, supportedTeamMask);
-                }
-
-                previousNode = nodeIndex;
+                AddAuthoredCorridorGraphLane(
+                    nodes,
+                    adjacency,
+                    corridor.Waypoints,
+                    startIndex: 0,
+                    endIndexInclusive: startIndex,
+                    supportedClassMask,
+                    supportedTeamMask,
+                    requiresCarryingIntel: false,
+                    allowInsert: true);
             }
+
+            AddAuthoredCorridorGraphLane(
+                nodes,
+                adjacency,
+                corridor.Waypoints,
+                startIndex,
+                endIndexInclusive: corridor.Waypoints.Count - 1,
+                supportedClassMask,
+                supportedTeamMask,
+                requiresCarryingIntel: true,
+                allowInsertedCorridorEdges);
+        }
+    }
+
+    private static bool ShouldInsertAuthoredCorridorRuntimeEdges(SimpleLevel level) =>
+        false;
+
+    private static void AddAuthoredCorridorGraphLane(
+        NavNode[] nodes,
+        List<NavEdge>[] adjacency,
+        IReadOnlyList<BotNavigationAuthoredCorridorWaypoint> waypoints,
+        int startIndex,
+        int endIndexInclusive,
+        int supportedClassMask,
+        int supportedTeamMask,
+        bool requiresCarryingIntel,
+        bool allowInsert)
+    {
+        var previousNode = -1;
+        for (var i = Math.Max(0, startIndex); i <= endIndexInclusive && i < waypoints.Count; i += 1)
+        {
+            var waypoint = waypoints[i];
+            if (!waypoint.IsGrounded)
+            {
+                continue;
+            }
+
+            var nodeIndex = FindNearestCorridorGraphNode(nodes, waypoint.X, waypoint.Y, maxDistance: 128f);
+            if (nodeIndex < 0)
+            {
+                continue;
+            }
+
+            if (previousNode >= 0 && previousNode != nodeIndex)
+            {
+                AddAuthoredCorridorGraphEdge(
+                    nodes,
+                    adjacency,
+                    previousNode,
+                    nodeIndex,
+                    supportedClassMask,
+                    supportedTeamMask,
+                    requiresCarryingIntel,
+                    allowInsert);
+            }
+
+            previousNode = nodeIndex;
         }
     }
 
@@ -333,7 +383,9 @@ public static class BotNavigationAssetBuilder
         int fromNode,
         int toNode,
         int supportedClassMask,
-        int supportedTeamMask)
+        int supportedTeamMask,
+        bool requiresCarryingIntel,
+        bool allowInsert)
     {
         var from = nodes[fromNode];
         var to = nodes[toNode];
@@ -343,6 +395,7 @@ public static class BotNavigationAssetBuilder
             return;
         }
 
+        var cost = MathF.Max(1f, distance * 0.05f);
         var edges = adjacency[fromNode];
         for (var i = 0; i < edges.Count; i += 1)
         {
@@ -352,16 +405,38 @@ public static class BotNavigationAssetBuilder
                 continue;
             }
 
-            var cost = MathF.Max(1f, distance * 0.12f);
             edges.Add(edge with
             {
                 Cost = MathF.Min(edge.Cost, cost),
                 SupportedClassMask = edge.SupportedClassMask | supportedClassMask,
                 SupportedTeamMask = edge.SupportedTeamMask | supportedTeamMask,
-                RequiresCarryingIntel = true,
+                RequiresCarryingIntel = edge.RequiresCarryingIntel && requiresCarryingIntel,
             });
             return;
         }
+
+        if (!allowInsert)
+        {
+            return;
+        }
+
+        edges.Add(new NavEdge(toNode, ResolveCorridorGraphEdgeKind(from, to), cost) with
+        {
+            SupportedClassMask = supportedClassMask,
+            SupportedTeamMask = supportedTeamMask,
+            RequiresCarryingIntel = requiresCarryingIntel,
+        });
+    }
+
+    private static NavEdgeKind ResolveCorridorGraphEdgeKind(NavNode from, NavNode to)
+    {
+        var dy = to.Y - from.Y;
+        if (MathF.Abs(dy) <= StepRelayVerticalReach)
+        {
+            return NavEdgeKind.Walk;
+        }
+
+        return dy > 0f ? NavEdgeKind.Fall : NavEdgeKind.Jump;
     }
 
     private static GraphBuildData BuildGraphData(SimpleLevel level)
@@ -551,14 +626,16 @@ public static class BotNavigationAssetBuilder
                     continue;
                 }
 
-                if (spawn.NodeIndex.HasValue
-                    && objective.NodeIndex.HasValue
+                var executableStartNode = executableGraph.FindNearestTraversalStartNode(spawn.X, spawn.Y);
+                var executableObjectiveNodes = GetObjectiveValidationNodes(asset, objectiveIndex, objective);
+                if (executableStartNode >= 0
+                    && executableObjectiveNodes.Length > 0
                     && EnumerateValidationClasses().Any(playerClass =>
                     {
-                        var reachable = BuildReachableSet(executableGraph, spawn.NodeIndex.Value, playerClass, validationTeam);
-                        return objective.NodeIndex.Value >= 0
-                            && objective.NodeIndex.Value < reachable.Length
-                            && reachable[objective.NodeIndex.Value];
+                        var reachable = BuildReachableSet(executableGraph, executableStartNode, playerClass, validationTeam);
+                        return executableObjectiveNodes.Any(objectiveNode => objectiveNode >= 0
+                            && objectiveNode < reachable.Length
+                            && reachable[objectiveNode]);
                     }))
                 {
                     continue;
@@ -2027,7 +2104,13 @@ public static class BotNavigationAssetBuilder
 
     private static NavEdgeKind ResolveAuthoredCorridorEdgeKind(BuildNode from, BuildNode to)
     {
-        return to.Y > from.Y + StepDownTolerance
+        var dy = to.Y - from.Y;
+        if (MathF.Abs(dy) <= StepRelayVerticalReach)
+        {
+            return NavEdgeKind.Walk;
+        }
+
+        return dy > StepDownTolerance
             ? NavEdgeKind.Fall
             : NavEdgeKind.Jump;
     }
@@ -2083,7 +2166,9 @@ public static class BotNavigationAssetBuilder
                     continue;
                 }
 
-                if (dx > StepRelayHorizontalReach
+                var isShallowWalkRelay = dy <= StepRelayVerticalReach
+                    && dx <= ShallowStepRelayWalkHorizontalReach;
+                if ((!isShallowWalkRelay && dx > StepRelayHorizontalReach)
                     || dy > StepRelayVerticalReach)
                 {
                     continue;
@@ -2744,25 +2829,23 @@ public static class BotNavigationAssetBuilder
         List<BuildEdge> edges,
         HashSet<EdgeKey> edgeSet)
     {
-        var forwardKind = ResolveStairRampRelayKind(fromSurface, toSurface, from, to);
-        var reverseKind = ResolveStairRampRelayKind(toSurface, fromSurface, to, from);
         AddEdge(
             fromNode,
             toNode,
-            forwardKind,
+            NavEdgeKind.Walk,
             cost,
             edges,
             edgeSet,
-            semanticCompletion: CreateStairRampCompletion(toSurface, from, to, forwardKind),
+            semanticCompletion: CreateStairRampCompletion(toSurface, from, to, NavEdgeKind.Walk),
             preferLowerCost: true);
         AddEdge(
             toNode,
             fromNode,
-            reverseKind,
+            NavEdgeKind.Walk,
             cost,
             edges,
             edgeSet,
-            semanticCompletion: CreateStairRampCompletion(fromSurface, to, from, reverseKind),
+            semanticCompletion: CreateStairRampCompletion(fromSurface, to, from, NavEdgeKind.Walk),
             preferLowerCost: true);
     }
 

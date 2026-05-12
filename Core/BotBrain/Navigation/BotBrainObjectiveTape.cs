@@ -33,6 +33,20 @@ public sealed class BotBrainObjectiveTapeSegment
 {
     public bool RequiresCarryingIntel { get; set; }
 
+    public string Source { get; set; } = string.Empty;
+
+    public float? EntryX { get; set; }
+
+    public float? EntryY { get; set; }
+
+    public float? EntryRadius { get; set; }
+
+    public float? ExitX { get; set; }
+
+    public float? ExitY { get; set; }
+
+    public float? ExitRadius { get; set; }
+
     public List<BotBrainObjectiveTapeSample> Samples { get; set; } = [];
 
     public List<BotBrainObjectiveTapeAction> Actions { get; set; } = [];
@@ -163,6 +177,7 @@ public static class BotBrainObjectiveTapeStore
         var redBase = level.GetIntelBase(PlayerTeam.Red)!.Value;
         var blueBase = level.GetIntelBase(PlayerTeam.Blue)!.Value;
         var mirrorSumX = redBase.X + blueBase.X;
+        var allowMirrorCompetition = string.Equals(level.Name, "Truefort", StringComparison.OrdinalIgnoreCase);
         var sourceTapes = asset.Tapes.ToArray();
         foreach (var source in sourceTapes)
         {
@@ -199,6 +214,23 @@ public static class BotBrainObjectiveTapeStore
             }
 
             var mirroredTeam = source.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+            var hasNativeCoverage = sourceTapes
+                .Where(tape => tape.Team == mirroredTeam
+                    && tape.PlayerClass == source.PlayerClass
+                    && !tape.Name.Contains(".Mirrored", StringComparison.OrdinalIgnoreCase))
+                .SelectMany(tape => tape.Segments)
+                .Select(segment => segment.RequiresCarryingIntel)
+                .Distinct()
+                .Count(carryingIntel => mirroredSegments.Any(segment => segment.RequiresCarryingIntel == carryingIntel))
+                == mirroredSegments
+                    .Select(segment => segment.RequiresCarryingIntel)
+                    .Distinct()
+                    .Count();
+            if (hasNativeCoverage && !allowMirrorCompetition)
+            {
+                continue;
+            }
+
             var mirroredName = $"{source.Name}.Mirrored{mirroredTeam}";
             if (asset.Tapes.Any(tape => tape.Name.Equals(mirroredName, StringComparison.OrdinalIgnoreCase)))
             {

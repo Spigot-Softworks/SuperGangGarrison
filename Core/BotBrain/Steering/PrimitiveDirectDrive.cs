@@ -9,6 +9,8 @@ public static class PrimitiveDirectDrive
     private const float MaxRecoveryEnemyDriveDistance = 900f;
     private const float HorizontalDeadZone = 18f;
     private const float RiseJumpThreshold = 24f;
+    private const float BlockedVerticalSeekThreshold = 48f;
+    private const float HeadroomProbeHeight = 64f;
     private const float WallProbeDistance = 18f;
     private const float WallProbeThickness = 3f;
     private const float WallProbeBottomInset = 4f;
@@ -95,6 +97,14 @@ public static class PrimitiveDirectDrive
             ? ResolveCombatMoveDirection(self, distance, dx)
             : GetMoveDirection(dx);
         var jump = ShouldJumpTowardTarget(world, self, target.Y, moveDirection);
+        if (jump
+            && target.Y < self.Y - BlockedVerticalSeekThreshold
+            && MathF.Abs(dx) <= HorizontalDeadZone
+            && HasBlockedHeadroom(world, self))
+        {
+            return false;
+        }
+
         if (moveDirection == 0 && !jump)
         {
             return false;
@@ -148,7 +158,9 @@ public static class PrimitiveDirectDrive
     {
         if (!self.IsGrounded)
         {
-            return false;
+            return self.RemainingAirJumps > 0
+                && targetY < self.Y - RiseJumpThreshold
+                && self.VerticalSpeed > 0f;
         }
 
         if (targetY < self.Y - RiseJumpThreshold)
@@ -157,6 +169,33 @@ public static class PrimitiveDirectDrive
         }
 
         return moveDirection != 0 && WouldMoveIntoObstacle(world, self, moveDirection);
+    }
+
+    private static bool HasBlockedHeadroom(SimulationWorld world, PlayerEntity player)
+    {
+        var probeLeft = player.Left + 2f;
+        var probeRight = player.Right - 2f;
+        var probeTop = player.Top - HeadroomProbeHeight;
+        var probeBottom = player.Top - 2f;
+
+        foreach (var solid in world.Level.Solids)
+        {
+            if (RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, solid.Left, solid.Top, solid.Right, solid.Bottom))
+            {
+                return true;
+            }
+        }
+
+        foreach (var wall in world.Level.RoomObjects)
+        {
+            if ((wall.Type == RoomObjectType.PlayerWall || wall.Type == RoomObjectType.BulletWall)
+                && RectanglesOverlap(probeLeft, probeTop, probeRight, probeBottom, wall.Left, wall.Top, wall.Right, wall.Bottom))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool WouldMoveIntoObstacle(SimulationWorld world, PlayerEntity player, int horizontalDirection)
