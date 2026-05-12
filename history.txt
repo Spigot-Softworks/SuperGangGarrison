@@ -1,55 +1,45 @@
-Executable edge state machine
-Each certified edge should run as:
-Stage -> Commit -> Launch/Drop/Fall -> Complete -> Fail
-with explicit failure reasons. Current steering still blends staging, jumping, recovery, and waypoint pursuit together.
+Execution Plan
 
-Pathfinder awareness of live-executable edges
-The graph says “this edge was probe-certified,” but not “this bot, from this live approach state, can execute it right now.” If a live edge fails its recipe, the router should temporarily blacklist that edge/context and route around it.
+Add a graph-quality lint/proof report before changing behavior again:
 
-Staging behavior
-When the bot enters an edge wrong, it needs to stage into the launch recipe: get grounded, get into the launch X/Y window, face/move the expected direction, reach speed, then commit. Right now it still often tries to blend target seeking with launch prep.
+selected route edge list
+cheap vertical relay count in selected path
+repeated edge/node count
+stagnant windows
+semantic recovery count
+max ticks spent on one edge
+authority transitions: graph, tape, lane, direct-drive
+Change runtime path cost immediately so vertical Walk edges no longer bypass risk scoring:
 
-Macro traversal segments
-The stair return is not one jump. It is a small corridor sequence. Treating it as isolated edges means each edge can be “correct” but the chain still fails. We likely need certified multi-edge movement segments for stair/platform corridors.
+Walk with significant vertical delta should not return raw cost.
+Stair/relay edges need a penalty unless they are corridor/MotionProof-proven.
+This should improve existing assets without requiring a full rebake first.
+Constrain or reclassify stair relay generation:
 
-Surface-aware recovery
-When a bot lands on the wrong adjacent surface, it should know whether it can continue, retry, or must repath. Current recovery mostly reacts to position and waypoint distance, not semantic surface state.
+stop emitting large vertical relay edges as plain Walk
+either make them a distinct semantic traversal kind or attach metadata that makes A* treat them as risky
+keep reachability, but stop making these routes artificially attractive
+Make authored corridors real lanes:
 
-2026-05-09 format75 CTF expansion pass
+lane id
+ordered portal sequence
+expected surface sequence
+entry/exit surfaces
+soft steering intent
+penalty for leaving the lane without being blocked
+Bridge MotionProof properly:
 
-Goal
-Bring Conflict, Eiger, Waterway, and ClassicWell Scout canaries online without regressing the protected Truefort/Gallery/Harvest/Valley baselines.
+do not replay raw tapes at runtime
+extract MotionProof traces into lane/proof material
+normalize stalls/retries/backtracks before baking
+use the resulting lane as route authority over graph junk
+Reprove protected canaries by score plus quality:
 
-Implementation summary
-- Added team-aware edge support through BotNavigationEdgeAssetEntry, NavEdge, NavGraph pathing, BotBrainController path refresh, and BotBrain.Tools reachability checks.
-- Added team-specific probe certification as a fallback only for the targeted CTF repair maps: Conflict, Eiger, Waterway, ClassicWell.
-- Added targeted micro-step exit jump edge generation for those same four maps.
-- Kept the broader reverse-fall jump expansion gated to those same maps after format74 temporarily regressed Truefort Red Scout.
-- Added stale-path replacement from the bot's live grounded position when it has fallen below the first waypoint; this fixed ClassicWell Red return/capture after intel pickup.
-- Bumped BotNavigationAssetStore.CurrentFormatVersion to 75.
-
-Verified protected baselines after narrowing
-- Truefort Red Scout: Scored, carryingIntelTick=871, scoreTick=2056, redCaps=2.
-- Truefort Red Soldier: Scored, carryingIntelTick=1081, scoreTick=2811.
-- Truefort Blue Soldier: Scored, carryingIntelTick=1102, scoreTick=2900.
-- Truefort Red Heavy: Scored, carryingIntelTick=1213, scoreTick=4017.
-- Truefort Blue Heavy: Scored, carryingIntelTick=1233, scoreTick=2974.
-- Gallery Red Scout: Scored, scoreTick=1050; known ControlPoint validation warning still present.
-- Gallery Blue Scout: Scored, scoreTick=1050; known ControlPoint validation warning still present.
-- Harvest Red Scout: Scored, scoreTick=1050.
-- Harvest Blue Scout: Scored, scoreTick=1050.
-- Valley Red Scout: Scored, scoreTick=1050.
-- Valley Blue Scout: Scored, scoreTick=1050.
-
-New requested CTF passes
-- Conflict Red Scout: Scored, carryingIntelTick=600, scoreTick=1079.
-- Conflict Blue Scout: Scored, carryingIntelTick=369, scoreTick=1232.
-- Eiger Red Scout: Scored, carryingIntelTick=755, scoreTick=1755.
-- Eiger Blue Scout: Scored, carryingIntelTick=776, scoreTick=1784.
-- Waterway Red Scout: Scored, carryingIntelTick=1082, scoreTick=2193.
-- Waterway Blue Scout: Scored, carryingIntelTick=1063, scoreTick=2201.
-- ClassicWell Red Scout: Scored, carryingIntelTick=2860, scoreTick=4722.
-- ClassicWell Blue Scout: Scored, carryingIntelTick=1550, scoreTick=3328.
-
-Remaining risk
-Cold graph generation is now too slow on several maps: Harvest was about 5 minutes, ClassicWell about 7 minutes, Conflict/Waterway/Eiger about 2.5-3.5 minutes in this pass. Runtime cached loads were sub-second, but the builder needs a performance pass before this is comfortable for broad regeneration.
+Truefort Blue Heavy
+Truefort Red Soldier
+TwoDFortTwo Red Pyro
+Atalia Red Pyro
+Gallery Red Pyro
+Harvest normal route
+Valley lower-to-point route
+Orange carrier route

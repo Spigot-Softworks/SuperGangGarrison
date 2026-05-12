@@ -1187,13 +1187,17 @@ public sealed class BotBrainController
                 return true;
             }
 
+            if (TryResolveControlPointHold(world, self, point, steeringOutput, out directSteering, out directTrace))
+            {
+                return true;
+            }
+
             if (ShouldKeepGraphControlForBelowPointClimb(self, point))
             {
                 return false;
             }
 
-            if (TryResolveControlPointHold(world, self, point, steeringOutput, out directSteering, out directTrace)
-                || TryRouteToDirectSeekTarget(
+            if (TryRouteToDirectSeekTarget(
                     world,
                     self,
                     team,
@@ -1731,11 +1735,6 @@ public sealed class BotBrainController
             return false;
         }
 
-        if (!inCaptureZone && dy < -24f)
-        {
-            return false;
-        }
-
         holdSteering.MoveDirection = MathF.Abs(dx) <= CapturePointHoldCenterDeadZone
             ? 0
             : dx > 0f ? 1 : -1;
@@ -1851,7 +1850,7 @@ public sealed class BotBrainController
     {
         point = null!;
         var bestDistanceSq = maxDistance * maxDistance;
-        var allowLockedPointStaging = world.MatchRules.Mode == GameModeKind.KingOfTheHill;
+        var allowLockedPointStaging = world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
         foreach (var candidate in world.ControlPoints)
         {
             if ((!allowLockedPointStaging && candidate.IsLocked) || candidate.Team == team)
