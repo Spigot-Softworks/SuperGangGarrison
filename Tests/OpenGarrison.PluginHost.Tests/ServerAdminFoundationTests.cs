@@ -1596,7 +1596,7 @@ public sealed class ServerAdminFoundationTests
 
         var initial = Assert.Single(sentSnapshots);
         Assert.False(initial.Message.IsDelta);
-        Assert.True(initial.Payload.Length > SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
+        Assert.True(ProtocolCodec.MeasureSerializedSize(initial.Message) > SnapshotDeltaBudgeter.TargetSnapshotPayloadBytes);
         Assert.Equal(20, initial.Message.Players.Count);
         Assert.Contains(initial.Message.Players, player => player.Slot == SimulationWorld.FirstSpectatorSlot);
         for (var slot = 2; slot <= 20; slot += 1)

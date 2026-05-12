@@ -297,10 +297,21 @@ public static class ObjectiveEvaluator
         SimulationWorld world,
         PlayerTeam ownTeam)
     {
-        var generator = world.Level.GetFirstRoomObject(RoomObjectType.Generator);
-        if (generator.HasValue)
+        var opposingTeam = GetOpposingTeam(ownTeam);
+        foreach (var generator in world.Generators)
         {
-            return (generator.Value.CenterX, generator.Value.CenterY);
+            if (generator.Team == opposingTeam && !generator.IsDestroyed)
+            {
+                return (generator.Marker.CenterX, generator.Marker.CenterY);
+            }
+        }
+
+        foreach (var generator in world.Generators)
+        {
+            if (generator.Team == opposingTeam)
+            {
+                return (generator.Marker.CenterX, generator.Marker.CenterY);
+            }
         }
 
         return (world.Level.Bounds.Width * 0.5f, world.Level.Bounds.Height * 0.5f);

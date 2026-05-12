@@ -9,6 +9,8 @@ public sealed class SteeringMachine
     private const int StuckDetectionWindow = 15;
     private const float StuckDistanceThreshold = 2f;
     private const float WaypointReachRadius = NavGraphBuilder.WaypointArrivalRadius;
+    private const int WaypointLookaheadSkipCount = 4;
+    private const float WaypointLookaheadReachMultiplier = 1.5f;
     private const float EdgeProbeDistance = 18f;
     private const float JumpTriggerDistance = 32f;
     private const float JumpLaunchGateTolerance = 4f;
@@ -25,7 +27,8 @@ public sealed class SteeringMachine
     private const float LandedBelowCompletionVerticalSlack = 8f;
     private const float GroundedContinuationCompletionSlack = 8f;
     private const float AirborneCompletionContinuationSlack = 8f;
-    private const int MaximumCertifiedEdgeTicks = 180;
+    private const int MaximumCertifiedEdgeTicks = 120;
+    private const int CertifiedEdgeRetrySlackTicks = 36;
     private const int MaximumUncertifiedTraversalEdgeTicks = 180;
     private const int MaximumWalkEdgeTicks = 60;
 
@@ -66,6 +69,7 @@ public sealed class SteeringMachine
             return output;
         }
 
+        TryAdvanceToReachedFutureWaypoint(player, graph, path);
         if (ShouldAdvanceWaypoint(player, graph, path, level))
         {
             path.Advance();
@@ -369,6 +373,46 @@ public sealed class SteeringMachine
         }
     }
 
+    private static void TryAdvanceToReachedFutureWaypoint(PlayerEntity player, NavGraph graph, NavPath path)
+    {
+        if (path.CurrentIndex + 1 >= path.Count)
+        {
+            return;
+        }
+
+        var currentNode = graph.GetNode(path.CurrentNode);
+        var currentDistance = Distance(player.X, player.Y, currentNode.X, currentNode.Y);
+        var bestIndex = -1;
+        var bestDistance = currentDistance;
+        var maxIndex = Math.Min(path.Count - 1, path.CurrentIndex + WaypointLookaheadSkipCount);
+        var reachRadius = WaypointReachRadius * WaypointLookaheadReachMultiplier;
+        for (var index = path.CurrentIndex + 1; index <= maxIndex; index += 1)
+        {
+            if (path.TryGetIncomingEdge(index, out var incomingEdge)
+                && incomingEdge.Kind == NavEdgeKind.Jump
+                && incomingEdge.LaunchRecipe.HasRecipe
+                && player.IsGrounded)
+            {
+                break;
+            }
+
+            var node = graph.GetNode(path.GetWaypoint(index));
+            var distance = Distance(player.X, player.Y, node.X, node.Y);
+            if (distance >= bestDistance || distance > reachRadius)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestIndex = index;
+        }
+
+        while (bestIndex > path.CurrentIndex)
+        {
+            path.Advance();
+        }
+    }
+
     private void UpdateCurrentEdgeExecutionPhase(PlayerEntity player, NavGraph graph, NavPath path, NavEdge edge)
     {
         if (_edgePhase != EdgeExecutionPhase.None)
@@ -604,11 +648,7 @@ public sealed class SteeringMachine
         var targetDistance = MathF.Sqrt(
             ((targetNode.X - player.X) * (targetNode.X - player.X))
             + ((targetNode.Y - player.Y) * (targetNode.Y - player.Y)));
-        var maxTicks = edge.Kind == NavEdgeKind.Walk
-            ? MaximumWalkEdgeTicks
-            : edge.Completion.HasWindow
-                ? MaximumCertifiedEdgeTicks
-                : MaximumUncertifiedTraversalEdgeTicks;
+        var maxTicks = ResolveMaximumEdgeTicks(edge);
         if (edgeTicks < maxTicks)
         {
             return;
@@ -646,6 +686,26 @@ public sealed class SteeringMachine
         return targetDistance > WaypointReachRadius * 2f
             ? "edge_timeout_far"
             : "edge_timeout_near";
+    }
+
+    private static int ResolveMaximumEdgeTicks(NavEdge edge)
+    {
+        if (edge.Kind == NavEdgeKind.Walk)
+        {
+            return MaximumWalkEdgeTicks;
+        }
+
+        if (!edge.Completion.HasWindow)
+        {
+            return MaximumUncertifiedTraversalEdgeTicks;
+        }
+
+        if (edge.ProbeTicks <= 0)
+        {
+            return MaximumCertifiedEdgeTicks;
+        }
+
+        return int.Clamp(edge.ProbeTicks + CertifiedEdgeRetrySlackTicks, 45, MaximumCertifiedEdgeTicks);
     }
 
     private static void SteerGrounded(
@@ -874,6 +934,13 @@ public sealed class SteeringMachine
     private static float GetMoveDirection(float dx)
     {
         return MathF.Abs(dx) <= HorizontalDeadZone ? 0f : MathF.Sign(dx);
+    }
+
+    private static float Distance(float ax, float ay, float bx, float by)
+    {
+        var dx = bx - ax;
+        var dy = by - ay;
+        return MathF.Sqrt((dx * dx) + (dy * dy));
     }
 
     private static bool IsLaunchRecipeReady(PlayerEntity player, NavEdgeLaunchRecipe recipe, float moveDirection)

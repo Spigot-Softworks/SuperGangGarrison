@@ -69,9 +69,9 @@ public sealed class ServerDemoRecorderTests
         currentFrame = 2;
         recorder.RecordSnapshot(BuildSnapshot(currentLevelName, currentFrame));
 
-        currentLevelName = "Avanti";
+        currentLevelName = "Truefort";
         currentFrame = 10;
-        recorder.HandleMapTransition(new MapChangeTransition("ClassicWell", 1, 1, "Avanti", 1, false, null));
+        recorder.HandleMapTransition(new MapChangeTransition("ClassicWell", 1, 1, "Truefort", 1, false, null));
 
         currentFrame = 11;
         recorder.RecordSnapshot(BuildSnapshot(currentLevelName, currentFrame));
@@ -79,7 +79,7 @@ public sealed class ServerDemoRecorderTests
         Assert.True(recorder.TryStop(out _, out var stopError), stopError);
 
         var firstSegmentPath = Path.Combine(root, "session [01] ClassicWell.ogdemo");
-        var secondSegmentPath = Path.Combine(root, "session [02] Avanti.ogdemo");
+        var secondSegmentPath = Path.Combine(root, "session [02] Truefort.ogdemo");
         Assert.True(File.Exists(firstSegmentPath));
         Assert.True(File.Exists(secondSegmentPath));
 
@@ -88,7 +88,7 @@ public sealed class ServerDemoRecorderTests
         Assert.Contains("appliedSnapshots=2", firstSummary, StringComparison.Ordinal);
 
         Assert.True(OpenGarrisonDemoTransport.TryVerifyPlaybackSummary(secondSegmentPath, out var secondSummary, out var secondError), secondError);
-        Assert.Contains("level=Avanti", secondSummary, StringComparison.Ordinal);
+        Assert.Contains("level=Truefort", secondSummary, StringComparison.Ordinal);
         Assert.Contains("appliedSnapshots=2", secondSummary, StringComparison.Ordinal);
     }
 

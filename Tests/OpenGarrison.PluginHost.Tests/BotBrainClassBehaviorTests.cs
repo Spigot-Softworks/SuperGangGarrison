@@ -37,7 +37,8 @@ public sealed class BotBrainClassBehaviorTests
     public void SniperCtfGoalHoldsSightlineWhenAllyCanSeekObjective()
     {
         var world = CreateClassWorld(PlayerClass.Sniper, out var sniper);
-        _ = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Red, sniper.X + 40f, sniper.Y);
+        var ally = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Red, sniper.X + 40f, sniper.Y);
+        ally.PickUpIntel();
         var enemy = AddNetworkPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue, sniper.X + 620f, sniper.Y);
 
         var goal = ObjectiveEvaluator.EvaluateGoal(sniper, world, PlayerTeam.Red, enemy);
@@ -95,6 +96,39 @@ public sealed class BotBrainClassBehaviorTests
         Assert.Equal(enemyPoint.HealingAuraCenterY, goal.Y);
     }
 
+    [Fact]
+    public void DirectDriveDoesNotJumpInPlaceIntoCeilingForVerticalTarget()
+    {
+        var world = CreateDirectDriveWorld(hasBlockedHeadroom: true, out var player);
+
+        var resolved = PrimitiveDirectDrive.TryResolveRecovery(
+            world,
+            player,
+            new DirectDriveTarget(DirectDriveTargetKind.Carrier, player.X, player.Y - 160f, "carrier"),
+            default,
+            out _,
+            out _);
+
+        Assert.False(resolved);
+    }
+
+    [Fact]
+    public void DirectDriveStillMovesTowardHorizontalTargetWhenHeadroomBlocked()
+    {
+        var world = CreateDirectDriveWorld(hasBlockedHeadroom: true, out var player);
+
+        var resolved = PrimitiveDirectDrive.TryResolveRecovery(
+            world,
+            player,
+            new DirectDriveTarget(DirectDriveTargetKind.Carrier, player.X + 180f, player.Y - 160f, "carrier"),
+            default,
+            out var steering,
+            out _);
+
+        Assert.True(resolved);
+        Assert.Equal(1, steering.MoveDirection);
+    }
+
     private static SimulationWorld CreateClassWorld(PlayerClass playerClass, out PlayerEntity player)
     {
         var world = new SimulationWorld();
@@ -116,6 +150,18 @@ public sealed class BotBrainClassBehaviorTests
         world.ForceRespawnLocalPlayer();
         player = world.LocalPlayer;
         player.TeleportTo(120f, 100f);
+        return world;
+    }
+
+    private static SimulationWorld CreateDirectDriveWorld(bool hasBlockedHeadroom, out PlayerEntity player)
+    {
+        var world = new SimulationWorld();
+        Assert.True(world.TrySetLocalClass(PlayerClass.Pyro));
+        SetDirectDriveLevel(world, hasBlockedHeadroom);
+        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.ForceRespawnLocalPlayer();
+        player = world.LocalPlayer;
+        player.TeleportTo(200f, 120f);
         return world;
     }
 
@@ -222,6 +268,36 @@ public sealed class BotBrainClassBehaviorTests
                     ],
                     floorY: 2048f,
                     solids: [],
+                importedFromSource: false),
+            ]);
+    }
+
+    private static void SetDirectDriveLevel(SimulationWorld world, bool hasBlockedHeadroom)
+    {
+        var method = typeof(SimulationWorld).GetMethod("CombatTestSetLevel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        _ = method!.Invoke(
+            world,
+            [
+                new SimpleLevel(
+                    name: "botbrain_direct_drive_test",
+                    mode: GameModeKind.CaptureTheFlag,
+                    bounds: new WorldBounds(2048f, 2048f),
+                    mapScale: 1f,
+                    backgroundAssetName: null,
+                    mapAreaIndex: 1,
+                    mapAreaCount: 1,
+                    localSpawn: new SpawnPoint(200f, 120f),
+                    redSpawns: [new SpawnPoint(200f, 120f)],
+                    blueSpawns: [new SpawnPoint(600f, 120f)],
+                    intelBases:
+                    [
+                        new IntelBaseMarker(PlayerTeam.Red, 200f, 120f),
+                        new IntelBaseMarker(PlayerTeam.Blue, 600f, 120f),
+                    ],
+                    roomObjects: [],
+                    floorY: 2048f,
+                    solids: hasBlockedHeadroom ? [new LevelSolid(120f, 20f, 180f, 80f)] : [],
                     importedFromSource: false),
             ]);
     }

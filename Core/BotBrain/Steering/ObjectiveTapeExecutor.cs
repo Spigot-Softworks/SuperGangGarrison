@@ -13,6 +13,7 @@ public sealed class ObjectiveTapeExecutor
     private const int ActionTapeStallWindowTicks = 75;
     private const float ActionTapeStallMoveThreshold = 12f;
     private const float MotionProofActionDivergenceRadius = 220f;
+    private const float CertifiedMotionProofActionDivergenceRadius = 720f;
     private const int MotionProofActionDivergenceTicks = 30;
     private const float MotionProofGroundedEntryRadius = 12f;
     private const float MotionProofAirborneEntryRadius = 10f;
@@ -32,6 +33,8 @@ public sealed class ObjectiveTapeExecutor
     private float _stallWindowStartY;
 
     public string LastTrace { get; private set; } = string.Empty;
+
+    public bool IsActive => _activeTape is not null && _activeSegment is not null;
 
     public void Reset()
     {
@@ -124,9 +127,10 @@ public sealed class ObjectiveTapeExecutor
         }
 
         var moveDirection = ResolveMoveDirection(self, sample);
+        var sameClassTape = _activeTape.PlayerClass == self.ClassId;
         tapeSteering.MoveDirection = moveDirection;
-        tapeSteering.Jump = sample.Jump || ShouldCatchUpJump(self, sample);
-        tapeSteering.DropDown = sample.DropDown;
+        tapeSteering.Jump = (sameClassTape && sample.Jump) || ShouldCatchUpJump(self, sample);
+        tapeSteering.DropDown = sameClassTape && sample.DropDown;
         LastTrace = $"objectiveTape=tape:{_activeTape.Name} carrying:{(sample.IsCarryingIntel ? 1 : 0)} sample:{_sampleIndex}/{_activeSegment.Samples.Count} dist:{distance:0.0} move:{moveDirection} jump:{(tapeSteering.Jump ? 1 : 0)}";
         return true;
     }
@@ -187,9 +191,10 @@ public sealed class ObjectiveTapeExecutor
 
                 var last = segment.Samples[^1];
                 var isMotionProofActionTape = segment.Actions.Count > 0 && IsMotionProofTape(tape);
+                var hasCertifiedPortal = HasCertifiedPortal(segment);
                 var startIndex = segment.Actions.Count > 0
                     ? isMotionProofActionTape
-                        ? FindNearestMotionProofActionEntrySampleIndex(segment, self)
+                        ? FindNearestMotionProofActionEntrySampleIndex(segment, self, hasCertifiedPortal)
                         : 0
                     : FindNearestSampleIndex(segment, self.X, self.Y);
                 if (startIndex < 0)
@@ -199,13 +204,16 @@ public sealed class ObjectiveTapeExecutor
                 }
 
                 var startSample = segment.Samples[startIndex];
+                var entryX = hasCertifiedPortal ? segment.EntryX!.Value : startSample.X;
+                var entryY = hasCertifiedPortal ? segment.EntryY!.Value : startSample.Y;
                 if (segment.Actions.Count > 0 && startSample.IsGrounded != self.IsGrounded)
                 {
                     continue;
                 }
 
-                var entryDistance = Distance(self.X, self.Y, startSample.X, startSample.Y);
-                if (entryDistance > EntryRadius)
+                var entryDistance = Distance(self.X, self.Y, entryX, entryY);
+                var entryRadius = hasCertifiedPortal ? segment.EntryRadius!.Value : EntryRadius;
+                if (entryDistance > entryRadius)
                 {
                     rejectedEntry += 1;
                     continue;
@@ -218,7 +226,10 @@ public sealed class ObjectiveTapeExecutor
                     continue;
                 }
 
-                var score = entryDistance + (endpointDistance * 0.65f) + (startIndex * 0.25f);
+                var actionTicks = segment.Actions.Count > 0
+                    ? segment.Actions.Sum(static action => Math.Max(1, action.Ticks))
+                    : 0;
+                var score = entryDistance + (endpointDistance * 0.65f) + (startIndex * 0.25f) + (actionTicks * 0.1f);
                 if (score >= bestScore)
                 {
                     continue;
@@ -307,8 +318,12 @@ public sealed class ObjectiveTapeExecutor
         {
             var completedName = _activeTape.Name;
             var lastSample = _activeSegment.Samples[^1];
-            var endpointDistance = Distance(self.X, self.Y, lastSample.X, lastSample.Y);
-            if (_activeTape.PlayerClass == PlayerClass.Heavy && endpointDistance > ActionEndpointMissRadius)
+            var hasCertifiedPortal = HasCertifiedPortal(_activeSegment);
+            var endpointX = hasCertifiedPortal ? _activeSegment.ExitX!.Value : lastSample.X;
+            var endpointY = hasCertifiedPortal ? _activeSegment.ExitY!.Value : lastSample.Y;
+            var endpointDistance = Distance(self.X, self.Y, endpointX, endpointY);
+            var endpointRadius = hasCertifiedPortal ? _activeSegment.ExitRadius!.Value : ActionEndpointMissRadius;
+            if ((hasCertifiedPortal || _activeTape.PlayerClass == PlayerClass.Heavy) && endpointDistance > endpointRadius)
             {
                 _suppressedTapeName = completedName;
                 _suppressedTapeUntilTick = thinkTick + MissedActionTapeSuppressionTicks;
@@ -356,7 +371,10 @@ public sealed class ObjectiveTapeExecutor
         }
 
         var sample = FindSampleAtElapsedTick(_activeSegment, elapsedTicks);
-        return Distance(self.X, self.Y, sample.X, sample.Y) > MotionProofActionDivergenceRadius;
+        var divergenceRadius = HasCertifiedPortal(_activeSegment)
+            ? CertifiedMotionProofActionDivergenceRadius
+            : MotionProofActionDivergenceRadius;
+        return Distance(self.X, self.Y, sample.X, sample.Y) > divergenceRadius;
     }
 
     private bool IsActionTapeStalled(PlayerEntity self, int thinkTick)
@@ -441,11 +459,16 @@ public sealed class ObjectiveTapeExecutor
         return bestIndex;
     }
 
-    private static int FindNearestMotionProofActionEntrySampleIndex(BotBrainObjectiveTapeSegment segment, PlayerEntity self)
+    private static int FindNearestMotionProofActionEntrySampleIndex(
+        BotBrainObjectiveTapeSegment segment,
+        PlayerEntity self,
+        bool hasCertifiedPortal)
     {
         var bestIndex = -1;
         var bestDistance = float.PositiveInfinity;
-        var entryRadius = self.IsGrounded ? MotionProofGroundedEntryRadius : MotionProofAirborneEntryRadius;
+        var entryRadius = hasCertifiedPortal
+            ? segment.EntryRadius!.Value
+            : self.IsGrounded ? MotionProofGroundedEntryRadius : MotionProofAirborneEntryRadius;
         for (var i = 0; i < segment.Samples.Count; i += 1)
         {
             var sample = segment.Samples[i];
@@ -532,7 +555,9 @@ public sealed class ObjectiveTapeExecutor
         PlayerClass tapeClass,
         PlayerClass selfClass,
         BotBrainObjectiveTapeSegment segment) =>
-        segment.Actions.Count == 0 || tapeClass == selfClass;
+        tapeClass == selfClass
+        || (segment.Actions.Count == 0
+            && !(tapeClass == PlayerClass.Heavy && selfClass == PlayerClass.Scout));
 
     private static BotBrainObjectiveTapeSample FindSampleAtElapsedTick(BotBrainObjectiveTapeSegment segment, int elapsedTicks)
     {
@@ -552,6 +577,14 @@ public sealed class ObjectiveTapeExecutor
 
     private static bool IsMotionProofTape(BotBrainObjectiveTapeEntry? tape) =>
         tape is not null && tape.Name.StartsWith("MotionProof.", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasCertifiedPortal(BotBrainObjectiveTapeSegment segment) =>
+        segment.EntryX.HasValue
+        && segment.EntryY.HasValue
+        && segment.EntryRadius.HasValue
+        && segment.ExitX.HasValue
+        && segment.ExitY.HasValue
+        && segment.ExitRadius.HasValue;
 
     private static float Distance(float ax, float ay, float bx, float by)
     {

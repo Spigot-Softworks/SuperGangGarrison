@@ -232,6 +232,7 @@ var fireTicks = 0;
 var deadTicks = 0;
 var carryingIntelTick = -1;
 var scoreTick = -1;
+var objectiveCompletionReason = string.Empty;
 var initialRedCaps = world.RedCaps;
 var initialBlueCaps = world.BlueCaps;
 var initialPlayerCaps = bot.Caps;
@@ -447,7 +448,13 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
             || world.BlueCaps > initialBlueCaps))
     {
         scoreTick = tick;
+        objectiveCompletionReason = "Score";
         BotBrainToolCommandHelpers.AddProofCorridorSample(proofCorridorSamples, world, bot, input, tick, "Score");
+    }
+    else if (scoreTick < 0 && TryDetectObjectiveCompletion(world, bot, options.Team, goal, out objectiveCompletionReason))
+    {
+        scoreTick = tick;
+        BotBrainToolCommandHelpers.AddProofCorridorSample(proofCorridorSamples, world, bot, input, tick, objectiveCompletionReason);
     }
     else if (scoreTick < 0 && BotBrainToolCommandHelpers.ShouldRecordProofCorridorSample(proofCorridorSamples, bot, input, tick, carryingIntelTick))
     {
@@ -524,7 +531,7 @@ var failureBucket = ClassifyFailureBucket(
     options.Ticks,
     options.ReportEveryTicks);
 Console.WriteLine($"result={result}");
-Console.WriteLine($"summary=finalDistance:{finalDistance:0.0} bestDistance:{bestDistance:0.0} progress:{progress:0.0} totalMovement:{totalMovement:0.0} jumps:{jumpTicks} dropdowns:{dropdownTicks} fire:{fireTicks} deadTicks:{deadTicks} stagnantWindows:{stagnantWindows} carryingIntelTick:{carryingIntelTick} scoreTick:{scoreTick} redCaps:{world.RedCaps} blueCaps:{world.BlueCaps} playerCaps:{bot.Caps} finalNode:{finalNode} finalPathWaypoints:{finalPath?.Count ?? 0}");
+Console.WriteLine($"summary=finalDistance:{finalDistance:0.0} bestDistance:{bestDistance:0.0} progress:{progress:0.0} totalMovement:{totalMovement:0.0} jumps:{jumpTicks} dropdowns:{dropdownTicks} fire:{fireTicks} deadTicks:{deadTicks} stagnantWindows:{stagnantWindows} carryingIntelTick:{carryingIntelTick} scoreTick:{scoreTick} objectiveReason:{(string.IsNullOrWhiteSpace(objectiveCompletionReason) ? "none" : objectiveCompletionReason)} redCaps:{world.RedCaps} blueCaps:{world.BlueCaps} playerCaps:{bot.Caps} finalNode:{finalNode} finalPathWaypoints:{finalPath?.Count ?? 0}");
 Console.WriteLine($"failureBucket={failureBucket}");
 var proofPassed = scoreTick >= 0
     && validationIssues.Count == 0
@@ -1233,6 +1240,72 @@ string ClassifyFailureBucket(
     }
 
     return result;
+}
+
+static bool TryDetectObjectiveCompletion(
+    SimulationWorld world,
+    PlayerEntity bot,
+    PlayerTeam team,
+    (float X, float Y) goal,
+    out string reason)
+{
+    reason = string.Empty;
+    if (world.MatchRules.Mode == GameModeKind.Arena)
+    {
+        foreach (var point in world.ControlPoints)
+        {
+            if (world.IsPlayerInControlPointCaptureZone(bot, point.Index))
+            {
+                reason = "ArenaCaptureZone";
+                return true;
+            }
+        }
+
+        foreach (var marker in world.Level.GetRoomObjects(RoomObjectType.CaptureZone))
+        {
+            if (bot.IntersectsMarker(marker.CenterX, marker.CenterY, marker.Width, marker.Height))
+            {
+                reason = "ArenaCaptureZone";
+                return true;
+            }
+        }
+
+        foreach (var marker in world.Level.GetRoomObjects(RoomObjectType.ArenaControlPoint))
+        {
+            if (bot.IntersectsMarker(marker.CenterX, marker.CenterY, marker.Width, marker.Height))
+            {
+                reason = "ArenaControlPoint";
+                return true;
+            }
+        }
+    }
+    else if (world.MatchRules.Mode == GameModeKind.Generator)
+    {
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        foreach (var generator in world.Generators)
+        {
+            if (generator.Team != opposingTeam)
+            {
+                continue;
+            }
+
+            if (generator.IsDestroyed || generator.Health < generator.MaxHealth)
+            {
+                reason = generator.IsDestroyed ? "GeneratorDestroyed" : "GeneratorDamaged";
+                return true;
+            }
+
+            var dx = MathF.Abs(generator.Marker.CenterX - bot.X);
+            var dy = MathF.Abs(generator.Marker.CenterY - bot.Y);
+            if (dx <= 96f && dy <= 96f && Distance(bot.X, bot.Y, goal.X, goal.Y) <= 128f)
+            {
+                reason = "GeneratorReached";
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 static string FindRepoRoot(string startPath)

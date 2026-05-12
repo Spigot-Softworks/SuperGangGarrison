@@ -130,7 +130,9 @@ public sealed class NavGraph
         PlayerClass? playerClass = null,
         IReadOnlySet<NavEdgeBlock>? blockedEdges = null,
         PlayerTeam? team = null,
-        bool carryingIntel = false)
+        bool carryingIntel = false,
+        float verticalWeight = 2f,
+        bool penalizeLowerCandidate = false)
     {
         if (startNode < 0 || startNode >= _nodes.Length)
         {
@@ -146,7 +148,7 @@ public sealed class NavGraph
         openSet.Enqueue(startNode, 0f);
 
         var bestIndex = startNode;
-        var bestScore = ScoreReachableGoalCandidate(startNode, x, y);
+        var bestScore = ScoreReachableGoalCandidate(startNode, x, y, verticalWeight, penalizeLowerCandidate);
 
         while (openSet.Count > 0)
         {
@@ -157,7 +159,7 @@ public sealed class NavGraph
             }
 
             closed[current] = true;
-            var candidateScore = ScoreReachableGoalCandidate(current, x, y);
+            var candidateScore = ScoreReachableGoalCandidate(current, x, y, verticalWeight, penalizeLowerCandidate);
             if (candidateScore < bestScore)
             {
                 bestScore = candidateScore;
@@ -308,9 +310,22 @@ public sealed class NavGraph
         };
 
         var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
+        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
         if (verticalDelta > 48f)
         {
             difficultyPenalty += MathF.Min(96f, (verticalDelta - 48f) * 0.45f);
+        }
+
+        if (edge.Kind is NavEdgeKind.Jump or NavEdgeKind.Fall
+            && verticalDelta >= 24f
+            && horizontalDelta <= 260f)
+        {
+            var stableRelayFloor = euclideanDistance * 0.55f;
+            if (cost < stableRelayFloor)
+            {
+                difficultyPenalty += MathF.Min(260f, (stableRelayFloor - cost) * 1.35f);
+            }
         }
 
         var hasCertifiedProof = edge.ProbeTicks > 0 || edge.ProbeVariantAttempts > 0;
@@ -418,17 +433,9 @@ public sealed class NavGraph
 
     private bool ShouldUseRawTraversalCost(PlayerClass? playerClass, bool carryingIntel, PlayerTeam? team)
     {
-        if (_mode == GameModeKind.CaptureTheFlag
+        return _mode == GameModeKind.CaptureTheFlag
             && string.Equals(_levelName, "Orange", StringComparison.OrdinalIgnoreCase)
-            && carryingIntel)
-        {
-            return true;
-        }
-
-        return !carryingIntel
-            && playerClass == PlayerClass.Soldier
-            && _mode == GameModeKind.CaptureTheFlag
-            && string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase);
+            && carryingIntel;
     }
 
     private float ResolveMapSpecificTraversalPenalty(
@@ -439,16 +446,15 @@ public sealed class NavGraph
         bool carryingIntel,
         PlayerTeam? team)
     {
-        if (edge.Kind == NavEdgeKind.Walk
-            || playerClass != PlayerClass.Soldier
-            || !team.HasValue
-            || _mode != GameModeKind.CaptureTheFlag
-            || !string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase))
+        if (_mode != GameModeKind.CaptureTheFlag || !carryingIntel)
         {
             return 0f;
         }
 
-        if (!carryingIntel)
+        if (edge.Kind == NavEdgeKind.Walk
+            || playerClass != PlayerClass.Soldier
+            || !team.HasValue
+            || !string.Equals(_levelName, "Truefort", StringComparison.OrdinalIgnoreCase))
         {
             return 0f;
         }
@@ -458,12 +464,9 @@ public sealed class NavGraph
             return 1_600f;
         }
 
-        if (team.Value == PlayerTeam.Red && IsTruefortRedReturnChurnEdge(edge, fromNode, toNode))
-        {
-            return 1_600f;
-        }
-
-        return 0f;
+        return team.Value == PlayerTeam.Red && IsTruefortRedReturnChurnEdge(edge, fromNode, toNode)
+            ? 1_600f
+            : 0f;
     }
 
     private static bool IsTruefortBlueReturnChurnEdge(NavEdge edge, NavNode fromNode, NavNode toNode)
@@ -530,13 +533,16 @@ public sealed class NavGraph
     private static bool IsNear(NavNode node, float x, float y) =>
         MathF.Abs(node.X - x) <= 56f && MathF.Abs(node.Y - y) <= 56f;
 
-    private float ScoreReachableGoalCandidate(int nodeIndex, float x, float y)
+    private float ScoreReachableGoalCandidate(int nodeIndex, float x, float y, float verticalWeight, bool penalizeLowerCandidate)
     {
         var node = _nodes[nodeIndex];
         var dx = node.X - x;
         var dy = node.Y - y;
         var kindPenalty = node.Kind == NavNodeKind.Spawn ? 10_000f : 0f;
-        return (dx * dx) + (dy * dy * 2f) + kindPenalty;
+        var lowerPenalty = penalizeLowerCandidate && dy > 36f
+            ? dy * dy * 6f
+            : 0f;
+        return (dx * dx) + (dy * dy * MathF.Max(1f, verticalWeight)) + lowerPenalty + kindPenalty;
     }
 
     private static NavPath ReconstructPath(int[] cameFrom, NavEdge[] edgeFrom, int current, float totalCost)
