@@ -401,6 +401,7 @@ public partial class Game1
                 new("Player Name", _game._editingPlayerName ? GetTextWithCursor(_game._playerNameEditBuffer, _game._playerNameEditCursorIndex) : _game._world.LocalPlayer.DisplayName, _game.BeginEditingPlayerName, OptionsMenuTab.Other),
                 new("Fullscreen", _game._graphics.IsFullScreen ? "On" : "Off", _game.ToggleFullscreenSetting, OptionsMenuTab.Graphics),
                 new("Aspect Ratio", Game1.GetIngameResolutionLabel(_game._ingameResolution), _game.CycleIngameResolutionSetting, OptionsMenuTab.Graphics),
+                new("Menu Background", GetMenuBackgroundModeLabel(_game._menuBackgroundMode), _game.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_game._particleMode), _game.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_game._flameRenderMode), _game.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
                 new("Gibs", GetGibLevelLabel(_game._gibLevel), _game.CycleGibLevelSetting, OptionsMenuTab.Graphics),
@@ -684,6 +685,16 @@ public partial class Game1
         private static string GetFlameRenderModeLabel(int flameRenderMode)
         {
             return flameRenderMode == 0 ? "Particle" : "Sprite";
+        }
+
+        private static string GetMenuBackgroundModeLabel(MenuBackgroundMode menuBackgroundMode)
+        {
+            return menuBackgroundMode switch
+            {
+                MenuBackgroundMode.DefaultMaps => "Default Maps",
+                MenuBackgroundMode.AllMaps => "All Maps",
+                _ => "Static",
+            };
         }
 
         private static string GetMusicModeLabel(MusicMode musicMode)

@@ -19,11 +19,20 @@ public partial class Game1
             _game = game;
         }
 
-        public void Update(KeyboardState keyboard, MouseState mouse)
+        public void Update(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
         {
             EnsureMenuMusicPlaying();
             _game.StopFaucetMusic();
             _game.StopIngameMusic();
+
+            // Update animated menu background if enabled
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                _game._animatedMenuBackgroundController.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+            }
+
+            // Update bottom bar runners
+            _game._menuBottomBarRunners.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
             _game.UpdateLobbyBrowserResponses();
             if (_game._builderEditorEnabled)
@@ -54,18 +63,32 @@ public partial class Game1
             var viewportWidth = _game.ViewportWidth;
             var viewportHeight = _game.ViewportHeight;
 
-            EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
-
-            if (_game._menuBackgroundTexture is not null)
+            // Draw animated or static background based on setting
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
             {
-                _game.DrawLoadedSpriteFrame(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+                _game._animatedMenuBackgroundController.Draw(viewportWidth, viewportHeight);
             }
-            else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
+            else
             {
-                _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
+                EnsureMenuBackgroundTexture(viewportWidth, viewportHeight);
+
+                if (_game._menuBackgroundTexture is not null)
+                {
+                    _game.DrawLoadedSpriteFrame(_game._menuBackgroundTexture, new Rectangle(0, 0, viewportWidth, viewportHeight), Color.White);
+                }
+                else if (!_game.TryDrawScreenSprite("MenuBackgroundS", _game._menuImageFrame, new Vector2(viewportWidth / 2f, viewportHeight / 2f), Color.White, Vector2.One))
+                {
+                    _game._spriteBatch.Draw(_game._pixel, new Rectangle(0, 0, viewportWidth, viewportHeight), new Color(26, 24, 20));
+                }
             }
 
             DrawMenuBackgroundAttribution();
+
+            // Draw OpenGarrison logo in top right when using animated background
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                DrawAnimatedMenuLogo(viewportWidth, viewportHeight);
+            }
 
             if (_game._builderEditorEnabled)
             {
@@ -228,6 +251,36 @@ public partial class Game1
             var position = new Vector2(_game.ViewportWidth - 18f, _game.ViewportHeight - 18f);
             _game.DrawBitmapFontTextRightAligned(_game._menuBackgroundAttributionText, position + Vector2.One, Color.Black * 0.75f, scale);
             _game.DrawBitmapFontTextRightAligned(_game._menuBackgroundAttributionText, position, Color.White, scale);
+        }
+
+        private void DrawAnimatedMenuLogo(int viewportWidth, int viewportHeight)
+        {
+            var sprite = _game.GetResolvedSprite("OpenGarrisonLogoS");
+            if (sprite is null || sprite.Frames.Count == 0)
+            {
+                return;
+            }
+
+            const float logoScale = 4f;
+            const float padding = 20f;
+            
+            var frame = sprite.Frames[0];
+            var logoWidth = frame.Width * logoScale;
+            
+            // Position in top right corner: screen width - logo width - padding
+            var logoX = viewportWidth - logoWidth - padding;
+            var logoY = padding;
+
+            _game.DrawLoadedSpriteFrame(
+                frame,
+                new Vector2(logoX, logoY),
+                null,
+                Color.White,
+                0f,
+                sprite.Origin.ToVector2(),
+                new Vector2(logoScale, logoScale),
+                SpriteEffects.None,
+                0f);
         }
 
     }
