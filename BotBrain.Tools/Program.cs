@@ -3224,22 +3224,44 @@ internal static class BotBrainToolCommandHelpers
         VerifiedNavExplorationReport? exploration = null;
         if (shouldExplore)
         {
+            var startSurfaceIds = rawOptions.TryGetValue("explore-start-surfaces", out var startSurfaceText)
+                ? ParseIntList(startSurfaceText)
+                : [];
+            var exploreAllLanes = ReadBoolOption(rawOptions, "verified-nav-explore-all-lanes", false);
+            if (exploreAllLanes)
+            {
+                startSurfaceIds.AddRange(BuildLaneCoverageSeedSurfaceIds(graph));
+            }
+
             var startSurfaceId = ReadIntOption(rawOptions, "explore-start-surface", -1);
-            if (startSurfaceId < 0)
+            if (startSurfaceId >= 0)
+            {
+                startSurfaceIds.Add(startSurfaceId);
+            }
+
+            if (startSurfaceIds.Count == 0)
             {
                 startSurfaceId = graph.Portals
                     .Where(static portal => portal.Kind == VerifiedNavPortalKind.Spawn && portal.SurfaceId.HasValue)
                     .Select(static portal => portal.SurfaceId!.Value)
                     .FirstOrDefault(-1);
+                if (startSurfaceId >= 0)
+                {
+                    startSurfaceIds.Add(startSurfaceId);
+                }
             }
 
-            if (startSurfaceId < 0)
+            startSurfaceIds = startSurfaceIds
+                .Where(surfaceId => surfaceId >= 0 && surfaceId < graph.Surfaces.Count)
+                .Distinct()
+                .ToList();
+            if (startSurfaceIds.Count == 0)
             {
                 throw new InvalidOperationException("Verified nav exploration requires a snapped spawn portal or --explore-start-surface.");
             }
 
             var targetSurfaceId = ResolveVerifiedNavExploreTargetSurface(graph, rawOptions);
-            exploration = VerifiedNavSurfaceExplorer.Explore(level, graph, startSurfaceId, new VerifiedNavExplorationOptions
+            exploration = VerifiedNavSurfaceExplorer.ExploreMany(level, graph, startSurfaceIds, new VerifiedNavExplorationOptions
             {
                 MaxSurfaceExpansions = ReadIntOption(rawOptions, "explore-max-surfaces", 2000),
                 TargetSurfaceId = targetSurfaceId,
@@ -3278,7 +3300,7 @@ internal static class BotBrainToolCommandHelpers
                 .Select(static portal => portal.SurfaceId!.Value)
                 .FirstOrDefault(-1);
             Console.WriteLine(
-                $"verifiedNavExploration startSurface={exploration.StartSurfaceId} reachable={exploration.ReachableSurfaceCount}/{graph.Surfaces.Count} edges={exploration.Edges.Count} reachesEnemySurface={exploration.ReachableSurfaceIds.Contains(enemySurface)} reachesOwnSurface={exploration.ReachableSurfaceIds.Contains(ownSurface)} reachesEnemyMarker={exploration.ReachedEnemyIntelMarker} reachesOwnMarker={exploration.ReachedOwnIntelMarker}");
+                $"verifiedNavExploration startSurface={exploration.StartSurfaceId} starts:{string.Join(',', exploration.StartSurfaceIds)} reachable={exploration.ReachableSurfaceCount}/{graph.Surfaces.Count} edges={exploration.Edges.Count} reachesEnemySurface={exploration.ReachableSurfaceIds.Contains(enemySurface)} reachesOwnSurface={exploration.ReachableSurfaceIds.Contains(ownSurface)} reachesEnemyMarker={exploration.ReachedEnemyIntelMarker} reachesOwnMarker={exploration.ReachedOwnIntelMarker}");
         }
 
         Console.WriteLine($"verifiedNavArtifact={artifactDirectory}");
@@ -3304,6 +3326,15 @@ internal static class BotBrainToolCommandHelpers
         {
             PropertyNameCaseInsensitive = true,
         };
+        VerifiedNavProofGraphAsset? proofGraph = null;
+        if (rawOptions.TryGetValue("base-proof-graph", out var baseProofGraphPath)
+            && !string.IsNullOrWhiteSpace(baseProofGraphPath))
+        {
+            proofGraph = JsonSerializer.Deserialize<VerifiedNavProofGraphAsset>(
+                File.ReadAllText(Path.GetFullPath(baseProofGraphPath)),
+                traceOptions) ?? throw new InvalidOperationException($"Could not read base proof graph '{baseProofGraphPath}'.");
+        }
+
         var routeTraces = new List<(VerifiedNavProofRouteKind Kind, VerifiedNavProofTraceReport Trace)>();
         var pickupTracePaths = ReadProofTracePathList(rawOptions, "pickup-trace", "pickup-traces");
         foreach (var pickupTracePath in pickupTracePaths)
@@ -3317,9 +3348,9 @@ internal static class BotBrainToolCommandHelpers
             routeTraces.Add((VerifiedNavProofRouteKind.Return, ReadProofTrace(returnTracePath)));
         }
 
-        if (routeTraces.Count == 0)
+        if (routeTraces.Count == 0 && proofGraph is null)
         {
-            throw new InvalidOperationException("--build-proof-graph requires --pickup-trace/--pickup-traces or --return-trace/--return-traces.");
+            throw new InvalidOperationException("--build-proof-graph requires --base-proof-graph, --pickup-trace/--pickup-traces, or --return-trace/--return-traces.");
         }
 
         var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
@@ -3331,18 +3362,45 @@ internal static class BotBrainToolCommandHelpers
             DropHorizontalReach = ReadFloatOption(rawOptions, "drop-horizontal-reach", 360f),
             JumpHorizontalReach = ReadFloatOption(rawOptions, "jump-horizontal-reach", 360f),
         });
-        var proofGraph = VerifiedNavProofGraphBuilder.Build(
-            candidateGraph,
-            routeTraces,
-            new VerifiedNavProofGraphBuildOptions
-            {
-                RouteActionOnlyKinds = BuildRouteActionOnlyKinds(rawOptions),
-            });
+        if (routeTraces.Count > 0)
+        {
+            proofGraph = VerifiedNavProofGraphBuilder.Build(
+                candidateGraph,
+                routeTraces,
+                new VerifiedNavProofGraphBuildOptions
+                {
+                    RouteActionOnlyKinds = BuildRouteActionOnlyKinds(rawOptions),
+                });
+        }
+
+        var explorationReports = new List<VerifiedNavExplorationReport>();
+        var explorationReportPaths = ReadProofTracePathList(rawOptions, "exploration-report", "exploration-reports");
+        foreach (var explorationReportPath in explorationReportPaths)
+        {
+            explorationReports.Add(JsonSerializer.Deserialize<VerifiedNavExplorationReport>(
+                File.ReadAllText(explorationReportPath),
+                traceOptions) ?? throw new InvalidOperationException($"Could not read exploration report '{explorationReportPath}'."));
+        }
+
+        if (explorationReports.Count > 0)
+        {
+            VerifiedNavProofGraphBuilder.AddExplorationLinks(
+                proofGraph!,
+                explorationReports,
+                ReadIntOption(rawOptions, "exploration-links-per-pair", 3));
+            var reachable = explorationReports
+                .SelectMany(static report => report.ReachableSurfaceIds)
+                .Distinct()
+                .Count();
+            Console.WriteLine(
+                $"verifiedProofGraphExplorationLinks reports={explorationReports.Count} reachableSurfaces={reachable}/{candidateGraph.Surfaces.Count} links={proofGraph!.Links.Count}");
+        }
+
         var outputPath = Path.Combine(artifactDirectory, "verified-proof-graph.json");
-        File.WriteAllText(outputPath, JsonSerializer.Serialize(proofGraph, outputJsonOptions));
+        File.WriteAllText(outputPath, JsonSerializer.Serialize(proofGraph!, outputJsonOptions));
 
         Console.WriteLine(
-            $"verifiedProofGraph map={proofGraph.LevelName} area={proofGraph.MapAreaIndex} team={proofGraph.Team} class={proofGraph.ClassId} surfaces={proofGraph.Surfaces.Count} routes={proofGraph.Routes.Count} edges={proofGraph.Edges.Count}");
+            $"verifiedProofGraph map={proofGraph!.LevelName} area={proofGraph.MapAreaIndex} team={proofGraph.Team} class={proofGraph.ClassId} surfaces={proofGraph.Surfaces.Count} routes={proofGraph.Routes.Count} edges={proofGraph.Edges.Count} links={proofGraph.Links.Count}");
         foreach (var route in proofGraph.Routes)
         {
             Console.WriteLine(
@@ -5785,6 +5843,56 @@ internal static class BotBrainToolCommandHelpers
         options.TryGetValue(key, out var text) && bool.TryParse(text, out var value)
             ? value
             : fallback;
+
+    private static List<int> BuildLaneCoverageSeedSurfaceIds(VerifiedNavCandidateGraph graph)
+    {
+        var seeds = new HashSet<int>();
+        foreach (var portal in graph.Portals)
+        {
+            if (portal.SurfaceId.HasValue
+                && portal.Kind is VerifiedNavPortalKind.Spawn or VerifiedNavPortalKind.OwnIntel or VerifiedNavPortalKind.EnemyIntel)
+            {
+                seeds.Add(portal.SurfaceId.Value);
+            }
+        }
+
+        if (graph.Surfaces.Count == 0)
+        {
+            return seeds.Order().ToList();
+        }
+
+        var minX = graph.Surfaces.Min(static surface => surface.Left);
+        var maxX = graph.Surfaces.Max(static surface => surface.Right);
+        var minY = graph.Surfaces.Min(static surface => surface.Top);
+        var maxY = graph.Surfaces.Max(static surface => surface.Top);
+        var xAnchors = new[]
+        {
+            Lerp(minX, maxX, 0.18f),
+            Lerp(minX, maxX, 0.50f),
+            Lerp(minX, maxX, 0.82f),
+        };
+        var yAnchors = new[]
+        {
+            Lerp(minY, maxY, 0.18f),
+            Lerp(minY, maxY, 0.50f),
+            Lerp(minY, maxY, 0.82f),
+        };
+
+        foreach (var x in xAnchors)
+        {
+            foreach (var y in yAnchors)
+            {
+                var nearest = graph.Surfaces
+                    .OrderBy(surface => MathF.Abs(surface.CenterX - x) + (MathF.Abs(surface.Top - y) * 1.35f))
+                    .First();
+                seeds.Add(nearest.Id);
+            }
+        }
+
+        return seeds.Order().ToList();
+    }
+
+    private static float Lerp(float from, float to, float amount) => from + ((to - from) * amount);
 
     private static HashSet<VerifiedNavProofRouteKind> BuildRouteActionOnlyKinds(Dictionary<string, string> options)
     {

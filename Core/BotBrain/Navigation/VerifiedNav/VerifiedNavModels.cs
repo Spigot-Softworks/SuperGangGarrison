@@ -201,6 +201,8 @@ public sealed class VerifiedNavExplorationReport
 
     public int StartSurfaceId { get; init; }
 
+    public List<int> StartSurfaceIds { get; init; } = [];
+
     public int ExpandedSurfaceCount { get; init; }
 
     public int ReachableSurfaceCount { get; init; }
@@ -339,6 +341,18 @@ public sealed record VerifiedNavProofGraphRoute(
     float StartX = 0f,
     float StartBottom = 0f);
 
+public sealed record VerifiedNavProofGraphLink(
+    int Id,
+    int FromSurfaceId,
+    int ToSurfaceId,
+    float EntryX,
+    float EntryBottom,
+    float ExitX,
+    float ExitBottom,
+    int CostTicks,
+    string Source,
+    IReadOnlyList<VerifiedNavProofGraphActionRun> Actions);
+
 public sealed class VerifiedNavProofGraphAsset
 {
     public int Version { get; init; } = 1;
@@ -358,4 +372,6 @@ public sealed class VerifiedNavProofGraphAsset
     public List<VerifiedNavProofLaneSegment> LaneSegments { get; init; } = [];
 
     public List<VerifiedNavProofGraphRoute> Routes { get; init; } = [];
+
+    public List<VerifiedNavProofGraphLink> Links { get; init; } = [];
 }

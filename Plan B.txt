@@ -1,0 +1,218 @@
+# OpenGarrison Local Motion Planner: Technical Design
+
+## 1. Executive Summary
+This document outlines the design for a lightweight, direct-drive local motion planner ("Local Controller") for OpenGarrison bots. The system bridges the gap between high-confidence, sparse global proofgraphs and dynamic, off-route goals (like dropped intel). It operates on a Receding Horizon Control (RHC) principle: evaluating a small set of fixed "macro-actions" via fast 1-ply physics simulation, scoring the resulting states, and executing the best action. This ensures robust, physics-aware local movement without the CPU bloat of runtime A* or full MotionProof generation.
+
+---
+
+## 2. Controller Architecture
+The Local Controller acts as the reactive movement layer within the `BotBrainController`.
+
+**Core Components:**
+- **`LocalMotionPlanner`**: The entry point for local navigation. Invoked every tick when a bot is active, but only performs *planning* when the current macro-action expires or fails.
+- **`SimulationProbe`**: A lightweight sandbox that clones the `PlayerEntity`'s physics state (position, velocity, bounding box, grounded state), applies a sequence of inputs, and advances the physics engine *n* ticks into the future.
+- **`MacroAction`**: A predefined sequence of `PlayerInputSnapshot`s (e.g., "Jump Forward for 30 ticks").
+- **`ActionCache`**: A spatial/state hash table storing proven local moves to bypass simulation for frequent identical situations.
+- **`PlanningManager` (Global)**: A server-wide coordinator that assigns a hard CPU budget per tick, distributing planning allowances across all active bots to prevent CPU spikes.
+
+---
+
+## 3. Algorithm Detail (Receding Horizon 1-Ply)
+Instead of searching a tree, the planner looks exactly one "macro-action" into the future.
+
+1. **Check Execution State**: If the bot is currently executing a macro-action, verify it is still valid (not blocked, not falling to death). If valid, yield the next `PlayerInputSnapshot` and return.
+2. **Check Cache**: Query `ActionCache` using current quantized state and target bucket. If a valid cached action exists, begin execution.
+3. **Simulation (1-Ply)**:
+   - For each `MacroAction` in the candidate set:
+     - Clone bot physics state.
+     - Fast-forward the engine for the macro's duration (e.g., 15-30 ticks).
+     - Score the final state.
+4. **Selection**: Select the macro-action with the highest score.
+5. **Execution**: Store the selected macro-action in the bot's state, begin feeding inputs to the live game, and optionally write the result to the `ActionCache`.
+
+---
+
+## 4. Runtime Budget Model
+To guarantee stable FPS, the planner operates under strict limits:
+
+- **Global Time Budget**: Maximum `0.5ms` per server tick for *all* bot planning. 
+- **Time-Slicing**: If 10 bots need to plan on the exact same tick, the `PlanningManager` allows 1-2 to plan fully, while the others fallback to a cheap "Same-Surface Direct Drive" or idle for 1-2 ticks until their budget window opens.
+- **Simulation Budget**: Maximum of `5` macro-actions evaluated per plan. Maximum of `30` ticks simulated per macro. (Total simulation cost per planning phase: ~150 physics `Advance()` calls, which is trivial for a 2D bounding box engine).
+- **Early Out**: If the first evaluated primitive (e.g., `SameSurfaceDrive`) scores perfectly (target reached), simulation terminates immediately.
+
+---
+
+## 5. Candidate Primitive/Action Set
+The planner evaluates a curated list of short-duration macros. Class capabilities (e.g., Scout double jump) dictate which primitives are injected into the candidate list.
+
+1. **`SameSurfaceDrive`** (15 ticks): Hold X-direction towards target.
+2. **`JumpDirect`** (30 ticks): Hold Jump + X-direction towards target.
+3. **`DropThrough`** (20 ticks): Hold Down + Jump (to pass one-way platforms) + X-direction.
+4. **`SprintGap`** (30 ticks): Hold X-direction for 5 ticks, then Jump + X-direction for 25 ticks. (Clears small pits).
+5. **`RecoverUp`** (30 ticks): Jump straight up, then hold X-direction (useful for getting out of snags).
+
+---
+
+## 6. Scoring Function
+The core intelligence lies in evaluating the simulation results. 
+
+```csharp
+float EvaluateState(SimulationState endState, Vector2 targetPos, NavContext context)
+{
+    float score = 0;
+    
+    // 1. Distance Metric (Weighted by line-of-sight)
+    float rawDist = Vector2.Distance(endState.Position, targetPos);
+    score -= rawDist * 1.0f; 
+
+    // 2. Physics & Safety Heuristics
+    if (endState.IsGrounded) score += 50.0f; // Prefer landing on feet
+    if (endState.InHazard) score -= 1000.0f; // Veto death pits
+    
+    // 3. Global Navigation Awareness
+    if (context.IsTargetOffRoute)
+    {
+        // If we are getting the intel, heavily weight direct distance
+        if (HasLineOfSight(endState.Position, targetPos)) score += 100.0f;
+    }
+    else
+    {
+        // If recovering to a route, weight proximity to the nearest NavPortal spine
+        float portalDist = GetDistanceToNearestPortal(endState.Position);
+        score -= portalDist * 2.0f; 
+    }
+    
+    return score;
+}
+```
+
+---
+
+## 7. Caching Strategy
+Caching avoids redundant physics simulations in high-traffic choke points.
+
+- **Key generation**: `Hash(MapId, ClassId, QuantizedBotPos[grid 32x32], QuantizedTargetPos[grid 64x64], IsCarryingIntel)`.
+- **Value**: The winning `MacroAction` ID and the `ExpectedEndPosition`.
+- **Validation**: When reading from the cache, if the bot executes the action and deviates from `ExpectedEndPosition` by > 32 units, the cache entry is invalidated.
+
+---
+
+## 8. Global Route Integration
+The local planner is the "glue" for the sparse proofgraph.
+- **Target Selection**: The higher-level logic sets the Local Planner's target.
+  - If Bot has intel: Target = nearest `NavPortal` leading to own base.
+  - If Intel is dropped: Target = exact coordinates of dropped intel.
+- **Attachment**: The local planner naturally steers the bot toward the target. Because the scoring function rewards proximity to `NavPortal`s, the bot will organically hop onto ledges and platforms to attach to the high-confidence proofgraph lane. Once `DistanceToPortal < 16`, the bot transitions back to strict Proofgraph following.
+
+---
+
+## 9. Preventing Churn and Oscillation
+- **Stagnation Tracker**: The bot tracks its position every 60 ticks. If `DistanceMoved < 64` units over 2 seconds, it increments a `StuckCounter`.
+- **Anti-Oscillation**: The planner records the last 3 executed macros. If it detects `[JumpRight] -> [MoveLeft] -> [JumpRight]`, it applies a massive score penalty to `JumpRight` in the next simulation ply, forcing the bot to select an alternative (like `DropThrough` or `RecoverUp`).
+- **Graceful Fallback**: If `StuckCounter > 3`, the bot abandons the exact target, sets a fallback target (e.g., spawn room portal), and clears its local cache. If it fails again, it drops to a `DefendIdle` state for 3 seconds to avoid spamming CPU.
+
+---
+
+## 10. Instrumentation and Metrics
+To prove this improves behavior without tanking FPS, the following metrics will be collected per-match:
+
+- `LocalPlan_CpuTime_AvgMs`: Average time spent simulating per tick (Target: < 0.5ms).
+- `Cache_Hit_Ratio`: % of local moves pulled from cache vs simulated.
+- `Stagnation_Events_Per_Minute`: Number of times the `StuckCounter` triggered (Measures churn reduction).
+- `OffRoute_Recovery_Time`: Time taken from grabbing dropped intel to successfully attaching to a proof route.
+- `Failed_Primitive_Ratio`: % of simulated actions that resulted in worse scores than the starting position.
+
+---
+
+## 11. Staged Implementation Plan (C#)
+
+### Phase 1: Engine Hooks & Sandbox
+- Isolate `PlayerEntity.Advance()` logic so it can be run headless.
+- Implement `SimulationProbe.RunSequence(entityClone, inputList)`.
+- **Validation**: Hardcode a single bot to simulate 30 ticks of walking right, verify the predicted end position perfectly matches reality 30 ticks later.
+
+### Phase 2: Primitive Evaluation (No Cache)
+- Implement `MacroAction` definitions (Run, Jump, Drop).
+- Implement `EvaluateState` scoring function.
+- Hook up `LocalMotionPlanner` to the bot tick loop, selecting the best action via brute force (1-ply).
+- **Validation**: Place a bot on a platform with intel on a lower platform. Ensure it evaluates `DropThrough` as the highest score and successfully drops.
+
+### Phase 3: Budgeting & Caching
+- Implement `PlanningManager` to limit max planners per tick.
+- Implement spatial hashing and `ActionCache`.
+- **Validation**: Run 16 bots. Observe CPU profiler; ensure planning time never exceeds `0.5ms` per frame. Ensure Cache Hit Ratio climbs as bots traverse the same areas.
+
+### Phase 4: Anti-Churn & Off-Route Hooks
+- Add the `StagnationTracker` and history-based penalties.
+- Modify `TargetSelector.cs` to feed dynamic coordinates (dropped intel) to the Local Planner.
+- Modify `NavPath.cs` to expose `GetNearestPortal()` for the scoring function.
+- **Validation**: Test on Truefort CTF. Drop intel off a stairwell. Ensure bot jumps off stairs, grabs intel, and climbs back up without getting stuck in a jump-loop.
+
+---
+
+## 12. Pseudocode
+
+```csharp
+public class LocalMotionPlanner
+{
+    private MacroAction _currentAction;
+    private int _actionTicksRemaining;
+    private Queue<MacroActionHistory> _history;
+
+    public PlayerInputSnapshot Tick(PlayerEntity bot, Vector2 target, NavContext context)
+    {
+        // 1. Continue executing current macro if valid
+        if (_actionTicksRemaining > 0 && IsStateSafe(bot))
+        {
+            _actionTicksRemaining--;
+            return _currentAction.GetNextInput();
+        }
+
+        // 2. Budget Check
+        if (!PlanningManager.RequestBudget(bot.Id))
+        {
+            return new PlayerInputSnapshot(); // Idle/Same-surface drive until budget allows
+        }
+
+        // 3. Cache Check
+        var stateHash = ComputeHash(bot.Position, target);
+        if (ActionCache.TryGet(stateHash, out var cachedAction))
+        {
+            BeginAction(cachedAction);
+            return _currentAction.GetNextInput();
+        }
+
+        // 4. Simulate & Score
+        MacroAction bestAction = null;
+        float bestScore = float.MinValue;
+
+        foreach (var actionTemp in GetCandidateActions(bot.Class))
+        {
+            // Apply oscillation penalties
+            float penalty = CalculateOscillationPenalty(actionTemp, _history);
+            
+            SimulationState endState = SimulationProbe.Simulate(bot, actionTemp);
+            float score = EvaluateState(endState, target, context) - penalty;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestAction = actionTemp;
+            }
+        }
+
+        // 5. Execute & Cache
+        if (bestAction != null && bestScore > EvaluateState(bot.CurrentState, target, context))
+        {
+            ActionCache.Store(stateHash, bestAction);
+            BeginAction(bestAction);
+            return _currentAction.GetNextInput();
+        }
+        else
+        {
+            HandleStuckState();
+            return new PlayerInputSnapshot(); // Fallback
+        }
+    }
+}
+```

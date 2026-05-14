@@ -1,0 +1,626 @@
+Below is a concrete shippable design for a lightweight direct-drive/local motion planner that augments OpenGarrison’s existing proofgraph/tape/nav stack without doing unbounded runtime search.
+
+## 1. Controller architecture
+
+Add a per-bot `LocalMotionPlanner` between objective/global routing and final `PlayerInputSnapshot` emission:
+
+```text
+ObjectiveSelector
+  -> TargetResolver              // intel, carrier, route portal, capture zone, etc.
+  -> GlobalRoute/ProofRoute      // sparse high-confidence path when available
+  -> SteeringMachine             // current NavPath -> SteeringOutput
+  -> LocalMotionPlanner          // overrides/bridges small gaps only
+  -> Combat/Aim overlays
+  -> PlayerInputSnapshot
+```
+
+Proposed C# components:
+
+```csharp
+public sealed class LocalMotionPlanner
+{
+    private LocalPlanState _state;
+    private LocalPlannerCache _cache;
+
+    public LocalPlannerResult Update(
+        PlayerEntity self,
+        SimulationWorld world,
+        PlayerTeam team,
+        LocalMotionTarget target,
+        SteeringOutput globalSteering,
+        LocalPlannerContext context);
+}
+
+public readonly record struct LocalMotionTarget(
+    LocalTargetKind Kind,
+    float X,
+    float Y,
+    int? TargetEntityId,
+    int? TargetSurfaceId,
+    int? TargetRouteNodeId,
+    string Label,
+    float AcceptanceRadius,
+    bool IsDynamic);
+
+public enum LocalTargetKind
+{
+    ExactPoint,
+    DroppedEnemyIntel,
+    DroppedOwnIntel,
+    EnemyIntelRoom,
+    OwnBaseReturn,
+    EnemyCarrier,
+    FriendlyCarrier,
+    ProofRoutePortal,
+    LaneEntry,
+    RecoverySurface
+}
+
+public readonly record struct LocalPlannerResult(
+    bool Resolved,
+    SteeringOutput Steering,
+    LocalPlannerMode Mode,
+    string Trace);
+```
+
+Keep `PrimitiveDirectDrive` as the cheapest layer, but add a higher-confidence receding-horizon macro planner when simple direct drive is not enough.
+
+Confidence order:
+
+```text
+1. Continue committed proven/cached primitive
+2. Same-surface direct drive / existing PrimitiveDirectDrive
+3. Cache hit for local macro primitive
+4. Tiny bounded local probe, only on planning frames
+5. Attach to nearest proofgraph/lane portal/global route
+6. Idle/defend/fallback objective
+```
+
+## 2. Algorithm in detail
+
+The planner is receding-horizon and commitment-based:
+
+- Do not plan every tick.
+- Choose a short macro action every `PlanIntervalTicks`, e.g. every 6–10 ticks.
+- Execute selected macro for `CommitTicks`, e.g. 8–20 ticks, unless clearly invalidated.
+- Simulate only a tiny fixed number of candidate macros.
+- Use real `PlayerEntity.Advance(...)` on cloned/lightweight probe state.
+- Score final/intermediate states for progress toward target surface/route/point.
+
+High-level update:
+
+```csharp
+LocalPlannerResult Update(...)
+{
+    var stable = ResolveStableState(self, world.Level); // surface id, grounded, bucket x/y, speed bucket
+    var abstractTarget = AbstractTarget(target, context); // target surface/lane/portal if possible
+
+    if (CurrentMacroStillValid(self, target, context))
+        return ExecuteCurrentMacro(globalSteering);
+
+    if (CanUseSameSurfaceDirectDrive(stable, abstractTarget, self, target))
+        return UsePrimitiveDirectDriveOrWalk(self, world, target, globalSteering);
+
+    var key = LocalCacheKey.From(world.Level, self, team, stable, abstractTarget);
+    if (_cache.TryGetGood(key, out var cached) && !RecentlyFailed(cached))
+        return Commit(cached, LocalPlannerMode.CachedPrimitive);
+
+    if (!ShouldPlanThisTick(world.Frame) || !Budget.TryEnter(botSlot))
+        return ConservativeFallback(globalSteering, self, target);
+
+    var best = ProbeCandidates(self, world, team, abstractTarget, globalSteering, key);
+    if (best.IsUsable)
+    {
+        _cache.StoreSuccessCandidate(key, best.Primitive);
+        return Commit(best.Primitive, LocalPlannerMode.BoundedProbe);
+    }
+
+    _cache.StoreFailure(key, stable, abstractTarget);
+    return AttachToNearestRouteOrFallback(self, world, team, target, context, globalSteering);
+}
+```
+
+Same-surface decision:
+
+```csharp
+bool CanUseSameSurfaceDirectDrive(StableState s, AbstractTarget t, PlayerEntity self, LocalMotionTarget raw)
+{
+    if (!self.IsGrounded) return false;
+    if (s.SurfaceId < 0) return false;
+    if (t.SurfaceId != s.SurfaceId) return false;
+    if (MathF.Abs(raw.Y - self.Y) > 24f) return false;
+    if (IsBlockedByWallOrGateBetween(self.X, raw.X, s.SurfaceId)) return false;
+    return true;
+}
+```
+
+The bounded probe never expands a tree. It evaluates independent macro candidates:
+
+```csharp
+ProbeResult ProbeCandidates(...)
+{
+    Span<LocalPrimitive> candidates = stackalloc LocalPrimitive[MaxCandidates];
+    var count = CandidateLibrary.Fill(candidates, self, target, context);
+
+    ProbeResult best = default;
+    for (int i = 0; i < count && Budget.HasProbeTicks(); i++)
+    {
+        if (FailureMemory.Suppress(candidates[i], key))
+            continue;
+
+        var result = SimulatePrimitive(self, world.Level, team, candidates[i]);
+        var score = Score(result, self, target, context);
+
+        if (score > best.Score)
+            best = new ProbeResult(candidates[i], result, score);
+    }
+
+    return best.Score >= MinimumAcceptScore ? best : ProbeResult.None;
+}
+```
+
+## 3. Runtime budget model
+
+Recommended hard limits:
+
+```csharp
+public sealed class LocalPlannerBudget
+{
+    public const int PlanIntervalTicks = 8;
+    public const int MaxCandidatesPerPlan = 10;
+    public const int MaxSimTicksPerCandidate = 24; // usually 12-24
+    public const int MaxAdvanceCallsPerPlan = 160; // per bot planning frame
+    public const double MaxMillisPerBotPlan = 0.25;
+    public const double MaxMillisAllBotsPerFrame = 1.0;
+}
+```
+
+Amortized complexity:
+
+```text
+Per normal tick per bot: O(1)
+Per planning tick per bot: O(C * H)
+C = 6..10 macro candidates
+H = 12..24 simulated physics ticks
+Worst per plan: ~60..240 Advance calls, capped by budget
+Amortized at interval 8: ~8..30 Advance calls/tick/bot, often 0 via cache/direct drive
+```
+
+For live matches, add a global token bucket:
+
+```csharp
+// Refilled each frame.
+GlobalLocalPlannerBudget.AdvanceCallTokens = 400;
+GlobalLocalPlannerBudget.ElapsedStopwatchBudget = 1.0 ms;
+```
+
+If exhausted, bots skip probing and use cached/direct/global fallback.
+
+## 4. Candidate primitive/action set
+
+Keep candidates small and hand-designed:
+
+```csharp
+public readonly record struct LocalPrimitive(
+    LocalPrimitiveKind Kind,
+    int Direction,       // -1, 0, +1
+    int DurationTicks,
+    int JumpTick,        // -1 for no jump
+    int DropTick,        // -1 for no drop
+    int ReleaseMoveTick, // optional air correction
+    string Label);
+
+public enum LocalPrimitiveKind
+{
+    Walk,
+    ShortHop,
+    FullJump,
+    RunupJump,
+    AirCorrect,
+    DropThrough,
+    StopAndFall,
+    ReverseUnstick,
+    RouteAttachWalk
+}
+```
+
+Candidate library by context:
+
+- Same/lower target: `Walk`, `DropThrough`, `StopAndFall`.
+- Slightly above / obstacle ahead: `ShortHop`, `FullJump`.
+- Higher platform / gap: `RunupJump` with jump at tick 3/6/10.
+- Airborne: `AirCorrect left/right`, `Hold direction`, maybe one air jump if class supports it.
+- Stuck: `ReverseUnstick`, `JumpReverse`, then suppress repeated failed forward jump.
+
+Example generation:
+
+```csharp
+int Fill(Span<LocalPrimitive> dst, PlayerEntity self, AbstractTarget target)
+{
+    int dir = Math.Sign(target.X - self.X);
+    int n = 0;
+
+    dst[n++] = Walk(dir, 16);
+    dst[n++] = Walk(dir, 24);
+
+    if (self.IsGrounded)
+    {
+        dst[n++] = Jump(dir, duration: 20, jumpTick: 0, "jumpNow");
+        dst[n++] = Jump(dir, duration: 24, jumpTick: 4, "runupJump4");
+        dst[n++] = Jump(dir, duration: 28, jumpTick: 8, "runupJump8");
+
+        if (target.IsBelow)
+            dst[n++] = Drop(dir, duration: 18, dropTick: 0);
+    }
+    else
+    {
+        dst[n++] = AirCorrect(dir, 16);
+        dst[n++] = AirCorrect(-dir, 10); // emergency brake / avoid overshoot
+        if (self.RemainingAirJumps > 0 && target.IsAbove)
+            dst[n++] = Jump(dir, 18, jumpTick: 0, "airJump");
+    }
+
+    if (Stagnant)
+        dst[n++] = ReverseUnstick(-dir, 12);
+
+    return n;
+}
+```
+
+## 5. Scoring function
+
+Score should prefer stable progress, not raw Euclidean closeness only.
+
+```csharp
+float ScoreProbe(ProbeSimResult r, PlayerEntity start, LocalMotionTarget target, LocalPlannerContext ctx)
+{
+    var startMetric = DistanceMetric(start.X, start.Y, start.SurfaceId, target, ctx);
+    var endMetric = DistanceMetric(r.EndX, r.EndY, r.EndSurfaceId, target, ctx);
+    var progress = startMetric - endMetric;
+
+    float score = 0;
+    score += progress * 10f;
+    score += r.ReachesAcceptance ? 5000f : 0f;
+    score += r.EndSurfaceId == target.TargetSurfaceId ? 800f : 0f;
+    score += ctx.ProofGraph.IsNearVerifiedRoute(r.EndX, r.EndY) ? 500f : 0f;
+    score += r.EndGrounded ? 120f : 0f;
+    score += r.MinDistanceImprovement * 3f;
+
+    score -= r.CollidedHard ? 300f : 0f;
+    score -= r.EndsInSpawnGateOrBlocked ? 2000f : 0f;
+    score -= r.FellMuchLowerWithoutTarget ? 600f : 0f;
+    score -= r.UsedJump ? 25f : 0f;
+    score -= r.DurationTicks * 2f;
+    score -= FailureMemory.RecentPenalty(r.Primitive, ctx.Key);
+    score -= OscillationPenalty(r.EndX, r.EndY);
+
+    return score;
+}
+```
+
+Distance metric should use surfaces/lane abstraction:
+
+```csharp
+float DistanceMetric(float x, float y, int surfaceId, LocalMotionTarget t, LocalPlannerContext ctx)
+{
+    if (t.TargetSurfaceId.HasValue && surfaceId == t.TargetSurfaceId.Value)
+        return MathF.Abs(x - t.X) + MathF.Abs(y - t.Y) * 0.5f;
+
+    if (ctx.SurfaceGraph.TryGetSurfaceDistance(surfaceId, t.TargetSurfaceId, out var d))
+        return d + LocalOffsetCost(x, y, t.X, t.Y);
+
+    // Fallback: vertical is expensive in platformers.
+    var dx = x - t.X;
+    var dy = y - t.Y;
+    return MathF.Abs(dx) + MathF.Abs(dy) * 3f;
+}
+```
+
+Important: require a minimum improvement threshold, e.g. `progress >= 12 px` or route-attachment improvement. This prevents churning on meaningless changes.
+
+## 6. Caching strategy
+
+Cache by abstract movement situation, not exact coordinates:
+
+```csharp
+public readonly record struct LocalPlannerCacheKey(
+    string MapName,
+    int MapAreaIndex,
+    PlayerClass ClassId,
+    PlayerTeam Team,
+    bool CarryingIntel,
+    int StartSurfaceId,
+    int TargetSurfaceId,
+    short StartXBucket,
+    short StartYBucket,
+    short TargetXBucket,
+    short TargetYBucket,
+    sbyte HorizontalSpeedBucket,
+    sbyte VerticalSpeedBucket,
+    LocalTargetKind TargetKind);
+```
+
+Bucket sizes:
+
+```text
+X bucket: 32 or 48 px
+Y bucket: 24 or 32 px
+Speed bucket: stopped / slow-left / fast-left / slow-right / fast-right / falling / rising
+```
+
+Cache value:
+
+```csharp
+public sealed class LocalPlannerCacheEntry
+{
+    public LocalPrimitive Primitive;
+    public float ExpectedScore;
+    public int SuccessCount;
+    public int FailureCount;
+    public long LastUsedFrame;
+    public int CooldownUntilFrame;
+    public int EndSurfaceId;
+    public float ExpectedProgress;
+}
+```
+
+Policies:
+
+- Positive cache used immediately if failure ratio is acceptable.
+- Negative cache suppresses same primitive/key for 1–5 seconds.
+- Decay entries per map or use LRU cap, e.g. 4096 entries/map.
+- Separate cache for carrying intel, class, team because gates/class movement matter.
+- Store only macro primitives, not full physics tapes.
+
+## 7. Integration with sparse proofgraph/global routes
+
+The local planner should not replace proofgraph routes. It should attach to them.
+
+Add target abstraction layer:
+
+```csharp
+public sealed class LocalTargetResolver
+{
+    public LocalMotionTarget ResolveDynamicObjective(...)
+    {
+        // dropped intel -> exact point + nearest stable surface + nearest proof route portal
+        // carrier -> predicted short-horizon point + nearest lane entry
+        // off-route recovery -> nearest verified route/lane portal, not nearest raw node only
+    }
+}
+```
+
+For each dynamic target, compute:
+
+- exact position,
+- nearest stable surface under/near target,
+- nearest verified proofgraph portal/lane entry,
+- nearest reachable global node as fallback,
+- confidence score.
+
+Use local planner when:
+
+```text
+- target is within local radius, e.g. 500 px x / 250 px y, or
+- bot is near a proof route but not on it, or
+- dropped intel/carrier is near current lane, or
+- global path reports no progress/stuck.
+```
+
+Use global/proof route when:
+
+```text
+- target is far away,
+- local attempts fail repeatedly,
+- local target is on a different lane with no cheap connector,
+- proof route can already carry bot reliably.
+```
+
+Attach behavior:
+
+```csharp
+if (LocalPlanner.CanReach(targetExact))
+    seek exact target;
+else if (LocalPlanner.CanReach(nearestProofPortal))
+    seek portal and resume proof route;
+else
+    request global route to lane entry/proof portal;
+```
+
+For CTF lanes, represent lane portals/connectors as sparse authored/proven points:
+
+```csharp
+public readonly record struct LanePortal(
+    int Id,
+    LaneKind Lane,
+    int SurfaceId,
+    float X,
+    float Y,
+    int ProofNodeId,
+    PortalKind Kind);
+```
+
+## 8. Prevent churn, oscillation, and repeated failed jumps
+
+Use four mechanisms:
+
+### A. Macro commitment
+
+Once a primitive is chosen, execute for `MinCommitTicks` unless:
+
+- target picked up/disappeared,
+- bot dies/respawns,
+- severe hazard/gate invalidates,
+- primitive reaches acceptance early,
+- bot is clearly stuck for a window.
+
+### B. Progress windows
+
+Track progress over rolling windows:
+
+```csharp
+public sealed class LocalProgressWindow
+{
+    public float BestMetric;
+    public int NoProgressTicks;
+    public int StagnantWindows;
+    public Vector2 LastWindowStart;
+}
+```
+
+If no improvement for 30–60 ticks, escalate confidence layer: direct drive -> probe -> route attach -> fallback.
+
+### C. Failure memory
+
+```csharp
+public readonly record struct FailedPrimitiveKey(
+    LocalPlannerCacheKey Situation,
+    LocalPrimitiveKind Kind,
+    int Direction,
+    int JumpTick);
+```
+
+Suppress repeated failed jumps/drop attempts for cooldown ticks. Increase cooldown exponentially:
+
+```text
+1st fail: 45 ticks
+2nd fail: 120 ticks
+3rd fail: 300 ticks and force reroute/defend fallback
+```
+
+### D. Hysteresis
+
+Do not switch targets/lanes unless new target score exceeds current by margin:
+
+```csharp
+if (newTargetPriority < currentTargetPriority + HysteresisMargin && currentStillValid)
+    keep current target;
+```
+
+Also avoid left/right twitch:
+
+- minimum direction commit 6–10 ticks,
+- penalize ending near recent positions,
+- penalize primitive with opposite direction unless stuck.
+
+## 9. Instrumentation and proving improvement
+
+Add per-bot and aggregate metrics:
+
+```csharp
+public sealed class LocalPlannerMetrics
+{
+    public int PlanCalls;
+    public int ProbeCalls;
+    public int ProbeCandidatesSimulated;
+    public int PhysicsAdvanceCalls;
+    public double CpuMilliseconds;
+    public int CacheHits;
+    public int CacheMisses;
+    public int CacheSuppressedFailures;
+
+    public int SameSurfaceDirectDriveTicks;
+    public int CachedPrimitiveTicks;
+    public int BoundedProbeTicks;
+    public int RouteAttachTicks;
+    public int FallbackTicks;
+
+    public int StagnantWindows;
+    public int RepeatedJumpSuppressions;
+    public int FailedPrimitiveCount;
+    public int SuccessfulAttachCount;
+    public int DroppedIntelSeekTicks;
+    public int DroppedIntelPickupCount;
+    public int OwnIntelReturnCount;
+}
+```
+
+Evidence to collect:
+
+- `scoreTick`, pickup tick, capture tick.
+- dropped-intel pickup/return success rate.
+- off-route -> proof route attach success rate.
+- stagnant windows per minute.
+- repeated jump count.
+- failed primitive count.
+- CPU time per bot and aggregate per frame.
+- cache hit rate.
+- proofgraph canary score regression.
+
+Evaluation matrix:
+
+```text
+Maps: Waterway, Truefort, TwoDFortTwo, Conflict
+Classes: Pyro, Soldier, Heavy, Scout
+Bot counts: 1v1, 4v4, 8v8 if supported
+Scenarios:
+  - normal proofgraph scoring baseline
+  - dropped enemy intel off-route
+  - own dropped intel return
+  - carrier escort/intercept
+  - forced off-route spawn/recovery positions
+```
+
+Acceptance gates:
+
+```text
+- no significant FPS regression; local planner under budget at p95/p99
+- Conflict proofgraph scoring unchanged or improved
+- Waterway lane behavior remains stable
+- Truefort dropped intel pickup/attach rate improves
+- TwoDFortTwo oscillation/stagnation metrics improve
+- repeated failed jump suppression observable in diagnostics
+```
+
+## 10. Staged implementation plan
+
+### Stage 1: Data and diagnostics only
+
+- Add `LocalMotionTarget`, `LocalPlannerMetrics`, `LocalPlannerTrace`.
+- Add target abstraction for dropped intel, carrier, lane/proof portal.
+- Add instrumentation fields to bot diagnostics/runtime snapshot.
+- No behavior change yet.
+
+### Stage 2: Same-surface direct drive gate
+
+- Wrap current `PrimitiveDirectDrive` behind `LocalMotionPlanner`.
+- Add stable surface detection and same-surface checks.
+- Add commitment/hysteresis around direct drive.
+- Prove no FPS regression.
+
+### Stage 3: Cache and failure memory
+
+- Add per-map/class/team/carrying local cache.
+- Add failed primitive suppression.
+- Add stagnant-window escalation.
+- Still no physics probing except maybe debug-disabled.
+
+### Stage 4: Bounded macro probing
+
+- Implement tiny candidate library.
+- Implement clone/probe simulation using `PlayerEntity.Advance(...)` with strict candidate/tick/time caps.
+- Probe only every 6–10 ticks and only when direct/global confidence is low.
+- Store successful/failed candidates.
+
+### Stage 5: Proofgraph/lane attach integration
+
+- Build nearest lane/proof portal resolver.
+- If exact dynamic target is not locally reachable, locally seek nearest verified route portal.
+- Resume proof route after attachment.
+
+### Stage 6: Offline-assisted refinements
+
+- Use TraversalLab/MotionProof tools to precompute stable surfaces/lane portals/connectors.
+- Optionally seed local cache with known good primitives for common map/class/lane cases.
+- Do not require exhaustive proofgraphs.
+
+## Key risks and mitigations
+
+- **Risk: physics probing freezes game.** Mitigation: fixed candidates, fixed horizon, global token bucket, stopwatch abort, cache-first.
+- **Risk: planner chooses flashy jumps over walking.** Mitigation: score jump/duration penalties and same-surface direct-drive priority.
+- **Risk: repeated failed platform jumps.** Mitigation: failure memory, exponential cooldown, route-attach fallback.
+- **Risk: target churn for moving carriers/intel events.** Mitigation: target hysteresis and bucketed dynamic target updates.
+- **Risk: cache generalizes incorrectly.** Mitigation: include class/team/carrying/surface/speed buckets; track failure ratios; decay/LRU.
+- **Risk: proofgraph regression.** Mitigation: local planner only overrides when near/dynamic/stuck; canary metrics on Conflict and existing scoring routes.
+
+This design keeps runtime behavior cheap and deterministic: most ticks execute an already chosen macro or the existing steering, while occasional bounded probes bridge the exact off-route gaps that exhaustive MotionProof assets cannot practically cover.
