@@ -35,6 +35,12 @@ public partial class Game1
             _startupSplashOpen = false;
             _mainMenuOpen = true;
             StopFaucetMusic();
+
+            // Initialize animated menu background if enabled
+            if (_menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                _animatedMenuBackgroundController.Initialize(_menuBackgroundMode);
+            }
         }
     }
 

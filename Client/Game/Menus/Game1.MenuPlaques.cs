@@ -275,6 +275,10 @@ public partial class Game1
         if (drawBottomBarButton && layout.BottomBarBounds.HasValue && layout.BottomBarButtonBounds.HasValue)
         {
             _spriteBatch.Draw(_pixel, layout.BottomBarBounds.Value, new Color(0x57, 0x4f, 0x47));
+            
+            // Draw running character silhouettes on the bottom bar
+            _menuBottomBarRunners.Draw(layout.BottomBarBounds.Value);
+            
             DrawPlaqueMenuButton(_menuTextBoxSoloTexture, layout.BottomBarButtonBounds.Value, bottomBarLabel, bottomBarHovered, layout.Scale, textScaleMultiplier);
         }
     }

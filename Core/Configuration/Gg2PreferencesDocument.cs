@@ -41,6 +41,10 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public int ParticleMode { get; set; }
 
+    public int FlameRenderMode { get; set; }
+
+    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.Static;
+
     public int GibLevel { get; set; } = 3;
 
     public int CorpseDurationMode { get; set; }
@@ -117,6 +121,8 @@ public sealed class OpenGarrisonPreferencesDocument
             BotMode = ParseBotMode(ini.GetString(SettingsSection, "Bot Mode", OfflineBotControllerMode.BotBrain.ToString())),
             KillCamEnabled = ini.GetBool(SettingsSection, "Kill Cam", true),
             ParticleMode = ini.GetInt(SettingsSection, "Particles", 0),
+            FlameRenderMode = ini.GetInt(SettingsSection, "Flame Render Mode", 0),
+            MenuBackgroundMode = (MenuBackgroundMode)ini.GetInt(SettingsSection, "Menu Background Mode", 0),
             GibLevel = ini.GetInt(SettingsSection, "Gib Level", 3),
             CorpseDurationMode = ini.GetInt(SettingsSection, "Corpse Duration", 0),
             HealerRadarEnabled = ini.GetBool(SettingsSection, "Healer Radar", true),
@@ -165,6 +171,8 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetString(SettingsSection, "Bot Mode", NormalizeBotMode(BotMode).ToString());
         ini.SetInt(SettingsSection, "PlayerLimit", HostSettings.Slots);
         ini.SetInt(SettingsSection, "Particles", ParticleMode);
+        ini.SetInt(SettingsSection, "Flame Render Mode", FlameRenderMode);
+        ini.SetInt(SettingsSection, "Menu Background Mode", (int)MenuBackgroundMode);
         ini.SetInt(SettingsSection, "Gib Level", GibLevel);
         ini.SetInt(SettingsSection, "Corpse Duration", CorpseDurationMode);
         ini.SetBool(SettingsSection, "Kill Cam", KillCamEnabled);

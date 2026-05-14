@@ -127,6 +127,29 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    private void CycleMenuBackgroundModeSetting()
+    {
+        _menuBackgroundMode = _menuBackgroundMode switch
+        {
+            MenuBackgroundMode.Static => MenuBackgroundMode.DefaultMaps,
+            MenuBackgroundMode.DefaultMaps => MenuBackgroundMode.AllMaps,
+            MenuBackgroundMode.AllMaps => MenuBackgroundMode.Static,
+            _ => MenuBackgroundMode.Static
+        };
+
+        // Initialize or reset the animated background controller based on new mode
+        if (_menuBackgroundMode != MenuBackgroundMode.Static && _mainMenuOpen)
+        {
+            _animatedMenuBackgroundController.Initialize(_menuBackgroundMode);
+        }
+        else if (_menuBackgroundMode == MenuBackgroundMode.Static)
+        {
+            _animatedMenuBackgroundController.Reset();
+        }
+
+        PersistClientSettings();
+    }
+
     private void CycleGibLevelSetting()
     {
         _gibLevel = _gibLevel switch

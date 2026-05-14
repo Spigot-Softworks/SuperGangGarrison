@@ -133,6 +133,8 @@ public partial class Game1 : Game
     private readonly ClientPluginUiBridgeController _clientPluginUiBridgeController;
     private readonly ClientPluginMarkerController _clientPluginMarkerController;
     private readonly MenuController _menuController;
+    private readonly AnimatedMenuBackgroundController _animatedMenuBackgroundController;
+    private readonly MenuBottomBarRunners _menuBottomBarRunners;
     private readonly ConnectionFlowController _connectionFlowController;
     private readonly MainMenuOverlayController _mainMenuOverlayController;
     private readonly MainMenuOverlayStateController _mainMenuOverlayStateController;
@@ -165,6 +167,7 @@ public partial class Game1 : Game
     private readonly GameMakerAssetManifest _assetManifest;
     private SpriteBatch _spriteBatch = null!;
     private Texture2D _pixel = null!;
+    private Effect _grayscaleEffect = null!;
     private LoadedSpriteFrame? _menuBackgroundTexture;
     private string? _menuBackgroundTexturePath;
     private string? _menuBackgroundFailedPath;
@@ -236,6 +239,7 @@ public partial class Game1 : Game
     private IngameResolutionKind _ingameResolution = IngameResolutionKind.Aspect4x3;
     private int _particleMode;
     private int _flameRenderMode;
+    private MenuBackgroundMode _menuBackgroundMode = MenuBackgroundMode.Static;
     private int _gibLevel = 3;
     private int _corpseDurationMode;
     private int _frameRateLimit;
@@ -317,7 +321,9 @@ public partial class Game1 : Game
             _controlsMenuController,
             _inGameMenuController,
             _debugMenuController,
-            _gameplayOverlayController) = CreateShellControllerBundle(this);
+            _gameplayOverlayController,
+            _animatedMenuBackgroundController,
+            _menuBottomBarRunners) = CreateShellControllerBundle(this);
         (_clientSettings,
             _inputBindings,
             _lastToDieStats,
