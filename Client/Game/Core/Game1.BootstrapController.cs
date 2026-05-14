@@ -133,6 +133,7 @@ public partial class Game1
             _game._pixel.SetData(new[] { Color.White });
             _game._consoleFont = _game.LoadInitialSpriteFont("ConsoleFont");
             _game._menuFont = _game.LoadInitialSpriteFont("MenuFont");
+            _game._grayscaleEffect = _game.Content.Load<Effect>("Grayscale");
             StartDeferredContentBootstrap();
             if (!OperatingSystem.IsBrowser())
             {

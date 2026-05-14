@@ -3,6 +3,7 @@
   <resource name="MenuBackgroundVersionS" type="RESOURCE"/>
   <resource name="popupButtonS" type="RESOURCE"/>
   <resource name="FaucetLogoS" type="RESOURCE"/>
+  <resource name="OpenGarrisonLogoS" type="RESOURCE"/>
   <resource name="CreditsS" type="RESOURCE"/>
   <resource name="gg2FontS" type="RESOURCE"/>
   <resource name="timerFontS" type="RESOURCE"/>

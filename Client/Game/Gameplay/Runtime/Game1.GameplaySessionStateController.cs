@@ -27,6 +27,9 @@ public partial class Game1
             _game._teamSelectOpen = openJoinMenus;
             _game._menuStatusMessage = statusMessage ?? string.Empty;
             _game.InvalidateDiscordRichPresenceRefresh();
+
+            // Reset animated menu background when entering gameplay
+            _game._animatedMenuBackgroundController.Reset();
         }
 
         public void ResetToMainMenuState(string? statusMessage)
@@ -47,6 +50,12 @@ public partial class Game1
             _game._autoBalanceNoticeText = string.Empty;
             _game._autoBalanceNoticeTicks = 0;
             _game.InvalidateDiscordRichPresenceRefresh();
+
+            // Initialize animated menu background if enabled
+            if (_game._menuBackgroundMode != MenuBackgroundMode.Static)
+            {
+                _game._animatedMenuBackgroundController.Initialize(_game._menuBackgroundMode);
+            }
         }
 
         public void ResetActiveSessionState()

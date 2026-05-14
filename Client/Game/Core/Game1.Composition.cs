@@ -82,7 +82,9 @@ public partial class Game1
         ControlsMenuController ControlsMenuController,
         InGameMenuController InGameMenuController,
         DebugMenuController DebugMenuController,
-        GameplayOverlayController GameplayOverlayController)
+        GameplayOverlayController GameplayOverlayController,
+        AnimatedMenuBackgroundController AnimatedMenuBackgroundController,
+        MenuBottomBarRunners MenuBottomBarRunners)
         CreateShellControllerBundle(Game1 game)
     {
         return (
@@ -107,7 +109,9 @@ public partial class Game1
             new ControlsMenuController(game),
             new InGameMenuController(game),
             new DebugMenuController(game),
-            new GameplayOverlayController(game));
+            new GameplayOverlayController(game),
+            new AnimatedMenuBackgroundController(game),
+            new MenuBottomBarRunners(game));
     }
 
     private static (
