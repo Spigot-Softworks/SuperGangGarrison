@@ -340,7 +340,7 @@ public partial class Game1 : Game
         ReinitializeSimulationForTickRate(SimulationConfig.DefaultTicksPerSecond);
         _assetManifest = OperatingSystem.IsBrowser()
             ? ClientRuntimeBootstrap.GetBrowserRuntimeAssetManifest() ?? GameMakerAssetManifestImporter.ImportProjectAssets()
-            : GameMakerAssetManifestImporter.ImportProjectAssets();
+            : GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
         StartBrowserBootstrapAssetPreloadIfNeeded();
         ApplyLoadedSettings();
 

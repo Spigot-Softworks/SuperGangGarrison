@@ -1787,6 +1787,99 @@ public sealed class ServerAdminFoundationTests
         Assert.Fail("Server bot did not enter the client snapshot baseline.");
     }
 
+    [Fact]
+    public void SnapshotBroadcasterResendsStringCacheUpdatesAfterClientSlotStateIsCleared()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "TesterA",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
+        Assert.True(botManager.TryAddBot(2, PlayerTeam.Blue, PlayerClass.Soldier, "Soldier Bot"));
+        var sentSnapshots = new List<(SnapshotMessage Message, byte[] Payload)>();
+        var broadcaster = new SnapshotBroadcaster(
+            world,
+            new SimulationConfig(),
+            clients,
+            maxPlayableClients: 24,
+            botManager,
+            transientEventReplayTicks: 0,
+            new ServerMapMetadataResolver(world),
+            (_, message, payload) => sentSnapshots.Add((message, payload)));
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var firstSnapshot = Assert.Single(sentSnapshots).Message;
+        Assert.NotNull(firstSnapshot.StringCacheUpdates);
+        Assert.NotEmpty(firstSnapshot.StringCacheUpdates!);
+
+        broadcaster.RemoveClientState(client.Slot);
+        sentSnapshots.Clear();
+        clients[client.Slot] = new ClientSession(
+            client.Slot,
+            userId: 102,
+            new IPEndPoint(IPAddress.Loopback, 8191),
+            "TesterB",
+            TimeSpan.Zero);
+
+        world.AdvanceOneTick();
+        broadcaster.BroadcastSnapshot();
+
+        var secondSnapshot = Assert.Single(sentSnapshots).Message;
+        Assert.NotNull(secondSnapshot.StringCacheUpdates);
+        Assert.NotEmpty(secondSnapshot.StringCacheUpdates!);
+    }
+
+    [Fact]
+    public void ServerSessionManagerInvokesSlotChangeCallbackWhenMovingClient()
+    {
+        var world = new SimulationWorld();
+        var client = new ClientSession(
+            SimulationWorld.FirstSpectatorSlot,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Tester",
+            TimeSpan.Zero);
+        var clients = new Dictionary<byte, ClientSession>
+        {
+            [client.Slot] = client,
+        };
+        var slotChanges = new List<(byte OldSlot, byte NewSlot)>();
+        var sessionManager = new ServerSessionManager(
+            world,
+            clients,
+            maxPlayableClients: 24,
+            maxTotalClients: 32,
+            maxSpectatorClients: 8,
+            nowProvider: () => TimeSpan.Zero,
+            serverPassword: null,
+            passwordRequired: false,
+            clientTimeoutSeconds: 20,
+            passwordTimeoutSeconds: 20,
+            passwordRetrySeconds: 5,
+            getPasswordRateLimitReason: static _ => null,
+            recordPasswordFailure: static _ => { },
+            clearPasswordFailures: static _ => { },
+            sendMessage: static (_, _) => { },
+            log: static _ => { },
+            isPlayableSlotAvailable: static _ => true,
+            clientSlotChanged: (oldSlot, newSlot) => slotChanges.Add((oldSlot, newSlot)));
+
+        Assert.True(sessionManager.TrySetClientTeam(client.Slot, PlayerTeam.Red));
+        var slotChange = Assert.Single(slotChanges);
+        Assert.Equal(SimulationWorld.FirstSpectatorSlot, slotChange.OldSlot);
+        Assert.Equal(client.Slot, slotChange.NewSlot);
+        Assert.Contains(slotChange.NewSlot, SimulationWorld.NetworkPlayerSlots);
+    }
+
     private static string TrimExpectedPlayerDisplayName(string displayName)
     {
         return displayName.Length <= 20 ? displayName : displayName[..20];

@@ -136,7 +136,7 @@ public static class SimpleLevelFactory
         }
 
         var entries = new List<LevelCatalogEntry>();
-        foreach (var definition in OpenGarrisonStockMapCatalog.Definitions)
+        foreach (var definition in OpenGarrisonStockMapCatalog.SourceDefinitions)
         {
             var stockMapSource = FindStockMapSource(definition);
             if (stockMapSource.RoomSourcePath is null)

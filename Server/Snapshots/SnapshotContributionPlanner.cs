@@ -18,10 +18,12 @@ internal static class SnapshotContributionPlanner
     private const int SnapshotPlayerFixedBytes = 220;
     private const int SnapshotPlayerMovementBytes = 37;
     private const int SnapshotPlayerStatusBytes = 20;
+    private const int SnapshotPlayerExtendedStatusBytes = 26;
     private const int SnapshotPlayerChatBubbleBytes = 10;
     private const int ProjectileSnapshotUpdateIntervalTicks = 1;
     private const int CosmeticEntityUpdateIntervalTicks = 8;
     private const float MaxEventDistanceFromFocus = 1200f;
+    private const int LowFrequencyPlayerDetailRefreshIntervalTicks = 30;
 
     public static List<SnapshotDeltaBudgeter.Contribution> BuildContributions(
         ClientSession client,
@@ -39,7 +41,8 @@ internal static class SnapshotContributionPlanner
             baseline?.Players ?? Array.Empty<SnapshotPlayerState>(),
             PlayerUpdatePriority,
             client.Slot,
-            focus);
+            focus,
+            frame);
 
         AddSentryDelta(
             contributions,
@@ -303,7 +306,8 @@ internal static class SnapshotContributionPlanner
         IReadOnlyList<SnapshotPlayerState> baselinePlayers,
         int priority,
         byte viewerSlot,
-        (float X, float Y) focus)
+        (float X, float Y) focus,
+        long frame)
     {
         var currentBySlot = new Dictionary<int, SnapshotPlayerState>(currentPlayers.Count);
         for (var index = 0; index < currentPlayers.Count; index += 1)
@@ -381,15 +385,34 @@ internal static class SnapshotContributionPlanner
                     movementKind));
             }
 
-            if (player.Slot == viewerSlot && HasPlayerStatusChanged(player, baselinePlayer!))
+            if (HasPlayerStatusChanged(player, baselinePlayer!))
             {
                 var statusState = ToPlayerStatusState(player);
+                var statusPriority = player.Slot == viewerSlot
+                    ? playerPriority + LocalPlayerStatusPriorityBonus
+                    : playerPriority - 50;
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
-                    playerPriority + LocalPlayerStatusPriorityBonus,
+                    statusPriority,
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
                     SnapshotPlayerStatusBytes,
                     builder => builder.PlayerStatusStates.Add(statusState),
-                    SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate));
+                    player.Slot == viewerSlot
+                        ? SnapshotDeltaBudgeter.ContributionKind.LocalPlayerStatusUpdate
+                        : SnapshotDeltaBudgeter.ContributionKind.Optional));
+            }
+
+            if (HasPlayerExtendedStatusChanged(player, baselinePlayer!))
+            {
+                var extendedStatusState = ToPlayerExtendedStatusState(player);
+                var extendedStatusPriority = player.Slot == viewerSlot
+                    ? playerPriority + LocalPlayerStatusPriorityBonus - 20
+                    : playerPriority - 25;
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    extendedStatusPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    SnapshotPlayerExtendedStatusBytes,
+                    builder => builder.PlayerExtendedStatusStates.Add(extendedStatusState),
+                    SnapshotDeltaBudgeter.ContributionKind.PlayerExtendedStatusUpdate));
             }
 
             if (HasPlayerChatBubbleChanged(player, baselinePlayer!))
@@ -404,13 +427,22 @@ internal static class SnapshotContributionPlanner
                     SnapshotDeltaBudgeter.ContributionKind.PlayerChatBubbleUpdate));
             }
 
-            if (HasPlayerNonMovementDetailChanged(player, baselinePlayer!))
+            if (HasPlayerImmediateDetailChanged(player, baselinePlayer!))
             {
                 var detailPriority = player.Slot == viewerSlot
                     ? PlayerDetailUpdatePriority + 50
                     : PlayerDetailUpdatePriority;
                 contributions.Add(new SnapshotDeltaBudgeter.Contribution(
                     detailPriority,
+                    DistanceSquared(focus.X, focus.Y, player.X, player.Y),
+                    EstimatePlayerBytes(player),
+                    builder => builder.Players.Add(player)));
+            }
+            else if (HasPlayerLowFrequencyDetailChanged(player, baselinePlayer!)
+                && ShouldSendLowFrequencyPlayerDetail(frame, player.Slot))
+            {
+                contributions.Add(new SnapshotDeltaBudgeter.Contribution(
+                    PlayerDetailUpdatePriority - 120,
                     DistanceSquared(focus.X, focus.Y, player.X, player.Y),
                     EstimatePlayerBytes(player),
                     builder => builder.Players.Add(player)));
@@ -465,6 +497,35 @@ internal static class SnapshotContributionPlanner
             player.ChatBubbleAlpha);
     }
 
+    private static SnapshotPlayerExtendedStatusState ToPlayerExtendedStatusState(SnapshotPlayerState player)
+    {
+        return new SnapshotPlayerExtendedStatusState(
+            player.Slot,
+            player.IsSpyCloaked,
+            player.SpyCloakAlpha,
+            player.IsSpySuperjumping,
+            player.SpySuperjumpHorizontalVelocity,
+            player.SpySuperjumpCooldownTicksRemaining,
+            player.SpyBackstabVisualTicksRemaining,
+            player.IsUbered,
+            player.IsKritzCritBoosted,
+            player.IsHeavyEating,
+            player.HeavyEatTicksRemaining,
+            player.IsSniperScoped,
+            player.SniperChargeTicks,
+            player.MedicNeedleCooldownTicks,
+            player.MedicNeedleRefillTicks,
+            player.PyroAirblastCooldownTicks,
+            player.PyroFlareCooldownTicks,
+            player.PyroPrimaryFuelScaled,
+            player.IsPyroPrimaryRefilling,
+            player.PyroFlameLoopTicksRemaining,
+            player.PyroPrimaryRequiresReleaseAfterEmpty,
+            player.HeavyEatCooldownTicksRemaining,
+            player.MedicUberCharge,
+            player.IsMedicUberReady);
+    }
+
     private static bool HasPlayerMovementChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
     {
         return player.X != baselinePlayer.X
@@ -488,9 +549,17 @@ internal static class SnapshotContributionPlanner
             || player.OffhandReloadTicks != baselinePlayer.OffhandReloadTicks;
     }
 
-    private static bool HasPlayerNonMovementDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    private static bool HasPlayerImmediateDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
     {
-        var playerWithBaselineMovement = player with
+        var normalizedPlayer = NormalizePlayerForImmediateDetailComparison(player, baselinePlayer);
+        return !EqualityComparer<SnapshotPlayerState>.Default.Equals(normalizedPlayer, baselinePlayer);
+    }
+
+    private static SnapshotPlayerState NormalizePlayerForImmediateDetailComparison(
+        SnapshotPlayerState player,
+        SnapshotPlayerState baselinePlayer)
+    {
+        return player with
         {
             X = baselinePlayer.X,
             Y = baselinePlayer.Y,
@@ -511,9 +580,125 @@ internal static class SnapshotContributionPlanner
             ReloadTicksUntilNextShell = baselinePlayer.ReloadTicksUntilNextShell,
             OffhandCooldownTicks = baselinePlayer.OffhandCooldownTicks,
             OffhandReloadTicks = baselinePlayer.OffhandReloadTicks,
+            Health = baselinePlayer.Health,
+            MaxHealth = baselinePlayer.MaxHealth,
+            Ammo = baselinePlayer.Ammo,
+            MaxAmmo = baselinePlayer.MaxAmmo,
+            Metal = baselinePlayer.Metal,
+            IsCarryingIntel = baselinePlayer.IsCarryingIntel,
+            IntelRechargeTicks = baselinePlayer.IntelRechargeTicks,
+            IsSpyCloaked = baselinePlayer.IsSpyCloaked,
+            SpyCloakAlpha = baselinePlayer.SpyCloakAlpha,
+            IsSpySuperjumping = baselinePlayer.IsSpySuperjumping,
+            SpySuperjumpHorizontalVelocity = baselinePlayer.SpySuperjumpHorizontalVelocity,
+            SpySuperjumpCooldownTicksRemaining = baselinePlayer.SpySuperjumpCooldownTicksRemaining,
+            SpyBackstabVisualTicksRemaining = baselinePlayer.SpyBackstabVisualTicksRemaining,
+            IsUbered = baselinePlayer.IsUbered,
+            IsKritzCritBoosted = baselinePlayer.IsKritzCritBoosted,
+            IsHeavyEating = baselinePlayer.IsHeavyEating,
+            HeavyEatTicksRemaining = baselinePlayer.HeavyEatTicksRemaining,
+            IsSniperScoped = baselinePlayer.IsSniperScoped,
+            SniperChargeTicks = baselinePlayer.SniperChargeTicks,
+            MedicNeedleCooldownTicks = baselinePlayer.MedicNeedleCooldownTicks,
+            MedicNeedleRefillTicks = baselinePlayer.MedicNeedleRefillTicks,
+            PyroAirblastCooldownTicks = baselinePlayer.PyroAirblastCooldownTicks,
+            PyroFlareCooldownTicks = baselinePlayer.PyroFlareCooldownTicks,
+            PyroPrimaryFuelScaled = baselinePlayer.PyroPrimaryFuelScaled,
+            IsPyroPrimaryRefilling = baselinePlayer.IsPyroPrimaryRefilling,
+            PyroFlameLoopTicksRemaining = baselinePlayer.PyroFlameLoopTicksRemaining,
+            PyroPrimaryRequiresReleaseAfterEmpty = baselinePlayer.PyroPrimaryRequiresReleaseAfterEmpty,
+            HeavyEatCooldownTicksRemaining = baselinePlayer.HeavyEatCooldownTicksRemaining,
+            MedicUberCharge = baselinePlayer.MedicUberCharge,
+            IsMedicUberReady = baselinePlayer.IsMedicUberReady,
+            IsChatBubbleVisible = baselinePlayer.IsChatBubbleVisible,
+            ChatBubbleFrameIndex = baselinePlayer.ChatBubbleFrameIndex,
+            ChatBubbleAlpha = baselinePlayer.ChatBubbleAlpha,
+            Kills = baselinePlayer.Kills,
+            Deaths = baselinePlayer.Deaths,
+            Caps = baselinePlayer.Caps,
+            Points = baselinePlayer.Points,
+            HealPoints = baselinePlayer.HealPoints,
+            ActiveDominationCount = baselinePlayer.ActiveDominationCount,
+            IsDominatingLocalViewer = baselinePlayer.IsDominatingLocalViewer,
+            IsDominatedByLocalViewer = baselinePlayer.IsDominatedByLocalViewer,
+            Assists = baselinePlayer.Assists,
+            BadgeMask = baselinePlayer.BadgeMask,
+            OwnedGameplayItemIds = baselinePlayer.OwnedGameplayItemIds,
+            GibDeaths = baselinePlayer.GibDeaths,
         };
+    }
 
-        return !EqualityComparer<SnapshotPlayerState>.Default.Equals(playerWithBaselineMovement, baselinePlayer);
+    private static bool HasPlayerLowFrequencyDetailChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        return player.Kills != baselinePlayer.Kills
+            || player.Deaths != baselinePlayer.Deaths
+            || player.Caps != baselinePlayer.Caps
+            || player.Points != baselinePlayer.Points
+            || player.HealPoints != baselinePlayer.HealPoints
+            || player.ActiveDominationCount != baselinePlayer.ActiveDominationCount
+            || player.IsDominatingLocalViewer != baselinePlayer.IsDominatingLocalViewer
+            || player.IsDominatedByLocalViewer != baselinePlayer.IsDominatedByLocalViewer
+            || player.Assists != baselinePlayer.Assists
+            || player.BadgeMask != baselinePlayer.BadgeMask
+            || !GameplayIdListsEqual(player.OwnedGameplayItemIds, baselinePlayer.OwnedGameplayItemIds)
+            || player.GibDeaths != baselinePlayer.GibDeaths;
+    }
+
+    private static bool HasPlayerExtendedStatusChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)
+    {
+        return player.IsSpyCloaked != baselinePlayer.IsSpyCloaked
+            || player.SpyCloakAlpha != baselinePlayer.SpyCloakAlpha
+            || player.IsSpySuperjumping != baselinePlayer.IsSpySuperjumping
+            || player.SpySuperjumpHorizontalVelocity != baselinePlayer.SpySuperjumpHorizontalVelocity
+            || player.SpySuperjumpCooldownTicksRemaining != baselinePlayer.SpySuperjumpCooldownTicksRemaining
+            || player.SpyBackstabVisualTicksRemaining != baselinePlayer.SpyBackstabVisualTicksRemaining
+            || player.IsUbered != baselinePlayer.IsUbered
+            || player.IsKritzCritBoosted != baselinePlayer.IsKritzCritBoosted
+            || player.IsHeavyEating != baselinePlayer.IsHeavyEating
+            || player.HeavyEatTicksRemaining != baselinePlayer.HeavyEatTicksRemaining
+            || player.IsSniperScoped != baselinePlayer.IsSniperScoped
+            || player.SniperChargeTicks != baselinePlayer.SniperChargeTicks
+            || player.MedicNeedleCooldownTicks != baselinePlayer.MedicNeedleCooldownTicks
+            || player.MedicNeedleRefillTicks != baselinePlayer.MedicNeedleRefillTicks
+            || player.PyroAirblastCooldownTicks != baselinePlayer.PyroAirblastCooldownTicks
+            || player.PyroFlareCooldownTicks != baselinePlayer.PyroFlareCooldownTicks
+            || player.PyroPrimaryFuelScaled != baselinePlayer.PyroPrimaryFuelScaled
+            || player.IsPyroPrimaryRefilling != baselinePlayer.IsPyroPrimaryRefilling
+            || player.PyroFlameLoopTicksRemaining != baselinePlayer.PyroFlameLoopTicksRemaining
+            || player.PyroPrimaryRequiresReleaseAfterEmpty != baselinePlayer.PyroPrimaryRequiresReleaseAfterEmpty
+            || player.HeavyEatCooldownTicksRemaining != baselinePlayer.HeavyEatCooldownTicksRemaining
+            || player.MedicUberCharge != baselinePlayer.MedicUberCharge
+            || player.IsMedicUberReady != baselinePlayer.IsMedicUberReady;
+    }
+
+    private static bool ShouldSendLowFrequencyPlayerDetail(long frame, byte slot)
+    {
+        return ((frame + slot) % LowFrequencyPlayerDetailRefreshIntervalTicks) == 0;
+    }
+
+    private static bool GameplayIdListsEqual(IReadOnlyList<string>? left, IReadOnlyList<string>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        var leftCount = left?.Count ?? 0;
+        var rightCount = right?.Count ?? 0;
+        if (leftCount != rightCount)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < leftCount; index += 1)
+        {
+            if (!string.Equals(left![index], right![index], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool HasPlayerStatusChanged(SnapshotPlayerState player, SnapshotPlayerState baselinePlayer)

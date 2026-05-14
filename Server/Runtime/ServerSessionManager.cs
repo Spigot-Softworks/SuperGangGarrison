@@ -29,6 +29,7 @@ sealed class ServerSessionManager
     private readonly Action<ClientSession, PlayerTeam> _playerTeamChanged;
     private readonly Action<ClientSession, PlayerClass> _playerClassChanged;
     private readonly Func<byte, bool> _isPlayableSlotAvailable;
+    private readonly Action<byte, byte> _clientSlotChanged;
     private GameplayOwnershipService? _gameplayOwnershipService;
 
     public ServerSessionManager(
@@ -52,7 +53,8 @@ sealed class ServerSessionManager
         Action<ClientSession>? passwordAccepted = null,
         Action<ClientSession, PlayerTeam>? playerTeamChanged = null,
         Action<ClientSession, PlayerClass>? playerClassChanged = null,
-        Func<byte, bool>? isPlayableSlotAvailable = null)
+        Func<byte, bool>? isPlayableSlotAvailable = null,
+        Action<byte, byte>? clientSlotChanged = null)
     {
         _world = world;
         _clientsBySlot = clientsBySlot;
@@ -75,6 +77,7 @@ sealed class ServerSessionManager
         _playerTeamChanged = playerTeamChanged ?? ((_, _) => { });
         _playerClassChanged = playerClassChanged ?? ((_, _) => { });
         _isPlayableSlotAvailable = isPlayableSlotAvailable ?? (_ => true);
+        _clientSlotChanged = clientSlotChanged ?? ((_, _) => { });
     }
 
     public void SetGameplayOwnershipService(GameplayOwnershipService gameplayOwnershipService)
@@ -361,21 +364,24 @@ sealed class ServerSessionManager
             return true;
         }
 
+        var oldSlot = client.Slot;
+
         if (_clientsBySlot.ContainsKey(newSlot)
             || SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot) && !_isPlayableSlotAvailable(newSlot))
         {
             return false;
         }
 
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot))
+        if (SimulationWorld.IsPlayableNetworkPlayerSlot(oldSlot))
         {
-            _world.TryReleaseNetworkPlayerSlot(client.Slot);
-            _gameplayOwnershipService?.ReleaseSlot(client.Slot);
+            _world.TryReleaseNetworkPlayerSlot(oldSlot);
+            _gameplayOwnershipService?.ReleaseSlot(oldSlot);
         }
 
-        _clientsBySlot.Remove(client.Slot);
+        _clientsBySlot.Remove(oldSlot);
         client.Slot = newSlot;
         _clientsBySlot[newSlot] = client;
+        _clientSlotChanged(oldSlot, newSlot);
 
         if (SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot))
         {

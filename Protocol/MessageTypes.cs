@@ -361,6 +361,32 @@ public sealed record SnapshotPlayerChatBubbleState(
     int ChatBubbleFrameIndex,
     float ChatBubbleAlpha);
 
+public sealed record SnapshotPlayerExtendedStatusState(
+    byte Slot,
+    bool IsSpyCloaked,
+    float SpyCloakAlpha,
+    bool IsSpySuperjumping,
+    float SpySuperjumpHorizontalVelocity,
+    int SpySuperjumpCooldownTicksRemaining,
+    int SpyBackstabVisualTicksRemaining,
+    bool IsUbered,
+    bool IsKritzCritBoosted,
+    bool IsHeavyEating,
+    int HeavyEatTicksRemaining,
+    bool IsSniperScoped,
+    int SniperChargeTicks,
+    int MedicNeedleCooldownTicks = 0,
+    int MedicNeedleRefillTicks = 0,
+    int PyroAirblastCooldownTicks = 0,
+    int PyroFlareCooldownTicks = 0,
+    int PyroPrimaryFuelScaled = 0,
+    bool IsPyroPrimaryRefilling = false,
+    int PyroFlameLoopTicksRemaining = 0,
+    bool PyroPrimaryRequiresReleaseAfterEmpty = false,
+    int HeavyEatCooldownTicksRemaining = 0,
+    float MedicUberCharge = 0f,
+    bool IsMedicUberReady = false);
+
 public sealed record SnapshotIntelState(
     byte Team,
     float X,
@@ -682,6 +708,7 @@ public sealed record SnapshotMessage(
     public IReadOnlyList<SnapshotPlayerMovementState> PlayerMovementStates { get; init; } = Array.Empty<SnapshotPlayerMovementState>();
     public IReadOnlyList<SnapshotPlayerStatusState> PlayerStatusStates { get; init; } = Array.Empty<SnapshotPlayerStatusState>();
     public IReadOnlyList<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; init; } = Array.Empty<SnapshotPlayerChatBubbleState>();
+    public IReadOnlyList<SnapshotPlayerExtendedStatusState> PlayerExtendedStatusStates { get; init; } = Array.Empty<SnapshotPlayerExtendedStatusState>();
     public IReadOnlyList<SnapshotSentryUpdateState> SentryUpdateStates { get; init; } = Array.Empty<SnapshotSentryUpdateState>();
     public IReadOnlyList<int> RemovedPlayerIds { get; init; } = Array.Empty<int>();
     public IReadOnlyList<int> RemovedSentryIds { get; init; } = Array.Empty<int>();

@@ -185,6 +185,13 @@ public static class BotBrainObjectiveTapeStore
                 .Select(segment => new BotBrainObjectiveTapeSegment
                 {
                     RequiresCarryingIntel = segment.RequiresCarryingIntel,
+                    Source = segment.Source,
+                    EntryX = MirrorNullableX(segment.EntryX, mirrorSumX),
+                    EntryY = segment.EntryY,
+                    EntryRadius = segment.EntryRadius,
+                    ExitX = MirrorNullableX(segment.ExitX, mirrorSumX),
+                    ExitY = segment.ExitY,
+                    ExitRadius = segment.ExitRadius,
                     Samples = segment.Samples.Select(sample => new BotBrainObjectiveTapeSample
                     {
                         Tick = sample.Tick,
@@ -246,6 +253,9 @@ public static class BotBrainObjectiveTapeStore
             });
         }
     }
+
+    private static float? MirrorNullableX(float? x, float mirrorSumX) =>
+        x.HasValue ? mirrorSumX - x.Value : null;
 
     private static bool TryBuildFromAuthoredCorridors(SimpleLevel level, out BotBrainObjectiveTapeAsset asset)
     {

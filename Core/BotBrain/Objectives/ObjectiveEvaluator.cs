@@ -175,6 +175,33 @@ public static class ObjectiveEvaluator
         PlayerEntity self,
         SimulationWorld world)
     {
+        var captureZones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
+        if (captureZones.Count > 0)
+        {
+            var minX = float.PositiveInfinity;
+            var minY = float.PositiveInfinity;
+            var maxX = float.NegativeInfinity;
+            var maxY = float.NegativeInfinity;
+            foreach (var zone in captureZones)
+            {
+                minX = MathF.Min(minX, zone.CenterX - zone.Width * 0.5f);
+                minY = MathF.Min(minY, zone.CenterY - zone.Height * 0.5f);
+                maxX = MathF.Max(maxX, zone.CenterX + zone.Width * 0.5f);
+                maxY = MathF.Max(maxY, zone.CenterY + zone.Height * 0.5f);
+            }
+
+            if (float.IsFinite(minX) && float.IsFinite(minY) && float.IsFinite(maxX) && float.IsFinite(maxY))
+            {
+                return ((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            }
+        }
+
+        if (world.ControlPoints.Count > 0)
+        {
+            var point = world.ControlPoints[0];
+            return (point.HealingAuraCenterX, point.HealingAuraCenterY);
+        }
+
         // Move toward the arena control point.
         var controlPoint = world.Level.GetFirstRoomObject(RoomObjectType.ArenaControlPoint);
         if (controlPoint.HasValue)
@@ -193,13 +220,37 @@ public static class ObjectiveEvaluator
         // Find an unowned or contested control point to go capture.
         foreach (var cp in world.ControlPoints)
         {
-            if (cp.Team != ownTeam || cp.CappingTeam.HasValue)
+            if (!cp.IsLocked && (cp.Team != ownTeam || cp.CappingTeam.HasValue))
             {
                 return (cp.HealingAuraCenterX, cp.HealingAuraCenterY);
             }
         }
 
         // All points owned — defend the first one.
+        ControlPointState? ownedFrontier = null;
+        var ownedFrontierDistance = float.PositiveInfinity;
+        foreach (var cp in world.ControlPoints)
+        {
+            if (cp.IsLocked || cp.Team != ownTeam)
+            {
+                continue;
+            }
+
+            var distance = Distance(self.X, self.Y, cp.HealingAuraCenterX, cp.HealingAuraCenterY);
+            if (distance >= ownedFrontierDistance)
+            {
+                continue;
+            }
+
+            ownedFrontier = cp;
+            ownedFrontierDistance = distance;
+        }
+
+        if (ownedFrontier is not null)
+        {
+            return (ownedFrontier.HealingAuraCenterX, ownedFrontier.HealingAuraCenterY);
+        }
+
         if (world.ControlPoints.Count > 0)
         {
             var cp = world.ControlPoints[0];

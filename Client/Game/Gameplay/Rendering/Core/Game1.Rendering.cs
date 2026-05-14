@@ -108,6 +108,14 @@ public partial class Game1
 
     private void DrawCurvedWorldLine(float startX, float startY, float endX, float endY, Vector2 cameraPosition, Color color, float thickness, Vector2 aimDirection)
     {
+        if (!AreFinite(startX, startY, endX, endY, thickness)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
         var end = new Vector2(endX - cameraPosition.X, endY - cameraPosition.Y);
         var toTarget = end - start;
@@ -225,6 +233,14 @@ public partial class Game1
         float nozzleThickness, float maxThickness, float tailThickness, float rampDistPixels,
         Vector2 aimDirection)
     {
+        if (!AreFinite(startX, startY, endX, endY, nozzleThickness, maxThickness, tailThickness, rampDistPixels)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         var start = new Vector2(startX - cameraPosition.X, startY - cameraPosition.Y);
         var end   = new Vector2(endX   - cameraPosition.X, endY   - cameraPosition.Y);
         var toTarget = end - start;

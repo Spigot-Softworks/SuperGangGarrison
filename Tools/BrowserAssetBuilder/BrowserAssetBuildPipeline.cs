@@ -46,7 +46,26 @@ internal static class BrowserAssetBuildPipeline
             Warnings: warnings);
 
         PruneLegacyDistributionArtifacts(context);
+        if (context.PruneDeprecatedGameMakerMetadata)
+        {
+            PruneDeprecatedGameMakerMetadata(context);
+        }
+
         return report;
+    }
+
+    public static string WriteGameMakerManifestOnly(BrowserAssetBuildContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        ContentRoot.Initialize(context.ContentRoot);
+        Directory.CreateDirectory(context.OutputContentRoot);
+
+        var manifest = GameMakerAssetManifestImporter.ImportProjectAssets();
+        var document = BrowserGameMakerAssetManifestDocument.FromManifest(manifest);
+        var outputPath = Path.Combine(context.OutputContentRoot, GameMakerRuntimeAssetManifestLoader.ManifestRelativePath);
+        WriteText(outputPath, JsonSerializer.Serialize(document, JsonOptions), []);
+        return outputPath;
     }
 
     private static void EnsureDirectories(BrowserAssetBuildContext context)
@@ -560,6 +579,21 @@ internal static class BrowserAssetBuildPipeline
         DeleteFileIfExists(Path.Combine(context.OutputContentRoot, "Gameplay", "stock.gg2", "_browser-pack-assets.zip"));
     }
 
+    private static void PruneDeprecatedGameMakerMetadata(BrowserAssetBuildContext context)
+    {
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Sprites"), "*.xml", SearchOption.AllDirectories));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Backgrounds"), "*.xml", SearchOption.TopDirectoryOnly));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Sounds"), "*.xml", SearchOption.TopDirectoryOnly));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Fonts"), "*.xml", SearchOption.TopDirectoryOnly));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Paths"), "*.xml", SearchOption.TopDirectoryOnly));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Time Lines"), "*.xml", SearchOption.TopDirectoryOnly));
+        DeleteFiles(EnumerateFiles(Path.Combine(context.OutputContentRoot, "Builder"), "*.xml", SearchOption.TopDirectoryOnly));
+
+        DeleteFileIfExists(Path.Combine(context.OutputContentRoot, "Constants.xml"));
+        DeleteDirectoryIfExists(Path.Combine(context.OutputContentRoot, "Objects"));
+        DeleteDirectoryIfExists(Path.Combine(context.OutputContentRoot, "Scripts"));
+    }
+
     private static IEnumerable<string> EnumerateFiles(string directory, string searchPattern, SearchOption searchOption)
     {
         return Directory.Exists(directory)
@@ -580,6 +614,14 @@ internal static class BrowserAssetBuildPipeline
         if (File.Exists(path))
         {
             File.Delete(path);
+        }
+    }
+
+    private static void DeleteDirectoryIfExists(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
         }
     }
 

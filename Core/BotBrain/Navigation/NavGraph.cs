@@ -106,7 +106,7 @@ public sealed class NavGraph
             return true;
         }
 
-        var nodeIndex = FindNearestTraversalStartNode(x, y, maxAboveDistance: 12f);
+        var nodeIndex = FindNearestTraversalStartNodeInCompletionBand(x, y, maxAboveDistance: 12f);
         var nodeSurfaceId = nodeIndex >= 0 ? _nodes[nodeIndex].SurfaceId : null;
         if (!nodeSurfaceId.HasValue)
         {
@@ -127,6 +127,30 @@ public sealed class NavGraph
 
     public bool IsEdgeCompletionSatisfied(float x, float y, NavEdgeCompletion completion) =>
         completion.Contains(x, y) && IsOnAcceptedCompletionSurface(x, y, completion);
+
+    private int FindNearestTraversalStartNodeInCompletionBand(float x, float y, float maxAboveDistance)
+    {
+        var bestIndex = -1;
+        var bestScore = float.MaxValue;
+        for (var i = 0; i < _nodes.Length; i++)
+        {
+            if (_nodes[i].Y < y - maxAboveDistance)
+            {
+                continue;
+            }
+
+            var dx = _nodes[i].X - x;
+            var dy = _nodes[i].Y - y;
+            var score = (dx * dx) + (dy * dy * 4f);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
 
     public int FindNearestReachableNode(
         float x,
@@ -182,6 +206,11 @@ public sealed class NavGraph
 
                 var neighbor = edge.ToNode;
                 if (blockedEdges is not null && blockedEdges.Contains(new NavEdgeBlock(current, neighbor, edge.Kind)))
+                {
+                    continue;
+                }
+
+                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
                 {
                     continue;
                 }
@@ -264,6 +293,11 @@ public sealed class NavGraph
 
                 var neighbor = edge.ToNode;
                 if (blockedEdges is not null && blockedEdges.Contains(new NavEdgeBlock(current, neighbor, edge.Kind)))
+                {
+                    continue;
+                }
+
+                if (ShouldBlockSuspiciousVerticalRelayForExperiment(edge, current, neighbor))
                 {
                     continue;
                 }
@@ -383,6 +417,25 @@ public sealed class NavGraph
             + ResolveCarrierSpawnAdjacencyPenalty(fromNodeIndex, toNodeIndex, carryingIntel, fromNode, toNode)
             + ResolveMapSpecificTraversalPenalty(edge, fromNode, toNode, playerClass, carryingIntel, team);
     }
+
+    private bool ShouldBlockSuspiciousVerticalRelayForExperiment(NavEdge edge, int fromNodeIndex, int toNodeIndex)
+    {
+        if (!IsSuspiciousVerticalRelayBlockEnabled())
+        {
+            return false;
+        }
+
+        var fromNode = _nodes[fromNodeIndex];
+        var toNode = _nodes[toNodeIndex];
+        var cost = MathF.Max(1f, edge.Cost);
+        var verticalDelta = MathF.Abs(toNode.Y - fromNode.Y);
+        var horizontalDelta = MathF.Abs(toNode.X - fromNode.X);
+        var euclideanDistance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
+        return IsSuspiciousVerticalRelay(edge, cost, verticalDelta, horizontalDelta, euclideanDistance);
+    }
+
+    private static bool IsSuspiciousVerticalRelayBlockEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_BLOCK_SUSPICIOUS_VERTICAL_RELAYS") is "1" or "true" or "TRUE";
 
     private bool ShouldReturnRawTraversalCost(
         NavEdge edge,

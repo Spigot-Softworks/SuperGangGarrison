@@ -122,6 +122,7 @@ public sealed class SteeringMachine
                     suppressJumpUntilLaunch,
                     ResolveJumpTriggerTick(player, currentEdge),
                     edgeTicks,
+                    ShouldAssistSemanticWalkClimb(player, currentEdge),
                     RequiresCertifiedRunup(player, currentEdge, level.Mode),
                     currentEdge.LaunchRecipe,
                     ref output);
@@ -261,7 +262,7 @@ public sealed class SteeringMachine
                 ? graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion)
                     || IsNearGroundedContinuationCompletion(player, edge, level)
                 : player.ClassId != PlayerClass.Heavy
-                    && (IsAirborneCompletionContinuation(player, edge)
+                    && (IsAirborneCompletionContinuation(player, graph, edge)
                         || IsNearGroundedContinuationCompletion(player, edge, level)));
     }
 
@@ -275,15 +276,14 @@ public sealed class SteeringMachine
         && player.Y >= edge.Completion.MinY - GroundedContinuationCompletionSlack
         && player.Y <= edge.Completion.MaxY + GroundedContinuationCompletionSlack;
 
-    private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavEdge edge) =>
+    private static bool IsAirborneCompletionContinuation(PlayerEntity player, NavGraph graph, NavEdge edge) =>
         edge.Kind == NavEdgeKind.Jump
         && !edge.RequiresGroundedContinuation
-        && edge.Completion.HasWindow
         && player.VerticalSpeed >= -15f
-        && player.X >= edge.Completion.MinX
-        && player.X <= edge.Completion.MaxX
-        && player.Y >= edge.Completion.MinY
-        && player.Y <= edge.Completion.MaxY + AirborneCompletionContinuationSlack;
+        && graph.IsEdgeCompletionSatisfied(player.X, player.Y, edge.Completion with
+        {
+            MaxY = edge.Completion.MaxY + AirborneCompletionContinuationSlack,
+        });
 
     private static bool NextEdgeRequiresGroundedLaunch(NavPath path) =>
         path.CurrentIndex + 1 < path.Count
@@ -447,8 +447,38 @@ public sealed class SteeringMachine
         out bool suppressJumpUntilLaunch)
     {
         suppressJumpUntilLaunch = false;
-        if (!edge.Completion.HasWindow || edge.Kind == NavEdgeKind.Walk)
+        if (IsExperimentalFallDropdownSteeringEnabled()
+            && edge.Kind is (NavEdgeKind.Fall or NavEdgeKind.Dropdown)
+            && player.IsGrounded
+            && path.CurrentIndex > 0)
         {
+            var launchNode = graph.GetNode(path.GetWaypoint(path.CurrentIndex - 1));
+            var targetNode = graph.GetNode(path.CurrentNode);
+            var travelDirection = edge.ProbeMoveDirectionX != 0f
+                ? MathF.Sign(edge.ProbeMoveDirectionX)
+                : MathF.Sign(targetNode.X - launchNode.X);
+            if (travelDirection != 0f)
+            {
+                return travelDirection * MathF.Max(JumpTriggerDistance * 2f, MathF.Abs(waypointDx) + JumpTriggerDistance);
+            }
+        }
+
+        if (!edge.Completion.HasWindow)
+        {
+            return waypointDx;
+        }
+
+        if (edge.Kind == NavEdgeKind.Walk)
+        {
+            if (ShouldAssistSemanticWalkClimb(player, edge))
+            {
+                var walkCompletionCenterX = (edge.Completion.MinX + edge.Completion.MaxX) * 0.5f;
+                var walkCompletionDx = walkCompletionCenterX - player.X;
+                return MathF.Abs(walkCompletionDx) > HorizontalDeadZone
+                    ? walkCompletionDx
+                    : waypointDx;
+            }
+
             return waypointDx;
         }
 
@@ -694,6 +724,9 @@ public sealed class SteeringMachine
             Reason: ResolveEdgeFailureReason(player, edge, targetDistance));
     }
 
+    private static bool IsExperimentalFallDropdownSteeringEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_EXPERIMENTAL_FALL_DROPDOWN_STEERING") is "1" or "true" or "TRUE";
+
     private bool ShouldFastFailLandedBelowCompletion(PlayerEntity player, NavEdge edge, int edgeTicks, GameModeKind mode)
     {
         return _edgePhase == EdgeExecutionPhase.None
@@ -712,6 +745,7 @@ public sealed class SteeringMachine
     private static bool ShouldFastFailGroundedWalkBelowTarget(PlayerEntity player, NavEdge edge, NavNode targetNode, int edgeTicks)
     {
         return edge.Kind == NavEdgeKind.Walk
+            && !edge.Completion.HasWindow
             && player.IsGrounded
             && player.ClassId is not PlayerClass.Soldier and not PlayerClass.Heavy
             && player.Y > targetNode.Y + GroundedWalkBelowTargetVerticalSlack
@@ -772,6 +806,7 @@ public sealed class SteeringMachine
         bool suppressJumpUntilLaunch,
         int jumpTriggerTick,
         int edgeTicks,
+        bool assistSemanticWalkClimb,
         bool requiresCertifiedRunup,
         NavEdgeLaunchRecipe launchRecipe,
         ref SteeringOutput output)
@@ -838,6 +873,11 @@ public sealed class SteeringMachine
 
             default:
                 output.MoveDirection = moveDir;
+                if (assistSemanticWalkClimb && edgeTicks >= 2)
+                {
+                    output.Jump = true;
+                }
+
                 if (WouldHitWall(player, level, team, moveDir) && dy <= TargetAboveJumpThreshold)
                 {
                     output.Jump = true;
@@ -850,6 +890,12 @@ public sealed class SteeringMachine
                 break;
         }
     }
+
+    private static bool ShouldAssistSemanticWalkClimb(PlayerEntity player, NavEdge edge) =>
+        edge.Kind == NavEdgeKind.Walk
+        && edge.Completion.HasWindow
+        && player.IsGrounded
+        && player.Y > edge.Completion.MaxY + LandedBelowCompletionVerticalSlack;
 
     private static void SteerAirborne(
         PlayerEntity player,

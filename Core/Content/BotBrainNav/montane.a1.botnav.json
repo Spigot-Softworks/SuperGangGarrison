@@ -4805,6 +4805,50 @@
     },
     {
       "FromNode": 19,
+      "ToNode": 25,
+      "Kind": "Walk",
+      "Cost": 27.682573,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1746,
+      "CompletionMaxX": 1842,
+      "CompletionMinY": 396,
+      "CompletionMaxY": 588,
+      "AcceptedLandingSurfaceIds": [
+        7
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 25,
+      "ToNode": 19,
+      "Kind": "Jump",
+      "Cost": 27.682573,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1878,
+      "CompletionMaxX": 2094,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        5
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 19,
       "ToNode": 26,
       "Kind": "Walk",
       "Cost": 18.58451,
@@ -4820,13 +4864,15 @@
       "CompletionMaxX": 1842,
       "CompletionMinY": 396,
       "CompletionMaxY": 588,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        7
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 26,
       "ToNode": 19,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 18.58451,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -4836,11 +4882,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1890,
-      "CompletionMaxX": 2082,
-      "CompletionMinY": 342,
-      "CompletionMaxY": 534,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1878,
+      "CompletionMaxX": 2094,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        5
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -4900,13 +4948,15 @@
       "CompletionMaxX": 2174,
       "CompletionMinY": 426,
       "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 29,
       "ToNode": 21,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.424274,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -4916,11 +4966,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1890,
-      "CompletionMaxX": 2082,
-      "CompletionMinY": 342,
-      "CompletionMaxY": 534,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1878,
+      "CompletionMaxX": 2094,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        5
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -4940,13 +4992,15 @@
       "CompletionMaxX": 2174,
       "CompletionMinY": 426,
       "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 29,
       "ToNode": 22,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.424274,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -4956,11 +5010,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2226,
-      "CompletionMaxX": 2418,
-      "CompletionMinY": 342,
-      "CompletionMaxY": 534,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2214,
+      "CompletionMaxX": 2430,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        6
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -4980,13 +5036,15 @@
       "CompletionMaxX": 2562,
       "CompletionMinY": 396,
       "CompletionMaxY": 588,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        8
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 27,
       "ToNode": 24,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 18.58451,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -4996,11 +5054,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2226,
-      "CompletionMaxX": 2418,
-      "CompletionMinY": 342,
-      "CompletionMaxY": 534,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2214,
+      "CompletionMaxX": 2430,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        6
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 24,
+      "ToNode": 28,
+      "Kind": "Walk",
+      "Cost": 27.682573,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2466,
+      "CompletionMaxX": 2562,
+      "CompletionMinY": 396,
+      "CompletionMaxY": 588,
+      "AcceptedLandingSurfaceIds": [
+        8
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 28,
+      "ToNode": 24,
+      "Kind": "Jump",
+      "Cost": 27.682573,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2214,
+      "CompletionMaxX": 2430,
+      "CompletionMinY": 306,
+      "CompletionMaxY": 570,
+      "AcceptedLandingSurfaceIds": [
+        6
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5020,13 +5124,15 @@
       "CompletionMaxX": 2136,
       "CompletionMinY": 456,
       "CompletionMaxY": 648,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        10
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 30,
       "ToNode": 29,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 11.753876,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5036,11 +5142,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2134,
-      "CompletionMaxX": 2174,
-      "CompletionMinY": 426,
-      "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2122,
+      "CompletionMaxX": 2186,
+      "CompletionMinY": 390,
+      "CompletionMaxY": 654,
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5060,13 +5168,15 @@
       "CompletionMaxX": 2136,
       "CompletionMinY": 456,
       "CompletionMaxY": 648,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        10
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 31,
       "ToNode": 29,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5076,11 +5186,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2134,
-      "CompletionMaxX": 2174,
-      "CompletionMinY": 426,
-      "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2122,
+      "CompletionMaxX": 2186,
+      "CompletionMinY": 390,
+      "CompletionMaxY": 654,
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5100,13 +5212,15 @@
       "CompletionMaxX": 2232,
       "CompletionMinY": 456,
       "CompletionMaxY": 648,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        11
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 32,
       "ToNode": 29,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5116,11 +5230,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2134,
-      "CompletionMaxX": 2174,
-      "CompletionMinY": 426,
-      "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2122,
+      "CompletionMaxX": 2186,
+      "CompletionMinY": 390,
+      "CompletionMaxY": 654,
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5140,13 +5256,15 @@
       "CompletionMaxX": 2232,
       "CompletionMinY": 456,
       "CompletionMaxY": 648,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        11
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 33,
       "ToNode": 29,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 11.753876,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5156,11 +5274,101 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2134,
-      "CompletionMaxX": 2174,
-      "CompletionMinY": 426,
-      "CompletionMaxY": 618,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2122,
+      "CompletionMaxX": 2186,
+      "CompletionMinY": 390,
+      "CompletionMaxY": 654,
+      "AcceptedLandingSurfaceIds": [
+        9
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 34,
+      "ToNode": 72,
+      "Kind": "Walk",
+      "Cost": 30.6,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 582,
+      "CompletionMaxX": 654,
+      "CompletionMinY": 582,
+      "CompletionMaxY": 774,
+      "AcceptedLandingSurfaceIds": [
+        24
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 72,
+      "ToNode": 34,
+      "Kind": "Jump",
+      "Cost": 30.6,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 738,
+      "CompletionMaxX": 1008,
+      "CompletionMinY": 444,
+      "CompletionMaxY": 708,
+      "AcceptedLandingSurfaceIds": [
+        12
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 41,
+      "ToNode": 81,
+      "Kind": "Walk",
+      "Cost": 30.6,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3648,
+      "CompletionMaxX": 3720,
+      "CompletionMinY": 582,
+      "CompletionMaxY": 774,
+      "AcceptedLandingSurfaceIds": [
+        27
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 81,
+      "ToNode": 41,
+      "Kind": "Jump",
+      "Cost": 30.6,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3294,
+      "CompletionMaxX": 3564,
+      "CompletionMinY": 444,
+      "CompletionMaxY": 708,
+      "AcceptedLandingSurfaceIds": [
+        13
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5180,13 +5388,15 @@
       "CompletionMaxX": 1740,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        20
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 63,
       "ToNode": 42,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 9.904908,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5196,11 +5406,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1752,
-      "CompletionMaxX": 1842,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1740,
+      "CompletionMaxX": 1854,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        14
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5220,13 +5432,15 @@
       "CompletionMaxX": 1740,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        20
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 62,
       "ToNode": 42,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 23.444958,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5236,11 +5450,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1752,
-      "CompletionMaxX": 1842,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1740,
+      "CompletionMaxX": 1854,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        14
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5260,13 +5476,15 @@
       "CompletionMaxX": 1740,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        20
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 63,
       "ToNode": 43,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 18.643692,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5276,11 +5494,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1752,
-      "CompletionMaxX": 1842,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1740,
+      "CompletionMaxX": 1854,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        14
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5300,13 +5520,15 @@
       "CompletionMaxX": 2916,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        21
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 64,
       "ToNode": 44,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 18.643692,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5316,11 +5538,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2466,
-      "CompletionMaxX": 2556,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2454,
+      "CompletionMaxX": 2568,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        15
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5340,13 +5564,15 @@
       "CompletionMaxX": 2916,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        21
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 64,
       "ToNode": 45,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 9.904908,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5356,11 +5582,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2466,
-      "CompletionMaxX": 2556,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2454,
+      "CompletionMaxX": 2568,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        15
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5380,13 +5608,15 @@
       "CompletionMaxX": 2916,
       "CompletionMinY": 540,
       "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        21
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 65,
       "ToNode": 45,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 23.444958,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5396,11 +5626,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2466,
-      "CompletionMaxX": 2556,
-      "CompletionMinY": 522,
-      "CompletionMaxY": 714,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2454,
+      "CompletionMaxX": 2568,
+      "CompletionMinY": 486,
+      "CompletionMaxY": 750,
+      "AcceptedLandingSurfaceIds": [
+        15
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5500,13 +5732,15 @@
       "CompletionMaxX": 654,
       "CompletionMinY": 582,
       "CompletionMaxY": 774,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        24
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 71,
       "ToNode": 52,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 17.102842,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5516,11 +5750,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 330,
-      "CompletionMaxX": 540,
-      "CompletionMinY": 534,
-      "CompletionMaxY": 726,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 318,
+      "CompletionMaxX": 552,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        17
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5540,13 +5776,15 @@
       "CompletionMaxX": 654,
       "CompletionMinY": 582,
       "CompletionMaxY": 774,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        24
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 72,
       "ToNode": 52,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.26477,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5556,11 +5794,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 330,
-      "CompletionMaxX": 540,
-      "CompletionMinY": 534,
-      "CompletionMaxY": 726,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 318,
+      "CompletionMaxX": 552,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        17
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 51,
+      "ToNode": 71,
+      "Kind": "Walk",
+      "Cost": 26.413086,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 582,
+      "CompletionMaxX": 654,
+      "CompletionMinY": 582,
+      "CompletionMaxY": 774,
+      "AcceptedLandingSurfaceIds": [
+        24
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 71,
+      "ToNode": 51,
+      "Kind": "Jump",
+      "Cost": 26.413086,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 318,
+      "CompletionMaxX": 552,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        17
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5580,13 +5864,15 @@
       "CompletionMaxX": 3720,
       "CompletionMinY": 582,
       "CompletionMaxY": 774,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        27
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 81,
       "ToNode": 53,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.26477,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5596,11 +5882,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 3762,
-      "CompletionMaxX": 3972,
-      "CompletionMinY": 534,
-      "CompletionMaxY": 726,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 3750,
+      "CompletionMaxX": 3984,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        18
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5620,13 +5908,15 @@
       "CompletionMaxX": 3720,
       "CompletionMinY": 582,
       "CompletionMaxY": 774,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        27
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 82,
       "ToNode": 53,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 17.102842,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5636,11 +5926,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 3762,
-      "CompletionMaxX": 3972,
-      "CompletionMinY": 534,
-      "CompletionMaxY": 726,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 3750,
+      "CompletionMaxX": 3984,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        18
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5724,6 +6016,50 @@
       "RequiresGroundedContinuation": false
     },
     {
+      "FromNode": 54,
+      "ToNode": 82,
+      "Kind": "Walk",
+      "Cost": 26.413103,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3648,
+      "CompletionMaxX": 3720,
+      "CompletionMinY": 582,
+      "CompletionMaxY": 774,
+      "AcceptedLandingSurfaceIds": [
+        27
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 82,
+      "ToNode": 54,
+      "Kind": "Jump",
+      "Cost": 26.413103,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3750,
+      "CompletionMaxX": 3984,
+      "CompletionMinY": 498,
+      "CompletionMaxY": 762,
+      "AcceptedLandingSurfaceIds": [
+        18
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
       "FromNode": 59,
       "ToNode": 69,
       "Kind": "Walk",
@@ -5740,13 +6076,15 @@
       "CompletionMaxX": 1310,
       "CompletionMinY": 564,
       "CompletionMaxY": 756,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        22
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 69,
       "ToNode": 59,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.380886,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5756,11 +6094,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1392,
-      "CompletionMaxX": 1740,
-      "CompletionMinY": 540,
-      "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1380,
+      "CompletionMaxX": 1752,
+      "CompletionMinY": 504,
+      "CompletionMaxY": 768,
+      "AcceptedLandingSurfaceIds": [
+        20
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5780,13 +6120,15 @@
       "CompletionMaxX": 3038,
       "CompletionMinY": 564,
       "CompletionMaxY": 756,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        23
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 70,
       "ToNode": 68,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.380886,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5796,11 +6138,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2568,
-      "CompletionMaxX": 2916,
-      "CompletionMinY": 540,
-      "CompletionMaxY": 732,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2556,
+      "CompletionMaxX": 2928,
+      "CompletionMinY": 504,
+      "CompletionMaxY": 768,
+      "AcceptedLandingSurfaceIds": [
+        21
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5820,13 +6164,15 @@
       "CompletionMaxX": 1181,
       "CompletionMinY": 618,
       "CompletionMaxY": 810,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        28
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 83,
       "ToNode": 69,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 25.172342,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5836,11 +6182,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1270,
-      "CompletionMaxX": 1310,
-      "CompletionMinY": 564,
-      "CompletionMaxY": 756,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1258,
+      "CompletionMaxX": 1322,
+      "CompletionMinY": 528,
+      "CompletionMaxY": 792,
+      "AcceptedLandingSurfaceIds": [
+        22
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -5860,13 +6208,15 @@
       "CompletionMaxX": 3167,
       "CompletionMinY": 618,
       "CompletionMaxY": 810,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        29
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 84,
       "ToNode": 70,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 25.172342,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -5876,11 +6226,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2998,
-      "CompletionMaxX": 3038,
-      "CompletionMinY": 564,
-      "CompletionMaxY": 756,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2986,
+      "CompletionMaxX": 3050,
+      "CompletionMinY": 528,
+      "CompletionMaxY": 792,
+      "AcceptedLandingSurfaceIds": [
+        23
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6060,13 +6412,15 @@
       "CompletionMaxX": 1908,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        33
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 89,
       "ToNode": 85,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 11.753876,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6076,11 +6430,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1906,
-      "CompletionMaxX": 1946,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1894,
+      "CompletionMaxX": 1958,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        30
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6100,13 +6456,15 @@
       "CompletionMaxX": 1908,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        33
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 90,
       "ToNode": 85,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6116,11 +6474,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1906,
-      "CompletionMaxX": 1946,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1894,
+      "CompletionMaxX": 1958,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        30
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6140,13 +6500,15 @@
       "CompletionMaxX": 2082,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 91,
       "ToNode": 85,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6156,11 +6518,101 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1906,
-      "CompletionMaxX": 1946,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1894,
+      "CompletionMaxX": 1958,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        30
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 85,
+      "ToNode": 92,
+      "Kind": "Walk",
+      "Cost": 25.068514,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1944,
+      "CompletionMaxX": 2082,
+      "CompletionMinY": 666,
+      "CompletionMaxY": 858,
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 92,
+      "ToNode": 85,
+      "Kind": "Jump",
+      "Cost": 25.068514,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1894,
+      "CompletionMaxX": 1958,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        30
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 86,
+      "ToNode": 93,
+      "Kind": "Walk",
+      "Cost": 25.068514,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2226,
+      "CompletionMaxX": 2364,
+      "CompletionMinY": 666,
+      "CompletionMaxY": 858,
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 93,
+      "ToNode": 86,
+      "Kind": "Jump",
+      "Cost": 25.068514,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2350,
+      "CompletionMaxX": 2414,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        31
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6180,13 +6632,15 @@
       "CompletionMaxX": 2364,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 94,
       "ToNode": 86,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6196,11 +6650,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2362,
-      "CompletionMaxX": 2402,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2350,
+      "CompletionMaxX": 2414,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        31
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6220,13 +6676,15 @@
       "CompletionMaxX": 2460,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        36
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 95,
       "ToNode": 86,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6236,11 +6694,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2362,
-      "CompletionMaxX": 2402,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2350,
+      "CompletionMaxX": 2414,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        31
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6260,13 +6720,15 @@
       "CompletionMaxX": 2460,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        36
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 96,
       "ToNode": 86,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 11.753876,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6276,11 +6738,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2362,
-      "CompletionMaxX": 2402,
-      "CompletionMinY": 636,
-      "CompletionMaxY": 828,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2350,
+      "CompletionMaxX": 2414,
+      "CompletionMinY": 600,
+      "CompletionMaxY": 864,
+      "AcceptedLandingSurfaceIds": [
+        31
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6300,13 +6764,15 @@
       "CompletionMaxX": 2082,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 92,
       "ToNode": 87,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 12.303366,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6316,11 +6782,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2106,
-      "CompletionMaxX": 2202,
-      "CompletionMinY": 642,
-      "CompletionMaxY": 834,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2094,
+      "CompletionMaxX": 2214,
+      "CompletionMinY": 606,
+      "CompletionMaxY": 870,
+      "AcceptedLandingSurfaceIds": [
+        32
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6340,13 +6808,15 @@
       "CompletionMaxX": 2364,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 93,
       "ToNode": 87,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.027765,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6356,11 +6826,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2106,
-      "CompletionMaxX": 2202,
-      "CompletionMinY": 642,
-      "CompletionMaxY": 834,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2094,
+      "CompletionMaxX": 2214,
+      "CompletionMinY": 606,
+      "CompletionMaxY": 870,
+      "AcceptedLandingSurfaceIds": [
+        32
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6380,13 +6852,15 @@
       "CompletionMaxX": 2082,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 92,
       "ToNode": 88,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 22.027765,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6396,11 +6870,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2106,
-      "CompletionMaxX": 2202,
-      "CompletionMinY": 642,
-      "CompletionMaxY": 834,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2094,
+      "CompletionMaxX": 2214,
+      "CompletionMinY": 606,
+      "CompletionMaxY": 870,
+      "AcceptedLandingSurfaceIds": [
+        32
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6420,13 +6896,15 @@
       "CompletionMaxX": 2364,
       "CompletionMinY": 666,
       "CompletionMaxY": 858,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 93,
       "ToNode": 88,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 12.303366,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6436,11 +6914,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2106,
-      "CompletionMaxX": 2202,
-      "CompletionMinY": 642,
-      "CompletionMaxY": 834,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2094,
+      "CompletionMaxX": 2214,
+      "CompletionMinY": 606,
+      "CompletionMaxY": 870,
+      "AcceptedLandingSurfaceIds": [
+        32
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 89,
+      "ToNode": 101,
+      "Kind": "Walk",
+      "Cost": 19.721298,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1888,
+      "CompletionMaxX": 1928,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 89,
+      "Kind": "Jump",
+      "Cost": 19.721298,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1836,
+      "CompletionMaxX": 1920,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        33
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6484,6 +7008,138 @@
       "RequiresGroundedContinuation": false
     },
     {
+      "FromNode": 90,
+      "ToNode": 101,
+      "Kind": "Walk",
+      "Cost": 18.709614,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1888,
+      "CompletionMaxX": 1928,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 90,
+      "Kind": "Jump",
+      "Cost": 18.709614,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1836,
+      "CompletionMaxX": 1920,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        33
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 91,
+      "ToNode": 101,
+      "Kind": "Walk",
+      "Cost": 20.945072,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1888,
+      "CompletionMaxX": 1928,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 91,
+      "Kind": "Jump",
+      "Cost": 20.945072,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1932,
+      "CompletionMaxX": 2094,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 92,
+      "ToNode": 101,
+      "Kind": "Walk",
+      "Cost": 33.248882,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1888,
+      "CompletionMaxX": 1928,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 92,
+      "Kind": "Jump",
+      "Cost": 33.248882,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1932,
+      "CompletionMaxX": 2094,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        34
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
       "FromNode": 93,
       "ToNode": 95,
       "Kind": "Walk",
@@ -6524,6 +7180,622 @@
       "RequiresGroundedContinuation": false
     },
     {
+      "FromNode": 93,
+      "ToNode": 102,
+      "Kind": "Walk",
+      "Cost": 33.248882,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2380,
+      "CompletionMaxX": 2420,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 93,
+      "Kind": "Jump",
+      "Cost": 33.248882,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2214,
+      "CompletionMaxX": 2376,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 94,
+      "ToNode": 102,
+      "Kind": "Walk",
+      "Cost": 20.945072,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2380,
+      "CompletionMaxX": 2420,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 94,
+      "Kind": "Jump",
+      "Cost": 20.945072,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2214,
+      "CompletionMaxX": 2376,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        35
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 95,
+      "ToNode": 102,
+      "Kind": "Walk",
+      "Cost": 18.709614,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2380,
+      "CompletionMaxX": 2420,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 95,
+      "Kind": "Jump",
+      "Cost": 18.709614,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2388,
+      "CompletionMaxX": 2472,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        36
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 96,
+      "ToNode": 102,
+      "Kind": "Walk",
+      "Cost": 19.721298,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2380,
+      "CompletionMaxX": 2420,
+      "CompletionMinY": 768,
+      "CompletionMaxY": 960,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 96,
+      "Kind": "Jump",
+      "Cost": 19.721298,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2388,
+      "CompletionMaxX": 2472,
+      "CompletionMinY": 630,
+      "CompletionMaxY": 894,
+      "AcceptedLandingSurfaceIds": [
+        36
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 98,
+      "ToNode": 113,
+      "Kind": "Walk",
+      "Cost": 29.088804,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1074,
+      "CompletionMaxX": 1272,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        48
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 113,
+      "ToNode": 98,
+      "Kind": "Jump",
+      "Cost": 29.088804,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 816,
+      "CompletionMaxX": 996,
+      "CompletionMinY": 726,
+      "CompletionMaxY": 990,
+      "AcceptedLandingSurfaceIds": [
+        37
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 99,
+      "ToNode": 138,
+      "Kind": "Walk",
+      "Cost": 29.088804,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3036,
+      "CompletionMaxX": 3228,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        53
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 138,
+      "ToNode": 99,
+      "Kind": "Jump",
+      "Cost": 29.088804,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3306,
+      "CompletionMaxX": 3486,
+      "CompletionMinY": 726,
+      "CompletionMaxY": 990,
+      "AcceptedLandingSurfaceIds": [
+        38
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 125,
+      "Kind": "Walk",
+      "Cost": 29.354904,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 125,
+      "ToNode": 101,
+      "Kind": "Jump",
+      "Cost": 29.354904,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1876,
+      "CompletionMaxX": 1940,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 122,
+      "Kind": "Walk",
+      "Cost": 24.149702,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 122,
+      "ToNode": 101,
+      "Kind": "Jump",
+      "Cost": 24.149702,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1876,
+      "CompletionMaxX": 1940,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 123,
+      "Kind": "Walk",
+      "Cost": 16.635157,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 123,
+      "ToNode": 101,
+      "Kind": "Jump",
+      "Cost": 16.635157,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1876,
+      "CompletionMaxX": 1940,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 101,
+      "ToNode": 124,
+      "Kind": "Walk",
+      "Cost": 19.22401,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 124,
+      "ToNode": 101,
+      "Kind": "Jump",
+      "Cost": 19.22401,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1876,
+      "CompletionMaxX": 1940,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        39
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 126,
+      "Kind": "Walk",
+      "Cost": 29.354904,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 126,
+      "ToNode": 102,
+      "Kind": "Jump",
+      "Cost": 29.354904,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2368,
+      "CompletionMaxX": 2432,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 127,
+      "Kind": "Walk",
+      "Cost": 19.22401,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 127,
+      "ToNode": 102,
+      "Kind": "Jump",
+      "Cost": 19.22401,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2368,
+      "CompletionMaxX": 2432,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 128,
+      "Kind": "Walk",
+      "Cost": 16.635157,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 128,
+      "ToNode": 102,
+      "Kind": "Jump",
+      "Cost": 16.635157,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2368,
+      "CompletionMaxX": 2432,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 102,
+      "ToNode": 129,
+      "Kind": "Walk",
+      "Cost": 24.149702,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 129,
+      "ToNode": 102,
+      "Kind": "Jump",
+      "Cost": 24.149702,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2368,
+      "CompletionMaxX": 2432,
+      "CompletionMinY": 732,
+      "CompletionMaxY": 996,
+      "AcceptedLandingSurfaceIds": [
+        40
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
       "FromNode": 107,
       "ToNode": 115,
       "Kind": "Walk",
@@ -6540,13 +7812,15 @@
       "CompletionMaxX": 1272,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        48
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 115,
       "ToNode": 107,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 16.32353,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6556,11 +7830,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1300,
-      "CompletionMaxX": 1340,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1288,
+      "CompletionMaxX": 1352,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        43
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 107,
+      "ToNode": 114,
+      "Kind": "Walk",
+      "Cost": 28.579218,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1074,
+      "CompletionMaxX": 1272,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        48
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 114,
+      "ToNode": 107,
+      "Kind": "Jump",
+      "Cost": 28.579218,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1288,
+      "CompletionMaxX": 1352,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        43
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6580,13 +7900,15 @@
       "CompletionMaxX": 1674,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        49
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 116,
       "ToNode": 107,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 14.05845,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6596,11 +7918,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1300,
-      "CompletionMaxX": 1340,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1288,
+      "CompletionMaxX": 1352,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        43
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6620,13 +7944,15 @@
       "CompletionMaxX": 1674,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        49
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 117,
       "ToNode": 107,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 24.310665,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6636,11 +7962,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1300,
-      "CompletionMaxX": 1340,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1288,
+      "CompletionMaxX": 1352,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        43
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6660,13 +7988,15 @@
       "CompletionMaxX": 2958,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        52
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 135,
       "ToNode": 108,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 14.05845,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6676,11 +8006,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2968,
-      "CompletionMaxX": 3008,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2956,
+      "CompletionMaxX": 3020,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        44
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6700,13 +8032,15 @@
       "CompletionMaxX": 2958,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        52
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 134,
       "ToNode": 108,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 24.310665,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6716,11 +8050,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2968,
-      "CompletionMaxX": 3008,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2956,
+      "CompletionMaxX": 3020,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        44
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6740,13 +8076,15 @@
       "CompletionMaxX": 3228,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        53
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 136,
       "ToNode": 108,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 16.32353,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6756,11 +8094,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2968,
-      "CompletionMaxX": 3008,
-      "CompletionMinY": 798,
-      "CompletionMaxY": 990,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2956,
+      "CompletionMaxX": 3020,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        44
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 108,
+      "ToNode": 137,
+      "Kind": "Walk",
+      "Cost": 28.080002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 3036,
+      "CompletionMaxX": 3228,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        53
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 137,
+      "ToNode": 108,
+      "Kind": "Jump",
+      "Cost": 28.080002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2956,
+      "CompletionMaxX": 3020,
+      "CompletionMinY": 762,
+      "CompletionMaxY": 1026,
+      "AcceptedLandingSurfaceIds": [
+        44
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6780,13 +8164,15 @@
       "CompletionMaxX": 2064,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 125,
       "ToNode": 109,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 15.629972,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6796,11 +8182,145 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2100,
-      "CompletionMaxX": 2208,
-      "CompletionMinY": 816,
-      "CompletionMaxY": 1008,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 109,
+      "ToNode": 124,
+      "Kind": "Walk",
+      "Cost": 28.81926,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 124,
+      "ToNode": 109,
+      "Kind": "Jump",
+      "Cost": 28.81926,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 109,
+      "ToNode": 126,
+      "Kind": "Walk",
+      "Cost": 27.000002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 126,
+      "ToNode": 109,
+      "Kind": "Jump",
+      "Cost": 27.000002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 110,
+      "ToNode": 125,
+      "Kind": "Walk",
+      "Cost": 27.000002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 1710,
+      "CompletionMaxX": 2064,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 125,
+      "ToNode": 110,
+      "Kind": "Jump",
+      "Cost": 27.000002,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6820,13 +8340,15 @@
       "CompletionMaxX": 2598,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 126,
       "ToNode": 110,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 15.629972,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6836,11 +8358,57 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2100,
-      "CompletionMaxX": 2208,
-      "CompletionMinY": 816,
-      "CompletionMaxY": 1008,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 110,
+      "ToNode": 127,
+      "Kind": "Walk",
+      "Cost": 28.81926,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2244,
+      "CompletionMaxX": 2598,
+      "CompletionMinY": 858,
+      "CompletionMaxY": 1050,
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
+      "RequiresGroundedContinuation": false
+    },
+    {
+      "FromNode": 127,
+      "ToNode": 110,
+      "Kind": "Jump",
+      "Cost": 28.81926,
+      "ProbeCertified": false,
+      "ProbeJumpTriggerTick": 0,
+      "ProbeTicks": 0,
+      "ProbeMoveDirectionX": 0,
+      "ProbeVariantAttempts": 0,
+      "ProbeVariantSuccesses": 0,
+      "SupportedClassMask": -1,
+      "SupportedTeamMask": -1,
+      "CompletionMinX": 2088,
+      "CompletionMaxX": 2220,
+      "CompletionMinY": 780,
+      "CompletionMaxY": 1044,
+      "AcceptedLandingSurfaceIds": [
+        45
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6860,13 +8428,15 @@
       "CompletionMaxX": 1674,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        49
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 120,
       "ToNode": 111,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6876,11 +8446,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1672,
-      "CompletionMaxX": 1712,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1660,
+      "CompletionMaxX": 1724,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        46
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6900,13 +8472,15 @@
       "CompletionMaxX": 1674,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        49
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 119,
       "ToNode": 111,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 20.349556,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6916,11 +8490,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1672,
-      "CompletionMaxX": 1712,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1660,
+      "CompletionMaxX": 1724,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        46
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6940,13 +8516,15 @@
       "CompletionMaxX": 2064,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 121,
       "ToNode": 111,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6956,11 +8534,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1672,
-      "CompletionMaxX": 1712,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1660,
+      "CompletionMaxX": 1724,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        46
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -6980,13 +8560,15 @@
       "CompletionMaxX": 2064,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        50
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 122,
       "ToNode": 111,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 21.654121,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -6996,11 +8578,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 1672,
-      "CompletionMaxX": 1712,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 1660,
+      "CompletionMaxX": 1724,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        46
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -7020,13 +8604,15 @@
       "CompletionMaxX": 2598,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 130,
       "ToNode": 112,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -7036,11 +8622,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2596,
-      "CompletionMaxX": 2636,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2584,
+      "CompletionMaxX": 2648,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        47
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -7060,13 +8648,15 @@
       "CompletionMaxX": 2598,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        51
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 129,
       "ToNode": 112,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 21.654121,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -7076,11 +8666,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2596,
-      "CompletionMaxX": 2636,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2584,
+      "CompletionMaxX": 2648,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        47
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -7100,13 +8692,15 @@
       "CompletionMaxX": 2958,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        52
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 131,
       "ToNode": 112,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 8.714678,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -7116,11 +8710,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2596,
-      "CompletionMaxX": 2636,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2584,
+      "CompletionMaxX": 2648,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        47
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -7140,13 +8736,15 @@
       "CompletionMaxX": 2958,
       "CompletionMinY": 858,
       "CompletionMaxY": 1050,
-      "AcceptedLandingSurfaceIds": [],
+      "AcceptedLandingSurfaceIds": [
+        52
+      ],
       "RequiresGroundedContinuation": false
     },
     {
       "FromNode": 132,
       "ToNode": 112,
-      "Kind": "Walk",
+      "Kind": "Jump",
       "Cost": 20.349556,
       "ProbeCertified": false,
       "ProbeJumpTriggerTick": 0,
@@ -7156,11 +8754,13 @@
       "ProbeVariantSuccesses": 0,
       "SupportedClassMask": -1,
       "SupportedTeamMask": -1,
-      "CompletionMinX": 2596,
-      "CompletionMaxX": 2636,
-      "CompletionMinY": 828,
-      "CompletionMaxY": 1020,
-      "AcceptedLandingSurfaceIds": [],
+      "CompletionMinX": 2584,
+      "CompletionMaxX": 2648,
+      "CompletionMinY": 792,
+      "CompletionMaxY": 1056,
+      "AcceptedLandingSurfaceIds": [
+        47
+      ],
       "RequiresGroundedContinuation": false
     },
     {
@@ -7484,41 +9084,6 @@
       "RequiresGroundedContinuation": true
     },
     {
-      "FromNode": 69,
-      "ToNode": 59,
-      "Kind": "Jump",
-      "Cost": 266.5074,
-      "FromPortalId": 73,
-      "ToPortalId": 63,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 28,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1387,
-      "CompletionMaxX": 1745,
-      "CompletionMinY": 618,
-      "CompletionMaxY": 654,
-      "AcceptedLandingSurfaceIds": [
-        20
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 1274,
-        "LaunchMaxX": 1306,
-        "LaunchMinY": 652,
-        "LaunchMaxY": 668,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
-    },
-    {
       "FromNode": 59,
       "ToNode": 69,
       "Kind": "Fall",
@@ -7572,41 +9137,6 @@
         "LaunchMaxX": 1428,
         "LaunchMinY": 628,
         "LaunchMaxY": 644,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
-      "FromNode": 70,
-      "ToNode": 68,
-      "Kind": "Jump",
-      "Cost": 266.5074,
-      "FromPortalId": 74,
-      "ToPortalId": 69,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 28,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2563,
-      "CompletionMaxX": 2921,
-      "CompletionMinY": 618,
-      "CompletionMaxY": 654,
-      "AcceptedLandingSurfaceIds": [
-        21
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 3002,
-        "LaunchMaxX": 3034,
-        "LaunchMinY": 652,
-        "LaunchMaxY": 668,
         "LaunchMinHorizontalSpeed": -16,
         "LaunchMaxHorizontalSpeed": 16,
         "ExpectedMoveDirectionX": -1
@@ -7672,41 +9202,6 @@
       }
     },
     {
-      "FromNode": 119,
-      "ToNode": 111,
-      "Kind": "Jump",
-      "Cost": 230.07962,
-      "FromPortalId": 128,
-      "ToPortalId": 119,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 25,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 80,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1667,
-      "CompletionMaxX": 1717,
-      "CompletionMinY": 906,
-      "CompletionMaxY": 942,
-      "AcceptedLandingSurfaceIds": [
-        46
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 1567,
-        "LaunchMaxX": 1599,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
-    },
-    {
       "FromNode": 111,
       "ToNode": 119,
       "Kind": "Fall",
@@ -7760,41 +9255,6 @@
         "LaunchMaxX": 1708,
         "LaunchMinY": 916,
         "LaunchMaxY": 932,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
-      "FromNode": 132,
-      "ToNode": 112,
-      "Kind": "Jump",
-      "Cost": 230.07962,
-      "FromPortalId": 141,
-      "ToPortalId": 120,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 25,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 80,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2591,
-      "CompletionMaxX": 2641,
-      "CompletionMinY": 906,
-      "CompletionMaxY": 942,
-      "AcceptedLandingSurfaceIds": [
-        47
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 2709,
-        "LaunchMaxX": 2741,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
         "LaunchMinHorizontalSpeed": -16,
         "LaunchMaxHorizontalSpeed": 16,
         "ExpectedMoveDirectionX": -1
@@ -7860,41 +9320,6 @@
       }
     },
     {
-      "FromNode": 122,
-      "ToNode": 111,
-      "Kind": "Jump",
-      "Cost": 247.951,
-      "FromPortalId": 131,
-      "ToPortalId": 119,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 3,
-      "ProbeTicks": 27,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1667,
-      "CompletionMaxX": 1717,
-      "CompletionMinY": 906,
-      "CompletionMaxY": 942,
-      "AcceptedLandingSurfaceIds": [
-        46
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 3,
-        "LaunchMinX": 1789.1548,
-        "LaunchMaxX": 1821.1548,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -63.877228,
-        "LaunchMaxHorizontalSpeed": -31.877228,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
       "FromNode": 111,
       "ToNode": 122,
       "Kind": "Fall",
@@ -7950,41 +9375,6 @@
         "LaunchMaxY": 932,
         "LaunchMinHorizontalSpeed": -16,
         "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
-    },
-    {
-      "FromNode": 129,
-      "ToNode": 112,
-      "Kind": "Jump",
-      "Cost": 247.951,
-      "FromPortalId": 138,
-      "ToPortalId": 120,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 3,
-      "ProbeTicks": 27,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2591,
-      "CompletionMaxX": 2641,
-      "CompletionMinY": 906,
-      "CompletionMaxY": 942,
-      "AcceptedLandingSurfaceIds": [
-        47
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 3,
-        "LaunchMinX": 2486.8452,
-        "LaunchMaxX": 2518.8452,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": 31.877228,
-        "LaunchMaxHorizontalSpeed": 63.877228,
         "ExpectedMoveDirectionX": 1
       }
     },
@@ -8072,41 +9462,6 @@
       "RequiresGroundedContinuation": false
     },
     {
-      "FromNode": 92,
-      "ToNode": 85,
-      "Kind": "Jump",
-      "Cost": 267.40427,
-      "FromPortalId": 97,
-      "ToPortalId": 89,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 21,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 2,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1901,
-      "CompletionMaxX": 1951,
-      "CompletionMinY": 714,
-      "CompletionMaxY": 750,
-      "AcceptedLandingSurfaceIds": [
-        30
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 2046,
-        "LaunchMaxX": 2078,
-        "LaunchMinY": 754,
-        "LaunchMaxY": 770,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
       "FromNode": 86,
       "ToNode": 93,
       "Kind": "Fall",
@@ -8129,76 +9484,6 @@
         35
       ],
       "RequiresGroundedContinuation": false
-    },
-    {
-      "FromNode": 93,
-      "ToNode": 86,
-      "Kind": "Jump",
-      "Cost": 273.90427,
-      "FromPortalId": 99,
-      "ToPortalId": 90,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 3,
-      "ProbeTicks": 22,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 2,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2357,
-      "CompletionMaxX": 2407,
-      "CompletionMinY": 714,
-      "CompletionMaxY": 750,
-      "AcceptedLandingSurfaceIds": [
-        31
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 3,
-        "LaunchMinX": 2235.854,
-        "LaunchMaxX": 2267.854,
-        "LaunchMinY": 754,
-        "LaunchMaxY": 770,
-        "LaunchMinHorizontalSpeed": 67.78515,
-        "LaunchMaxHorizontalSpeed": 99.78515,
-        "ExpectedMoveDirectionX": 1
-      }
-    },
-    {
-      "FromNode": 62,
-      "ToNode": 42,
-      "Kind": "Jump",
-      "Cost": 276.37463,
-      "FromPortalId": 67,
-      "ToPortalId": 44,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 30,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1747,
-      "CompletionMaxX": 1847,
-      "CompletionMinY": 600,
-      "CompletionMaxY": 636,
-      "AcceptedLandingSurfaceIds": [
-        14
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 1627,
-        "LaunchMaxX": 1659,
-        "LaunchMinY": 628,
-        "LaunchMaxY": 644,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
     },
     {
       "FromNode": 42,
@@ -8254,41 +9539,6 @@
         "LaunchMaxX": 1788,
         "LaunchMinY": 610,
         "LaunchMaxY": 626,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
-      "FromNode": 65,
-      "ToNode": 45,
-      "Kind": "Jump",
-      "Cost": 276.87463,
-      "FromPortalId": 70,
-      "ToPortalId": 47,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 31,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2461,
-      "CompletionMaxX": 2561,
-      "CompletionMinY": 600,
-      "CompletionMaxY": 636,
-      "AcceptedLandingSurfaceIds": [
-        15
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 2649,
-        "LaunchMaxX": 2681,
-        "LaunchMinY": 628,
-        "LaunchMaxY": 644,
         "LaunchMinHorizontalSpeed": -16,
         "LaunchMaxHorizontalSpeed": 16,
         "ExpectedMoveDirectionX": -1
@@ -8496,41 +9746,6 @@
       "RequiresGroundedContinuation": false
     },
     {
-      "FromNode": 117,
-      "ToNode": 107,
-      "Kind": "Jump",
-      "Cost": 284.58887,
-      "FromPortalId": 126,
-      "ToPortalId": 115,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 10,
-      "ProbeTicks": 28,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1295,
-      "CompletionMaxX": 1345,
-      "CompletionMinY": 876,
-      "CompletionMaxY": 912,
-      "AcceptedLandingSurfaceIds": [
-        43
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 10,
-        "LaunchMinX": 1401.939,
-        "LaunchMaxX": 1433.939,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -119.98375,
-        "LaunchMaxHorizontalSpeed": -87.98375,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
       "FromNode": 108,
       "ToNode": 134,
       "Kind": "Fall",
@@ -8553,41 +9768,6 @@
         52
       ],
       "RequiresGroundedContinuation": false
-    },
-    {
-      "FromNode": 134,
-      "ToNode": 108,
-      "Kind": "Jump",
-      "Cost": 302.58887,
-      "FromPortalId": 143,
-      "ToPortalId": 116,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 10,
-      "ProbeTicks": 28,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2963,
-      "CompletionMaxX": 3013,
-      "CompletionMinY": 876,
-      "CompletionMaxY": 912,
-      "AcceptedLandingSurfaceIds": [
-        44
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 10,
-        "LaunchMinX": 2874.0608,
-        "LaunchMaxX": 2906.0608,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": 87.98375,
-        "LaunchMaxHorizontalSpeed": 119.98375,
-        "ExpectedMoveDirectionX": 1
-      }
     },
     {
       "FromNode": 91,
@@ -8802,41 +9982,6 @@
       "RequiresGroundedContinuation": true
     },
     {
-      "FromNode": 25,
-      "ToNode": 19,
-      "Kind": "Jump",
-      "Cost": 313.1881,
-      "FromPortalId": 25,
-      "ToPortalId": 19,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 33,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1885,
-      "CompletionMaxX": 2087,
-      "CompletionMinY": 420,
-      "CompletionMaxY": 456,
-      "AcceptedLandingSurfaceIds": [
-        5
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 1750,
-        "LaunchMaxX": 1782,
-        "LaunchMinY": 484,
-        "LaunchMaxY": 500,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
-    },
-    {
       "FromNode": 24,
       "ToNode": 28,
       "Kind": "Fall",
@@ -8861,41 +10006,6 @@
       "RequiresGroundedContinuation": true
     },
     {
-      "FromNode": 28,
-      "ToNode": 24,
-      "Kind": "Jump",
-      "Cost": 313.1881,
-      "FromPortalId": 28,
-      "ToPortalId": 23,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 33,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2221,
-      "CompletionMaxX": 2423,
-      "CompletionMinY": 420,
-      "CompletionMaxY": 456,
-      "AcceptedLandingSurfaceIds": [
-        6
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 2526,
-        "LaunchMaxX": 2558,
-        "LaunchMinY": 484,
-        "LaunchMaxY": 500,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
       "FromNode": 109,
       "ToNode": 124,
       "Kind": "Fall",
@@ -8918,41 +10028,6 @@
         50
       ],
       "RequiresGroundedContinuation": true
-    },
-    {
-      "FromNode": 124,
-      "ToNode": 109,
-      "Kind": "Jump",
-      "Cost": 323.6605,
-      "FromPortalId": 133,
-      "ToPortalId": 117,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 35,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2095,
-      "CompletionMaxX": 2213,
-      "CompletionMinY": 894,
-      "CompletionMaxY": 930,
-      "AcceptedLandingSurfaceIds": [
-        45
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 1949.5,
-        "LaunchMaxX": 1981.5,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": 1
-      }
     },
     {
       "FromNode": 109,
@@ -9014,41 +10089,6 @@
       "RequiresGroundedContinuation": true
     },
     {
-      "FromNode": 127,
-      "ToNode": 110,
-      "Kind": "Jump",
-      "Cost": 323.6605,
-      "FromPortalId": 136,
-      "ToPortalId": 118,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 0,
-      "ProbeTicks": 35,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 82,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2095,
-      "CompletionMaxX": 2213,
-      "CompletionMinY": 894,
-      "CompletionMaxY": 930,
-      "AcceptedLandingSurfaceIds": [
-        45
-      ],
-      "RequiresGroundedContinuation": true,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 0,
-        "LaunchMinX": 2326.5,
-        "LaunchMaxX": 2358.5,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -16,
-        "LaunchMaxHorizontalSpeed": 16,
-        "ExpectedMoveDirectionX": -1
-      }
-    },
-    {
       "FromNode": 110,
       "ToNode": 127,
       "Kind": "Jump",
@@ -9106,41 +10146,6 @@
         53
       ],
       "RequiresGroundedContinuation": false
-    },
-    {
-      "FromNode": 137,
-      "ToNode": 108,
-      "Kind": "Jump",
-      "Cost": 305.5,
-      "FromPortalId": 146,
-      "ToPortalId": 116,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 6,
-      "ProbeTicks": 23,
-      "ProbeMoveDirectionX": -1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 2,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 2963,
-      "CompletionMaxX": 3013,
-      "CompletionMinY": 876,
-      "CompletionMaxY": 912,
-      "AcceptedLandingSurfaceIds": [
-        44
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 6,
-        "LaunchMinX": 3097.974,
-        "LaunchMaxX": 3129.974,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": -154.07469,
-        "LaunchMaxHorizontalSpeed": -122.07469,
-        "ExpectedMoveDirectionX": -1
-      }
     },
     {
       "FromNode": 101,
@@ -9283,41 +10288,6 @@
         48
       ],
       "RequiresGroundedContinuation": false
-    },
-    {
-      "FromNode": 114,
-      "ToNode": 107,
-      "Kind": "Jump",
-      "Cost": 309.66013,
-      "FromPortalId": 123,
-      "ToPortalId": 115,
-      "ProbeCertified": true,
-      "ProbeJumpTriggerTick": 6,
-      "ProbeTicks": 23,
-      "ProbeMoveDirectionX": 1,
-      "ProbeVariantAttempts": 1,
-      "ProbeVariantSuccesses": 1,
-      "SupportedClassMask": 2,
-      "SupportedTeamMask": -1,
-      "CompletionMinX": 1295,
-      "CompletionMaxX": 1345,
-      "CompletionMinY": 876,
-      "CompletionMaxY": 912,
-      "AcceptedLandingSurfaceIds": [
-        43
-      ],
-      "RequiresGroundedContinuation": false,
-      "LaunchRecipe": {
-        "StartGrounded": true,
-        "LaunchTick": 6,
-        "LaunchMinX": 1175.0258,
-        "LaunchMaxX": 1207.0258,
-        "LaunchMinY": 946,
-        "LaunchMaxY": 962,
-        "LaunchMinHorizontalSpeed": 122.07469,
-        "LaunchMaxHorizontalSpeed": 154.07469,
-        "ExpectedMoveDirectionX": 1
-      }
     },
     {
       "FromNode": 62,
@@ -14673,1020 +15643,11 @@
       "NodeIndex": 153
     }
   ],
-  "ValidationIssues": [
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "SpawnObjectiveNoPath",
-      "Message": "Spawn component cannot reach objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 139,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 140,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 141,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Red",
-      "FromNode": 142,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 143,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 144,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 145,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 147,
-      "X": 2121,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 148,
-      "X": 2193,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 149,
-      "X": 2157,
-      "Y": 747
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 150,
-      "X": 2121,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 151,
-      "X": 2193,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027CaptureZone\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 152,
-      "X": 2157,
-      "Y": 705
-    },
-    {
-      "Kind": "PortalSpawnObjectiveNoPath",
-      "Message": "Portal graph cannot route spawn to objective anchor \u0027ArenaControlPoint\u0027.",
-      "Team": "Blue",
-      "FromNode": 146,
-      "ToNode": 153,
-      "X": 2175,
-      "Y": 705
-    }
-  ],
+  "ValidationIssues": [],
   "BuildStats": {
     "SurfacePairChecks": 2316,
     "NodePairChecks": 2316,
     "CertifiedProbeAttempts": 454,
-    "CertifiedProbeSuccesses": 165
+    "CertifiedProbeSuccesses": 147
   }
 }

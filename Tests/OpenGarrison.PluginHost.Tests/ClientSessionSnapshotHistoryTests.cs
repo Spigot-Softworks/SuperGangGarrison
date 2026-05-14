@@ -47,6 +47,21 @@ public sealed class ClientSessionSnapshotHistoryTests
         Assert.Equal((ulong)64, latestBaseline.Frame);
     }
 
+    [Fact]
+    public void RememberResolvedSnapshotStateRejectsDeltaSnapshots()
+    {
+        var client = new ClientSession(1, 101, new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero);
+        var delta = CreateSnapshot(2) with
+        {
+            IsDelta = true,
+            BaselineFrame = 1,
+            Players = Array.Empty<SnapshotPlayerState>(),
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => client.RememberResolvedSnapshotState(delta));
+        Assert.Contains("non-delta", exception.Message);
+    }
+
     private static SnapshotMessage CreateSnapshot(ulong frame)
     {
         return new SnapshotMessage(

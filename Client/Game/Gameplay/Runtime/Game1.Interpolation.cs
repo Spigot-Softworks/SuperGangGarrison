@@ -44,7 +44,7 @@ public partial class Game1
     private readonly Dictionary<int, List<PlayerSnapshotSample>> _remotePlayerSnapshotHistories = new();
     private readonly HashSet<int> _activeInterpolatedEntityIds = new();
     private readonly List<int> _staleInterpolatedEntityIds = new();
-    private readonly Dictionary<ulong, SnapshotMessage> _snapshotStatesByFrame = new();
+    private readonly Dictionary<ulong, SnapshotBaselineState> _snapshotStatesByFrame = new();
     private readonly Queue<ulong> _snapshotStateFrameOrder = new();
     private readonly Queue<SnapshotMessage> _queuedAuthoritativeSnapshots = new();
     private readonly Stopwatch _networkInterpolationClock = Stopwatch.StartNew();
@@ -205,19 +205,20 @@ public partial class Game1
 
     private void RememberSnapshotState(SnapshotMessage snapshot)
     {
+        var baseline = SnapshotBaselineState.FromSnapshot(snapshot);
         if (!_snapshotStatesByFrame.ContainsKey(snapshot.Frame))
         {
             _snapshotStateFrameOrder.Enqueue(snapshot.Frame);
         }
 
-        _snapshotStatesByFrame[snapshot.Frame] = snapshot;
+        _snapshotStatesByFrame[snapshot.Frame] = baseline;
         while (_snapshotStateFrameOrder.Count > SnapshotStateHistoryLimit)
         {
             _snapshotStatesByFrame.Remove(_snapshotStateFrameOrder.Dequeue());
         }
     }
 
-    private bool TryGetSnapshotState(ulong frame, out SnapshotMessage snapshot)
+    private bool TryGetSnapshotState(ulong frame, out SnapshotBaselineState snapshot)
     {
         return _snapshotStatesByFrame.TryGetValue(frame, out snapshot!);
     }

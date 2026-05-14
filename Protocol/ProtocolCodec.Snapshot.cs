@@ -10,6 +10,8 @@ public static partial class ProtocolCodec
     private const float QuantizedMetalScale = 10f;
     private const float QuantizedIntelRechargeScale = 4f;
     private const float QuantizedChatBubbleAlphaScale = 255f;
+    private const float QuantizedSpyCloakAlphaScale = 255f;
+    private const float QuantizedMedicUberChargeScale = 4f;
 
     private static void WriteSnapshot(BinaryWriter writer, SnapshotMessage snapshot)
     {
@@ -39,6 +41,7 @@ public static partial class ProtocolCodec
         WriteSnapshotPlayers(writer, snapshot.Players);
         WriteSnapshotPlayerMovementStates(writer, snapshot.PlayerMovementStates);
         WriteSnapshotPlayerStatusStates(writer, snapshot.PlayerStatusStates);
+        WriteSnapshotPlayerExtendedStatusStates(writer, snapshot.PlayerExtendedStatusStates);
         WriteSnapshotPlayerChatBubbleStates(writer, snapshot.PlayerChatBubbleStates);
         WriteEntityIdList(writer, snapshot.RemovedPlayerIds);
         WriteCombatTraces(writer, snapshot.CombatTraces);
@@ -118,6 +121,7 @@ public static partial class ProtocolCodec
         var players = ReadSnapshotPlayers(reader);
         var playerMovementStates = ReadSnapshotPlayerMovementStates(reader);
         var playerStatusStates = ReadSnapshotPlayerStatusStates(reader);
+        var playerExtendedStatusStates = ReadSnapshotPlayerExtendedStatusStates(reader);
         var playerChatBubbleStates = ReadSnapshotPlayerChatBubbleStates(reader);
         var removedPlayerIds = ReadEntityIdList(reader);
         var combatTraces = ReadCombatTraces(reader);
@@ -226,6 +230,7 @@ public static partial class ProtocolCodec
             IsDelta = isDelta,
             PlayerMovementStates = playerMovementStates,
             PlayerStatusStates = playerStatusStates,
+            PlayerExtendedStatusStates = playerExtendedStatusStates,
             PlayerChatBubbleStates = playerChatBubbleStates,
             SentryUpdateStates = sentryUpdateStates,
             RemovedPlayerIds = removedPlayerIds,
@@ -691,6 +696,73 @@ public static partial class ProtocolCodec
         return states;
     }
 
+    private static void WriteSnapshotPlayerExtendedStatusStates(
+        BinaryWriter writer,
+        IReadOnlyList<SnapshotPlayerExtendedStatusState> states)
+    {
+        writer.Write((byte)states.Count);
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            var state = states[index];
+            writer.Write(state.Slot);
+            writer.Write(GetPlayerExtendedStatusFlags0(state));
+            writer.Write(GetPlayerExtendedStatusFlags1(state));
+            writer.Write((byte)Math.Clamp((int)MathF.Round(Math.Clamp(state.SpyCloakAlpha, 0f, 1f) * QuantizedSpyCloakAlphaScale), 0, byte.MaxValue));
+            writer.Write(QuantizePosition(state.SpySuperjumpHorizontalVelocity));
+            writer.Write((ushort)Math.Clamp(state.SpySuperjumpCooldownTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.SpyBackstabVisualTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.HeavyEatTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.SniperChargeTicks, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.MedicNeedleCooldownTicks, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.MedicNeedleRefillTicks, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.PyroAirblastCooldownTicks, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.PyroFlareCooldownTicks, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.PyroPrimaryFuelScaled, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.PyroFlameLoopTicksRemaining, 0, ushort.MaxValue));
+            writer.Write((ushort)Math.Clamp(state.HeavyEatCooldownTicksRemaining, 0, ushort.MaxValue));
+            writer.Write(QuantizeScaledUInt16(state.MedicUberCharge, QuantizedMedicUberChargeScale));
+        }
+    }
+
+    private static List<SnapshotPlayerExtendedStatusState> ReadSnapshotPlayerExtendedStatusStates(BinaryReader reader)
+    {
+        var stateCount = reader.ReadByte();
+        var states = new List<SnapshotPlayerExtendedStatusState>(stateCount);
+        for (var index = 0; index < stateCount; index += 1)
+        {
+            var slot = reader.ReadByte();
+            var flags0 = reader.ReadByte();
+            var flags1 = reader.ReadByte();
+            states.Add(new SnapshotPlayerExtendedStatusState(
+                slot,
+                IsPlayerExtendedSpyCloaked(flags0),
+                reader.ReadByte() / QuantizedSpyCloakAlphaScale,
+                IsPlayerExtendedSpySuperjumping(flags0),
+                DequantizePosition(reader.ReadInt16()),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                IsPlayerExtendedUbered(flags0),
+                IsPlayerExtendedKritz(flags0),
+                IsPlayerExtendedHeavyEating(flags0),
+                reader.ReadUInt16(),
+                IsPlayerExtendedSniperScoped(flags0),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                reader.ReadUInt16(),
+                IsPlayerExtendedPyroPrimaryRefilling(flags0),
+                reader.ReadUInt16(),
+                IsPlayerExtendedPyroPrimaryRequiresReleaseAfterEmpty(flags1),
+                reader.ReadUInt16(),
+                ReadScaledUInt16(reader, QuantizedMedicUberChargeScale),
+                IsPlayerExtendedMedicUberReady(flags1)));
+        }
+
+        return states;
+    }
+
     private static byte GetMovementFlags(bool isGrounded, bool isFacingLeft, bool isMedicHealing)
     {
         byte flags = 0;
@@ -725,6 +797,81 @@ public static partial class ProtocolCodec
     private static byte GetChatBubbleFlags(bool isVisible) => isVisible ? (byte)0x01 : (byte)0x00;
 
     private static bool IsChatBubbleVisibleFromFlags(byte flags) => (flags & 0x01) != 0;
+
+    private static byte GetPlayerExtendedStatusFlags0(SnapshotPlayerExtendedStatusState state)
+    {
+        byte flags = 0;
+        if (state.IsSpyCloaked)
+        {
+            flags |= 0x01;
+        }
+
+        if (state.IsSpySuperjumping)
+        {
+            flags |= 0x02;
+        }
+
+        if (state.IsUbered)
+        {
+            flags |= 0x04;
+        }
+
+        if (state.IsKritzCritBoosted)
+        {
+            flags |= 0x08;
+        }
+
+        if (state.IsHeavyEating)
+        {
+            flags |= 0x10;
+        }
+
+        if (state.IsSniperScoped)
+        {
+            flags |= 0x20;
+        }
+
+        if (state.IsPyroPrimaryRefilling)
+        {
+            flags |= 0x40;
+        }
+
+        return flags;
+    }
+
+    private static byte GetPlayerExtendedStatusFlags1(SnapshotPlayerExtendedStatusState state)
+    {
+        byte flags = 0;
+        if (state.PyroPrimaryRequiresReleaseAfterEmpty)
+        {
+            flags |= 0x01;
+        }
+
+        if (state.IsMedicUberReady)
+        {
+            flags |= 0x02;
+        }
+
+        return flags;
+    }
+
+    private static bool IsPlayerExtendedSpyCloaked(byte flags) => (flags & 0x01) != 0;
+
+    private static bool IsPlayerExtendedSpySuperjumping(byte flags) => (flags & 0x02) != 0;
+
+    private static bool IsPlayerExtendedUbered(byte flags) => (flags & 0x04) != 0;
+
+    private static bool IsPlayerExtendedKritz(byte flags) => (flags & 0x08) != 0;
+
+    private static bool IsPlayerExtendedHeavyEating(byte flags) => (flags & 0x10) != 0;
+
+    private static bool IsPlayerExtendedSniperScoped(byte flags) => (flags & 0x20) != 0;
+
+    private static bool IsPlayerExtendedPyroPrimaryRefilling(byte flags) => (flags & 0x40) != 0;
+
+    private static bool IsPlayerExtendedPyroPrimaryRequiresReleaseAfterEmpty(byte flags) => (flags & 0x01) != 0;
+
+    private static bool IsPlayerExtendedMedicUberReady(byte flags) => (flags & 0x02) != 0;
 
     private static ushort QuantizeAngleDegrees(float degrees)
     {

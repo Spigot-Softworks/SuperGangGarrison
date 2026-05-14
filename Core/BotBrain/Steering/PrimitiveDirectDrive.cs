@@ -9,6 +9,7 @@ public static class PrimitiveDirectDrive
     private const float MaxRecoveryEnemyDriveDistance = 900f;
     private const float HorizontalDeadZone = 18f;
     private const float RiseJumpThreshold = 24f;
+    private const float DropThroughTargetBelowThreshold = 72f;
     private const float BlockedVerticalSeekThreshold = 48f;
     private const float HeadroomProbeHeight = 64f;
     private const float WallProbeDistance = 18f;
@@ -96,7 +97,8 @@ public static class PrimitiveDirectDrive
         var moveDirection = useCombatRange
             ? ResolveCombatMoveDirection(self, distance, dx)
             : GetMoveDirection(dx);
-        var jump = ShouldJumpTowardTarget(world, self, target.Y, moveDirection);
+        var dropDown = ShouldDropTowardTarget(world, self, target, moveDirection);
+        var jump = !dropDown && ShouldJumpTowardTarget(world, self, target.Y, moveDirection);
         if (jump
             && target.Y < self.Y - BlockedVerticalSeekThreshold
             && MathF.Abs(dx) <= HorizontalDeadZone
@@ -112,8 +114,8 @@ public static class PrimitiveDirectDrive
 
         directSteering.MoveDirection = moveDirection;
         directSteering.Jump = jump || pathSteering.Jump;
-        directSteering.DropDown = false;
-        trace = $"directDrive={target.Label} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+        directSteering.DropDown = dropDown;
+        trace = $"directDrive={target.Label} dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{moveDirection:0} jump:{(directSteering.Jump ? 1 : 0)} drop:{(directSteering.DropDown ? 1 : 0)}";
         return true;
     }
 
@@ -169,6 +171,23 @@ public static class PrimitiveDirectDrive
         }
 
         return moveDirection != 0 && WouldMoveIntoObstacle(world, self, moveDirection);
+    }
+
+    private static bool ShouldDropTowardTarget(
+        SimulationWorld world,
+        PlayerEntity self,
+        DirectDriveTarget target,
+        int moveDirection)
+    {
+        if (!self.IsGrounded
+            || moveDirection == 0
+            || target.Kind is DirectDriveTargetKind.Enemy or DirectDriveTargetKind.Carrier or DirectDriveTargetKind.Escort
+            || target.Y <= self.Y + DropThroughTargetBelowThreshold)
+        {
+            return false;
+        }
+
+        return WouldMoveIntoObstacle(world, self, moveDirection);
     }
 
     private static bool HasBlockedHeadroom(SimulationWorld world, PlayerEntity player)

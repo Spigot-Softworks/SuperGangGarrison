@@ -161,6 +161,133 @@ function Restore-CollisionMaskImages {
     Copy-DirectoryContents -SourceDirectory $sourceDirectory -DestinationDirectory $destinationDirectory
 }
 
+function Test-IsPathWithinDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Directory
+    )
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $resolvedDirectory = [System.IO.Path]::GetFullPath($Directory)
+    if (-not $resolvedDirectory.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $resolvedDirectory += [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    return $resolvedPath.StartsWith($resolvedDirectory, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Remove-PackagedContentResidue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentDirectory
+    )
+
+    if (-not (Test-Path $ContentDirectory)) {
+        return
+    }
+
+    $contentRoot = [System.IO.Path]::GetFullPath($ContentDirectory)
+    $removedDirectories = 0
+    $removedFiles = 0
+
+    $knownSourceDirectories = @(
+        "Objects",
+        "Scripts"
+    )
+
+    foreach ($relativeDirectory in $knownSourceDirectories) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if ((Test-Path $directory) -and (Test-IsPathWithinDirectory -Path $directory -Directory $contentRoot)) {
+            Remove-Item $directory -Recurse -Force
+            $removedDirectories += 1
+        }
+    }
+
+    $buildDirectoryNames = @("bin", "obj")
+    foreach ($directory in Get-ChildItem -Path $ContentDirectory -Directory -Recurse -Force | Sort-Object FullName -Descending) {
+        if ($buildDirectoryNames -notcontains $directory.Name) {
+            continue
+        }
+
+        if (-not (Test-IsPathWithinDirectory -Path $directory.FullName -Directory $contentRoot)) {
+            continue
+        }
+
+        Remove-Item $directory.FullName -Recurse -Force
+        $removedDirectories += 1
+    }
+
+    $sourceFilePatterns = @(
+        "*.mgcb",
+        "*.mgcontent",
+        "*.mgstats",
+        "*.cs"
+    )
+
+    foreach ($pattern in $sourceFilePatterns) {
+        foreach ($file in Get-ChildItem -Path $ContentDirectory -File -Recurse -Force -Filter $pattern) {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    $deprecatedGameMakerMetadataDirectories = @(
+        "Sprites",
+        "Backgrounds",
+        "Sounds",
+        "Fonts",
+        "Paths",
+        "Time Lines",
+        "Builder"
+    )
+
+    foreach ($relativeDirectory in $deprecatedGameMakerMetadataDirectories) {
+        $directory = Join-Path $ContentDirectory $relativeDirectory
+        if (-not (Test-Path $directory)) {
+            continue
+        }
+
+        foreach ($file in Get-ChildItem -Path $directory -File -Recurse -Force -Filter "*.xml") {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    $rootConstantsFile = Join-Path $ContentDirectory "Constants.xml"
+    if ((Test-Path $rootConstantsFile) -and (Test-IsPathWithinDirectory -Path $rootConstantsFile -Directory $contentRoot)) {
+        Remove-Item $rootConstantsFile -Force
+        $removedFiles += 1
+    }
+
+    $browserOnlyBundlePatterns = @(
+        "_browser-bootstrap-assets.zip",
+        "_browser-runtime-assets.zip"
+    )
+
+    foreach ($pattern in $browserOnlyBundlePatterns) {
+        foreach ($file in Get-ChildItem -Path $ContentDirectory -File -Force -Filter $pattern) {
+            if (-not (Test-IsPathWithinDirectory -Path $file.FullName -Directory $contentRoot)) {
+                continue
+            }
+
+            Remove-Item $file.FullName -Force
+            $removedFiles += 1
+        }
+    }
+
+    Write-Host "[package] removed content residue: $removedDirectories directories, $removedFiles files"
+}
+
 function New-UnixLauncherScript {
     param(
         [Parameter(Mandatory = $true)]
@@ -363,6 +490,7 @@ foreach ($runtimeIdentifier in $Platforms) {
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "Client/Content") -DestinationDirectory (Join-Path $stagingDirectory "Content")
     Invoke-GenerateDistributionAtlases -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
     Restore-CollisionMaskImages -RepoRoot $repoRoot -ContentDirectory (Join-Path $stagingDirectory "Content")
+    Remove-PackagedContentResidue -ContentDirectory (Join-Path $stagingDirectory "Content")
     Copy-DirectoryContents -SourceDirectory (Join-Path $repoRoot "packaging/config") -DestinationDirectory (Join-Path $stagingDirectory "config")
     Copy-Item (Join-Path $repoRoot "sampleMapRotation.txt") (Join-Path $stagingDirectory "config/sampleMapRotation.txt") -Force
     Copy-Item (Join-Path $repoRoot "packaging/README.txt") (Join-Path $stagingDirectory "README.txt") -Force

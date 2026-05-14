@@ -92,14 +92,21 @@ public partial class Game1
 
         var healTargetRenderPosition = GetRenderPosition(healTarget, allowInterpolation: !ReferenceEquals(healTarget, _world.LocalPlayer));
         var beamOrigin = GetMedicBeamOrigin(medic, out var weaponForwardDirection);
+        if (!IsFiniteVector(healTargetRenderPosition)
+            || !IsFiniteVector(beamOrigin)
+            || !IsFiniteVector(weaponForwardDirection))
+        {
+            return;
+        }
+
         var toTarget = healTargetRenderPosition - beamOrigin;
-        if (toTarget.LengthSquared() <= 0.0001f)
+        if (!IsFiniteVector(toTarget) || toTarget.LengthSquared() <= 0.0001f)
         {
             return;
         }
 
         var aimDirection = weaponForwardDirection;
-        if (aimDirection.LengthSquared() <= 0.0001f)
+        if (!IsFiniteVector(aimDirection) || aimDirection.LengthSquared() <= 0.0001f)
         {
             aimDirection = Vector2.Normalize(toTarget);
         }
@@ -153,6 +160,11 @@ public partial class Game1
         void DrawMedicBeamSegment(PlayerEntity target)
         {
             var targetRenderPosition = GetRenderPosition(target, allowInterpolation: !ReferenceEquals(target, _world.LocalPlayer));
+            if (!IsFiniteVector(targetRenderPosition))
+            {
+                return;
+            }
+
             DrawCurvedWorldLine(
                 beamStartX,
                 beamStartY,
@@ -200,6 +212,14 @@ public partial class Game1
         Color helixStartColor,
         Color helixEndColor)
     {
+        if (!AreFinite(startX, startY, endX, endY)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         const int steps = 64;
         const float maxRadius = 6f;
         const float helixTurns = 2.5f;
@@ -326,6 +346,14 @@ public partial class Game1
         Color helixStartColor,
         Color helixEndColor)
     {
+        if (!AreFinite(startX, startY, endX, endY)
+            || !IsFiniteVector(cameraPosition)
+            || !IsFiniteVector(aimDirection)
+            || aimDirection.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
         const int steps = 64;
         const float maxRadius = 8f;
         const float helixTurns = 3f;
@@ -468,6 +496,11 @@ public partial class Game1
     {
         weaponForwardDirection = Vector2.Zero;
         var renderPosition = GetRenderPosition(medic, allowInterpolation: !ReferenceEquals(medic, _world.LocalPlayer));
+        if (!IsFiniteVector(renderPosition))
+        {
+            return Vector2.Zero;
+        }
+
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
         var weaponDefinition = GetWeaponRenderDefinition(medic);
         if (weaponDefinition.NormalSpriteName is null)
@@ -489,6 +522,12 @@ public partial class Game1
         var bodySelection = GetPlayerBodySpriteSelection(medic);
         var anchorOrigin = GetWeaponAnchorOrigin(weaponDefinition, sprite);
         var renderAim = GetRenderAimWorldPosition(medic);
+        if (!IsFiniteVector(renderAim))
+        {
+            weaponForwardDirection = medic.FacingDirectionX < 0f ? new Vector2(-1f, 0f) : new Vector2(1f, 0f);
+            return roundedOrigin;
+        }
+
         var playerScale = medic.PlayerScale;
 
         var facingScale = MathF.Abs(renderAim.X - roundedOrigin.X) > 0.001f
@@ -515,6 +554,24 @@ public partial class Game1
         return new Vector2(
             drawX + aimDirectionX * tipDistance,
             drawY + aimDirectionY * tipDistance);
+    }
+
+    private static bool IsFiniteVector(Vector2 value)
+    {
+        return float.IsFinite(value.X) && float.IsFinite(value.Y);
+    }
+
+    private static bool AreFinite(params float[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!float.IsFinite(value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void DrawGameplayEffectsAndProjectiles(Vector2 cameraPosition)
