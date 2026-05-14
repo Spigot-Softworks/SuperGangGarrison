@@ -16,20 +16,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build bot tools
-        run: dotnet build BotAI.Tools/OpenGarrison.BotAI.Tools.csproj --configuration Debug
+      - name: Build BotBrain tools
+        run: dotnet build BotBrain.Tools/OpenGarrison.BotBrain.Tools.csproj --configuration Debug
 
-      - name: Run bot score matrix
+      - name: Run BotBrain navigation smoke
         run: >
-          dotnet BotAI.Tools/bin/Debug/net10.0/OpenGarrison.BotAI.Tools.dll
-          --stock-ctf-koth-matrix
-          --map Eiger
-          --map Valley
+          dotnet BotBrain.Tools/bin/Debug/net10.0/OpenGarrison.BotBrain.Tools.dll
+          --dump-room-objects true
           --map Harvest
-          --map TwodFortTwo
-          --map Gallery
-          --scenario-kind Score
-          --class Scout
-          --class Heavy
-          --class Pyro
-          --no-bot-diagnostics
+          --area 1
+          --team Red
