@@ -46,6 +46,8 @@ public sealed class ClientSettings
 
     public int FlameRenderMode { get; set; }
 
+    public MenuBackgroundMode MenuBackgroundMode { get; set; } = MenuBackgroundMode.Static;
+
     public int GibLevel { get; set; } = 3;
 
     public int CorpseDurationMode { get; set; }
@@ -146,6 +148,8 @@ public sealed class ClientSettings
             BotMode = document.BotMode,
             IngameResolution = document.IngameResolution,
             ParticleMode = document.ParticleMode,
+            FlameRenderMode = document.FlameRenderMode,
+            MenuBackgroundMode = document.MenuBackgroundMode,
             GibLevel = document.GibLevel,
             CorpseDurationMode = document.CorpseDurationMode,
             KillCamEnabled = document.KillCamEnabled,
@@ -186,6 +190,8 @@ public sealed class ClientSettings
         preferences.BotMode = BotMode;
         preferences.KillCamEnabled = KillCamEnabled;
         preferences.ParticleMode = ParticleMode;
+        preferences.FlameRenderMode = FlameRenderMode;
+        preferences.MenuBackgroundMode = MenuBackgroundMode;
         preferences.GibLevel = GibLevel;
         preferences.CorpseDurationMode = CorpseDurationMode;
         preferences.HealerRadarEnabled = HealerRadarEnabled;

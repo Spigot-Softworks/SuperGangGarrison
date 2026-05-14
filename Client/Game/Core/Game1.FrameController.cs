@@ -149,7 +149,7 @@ public partial class Game1
             }
 
             _game.AdvanceMenuClientTicks(clientTicks);
-            _game._menuController.Update(keyboard, mouse);
+            _game._menuController.Update(gameTime, keyboard, mouse);
             if (_game._networkClient.IsConnected)
             {
                 _game.ProcessNetworkMessages();
