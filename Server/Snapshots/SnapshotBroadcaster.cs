@@ -72,6 +72,28 @@ sealed class SnapshotBroadcaster
         Metrics = default;
     }
 
+    public void RemoveClientState(byte slot)
+    {
+        _clientCacheTrackers.Remove(slot);
+    }
+
+    public void MoveClientState(byte oldSlot, byte newSlot)
+    {
+        if (oldSlot == newSlot)
+        {
+            return;
+        }
+
+        if (_clientCacheTrackers.TryGetValue(oldSlot, out var tracker))
+        {
+            _clientCacheTrackers.Remove(oldSlot);
+            _clientCacheTrackers[newSlot] = tracker;
+            return;
+        }
+
+        _clientCacheTrackers.Remove(newSlot);
+    }
+
     public void BroadcastSnapshot()
     {
         if (_clientsBySlot.Count == 0)
@@ -178,7 +200,7 @@ sealed class SnapshotBroadcaster
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberSnapshotState(fullSnapshot);
+            client.RememberResolvedSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
                 SentPayloadBytes: fullSnapshotPayload.Length,
@@ -195,7 +217,7 @@ sealed class SnapshotBroadcaster
         {
             var fullSnapshotPayload = ProtocolCodec.Serialize(fullSnapshot, ServerProtocolCompression.Settings);
             _sendSnapshot(client.Peer, fullSnapshot, fullSnapshotPayload);
-            client.RememberSnapshotState(fullSnapshot);
+            client.RememberResolvedSnapshotState(fullSnapshot);
             return new SentSnapshotMetrics(
                 FullPayloadBytes: fullSnapshotPayloadBytes,
                 SentPayloadBytes: fullSnapshotPayload.Length,
@@ -208,7 +230,7 @@ sealed class SnapshotBroadcaster
 
         var snapshot = BuildBudgetedSnapshot(client, fullSnapshot, baseline, targetPayloadBytes);
         _sendSnapshot(client.Peer, snapshot.Message, snapshot.Payload);
-        client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
+        client.RememberResolvedSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline));
         return new SentSnapshotMetrics(
             FullPayloadBytes: fullSnapshotPayloadBytes,
             SentPayloadBytes: snapshot.Payload.Length,

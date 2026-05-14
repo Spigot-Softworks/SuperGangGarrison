@@ -32,6 +32,78 @@ if (rawOptions.TryGetValue("probe-return-tape", out var probeReturnTape)
     return;
 }
 
+if (rawOptions.TryGetValue("generate-proof-return", out var generateProofReturn)
+    && bool.TryParse(generateProofReturn, out var parsedGenerateProofReturn)
+    && parsedGenerateProofReturn)
+{
+    BotBrainToolCommandHelpers.GenerateProofReturnTape(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("plan-proof-return", out var planProofReturn)
+    && bool.TryParse(planProofReturn, out var parsedPlanProofReturn)
+    && parsedPlanProofReturn)
+{
+    BotBrainToolCommandHelpers.PlanProofReturnTape(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("plan-proof-pickup", out var planProofPickup)
+    && bool.TryParse(planProofPickup, out var parsedPlanProofPickup)
+    && parsedPlanProofPickup)
+{
+    BotBrainToolCommandHelpers.PlanProofReturnTape(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("plan-proof-objective", out var planProofObjective)
+    && bool.TryParse(planProofObjective, out var parsedPlanProofObjective)
+    && parsedPlanProofObjective)
+{
+    BotBrainToolCommandHelpers.PlanProofReturnTape(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("verified-nav-report", out var verifiedNavReport)
+    && bool.TryParse(verifiedNavReport, out var parsedVerifiedNavReport)
+    && parsedVerifiedNavReport)
+{
+    BotBrainToolCommandHelpers.RunVerifiedNavReport(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("build-proof-graph", out var buildProofGraph)
+    && bool.TryParse(buildProofGraph, out var parsedBuildProofGraph)
+    && parsedBuildProofGraph)
+{
+    BotBrainToolCommandHelpers.BuildVerifiedProofGraph(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("extract-proof-trace", out var extractProofTrace)
+    && bool.TryParse(extractProofTrace, out var parsedExtractProofTrace)
+    && parsedExtractProofTrace)
+{
+    BotBrainToolCommandHelpers.ExtractVerifiedProofTraceFromPlannerSteps(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("generate-follow-proof-return", out var generateFollowProofReturn)
+    && bool.TryParse(generateFollowProofReturn, out var parsedGenerateFollowProofReturn)
+    && parsedGenerateFollowProofReturn)
+{
+    BotBrainToolCommandHelpers.GenerateFollowProofReturnTape(rawOptions, artifactJsonOptions);
+    return;
+}
+
+if (rawOptions.TryGetValue("validate-return-tape-as-class", out var validateReturnTape)
+    && bool.TryParse(validateReturnTape, out var parsedValidateReturnTape)
+    && parsedValidateReturnTape)
+{
+    BotBrainToolCommandHelpers.ValidateReturnTapeAsClass(rawOptions, artifactJsonOptions);
+    return;
+}
+
 if (rawOptions.TryGetValue("compile-corridor", out var corridorRecordingPath))
 {
     var corridorRecordingMapScale = rawOptions.TryGetValue("recording-map-scale", out var recordingMapScaleText)
@@ -58,6 +130,17 @@ if (rawOptions.TryGetValue("compile-corridor", out var corridorRecordingPath))
 }
 
 var options = BotBrainCanaryOptions.Parse(args);
+if (!string.IsNullOrWhiteSpace(options.ProofGraphPath))
+{
+    Environment.SetEnvironmentVariable(VerifiedNavProofGraphAssetStore.EnableEnvironmentVariable, "1");
+    Environment.SetEnvironmentVariable(VerifiedNavProofGraphAssetStore.PathEnvironmentVariable, Path.GetFullPath(options.ProofGraphPath));
+}
+if (options.ProofGraphRequired)
+{
+    Environment.SetEnvironmentVariable(VerifiedNavProofGraphAssetStore.EnableEnvironmentVariable, "1");
+    Environment.SetEnvironmentVariable(VerifiedNavProofGraphAssetStore.RequireEnvironmentVariable, "1");
+}
+
 var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
 ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
 
@@ -143,6 +226,7 @@ if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats:
     throw new InvalidOperationException($"SimulationWorld failed to load '{options.MapName}' area {options.AreaIndex}.");
 }
 
+RunNeutralPreTicks(world, options.PreTicks);
 world.DespawnEnemyDummy();
 world.DespawnFriendlyDummy();
 world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, options.Team);
@@ -200,7 +284,7 @@ if (options.DropBlueIntel)
 var brain = new BotBrainController(graph);
 var goal = ObjectiveEvaluator.EvaluateGoal(bot, world, options.Team, combatTarget: null);
 var startNode = graph.FindNearestTraversalStartNode(bot.X, bot.Y);
-var exactGoalNode = world.MatchRules.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+var exactGoalNode = world.MatchRules.Mode is GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
     ? graph.FindNearestReachableNode(goal.X, goal.Y, startNode, options.PlayerClass, team: options.Team)
     : graph.FindNearestNode(goal.X, goal.Y);
 var goalNode = exactGoalNode;
@@ -231,6 +315,7 @@ var dropdownTicks = 0;
 var fireTicks = 0;
 var deadTicks = 0;
 var carryingIntelTick = -1;
+BotBrainRuntimeStateArtifact? carryingIntelState = null;
 var scoreTick = -1;
 var objectiveCompletionReason = string.Empty;
 var initialRedCaps = world.RedCaps;
@@ -241,6 +326,7 @@ var lastPrintedPathCount = -1;
 var edgeDiagnostics = new EdgeExecutionDiagnostics();
 var semanticRecoveryTraces = new List<string>();
 var semanticRecoveryEvents = new List<SemanticRecoveryArtifact>();
+var proofGraphEvents = new List<ProofGraphTraceArtifact>();
 var validationIssues = FilterControlMarkerValidationIssues(asset);
 var artifactDirectory = ResolveArtifactDirectory(options.ArtifactsDirectory);
 var proofCorridorSamples = new List<BotBrainCorridorRecordingSample>();
@@ -251,8 +337,17 @@ var proofTapeName = rawOptions.TryGetValue("proof-tape-name", out var providedPr
     ? providedProofTapeName
     : $"{options.MapName}.a{options.AreaIndex}.{options.Team}.{options.PlayerClass}.proof";
 var proofTapeSamples = new List<BotBrainProofTapeSample>();
+var exportRunProofGraph = rawOptions.TryGetValue("export-run-proof-graph", out var exportRunProofGraphText)
+    && bool.TryParse(exportRunProofGraphText, out var parsedExportRunProofGraph)
+    && parsedExportRunProofGraph;
+var runProofRouteKind = rawOptions.TryGetValue("run-proof-route-kind", out var runProofRouteKindText)
+    && Enum.TryParse<VerifiedNavProofRouteKind>(runProofRouteKindText, ignoreCase: true, out var parsedRunProofRouteKind)
+        ? parsedRunProofRouteKind
+        : VerifiedNavProofRouteKind.Pickup;
+var runProofSamples = new List<TraversalLabTickSample>();
 var initialRouteEdges = path is not null ? BuildRouteEdgeArtifacts(graph, path) : [];
 var initialRouteQuality = AnalyzeRouteQuality(initialRouteEdges, path?.TotalCost ?? -1f);
+var graphQuality = AnalyzeGraphQuality(graph);
 var authorityDiagnostics = new AuthorityTransitionDiagnostics();
 
 Console.WriteLine($"map={world.Level.Name} area={world.Level.MapAreaIndex} mode={world.MatchRules.Mode}");
@@ -266,6 +361,11 @@ if (validationIssues.Count > 0)
     Console.WriteLine($"assetValidation=issues:{validationIssues.Count} first:{FormatValidationIssue(validationIssues[0])}");
 }
 Console.WriteLine($"graph=nodes:{graph.NodeCount} edges:{edgeCount} walk:{walkEdges} jump:{jumpEdges} fall:{fallEdges} dropdown:{dropdownEdges} startNode:{startNode} goalNode:{goalNode} pathWaypoints:{path?.Count ?? 0} pathCost:{path?.TotalCost ?? -1:0.0}");
+Console.WriteLine(
+    $"graphQuality=suspiciousVerticalRelays:{graphQuality.SuspiciousVerticalRelayEdges} verticalWalk:{graphQuality.VerticalWalkEdges} " +
+    $"uncertifiedNonWalk:{graphQuality.UncertifiedNonWalkEdges} missingCompletion:{graphQuality.MissingCompletionNonWalkEdges} " +
+    $"weakProbe:{graphQuality.WeakProbeEdges} zeroOrLowCost:{graphQuality.ZeroOrLowCostEdges} maxOutDegree:{graphQuality.MaxOutDegree} " +
+    $"worstOutNode:{graphQuality.WorstOutDegreeNode} poisonScore:{graphQuality.PoisonScore}");
 Console.WriteLine($"objectiveReachability=rawGoal:({goal.X:0.0},{goal.Y:0.0}) exactGoalNode:{exactGoalNode} exactPathWaypoints:{exactPath?.Count ?? 0} fallbackGoalNode:{goalNode} fallbackUsed:{(goalNode != exactGoalNode).ToString(CultureInfo.InvariantCulture)} exactGoal:{FormatComponent(exactGoalComponent, components)} fallbackGoal:{FormatComponent(goalComponent, components)}");
 Console.WriteLine($"reachability=fromStart:{reachableFromStart}/{graph.NodeCount} toGoal:{reachableToGoal}/{graph.NodeCount}");
 Console.WriteLine($"components=count:{components.Summaries.Count} start:{FormatComponent(startComponent, components)} goal:{FormatComponent(goalComponent, components)} top:{string.Join(';', components.Summaries.OrderByDescending(static c => c.NodeCount).Take(5).Select(static c => $"#{c.Id}:{c.NodeCount}"))}");
@@ -280,6 +380,7 @@ if (path is not null)
 }
 Console.WriteLine($"bot=slot:{options.BotSlot} team:{options.Team} class:{options.PlayerClass} start=({bot.X:0.0},{bot.Y:0.0}) goal=({goal.X:0.0},{goal.Y:0.0}) initialDistance={initialDistance:0.0} redCaps={world.RedCaps} blueCaps={world.BlueCaps} playerCaps={bot.Caps}");
 BotBrainToolCommandHelpers.AddProofCorridorSample(proofCorridorSamples, world, bot, default, tick: 0, "Start");
+runProofSamples.Add(CreateRuntimeProofSample(level, options.Team, bot, default, tick: 0, "Start"));
 
 if (path is null)
 {
@@ -328,6 +429,7 @@ if (path is null)
         0,
         0,
         -1,
+        null,
         -1,
         initialRedCaps,
         initialBlueCaps,
@@ -340,7 +442,8 @@ if (path is null)
         "edgeMax=none",
         edgeDiagnostics,
         semanticRecoveryTraces,
-        semanticRecoveryEvents);
+        semanticRecoveryEvents,
+        proofGraphEvents);
     Environment.ExitCode = 2;
     return;
 }
@@ -355,9 +458,21 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
         brain.CurrentPathIndex,
         brain.CurrentPathCount,
         brain.CurrentPathNode,
+        brain.LastProofGraphTrace,
         brain.LastObjectiveTapeTrace,
         brain.LastDirectDriveTrace,
         brain.LastSemanticRecoveryTrace);
+    if (!string.IsNullOrWhiteSpace(brain.LastProofGraphTrace))
+    {
+        proofGraphEvents.Add(new ProofGraphTraceArtifact(
+            Tick: tick,
+            Trace: brain.LastProofGraphTrace,
+            CarryingIntel: bot.IsCarryingIntel,
+            X: bot.X,
+            Y: bot.Y,
+            Bottom: bot.Bottom,
+            Grounded: bot.IsGrounded));
+    }
     if (input.Up)
     {
         jumpTicks += 1;
@@ -416,6 +531,7 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
     }
 
     world.AdvanceOneTick();
+    runProofSamples.Add(CreateRuntimeProofSample(level, options.Team, bot, input, tick, "Runtime"));
 
     edgeDiagnostics.Observe(
         tick,
@@ -458,11 +574,17 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
         var directDriveText = !string.IsNullOrWhiteSpace(brain.LastDirectDriveTrace)
             ? $" {brain.LastDirectDriveTrace}"
             : string.Empty;
+        var proofGraphText = !string.IsNullOrWhiteSpace(brain.LastProofGraphTrace)
+            ? $" {brain.LastProofGraphTrace}"
+            : string.Empty;
         var tapeText = !string.IsNullOrWhiteSpace(brain.LastObjectiveTapeTrace)
             ? $" {brain.LastObjectiveTapeTrace}"
             : string.Empty;
+        var intelText = world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            ? $" redIntel:{FormatIntelState(world.RedIntel)} blueIntel:{FormatIntelState(world.BlueIntel)}"
+            : string.Empty;
         Console.WriteLine(
-            $"trace tick={tick} pos=({bot.X:0.0},{bot.Y:0.0}) speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) grounded={bot.IsGrounded} carrying={bot.IsCarryingIntel} input=L{Bit(traceInput.Left)}R{Bit(traceInput.Right)}U{Bit(traceInput.Up)}D{Bit(traceInput.Down)}F{Bit(traceInput.FirePrimary)} path={tracePathIndex}/{tracePathCount} node={nodeText}{edgeText}{recipeText}{directDriveText}{tapeText}");
+            $"trace tick={tick} pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0} speed=({bot.HorizontalSpeed:0.0},{bot.VerticalSpeed:0.0}) grounded={bot.IsGrounded} airJumps={bot.RemainingAirJumps} carrying={bot.IsCarryingIntel} input=L{Bit(traceInput.Left)}R{Bit(traceInput.Right)}U{Bit(traceInput.Up)}D{Bit(traceInput.Down)}F{Bit(traceInput.FirePrimary)} path={tracePathIndex}/{tracePathCount} node={nodeText}{edgeText}{recipeText}{directDriveText}{proofGraphText}{tapeText}{intelText}");
     }
 
     if (!bot.IsAlive)
@@ -473,6 +595,7 @@ for (var tick = 1; tick <= options.Ticks; tick += 1)
     if (bot.IsCarryingIntel && carryingIntelTick < 0)
     {
         carryingIntelTick = tick;
+        carryingIntelState = CaptureRuntimeState(tick, bot, input);
     }
 
     if (scoreTick < 0
@@ -566,10 +689,11 @@ var failureBucket = ClassifyFailureBucket(
 Console.WriteLine($"result={result}");
 Console.WriteLine($"summary=finalDistance:{finalDistance:0.0} bestDistance:{bestDistance:0.0} progress:{progress:0.0} totalMovement:{totalMovement:0.0} jumps:{jumpTicks} dropdowns:{dropdownTicks} fire:{fireTicks} deadTicks:{deadTicks} stagnantWindows:{stagnantWindows} carryingIntelTick:{carryingIntelTick} scoreTick:{scoreTick} objectiveReason:{(string.IsNullOrWhiteSpace(objectiveCompletionReason) ? "none" : objectiveCompletionReason)} redCaps:{world.RedCaps} blueCaps:{world.BlueCaps} playerCaps:{bot.Caps} finalNode:{finalNode} finalPathWaypoints:{finalPath?.Count ?? 0}");
 Console.WriteLine($"failureBucket={failureBucket}");
+var objectivePathAccepted = world.MatchRules.Mode == GameModeKind.Generator
+    || (exactPath is not null && goalNode == exactGoalNode);
 var proofPassed = scoreTick >= 0
     && validationIssues.Count == 0
-    && exactPath is not null
-    && goalNode == exactGoalNode;
+    && objectivePathAccepted;
 Console.WriteLine($"proofPassed={proofPassed}");
 if (installProofTape)
 {
@@ -622,6 +746,42 @@ if (options.AutoBakeProofCorridor)
     else
     {
         Console.WriteLine($"autoProofCorridor=skipped reason:not_scored samples:{proofCorridorSamples.Count}");
+    }
+}
+if (exportRunProofGraph)
+{
+    if (scoreTick >= 0)
+    {
+        var selectedSamples = runProofSamples
+            .Where(sample => sample.Tick <= scoreTick)
+            .ToArray();
+        var verifiedGraph = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
+        {
+            Team = options.Team,
+            ClassId = options.PlayerClass,
+        });
+        var proofTrace = VerifiedNavProofTraceExtractor.Extract(
+            verifiedGraph,
+            selectedSamples,
+            $"RuntimeProof:{options.MapName}:a{options.AreaIndex}:{options.Team}:{options.PlayerClass}:{objectiveCompletionReason}",
+            selectedSamples[0].X,
+            selectedSamples[0].Bottom);
+        var proofGraph = VerifiedNavProofGraphBuilder.Build(
+            verifiedGraph,
+            [(runProofRouteKind, proofTrace)]);
+        if (artifactDirectory is not null)
+        {
+            WriteJson(Path.Combine(artifactDirectory, "runtime-proof-trace.json"), proofTrace, artifactJsonOptions);
+            WriteJson(Path.Combine(artifactDirectory, "verified-proof-graph.json"), proofGraph, artifactJsonOptions);
+        }
+
+        Console.WriteLine(
+            $"runProofGraph=exported routeKind:{runProofRouteKind} samples:{selectedSamples.Length} surfaces:{proofTrace.SurfaceTouchCount} " +
+            $"edges:{proofTrace.Edges.Count} routes:{proofGraph.Routes.Count} artifactDir:{artifactDirectory ?? "none"}");
+    }
+    else
+    {
+        Console.WriteLine($"runProofGraph=skipped reason:not_scored samples:{runProofSamples.Count}");
     }
 }
 var edgeSummary = edgeDiagnostics.FormatSummary(graph, bot, brain.CurrentPathIndex, brain.CurrentPathCount, brain.CurrentPathNode);
@@ -680,6 +840,7 @@ WriteArtifacts(
     deadTicks,
     stagnantWindows,
     carryingIntelTick,
+    carryingIntelState,
     scoreTick,
     initialRedCaps,
     initialBlueCaps,
@@ -692,7 +853,8 @@ WriteArtifacts(
     edgeSummary,
     edgeDiagnostics,
     semanticRecoveryTraces,
-    semanticRecoveryEvents);
+    semanticRecoveryEvents,
+    proofGraphEvents);
 
 if (!proofPassed)
 {
@@ -710,6 +872,23 @@ string? ResolveArtifactDirectory(string artifactsDirectory)
     Directory.CreateDirectory(directory);
     return directory;
 }
+
+static BotBrainRuntimeStateArtifact CaptureRuntimeState(int tick, PlayerEntity bot, PlayerInputSnapshot input) =>
+    new(
+        tick,
+        bot.X,
+        bot.Y,
+        bot.Bottom,
+        bot.HorizontalSpeed,
+        bot.VerticalSpeed,
+        bot.IsGrounded,
+        bot.RemainingAirJumps,
+        bot.FacingDirectionX < 0f ? -1f : 1f,
+        input.Left,
+        input.Right,
+        input.Up,
+        input.Down,
+        bot.IsCarryingIntel);
 
 static IEnumerable<string> FormatCaptureProfileLines(
     EdgeExecutionDiagnostics edgeDiagnostics,
@@ -928,6 +1107,7 @@ BotBrainProofEvaluation EvaluateCandidateAsset(BotNavigationAsset candidateAsset
         return new BotBrainProofEvaluation(false, -1, 0f, 0, 0, "load_failed");
     }
 
+    RunNeutralPreTicks(candidateWorld, options.PreTicks);
     var candidateGraph = BotNavigationAssetBuilder.ToGraph(candidateAsset, candidateWorld.Level);
 
     candidateWorld.DespawnEnemyDummy();
@@ -1070,6 +1250,7 @@ void WriteArtifacts(
     int deadTicks,
     int stagnantWindows,
     int carryingIntelTick,
+    BotBrainRuntimeStateArtifact? carryingIntelState,
     int scoreTick,
     int initialRedCaps,
     int initialBlueCaps,
@@ -1082,7 +1263,8 @@ void WriteArtifacts(
     string edgeSummary,
     EdgeExecutionDiagnostics edgeDiagnostics,
     IReadOnlyList<string> semanticRecoveryTraces,
-    IReadOnlyList<SemanticRecoveryArtifact> semanticRecoveryEvents)
+    IReadOnlyList<SemanticRecoveryArtifact> semanticRecoveryEvents,
+    IReadOnlyList<ProofGraphTraceArtifact> proofGraphEvents)
 {
     if (artifactDirectory is null)
     {
@@ -1117,6 +1299,7 @@ void WriteArtifacts(
             deadTicks,
             stagnantWindows,
             carryingIntelTick,
+            carryingIntelState,
             scoreTick,
             initialRedCaps,
             initialBlueCaps,
@@ -1128,6 +1311,7 @@ void WriteArtifacts(
             finalPathWaypoints,
             edgeSummary,
             semanticRecoveryTraces,
+            proofGraphTraceCount = proofGraphEvents.Count,
         },
         jsonOptions);
 
@@ -1187,12 +1371,19 @@ void WriteArtifacts(
 
     WriteJsonLines(Path.Combine(artifactDirectory, "edges.jsonl"), edgeDiagnostics.Edges, jsonOptions);
     WriteJsonLines(Path.Combine(artifactDirectory, "blockers.jsonl"), edgeDiagnostics.Blockers, jsonOptions);
+    WriteJson(Path.Combine(artifactDirectory, "graph-quality.json"), graphQuality, jsonOptions);
     WriteJson(Path.Combine(artifactDirectory, "initial-route-quality.json"), initialRouteQuality, jsonOptions);
     WriteJsonLines(Path.Combine(artifactDirectory, "initial-route.jsonl"), initialRouteEdges, jsonOptions);
     WriteJson(Path.Combine(artifactDirectory, "authority-summary.json"), authorityDiagnostics.BuildSummary(scoreTick), jsonOptions);
     WriteJsonLines(Path.Combine(artifactDirectory, "authority-transitions.jsonl"), authorityDiagnostics.Transitions, jsonOptions);
+    WriteJsonLines(Path.Combine(artifactDirectory, "proof-graph-traces.jsonl"), proofGraphEvents, jsonOptions);
+    WriteJson(Path.Combine(artifactDirectory, "proof-graph-summary.json"), BuildProofGraphSummary(proofGraphEvents, scoreTick), jsonOptions);
     WriteJsonLines(Path.Combine(artifactDirectory, "semantic-recoveries.jsonl"), semanticRecoveryEvents, jsonOptions);
     WriteJson(Path.Combine(artifactDirectory, "churn-summary.json"), BuildChurnSummary(edgeDiagnostics.Edges, semanticRecoveryEvents, semanticRecoveryTraces, scoreTick), jsonOptions);
+    if (carryingIntelState is not null)
+    {
+        WriteJson(Path.Combine(artifactDirectory, "pickup-state.json"), carryingIntelState, jsonOptions);
+    }
 }
 
 void WriteJson(string path, object value, JsonSerializerOptions jsonOptions)
@@ -1323,6 +1514,19 @@ static bool TryDetectObjectiveCompletion(
             }
         }
     }
+    else if (world.MatchRules.Mode == GameModeKind.ControlPoint)
+    {
+        var targetPoint = world.ControlPoints
+            .OrderBy(point => Distance(point.Marker.CenterX, point.Marker.CenterY, goal.X, goal.Y))
+            .FirstOrDefault();
+        if (targetPoint is not null
+            && targetPoint.Team == team
+            && world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        {
+            reason = "ControlPointDefenseZone";
+            return true;
+        }
+    }
     else if (world.MatchRules.Mode == GameModeKind.Generator)
     {
         var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
@@ -1352,6 +1556,46 @@ static bool TryDetectObjectiveCompletion(
     return false;
 }
 
+static TraversalLabTickSample CreateRuntimeProofSample(
+    SimpleLevel level,
+    PlayerTeam team,
+    PlayerEntity player,
+    PlayerInputSnapshot input,
+    int tick,
+    string stepLabel)
+{
+    const float IntelMarkerSize = 24f;
+    var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+    var enemyIntel = level.GetIntelBase(opposingTeam);
+    var ownIntel = level.GetIntelBase(team);
+
+    return new TraversalLabTickSample(
+        Tick: tick,
+        X: player.X,
+        Y: player.Y,
+        Bottom: player.Bottom,
+        HorizontalSpeed: player.HorizontalSpeed,
+        VerticalSpeed: player.VerticalSpeed,
+        IsGrounded: player.IsGrounded,
+        FacingDirectionX: player.FacingDirectionX,
+        SupportedBelow: false,
+        BlockedLeft: false,
+        BlockedRight: false,
+        InputLeft: input.Left,
+        InputRight: input.Right,
+        InputUp: input.Up,
+        InputDown: input.Down,
+        InputFirePrimary: input.FirePrimary,
+        InputFireSecondary: input.FireSecondary,
+        InputUseAbility: input.UseAbility,
+        InputDropIntel: input.DropIntel,
+        IsCarryingIntel: player.IsCarryingIntel,
+        OverlapsEnemyIntelMarker: enemyIntel is { } enemy && player.IntersectsMarker(enemy.X, enemy.Y, IntelMarkerSize, IntelMarkerSize),
+        OverlapsOwnIntelMarker: ownIntel is { } own && player.IntersectsMarker(own.X, own.Y, IntelMarkerSize, IntelMarkerSize),
+        IsInsideBlockingTeamGate: player.IsInsideBlockingTeamGate(level, team),
+        StepLabel: stepLabel);
+}
+
 static string FindRepoRoot(string startPath)
 {
     var directory = new DirectoryInfo(startPath);
@@ -1376,7 +1620,34 @@ static float Distance(float ax, float ay, float bx, float by)
     return MathF.Sqrt((dx * dx) + (dy * dy));
 }
 
+static void RunNeutralPreTicks(SimulationWorld world, int ticks)
+{
+    if (ticks <= 0)
+    {
+        return;
+    }
+
+    world.SetLocalInput(default);
+    world.SetEnemyInput(default);
+    for (var tick = 0; tick < ticks; tick += 1)
+    {
+        world.AdvanceOneTick();
+    }
+
+    Console.WriteLine($"preTicks={ticks} controlPointSetupActive={world.ControlPointSetupActive} setupTicksRemaining={world.ControlPointSetupTicksRemaining}");
+}
+
 static int Bit(bool value) => value ? 1 : 0;
+
+static string FormatIntelState(TeamIntelligenceState intel)
+{
+    var state = intel.IsAtBase
+        ? "base"
+        : intel.IsDropped
+            ? "dropped"
+            : "carried";
+    return $"{state}@({intel.X:0.0},{intel.Y:0.0}) return:{intel.ReturnTicksRemaining}";
+}
 
 static string FormatRecipeTrace(SteeringRecipeTrace trace)
 {
@@ -1678,11 +1949,11 @@ static ComponentDiagnostics BuildUndirectedComponents(NavGraph graph, BotNavigat
         {
             var current = queue.Dequeue();
             count += 1;
-            var assetNode = asset.Nodes[current];
-            minX = MathF.Min(minX, assetNode.X);
-            maxX = MathF.Max(maxX, assetNode.X);
-            minY = MathF.Min(minY, assetNode.Y);
-            maxY = MathF.Max(maxY, assetNode.Y);
+            var graphNode = graph.GetNode(current);
+            minX = MathF.Min(minX, graphNode.X);
+            maxX = MathF.Max(maxX, graphNode.X);
+            minY = MathF.Min(minY, graphNode.Y);
+            maxY = MathF.Max(maxY, graphNode.Y);
             foreach (var next in neighbors[current])
             {
                 if (componentByNode[next] >= 0)
@@ -1719,20 +1990,36 @@ static string FormatValidationIssue(BotNavigationValidationIssueAssetEntry issue
 
 List<BotNavigationValidationIssueAssetEntry> FilterControlMarkerValidationIssues(BotNavigationAsset sourceAsset)
 {
-    if (!sourceAsset.Anchors.Any(static anchor => anchor.Kind == "CaptureZone"))
+    var hasCaptureZone = sourceAsset.Anchors.Any(static anchor => anchor.Kind == "CaptureZone");
+    var generatorAnchors = sourceAsset.Anchors
+        .Where(static anchor => anchor.Kind == "Generator")
+        .ToArray();
+    if (!hasCaptureZone && generatorAnchors.Length == 0)
     {
         return sourceAsset.ValidationIssues;
     }
+
+    bool IsGeneratorProximityIssue(BotNavigationValidationIssueAssetEntry issue)
+    {
+        return issue.Kind is "SpawnObjectiveNoPath" or "PortalSpawnObjectiveNoPath"
+            && generatorAnchors.Any(anchor =>
+                MathF.Abs(anchor.X - issue.X) <= 1f
+                && MathF.Abs(anchor.Y - issue.Y) <= 1f);
+    }
+
+    var filtered = sourceAsset.ValidationIssues
+        .Where(issue => !IsGeneratorProximityIssue(issue))
+        .ToList();
 
     var controlObjectiveAnchors = sourceAsset.Anchors
         .Where(static anchor => anchor.Kind is "ControlPoint" or "CaptureZone")
         .ToArray();
     if (controlObjectiveAnchors.Length <= 1)
     {
-        return sourceAsset.ValidationIssues;
+        return filtered;
     }
 
-    return sourceAsset.ValidationIssues
+    return filtered
         .Where(issue => !controlObjectiveAnchors.Any(anchor =>
             MathF.Abs(anchor.X - issue.X) <= 1f
             && MathF.Abs(anchor.Y - issue.Y) <= 1f))
@@ -1741,6 +2028,14 @@ List<BotNavigationValidationIssueAssetEntry> FilterControlMarkerValidationIssues
 
 static string ResolveMovementAuthority(BotBrainController brain)
 {
+    if (brain.LastProofGraphTrace.StartsWith("proofGraph=route:", StringComparison.Ordinal)
+        || brain.LastProofGraphTrace.StartsWith("proofGraph=lane", StringComparison.Ordinal)
+        || brain.LastProofGraphTrace.StartsWith("proofGraph=terminal", StringComparison.Ordinal)
+        || brain.LastProofGraphTrace.StartsWith("proofGraph=routeAction", StringComparison.Ordinal))
+    {
+        return "proof-graph";
+    }
+
     if (!string.IsNullOrWhiteSpace(brain.LastDirectDriveTrace))
     {
         return "direct-drive";
@@ -1764,6 +2059,11 @@ static string ResolveMovementAuthority(BotBrainController brain)
     if (brain.LastObjectiveTapeTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
     {
         return "tape-idle";
+    }
+
+    if (brain.LastProofGraphTrace.StartsWith("proofGraph=idle", StringComparison.Ordinal))
+    {
+        return "proof-graph-idle";
     }
 
     return "none";
@@ -1795,12 +2095,126 @@ static RouteEdgeArtifact[] BuildRouteEdgeArtifacts(NavGraph graph, NavPath path)
             Distance: distance,
             HorizontalDelta: dx,
             VerticalDelta: dy,
+            ProbeTicks: hasIncomingEdge ? edge.ProbeTicks : 0,
+            ProbeMoveDirectionX: hasIncomingEdge ? edge.ProbeMoveDirectionX : 0f,
+            ProbeVariantAttempts: hasIncomingEdge ? edge.ProbeVariantAttempts : 0,
+            ProbeVariantSuccesses: hasIncomingEdge ? edge.ProbeVariantSuccesses : 0,
+            HasCompletionWindow: hasIncomingEdge && edge.Completion.HasWindow,
+            CompletionMinX: hasIncomingEdge ? edge.Completion.MinX : 0f,
+            CompletionMaxX: hasIncomingEdge ? edge.Completion.MaxX : 0f,
+            CompletionMinY: hasIncomingEdge ? edge.Completion.MinY : 0f,
+            CompletionMaxY: hasIncomingEdge ? edge.Completion.MaxY : 0f,
+            AcceptedCompletionSurfaces: hasIncomingEdge ? edge.Completion.AcceptedSurfaceIds.Length : 0,
+            RequiresGroundedContinuation: hasIncomingEdge && edge.RequiresGroundedContinuation,
+            RequiresCarryingIntel: hasIncomingEdge && edge.RequiresCarryingIntel,
+            HasLaunchRecipe: hasIncomingEdge && edge.LaunchRecipe.HasRecipe,
+            LaunchTick: hasIncomingEdge ? edge.LaunchRecipe.LaunchTick : -1,
+            LaunchMinX: hasIncomingEdge ? edge.LaunchRecipe.LaunchMinX : 0f,
+            LaunchMaxX: hasIncomingEdge ? edge.LaunchRecipe.LaunchMaxX : 0f,
+            LaunchMinY: hasIncomingEdge ? edge.LaunchRecipe.LaunchMinY : 0f,
+            LaunchMaxY: hasIncomingEdge ? edge.LaunchRecipe.LaunchMaxY : 0f,
+            LaunchMinHorizontalSpeed: hasIncomingEdge ? edge.LaunchRecipe.LaunchMinHorizontalSpeed : 0f,
+            LaunchMaxHorizontalSpeed: hasIncomingEdge ? edge.LaunchRecipe.LaunchMaxHorizontalSpeed : 0f,
+            ExpectedLaunchMoveDirectionX: hasIncomingEdge ? edge.LaunchRecipe.ExpectedMoveDirectionX : 0f,
+            SupportedClassMask: hasIncomingEdge ? edge.SupportedClassMask : 0,
+            SupportedTeamMask: hasIncomingEdge ? edge.SupportedTeamMask : 0,
             CheapVerticalRelay: cheapVerticalRelay,
             VerticalWalk: kind == NavEdgeKind.Walk && dy > 24f,
             SuspiciousVerticalWalk: kind == NavEdgeKind.Walk && cheapVerticalRelay));
     }
 
     return edges.ToArray();
+}
+
+static GraphQualityArtifact AnalyzeGraphQuality(NavGraph graph)
+{
+    const float verticalRelayThreshold = 24f;
+    const float suspiciousRelayHorizontalReach = 260f;
+    const float suspiciousRelayCostFloorMultiplier = 0.55f;
+
+    var edgeCount = 0;
+    var suspiciousVerticalRelays = 0;
+    var verticalWalkEdges = 0;
+    var uncertifiedNonWalkEdges = 0;
+    var missingCompletionNonWalkEdges = 0;
+    var weakProbeEdges = 0;
+    var zeroOrLowCostEdges = 0;
+    var maxOutDegree = 0;
+    var worstOutDegreeNode = -1;
+
+    for (var fromNodeIndex = 0; fromNodeIndex < graph.NodeCount; fromNodeIndex += 1)
+    {
+        var from = graph.GetNode(fromNodeIndex);
+        var edges = graph.GetEdges(fromNodeIndex);
+        if (edges.Length > maxOutDegree)
+        {
+            maxOutDegree = edges.Length;
+            worstOutDegreeNode = fromNodeIndex;
+        }
+
+        for (var edgeIndex = 0; edgeIndex < edges.Length; edgeIndex += 1)
+        {
+            var edge = edges[edgeIndex];
+            var to = graph.GetNode(edge.ToNode);
+            var horizontalDelta = MathF.Abs(to.X - from.X);
+            var verticalDelta = MathF.Abs(to.Y - from.Y);
+            var distance = MathF.Sqrt((horizontalDelta * horizontalDelta) + (verticalDelta * verticalDelta));
+            var isNonWalk = edge.Kind != NavEdgeKind.Walk;
+            var hasCertifiedProof = edge.ProbeTicks > 0 || edge.ProbeVariantAttempts > 0;
+
+            edgeCount += 1;
+            if (edge.Cost <= 1f)
+            {
+                zeroOrLowCostEdges += 1;
+            }
+
+            if (edge.Kind == NavEdgeKind.Walk && verticalDelta > verticalRelayThreshold)
+            {
+                verticalWalkEdges += 1;
+            }
+
+            if (verticalDelta >= verticalRelayThreshold
+                && horizontalDelta <= suspiciousRelayHorizontalReach
+                && edge.Cost < distance * suspiciousRelayCostFloorMultiplier)
+            {
+                suspiciousVerticalRelays += 1;
+            }
+
+            if (isNonWalk && !hasCertifiedProof)
+            {
+                uncertifiedNonWalkEdges += 1;
+            }
+
+            if (isNonWalk && !edge.Completion.HasWindow)
+            {
+                missingCompletionNonWalkEdges += 1;
+            }
+
+            if (edge.ProbeVariantAttempts > 0 && edge.ProbeVariantSuccesses * 2 < edge.ProbeVariantAttempts)
+            {
+                weakProbeEdges += 1;
+            }
+        }
+    }
+
+    var poisonScore = suspiciousVerticalRelays * 4
+        + verticalWalkEdges * 3
+        + uncertifiedNonWalkEdges * 2
+        + missingCompletionNonWalkEdges * 2
+        + weakProbeEdges
+        + zeroOrLowCostEdges;
+
+    return new GraphQualityArtifact(
+        EdgeCount: edgeCount,
+        SuspiciousVerticalRelayEdges: suspiciousVerticalRelays,
+        VerticalWalkEdges: verticalWalkEdges,
+        UncertifiedNonWalkEdges: uncertifiedNonWalkEdges,
+        MissingCompletionNonWalkEdges: missingCompletionNonWalkEdges,
+        WeakProbeEdges: weakProbeEdges,
+        ZeroOrLowCostEdges: zeroOrLowCostEdges,
+        MaxOutDegree: maxOutDegree,
+        WorstOutDegreeNode: worstOutDegreeNode,
+        PoisonScore: poisonScore);
 }
 
 static RouteQualityArtifact AnalyzeRouteQuality(IReadOnlyList<RouteEdgeArtifact> edges, float resolvedPathCost)
@@ -1892,6 +2306,81 @@ static object BuildChurnSummary(
     };
 }
 
+static object BuildProofGraphSummary(
+    IReadOnlyList<ProofGraphTraceArtifact> events,
+    int scoreTick)
+{
+    var scoredEvents = scoreTick >= 0
+        ? events.Where(e => e.Tick <= scoreTick).ToArray()
+        : events.ToArray();
+    var routeEvents = scoredEvents
+        .Where(static e => e.Trace.StartsWith("proofGraph=route:", StringComparison.Ordinal)
+            || e.Trace.StartsWith("proofGraph=lane", StringComparison.Ordinal)
+            || e.Trace.StartsWith("proofGraph=terminal", StringComparison.Ordinal)
+            || e.Trace.StartsWith("proofGraph=routeAction", StringComparison.Ordinal))
+        .ToArray();
+    var selectedEvents = scoredEvents
+        .Where(static e => e.Trace.StartsWith("proofGraph=selected", StringComparison.Ordinal))
+        .ToArray();
+    var abortEvents = scoredEvents
+        .Where(static e => e.Trace.StartsWith("proofGraph=abort", StringComparison.Ordinal))
+        .ToArray();
+    var edgeTicks = routeEvents
+        .Select(static e => ExtractProofGraphEdgeId(e.Trace))
+        .Where(static edge => edge.Length > 0)
+        .GroupBy(static edge => edge)
+        .Select(static group => new { edge = group.Key, ticks = group.Count() })
+        .OrderByDescending(static item => item.ticks)
+        .ThenBy(static item => item.edge)
+        .ToArray();
+
+    return new
+    {
+        scoreTick,
+        eventCount = scoredEvents.Length,
+        selectedRoutes = selectedEvents.Length,
+        routeTicks = routeEvents.Length,
+        aborts = abortEvents.Length,
+        fallbackReasons = abortEvents
+            .Select(static e => ExtractProofGraphAbortReason(e.Trace))
+            .Where(static reason => reason.Length > 0)
+            .GroupBy(static reason => reason)
+            .Select(static group => new { reason = group.Key, count = group.Count() })
+            .OrderByDescending(static item => item.count)
+            .ThenBy(static item => item.reason)
+            .ToArray(),
+        edgeTicks,
+    };
+}
+
+static string ExtractProofGraphEdgeId(string trace)
+{
+    const string marker = " edge:";
+    var start = trace.IndexOf(marker, StringComparison.Ordinal);
+    if (start < 0)
+    {
+        return string.Empty;
+    }
+
+    start += marker.Length;
+    var end = trace.IndexOf(' ', start);
+    return end > start ? trace[start..end] : trace[start..];
+}
+
+static string ExtractProofGraphAbortReason(string trace)
+{
+    const string marker = " reason:";
+    var start = trace.IndexOf(marker, StringComparison.Ordinal);
+    if (start < 0)
+    {
+        return string.Empty;
+    }
+
+    start += marker.Length;
+    var end = trace.IndexOf(' ', start);
+    return end > start ? trace[start..end] : trace[start..];
+}
+
 static string ExtractSemanticRecoveryReason(string trace)
 {
     const string prefix = "semanticRecovery=continuation reason:";
@@ -1930,6 +2419,18 @@ internal sealed record ComponentDiagnostics(int[] ComponentByNode, List<Componen
 
 internal sealed record ComponentSummary(int Id, int NodeCount, float MinX, float MaxX, float MinY, float MaxY);
 
+internal sealed record GraphQualityArtifact(
+    int EdgeCount,
+    int SuspiciousVerticalRelayEdges,
+    int VerticalWalkEdges,
+    int UncertifiedNonWalkEdges,
+    int MissingCompletionNonWalkEdges,
+    int WeakProbeEdges,
+    int ZeroOrLowCostEdges,
+    int MaxOutDegree,
+    int WorstOutDegreeNode,
+    int PoisonScore);
+
 internal sealed record RouteQualityArtifact(
     int EdgeCount,
     float RawCost,
@@ -1951,6 +2452,29 @@ internal sealed record RouteEdgeArtifact(
     float Distance,
     float HorizontalDelta,
     float VerticalDelta,
+    int ProbeTicks,
+    float ProbeMoveDirectionX,
+    int ProbeVariantAttempts,
+    int ProbeVariantSuccesses,
+    bool HasCompletionWindow,
+    float CompletionMinX,
+    float CompletionMaxX,
+    float CompletionMinY,
+    float CompletionMaxY,
+    int AcceptedCompletionSurfaces,
+    bool RequiresGroundedContinuation,
+    bool RequiresCarryingIntel,
+    bool HasLaunchRecipe,
+    int LaunchTick,
+    float LaunchMinX,
+    float LaunchMaxX,
+    float LaunchMinY,
+    float LaunchMaxY,
+    float LaunchMinHorizontalSpeed,
+    float LaunchMaxHorizontalSpeed,
+    float ExpectedLaunchMoveDirectionX,
+    int SupportedClassMask,
+    int SupportedTeamMask,
     bool CheapVerticalRelay,
     bool VerticalWalk,
     bool SuspiciousVerticalWalk);
@@ -1964,9 +2488,19 @@ internal sealed record AuthorityTransitionArtifact(
     int PathIndex,
     int PathCount,
     int PathNode,
+    string ProofGraphLabel,
     string TapeName,
     string DirectDriveLabel,
     string SemanticRecoveryReason);
+
+internal sealed record ProofGraphTraceArtifact(
+    int Tick,
+    string Trace,
+    bool CarryingIntel,
+    float X,
+    float Y,
+    float Bottom,
+    bool Grounded);
 
 internal sealed record SemanticRecoveryArtifact(
     int Tick,
@@ -2030,6 +2564,7 @@ internal sealed class AuthorityTransitionDiagnostics
     private int _pathIndex = -1;
     private int _pathCount;
     private int _pathNode = -1;
+    private string _proofGraphLabel = string.Empty;
     private string _tapeName = string.Empty;
     private string _directDriveLabel = string.Empty;
     private string _semanticRecoveryReason = string.Empty;
@@ -2043,14 +2578,16 @@ internal sealed class AuthorityTransitionDiagnostics
         int pathIndex,
         int pathCount,
         int pathNode,
+        string proofGraphTrace,
         string objectiveTapeTrace,
         string directDriveTrace,
         string semanticRecoveryTrace)
     {
+        var proofGraphLabel = ExtractProofGraphLabel(proofGraphTrace);
         var tapeName = ExtractTapeName(objectiveTapeTrace);
         var directDriveLabel = ExtractDirectDriveLabel(directDriveTrace);
         var semanticRecoveryReason = ExtractSemanticRecoveryReason(semanticRecoveryTrace);
-        var key = $"{authority}|{carryingIntel}|{tapeName}|{directDriveLabel}|{semanticRecoveryReason}";
+        var key = $"{authority}|{carryingIntel}|{proofGraphLabel}|{tapeName}|{directDriveLabel}|{semanticRecoveryReason}";
         if (!string.Equals(_currentKey, key, StringComparison.Ordinal))
         {
             FinalizeCurrent(tick - 1);
@@ -2061,6 +2598,7 @@ internal sealed class AuthorityTransitionDiagnostics
             _pathIndex = pathIndex;
             _pathCount = pathCount;
             _pathNode = pathNode;
+            _proofGraphLabel = proofGraphLabel;
             _tapeName = tapeName;
             _directDriveLabel = directDriveLabel;
             _semanticRecoveryReason = semanticRecoveryReason;
@@ -2121,6 +2659,7 @@ internal sealed class AuthorityTransitionDiagnostics
             PathIndex: _pathIndex,
             PathCount: _pathCount,
             PathNode: _pathNode,
+            ProofGraphLabel: _proofGraphLabel,
             TapeName: _tapeName,
             DirectDriveLabel: _directDriveLabel,
             SemanticRecoveryReason: _semanticRecoveryReason));
@@ -2138,6 +2677,42 @@ internal sealed class AuthorityTransitionDiagnostics
         return end > prefix.Length
             ? trace[prefix.Length..end]
             : trace[prefix.Length..];
+    }
+
+    private static string ExtractProofGraphLabel(string trace)
+    {
+        var prefix = "proofGraph=route:";
+        if (trace.StartsWith("proofGraph=lane", StringComparison.Ordinal))
+        {
+            prefix = "proofGraph=lane route:";
+        }
+        else if (trace.StartsWith("proofGraph=terminal", StringComparison.Ordinal))
+        {
+            prefix = "proofGraph=terminal route:";
+        }
+
+        if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var edgeIndexMarker = trace.IndexOf(" edgeIndex:", StringComparison.Ordinal);
+        var edgeMarker = trace.IndexOf(" edge:", StringComparison.Ordinal);
+        var routeEnd = edgeIndexMarker > prefix.Length
+            ? edgeIndexMarker
+            : edgeMarker > prefix.Length
+                ? edgeMarker
+                : trace.Length;
+        var route = trace[prefix.Length..routeEnd];
+        if (edgeMarker <= prefix.Length)
+        {
+            return route;
+        }
+
+        var edgeStart = edgeMarker + " edge:".Length;
+        var edgeEnd = trace.IndexOf(' ', edgeStart);
+        var edge = edgeEnd > edgeStart ? trace[edgeStart..edgeEnd] : trace[edgeStart..];
+        return $"{route}:{edge}";
     }
 
     private static string ExtractDirectDriveLabel(string trace)
@@ -2524,6 +3099,407 @@ internal static class BotBrainToolCommandHelpers
         return options;
     }
 
+    private static string ExtractProofGraphLabel(string trace)
+    {
+        var prefix = "proofGraph=route:";
+        if (trace.StartsWith("proofGraph=lane", StringComparison.Ordinal))
+        {
+            prefix = "proofGraph=lane route:";
+        }
+        else if (trace.StartsWith("proofGraph=terminal", StringComparison.Ordinal))
+        {
+            prefix = "proofGraph=terminal route:";
+        }
+
+        if (!trace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var edgeMarker = trace.IndexOf(" edge:", StringComparison.Ordinal);
+        var edgeIndexMarker = trace.IndexOf(" edgeIndex:", StringComparison.Ordinal);
+        if (edgeMarker <= prefix.Length)
+        {
+            return edgeIndexMarker > prefix.Length
+                ? trace[prefix.Length..edgeIndexMarker]
+                : trace[prefix.Length..];
+        }
+
+        var route = edgeIndexMarker > prefix.Length
+            ? trace[prefix.Length..edgeIndexMarker]
+            : trace[prefix.Length..edgeMarker];
+        var edgeEnd = trace.IndexOf(' ', edgeMarker + 1);
+        var edge = edgeEnd > edgeMarker
+            ? trace[(edgeMarker + " edge:".Length)..edgeEnd]
+            : trace[(edgeMarker + " edge:".Length)..];
+        return $"{route}:{edge}";
+    }
+
+    public static void RunVerifiedNavReport(
+        Dictionary<string, string> rawOptions,
+        JsonSerializerOptions outputJsonOptions)
+    {
+        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
+
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "verified-nav", $"{mapName}-{area}-{team}-{classId}");
+        Directory.CreateDirectory(artifactDirectory);
+
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        var graph = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
+        {
+            Team = team,
+            ClassId = classId,
+            SampleStep = ReadFloatOption(rawOptions, "surface-sample-step", 8f),
+            MinSurfaceWidth = ReadFloatOption(rawOptions, "min-surface-width", 24f),
+            SameSurfaceMaxEdgeLength = ReadFloatOption(rawOptions, "same-surface-edge-length", 240f),
+            DropHorizontalReach = ReadFloatOption(rawOptions, "drop-horizontal-reach", 144f),
+            DropVerticalLimit = ReadFloatOption(rawOptions, "drop-vertical-limit", 420f),
+            JumpHorizontalReach = ReadFloatOption(rawOptions, "jump-horizontal-reach", 184f),
+            JumpVerticalLimit = ReadFloatOption(rawOptions, "jump-vertical-limit", 180f),
+        });
+
+        var summary = new
+        {
+            graph.LevelName,
+            graph.MapAreaIndex,
+            graph.Team,
+            graph.ClassId,
+            SurfaceCount = graph.Surfaces.Count,
+            PortalCount = graph.Portals.Count,
+            CandidateEdgeCount = graph.CandidateEdges.Count,
+            WalkCandidateCount = graph.CandidateEdges.Count(static edge => edge.Intent == VerifiedNavEdgeIntent.Walk),
+            DropCandidateCount = graph.CandidateEdges.Count(static edge => edge.Intent == VerifiedNavEdgeIntent.Drop),
+            JumpCandidateCount = graph.CandidateEdges.Count(static edge => edge.Intent == VerifiedNavEdgeIntent.Jump),
+            SolidSurfaceCount = graph.Surfaces.Count(static surface => surface.Kind == VerifiedNavSurfaceKind.SolidTop),
+            DropdownSurfaceCount = graph.Surfaces.Count(static surface => surface.Kind == VerifiedNavSurfaceKind.DropdownPlatform),
+        };
+
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "verified-nav-summary.json"),
+            JsonSerializer.Serialize(summary, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "verified-nav-candidates.json"),
+            JsonSerializer.Serialize(graph, outputJsonOptions));
+
+        var shouldCertify = rawOptions.TryGetValue("verified-nav-certify", out var certifyText)
+            && bool.TryParse(certifyText, out var parsedCertify)
+            && parsedCertify;
+        VerifiedNavCertificationReport? certification = null;
+        if (shouldCertify)
+        {
+            certification = VerifiedNavCandidateCertifier.Certify(level, graph, new VerifiedNavCertificationOptions
+            {
+                MaxEdges = ReadIntOption(rawOptions, "certify-limit", 128),
+                MaxTicks = ReadIntOption(rawOptions, "certify-max-ticks", 210),
+                TraceEveryTicks = ReadIntOption(rawOptions, "certify-trace-every", 6),
+                StartXOffsets = rawOptions.TryGetValue("certify-x-offsets", out var xOffsets)
+                    ? ParseFloatList(xOffsets)
+                    : [0f],
+                StartBottomOffsets = rawOptions.TryGetValue("certify-bottom-offsets", out var bottomOffsets)
+                    ? ParseFloatList(bottomOffsets)
+                    : [0f],
+                StartHorizontalSpeedOffsets = rawOptions.TryGetValue("certify-horizontal-speeds", out var horizontalSpeeds)
+                    ? ParseFloatList(horizontalSpeeds)
+                    : [0f],
+                StartVerticalSpeedOffsets = rawOptions.TryGetValue("certify-vertical-speeds", out var verticalSpeeds)
+                    ? ParseFloatList(verticalSpeeds)
+                    : [0f],
+            });
+            File.WriteAllText(
+                Path.Combine(artifactDirectory, "verified-nav-certification.json"),
+                JsonSerializer.Serialize(certification, outputJsonOptions));
+        }
+
+        var shouldExplore = rawOptions.TryGetValue("verified-nav-explore", out var exploreText)
+            && bool.TryParse(exploreText, out var parsedExplore)
+            && parsedExplore;
+        VerifiedNavExplorationReport? exploration = null;
+        if (shouldExplore)
+        {
+            var startSurfaceId = ReadIntOption(rawOptions, "explore-start-surface", -1);
+            if (startSurfaceId < 0)
+            {
+                startSurfaceId = graph.Portals
+                    .Where(static portal => portal.Kind == VerifiedNavPortalKind.Spawn && portal.SurfaceId.HasValue)
+                    .Select(static portal => portal.SurfaceId!.Value)
+                    .FirstOrDefault(-1);
+            }
+
+            if (startSurfaceId < 0)
+            {
+                throw new InvalidOperationException("Verified nav exploration requires a snapped spawn portal or --explore-start-surface.");
+            }
+
+            var targetSurfaceId = ResolveVerifiedNavExploreTargetSurface(graph, rawOptions);
+            exploration = VerifiedNavSurfaceExplorer.Explore(level, graph, startSurfaceId, new VerifiedNavExplorationOptions
+            {
+                MaxSurfaceExpansions = ReadIntOption(rawOptions, "explore-max-surfaces", 2000),
+                TargetSurfaceId = targetSurfaceId,
+                MaxMacroTicks = ReadIntOption(rawOptions, "explore-max-macro-ticks", 120),
+                SurfaceProbeInset = ReadFloatOption(rawOptions, "explore-surface-inset", 10f),
+                Durations = rawOptions.TryGetValue("explore-durations", out var durationsText)
+                    ? ParseIntList(durationsText)
+                    : [8, 12, 18, 24, 32, 42, 56, 72, 96],
+                JumpHoldTicks = rawOptions.TryGetValue("explore-jump-holds", out var jumpHoldsText)
+                    ? ParseIntList(jumpHoldsText)
+                    : [2, 6, 10],
+            });
+            File.WriteAllText(
+                Path.Combine(artifactDirectory, "verified-nav-exploration.json"),
+                JsonSerializer.Serialize(exploration, outputJsonOptions));
+        }
+
+        Console.WriteLine(
+            $"verifiedNav map={graph.LevelName} area={graph.MapAreaIndex} team={graph.Team} class={graph.ClassId} surfaces={graph.Surfaces.Count} portals={graph.Portals.Count} candidates={graph.CandidateEdges.Count}");
+        Console.WriteLine(
+            $"verifiedNavBreakdown walk={summary.WalkCandidateCount} drop={summary.DropCandidateCount} jump={summary.JumpCandidateCount} solidSurfaces={summary.SolidSurfaceCount} dropdownSurfaces={summary.DropdownSurfaceCount}");
+        if (certification is not null)
+        {
+            Console.WriteLine(
+                $"verifiedNavCertification tested={certification.TestedEdgeCount}/{certification.CandidateEdgeCount} certified={certification.CertifiedEdgeCount} rejected={certification.RejectedEdgeCount}");
+        }
+
+        if (exploration is not null)
+        {
+            var enemySurface = graph.Portals
+                .Where(static portal => portal.Kind == VerifiedNavPortalKind.EnemyIntel && portal.SurfaceId.HasValue)
+                .Select(static portal => portal.SurfaceId!.Value)
+                .FirstOrDefault(-1);
+            var ownSurface = graph.Portals
+                .Where(static portal => portal.Kind == VerifiedNavPortalKind.OwnIntel && portal.SurfaceId.HasValue)
+                .Select(static portal => portal.SurfaceId!.Value)
+                .FirstOrDefault(-1);
+            Console.WriteLine(
+                $"verifiedNavExploration startSurface={exploration.StartSurfaceId} reachable={exploration.ReachableSurfaceCount}/{graph.Surfaces.Count} edges={exploration.Edges.Count} reachesEnemySurface={exploration.ReachableSurfaceIds.Contains(enemySurface)} reachesOwnSurface={exploration.ReachableSurfaceIds.Contains(ownSurface)} reachesEnemyMarker={exploration.ReachedEnemyIntelMarker} reachesOwnMarker={exploration.ReachedOwnIntelMarker}");
+        }
+
+        Console.WriteLine($"verifiedNavArtifact={artifactDirectory}");
+    }
+
+    public static void BuildVerifiedProofGraph(
+        Dictionary<string, string> rawOptions,
+        JsonSerializerOptions outputJsonOptions)
+    {
+        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
+
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "verified-nav", $"{mapName}-{area}-{team}-{classId}-proofgraph");
+        Directory.CreateDirectory(artifactDirectory);
+
+        var traceOptions = new JsonSerializerOptions(outputJsonOptions)
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+        var routeTraces = new List<(VerifiedNavProofRouteKind Kind, VerifiedNavProofTraceReport Trace)>();
+        var pickupTracePaths = ReadProofTracePathList(rawOptions, "pickup-trace", "pickup-traces");
+        foreach (var pickupTracePath in pickupTracePaths)
+        {
+            routeTraces.Add((VerifiedNavProofRouteKind.Pickup, ReadProofTrace(pickupTracePath)));
+        }
+
+        var returnTracePaths = ReadProofTracePathList(rawOptions, "return-trace", "return-traces");
+        foreach (var returnTracePath in returnTracePaths)
+        {
+            routeTraces.Add((VerifiedNavProofRouteKind.Return, ReadProofTrace(returnTracePath)));
+        }
+
+        if (routeTraces.Count == 0)
+        {
+            throw new InvalidOperationException("--build-proof-graph requires --pickup-trace/--pickup-traces or --return-trace/--return-traces.");
+        }
+
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        var candidateGraph = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
+        {
+            Team = team,
+            ClassId = classId,
+            DropHorizontalReach = ReadFloatOption(rawOptions, "drop-horizontal-reach", 360f),
+            JumpHorizontalReach = ReadFloatOption(rawOptions, "jump-horizontal-reach", 360f),
+        });
+        var proofGraph = VerifiedNavProofGraphBuilder.Build(
+            candidateGraph,
+            routeTraces,
+            new VerifiedNavProofGraphBuildOptions
+            {
+                RouteActionOnlyKinds = BuildRouteActionOnlyKinds(rawOptions),
+            });
+        var outputPath = Path.Combine(artifactDirectory, "verified-proof-graph.json");
+        File.WriteAllText(outputPath, JsonSerializer.Serialize(proofGraph, outputJsonOptions));
+
+        Console.WriteLine(
+            $"verifiedProofGraph map={proofGraph.LevelName} area={proofGraph.MapAreaIndex} team={proofGraph.Team} class={proofGraph.ClassId} surfaces={proofGraph.Surfaces.Count} routes={proofGraph.Routes.Count} edges={proofGraph.Edges.Count}");
+        foreach (var route in proofGraph.Routes)
+        {
+            Console.WriteLine(
+                $"verifiedProofRoute kind={route.Kind} samples={route.SampleCount} surfaces={route.SurfaceSequence.Count} edges={route.EdgeIds.Count} sequence={string.Join(',', route.SurfaceSequence)}");
+        }
+
+        Console.WriteLine($"verifiedProofGraphArtifact={outputPath}");
+
+        VerifiedNavProofTraceReport ReadProofTrace(string tracePath)
+        {
+            return JsonSerializer.Deserialize<VerifiedNavProofTraceReport>(
+                File.ReadAllText(tracePath),
+                traceOptions) ?? throw new InvalidOperationException($"Could not read proof trace '{tracePath}'.");
+        }
+    }
+
+    public static void ExtractVerifiedProofTraceFromPlannerSteps(
+        Dictionary<string, string> rawOptions,
+        JsonSerializerOptions outputJsonOptions)
+    {
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var stepsPath = rawOptions.TryGetValue("planner-steps", out var stepsText)
+            ? Path.GetFullPath(stepsText)
+            : throw new InvalidOperationException("--extract-proof-trace requires --planner-steps.");
+        var tapePath = rawOptions.TryGetValue("candidate-tape", out var tapeText)
+            ? Path.GetFullPath(tapeText)
+            : throw new InvalidOperationException("--extract-proof-trace requires --candidate-tape.");
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "verified-nav", $"{mapName}-{team}-{classId}-extracted-proof-trace");
+
+        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(repoRoot, "Core", "Content"));
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        var readOptions = new JsonSerializerOptions(outputJsonOptions)
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+        var steps = JsonSerializer.Deserialize<List<TraversalLabInputStep>>(
+            File.ReadAllText(stepsPath),
+            readOptions) ?? throw new InvalidOperationException($"Could not read planner steps '{stepsPath}'.");
+        var tape = JsonSerializer.Deserialize<BotBrainObjectiveTapeEntry>(
+            File.ReadAllText(tapePath),
+            readOptions) ?? throw new InvalidOperationException($"Could not read candidate tape '{tapePath}'.");
+        var segment = tape.Segments.FirstOrDefault(static segment => segment.Samples.Count > 0)
+            ?? throw new InvalidOperationException($"Candidate tape '{tapePath}' has no samples.");
+        var firstSample = segment.Samples[0];
+        var carryingIntel = segment.RequiresCarryingIntel || firstSample.IsCarryingIntel;
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var targetTeam = carryingIntel ? team : opposingTeam;
+        var targetBase = level.GetIntelBase(targetTeam)
+            ?? throw new InvalidOperationException("Proof trace extraction requires a target intel marker.");
+        var firstMoveDirection = steps
+            .Select(static step => step.Right == step.Left ? 0f : step.Right ? 1f : -1f)
+            .FirstOrDefault(static direction => direction != 0f);
+        var scenario = new TraversalLabScenario
+        {
+            Name = $"{tape.Name}.extracted-proof-trace",
+            LevelName = mapName,
+            MapAreaIndex = area,
+            Team = team,
+            ClassId = classId,
+            Start = new TraversalLabStartState
+            {
+                X = firstSample.X,
+                Bottom = firstSample.Bottom,
+                HorizontalSpeed = firstSample.HorizontalSpeed,
+                VerticalSpeed = firstSample.VerticalSpeed,
+                IsGrounded = firstSample.IsGrounded,
+                IsCarryingIntel = carryingIntel,
+                FacingDirectionX = firstMoveDirection == 0f
+                    ? team == PlayerTeam.Red ? -1f : 1f
+                    : firstMoveDirection,
+            },
+            Steps = steps,
+            MaxTicks = steps.Sum(static step => Math.Max(0, step.DurationTicks)),
+            TraceEveryTicks = 1,
+            Expectation = new TraversalLabExpectation
+            {
+                MustEverOverlapOwnIntelMarker = carryingIntel,
+                MustOverlapEnemyIntelMarker = carryingIntel ? null : true,
+            },
+        };
+        var validation = TraversalLabRunner.Run(scenario);
+        var bestCase = validation.Cases
+            .Where(static candidate => candidate.Passed)
+            .OrderBy(static candidate => candidate.ExecutedTicks)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException($"Extracted proof trace scenario failed validation. passed={validation.PassedCount} failed={validation.FailedCount}");
+        var trimmedSamples = TrimTraversalSamplesAtIntel(level, targetTeam, classId, bestCase.Samples);
+        var verifiedGraph = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
+        {
+            Team = team,
+            ClassId = classId,
+            DropHorizontalReach = ReadFloatOption(rawOptions, "drop-horizontal-reach", 360f),
+            JumpHorizontalReach = ReadFloatOption(rawOptions, "jump-horizontal-reach", 360f),
+        });
+        var proofTrace = VerifiedNavProofTraceExtractor.Extract(
+            verifiedGraph,
+            trimmedSamples,
+            carryingIntel ? "MotionProofReturnPlanner" : "MotionProofPickupPlanner");
+
+        Directory.CreateDirectory(artifactDirectory);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "scenario.json"),
+            JsonSerializer.Serialize(scenario, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "validation.json"),
+            JsonSerializer.Serialize(new
+            {
+                validation.Cases.Count,
+                validation.PassedCount,
+                validation.FailedCount,
+                validation.Passed,
+                bestCase.ExecutedTicks,
+                bestCase.FinalX,
+                bestCase.FinalBottom,
+                targetBase.X,
+                targetBase.Y,
+            }, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "proof-trace-edges.json"),
+            JsonSerializer.Serialize(proofTrace, outputJsonOptions));
+
+        Console.WriteLine(
+            $"extractedProofTrace map={mapName} area={area} team={team} class={classId} carrying={(carryingIntel ? 1 : 0)} " +
+            $"ticks={bestCase.ExecutedTicks} samples={trimmedSamples.Count} surfaces={proofTrace.SurfaceTouchCount} edges={proofTrace.Edges.Count} " +
+            $"actions={proofTrace.Actions.Count} artifactDir={artifactDirectory}");
+    }
+
+    private static int ResolveVerifiedNavExploreTargetSurface(
+        VerifiedNavCandidateGraph graph,
+        Dictionary<string, string> rawOptions)
+    {
+        var target = rawOptions.TryGetValue("explore-target", out var targetText)
+            ? targetText.Trim()
+            : "enemy";
+        if (int.TryParse(target, NumberStyles.Integer, CultureInfo.InvariantCulture, out var targetSurfaceId))
+        {
+            return targetSurfaceId >= 0 && targetSurfaceId < graph.Surfaces.Count ? targetSurfaceId : -1;
+        }
+
+        var targetKind = target.Equals("own", StringComparison.OrdinalIgnoreCase)
+            ? VerifiedNavPortalKind.OwnIntel
+            : target.Equals("spawn", StringComparison.OrdinalIgnoreCase)
+                ? VerifiedNavPortalKind.Spawn
+                : VerifiedNavPortalKind.EnemyIntel;
+        return graph.Portals
+            .Where(portal => portal.Kind == targetKind && portal.SurfaceId.HasValue)
+            .Select(portal => portal.SurfaceId!.Value)
+            .FirstOrDefault(-1);
+    }
+
     public static void AuthorTraversalTape(string scenarioPath, string? tapeName)
     {
         if (string.IsNullOrWhiteSpace(scenarioPath))
@@ -2705,10 +3681,1984 @@ internal static class BotBrainToolCommandHelpers
         var entry = BuildObjectiveTapeFromTraversalSamples(
             tapeName,
             bestScenario,
-            TrimTraversalSamplesAtOwnIntel(level, team, bestCase.Samples));
+            TrimTraversalSamplesAtOwnIntel(level, team, classId, bestCase.Samples));
         var tapePath = BotBrainObjectiveTapeStore.UpsertTape(level, entry);
         Console.WriteLine($"objectiveTape={tapePath}");
         Console.WriteLine($"selected={bestScenario.Name} ticks={bestCase.ExecutedTicks} rawSamples={bestCase.Samples.Count} tapeSamples={entry.Segments.Sum(static segment => segment.Samples.Count)}");
+    }
+
+    public static void GenerateProofReturnTape(Dictionary<string, string> rawOptions, JsonSerializerOptions outputJsonOptions)
+    {
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Soldier);
+        var maxTicks = ReadIntOption(rawOptions, "ticks", 3600);
+        var direction = ReadFloatOption(rawOptions, "direction", team == PlayerTeam.Red ? -1f : 1f) < 0f ? -1f : 1f;
+        var accept = rawOptions.TryGetValue("accept-proof-return", out var acceptText)
+            && bool.TryParse(acceptText, out var parsedAccept)
+            && parsedAccept;
+        var tapeName = rawOptions.TryGetValue("tape-name", out var providedTapeName)
+            ? providedTapeName
+            : $"MotionProof.{mapName}.{team}.{classId}.GeneratedReturn";
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "botbrain-generated-proof-return", $"{mapName}-{team}-{classId}");
+
+        var compileRepoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(compileRepoRoot, "Core", "Content"));
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var enemyBase = level.GetIntelBase(opposingTeam)
+            ?? throw new InvalidOperationException("Proof return generation requires an opposing intel base.");
+        var ownBase = level.GetIntelBase(team)
+            ?? throw new InvalidOperationException("Proof return generation requires an own intel base.");
+        var startX = ReadFloatOption(rawOptions, "start-x", enemyBase.X);
+        var startBottom = ReadFloatOption(rawOptions, "start-bottom", enemyBase.Y + 24f);
+
+        var search = SearchReturnProofCandidate(
+            mapName,
+            area,
+            team,
+            classId,
+            startX,
+            startBottom,
+            direction,
+            maxTicks,
+            tapeName,
+            rawOptions,
+            level);
+
+        Directory.CreateDirectory(artifactDirectory);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "search-summary.json"),
+            JsonSerializer.Serialize(search.Summary, outputJsonOptions));
+
+        Console.WriteLine(
+            $"proofReturnSearch map={mapName} area={area} team={team} class={classId} attempts={search.Summary.Attempts} " +
+            $"passed={(search.BestCase is null ? 0 : 1)} start=({startX:0.0},{startBottom:0.0}) ownBase=({ownBase.X:0.0},{ownBase.Y:0.0})");
+
+        if (search.BestScenario is null || search.BestCase is null)
+        {
+            if (search.BestFailedCase is not null && search.BestFailedScenario is not null)
+            {
+                Console.WriteLine(
+                    $"closestFailed={search.BestFailedScenario.Name} dist={search.Summary.BestFailedDistance:0.0} " +
+                    $"final=({search.BestFailedCase.FinalX:0.0},{search.BestFailedCase.FinalY:0.0}) bottom={search.BestFailedCase.FinalBottom:0.0} " +
+                    $"rangeX=({search.BestFailedCase.MinX:0.0},{search.BestFailedCase.MaxX:0.0}) rangeBottom=({search.BestFailedCase.MinBottom:0.0},{search.BestFailedCase.MaxBottom:0.0}) " +
+                    $"reason={search.BestFailedCase.FailureReason}");
+            }
+
+            Console.WriteLine("proofReturn=rejected reason:no_successful_candidate");
+            return;
+        }
+
+        var trimmedSamples = TrimTraversalSamplesAtOwnIntel(level, team, classId, search.BestCase.Samples);
+        var entry = BuildObjectiveTapeFromTraversalSamples(tapeName, search.BestScenario, trimmedSamples);
+        var validationScenario = BuildReturnProofValidationScenario(search.BestScenario, rawOptions);
+        var validation = TraversalLabRunner.Run(validationScenario);
+        var validationPassed = validation.Passed;
+        var validationFailures = validation.Cases
+            .Where(static candidate => !candidate.Passed)
+            .Select(static candidate => new ReturnProofValidationFailure(
+                candidate.Variant.StartXOffset,
+                candidate.Variant.StartBottomOffset,
+                candidate.Variant.StartHorizontalSpeedOffset,
+                candidate.Variant.StartVerticalSpeedOffset,
+                candidate.Variant.StartGrounded,
+                candidate.FailureReason,
+                candidate.FinalX,
+                candidate.FinalY,
+                candidate.FinalBottom))
+            .ToArray();
+        var validationArtifact = new ReturnProofValidationArtifact(
+            validation.Cases.Count,
+            validation.PassedCount,
+            validation.FailedCount,
+            validationPassed,
+            validationFailures);
+
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "candidate-tape.json"),
+            JsonSerializer.Serialize(entry, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "validation.json"),
+            JsonSerializer.Serialize(validationArtifact, outputJsonOptions));
+
+        Console.WriteLine(
+            $"proofReturnCandidate={search.BestScenario.Name} ticks={search.BestCase.ExecutedTicks} rawSamples={search.BestCase.Samples.Count} " +
+            $"trimmedSamples={trimmedSamples.Count} tapeSamples={entry.Segments.Sum(static segment => segment.Samples.Count)}");
+        Console.WriteLine(
+            $"proofReturnValidation passed={(validationPassed ? 1 : 0)} cases={validation.Cases.Count} passedCases={validation.PassedCount} failedCases={validation.FailedCount}");
+        foreach (var failure in validationFailures.Take(8))
+        {
+            Console.WriteLine(
+                $"validationFailure xOff:{failure.StartXOffset:0.0} bottomOff:{failure.StartBottomOffset:0.0} hSpeed:{failure.StartHorizontalSpeedOffset:0.0} " +
+                $"vSpeed:{failure.StartVerticalSpeedOffset:0.0} grounded:{(failure.StartGrounded ? 1 : 0)} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+        }
+
+        if (!validationPassed)
+        {
+            Console.WriteLine($"proofReturn=rejected reason:validation_failed artifactDir={artifactDirectory}");
+            return;
+        }
+
+        if (!accept)
+        {
+            Console.WriteLine($"proofReturn=accepted_candidate artifactDir={artifactDirectory} install=skipped reason:missing_accept_flag");
+            return;
+        }
+
+        var tapePath = BotBrainObjectiveTapeStore.UpsertTape(level, entry);
+        Console.WriteLine($"proofReturn=installed path={tapePath} artifactDir={artifactDirectory}");
+    }
+
+    public static void PlanProofReturnTape(Dictionary<string, string> rawOptions, JsonSerializerOptions outputJsonOptions)
+    {
+        const float IntelMarkerSize = 24f;
+        var planPickup = rawOptions.TryGetValue("plan-proof-pickup", out var planPickupText)
+            && bool.TryParse(planPickupText, out var parsedPlanPickup)
+            && parsedPlanPickup;
+        var planObjective = rawOptions.TryGetValue("plan-proof-objective", out var planObjectiveText)
+            && bool.TryParse(planObjectiveText, out var parsedPlanObjective)
+            && parsedPlanObjective;
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        var maxTicks = ReadIntOption(rawOptions, "ticks", 3600);
+        var maxExpansions = ReadIntOption(rawOptions, "max-expansions", 25000);
+        var skipSolutions = ReadIntOption(rawOptions, "planner-skip-solutions", 0);
+        var maxValidatedSolutions = ReadIntOption(rawOptions, "planner-max-candidates", 16);
+        var searchValidationEnvelope = ReadBoolOption(rawOptions, "planner-search-validation-envelope", false);
+        var accept = rawOptions.TryGetValue("accept-proof-return", out var acceptText)
+            && bool.TryParse(acceptText, out var parsedAccept)
+            && parsedAccept;
+        var tapeName = rawOptions.TryGetValue("tape-name", out var providedTapeName)
+            ? providedTapeName
+            : planObjective
+                ? $"MotionProof.{mapName}.{team}.{classId}.PlannedObjective"
+            : planPickup
+                ? $"MotionProof.{mapName}.{team}.{classId}.PlannedPickup"
+                : $"MotionProof.{mapName}.{team}.{classId}.PlannedReturn";
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "botbrain-planned-proof-return", $"{mapName}-{team}-{classId}");
+
+        var compileRepoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(compileRepoRoot, "Core", "Content"));
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
+        var enemyBase = level.GetIntelBase(opposingTeam);
+        var ownBase = level.GetIntelBase(team);
+        if (!planObjective && !enemyBase.HasValue)
+        {
+            throw new InvalidOperationException("Planner proof return requires an opposing intel base.");
+        }
+        if (!planObjective && !ownBase.HasValue)
+        {
+            throw new InvalidOperationException("Planner proof return requires an own intel base.");
+        }
+
+        var targetBase = planObjective
+            ? (
+                X: ReadFloatOption(rawOptions, "target-x", float.NaN),
+                Y: ReadFloatOption(rawOptions, "target-y", float.NaN))
+            : planPickup
+                ? (enemyBase!.Value.X, enemyBase.Value.Y)
+                : (ownBase!.Value.X, ownBase.Value.Y);
+        if (planObjective && (!float.IsFinite(targetBase.X) || !float.IsFinite(targetBase.Y)))
+        {
+            throw new InvalidOperationException("--plan-proof-objective requires --target-x and --target-y.");
+        }
+
+        var targetRadiusX = ReadFloatOption(rawOptions, "target-radius-x", planObjective ? 96f : IntelMarkerSize);
+        var targetRadiusBottom = ReadFloatOption(rawOptions, "target-radius-bottom", planObjective ? 96f : IntelMarkerSize);
+        var classDefinition = CharacterClassCatalog.GetDefinition(classId);
+        var spawn = level.GetSpawn(team, 0);
+        var artifactStartState = TryReadRuntimeStateOption(rawOptions, outputJsonOptions);
+        var startX = ReadFloatOption(rawOptions, "start-x", artifactStartState?.X ?? (planPickup || planObjective ? spawn.X : enemyBase!.Value.X));
+        var startBottom = ReadFloatOption(rawOptions, "start-bottom", artifactStartState?.Bottom ?? (planPickup || planObjective ? spawn.Y + classDefinition.CollisionBottom : enemyBase!.Value.Y + 24f));
+        var startHorizontalSpeed = ReadFloatOption(rawOptions, "start-horizontal-speed", artifactStartState?.HorizontalSpeed ?? 0f);
+        var startVerticalSpeed = ReadFloatOption(rawOptions, "start-vertical-speed", artifactStartState?.VerticalSpeed ?? 0f);
+        var startGrounded = ReadBoolOption(rawOptions, "start-grounded", artifactStartState?.IsGrounded ?? true);
+        var startAirJumps = rawOptions.TryGetValue("start-air-jumps", out var startAirJumpsText)
+            && int.TryParse(startAirJumpsText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStartAirJumps)
+                ? parsedStartAirJumps
+                : artifactStartState?.RemainingAirJumps;
+        var startFacing = ReadFloatOption(rawOptions, "direction", artifactStartState?.FacingDirectionX ?? (team == PlayerTeam.Red ? -1f : 1f)) < 0f ? -1f : 1f;
+        var rootState = new MotionProofPlannerState(
+            startX,
+            startBottom,
+            startHorizontalSpeed,
+            startVerticalSpeed,
+            startGrounded,
+            startAirJumps,
+            startFacing);
+        var root = new MotionProofPlannerNode(
+            Id: 0,
+            Parent: null,
+            Macro: null,
+            State: rootState,
+            Tick: 0,
+            Heuristic: Distance(startX, startBottom, targetBase.X, targetBase.Y));
+
+        var macros = BuildMotionProofPlannerMacros(rawOptions);
+        var open = new PriorityQueue<MotionProofPlannerNode, float>();
+        open.Enqueue(root, ScorePlannerNode(root, targetBase, team));
+        var bestByCell = new Dictionary<MotionProofPlannerCell, float>();
+        var validationEnvelopeByNodeId = new Dictionary<int, MotionProofPlannerState[]>();
+        var bestNode = root;
+        MotionProofPlannerCandidateResult? solvedCandidate = null;
+        MotionProofPlannerCandidateResult? lastRejectedCandidate = null;
+        var nextId = 1;
+        var expansions = 0;
+        var solutionsSeen = 0;
+        var validatedCandidates = 0;
+        var candidateLimitReached = false;
+        if (searchValidationEnvelope)
+        {
+            validationEnvelopeByNodeId[root.Id] = BuildPlannerValidationEnvelope();
+        }
+
+        MotionProofPlannerState[] BuildPlannerValidationEnvelope()
+        {
+            var xOffsets = rawOptions.TryGetValue("planner-search-x-offsets", out var searchXOffsetsText)
+                ? ParseFloatList(searchXOffsetsText)
+                : rawOptions.TryGetValue("validation-x-offsets", out var xOffsetsText)
+                ? ParseFloatList(xOffsetsText)
+                : [-24f, 0f, 24f];
+            var bottomOffsets = rawOptions.TryGetValue("planner-search-bottom-offsets", out var searchBottomOffsetsText)
+                ? ParseFloatList(searchBottomOffsetsText)
+                : rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsetsText)
+                ? ParseFloatList(bottomOffsetsText)
+                : [-12f, 0f, 12f];
+            var horizontalSpeedOffsets = rawOptions.TryGetValue("planner-search-horizontal-speeds", out var searchHorizontalSpeedsText)
+                ? ParseFloatList(searchHorizontalSpeedsText)
+                : rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeedsText)
+                ? ParseFloatList(horizontalSpeedsText)
+                : [-60f, 0f, 60f];
+            var verticalSpeedOffsets = rawOptions.TryGetValue("planner-search-vertical-speeds", out var searchVerticalSpeedsText)
+                ? ParseFloatList(searchVerticalSpeedsText)
+                : rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeedsText)
+                ? ParseFloatList(verticalSpeedsText)
+                : [0f];
+            var groundedStates = rawOptions.TryGetValue("planner-search-grounded", out var searchGroundedStatesText)
+                ? ParseBoolList(searchGroundedStatesText)
+                : rawOptions.TryGetValue("validation-grounded", out var groundedStatesText)
+                ? ParseBoolList(groundedStatesText)
+                : [startGrounded];
+            var states = new List<MotionProofPlannerState>(
+                xOffsets.Count * bottomOffsets.Count * horizontalSpeedOffsets.Count * verticalSpeedOffsets.Count * groundedStates.Count);
+            foreach (var xOffset in xOffsets)
+            {
+                foreach (var bottomOffset in bottomOffsets)
+                {
+                    foreach (var horizontalSpeedOffset in horizontalSpeedOffsets)
+                    {
+                        foreach (var verticalSpeedOffset in verticalSpeedOffsets)
+                        {
+                            foreach (var grounded in groundedStates)
+                            {
+                                states.Add(new MotionProofPlannerState(
+                                    startX + xOffset,
+                                    startBottom + bottomOffset,
+                                    startHorizontalSpeed + horizontalSpeedOffset,
+                                    startVerticalSpeed + verticalSpeedOffset,
+                                    grounded,
+                                    startAirJumps,
+                                    startFacing));
+                            }
+                        }
+                    }
+                }
+            }
+
+            return states.ToArray();
+        }
+
+        bool StateIntersectsTarget(MotionProofPlannerState state)
+        {
+            if (planObjective)
+            {
+                return MathF.Abs(state.X - targetBase.X) <= targetRadiusX
+                    && MathF.Abs(state.Bottom - targetBase.Y) <= targetRadiusBottom;
+            }
+
+            var player = CreatePlannerPlayer(level, classId, team, state, carryingIntel: !planPickup);
+            return player.IntersectsMarker(targetBase.X, targetBase.Y, IntelMarkerSize, IntelMarkerSize);
+        }
+
+        bool NodeIntersectsTarget(MotionProofPlannerNode node)
+        {
+            if (!searchValidationEnvelope)
+            {
+                return StateIntersectsTarget(node.State);
+            }
+
+            return validationEnvelopeByNodeId.TryGetValue(node.Id, out var envelope)
+                && envelope.All(StateIntersectsTarget);
+        }
+
+        float ScorePlannerSearchNode(MotionProofPlannerNode node)
+        {
+            var nominalScore = ScorePlannerNode(node, targetBase, team);
+            if (!searchValidationEnvelope
+                || !validationEnvelopeByNodeId.TryGetValue(node.Id, out var envelope))
+            {
+                return nominalScore;
+            }
+
+            var worstDistance = 0f;
+            var totalDistance = 0f;
+            foreach (var state in envelope)
+            {
+                var distance = Distance(state.X, state.Bottom, targetBase.X, targetBase.Y);
+                worstDistance = Math.Max(worstDistance, distance);
+                totalDistance += distance;
+            }
+
+            var averageDistance = envelope.Length == 0 ? 0f : totalDistance / envelope.Length;
+            return (nominalScore * 0.35f) + worstDistance + (averageDistance * 0.25f);
+        }
+
+        bool TrySimulatePlannerEnvelope(
+            MotionProofPlannerNode node,
+            MotionProofPlannerMacro macro,
+            out MotionProofPlannerState[]? nextStates)
+        {
+            nextStates = null;
+            if (!searchValidationEnvelope
+                || !validationEnvelopeByNodeId.TryGetValue(node.Id, out var envelope))
+            {
+                return true;
+            }
+
+            var simulated = new MotionProofPlannerState[envelope.Length];
+            for (var i = 0; i < envelope.Length; i += 1)
+            {
+                var transition = SimulatePlannerMacro(level, team, classId, envelope[i], macro, carryingIntel: !planPickup && !planObjective);
+                if (!transition.Valid)
+                {
+                    return false;
+                }
+
+                simulated[i] = transition.State;
+            }
+
+            nextStates = simulated;
+            return true;
+        }
+
+        MotionProofPlannerCandidateResult EvaluatePlannerCandidate(MotionProofPlannerNode candidate)
+        {
+            var candidateSteps = ReconstructPlannerSteps(candidate);
+            var validationScenario = new TraversalLabScenario
+            {
+                Name = $"{tapeName}.validation",
+                LevelName = mapName,
+                MapAreaIndex = area,
+                Team = team,
+                ClassId = classId,
+                Start = new TraversalLabStartState
+                {
+                    X = startX,
+                    Bottom = startBottom,
+                    HorizontalSpeed = startHorizontalSpeed,
+                    VerticalSpeed = startVerticalSpeed,
+                    IsGrounded = startGrounded,
+                    RemainingAirJumps = startAirJumps,
+                IsCarryingIntel = !planPickup && !planObjective,
+                    FacingDirectionX = startFacing,
+                },
+                Steps = candidateSteps,
+                MaxTicks = candidateSteps.Sum(static step => Math.Max(0, step.DurationTicks)),
+                TraceEveryTicks = 1,
+                StartXOffsets = rawOptions.TryGetValue("validation-x-offsets", out var xOffsets)
+                    ? ParseFloatList(xOffsets)
+                    : [-24f, 0f, 24f],
+                StartBottomOffsets = rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsets)
+                    ? ParseFloatList(bottomOffsets)
+                    : [-12f, 0f, 12f],
+                StartHorizontalSpeedOffsets = rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeeds)
+                    ? ParseFloatList(horizontalSpeeds)
+                    : [-60f, 0f, 60f],
+                StartVerticalSpeedOffsets = rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeeds)
+                    ? ParseFloatList(verticalSpeeds)
+                    : [0f],
+                GroundedStates = rawOptions.TryGetValue("validation-grounded", out var groundedStates)
+                    ? ParseBoolList(groundedStates)
+                    : [startGrounded],
+                FacingDirections = [startFacing],
+                Expectation = new TraversalLabExpectation
+                {
+                FinalX = planObjective ? targetBase.X : null,
+                FinalBottom = planObjective ? targetBase.Y : null,
+                RadiusX = targetRadiusX,
+                RadiusBottom = targetRadiusBottom,
+                MustEverOverlapOwnIntelMarker = !planPickup && !planObjective,
+                MustOverlapEnemyIntelMarker = planPickup ? true : null,
+                },
+            };
+            var validation = TraversalLabRunner.Run(validationScenario);
+            var validationFailures = validation.Cases
+                .Where(static validationCase => !validationCase.Passed)
+                .Select(static validationCase => new ReturnProofValidationFailure(
+                    validationCase.Variant.StartXOffset,
+                    validationCase.Variant.StartBottomOffset,
+                    validationCase.Variant.StartHorizontalSpeedOffset,
+                    validationCase.Variant.StartVerticalSpeedOffset,
+                    validationCase.Variant.StartGrounded,
+                    validationCase.FailureReason,
+                    validationCase.FinalX,
+                    validationCase.FinalY,
+                    validationCase.FinalBottom))
+                .ToArray();
+            var validationArtifact = new ReturnProofValidationArtifact(
+                validation.Cases.Count,
+                validation.PassedCount,
+                validation.FailedCount,
+                validation.Passed,
+                validationFailures);
+            return new MotionProofPlannerCandidateResult(
+                candidate,
+                candidateSteps,
+                validationScenario,
+                validation,
+                validationArtifact);
+        }
+
+        while (open.Count > 0 && expansions < maxExpansions)
+        {
+            var node = open.Dequeue();
+            expansions += 1;
+            if (node.Heuristic < bestNode.Heuristic)
+            {
+                bestNode = node;
+            }
+
+            if (NodeIntersectsTarget(node))
+            {
+                solutionsSeen += 1;
+                if (solutionsSeen <= skipSolutions)
+                {
+                    continue;
+                }
+
+                validatedCandidates += 1;
+                var candidate = EvaluatePlannerCandidate(node);
+                Console.WriteLine(
+                    $"motionProofPlannerCandidate index={validatedCandidates} ticks={node.Tick} steps={candidate.Steps.Count} validationPassed={(candidate.Validation.Passed ? 1 : 0)} " +
+                    $"cases={candidate.Validation.Cases.Count} passedCases={candidate.Validation.PassedCount} failedCases={candidate.Validation.FailedCount}");
+                if (candidate.Validation.Passed)
+                {
+                    solvedCandidate = candidate;
+                    break;
+                }
+
+                lastRejectedCandidate = candidate;
+                if (validatedCandidates >= maxValidatedSolutions)
+                {
+                    candidateLimitReached = true;
+                    break;
+                }
+
+                continue;
+            }
+
+            foreach (var macro in macros)
+            {
+                if (node.Tick + macro.Ticks > maxTicks)
+                {
+                    continue;
+                }
+
+                var transition = SimulatePlannerMacro(level, team, classId, node.State, macro, carryingIntel: !planPickup && !planObjective);
+                if (!transition.Valid)
+                {
+                    continue;
+                }
+                if (!TrySimulatePlannerEnvelope(node, macro, out var nextEnvelope))
+                {
+                    continue;
+                }
+
+                var heuristic = Distance(transition.State.X, transition.State.Bottom, targetBase.X, targetBase.Y);
+                if (nextEnvelope is not null)
+                {
+                    foreach (var state in nextEnvelope)
+                    {
+                        heuristic = Math.Max(heuristic, Distance(state.X, state.Bottom, targetBase.X, targetBase.Y));
+                    }
+                }
+
+                var child = new MotionProofPlannerNode(
+                    nextId++,
+                    node,
+                    macro,
+                    transition.State,
+                    node.Tick + macro.Ticks,
+                    heuristic);
+                if (nextEnvelope is not null)
+                {
+                    validationEnvelopeByNodeId[child.Id] = nextEnvelope;
+                }
+
+                var cell = MotionProofPlannerCell.From(child.State);
+                var dominanceCost = heuristic + (child.Tick * 0.08f);
+                if (bestByCell.TryGetValue(cell, out var previousBest) && dominanceCost >= previousBest - 8f)
+                {
+                    continue;
+                }
+
+                bestByCell[cell] = dominanceCost;
+                open.Enqueue(child, ScorePlannerSearchNode(child));
+            }
+        }
+
+        Directory.CreateDirectory(artifactDirectory);
+        var planSummary = new MotionProofPlannerSummary(
+            expansions,
+            nextId,
+            bestNode.Tick,
+            bestNode.Heuristic,
+            bestNode.State.X,
+            bestNode.State.Bottom,
+            solvedCandidate is not null,
+            solvedCandidate?.Node.Tick ?? -1,
+            macros.Length);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "planner-summary.json"),
+            JsonSerializer.Serialize(planSummary, outputJsonOptions));
+
+        Console.WriteLine(
+            $"motionProofPlanner mode={(planObjective ? "objective" : planPickup ? "pickup" : "return")} map={mapName} area={area} team={team} class={classId} expansions={expansions} generated={nextId - 1} " +
+            $"solved={(solvedCandidate is null ? 0 : 1)} nominalSolutions={solutionsSeen} validatedCandidates={validatedCandidates} candidateLimitReached={(candidateLimitReached ? 1 : 0)} " +
+            $"bestDist={bestNode.Heuristic:0.0} best=({bestNode.State.X:0.0},{bestNode.State.Bottom:0.0}) bestTick={bestNode.Tick}");
+
+        if (solvedCandidate is null)
+        {
+            if (lastRejectedCandidate is not null)
+            {
+                File.WriteAllText(
+                    Path.Combine(artifactDirectory, "planner-steps.json"),
+                    JsonSerializer.Serialize(lastRejectedCandidate.Steps, outputJsonOptions));
+                File.WriteAllText(
+                    Path.Combine(artifactDirectory, "validation.json"),
+                    JsonSerializer.Serialize(lastRejectedCandidate.ValidationArtifact, outputJsonOptions));
+                foreach (var failure in lastRejectedCandidate.ValidationArtifact.Failures.Take(12))
+                {
+                    Console.WriteLine(
+                        $"validationFailure xOff:{failure.StartXOffset:0.0} bottomOff:{failure.StartBottomOffset:0.0} hSpeed:{failure.StartHorizontalSpeedOffset:0.0} " +
+                        $"vSpeed:{failure.StartVerticalSpeedOffset:0.0} grounded:{(failure.StartGrounded ? 1 : 0)} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+                }
+
+                var reason = candidateLimitReached ? "validation_failed_candidate_limit" : "validation_failed";
+                Console.WriteLine($"motionProofPlanner=rejected reason:{reason} artifactDir={artifactDirectory}");
+            }
+            else
+            {
+                var bestSteps = ReconstructPlannerSteps(bestNode);
+                File.WriteAllText(
+                    Path.Combine(artifactDirectory, "best-failed-steps.json"),
+                    JsonSerializer.Serialize(bestSteps, outputJsonOptions));
+                Console.WriteLine($"motionProofPlanner=rejected reason:no_solution artifactDir={artifactDirectory}");
+            }
+
+            return;
+        }
+
+        var steps = solvedCandidate.Steps;
+        var validationScenario = solvedCandidate.ValidationScenario;
+        var validation = solvedCandidate.Validation;
+        var validationArtifact = solvedCandidate.ValidationArtifact;
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "planner-steps.json"),
+            JsonSerializer.Serialize(steps, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "validation.json"),
+            JsonSerializer.Serialize(validationArtifact, outputJsonOptions));
+
+        Console.WriteLine(
+            $"motionProofPlannerAcceptedCandidate ticks={solvedCandidate.Node.Tick} steps={steps.Count} validationPassed={(validation.Passed ? 1 : 0)} " +
+            $"cases={validation.Cases.Count} passedCases={validation.PassedCount} failedCases={validation.FailedCount}");
+        foreach (var failure in validationArtifact.Failures.Take(12))
+        {
+            Console.WriteLine(
+                $"validationFailure xOff:{failure.StartXOffset:0.0} bottomOff:{failure.StartBottomOffset:0.0} hSpeed:{failure.StartHorizontalSpeedOffset:0.0} " +
+                $"vSpeed:{failure.StartVerticalSpeedOffset:0.0} grounded:{(failure.StartGrounded ? 1 : 0)} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+        }
+
+        var bestCase = validation.Cases
+            .Where(static candidate => candidate.Passed)
+            .OrderBy(static candidate => candidate.ExecutedTicks)
+            .First();
+        var trimmedPlannerSamples = planObjective
+            ? bestCase.Samples
+            : planPickup
+            ? TrimTraversalSamplesAtIntel(level, opposingTeam, classId, bestCase.Samples)
+            : TrimTraversalSamplesAtIntel(level, team, classId, bestCase.Samples);
+        var verifiedGraph = VerifiedNavCandidateBuilder.Build(level, new VerifiedNavBuildOptions
+        {
+            Team = team,
+            ClassId = classId,
+            DropHorizontalReach = ReadFloatOption(rawOptions, "drop-horizontal-reach", 360f),
+            JumpHorizontalReach = ReadFloatOption(rawOptions, "jump-horizontal-reach", 360f),
+        });
+        var proofTrace = VerifiedNavProofTraceExtractor.Extract(
+            verifiedGraph,
+            trimmedPlannerSamples,
+            planObjective ? "MotionProofObjectivePlanner" : planPickup ? "MotionProofPickupPlanner" : "MotionProofReturnPlanner",
+            startX,
+            startBottom);
+        proofTrace = CloneProofTraceWithActions(
+            proofTrace,
+            BuildVerifiedNavProofGraphActionsFromSteps(steps, trimmedPlannerSamples.Count));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "proof-trace-edges.json"),
+            JsonSerializer.Serialize(proofTrace, outputJsonOptions));
+        var entry = BuildObjectiveActionTapeFromTraversalSamples(
+            tapeName,
+            validationScenario,
+            trimmedPlannerSamples,
+            steps);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "candidate-tape.json"),
+            JsonSerializer.Serialize(entry, outputJsonOptions));
+
+        if (!accept)
+        {
+            Console.WriteLine($"motionProofPlanner=accepted_candidate artifactDir={artifactDirectory} install=skipped reason:missing_accept_flag");
+            return;
+        }
+
+        var tapePath = BotBrainObjectiveTapeStore.UpsertTape(level, entry);
+        Console.WriteLine($"motionProofPlanner=installed path={tapePath} artifactDir={artifactDirectory}");
+    }
+
+    private static PlayerEntity CreatePlannerPlayer(
+        SimpleLevel level,
+        PlayerClass classId,
+        PlayerTeam team,
+        MotionProofPlannerState state,
+        bool carryingIntel)
+    {
+        var definition = CharacterClassCatalog.GetDefinition(classId);
+        var player = new PlayerEntity(1, definition, "MotionProofPlanner");
+        var y = state.Bottom - player.CollisionBottomOffset;
+        player.Spawn(team, state.X, y);
+        player.TeleportTo(state.X, y);
+        player.ResolveBlockingOverlap(level, team);
+        player.ApplyVelocityImpulse(state.HorizontalSpeed, state.VerticalSpeed);
+        if (carryingIntel)
+        {
+            player.PickUpIntel();
+        }
+
+        player.RestoreMovementProbeState(state.IsGrounded, state.RemainingAirJumps, state.FacingDirectionX);
+        player.SetAimWorldPosition(state.X + (state.FacingDirectionX * 256f), player.Y);
+        return player;
+    }
+
+    private static MotionProofPlannerTransition SimulatePlannerMacro(
+        SimpleLevel level,
+        PlayerTeam team,
+        PlayerClass classId,
+        MotionProofPlannerState start,
+        MotionProofPlannerMacro macro,
+        bool carryingIntel)
+    {
+        var player = CreatePlannerPlayer(level, classId, team, start, carryingIntel);
+        var previousInput = default(PlayerInputSnapshot);
+        for (var tick = 0; tick < macro.Ticks; tick += 1)
+        {
+            var input = CreatePlannerInput(player, macro, tick);
+            var jumpPressed = input.Up && !previousInput.Up;
+            player.Advance(
+                input,
+                jumpPressed,
+                level,
+                team,
+                deltaSeconds: 1d / SimulationConfig.DefaultTicksPerSecond);
+
+            previousInput = input;
+            if (player.X < -256f
+                || player.X > level.Bounds.Width + 256f
+                || player.Bottom < -512f
+                || player.Bottom > level.Bounds.Height + 1024f)
+            {
+                return MotionProofPlannerTransition.Invalid;
+            }
+        }
+
+        var facing = macro.Direction != 0
+            ? macro.Direction
+            : player.FacingDirectionX == 0f ? start.FacingDirectionX : player.FacingDirectionX;
+        return new MotionProofPlannerTransition(
+            true,
+            new MotionProofPlannerState(
+                player.X,
+                player.Bottom,
+                player.HorizontalSpeed,
+                player.VerticalSpeed,
+                player.IsGrounded,
+                player.RemainingAirJumps,
+                facing < 0f ? -1f : 1f));
+    }
+
+    private static PlayerInputSnapshot CreatePlannerInput(PlayerEntity player, MotionProofPlannerMacro macro, int tick)
+    {
+        var direction = macro.Direction;
+        var aimDirection = direction == 0
+            ? player.FacingDirectionX == 0f ? 1f : player.FacingDirectionX
+            : direction;
+        return new PlayerInputSnapshot(
+            Left: direction < 0,
+            Right: direction > 0,
+            Up: macro.JumpTicks > 0 && tick < macro.JumpTicks,
+            Down: macro.Drop,
+            BuildSentry: false,
+            DestroySentry: false,
+            Taunt: false,
+            FirePrimary: false,
+            FireSecondary: false,
+            AimWorldX: player.X + (aimDirection * 256f),
+            AimWorldY: player.Y,
+            DebugKill: false,
+            DropIntel: false,
+            UseAbility: false);
+    }
+
+    private static MotionProofPlannerMacro[] BuildMotionProofPlannerMacros(Dictionary<string, string> rawOptions)
+    {
+        var durations = rawOptions.TryGetValue("planner-durations", out var durationText)
+            ? ParseIntList(durationText)
+            : [6, 10, 16, 24, 36, 48];
+        var jumpHolds = rawOptions.TryGetValue("planner-jump-holds", out var jumpHoldText)
+            ? ParseIntList(jumpHoldText)
+            : [1, 3, 6];
+        var macros = new List<MotionProofPlannerMacro>();
+        foreach (var duration in durations.Where(static value => value > 0).Distinct())
+        {
+            macros.Add(new MotionProofPlannerMacro($"idle.{duration}", 0, duration, 0, Drop: false));
+            foreach (var direction in new[] { -1, 1 })
+            {
+                macros.Add(new MotionProofPlannerMacro($"run.{direction}.{duration}", direction, duration, 0, Drop: false));
+                macros.Add(new MotionProofPlannerMacro($"drop.{direction}.{duration}", direction, duration, 0, Drop: true));
+                foreach (var jumpHold in jumpHolds.Where(static value => value > 0).Distinct())
+                {
+                    macros.Add(new MotionProofPlannerMacro($"jump.{direction}.{duration}.{jumpHold}", direction, duration, Math.Min(duration, jumpHold), Drop: false));
+                    macros.Add(new MotionProofPlannerMacro($"dropjump.{direction}.{duration}.{jumpHold}", direction, duration, Math.Min(duration, jumpHold), Drop: true));
+                }
+            }
+        }
+
+        return macros.ToArray();
+    }
+
+    private static float ScorePlannerNode(MotionProofPlannerNode node, (float X, float Y) target, PlayerTeam team)
+    {
+        var directionProgress = team == PlayerTeam.Red
+            ? node.State.X - target.X
+            : target.X - node.State.X;
+        var progressPenalty = MathF.Max(0f, directionProgress) * 0.08f;
+        var velocityPenalty = MathF.Abs(node.State.HorizontalSpeed) < 5f && !node.State.IsGrounded ? 20f : 0f;
+        return node.Heuristic + progressPenalty + velocityPenalty + (node.Tick * 0.12f);
+    }
+
+    private static List<TraversalLabInputStep> ReconstructPlannerSteps(MotionProofPlannerNode node)
+    {
+        var macros = new Stack<MotionProofPlannerMacro>();
+        var cursor = node;
+        while (cursor.Macro is not null && cursor.Parent is not null)
+        {
+            macros.Push(cursor.Macro.Value);
+            cursor = cursor.Parent;
+        }
+
+        var steps = new List<TraversalLabInputStep>();
+        foreach (var macro in macros)
+        {
+            for (var tick = 0; tick < macro.Ticks; tick += 1)
+            {
+                steps.Add(new TraversalLabInputStep
+                {
+                    Label = macro.Label,
+                    DurationTicks = 1,
+                    Left = macro.Direction < 0,
+                    Right = macro.Direction > 0,
+                    Up = macro.JumpTicks > 0 && tick < macro.JumpTicks,
+                    Down = macro.Drop,
+                    AimFacingDirectionX = macro.Direction == 0 ? null : macro.Direction,
+                });
+            }
+        }
+
+        return steps;
+    }
+
+    private static BotBrainObjectiveTapeEntry BuildObjectiveActionTapeFromTraversalSamples(
+        string tapeName,
+        TraversalLabScenario scenario,
+        IReadOnlyList<TraversalLabTickSample> sourceSamples,
+        IReadOnlyList<TraversalLabInputStep> steps)
+    {
+        var entry = BuildObjectiveTapeFromTraversalSamples(tapeName, scenario, sourceSamples);
+        var segment = entry.Segments[0];
+        segment.Actions = BuildObjectiveActionsFromSteps(steps);
+        segment.EntryRadius = 128f;
+        segment.ExitRadius = 180f;
+        return entry;
+    }
+
+    private static List<BotBrainObjectiveTapeAction> BuildObjectiveActionsFromSteps(IReadOnlyList<TraversalLabInputStep> steps)
+    {
+        var actions = new List<BotBrainObjectiveTapeAction>();
+        foreach (var step in steps)
+        {
+            var direction = step.Left == step.Right
+                ? 0
+                : step.Right ? 1 : -1;
+            var kind = step.Up
+                ? "Jump"
+                : step.Down ? "Drop" : "Run";
+            var ticks = Math.Max(1, step.DurationTicks);
+            if (actions.Count > 0
+                && actions[^1].Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)
+                && actions[^1].Direction == direction)
+            {
+                actions[^1].Ticks += ticks;
+                continue;
+            }
+
+            actions.Add(new BotBrainObjectiveTapeAction
+            {
+                Kind = kind,
+                Direction = direction,
+                Ticks = ticks,
+            });
+        }
+
+        return actions;
+    }
+
+    private static List<VerifiedNavProofGraphActionRun> BuildVerifiedNavProofGraphActionsFromSteps(
+        IReadOnlyList<TraversalLabInputStep> steps,
+        int maxTicks)
+    {
+        var actions = new List<VerifiedNavProofGraphActionRun>();
+        var remainingTicks = Math.Max(0, maxTicks);
+        foreach (var step in steps)
+        {
+            if (remainingTicks <= 0)
+            {
+                break;
+            }
+
+            var ticks = Math.Min(remainingTicks, Math.Max(0, step.DurationTicks));
+            if (ticks <= 0)
+            {
+                continue;
+            }
+
+            var direction = step.Left == step.Right
+                ? 0f
+                : step.Right ? 1f : -1f;
+            if (actions.Count > 0
+                && actions[^1].MoveDirection == direction
+                && actions[^1].Jump == step.Up
+                && actions[^1].DropDown == step.Down)
+            {
+                var previous = actions[^1];
+                actions[^1] = previous with { Ticks = previous.Ticks + ticks };
+            }
+            else
+            {
+                actions.Add(new VerifiedNavProofGraphActionRun(
+                    ticks,
+                    direction,
+                    step.Up,
+                    step.Down));
+            }
+
+            remainingTicks -= ticks;
+        }
+
+        return actions;
+    }
+
+    private static VerifiedNavProofTraceReport CloneProofTraceWithActions(
+        VerifiedNavProofTraceReport source,
+        List<VerifiedNavProofGraphActionRun> actions)
+    {
+        return new VerifiedNavProofTraceReport
+        {
+            LevelName = source.LevelName,
+            MapAreaIndex = source.MapAreaIndex,
+            Team = source.Team,
+            ClassId = source.ClassId,
+            Source = source.Source,
+            SampleCount = source.SampleCount,
+            SurfaceTouchCount = source.SurfaceTouchCount,
+            StartX = source.StartX,
+            StartBottom = source.StartBottom,
+            SurfaceSequence = source.SurfaceSequence,
+            Edges = source.Edges,
+            Actions = actions,
+            TerminalStartX = source.TerminalStartX,
+            TerminalStartBottom = source.TerminalStartBottom,
+            TerminalEndX = source.TerminalEndX,
+            TerminalEndBottom = source.TerminalEndBottom,
+            TerminalActions = source.TerminalActions,
+        };
+    }
+
+    public static void ValidateReturnTapeAsClass(Dictionary<string, string> rawOptions, JsonSerializerOptions outputJsonOptions)
+    {
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Soldier);
+        if (!rawOptions.TryGetValue("tape-name", out var tapeName) || string.IsNullOrWhiteSpace(tapeName))
+        {
+            throw new InvalidOperationException("--validate-return-tape-as-class requires --tape-name.");
+        }
+
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "botbrain-return-tape-validation", $"{mapName}-{team}-{classId}");
+
+        var compileRepoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(compileRepoRoot, "Core", "Content"));
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        if (!BotBrainObjectiveTapeStore.TryLoad(level, out var tapeAsset))
+        {
+            throw new InvalidOperationException($"Could not load objective tapes for '{mapName}' area {area}.");
+        }
+
+        var tape = tapeAsset.Tapes.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, tapeName, StringComparison.OrdinalIgnoreCase)
+            && candidate.Team == team)
+            ?? tapeAsset.Tapes.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, tapeName, StringComparison.OrdinalIgnoreCase));
+        if (tape is null)
+        {
+            var available = string.Join(", ", tapeAsset.Tapes
+                .Where(candidate => candidate.Team == team)
+                .Select(static candidate => candidate.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(20));
+            throw new InvalidOperationException($"Could not find tape '{tapeName}'. Available {team} tapes: {available}");
+        }
+
+        var segment = tape.Segments.FirstOrDefault(static candidate =>
+            candidate.RequiresCarryingIntel
+            && candidate.Samples.Count >= 2
+            && candidate.Actions.Count > 0)
+            ?? throw new InvalidOperationException($"Tape '{tape.Name}' does not contain a carrying return action segment.");
+
+        var scenario = BuildReturnTapeValidationScenario(
+            mapName,
+            area,
+            team,
+            classId,
+            tape,
+            segment,
+            rawOptions);
+        var validation = TraversalLabRunner.Run(scenario);
+        var validationFailures = validation.Cases
+            .Where(static candidate => !candidate.Passed)
+            .Select(static candidate => new ReturnProofValidationFailure(
+                candidate.Variant.StartXOffset,
+                candidate.Variant.StartBottomOffset,
+                candidate.Variant.StartHorizontalSpeedOffset,
+                candidate.Variant.StartVerticalSpeedOffset,
+                candidate.Variant.StartGrounded,
+                candidate.FailureReason,
+                candidate.FinalX,
+                candidate.FinalY,
+                candidate.FinalBottom))
+            .ToArray();
+        var validationArtifact = new ReturnProofValidationArtifact(
+            validation.Cases.Count,
+            validation.PassedCount,
+            validation.FailedCount,
+            validation.Passed,
+            validationFailures);
+
+        Directory.CreateDirectory(artifactDirectory);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "scenario.json"),
+            JsonSerializer.Serialize(scenario, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "validation.json"),
+            JsonSerializer.Serialize(validationArtifact, outputJsonOptions));
+
+        Console.WriteLine(
+            $"returnTapeValidation tape={tape.Name} sourceClass={tape.PlayerClass} asClass={classId} team={team} " +
+            $"actions={segment.Actions.Count} ticks={scenario.Steps.Sum(static step => step.DurationTicks)} " +
+            $"cases={validation.Cases.Count} passedCases={validation.PassedCount} failedCases={validation.FailedCount} passedAll={(validation.Passed ? 1 : 0)}");
+        foreach (var failure in validationFailures.Take(12))
+        {
+            Console.WriteLine(
+                $"validationFailure xOff:{failure.StartXOffset:0.0} bottomOff:{failure.StartBottomOffset:0.0} hSpeed:{failure.StartHorizontalSpeedOffset:0.0} " +
+                $"vSpeed:{failure.StartVerticalSpeedOffset:0.0} grounded:{(failure.StartGrounded ? 1 : 0)} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+        }
+
+        Console.WriteLine($"returnTapeValidationArtifact={artifactDirectory}");
+    }
+
+    private static TraversalLabScenario BuildReturnTapeValidationScenario(
+        string mapName,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        BotBrainObjectiveTapeEntry tape,
+        BotBrainObjectiveTapeSegment segment,
+        Dictionary<string, string> rawOptions)
+    {
+        var firstSample = segment.Samples[0];
+        var firstAction = segment.Actions[0];
+        var sampleHeight = firstSample.Bottom - firstSample.Y;
+        var startX = ReadFloatOption(rawOptions, "start-x", segment.EntryX ?? firstSample.X);
+        var startBottomFallback = segment.EntryY.HasValue
+            ? segment.EntryY.Value + sampleHeight
+            : firstSample.Bottom;
+        var startBottom = ReadFloatOption(rawOptions, "start-bottom", startBottomFallback);
+        var facingDirection = firstAction.Direction != 0
+            ? firstAction.Direction
+            : firstSample.MoveDirection != 0f
+                ? firstSample.MoveDirection
+                : team == PlayerTeam.Red ? -1f : 1f;
+        var steps = BuildReturnTapeValidationSteps(segment);
+        var maxTicks = ReadIntOption(rawOptions, "ticks", steps.Sum(static step => Math.Max(0, step.DurationTicks)));
+        return new TraversalLabScenario
+        {
+            Name = $"{tape.Name}.as.{classId}.validation",
+            LevelName = mapName,
+            MapAreaIndex = area,
+            Team = team,
+            ClassId = classId,
+            Start = new TraversalLabStartState
+            {
+                X = startX,
+                Bottom = startBottom,
+                HorizontalSpeed = ReadFloatOption(rawOptions, "start-horizontal-speed", firstSample.HorizontalSpeed),
+                VerticalSpeed = ReadFloatOption(rawOptions, "start-vertical-speed", firstSample.VerticalSpeed),
+                IsGrounded = rawOptions.TryGetValue("start-grounded", out var startGroundedText)
+                    && bool.TryParse(startGroundedText, out var parsedStartGrounded)
+                        ? parsedStartGrounded
+                        : firstSample.IsGrounded,
+                IsCarryingIntel = true,
+                FacingDirectionX = facingDirection < 0f ? -1f : 1f,
+            },
+            Steps = steps,
+            MaxTicks = maxTicks,
+            TraceEveryTicks = Math.Max(1, ReadIntOption(rawOptions, "trace-every", maxTicks)),
+            StartXOffsets = rawOptions.TryGetValue("validation-x-offsets", out var xOffsets)
+                ? ParseFloatList(xOffsets)
+                : [0f],
+            StartBottomOffsets = rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsets)
+                ? ParseFloatList(bottomOffsets)
+                : [0f],
+            StartHorizontalSpeedOffsets = rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeeds)
+                ? ParseFloatList(horizontalSpeeds)
+                : [0f],
+            StartVerticalSpeedOffsets = rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeeds)
+                ? ParseFloatList(verticalSpeeds)
+                : [0f],
+            GroundedStates = rawOptions.TryGetValue("validation-grounded", out var groundedStates)
+                ? ParseBoolList(groundedStates)
+                : [firstSample.IsGrounded],
+            FacingDirections = rawOptions.TryGetValue("validation-facing-directions", out var facingDirections)
+                ? ParseFloatList(facingDirections)
+                : [facingDirection < 0f ? -1f : 1f],
+            Expectation = new TraversalLabExpectation
+            {
+                FinalX = segment.ExitX ?? segment.Samples[^1].X,
+                FinalBottom = segment.ExitY.HasValue
+                    ? segment.ExitY.Value + (segment.Samples[^1].Bottom - segment.Samples[^1].Y)
+                    : segment.Samples[^1].Bottom,
+                RadiusX = ReadFloatOption(rawOptions, "validation-exit-radius-x", segment.ExitRadius ?? 96f),
+                RadiusBottom = ReadFloatOption(rawOptions, "validation-exit-radius-bottom", segment.ExitRadius ?? 96f),
+                MustEverOverlapOwnIntelMarker = rawOptions.TryGetValue("require-own-intel-overlap", out var requireOwnIntelOverlap)
+                    && bool.TryParse(requireOwnIntelOverlap, out var parsedRequireOwnIntelOverlap)
+                    && parsedRequireOwnIntelOverlap,
+                MustCarryIntel = rawOptions.TryGetValue("require-final-carrying", out var requireFinalCarrying)
+                    && bool.TryParse(requireFinalCarrying, out var parsedRequireFinalCarrying)
+                    && parsedRequireFinalCarrying
+                        ? true
+                        : null,
+            },
+        };
+    }
+
+    private static List<TraversalLabInputStep> BuildReturnTapeValidationSteps(BotBrainObjectiveTapeSegment segment)
+    {
+        var steps = new List<TraversalLabInputStep>();
+        for (var actionIndex = 0; actionIndex < segment.Actions.Count; actionIndex += 1)
+        {
+            var action = segment.Actions[actionIndex];
+            var duration = Math.Max(0, action.Ticks);
+            var moveDirection = action.Direction < 0 ? -1 : action.Direction > 0 ? 1 : 0;
+            var kind = string.IsNullOrWhiteSpace(action.Kind) ? "Run" : action.Kind;
+            for (var tick = 0; tick < duration; tick += 1)
+            {
+                steps.Add(new TraversalLabInputStep
+                {
+                    Label = $"tape_{actionIndex}_{kind}",
+                    DurationTicks = 1,
+                    Left = moveDirection < 0,
+                    Right = moveDirection > 0,
+                    Up = kind.Equals("Jump", StringComparison.OrdinalIgnoreCase) && tick == 0,
+                    Down = kind.Equals("Drop", StringComparison.OrdinalIgnoreCase),
+                    AimFacingDirectionX = moveDirection == 0 ? null : moveDirection,
+                });
+            }
+        }
+
+        return steps;
+    }
+
+    public static void GenerateFollowProofReturnTape(Dictionary<string, string> rawOptions, JsonSerializerOptions outputJsonOptions)
+    {
+        var mapName = rawOptions.TryGetValue("map", out var mapText) ? mapText : "Truefort";
+        var area = ReadIntOption(rawOptions, "area", 1);
+        var team = ReadEnumOption(rawOptions, "team", PlayerTeam.Red);
+        var classId = ReadEnumOption(rawOptions, "class", PlayerClass.Pyro);
+        if (!rawOptions.TryGetValue("source-tape-name", out var sourceTapeName) || string.IsNullOrWhiteSpace(sourceTapeName))
+        {
+            throw new InvalidOperationException("--generate-follow-proof-return requires --source-tape-name.");
+        }
+
+        var accept = rawOptions.TryGetValue("accept-proof-return", out var acceptText)
+            && bool.TryParse(acceptText, out var parsedAccept)
+            && parsedAccept;
+        var tapeName = rawOptions.TryGetValue("tape-name", out var providedTapeName)
+            ? providedTapeName
+            : $"MotionProof.{mapName}.{team}.{classId}.FollowReturn";
+        var artifactDirectory = rawOptions.TryGetValue("artifacts-dir", out var artifactsText) && !string.IsNullOrWhiteSpace(artifactsText)
+            ? Path.GetFullPath(artifactsText)
+            : Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "botbrain-follow-proof-return", $"{mapName}-{team}-{classId}");
+
+        var compileRepoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        ContentRoot.Initialize(Path.Combine(compileRepoRoot, "Core", "Content"));
+        var level = SimpleLevelFactory.CreateImportedLevel(mapName, area)
+            ?? throw new InvalidOperationException($"Could not load map '{mapName}' area {area}.");
+        if (!BotBrainObjectiveTapeStore.TryLoad(level, out var tapeAsset))
+        {
+            throw new InvalidOperationException($"Could not load objective tapes for '{mapName}' area {area}.");
+        }
+
+        var sourceTape = tapeAsset.Tapes.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, sourceTapeName, StringComparison.OrdinalIgnoreCase)
+            && candidate.Team == team)
+            ?? throw new InvalidOperationException($"Could not find source tape '{sourceTapeName}' for {team}.");
+        var sourceSegment = sourceTape.Segments.FirstOrDefault(static candidate =>
+            candidate.RequiresCarryingIntel
+            && candidate.Samples.Count >= 2
+            && candidate.Actions.Count > 0)
+            ?? throw new InvalidOperationException($"Source tape '{sourceTape.Name}' does not contain a carrying return action segment.");
+
+        var sourceOptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["trace-every"] = "1",
+            ["validation-x-offsets"] = "0",
+            ["validation-bottom-offsets"] = "0",
+            ["validation-horizontal-speeds"] = "0",
+            ["validation-vertical-speeds"] = "0",
+        };
+        var sourceScenario = BuildReturnTapeValidationScenario(
+            mapName,
+            area,
+            team,
+            sourceTape.PlayerClass,
+            sourceTape,
+            sourceSegment,
+            sourceOptions);
+        var sourceReplay = TraversalLabRunner.Run(sourceScenario);
+        var sourceCase = sourceReplay.Cases.FirstOrDefault();
+        if (sourceCase is null || !sourceCase.Passed)
+        {
+            throw new InvalidOperationException($"Source tape '{sourceTape.Name}' failed validation as {sourceTape.PlayerClass}: {sourceCase?.FailureReason}");
+        }
+
+        var maxTicks = ReadIntOption(rawOptions, "ticks", sourceCase.ExecutedTicks + 900);
+        var lookaheadTicks = rawOptions.TryGetValue("follow-lookahead-ticks", out var lookaheadText)
+            ? ParseIntList(lookaheadText)
+            : [12, 24, 36, 48];
+        var deadZones = rawOptions.TryGetValue("follow-deadzones", out var deadzoneText)
+            ? ParseFloatList(deadzoneText)
+            : [24f];
+        var jumpThresholds = rawOptions.TryGetValue("follow-jump-thresholds", out var jumpThresholdText)
+            ? ParseFloatList(jumpThresholdText)
+            : [12f, 24f, 36f];
+        var jumpCooldowns = rawOptions.TryGetValue("follow-jump-cooldowns", out var jumpCooldownText)
+            ? ParseIntList(jumpCooldownText)
+            : [8];
+        var dropThresholds = rawOptions.TryGetValue("follow-drop-thresholds", out var dropThresholdText)
+            ? ParseFloatList(dropThresholdText)
+            : [24f, 48f];
+        var runupTicksList = rawOptions.TryGetValue("follow-runup-ticks", out var runupTickText)
+            ? ParseIntList(runupTickText)
+            : [0, 12, 24];
+        var useSpatialFollow = rawOptions.TryGetValue("follow-spatial", out var spatialText)
+            && bool.TryParse(spatialText, out var parsedSpatial)
+            && parsedSpatial;
+
+        FollowProofCaseResult? bestCase = null;
+        FollowProofCaseResult? bestFailedCase = null;
+        FollowProofParameters? bestParameters = null;
+        FollowProofParameters? bestFailedParameters = null;
+        var attempts = 0;
+        foreach (var lookahead in lookaheadTicks)
+        {
+            foreach (var deadzone in deadZones)
+            {
+                foreach (var jumpThreshold in jumpThresholds)
+                {
+                    foreach (var jumpCooldown in jumpCooldowns)
+                    {
+                        foreach (var dropThreshold in dropThresholds)
+                        {
+                            foreach (var runupTicks in runupTicksList)
+                            {
+                                attempts += 1;
+                                var parameters = new FollowProofParameters(
+                                    lookahead,
+                                    deadzone,
+                                    jumpThreshold,
+                                    jumpCooldown,
+                                    dropThreshold,
+                                    runupTicks);
+                                var result = RunFollowProofCase(
+                                    mapName,
+                                    area,
+                                    team,
+                                    classId,
+                                    sourceSegment,
+                                    sourceCase.Samples,
+                                    parameters,
+                                    maxTicks,
+                                    0f,
+                                    0f,
+                                0f,
+                                0f,
+                                sourceSegment.Samples[0].IsGrounded,
+                                useSpatialFollow);
+                                if (result.Passed)
+                                {
+                                    if (bestCase is null || result.ExecutedTicks < bestCase.ExecutedTicks)
+                                    {
+                                        bestCase = result;
+                                        bestParameters = parameters;
+                                    }
+                                }
+                                else if (bestFailedCase is null || result.ExitDistance < bestFailedCase.ExitDistance)
+                                {
+                                    bestFailedCase = result;
+                                    bestFailedParameters = parameters;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Directory.CreateDirectory(artifactDirectory);
+        var searchSummary = new FollowProofSearchSummary(
+            attempts,
+            bestCase?.ExecutedTicks ?? -1,
+            bestFailedCase?.ExitDistance ?? float.PositiveInfinity,
+            bestParameters,
+            bestFailedParameters);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "search-summary.json"),
+            JsonSerializer.Serialize(searchSummary, outputJsonOptions));
+        if (bestFailedCase is not null)
+        {
+            File.WriteAllText(
+                Path.Combine(artifactDirectory, "best-failed-samples.json"),
+                JsonSerializer.Serialize(bestFailedCase.Samples, outputJsonOptions));
+        }
+
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "source-samples.json"),
+            JsonSerializer.Serialize(sourceCase.Samples, outputJsonOptions));
+
+        Console.WriteLine(
+            $"followProofSearch map={mapName} area={area} team={team} class={classId} source={sourceTape.Name} " +
+            $"attempts={attempts} passed={(bestCase is null ? 0 : 1)}");
+        if (bestCase is null || bestParameters is null)
+        {
+            if (bestFailedCase is not null && bestFailedParameters is not null)
+            {
+                Console.WriteLine(
+                    $"closestFailed dist={bestFailedCase.ExitDistance:0.0} final=({bestFailedCase.FinalX:0.0},{bestFailedCase.FinalY:0.0}) " +
+                    $"bottom={bestFailedCase.FinalBottom:0.0} params={bestFailedParameters} reason={bestFailedCase.FailureReason}");
+            }
+
+            Console.WriteLine($"followProof=rejected reason:no_successful_candidate artifactDir={artifactDirectory}");
+            return;
+        }
+
+        var validationXOffsets = rawOptions.TryGetValue("validation-x-offsets", out var xOffsets)
+            ? ParseFloatList(xOffsets)
+            : [-24f, 0f, 24f];
+        var validationBottomOffsets = rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsets)
+            ? ParseFloatList(bottomOffsets)
+            : [-12f, 0f, 12f];
+        var validationHorizontalSpeeds = rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeeds)
+            ? ParseFloatList(horizontalSpeeds)
+            : [-60f, 0f, 60f];
+        var validationVerticalSpeeds = rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeeds)
+            ? ParseFloatList(verticalSpeeds)
+            : [0f];
+        var validationGroundedStates = rawOptions.TryGetValue("validation-grounded", out var groundedStates)
+            ? ParseBoolList(groundedStates)
+            : [sourceSegment.Samples[0].IsGrounded];
+        var failures = new List<ReturnProofValidationFailure>();
+        var validationCases = 0;
+        foreach (var xOffset in validationXOffsets)
+        {
+            foreach (var bottomOffset in validationBottomOffsets)
+            {
+                foreach (var horizontalSpeed in validationHorizontalSpeeds)
+                {
+                    foreach (var verticalSpeed in validationVerticalSpeeds)
+                    {
+                        foreach (var grounded in validationGroundedStates)
+                        {
+                            validationCases += 1;
+                            var result = RunFollowProofCase(
+                                mapName,
+                                area,
+                                team,
+                                classId,
+                                sourceSegment,
+                                sourceCase.Samples,
+                                bestParameters.Value,
+                                maxTicks,
+                                xOffset,
+                                bottomOffset,
+                                horizontalSpeed,
+                                verticalSpeed,
+                                grounded,
+                                useSpatialFollow);
+                            if (!result.Passed)
+                            {
+                                failures.Add(new ReturnProofValidationFailure(
+                                    xOffset,
+                                    bottomOffset,
+                                    horizontalSpeed,
+                                    verticalSpeed,
+                                    grounded,
+                                    result.FailureReason,
+                                    result.FinalX,
+                                    result.FinalY,
+                                    result.FinalBottom));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        var validationArtifact = new ReturnProofValidationArtifact(
+            validationCases,
+            validationCases - failures.Count,
+            failures.Count,
+            failures.Count == 0,
+            failures.ToArray());
+        var entry = BuildObjectiveTapeFromFollowProofSamples(
+            tapeName,
+            team,
+            classId,
+            bestCase.Samples,
+            sourceSegment);
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "candidate-tape.json"),
+            JsonSerializer.Serialize(entry, outputJsonOptions));
+        File.WriteAllText(
+            Path.Combine(artifactDirectory, "validation.json"),
+            JsonSerializer.Serialize(validationArtifact, outputJsonOptions));
+
+        Console.WriteLine(
+            $"followProofCandidate ticks={bestCase.ExecutedTicks} samples={bestCase.Samples.Count} params={bestParameters}");
+        Console.WriteLine(
+            $"followProofValidation passed={(validationArtifact.PassedAll ? 1 : 0)} cases={validationArtifact.Cases} passedCases={validationArtifact.Passed} failedCases={validationArtifact.Failed}");
+        foreach (var failure in failures.Take(12))
+        {
+            Console.WriteLine(
+                $"validationFailure xOff:{failure.StartXOffset:0.0} bottomOff:{failure.StartBottomOffset:0.0} hSpeed:{failure.StartHorizontalSpeedOffset:0.0} " +
+                $"vSpeed:{failure.StartVerticalSpeedOffset:0.0} grounded:{(failure.StartGrounded ? 1 : 0)} final=({failure.FinalX:0.0},{failure.FinalY:0.0}) bottom={failure.FinalBottom:0.0} reason={failure.Reason}");
+        }
+
+        if (!validationArtifact.PassedAll)
+        {
+            Console.WriteLine($"followProof=rejected reason:validation_failed artifactDir={artifactDirectory}");
+            return;
+        }
+
+        if (!accept)
+        {
+            Console.WriteLine($"followProof=accepted_candidate artifactDir={artifactDirectory} install=skipped reason:missing_accept_flag");
+            return;
+        }
+
+        var tapePath = BotBrainObjectiveTapeStore.UpsertTape(level, entry);
+        Console.WriteLine($"followProof=installed path={tapePath} artifactDir={artifactDirectory}");
+    }
+
+    private static FollowProofCaseResult RunFollowProofCase(
+        string mapName,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        BotBrainObjectiveTapeSegment sourceSegment,
+        IReadOnlyList<TraversalLabTickSample> sourceSamples,
+        FollowProofParameters parameters,
+        int maxTicks,
+        float startXOffset,
+        float startBottomOffset,
+        float startHorizontalSpeedOffset,
+        float startVerticalSpeedOffset,
+        bool startGrounded,
+        bool useSpatialFollow)
+    {
+        var world = new SimulationWorld(new SimulationConfig
+        {
+            EnableLocalDummies = false,
+            EnableEnemyTrainingDummy = false,
+            EnableFriendlySupportDummy = false,
+        });
+        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        {
+            return FollowProofCaseResult.Failed("failed_to_load_level", float.PositiveInfinity);
+        }
+
+        world.PrepareLocalPlayerJoin();
+        const byte botSlot = 2;
+        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.TryApplyNetworkPlayerClassSelection(botSlot, classId)
+            || !world.TryGetNetworkPlayer(botSlot, out var player))
+        {
+            return FollowProofCaseResult.Failed("failed_to_prepare_player", float.PositiveInfinity);
+        }
+
+        var firstSample = sourceSegment.Samples[0];
+        var lastSample = sourceSegment.Samples[^1];
+        var startX = (sourceSegment.EntryX ?? firstSample.X) + startXOffset;
+        var startBottom = (sourceSegment.EntryY.HasValue
+            ? sourceSegment.EntryY.Value + (firstSample.Bottom - firstSample.Y)
+            : firstSample.Bottom) + startBottomOffset;
+        var startY = startBottom - player.CollisionBottomOffset;
+        player.Spawn(team, startX, startY);
+        player.TeleportTo(startX, startY);
+        player.ResolveBlockingOverlap(world.Level, team);
+        player.AddImpulse(firstSample.HorizontalSpeed + startHorizontalSpeedOffset, firstSample.VerticalSpeed + startVerticalSpeedOffset);
+        player.PickUpIntel();
+        player.RestoreMovementProbeState(startGrounded, remainingAirJumps: null, firstSample.MoveDirection == 0f ? team == PlayerTeam.Red ? -1f : 1f : firstSample.MoveDirection);
+        player.SetAimWorldPosition(player.X + ((team == PlayerTeam.Red ? -1f : 1f) * 256f), player.Y);
+
+        var exitX = sourceSegment.ExitX ?? lastSample.X;
+        var exitBottom = sourceSegment.ExitY.HasValue
+            ? sourceSegment.ExitY.Value + (lastSample.Bottom - lastSample.Y)
+            : lastSample.Bottom;
+        var exitRadius = sourceSegment.ExitRadius ?? 96f;
+        var proofSamples = new List<BotBrainProofTapeSample>(maxTicks + 1);
+        var previousInput = default(PlayerInputSnapshot);
+        var jumpCooldown = 0;
+        var lastHorizontalProgressTick = 0;
+        var lastHorizontalProgressX = player.X;
+        var recoveryRunupTicksRemaining = 0;
+        var recoveryLaunchTicksRemaining = 0;
+        var recoveryLaunchDirection = 0;
+        var followSampleIndex = 0;
+        var bestExitDistance = Distance(player.X, player.Bottom, exitX, exitBottom);
+        AddFollowProofSample(proofSamples, player, previousInput, 0);
+
+        for (var tick = 0; tick < maxTicks; tick += 1)
+        {
+            TraversalLabTickSample current;
+            TraversalLabTickSample target;
+            if (useSpatialFollow)
+            {
+                followSampleIndex = FindNearestFollowSampleIndex(sourceSamples, followSampleIndex, player.X, player.Bottom);
+                current = sourceSamples[followSampleIndex];
+                target = sourceSamples[Math.Min(sourceSamples.Count - 1, followSampleIndex + Math.Max(1, parameters.LookaheadTicks))];
+            }
+            else
+            {
+                current = FindFollowTargetSample(sourceSamples, tick);
+                target = FindFollowTargetSample(sourceSamples, tick + parameters.LookaheadTicks);
+            }
+            var dx = target.X - player.X;
+            var moveDirection = MathF.Abs(dx) > parameters.DeadZone
+                ? dx < 0f ? -1 : 1
+                : current.InputLeft == current.InputRight
+                    ? 0
+                    : current.InputRight ? 1 : -1;
+            var targetIsAbove = target.Bottom < player.Bottom - parameters.JumpBottomThreshold;
+            var sourceJump = current.InputUp || target.InputUp;
+            var blocked = (moveDirection < 0 && current.BlockedLeft) || (moveDirection > 0 && current.BlockedRight);
+            var stagnantTowardTarget = moveDirection != 0
+                && tick - lastHorizontalProgressTick >= 14
+                && MathF.Abs(player.X - lastHorizontalProgressX) < 10f;
+            var forceJump = false;
+            if (recoveryRunupTicksRemaining > 0)
+            {
+                moveDirection = -recoveryLaunchDirection;
+                recoveryRunupTicksRemaining -= 1;
+                if (recoveryRunupTicksRemaining == 0)
+                {
+                    recoveryLaunchTicksRemaining = 8;
+                }
+            }
+            else if (recoveryLaunchTicksRemaining > 0)
+            {
+                moveDirection = recoveryLaunchDirection;
+                forceJump = recoveryLaunchTicksRemaining == 8;
+                recoveryLaunchTicksRemaining -= 1;
+            }
+            else if (stagnantTowardTarget
+                && parameters.RunupTicks > 0
+                && player.IsGrounded)
+            {
+                recoveryLaunchDirection = moveDirection;
+                recoveryRunupTicksRemaining = parameters.RunupTicks - 1;
+                moveDirection = -recoveryLaunchDirection;
+                if (recoveryRunupTicksRemaining == 0)
+                {
+                    recoveryLaunchTicksRemaining = 8;
+                }
+            }
+
+            var jump = false;
+            if (forceJump
+                && (player.IsGrounded || player.RemainingAirJumps > 0))
+            {
+                jump = true;
+                jumpCooldown = parameters.JumpCooldownTicks;
+            }
+            else if (jumpCooldown <= 0
+                && (sourceJump || targetIsAbove || blocked || stagnantTowardTarget)
+                && (player.IsGrounded || player.RemainingAirJumps > 0))
+            {
+                jump = true;
+                jumpCooldown = parameters.JumpCooldownTicks;
+            }
+            else if (jumpCooldown > 0)
+            {
+                jumpCooldown -= 1;
+            }
+
+            var drop = current.InputDown || target.InputDown || target.Bottom > player.Bottom + parameters.DropBottomThreshold;
+            var aimDirection = moveDirection == 0 ? player.FacingDirectionX == 0f ? team == PlayerTeam.Red ? -1f : 1f : player.FacingDirectionX : moveDirection;
+            var input = new PlayerInputSnapshot(
+                Left: moveDirection < 0,
+                Right: moveDirection > 0,
+                Up: jump,
+                Down: drop,
+                BuildSentry: false,
+                DestroySentry: false,
+                Taunt: false,
+                FirePrimary: false,
+                FireSecondary: false,
+                AimWorldX: player.X + (aimDirection * 256f),
+                AimWorldY: player.Y,
+                DebugKill: false,
+                DropIntel: false,
+                UseAbility: false);
+            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            {
+                return FollowProofCaseResult.Failed("failed_to_apply_input", bestExitDistance);
+            }
+
+            world.AdvanceOneTick();
+            previousInput = input;
+            AddFollowProofSample(proofSamples, player, input, tick + 1);
+            if (MathF.Abs(player.X - lastHorizontalProgressX) >= 18f)
+            {
+                lastHorizontalProgressTick = tick + 1;
+                lastHorizontalProgressX = player.X;
+            }
+
+            var exitDistance = Distance(player.X, player.Bottom, exitX, exitBottom);
+            bestExitDistance = MathF.Min(bestExitDistance, exitDistance);
+            if (MathF.Abs(player.X - exitX) <= exitRadius
+                && MathF.Abs(player.Bottom - exitBottom) <= exitRadius
+                && player.IsCarryingIntel)
+            {
+                return new FollowProofCaseResult(
+                    true,
+                    string.Empty,
+                    tick + 1,
+                    player.X,
+                    player.Y,
+                    player.Bottom,
+                    exitDistance,
+                    proofSamples);
+            }
+        }
+
+        var finalDistance = Distance(player.X, player.Bottom, exitX, exitBottom);
+        return new FollowProofCaseResult(
+            false,
+            "exit_window_missed",
+            maxTicks,
+            player.X,
+            player.Y,
+            player.Bottom,
+            finalDistance,
+            proofSamples);
+    }
+
+    private static TraversalLabTickSample FindFollowTargetSample(IReadOnlyList<TraversalLabTickSample> samples, int tick)
+    {
+        var best = samples[0];
+        for (var i = 1; i < samples.Count; i += 1)
+        {
+            if (samples[i].Tick > tick)
+            {
+                break;
+            }
+
+            best = samples[i];
+        }
+
+        return best;
+    }
+
+    private static int FindNearestFollowSampleIndex(
+        IReadOnlyList<TraversalLabTickSample> samples,
+        int previousIndex,
+        float x,
+        float bottom)
+    {
+        var start = Math.Clamp(previousIndex, 0, samples.Count - 1);
+        var end = Math.Min(samples.Count - 1, previousIndex + 240);
+        var bestIndex = previousIndex;
+        var bestDistanceSq = float.PositiveInfinity;
+        for (var i = start; i <= end; i += 1)
+        {
+            var dx = samples[i].X - x;
+            var db = samples[i].Bottom - bottom;
+            var distanceSq = (dx * dx) + (db * db);
+            if (distanceSq < bestDistanceSq)
+            {
+                bestDistanceSq = distanceSq;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private static void AddFollowProofSample(
+        List<BotBrainProofTapeSample> samples,
+        PlayerEntity player,
+        PlayerInputSnapshot input,
+        int tick)
+    {
+        samples.Add(new BotBrainProofTapeSample(
+            tick,
+            player.X,
+            player.Y,
+            player.Bottom,
+            player.HorizontalSpeed,
+            player.VerticalSpeed,
+            player.IsGrounded,
+            input.Left,
+            input.Right,
+            input.Up,
+            input.Down,
+            player.IsCarryingIntel));
+    }
+
+    private static BotBrainObjectiveTapeEntry BuildObjectiveTapeFromFollowProofSamples(
+        string tapeName,
+        PlayerTeam team,
+        PlayerClass playerClass,
+        IReadOnlyList<BotBrainProofTapeSample> sourceSamples,
+        BotBrainObjectiveTapeSegment sourceSegment)
+    {
+        var samples = new List<BotBrainObjectiveTapeSample>(sourceSamples.Count);
+        foreach (var sample in sourceSamples)
+        {
+            var moveDirection = sample.Left == sample.Right
+                ? 0f
+                : sample.Right ? 1f : -1f;
+            samples.Add(new BotBrainObjectiveTapeSample
+            {
+                Tick = sample.Tick,
+                X = sample.X,
+                Y = sample.Y,
+                Bottom = sample.Bottom,
+                HorizontalSpeed = sample.HorizontalSpeed,
+                VerticalSpeed = sample.VerticalSpeed,
+                IsGrounded = sample.IsGrounded,
+                MoveDirection = moveDirection,
+                Jump = sample.Up,
+                DropDown = sample.Down,
+                IsCarryingIntel = sample.IsCarryingIntel,
+            });
+        }
+
+        return new BotBrainObjectiveTapeEntry
+        {
+            Name = tapeName,
+            Team = team,
+            PlayerClass = playerClass,
+            Segments =
+            [
+                new BotBrainObjectiveTapeSegment
+                {
+                    RequiresCarryingIntel = true,
+                    Source = "MotionProof",
+                    EntryX = sourceSegment.EntryX ?? samples[0].X,
+                    EntryY = sourceSegment.EntryY ?? samples[0].Y,
+                    EntryRadius = sourceSegment.EntryRadius ?? 128f,
+                    ExitX = sourceSegment.ExitX ?? samples[^1].X,
+                    ExitY = sourceSegment.ExitY ?? samples[^1].Y,
+                    ExitRadius = sourceSegment.ExitRadius ?? 144f,
+                    Samples = NormalizeTapeSegmentTicks(samples),
+                },
+            ],
+        };
+    }
+
+    private static ReturnProofSearchResult SearchReturnProofCandidate(
+        string mapName,
+        int area,
+        PlayerTeam team,
+        PlayerClass classId,
+        float startX,
+        float startBottom,
+        float direction,
+        int maxTicks,
+        string tapeName,
+        Dictionary<string, string> rawOptions,
+        SimpleLevel level)
+    {
+        TraversalLabScenario? bestScenario = null;
+        TraversalLabCaseResult? bestCase = null;
+        TraversalLabCaseResult? bestFailedCase = null;
+        TraversalLabScenario? bestFailedScenario = null;
+        var bestFailedDistance = float.PositiveInfinity;
+        var attempts = 0;
+        var phases = rawOptions.TryGetValue("phases", out var phaseText)
+            ? ParseIntList(phaseText)
+            : [0, 4, 8, 12, 16, 20, 24, 30];
+        var intervals = rawOptions.TryGetValue("intervals", out var intervalText)
+            ? ParseIntList(intervalText)
+            : [0, 24, 30, 36, 42, 48, 54, 60, 72, 84];
+        var holds = rawOptions.TryGetValue("holds", out var holdText)
+            ? ParseIntList(holdText)
+            : [1, 2, 3, 4, 6];
+        var preTicksList = rawOptions.TryGetValue("pre-ticks", out var preTicksText)
+            ? ParseIntList(preTicksText)
+            : [0];
+        var preIntervals = rawOptions.TryGetValue("pre-intervals", out var preIntervalText)
+            ? ParseIntList(preIntervalText)
+            : [0, 24, 36];
+        var bottomOffsets = rawOptions.TryGetValue("bottom-offsets", out var bottomOffsetText)
+            ? ParseFloatList(bottomOffsetText)
+            : [0f, -12f, 12f, -24f, 24f];
+        var xOffsets = rawOptions.TryGetValue("x-offsets", out var xOffsetText)
+            ? ParseFloatList(xOffsetText)
+            : [0f];
+        var dropIntervals = rawOptions.TryGetValue("drop-intervals", out var dropIntervalText)
+            ? ParseIntList(dropIntervalText)
+            : [0];
+        var dropHolds = rawOptions.TryGetValue("drop-holds", out var dropHoldText)
+            ? ParseIntList(dropHoldText)
+            : [1];
+        var dropPhases = rawOptions.TryGetValue("drop-phases", out var dropPhaseText)
+            ? ParseIntList(dropPhaseText)
+            : [0];
+        foreach (var xOffset in xOffsets)
+        {
+            foreach (var bottomOffset in bottomOffsets)
+            {
+                foreach (var interval in intervals)
+                {
+                    foreach (var hold in holds)
+                    {
+                        foreach (var phase in phases)
+                        {
+                            foreach (var preTicks in preTicksList)
+                            {
+                                foreach (var preInterval in preIntervals)
+                                {
+                                    foreach (var dropInterval in dropIntervals)
+                                    {
+                                        foreach (var dropHold in dropHolds)
+                                        {
+                                            foreach (var dropPhase in dropPhases)
+                                            {
+                                                if (interval == 0 && (hold != 1 || phase != 0))
+                                                {
+                                                    continue;
+                                                }
+
+                                                if (dropInterval == 0 && (dropHold != dropHolds[0] || dropPhase != dropPhases[0]))
+                                                {
+                                                    continue;
+                                                }
+
+                                                if (preTicks == 0 && preInterval != preIntervals[0])
+                                                {
+                                                    continue;
+                                                }
+
+                                                attempts += 1;
+                                                var scenario = new TraversalLabScenario
+                                                {
+                                                    Name = $"{tapeName}.x{xOffset:0}.pre{preTicks}.pi{preInterval}.i{interval}.h{hold}.p{phase}.d{dropInterval}.dh{dropHold}.dp{dropPhase}.b{bottomOffset:0}",
+                                                    LevelName = mapName,
+                                                    MapAreaIndex = area,
+                                                    Team = team,
+                                                    ClassId = classId,
+                                                    Start = new TraversalLabStartState
+                                                    {
+                                                        X = startX + xOffset,
+                                                        Bottom = startBottom + bottomOffset,
+                                                        IsGrounded = true,
+                                                        IsCarryingIntel = true,
+                                                        FacingDirectionX = direction,
+                                                    },
+                                                    Steps = BuildDriveProbeSteps(maxTicks, direction, preTicks, preInterval, interval, hold, phase, dropInterval, dropHold, dropPhase),
+                                                    MaxTicks = maxTicks,
+                                                    TraceEveryTicks = 1,
+                                                    Expectation = new TraversalLabExpectation
+                                                    {
+                                                        MustEverOverlapOwnIntelMarker = true,
+                                                        MustCarryIntel = true,
+                                                    },
+                                                };
+                                                var result = TraversalLabRunner.Run(scenario);
+                                                var passedCase = result.Cases.Count > 0 ? result.Cases[0] : null;
+                                                if (passedCase is null || !passedCase.Passed)
+                                                {
+                                                    if (passedCase is not null)
+                                                    {
+                                                        var distance = DistanceToOwnIntel(level, team, passedCase);
+                                                        if (distance < bestFailedDistance)
+                                                        {
+                                                            bestFailedDistance = distance;
+                                                            bestFailedCase = passedCase;
+                                                            bestFailedScenario = scenario;
+                                                        }
+                                                    }
+
+                                                    continue;
+                                                }
+
+                                                if (bestCase is null || passedCase.ExecutedTicks < bestCase.ExecutedTicks)
+                                                {
+                                                    bestScenario = scenario;
+                                                    bestCase = passedCase;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return new ReturnProofSearchResult(
+            bestScenario,
+            bestCase,
+            bestFailedScenario,
+            bestFailedCase,
+            new ReturnProofSearchSummary(attempts, bestCase?.ExecutedTicks ?? -1, bestFailedDistance));
+    }
+
+    private static List<TraversalLabInputStep> BuildDriveProbeSteps(
+        int maxTicks,
+        float direction,
+        int preTicks,
+        int preJumpInterval,
+        int jumpInterval,
+        int jumpHold,
+        int jumpPhase,
+        int dropInterval,
+        int dropHold,
+        int dropPhase)
+    {
+        var steps = new List<TraversalLabInputStep>(maxTicks);
+        for (var tick = 0; tick < maxTicks; tick += 1)
+        {
+            var inPrePhase = tick < preTicks;
+            var activeDirection = inPrePhase ? -direction : direction;
+            var phaseTick = inPrePhase ? tick : tick - preTicks;
+            var activeInterval = inPrePhase ? preJumpInterval : jumpInterval;
+            var activePhase = inPrePhase ? 0 : jumpPhase;
+            var jump = activeInterval > 0 && phaseTick >= activePhase && ((phaseTick - activePhase) % activeInterval) < jumpHold;
+            var drop = !jump && dropInterval > 0 && phaseTick >= dropPhase && ((phaseTick - dropPhase) % dropInterval) < dropHold;
+            steps.Add(new TraversalLabInputStep
+                                    {
+                Label = inPrePhase ? jump ? "pre_jump" : drop ? "pre_drop" : "pre_drive" : jump ? "drive_jump" : drop ? "drive_drop" : "drive",
+                DurationTicks = 1,
+                Left = activeDirection < 0f,
+                Right = activeDirection > 0f,
+                Up = jump,
+                Down = drop,
+                AimFacingDirectionX = activeDirection,
+            });
+        }
+
+        return steps;
+    }
+
+    private static TraversalLabScenario BuildReturnProofValidationScenario(
+        TraversalLabScenario candidate,
+        Dictionary<string, string> rawOptions)
+    {
+        return new TraversalLabScenario
+        {
+            Name = $"{candidate.Name}.validation",
+            LevelName = candidate.LevelName,
+            MapAreaIndex = candidate.MapAreaIndex,
+            Team = candidate.Team,
+            ClassId = candidate.ClassId,
+            Start = candidate.Start,
+            Steps = candidate.Steps,
+            MaxTicks = candidate.MaxTicks,
+            TraceEveryTicks = Math.Max(1, candidate.MaxTicks),
+            StartXOffsets = rawOptions.TryGetValue("validation-x-offsets", out var xOffsets)
+                ? ParseFloatList(xOffsets)
+                : [-24f, 0f, 24f],
+            StartBottomOffsets = rawOptions.TryGetValue("validation-bottom-offsets", out var bottomOffsets)
+                ? ParseFloatList(bottomOffsets)
+                : [-12f, 0f, 12f],
+            StartHorizontalSpeedOffsets = rawOptions.TryGetValue("validation-horizontal-speeds", out var horizontalSpeeds)
+                ? ParseFloatList(horizontalSpeeds)
+                : [-60f, 0f, 60f],
+            StartVerticalSpeedOffsets = rawOptions.TryGetValue("validation-vertical-speeds", out var verticalSpeeds)
+                ? ParseFloatList(verticalSpeeds)
+                : [0f],
+            GroundedStates = rawOptions.TryGetValue("validation-grounded", out var groundedStates)
+                ? ParseBoolList(groundedStates)
+                : [true],
+            FacingDirections = [candidate.Start.FacingDirectionX],
+            Expectation = new TraversalLabExpectation
+            {
+                MustEverOverlapOwnIntelMarker = true,
+                MustCarryIntel = true,
+            },
+        };
     }
 
     private static List<TraversalLabInputStep> BuildTwoPhaseDriveProbeSteps(
@@ -2765,6 +5715,16 @@ internal static class BotBrainToolCommandHelpers
     private static IReadOnlyList<TraversalLabTickSample> TrimTraversalSamplesAtOwnIntel(
         SimpleLevel level,
         PlayerTeam team,
+        PlayerClass classId,
+        IReadOnlyList<TraversalLabTickSample> samples)
+    {
+        return TrimTraversalSamplesAtIntel(level, team, classId, samples);
+    }
+
+    private static IReadOnlyList<TraversalLabTickSample> TrimTraversalSamplesAtIntel(
+        SimpleLevel level,
+        PlayerTeam team,
+        PlayerClass classId,
         IReadOnlyList<TraversalLabTickSample> samples)
     {
         if (!level.GetIntelBase(team).HasValue)
@@ -2777,7 +5737,7 @@ internal static class BotBrainToolCommandHelpers
         for (var i = 0; i < samples.Count; i += 1)
         {
             var sample = samples[i];
-            if (MathF.Abs(sample.X - marker.X) <= 96f && MathF.Abs(sample.Y - marker.Y) <= 96f)
+            if (SampleIntersectsMarker(classId, sample, marker.X, marker.Y, 24f, 24f))
             {
                 endIndex = i;
                 break;
@@ -2785,6 +5745,30 @@ internal static class BotBrainToolCommandHelpers
         }
 
         return samples.Take(endIndex + 1).ToList();
+    }
+
+    private static bool SampleIntersectsMarker(
+        PlayerClass classId,
+        TraversalLabTickSample sample,
+        float markerX,
+        float markerY,
+        float markerWidth,
+        float markerHeight)
+    {
+        var classDefinition = CharacterClassCatalog.GetDefinition(classId);
+        var left = sample.X + classDefinition.CollisionLeft;
+        var top = sample.Y + classDefinition.CollisionTop;
+        var right = sample.X + classDefinition.CollisionRight;
+        var bottom = sample.Y + classDefinition.CollisionBottom;
+        var markerLeft = markerX - (markerWidth / 2f);
+        var markerRight = markerX + (markerWidth / 2f);
+        var markerTop = markerY - (markerHeight / 2f);
+        var markerBottom = markerY + (markerHeight / 2f);
+
+        return left < markerRight
+            && right > markerLeft
+            && top < markerBottom
+            && bottom > markerTop;
     }
 
     private static int ReadIntOption(Dictionary<string, string> options, string key, int fallback) =>
@@ -2796,6 +5780,73 @@ internal static class BotBrainToolCommandHelpers
         options.TryGetValue(key, out var text) && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
             : fallback;
+
+    private static bool ReadBoolOption(Dictionary<string, string> options, string key, bool fallback) =>
+        options.TryGetValue(key, out var text) && bool.TryParse(text, out var value)
+            ? value
+            : fallback;
+
+    private static HashSet<VerifiedNavProofRouteKind> BuildRouteActionOnlyKinds(Dictionary<string, string> options)
+    {
+        var kinds = new HashSet<VerifiedNavProofRouteKind>();
+        if (ReadBoolOption(options, "route-action-only-pickup", false))
+        {
+            kinds.Add(VerifiedNavProofRouteKind.Pickup);
+        }
+
+        if (ReadBoolOption(options, "route-action-only-return", false))
+        {
+            kinds.Add(VerifiedNavProofRouteKind.Return);
+        }
+
+        return kinds;
+    }
+
+    private static List<string> ReadProofTracePathList(
+        Dictionary<string, string> options,
+        string singleKey,
+        string listKey)
+    {
+        var paths = new List<string>();
+        if (options.TryGetValue(singleKey, out var singlePath) && !string.IsNullOrWhiteSpace(singlePath))
+        {
+            paths.Add(Path.GetFullPath(singlePath));
+        }
+
+        if (options.TryGetValue(listKey, out var pathList) && !string.IsNullOrWhiteSpace(pathList))
+        {
+            paths.AddRange(
+                pathList
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(Path.GetFullPath));
+        }
+
+        return paths;
+    }
+
+    private static BotBrainRuntimeStateArtifact? TryReadRuntimeStateOption(
+        Dictionary<string, string> options,
+        JsonSerializerOptions jsonOptions)
+    {
+        var path = options.TryGetValue("start-state", out var startStatePath)
+            ? startStatePath
+            : options.TryGetValue("pickup-state", out var pickupStatePath)
+                ? pickupStatePath
+                : null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var fullPath = Path.GetFullPath(path);
+        var state = JsonSerializer.Deserialize<BotBrainRuntimeStateArtifact>(
+            File.ReadAllText(fullPath),
+            jsonOptions);
+        Console.WriteLine(
+            $"motionProofPlannerStartState path={fullPath} tick={state.Tick} x={state.X:0.0} bottom={state.Bottom:0.0} " +
+            $"speed=({state.HorizontalSpeed:0.0},{state.VerticalSpeed:0.0}) grounded={state.IsGrounded} airJumps={state.RemainingAirJumps}");
+        return state;
+    }
 
     private static TEnum ReadEnumOption<TEnum>(Dictionary<string, string> options, string key, TEnum fallback)
         where TEnum : struct
@@ -2816,6 +5867,13 @@ internal static class BotBrainToolCommandHelpers
     {
         return text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(static value => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0)
+            .ToList();
+    }
+
+    private static List<bool> ParseBoolList(string text)
+    {
+        return text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(static value => value is "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -2848,6 +5906,13 @@ internal static class BotBrainToolCommandHelpers
                 new BotBrainObjectiveTapeSegment
                 {
                     RequiresCarryingIntel = samples[0].IsCarryingIntel,
+                    Source = tapeName.StartsWith("MotionProof.", StringComparison.OrdinalIgnoreCase) ? "MotionProof" : "TraversalLab",
+                    EntryX = samples[0].X,
+                    EntryY = samples[0].Y,
+                    EntryRadius = 96f,
+                    ExitX = samples[^1].X,
+                    ExitY = samples[^1].Y,
+                    ExitRadius = 144f,
                     Samples = samples,
                 },
             ],
@@ -3388,6 +6453,8 @@ internal static class BotBrainToolCommandHelpers
             throw new InvalidOperationException("Proof tape normalization produced too few samples.");
         }
 
+        var first = selected[0];
+        var last = selected[^1];
         return new BotBrainObjectiveTapeEntry
         {
             Name = tapeName,
@@ -3398,6 +6465,13 @@ internal static class BotBrainToolCommandHelpers
                 new BotBrainObjectiveTapeSegment
                 {
                     RequiresCarryingIntel = true,
+                    Source = "MotionProof",
+                    EntryX = first.X,
+                    EntryY = first.Y,
+                    EntryRadius = 128f,
+                    ExitX = last.X,
+                    ExitY = last.Y,
+                    ExitRadius = 180f,
                     Samples = BuildCompressedProofTapeSamples(selected),
                 },
             ],
@@ -4076,6 +7150,7 @@ internal static class BotBrainToolCommandHelpers
 
         throw new InvalidOperationException($"Could not find repository root from '{start}'.");
     }
+
 }
 
 internal sealed record BotBrainCanaryOptions(
@@ -4085,6 +7160,7 @@ internal sealed record BotBrainCanaryOptions(
     PlayerClass PlayerClass,
     byte BotSlot,
     int Ticks,
+    int PreTicks,
     int ReportEveryTicks,
     int TraceFromTick,
     int TraceToTick,
@@ -4110,6 +7186,8 @@ internal sealed record BotBrainCanaryOptions(
     bool DropBlueIntel,
     float DropBlueIntelX,
     float DropBlueIntelY,
+    string ProofGraphPath,
+    bool ProofGraphRequired,
     string ArtifactsDirectory)
 {
     public static BotBrainCanaryOptions Parse(string[] args)
@@ -4141,6 +7219,7 @@ internal sealed record BotBrainCanaryOptions(
             GetEnum(options, "class", PlayerClass.Scout),
             (byte)GetInt(options, "slot", 3),
             GetInt(options, "ticks", 900),
+            GetInt(options, "pre-ticks", 0),
             GetInt(options, "report-every", 30),
             GetInt(options, "trace-from", -1),
             GetInt(options, "trace-to", -1),
@@ -4166,6 +7245,8 @@ internal sealed record BotBrainCanaryOptions(
             TryGetPoint(options, "drop-blue-intel", out var dropBlueIntelX, out var dropBlueIntelY),
             dropBlueIntelX,
             dropBlueIntelY,
+            GetString(options, "proof-graph", string.Empty),
+            GetBool(options, "proof-graph-required", false),
             GetString(options, "artifacts-dir", string.Empty));
     }
 
@@ -4208,6 +7289,154 @@ internal readonly record struct BotBrainProofEvaluation(
     int JumpTicks,
     int SemanticRecoveries,
     string FailureReason);
+
+internal readonly record struct BotBrainRuntimeStateArtifact(
+    int Tick,
+    float X,
+    float Y,
+    float Bottom,
+    float HorizontalSpeed,
+    float VerticalSpeed,
+    bool IsGrounded,
+    int RemainingAirJumps,
+    float FacingDirectionX,
+    bool Left,
+    bool Right,
+    bool Up,
+    bool Down,
+    bool IsCarryingIntel);
+
+internal sealed record ReturnProofSearchResult(
+    TraversalLabScenario? BestScenario,
+    TraversalLabCaseResult? BestCase,
+    TraversalLabScenario? BestFailedScenario,
+    TraversalLabCaseResult? BestFailedCase,
+    ReturnProofSearchSummary Summary);
+
+internal sealed record ReturnProofSearchSummary(
+    int Attempts,
+    int BestScoreTick,
+    float BestFailedDistance);
+
+internal sealed record ReturnProofValidationArtifact(
+    int Cases,
+    int Passed,
+    int Failed,
+    bool PassedAll,
+    ReturnProofValidationFailure[] Failures);
+
+internal sealed record ReturnProofValidationFailure(
+    float StartXOffset,
+    float StartBottomOffset,
+    float StartHorizontalSpeedOffset,
+    float StartVerticalSpeedOffset,
+    bool StartGrounded,
+    string Reason,
+    float FinalX,
+    float FinalY,
+    float FinalBottom);
+
+internal sealed record MotionProofPlannerSummary(
+    int Expansions,
+    int Generated,
+    int BestTick,
+    float BestDistance,
+    float BestX,
+    float BestBottom,
+    bool Solved,
+    int SolvedTick,
+    int MacroCount);
+
+internal sealed record MotionProofPlannerCandidateResult(
+    MotionProofPlannerNode Node,
+    List<TraversalLabInputStep> Steps,
+    TraversalLabScenario ValidationScenario,
+    TraversalLabBatchResult Validation,
+    ReturnProofValidationArtifact ValidationArtifact);
+
+internal sealed record MotionProofPlannerNode(
+    int Id,
+    MotionProofPlannerNode? Parent,
+    MotionProofPlannerMacro? Macro,
+    MotionProofPlannerState State,
+    int Tick,
+    float Heuristic);
+
+internal readonly record struct MotionProofPlannerState(
+    float X,
+    float Bottom,
+    float HorizontalSpeed,
+    float VerticalSpeed,
+    bool IsGrounded,
+    int? RemainingAirJumps,
+    float FacingDirectionX);
+
+internal readonly record struct MotionProofPlannerMacro(
+    string Label,
+    int Direction,
+    int Ticks,
+    int JumpTicks,
+    bool Drop);
+
+internal readonly record struct MotionProofPlannerTransition(
+    bool Valid,
+    MotionProofPlannerState State)
+{
+    public static MotionProofPlannerTransition Invalid => new(false, default);
+}
+
+internal readonly record struct MotionProofPlannerCell(
+    int X,
+    int Bottom,
+    int HorizontalSpeed,
+    int VerticalSpeed,
+    bool IsGrounded)
+{
+    public static MotionProofPlannerCell From(MotionProofPlannerState state) =>
+        new(
+            (int)MathF.Round(state.X / 36f),
+            (int)MathF.Round(state.Bottom / 36f),
+            (int)MathF.Round(state.HorizontalSpeed / 60f),
+            (int)MathF.Round(state.VerticalSpeed / 60f),
+            state.IsGrounded);
+}
+
+internal sealed record FollowProofSearchSummary(
+    int Attempts,
+    int BestScoreTick,
+    float BestFailedDistance,
+    FollowProofParameters? BestParameters,
+    FollowProofParameters? BestFailedParameters);
+
+internal readonly record struct FollowProofParameters(
+    int LookaheadTicks,
+    float DeadZone,
+    float JumpBottomThreshold,
+    int JumpCooldownTicks,
+    float DropBottomThreshold,
+    int RunupTicks);
+
+internal sealed record FollowProofCaseResult(
+    bool Passed,
+    string FailureReason,
+    int ExecutedTicks,
+    float FinalX,
+    float FinalY,
+    float FinalBottom,
+    float ExitDistance,
+    IReadOnlyList<BotBrainProofTapeSample> Samples)
+{
+    public static FollowProofCaseResult Failed(string reason, float exitDistance) =>
+        new(
+            false,
+            reason,
+            0,
+            0f,
+            0f,
+            0f,
+            exitDistance,
+            []);
+}
 
 internal sealed record BotBrainCorridorRecording(
     int FormatVersion,

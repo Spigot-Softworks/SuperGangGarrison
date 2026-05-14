@@ -49,7 +49,9 @@ public sealed partial class SimulationWorld
             world._controlPoints.Clear();
             world._controlPointZones.Clear();
 
-            var markers = world.Level.GetRoomObjects(RoomObjectType.ControlPoint);
+            var markers = world.MatchRules.Mode == GameModeKind.Arena
+                ? world.Level.GetRoomObjects(RoomObjectType.ArenaControlPoint)
+                : world.Level.GetRoomObjects(RoomObjectType.ControlPoint);
             if (markers.Count == 0)
             {
                 return;

@@ -21,6 +21,7 @@ internal static class SnapshotDeltaBudgeter
         LocalPlayerUpdate,
         LocalPlayerStatusUpdate,
         PlayerMovementUpdate,
+        PlayerExtendedStatusUpdate,
         PlayerChatBubbleUpdate,
         PlayerFirstAppearance,
         PlayerRosterUpdate,
@@ -58,9 +59,8 @@ internal static class SnapshotDeltaBudgeter
         byte[]? payload = null;
         var payloadSize = Measure(snapshot);
 
-        if (payloadSize > targetPayloadBytes)
+        if (payloadSize > targetPayloadBytes && TrimAuxiliaryCollections(builder))
         {
-            TrimAuxiliaryCollections(builder);
             snapshot = builder.Build();
             payloadSize = Measure(snapshot);
         }
@@ -119,6 +119,12 @@ internal static class SnapshotDeltaBudgeter
             orderedContributions,
             appliedContributions,
             SnapshotDeltaBudgeter.ContributionKind.PlayerMovementUpdate,
+            ref remainingBudget);
+        ApplyRequiredContributions(
+            builder,
+            orderedContributions,
+            appliedContributions,
+            SnapshotDeltaBudgeter.ContributionKind.PlayerExtendedStatusUpdate,
             ref remainingBudget);
         ApplyRequiredContributions(
             builder,
@@ -220,20 +226,25 @@ internal static class SnapshotDeltaBudgeter
         }
     }
 
-    private static void TrimAuxiliaryCollections(Builder builder)
+    private static bool TrimAuxiliaryCollections(Builder builder)
     {
-        builder.KillFeed.Clear();
-        builder.CombatTraces.Clear();
+        var changed = false;
+        changed |= ClearIfAny(builder.KillFeed);
+        changed |= ClearIfAny(builder.CombatTraces);
         // Keep VisualEvents (rocket explosions) - let priority system decide
         // Keep DamageEvents - needed for client-side blood and hit feedback
-        builder.SoundEvents.Clear();
+        changed |= ClearIfAny(builder.SoundEvents);
+        return changed;
     }
 
     private static SerializedSnapshot? TryReduceToBudget(Builder builder, int targetPayloadBytes, ref int serializePassCount)
     {
         foreach (var dropStep in BudgetDropSteps)
         {
-            dropStep(builder);
+            if (!dropStep(builder))
+            {
+                continue;
+            }
 
             var snapshot = builder.Build();
             var payloadSize = Measure(snapshot);
@@ -279,6 +290,7 @@ internal static class SnapshotDeltaBudgeter
         {
             Players = Array.Empty<SnapshotPlayerState>(),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
         };
 
         var payload = Serialize(snapshot, ref serializePassCount);
@@ -301,7 +313,7 @@ internal static class SnapshotDeltaBudgeter
     private static byte[] Serialize(SnapshotMessage snapshot, int measuredSize, ref int serializePassCount)
     {
         serializePassCount += 1;
-        return ProtocolCodec.Serialize(snapshot, measuredSize);
+        return ProtocolCodec.Serialize(snapshot, measuredSize, ServerProtocolCompression.Settings);
     }
 
     private static SnapshotPlayerState ReducePlayerStateForBudget(SnapshotPlayerState player)
@@ -400,6 +412,7 @@ internal static class SnapshotDeltaBudgeter
             MapContentHash = string.Empty,
             Players = Array.Empty<SnapshotPlayerState>(),
             PlayerMovementStates = Array.Empty<SnapshotPlayerMovementState>(),
+            PlayerExtendedStatusStates = Array.Empty<SnapshotPlayerExtendedStatusState>(),
             CombatTraces = Array.Empty<SnapshotCombatTraceState>(),
             Sentries = Array.Empty<SnapshotSentryState>(),
             Shots = Array.Empty<SnapshotShotState>(),
@@ -440,62 +453,87 @@ internal static class SnapshotDeltaBudgeter
         };
     }
 
-    private static readonly Action<Builder>[] BudgetDropSteps =
+    private static readonly Func<Builder, bool>[] BudgetDropSteps =
     [
         static builder =>
         {
-            builder.SoundEvents.Clear();
-            builder.VisualEvents.Clear();
-            builder.KillFeed.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.SoundEvents);
+            changed |= ClearIfAny(builder.VisualEvents);
+            changed |= ClearIfAny(builder.KillFeed);
+            return changed;
         },
-        static builder => builder.CombatTraces.Clear(),
+        static builder => ClearIfAny(builder.CombatTraces),
         static builder =>
         {
-            builder.GibSpawnEvents.Clear();
-            builder.SentryGibs.Clear();
-            builder.DeadBodies.Clear();
-        },
-        static builder =>
-        {
-            builder.Flares.Clear();
-            builder.Blades.Clear();
-            builder.Bubbles.Clear();
-            builder.Needles.Clear();
-            builder.RevolverShots.Clear();
-            builder.Shots.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.GibSpawnEvents);
+            changed |= ClearIfAny(builder.SentryGibs);
+            changed |= ClearIfAny(builder.DeadBodies);
+            return changed;
         },
         static builder =>
         {
-            builder.Mines.Clear();
-            builder.Flames.Clear();
-            builder.Rockets.Clear();
-            builder.Sentries.Clear();
-            builder.JumpPads.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.Flares);
+            changed |= ClearIfAny(builder.Blades);
+            changed |= ClearIfAny(builder.Bubbles);
+            changed |= ClearIfAny(builder.Needles);
+            changed |= ClearIfAny(builder.RevolverShots);
+            changed |= ClearIfAny(builder.Shots);
+            return changed;
         },
         static builder =>
         {
-            builder.RemovedPlayerIds.Clear();
-            builder.RemovedSentryGibIds.Clear();
-            builder.RemovedJumpPadIds.Clear();
-            builder.RemovedDeadBodyIds.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.Mines);
+            changed |= ClearIfAny(builder.Flames);
+            changed |= ClearIfAny(builder.Rockets);
+            changed |= ClearIfAny(builder.Sentries);
+            changed |= ClearIfAny(builder.JumpPads);
+            return changed;
         },
         static builder =>
         {
-            builder.RemovedFlareIds.Clear();
-            builder.RemovedBladeIds.Clear();
-            builder.RemovedBubbleIds.Clear();
-            builder.RemovedNeedleIds.Clear();
-            builder.RemovedRevolverShotIds.Clear();
-            builder.RemovedShotIds.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.RemovedPlayerIds);
+            changed |= ClearIfAny(builder.RemovedSentryGibIds);
+            changed |= ClearIfAny(builder.RemovedJumpPadIds);
+            changed |= ClearIfAny(builder.RemovedDeadBodyIds);
+            return changed;
         },
         static builder =>
         {
-            builder.RemovedMineIds.Clear();
-            builder.RemovedFlameIds.Clear();
-            builder.RemovedRocketIds.Clear();
-            builder.RemovedSentryIds.Clear();
+            var changed = false;
+            changed |= ClearIfAny(builder.RemovedFlareIds);
+            changed |= ClearIfAny(builder.RemovedBladeIds);
+            changed |= ClearIfAny(builder.RemovedBubbleIds);
+            changed |= ClearIfAny(builder.RemovedNeedleIds);
+            changed |= ClearIfAny(builder.RemovedRevolverShotIds);
+            changed |= ClearIfAny(builder.RemovedShotIds);
+            return changed;
+        },
+        static builder =>
+        {
+            var changed = false;
+            changed |= ClearIfAny(builder.RemovedMineIds);
+            changed |= ClearIfAny(builder.RemovedFlameIds);
+            changed |= ClearIfAny(builder.RemovedRocketIds);
+            changed |= ClearIfAny(builder.RemovedSentryIds);
+            return changed;
         },
     ];
+
+    private static bool ClearIfAny<T>(TrackingList<T> list)
+    {
+        if (list.Count == 0)
+        {
+            return false;
+        }
+
+        list.Clear();
+        return true;
+    }
 
     internal sealed class Builder
     {
@@ -505,135 +543,138 @@ internal static class SnapshotDeltaBudgeter
         {
             _template = template;
             BaselineFrame = baselineFrame;
-            CombatTraces = seedFromTemplateCollections ? new List<SnapshotCombatTraceState>(template.CombatTraces) : [];
-            KillFeed = seedFromTemplateCollections ? new List<SnapshotKillFeedEntry>(template.KillFeed) : [];
-            VisualEvents = seedFromTemplateCollections ? new List<SnapshotVisualEvent>(template.VisualEvents) : [];
-            DamageEvents = seedFromTemplateCollections ? new List<SnapshotDamageEvent>(template.DamageEvents) : [];
-            SoundEvents = seedFromTemplateCollections ? new List<SnapshotSoundEvent>(template.SoundEvents) : [];
-            GibSpawnEvents = seedFromTemplateCollections ? new List<SnapshotGibSpawnEvent>(template.GibSpawnEvents) : [];
-            Players = seedFromTemplateCollections ? new List<SnapshotPlayerState>(template.Players) : [];
-            PlayerMovementStates = seedFromTemplateCollections ? new List<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
-            PlayerStatusStates = seedFromTemplateCollections ? new List<SnapshotPlayerStatusState>(template.PlayerStatusStates) : [];
-            PlayerChatBubbleStates = seedFromTemplateCollections ? new List<SnapshotPlayerChatBubbleState>(template.PlayerChatBubbleStates) : [];
-            Sentries = seedFromTemplateCollections ? new List<SnapshotSentryState>(template.Sentries) : [];
-            SentryUpdateStates = seedFromTemplateCollections ? new List<SnapshotSentryUpdateState>(template.SentryUpdateStates) : [];
-            Shots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Shots) : [];
-            Bubbles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Bubbles) : [];
-            Blades = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Blades) : [];
-            Needles = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Needles) : [];
-            RevolverShots = seedFromTemplateCollections ? new List<SnapshotShotState>(template.RevolverShots) : [];
-            Rockets = seedFromTemplateCollections ? new List<SnapshotRocketState>(template.Rockets) : [];
-            Flames = seedFromTemplateCollections ? new List<SnapshotFlameState>(template.Flames) : [];
-            Flares = seedFromTemplateCollections ? new List<SnapshotShotState>(template.Flares) : [];
-            Mines = seedFromTemplateCollections ? new List<SnapshotMineState>(template.Mines) : [];
-            SentryGibs = seedFromTemplateCollections ? new List<SnapshotSentryGibState>(template.SentryGibs) : [];
-            JumpPads = seedFromTemplateCollections ? new List<SnapshotJumpPadState>(template.JumpPads) : [];
-            PlayerGibs = seedFromTemplateCollections ? new List<SnapshotPlayerGibState>(template.PlayerGibs) : [];
-            DeadBodies = seedFromTemplateCollections ? new List<SnapshotDeadBodyState>(template.DeadBodies) : [];
-            RemovedPlayerIds = new List<int>(template.RemovedPlayerIds);
-            RemovedSentryIds = new List<int>(template.RemovedSentryIds);
-            RemovedShotIds = new List<int>(template.RemovedShotIds);
-            RemovedBubbleIds = new List<int>(template.RemovedBubbleIds);
-            RemovedBladeIds = new List<int>(template.RemovedBladeIds);
-            RemovedNeedleIds = new List<int>(template.RemovedNeedleIds);
-            RemovedRevolverShotIds = new List<int>(template.RemovedRevolverShotIds);
-            RemovedRocketIds = new List<int>(template.RemovedRocketIds);
-            RemovedFlameIds = new List<int>(template.RemovedFlameIds);
-            RemovedFlareIds = new List<int>(template.RemovedFlareIds);
-            RemovedMineIds = new List<int>(template.RemovedMineIds);
-            RemovedSentryGibIds = new List<int>(template.RemovedSentryGibIds);
-            RemovedJumpPadIds = new List<int>(template.RemovedJumpPadIds);
-            RemovedPlayerGibIds = new List<int>(template.RemovedPlayerGibIds);
-            RemovedDeadBodyIds = new List<int>(template.RemovedDeadBodyIds);
+            CombatTraces = seedFromTemplateCollections ? new TrackingList<SnapshotCombatTraceState>(template.CombatTraces) : [];
+            KillFeed = seedFromTemplateCollections ? new TrackingList<SnapshotKillFeedEntry>(template.KillFeed) : [];
+            VisualEvents = seedFromTemplateCollections ? new TrackingList<SnapshotVisualEvent>(template.VisualEvents) : [];
+            DamageEvents = seedFromTemplateCollections ? new TrackingList<SnapshotDamageEvent>(template.DamageEvents) : [];
+            SoundEvents = seedFromTemplateCollections ? new TrackingList<SnapshotSoundEvent>(template.SoundEvents) : [];
+            GibSpawnEvents = seedFromTemplateCollections ? new TrackingList<SnapshotGibSpawnEvent>(template.GibSpawnEvents) : [];
+            Players = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerState>(template.Players) : [];
+            PlayerMovementStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerMovementState>(template.PlayerMovementStates) : [];
+            PlayerStatusStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerStatusState>(template.PlayerStatusStates) : [];
+            PlayerExtendedStatusStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerExtendedStatusState>(template.PlayerExtendedStatusStates) : [];
+            PlayerChatBubbleStates = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerChatBubbleState>(template.PlayerChatBubbleStates) : [];
+            Sentries = seedFromTemplateCollections ? new TrackingList<SnapshotSentryState>(template.Sentries) : [];
+            SentryUpdateStates = seedFromTemplateCollections ? new TrackingList<SnapshotSentryUpdateState>(template.SentryUpdateStates) : [];
+            Shots = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Shots) : [];
+            Bubbles = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Bubbles) : [];
+            Blades = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Blades) : [];
+            Needles = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Needles) : [];
+            RevolverShots = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.RevolverShots) : [];
+            Rockets = seedFromTemplateCollections ? new TrackingList<SnapshotRocketState>(template.Rockets) : [];
+            Flames = seedFromTemplateCollections ? new TrackingList<SnapshotFlameState>(template.Flames) : [];
+            Flares = seedFromTemplateCollections ? new TrackingList<SnapshotShotState>(template.Flares) : [];
+            Mines = seedFromTemplateCollections ? new TrackingList<SnapshotMineState>(template.Mines) : [];
+            SentryGibs = seedFromTemplateCollections ? new TrackingList<SnapshotSentryGibState>(template.SentryGibs) : [];
+            JumpPads = seedFromTemplateCollections ? new TrackingList<SnapshotJumpPadState>(template.JumpPads) : [];
+            PlayerGibs = seedFromTemplateCollections ? new TrackingList<SnapshotPlayerGibState>(template.PlayerGibs) : [];
+            DeadBodies = seedFromTemplateCollections ? new TrackingList<SnapshotDeadBodyState>(template.DeadBodies) : [];
+            RemovedPlayerIds = new TrackingList<int>(template.RemovedPlayerIds);
+            RemovedSentryIds = new TrackingList<int>(template.RemovedSentryIds);
+            RemovedShotIds = new TrackingList<int>(template.RemovedShotIds);
+            RemovedBubbleIds = new TrackingList<int>(template.RemovedBubbleIds);
+            RemovedBladeIds = new TrackingList<int>(template.RemovedBladeIds);
+            RemovedNeedleIds = new TrackingList<int>(template.RemovedNeedleIds);
+            RemovedRevolverShotIds = new TrackingList<int>(template.RemovedRevolverShotIds);
+            RemovedRocketIds = new TrackingList<int>(template.RemovedRocketIds);
+            RemovedFlameIds = new TrackingList<int>(template.RemovedFlameIds);
+            RemovedFlareIds = new TrackingList<int>(template.RemovedFlareIds);
+            RemovedMineIds = new TrackingList<int>(template.RemovedMineIds);
+            RemovedSentryGibIds = new TrackingList<int>(template.RemovedSentryGibIds);
+            RemovedJumpPadIds = new TrackingList<int>(template.RemovedJumpPadIds);
+            RemovedPlayerGibIds = new TrackingList<int>(template.RemovedPlayerGibIds);
+            RemovedDeadBodyIds = new TrackingList<int>(template.RemovedDeadBodyIds);
         }
 
         private Builder(Builder other)
         {
             _template = other._template;
             BaselineFrame = other.BaselineFrame;
-            CombatTraces = new List<SnapshotCombatTraceState>(other.CombatTraces);
-            KillFeed = new List<SnapshotKillFeedEntry>(other.KillFeed);
-            VisualEvents = new List<SnapshotVisualEvent>(other.VisualEvents);
-            DamageEvents = new List<SnapshotDamageEvent>(other.DamageEvents);
-            SoundEvents = new List<SnapshotSoundEvent>(other.SoundEvents);
-            GibSpawnEvents = new List<SnapshotGibSpawnEvent>(other.GibSpawnEvents);
-            Players = new List<SnapshotPlayerState>(other.Players);
-            PlayerMovementStates = new List<SnapshotPlayerMovementState>(other.PlayerMovementStates);
-            PlayerStatusStates = new List<SnapshotPlayerStatusState>(other.PlayerStatusStates);
-            PlayerChatBubbleStates = new List<SnapshotPlayerChatBubbleState>(other.PlayerChatBubbleStates);
-            Sentries = new List<SnapshotSentryState>(other.Sentries);
-            SentryUpdateStates = new List<SnapshotSentryUpdateState>(other.SentryUpdateStates);
-            Shots = new List<SnapshotShotState>(other.Shots);
-            Bubbles = new List<SnapshotShotState>(other.Bubbles);
-            Blades = new List<SnapshotShotState>(other.Blades);
-            Needles = new List<SnapshotShotState>(other.Needles);
-            RevolverShots = new List<SnapshotShotState>(other.RevolverShots);
-            Rockets = new List<SnapshotRocketState>(other.Rockets);
-            Flames = new List<SnapshotFlameState>(other.Flames);
-            Flares = new List<SnapshotShotState>(other.Flares);
-            Mines = new List<SnapshotMineState>(other.Mines);
-            SentryGibs = new List<SnapshotSentryGibState>(other.SentryGibs);
-            PlayerGibs = new List<SnapshotPlayerGibState>(other.PlayerGibs);
-            DeadBodies = new List<SnapshotDeadBodyState>(other.DeadBodies);
-            RemovedPlayerIds = new List<int>(other.RemovedPlayerIds);
-            RemovedSentryIds = new List<int>(other.RemovedSentryIds);
-            RemovedShotIds = new List<int>(other.RemovedShotIds);
-            RemovedBubbleIds = new List<int>(other.RemovedBubbleIds);
-            RemovedBladeIds = new List<int>(other.RemovedBladeIds);
-            RemovedNeedleIds = new List<int>(other.RemovedNeedleIds);
-            RemovedRevolverShotIds = new List<int>(other.RemovedRevolverShotIds);
-            RemovedRocketIds = new List<int>(other.RemovedRocketIds);
-            RemovedFlameIds = new List<int>(other.RemovedFlameIds);
-            RemovedFlareIds = new List<int>(other.RemovedFlareIds);
-            RemovedMineIds = new List<int>(other.RemovedMineIds);
-            RemovedSentryGibIds = new List<int>(other.RemovedSentryGibIds);
-            JumpPads = new List<SnapshotJumpPadState>(other.JumpPads);
-            RemovedJumpPadIds = new List<int>(other.RemovedJumpPadIds);
-            RemovedPlayerGibIds = new List<int>(other.RemovedPlayerGibIds);
-            RemovedDeadBodyIds = new List<int>(other.RemovedDeadBodyIds);
+            CombatTraces = new TrackingList<SnapshotCombatTraceState>(other.CombatTraces);
+            KillFeed = new TrackingList<SnapshotKillFeedEntry>(other.KillFeed);
+            VisualEvents = new TrackingList<SnapshotVisualEvent>(other.VisualEvents);
+            DamageEvents = new TrackingList<SnapshotDamageEvent>(other.DamageEvents);
+            SoundEvents = new TrackingList<SnapshotSoundEvent>(other.SoundEvents);
+            GibSpawnEvents = new TrackingList<SnapshotGibSpawnEvent>(other.GibSpawnEvents);
+            Players = new TrackingList<SnapshotPlayerState>(other.Players);
+            PlayerMovementStates = new TrackingList<SnapshotPlayerMovementState>(other.PlayerMovementStates);
+            PlayerStatusStates = new TrackingList<SnapshotPlayerStatusState>(other.PlayerStatusStates);
+            PlayerExtendedStatusStates = new TrackingList<SnapshotPlayerExtendedStatusState>(other.PlayerExtendedStatusStates);
+            PlayerChatBubbleStates = new TrackingList<SnapshotPlayerChatBubbleState>(other.PlayerChatBubbleStates);
+            Sentries = new TrackingList<SnapshotSentryState>(other.Sentries);
+            SentryUpdateStates = new TrackingList<SnapshotSentryUpdateState>(other.SentryUpdateStates);
+            Shots = new TrackingList<SnapshotShotState>(other.Shots);
+            Bubbles = new TrackingList<SnapshotShotState>(other.Bubbles);
+            Blades = new TrackingList<SnapshotShotState>(other.Blades);
+            Needles = new TrackingList<SnapshotShotState>(other.Needles);
+            RevolverShots = new TrackingList<SnapshotShotState>(other.RevolverShots);
+            Rockets = new TrackingList<SnapshotRocketState>(other.Rockets);
+            Flames = new TrackingList<SnapshotFlameState>(other.Flames);
+            Flares = new TrackingList<SnapshotShotState>(other.Flares);
+            Mines = new TrackingList<SnapshotMineState>(other.Mines);
+            SentryGibs = new TrackingList<SnapshotSentryGibState>(other.SentryGibs);
+            PlayerGibs = new TrackingList<SnapshotPlayerGibState>(other.PlayerGibs);
+            DeadBodies = new TrackingList<SnapshotDeadBodyState>(other.DeadBodies);
+            RemovedPlayerIds = new TrackingList<int>(other.RemovedPlayerIds);
+            RemovedSentryIds = new TrackingList<int>(other.RemovedSentryIds);
+            RemovedShotIds = new TrackingList<int>(other.RemovedShotIds);
+            RemovedBubbleIds = new TrackingList<int>(other.RemovedBubbleIds);
+            RemovedBladeIds = new TrackingList<int>(other.RemovedBladeIds);
+            RemovedNeedleIds = new TrackingList<int>(other.RemovedNeedleIds);
+            RemovedRevolverShotIds = new TrackingList<int>(other.RemovedRevolverShotIds);
+            RemovedRocketIds = new TrackingList<int>(other.RemovedRocketIds);
+            RemovedFlameIds = new TrackingList<int>(other.RemovedFlameIds);
+            RemovedFlareIds = new TrackingList<int>(other.RemovedFlareIds);
+            RemovedMineIds = new TrackingList<int>(other.RemovedMineIds);
+            RemovedSentryGibIds = new TrackingList<int>(other.RemovedSentryGibIds);
+            JumpPads = new TrackingList<SnapshotJumpPadState>(other.JumpPads);
+            RemovedJumpPadIds = new TrackingList<int>(other.RemovedJumpPadIds);
+            RemovedPlayerGibIds = new TrackingList<int>(other.RemovedPlayerGibIds);
+            RemovedDeadBodyIds = new TrackingList<int>(other.RemovedDeadBodyIds);
         }
 
         public ulong BaselineFrame { get; }
-        public List<SnapshotCombatTraceState> CombatTraces { get; }
-        public List<SnapshotKillFeedEntry> KillFeed { get; }
-        public List<SnapshotVisualEvent> VisualEvents { get; }
-        public List<SnapshotDamageEvent> DamageEvents { get; }
-        public List<SnapshotSoundEvent> SoundEvents { get; }
-        public List<SnapshotGibSpawnEvent> GibSpawnEvents { get; }
-        public List<SnapshotPlayerState> Players { get; }
-        public List<SnapshotPlayerMovementState> PlayerMovementStates { get; }
-        public List<SnapshotPlayerStatusState> PlayerStatusStates { get; }
-        public List<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; }
-        public List<SnapshotSentryState> Sentries { get; } = new();
-        public List<SnapshotSentryUpdateState> SentryUpdateStates { get; } = new();
-        public List<SnapshotShotState> Shots { get; } = new();
-        public List<SnapshotShotState> Bubbles { get; } = new();
-        public List<SnapshotShotState> Blades { get; } = new();
-        public List<SnapshotShotState> Needles { get; } = new();
-        public List<SnapshotShotState> RevolverShots { get; } = new();
-        public List<SnapshotRocketState> Rockets { get; } = new();
-        public List<SnapshotFlameState> Flames { get; } = new();
-        public List<SnapshotShotState> Flares { get; } = new();
-        public List<SnapshotMineState> Mines { get; } = new();
-        public List<SnapshotSentryGibState> SentryGibs { get; } = new();
-        public List<SnapshotJumpPadState> JumpPads { get; } = new();
-        public List<SnapshotPlayerGibState> PlayerGibs { get; } = new();
-        public List<SnapshotDeadBodyState> DeadBodies { get; } = new();
-        public List<int> RemovedPlayerIds { get; } = new();
-        public List<int> RemovedSentryIds { get; } = new();
-        public List<int> RemovedShotIds { get; } = new();
-        public List<int> RemovedBubbleIds { get; } = new();
-        public List<int> RemovedBladeIds { get; } = new();
-        public List<int> RemovedNeedleIds { get; } = new();
-        public List<int> RemovedRevolverShotIds { get; } = new();
-        public List<int> RemovedRocketIds { get; } = new();
-        public List<int> RemovedFlameIds { get; } = new();
-        public List<int> RemovedFlareIds { get; } = new();
-        public List<int> RemovedMineIds { get; } = new();
-        public List<int> RemovedSentryGibIds { get; } = new();
-        public List<int> RemovedJumpPadIds { get; } = new();
-        public List<int> RemovedPlayerGibIds { get; } = new();
-        public List<int> RemovedDeadBodyIds { get; } = new();
+        public TrackingList<SnapshotCombatTraceState> CombatTraces { get; }
+        public TrackingList<SnapshotKillFeedEntry> KillFeed { get; }
+        public TrackingList<SnapshotVisualEvent> VisualEvents { get; }
+        public TrackingList<SnapshotDamageEvent> DamageEvents { get; }
+        public TrackingList<SnapshotSoundEvent> SoundEvents { get; }
+        public TrackingList<SnapshotGibSpawnEvent> GibSpawnEvents { get; }
+        public TrackingList<SnapshotPlayerState> Players { get; }
+        public TrackingList<SnapshotPlayerMovementState> PlayerMovementStates { get; }
+        public TrackingList<SnapshotPlayerStatusState> PlayerStatusStates { get; }
+        public TrackingList<SnapshotPlayerExtendedStatusState> PlayerExtendedStatusStates { get; }
+        public TrackingList<SnapshotPlayerChatBubbleState> PlayerChatBubbleStates { get; }
+        public TrackingList<SnapshotSentryState> Sentries { get; } = [];
+        public TrackingList<SnapshotSentryUpdateState> SentryUpdateStates { get; } = [];
+        public TrackingList<SnapshotShotState> Shots { get; } = [];
+        public TrackingList<SnapshotShotState> Bubbles { get; } = [];
+        public TrackingList<SnapshotShotState> Blades { get; } = [];
+        public TrackingList<SnapshotShotState> Needles { get; } = [];
+        public TrackingList<SnapshotShotState> RevolverShots { get; } = [];
+        public TrackingList<SnapshotRocketState> Rockets { get; } = [];
+        public TrackingList<SnapshotFlameState> Flames { get; } = [];
+        public TrackingList<SnapshotShotState> Flares { get; } = [];
+        public TrackingList<SnapshotMineState> Mines { get; } = [];
+        public TrackingList<SnapshotSentryGibState> SentryGibs { get; } = [];
+        public TrackingList<SnapshotJumpPadState> JumpPads { get; } = [];
+        public TrackingList<SnapshotPlayerGibState> PlayerGibs { get; } = [];
+        public TrackingList<SnapshotDeadBodyState> DeadBodies { get; } = [];
+        public TrackingList<int> RemovedPlayerIds { get; } = [];
+        public TrackingList<int> RemovedSentryIds { get; } = [];
+        public TrackingList<int> RemovedShotIds { get; } = [];
+        public TrackingList<int> RemovedBubbleIds { get; } = [];
+        public TrackingList<int> RemovedBladeIds { get; } = [];
+        public TrackingList<int> RemovedNeedleIds { get; } = [];
+        public TrackingList<int> RemovedRevolverShotIds { get; } = [];
+        public TrackingList<int> RemovedRocketIds { get; } = [];
+        public TrackingList<int> RemovedFlameIds { get; } = [];
+        public TrackingList<int> RemovedFlareIds { get; } = [];
+        public TrackingList<int> RemovedMineIds { get; } = [];
+        public TrackingList<int> RemovedSentryGibIds { get; } = [];
+        public TrackingList<int> RemovedJumpPadIds { get; } = [];
+        public TrackingList<int> RemovedPlayerGibIds { get; } = [];
+        public TrackingList<int> RemovedDeadBodyIds { get; } = [];
 
         public Builder Clone()
         {
@@ -646,47 +687,94 @@ internal static class SnapshotDeltaBudgeter
             {
                 BaselineFrame = BaselineFrame,
                 IsDelta = true,
-                Players = Players.ToArray(),
-                PlayerMovementStates = PlayerMovementStates.ToArray(),
-                PlayerStatusStates = PlayerStatusStates.ToArray(),
-                PlayerChatBubbleStates = PlayerChatBubbleStates.ToArray(),
-                CombatTraces = CombatTraces.ToArray(),
-                Sentries = Sentries.ToArray(),
-                SentryUpdateStates = SentryUpdateStates.ToArray(),
-                Shots = Shots.ToArray(),
-                Bubbles = Bubbles.ToArray(),
-                Blades = Blades.ToArray(),
-                Needles = Needles.ToArray(),
-                RevolverShots = RevolverShots.ToArray(),
-                Rockets = Rockets.ToArray(),
-                Flames = Flames.ToArray(),
-                Flares = Flares.ToArray(),
-                Mines = Mines.ToArray(),
-                SentryGibs = SentryGibs.ToArray(),
-                JumpPads = JumpPads.ToArray(),
-                PlayerGibs = PlayerGibs.ToArray(),
-                DeadBodies = DeadBodies.ToArray(),
-                KillFeed = KillFeed.ToArray(),
-                VisualEvents = VisualEvents.ToArray(),
-                DamageEvents = DamageEvents.ToArray(),
-                SoundEvents = SoundEvents.ToArray(),
-                GibSpawnEvents = GibSpawnEvents.ToArray(),
-                RemovedPlayerIds = RemovedPlayerIds.ToArray(),
-                RemovedSentryIds = RemovedSentryIds.ToArray(),
-                RemovedShotIds = RemovedShotIds.ToArray(),
-                RemovedBubbleIds = RemovedBubbleIds.ToArray(),
-                RemovedBladeIds = RemovedBladeIds.ToArray(),
-                RemovedNeedleIds = RemovedNeedleIds.ToArray(),
-                RemovedRevolverShotIds = RemovedRevolverShotIds.ToArray(),
-                RemovedRocketIds = RemovedRocketIds.ToArray(),
-                RemovedFlameIds = RemovedFlameIds.ToArray(),
-                RemovedFlareIds = RemovedFlareIds.ToArray(),
-                RemovedMineIds = RemovedMineIds.ToArray(),
-                RemovedSentryGibIds = RemovedSentryGibIds.ToArray(),
-                RemovedJumpPadIds = RemovedJumpPadIds.ToArray(),
-                RemovedPlayerGibIds = RemovedPlayerGibIds.ToArray(),
-                RemovedDeadBodyIds = RemovedDeadBodyIds.ToArray(),
+                Players = Players.ToArrayCached(),
+                PlayerMovementStates = PlayerMovementStates.ToArrayCached(),
+                PlayerStatusStates = PlayerStatusStates.ToArrayCached(),
+                PlayerExtendedStatusStates = PlayerExtendedStatusStates.ToArrayCached(),
+                PlayerChatBubbleStates = PlayerChatBubbleStates.ToArrayCached(),
+                CombatTraces = CombatTraces.ToArrayCached(),
+                Sentries = Sentries.ToArrayCached(),
+                SentryUpdateStates = SentryUpdateStates.ToArrayCached(),
+                Shots = Shots.ToArrayCached(),
+                Bubbles = Bubbles.ToArrayCached(),
+                Blades = Blades.ToArrayCached(),
+                Needles = Needles.ToArrayCached(),
+                RevolverShots = RevolverShots.ToArrayCached(),
+                Rockets = Rockets.ToArrayCached(),
+                Flames = Flames.ToArrayCached(),
+                Flares = Flares.ToArrayCached(),
+                Mines = Mines.ToArrayCached(),
+                SentryGibs = SentryGibs.ToArrayCached(),
+                JumpPads = JumpPads.ToArrayCached(),
+                PlayerGibs = PlayerGibs.ToArrayCached(),
+                DeadBodies = DeadBodies.ToArrayCached(),
+                KillFeed = KillFeed.ToArrayCached(),
+                VisualEvents = VisualEvents.ToArrayCached(),
+                DamageEvents = DamageEvents.ToArrayCached(),
+                SoundEvents = SoundEvents.ToArrayCached(),
+                GibSpawnEvents = GibSpawnEvents.ToArrayCached(),
+                RemovedPlayerIds = RemovedPlayerIds.ToArrayCached(),
+                RemovedSentryIds = RemovedSentryIds.ToArrayCached(),
+                RemovedShotIds = RemovedShotIds.ToArrayCached(),
+                RemovedBubbleIds = RemovedBubbleIds.ToArrayCached(),
+                RemovedBladeIds = RemovedBladeIds.ToArrayCached(),
+                RemovedNeedleIds = RemovedNeedleIds.ToArrayCached(),
+                RemovedRevolverShotIds = RemovedRevolverShotIds.ToArrayCached(),
+                RemovedRocketIds = RemovedRocketIds.ToArrayCached(),
+                RemovedFlameIds = RemovedFlameIds.ToArrayCached(),
+                RemovedFlareIds = RemovedFlareIds.ToArrayCached(),
+                RemovedMineIds = RemovedMineIds.ToArrayCached(),
+                RemovedSentryGibIds = RemovedSentryGibIds.ToArrayCached(),
+                RemovedJumpPadIds = RemovedJumpPadIds.ToArrayCached(),
+                RemovedPlayerGibIds = RemovedPlayerGibIds.ToArrayCached(),
+                RemovedDeadBodyIds = RemovedDeadBodyIds.ToArrayCached(),
             };
         }
+    }
+
+    internal sealed class TrackingList<T> : IReadOnlyList<T>
+    {
+        private readonly List<T> _items;
+        private T[]? _cachedArray;
+
+        public TrackingList()
+        {
+            _items = [];
+        }
+
+        public TrackingList(IEnumerable<T> items)
+        {
+            _items = new List<T>(items);
+        }
+
+        public int Count => _items.Count;
+
+        public T this[int index] => _items[index];
+
+        public void Add(T item)
+        {
+            _items.Add(item);
+            _cachedArray = null;
+        }
+
+        public void Clear()
+        {
+            if (_items.Count == 0)
+            {
+                return;
+            }
+
+            _items.Clear();
+            _cachedArray = null;
+        }
+
+        public T[] ToArrayCached()
+        {
+            return _cachedArray ??= _items.Count == 0 ? Array.Empty<T>() : _items.ToArray();
+        }
+
+        public IEnumerator<T> GetEnumerator() => _items.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

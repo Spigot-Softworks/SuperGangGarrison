@@ -704,6 +704,7 @@ public sealed class SnapshotDeltaBudgeterTests
         var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
 
         Assert.True(result.Payload.Length <= 320);
+        Assert.Empty(result.Message.Players);
         var bubbleState = Assert.Single(result.Message.PlayerChatBubbleStates);
         Assert.Equal(1, bubbleState.Slot);
         Assert.True(bubbleState.IsChatBubbleVisible);
@@ -712,6 +713,239 @@ public sealed class SnapshotDeltaBudgeterTests
         Assert.True(mergedPlayer.IsChatBubbleVisible);
         Assert.Equal(49, mergedPlayer.ChatBubbleFrameIndex);
         Assert.InRange(mergedPlayer.ChatBubbleAlpha, 0.84f, 0.86f);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesRemoteStatusViaCompactStateWithoutFullPlayerPayload()
+    {
+        var localPlayer = CreatePlayerState(1, 991, "Viewer");
+        var baselineRemotePlayer = CreatePlayerState(2, 992, "Target") with
+        {
+            Health = 125,
+            Ammo = 6,
+            Metal = 0f,
+            IsCarryingIntel = false,
+        };
+        var currentRemotePlayer = baselineRemotePlayer with
+        {
+            Health = 58,
+            Ammo = 2,
+            Metal = 40f,
+            IsCarryingIntel = true,
+            IntelRechargeTicks = 12f,
+        };
+        var baseline = CreateSnapshot(990) with
+        {
+            Players = [localPlayer, baselineRemotePlayer],
+        };
+        var current = CreateSnapshot(991) with
+        {
+            Players = [localPlayer, currentRemotePlayer],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 320);
+        Assert.Empty(result.Message.Players);
+        var statusState = Assert.Single(result.Message.PlayerStatusStates, status => status.Slot == 2);
+        Assert.Equal(58, statusState.Health);
+        Assert.Equal(2, statusState.Ammo);
+        Assert.Equal(40f, statusState.Metal);
+        Assert.True(statusState.IsCarryingIntel);
+        var mergedRemotePlayer = Assert.Single(merged.Players, player => player.Slot == 2);
+        Assert.Equal(58, mergedRemotePlayer.Health);
+        Assert.Equal(2, mergedRemotePlayer.Ammo);
+        Assert.Equal(40f, mergedRemotePlayer.Metal);
+        Assert.True(mergedRemotePlayer.IsCarryingIntel);
+    }
+
+    [Fact]
+    public void BuildContributionsDefersLowFrequencyPlayerDetailBetweenRefreshWindows()
+    {
+        var localPlayer = CreatePlayerState(1, 1001, "Viewer");
+        var baselineRemotePlayer = CreatePlayerState(2, 1002, "ScoreboardBot");
+        var currentRemotePlayer = baselineRemotePlayer with
+        {
+            Kills = 3,
+            Deaths = 1,
+            Points = 2f,
+            HealPoints = 5,
+            Assists = 2,
+        };
+        var baseline = CreateSnapshot(1000) with
+        {
+            Players = [localPlayer, baselineRemotePlayer],
+        };
+        var current = CreateSnapshot(1001) with
+        {
+            Players = [localPlayer, currentRemotePlayer],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        typeof(SimulationWorld)
+            .GetProperty(nameof(SimulationWorld.Frame))!
+            .SetValue(world, 1018L);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        Assert.Empty(result.Message.Players);
+        Assert.Empty(result.Message.PlayerStatusStates);
+        Assert.Empty(result.Message.PlayerChatBubbleStates);
+    }
+
+    [Fact]
+    public void BuildContributionsDefersBadgeAndOwnedItemProfileChangesBetweenRefreshWindows()
+    {
+        var baselineLocalPlayer = CreatePlayerState(1, 1051, "Viewer") with
+        {
+            BadgeMask = 1,
+            OwnedGameplayItemIds = ["inventory.base"],
+        };
+        var remotePlayer = CreatePlayerState(2, 1052, "Remote");
+        var currentLocalPlayer = baselineLocalPlayer with
+        {
+            BadgeMask = 3,
+            OwnedGameplayItemIds = ["inventory.base", "inventory.unlock"],
+        };
+        var baseline = CreateSnapshot(1050) with
+        {
+            Players = [baselineLocalPlayer, remotePlayer],
+        };
+        var current = CreateSnapshot(1051) with
+        {
+            Players = [currentLocalPlayer, remotePlayer],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        typeof(SimulationWorld)
+            .GetProperty(nameof(SimulationWorld.Frame))!
+            .SetValue(world, 1068L);
+
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+
+        Assert.Empty(result.Message.Players);
+        Assert.Empty(result.Message.PlayerStatusStates);
+        Assert.Empty(result.Message.PlayerExtendedStatusStates);
+        Assert.Empty(result.Message.PlayerChatBubbleStates);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesRemoteExtendedStatusViaCompactStateWithoutFullPlayerPayload()
+    {
+        var localPlayer = CreatePlayerState(1, 1101, "Viewer");
+        var baselineRemoteSpy = CreatePlayerState(2, 1102, "Remote Spy") with
+        {
+            ClassId = (byte)PlayerClass.Spy,
+            IsSpyCloaked = false,
+            SpyCloakAlpha = 1f,
+            SpyBackstabVisualTicksRemaining = 0,
+            IsUbered = false,
+        };
+        var currentRemoteSpy = baselineRemoteSpy with
+        {
+            IsSpyCloaked = true,
+            SpyCloakAlpha = 0.35f,
+            SpyBackstabVisualTicksRemaining = 24,
+            IsUbered = true,
+        };
+        var baseline = CreateSnapshot(1100) with
+        {
+            Players = [localPlayer, baselineRemoteSpy],
+        };
+        var current = CreateSnapshot(1101) with
+        {
+            Players = [localPlayer, currentRemoteSpy],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Viewer",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 320);
+        Assert.Empty(result.Message.Players);
+        var extendedState = Assert.Single(result.Message.PlayerExtendedStatusStates, status => status.Slot == 2);
+        Assert.True(extendedState.IsSpyCloaked);
+        Assert.InRange(extendedState.SpyCloakAlpha, 0.34f, 0.36f);
+        Assert.Equal(24, extendedState.SpyBackstabVisualTicksRemaining);
+        Assert.True(extendedState.IsUbered);
+        var mergedRemoteSpy = Assert.Single(merged.Players, player => player.Slot == 2);
+        Assert.True(mergedRemoteSpy.IsSpyCloaked);
+        Assert.InRange(mergedRemoteSpy.SpyCloakAlpha, 0.34f, 0.36f);
+        Assert.Equal(24, mergedRemoteSpy.SpyBackstabVisualTicksRemaining);
+        Assert.True(mergedRemoteSpy.IsUbered);
+    }
+
+    [Fact]
+    public void BuildBudgetedSnapshotPreservesLocalMedicUberViaCompactExtendedStatus()
+    {
+        var baselineLocalMedic = CreatePlayerState(1, 1201, "Local Medic") with
+        {
+            ClassId = (byte)PlayerClass.Medic,
+            MedicUberCharge = 0f,
+            IsMedicUberReady = false,
+        };
+        var remoteBot = CreatePlayerState(2, 1202, "Remote Bot");
+        var currentLocalMedic = baselineLocalMedic with
+        {
+            MedicUberCharge = 1999.75f,
+            IsMedicUberReady = true,
+        };
+        var baseline = CreateSnapshot(1200) with
+        {
+            Players = [baselineLocalMedic, remoteBot],
+        };
+        var current = CreateSnapshot(1201) with
+        {
+            Players = [currentLocalMedic, remoteBot],
+        };
+        var client = new ClientSession(
+            1,
+            userId: 101,
+            new IPEndPoint(IPAddress.Loopback, 8190),
+            "Local Medic",
+            TimeSpan.Zero);
+        var world = new SimulationWorld();
+        var contributions = SnapshotContributionPlanner.BuildContributions(client, current, baseline, world);
+
+        var result = SnapshotDeltaBudgeter.BuildBudgetedSnapshot(current, baseline, contributions, targetPayloadBytes: 320);
+        var merged = SnapshotDelta.ToFullSnapshot(result.Message, baseline);
+
+        Assert.True(result.Payload.Length <= 320);
+        Assert.Empty(result.Message.Players);
+        var extendedState = Assert.Single(result.Message.PlayerExtendedStatusStates, status => status.Slot == 1);
+        Assert.InRange(extendedState.MedicUberCharge, 1999.5f, 2000f);
+        Assert.True(extendedState.IsMedicUberReady);
+        var mergedLocalMedic = Assert.Single(merged.Players, player => player.Slot == 1);
+        Assert.InRange(mergedLocalMedic.MedicUberCharge, 1999.5f, 2000f);
+        Assert.True(mergedLocalMedic.IsMedicUberReady);
     }
 
     [Fact]

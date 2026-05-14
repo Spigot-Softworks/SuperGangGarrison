@@ -17,6 +17,7 @@ public sealed class BotBrainController
     private readonly AimResolver _aimResolver = new();
     private readonly CombatDecisionMemory _combatMemory = new();
     private readonly ObjectiveTapeExecutor _objectiveTapeExecutor = new();
+    private readonly VerifiedNavProofRouteExecutor _proofRouteExecutor = new();
     private readonly NavGraph? _graphOverride;
 
     private NavGraph? _navGraph;
@@ -32,7 +33,13 @@ public sealed class BotBrainController
     private float _ataliaPointClimbSide;
     private int _ataliaCentralRecoveryStage;
     private SimpleLevel? _lastLevel;
+    private int _carrierReturnDirectEscapeTicks;
+    private int _carrierReturnDirectStuckTicks;
+    private float _carrierReturnDirectEscapeDirection;
+    private float _carrierReturnDirectCheckX;
+    private float _carrierReturnDirectCheckY;
     private BotBrainObjectiveTapeAsset? _objectiveTapeAsset;
+    private VerifiedNavProofGraphAsset? _verifiedProofGraphAsset;
     private PlayerInputSnapshot _previousInput;
     private readonly Dictionary<NavEdgeBlock, int> _blockedEdges = [];
 
@@ -45,6 +52,7 @@ public sealed class BotBrainController
     private const float DirectSeekPlayerDistance = 900f;
     private const float IntelCarrierDirectSeekDistance = 1200f;
     private const float EscortCarrierDirectSeekDistance = 900f;
+    private const float DynamicEscortCarrierDirectSeekDistance = 2400f;
     private const int CaptureStrafeHopCycleTicks = 32;
     private const int CaptureStrafeHopSideTicks = 14;
     private const int CaptureStrafeHopWindowTicks = 4;
@@ -52,6 +60,9 @@ public sealed class BotBrainController
     private const float CaptureStrafeBrakeSpeed = 36f;
     private const float CapturePointDirectSeekDistance = 360f;
     private const float CapturePointDirectSeekVerticalRange = 300f;
+    private const float ArenaCaptureDirectDriveHorizontalRange = 420f;
+    private const float ArenaCaptureDirectDriveVerticalMin = -320f;
+    private const float ArenaCaptureDirectDriveVerticalMax = 80f;
     private const float CapturePointHoldHorizontalRange = 72f;
     private const float CapturePointHoldVerticalRange = 72f;
     private const float CapturePointHoldCenterDeadZone = 12f;
@@ -62,6 +73,8 @@ public sealed class BotBrainController
     private const float PlatformLadderArrivalHorizontal = 36f;
     private const float PlatformLadderArrivalVertical = 18f;
     private const float PlatformLadderJumpHorizontalRange = 96f;
+    private const int PlatformLadderDefaultFinalStage = 4;
+    private const int PlatformLadderArenaFinalStage = 5;
     private const float AtaliaPointClimbHorizontalRange = 140f;
     private const float AtaliaPointClimbVerticalMin = 24f;
     private const float AtaliaPointClimbVerticalMax = 96f;
@@ -79,6 +92,17 @@ public sealed class BotBrainController
     private const float DirectSeekRouteVerticalThreshold = 80f;
     private const float DirectSeekRouteGoalVerticalSlack = 72f;
     private const float DirectSeekRouteGoalHorizontalSlack = 220f;
+    private const float DroppedIntelPrimitiveDirectSeekDistance = 220f;
+    private const float DroppedIntelPrimitiveDirectSeekVerticalRange = 96f;
+    private const float DroppedIntelNearHoldDistance = 96f;
+    private const float DroppedIntelNearHorizontalDeadZone = 4f;
+    private const float ProofRouteAttachmentMaxDistance = 1800f;
+    private const float ProofRouteAttachmentEgressBelowThreshold = 48f;
+    private const float ProofRouteAttachmentEgressSurfaceTolerance = 18f;
+    private const float ProofRouteAttachmentEgressOvershoot = 48f;
+    private const int CarrierReturnDirectStuckWindowTicks = 30;
+    private const int CarrierReturnDirectEscapeTicks = 42;
+    private const float CarrierReturnDirectStuckMovement = 10f;
     private const float SpyRetreatEnemyDistance = 460f;
     private const float SpyBackstabPositionTolerance = 10f;
     private const float SniperRetreatDistance = 300f;
@@ -135,6 +159,8 @@ public sealed class BotBrainController
 
     public string LastObjectiveTapeTrace { get; private set; } = string.Empty;
 
+    public string LastProofGraphTrace { get; private set; } = string.Empty;
+
     /// <summary>
     /// Produce a PlayerInputSnapshot for this bot for the current tick.
     /// </summary>
@@ -146,7 +172,9 @@ public sealed class BotBrainController
         LastSemanticRecoveryTrace = string.Empty;
         LastDirectDriveTrace = string.Empty;
         LastObjectiveTapeTrace = string.Empty;
+        LastProofGraphTrace = string.Empty;
         _thinkTicks += 1;
+        var proofGraphRequired = VerifiedNavProofGraphAssetStore.IsRequired();
 
         // Rebuild nav graph if the level changed (map rotation).
         if (_lastLevel != world.Level)
@@ -157,11 +185,15 @@ public sealed class BotBrainController
             _objectiveTapeAsset = BotBrainObjectiveTapeStore.TryLoad(world.Level, out var tapeAsset)
                 ? tapeAsset
                 : null;
+            _verifiedProofGraphAsset = VerifiedNavProofGraphAssetStore.TryLoad(world.Level, team, self.ClassId, out var proofGraphAsset)
+                ? proofGraphAsset
+                : null;
             _lastLevel = world.Level;
             _currentPath = null;
             _goalNodeIndex = -1;
             _steering.Reset();
             _objectiveTapeExecutor.Reset();
+            _proofRouteExecutor.Reset();
             _lastCarryingIntel = self.IsCarryingIntel;
 
             ReportNavigationLoadDiagnostic(world.Level, _navGraph is not null);
@@ -196,7 +228,14 @@ public sealed class BotBrainController
         _objectiveReevalCooldown--;
         if (_objectiveReevalCooldown <= 0 || combatTarget is not null)
         {
+            var previousGoalPosition = _currentGoalPosition;
             _currentGoalPosition = ObjectiveEvaluator.EvaluateGoal(self, world, team, combatTarget?.Player);
+            if (_proofRouteExecutor.IsActive
+                && DistanceBetween(previousGoalPosition.X, previousGoalPosition.Y, _currentGoalPosition.X, _currentGoalPosition.Y) > 96f)
+            {
+                _proofRouteExecutor.Reset();
+            }
+
             _objectiveReevalCooldown = ObjectiveReevalIntervalTicks;
         }
 
@@ -204,6 +243,7 @@ public sealed class BotBrainController
 
         // 3. Find/update path.
         var graphSuspendedForPointCapture = ShouldSuspendGraphRoutingForControlPointCapture(world, self, team);
+        var proofGraphOwnsMovement = _proofRouteExecutor.IsActive;
         var tapeOwnsMovement = _objectiveTapeExecutor.IsActive;
         if (graphSuspendedForPointCapture)
         {
@@ -212,53 +252,137 @@ public sealed class BotBrainController
             _repathCooldownTicks = RepathIntervalTicks;
             _steering.Reset();
         }
-        else if (!tapeOwnsMovement)
+        else if (!proofGraphRequired && !proofGraphOwnsMovement && !tapeOwnsMovement)
         {
             UpdatePath(self, team);
         }
 
         var routeMissingAfterUpdate = _currentPath is null || _currentPath.IsComplete;
         var steeringOutput = new SteeringOutput();
-        var tapeResolved = _objectiveTapeExecutor.TryResolve(
-            _objectiveTapeAsset,
+        var dynamicCtfResolved = TryResolveCaptureTheFlagDynamicObjectiveSeek(
+            world,
             self,
             team,
-            _currentGoalPosition,
-            _thinkTicks,
             steeringOutput,
-            out var tapeSteering);
-        if (tapeResolved)
+            out var dynamicCtfSteering,
+            out var dynamicCtfTrace);
+        if (dynamicCtfResolved)
         {
-            steeringOutput = tapeSteering;
-            LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
-            _currentPath = null;
-            _goalNodeIndex = -1;
+            steeringOutput = dynamicCtfSteering;
+            LastDirectDriveTrace = dynamicCtfTrace;
             _repathCooldownTicks = 0;
-            _steering.Reset();
-        }
-        else if (IsObjectiveTapeHandoffTrace(_objectiveTapeExecutor.LastTrace))
-        {
-            LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
-            _currentPath = null;
-            _goalNodeIndex = -1;
-            _repathCooldownTicks = 0;
-            _steering.Reset();
-            UpdatePath(self, team);
-        }
-        else if (_objectiveTapeExecutor.LastTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
-        {
-            LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
+            _proofRouteExecutor.Reset();
         }
 
-        if (!tapeResolved)
+        var proofSteering = steeringOutput;
+        var proofResolved = !dynamicCtfResolved && _proofRouteExecutor.TryResolve(
+            _verifiedProofGraphAsset,
+            self,
+            team,
+            _thinkTicks,
+            steeringOutput,
+            out proofSteering);
+        if (proofResolved)
         {
-            // 4. Run graph steering only when the objective tape is not actively driving.
-            // Otherwise the graph can time out stale path edges while tape input is correctly moving the bot.
-            steeringOutput = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+            steeringOutput = proofSteering;
+            LastProofGraphTrace = _proofRouteExecutor.LastTrace;
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = 0;
+            _steering.Reset();
+            ResetCarrierReturnDirectEscape();
+        }
+        else if (IsProofGraphHandoffTrace(_proofRouteExecutor.LastTrace))
+        {
+            LastProofGraphTrace = _proofRouteExecutor.LastTrace;
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _repathCooldownTicks = 0;
+            _steering.Reset();
+            if (!proofGraphRequired)
+            {
+                UpdatePath(self, team);
+            }
+        }
+        else if (_proofRouteExecutor.LastTrace.StartsWith("proofGraph=idle", StringComparison.Ordinal)
+            || _proofRouteExecutor.LastTrace.StartsWith("proofGraph=selected", StringComparison.Ordinal))
+        {
+            LastProofGraphTrace = _proofRouteExecutor.LastTrace;
+        }
+
+        if (!proofResolved
+            && self.IsCarryingIntel
+            && TryResolveCaptureTheFlagCarrierReturnSeek(
+                world,
+                self,
+                team,
+                steeringOutput,
+                out var carrierReturnSteering,
+                out var carrierReturnTrace))
+        {
+            dynamicCtfResolved = true;
+            steeringOutput = carrierReturnSteering;
+            LastDirectDriveTrace = carrierReturnTrace;
+            _repathCooldownTicks = 0;
+        }
+
+        var tapeResolved = false;
+        if (!proofResolved && !proofGraphRequired)
+        {
+            tapeResolved = _objectiveTapeExecutor.TryResolve(
+                _objectiveTapeAsset,
+                _navGraph,
+                self,
+                team,
+                _currentGoalPosition,
+                _thinkTicks,
+                steeringOutput,
+                out var tapeSteering);
+            if (tapeResolved)
+            {
+                steeringOutput = tapeSteering;
+                LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _repathCooldownTicks = 0;
+                _steering.Reset();
+            }
+            else if (IsObjectiveTapeHandoffTrace(_objectiveTapeExecutor.LastTrace))
+            {
+                LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
+                _currentPath = null;
+                _goalNodeIndex = -1;
+                _repathCooldownTicks = 0;
+                _steering.Reset();
+                UpdatePath(self, team);
+            }
+            else if (_objectiveTapeExecutor.LastTrace.StartsWith("objectiveTape=idle", StringComparison.Ordinal))
+            {
+                LastObjectiveTapeTrace = _objectiveTapeExecutor.LastTrace;
+            }
+        }
+
+        if (!dynamicCtfResolved && !proofResolved && !tapeResolved)
+        {
+            if (!proofGraphRequired)
+            {
+                // 4. Run graph steering only when the objective tape is not actively driving.
+                // Otherwise the graph can time out stale path edges while tape input is correctly moving the bot.
+                steeringOutput = _steering.Update(self, _navGraph, _currentPath, world.Level, team);
+            }
+            else if (string.IsNullOrWhiteSpace(LastProofGraphTrace))
+            {
+                LastProofGraphTrace = _verifiedProofGraphAsset is null
+                    ? "proofGraph=idle reason:not_loaded strict:1"
+                    : "proofGraph=idle reason:not_active strict:1";
+            }
         }
 
         var routeRecoveryRequested = routeMissingAfterUpdate || steeringOutput.RequestRepath;
-        if (!tapeResolved
+        if (!dynamicCtfResolved
+            && !proofGraphRequired
+            && !proofResolved
+            && !tapeResolved
             && TryResolveAtaliaUpperMidJumpDrive(world, self, steeringOutput, out var ataliaEdgeSteering, out var ataliaEdgeTrace))
         {
             steeringOutput = ataliaEdgeSteering;
@@ -266,7 +390,7 @@ public sealed class BotBrainController
         }
 
         // Handle repath requests from stuck detection.
-        if (!tapeResolved && steeringOutput.RequestRepath)
+        if (!dynamicCtfResolved && !proofGraphRequired && !proofResolved && !tapeResolved && steeringOutput.RequestRepath)
         {
             if (steeringOutput.FailedEdge.HasFailure)
             {
@@ -286,7 +410,10 @@ public sealed class BotBrainController
             _repathCooldownTicks = 0;
         }
 
-        if (tapeResolved
+        if (!dynamicCtfResolved
+            && !proofGraphRequired
+            && !proofResolved
+            && tapeResolved
             && self.IsCarryingIntel
             && TryResolveCarrierCapFinishDirectSeek(world, self, team, steeringOutput, out var tapeFinishSteering, out var tapeFinishTrace))
         {
@@ -295,10 +422,12 @@ public sealed class BotBrainController
             tapeResolved = false;
         }
 
-        if (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
-            || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
-            || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
-            || (!tapeResolved && TryResolveDirectSeek(world, self, team, combatTarget, routeRecoveryRequested, steeringOutput, out directSteering, out directTrace)))
+        if (!dynamicCtfResolved
+            && !proofGraphRequired
+            && (TryResolveSpyRetreat(world, self, team, combatTarget, steeringOutput, out var directSteering, out var directTrace)
+                || TryResolveSpyBackstabDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
+                || TryResolveSniperCombatDrive(world, self, combatTarget, steeringOutput, out directSteering, out directTrace)
+                || (!proofResolved && !tapeResolved && TryResolveDirectSeek(world, self, team, combatTarget, routeRecoveryRequested, steeringOutput, out directSteering, out directTrace))))
         {
             steeringOutput = directSteering;
             LastDirectDriveTrace = directTrace;
@@ -365,7 +494,15 @@ public sealed class BotBrainController
             self.X,
             self.Y,
             ResolveTraversalStartMaxAboveDistance(self, pathMissing));
-        var exactGoalNode = _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
+        var exactGoalNode = ShouldPreserveExactControlObjective()
+            ? _navGraph.FindNearestReachableNode(
+                _currentGoalPosition.X,
+                _currentGoalPosition.Y,
+                startNode,
+                self.ClassId,
+                team: team,
+                carryingIntel: self.IsCarryingIntel)
+            : _navGraph.FindNearestNode(_currentGoalPosition.X, _currentGoalPosition.Y);
         if (startNode < 0 || exactGoalNode < 0)
         {
             _currentPath = null;
@@ -399,7 +536,10 @@ public sealed class BotBrainController
                 : null;
         }
 
-        if (refreshedPath is null && activeBlockedEdges is not null && !preserveExactControlObjective)
+        if (refreshedPath is null
+            && activeBlockedEdges is not null
+            && !preserveExactControlObjective
+            && (!self.IsCarryingIntel || !ShouldPreserveCarrierFailedEdgeBlocks()))
         {
             _blockedEdges.Clear();
             activeBlockedEdges = null;
@@ -436,9 +576,16 @@ public sealed class BotBrainController
             || trace.StartsWith("objectiveTape=abort", StringComparison.Ordinal);
     }
 
+    private static bool IsProofGraphHandoffTrace(string trace)
+    {
+        return trace.StartsWith("proofGraph=complete", StringComparison.Ordinal)
+            || trace.StartsWith("proofGraph=abort", StringComparison.Ordinal);
+    }
+
     private bool ShouldPreserveExactControlObjective()
     {
         return _lastLevel?.Mode is GameModeKind.ControlPoint
+            or GameModeKind.Arena
             or GameModeKind.KingOfTheHill
             or GameModeKind.DoubleKingOfTheHill;
     }
@@ -489,9 +636,11 @@ public sealed class BotBrainController
         _ataliaPointClimbStage = 0;
         _ataliaPointClimbSide = 0f;
         _ataliaCentralRecoveryStage = 0;
+        ResetCarrierReturnDirectEscape();
         _objectiveReevalCooldown = 0;
         _lastLevel = null;
         _objectiveTapeAsset = null;
+        _verifiedProofGraphAsset = null;
         _currentGoalPosition = default;
         _lastCarryingIntel = false;
         _steering.Reset();
@@ -500,8 +649,10 @@ public sealed class BotBrainController
         LastSemanticRecoveryTrace = string.Empty;
         LastDirectDriveTrace = string.Empty;
         LastObjectiveTapeTrace = string.Empty;
+        LastProofGraphTrace = string.Empty;
         _blockedEdges.Clear();
         _objectiveTapeExecutor.Reset();
+        _proofRouteExecutor.Reset();
         _combatMemory.BeenHealingTicks = 0;
         _combatMemory.ReloadCounterTicks = 0;
         _combatMemory.ZoomToShootTicks = 50;
@@ -616,6 +767,11 @@ public sealed class BotBrainController
         out SteeringOutput directSteering,
         out string directTrace)
     {
+        if (TryResolveArenaCaptureZoneDirectDrive(world, self, routeRecoveryRequested, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
         if (TryResolveCaptureTheFlagDirectSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
         {
             return true;
@@ -723,14 +879,48 @@ public sealed class BotBrainController
             return true;
         }
 
-        return PrimitiveDirectDrive.TryResolveRecovery(
+        var objectiveRouteRejectTrace = string.Empty;
+        if (IsObjectiveRouteRecoveryEnabled()
+            && world.MatchRules.Mode == GameModeKind.CaptureTheFlag
+            && self.IsCarryingIntel)
+        {
+            if (TryRouteToDirectSeekTarget(
+                    world,
+                    self,
+                    team,
+                    _currentGoalPosition.X,
+                    _currentGoalPosition.Y,
+                    "recoveryObjectiveRoute",
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace,
+                    requireVerticalSeparation: false,
+                    traceFailure: true))
+            {
+                return true;
+            }
+
+            objectiveRouteRejectTrace = directTrace;
+        }
+
+        var primitiveResolved = PrimitiveDirectDrive.TryResolveRecovery(
             world,
             self,
             new DirectDriveTarget(DirectDriveTargetKind.Objective, _currentGoalPosition.X, _currentGoalPosition.Y, "recoveryObjective"),
             steeringOutput,
             out directSteering,
             out directTrace);
+        if (primitiveResolved
+            && !string.IsNullOrWhiteSpace(objectiveRouteRejectTrace))
+        {
+            directTrace = $"{directTrace} {objectiveRouteRejectTrace}";
+        }
+
+        return primitiveResolved;
     }
+
+    private static bool IsObjectiveRouteRecoveryEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_ROUTE_RECOVERY_OBJECTIVE") is "1" or "true" or "TRUE";
 
     private static bool TryResolveSpyRetreat(
         SimulationWorld world,
@@ -827,6 +1017,83 @@ public sealed class BotBrainController
         return false;
     }
 
+    private bool TryResolveArenaCaptureZoneDirectDrive(
+        SimulationWorld world,
+        PlayerEntity self,
+        bool routeRecoveryRequested,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (world.MatchRules.Mode != GameModeKind.Arena
+            || !TryResolveCaptureZoneUnion(world, out var centerX, out var centerY, out _, out _))
+        {
+            return false;
+        }
+
+        var dx = centerX - self.X;
+        var dy = centerY - self.Y;
+        var inCaptureZone = IsPlayerInArenaCaptureZone(world, self);
+        if (!inCaptureZone
+            && !routeRecoveryRequested
+            && _currentPath is { IsComplete: false, RemainingCount: > 2 })
+        {
+            _platformLadderStage = 0;
+            _platformLadderSide = 0f;
+            return false;
+        }
+
+        if (!inCaptureZone
+            && (MathF.Abs(dx) > ArenaCaptureDirectDriveHorizontalRange
+                || dy < ArenaCaptureDirectDriveVerticalMin
+                || dy > ArenaCaptureDirectDriveVerticalMax))
+        {
+            return false;
+        }
+
+        if (inCaptureZone)
+        {
+            directSteering.MoveDirection = MathF.Abs(dx) <= CapturePointHoldCenterDeadZone
+                ? 0
+                : dx > 0f ? 1 : -1;
+            directSteering.Jump = steeringOutput.Jump || (self.IsGrounded && dy < -24f);
+            directSteering.DropDown = false;
+            directTrace = $"arenaCaptureHold dx:{dx:0.0} dy:{dy:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+            return true;
+        }
+
+        if (_platformLadderStage <= 0 || _platformLadderSide == 0f)
+        {
+            _platformLadderStage = ResolveInitialPlatformLadderStage(self.Y, centerY);
+            _platformLadderSide = MathF.Abs(self.HorizontalSpeed) >= 24f
+                ? MathF.Sign(self.HorizontalSpeed)
+                : self.X <= centerX ? -1f : 1f;
+        }
+
+        const bool isArenaLadder = true;
+        const int finalStage = PlatformLadderArenaFinalStage;
+        var target = ResolvePlatformLadderTarget(centerX, centerY, _platformLadderSide, _platformLadderStage, isArenaLadder);
+        if (HasReachedPlatformLadderTarget(self, target, isArenaLadder)
+            && _platformLadderStage < finalStage)
+        {
+            _platformLadderStage += 1;
+            target = ResolvePlatformLadderTarget(centerX, centerY, _platformLadderSide, _platformLadderStage, isArenaLadder);
+        }
+
+        var targetDx = target.X - self.X;
+        var targetDy = target.Y - self.Y;
+        directSteering.MoveDirection = ResolvePlatformLadderMoveDirection(targetDx, targetDy, _platformLadderSide, _platformLadderStage);
+        directSteering.Jump = self.IsGrounded
+            && targetDy < -18f
+            && MathF.Abs(targetDx) <= PlatformLadderJumpHorizontalRange
+            && IsPlatformLadderJumpReady(self, directSteering.MoveDirection, _platformLadderStage);
+        directSteering.DropDown = false;
+        directTrace = $"arenaCaptureLadder stage:{_platformLadderStage}/{finalStage} target:({target.X:0.0},{target.Y:0.0}) dx:{targetDx:0.0} dy:{targetDy:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+        return true;
+    }
+
     private bool TryResolveCaptureTheFlagDirectSeek(
         SimulationWorld world,
         PlayerEntity self,
@@ -890,7 +1157,8 @@ public sealed class BotBrainController
                     $"droppedEnemyIntel team:{enemyIntel.Team}",
                     steeringOutput,
                     out directSteering,
-                    out directTrace)
+                    out directTrace,
+                    requireVerticalSeparation: false)
                 || PrimitiveDirectDrive.TryResolveRecovery(
                     world,
                     self,
@@ -916,7 +1184,8 @@ public sealed class BotBrainController
                     $"ownDroppedIntel team:{ownIntel.Team}",
                     steeringOutput,
                     out directSteering,
-                    out directTrace)
+                    out directTrace,
+                    requireVerticalSeparation: false)
                 || PrimitiveDirectDrive.TryResolveRecovery(
                     world,
                     self,
@@ -956,6 +1225,537 @@ public sealed class BotBrainController
         return false;
     }
 
+    private bool TryResolveCaptureTheFlagDynamicObjectiveSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag || self.IsCarryingIntel)
+        {
+            return false;
+        }
+
+        if (TryFindNearestIntelCarrier(world, self, team, opposingCarrier: true, IntelCarrierDirectSeekDistance, out var enemyCarrier))
+        {
+            if (TryRouteToDirectSeekTarget(
+                    world,
+                    self,
+                    team,
+                    enemyCarrier.X,
+                    enemyCarrier.Y,
+                    $"dynamicEnemyCarrier player:{enemyCarrier.Id}",
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace)
+                || PrimitiveDirectDrive.TryResolveRecovery(
+                    world,
+                    self,
+                    new DirectDriveTarget(DirectDriveTargetKind.Carrier, enemyCarrier.X, enemyCarrier.Y, $"dynamicEnemyCarrier player:{enemyCarrier.Id}"),
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace))
+            {
+                return true;
+            }
+        }
+
+        var enemyIntel = GetEnemyIntelState(world, team);
+        if (enemyIntel.IsDropped
+            && ShouldDirectSeekDroppedIntel(self, world, team, enemyIntel))
+        {
+            if (TryResolveDroppedIntelDynamicSeek(
+                    world,
+                    self,
+                    team,
+                    enemyIntel,
+                    $"dynamicDroppedEnemyIntel team:{enemyIntel.Team}",
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace))
+            {
+                return true;
+            }
+        }
+
+        var ownIntel = GetOwnIntelState(world, team);
+        if (ownIntel.IsDropped
+            && ShouldDirectSeekDroppedIntel(self, world, team, ownIntel))
+        {
+            if (TryResolveDroppedIntelDynamicSeek(
+                    world,
+                    self,
+                    team,
+                    ownIntel,
+                    $"dynamicOwnDroppedIntel team:{ownIntel.Team}",
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace))
+            {
+                return true;
+            }
+        }
+
+        if (enemyIntel.IsCarried
+            && TryFindNearestIntelCarrier(world, self, team, opposingCarrier: false, DynamicEscortCarrierDirectSeekDistance, out var friendlyCarrier))
+        {
+            var carrierDx = friendlyCarrier.X - self.X;
+            var carrierDy = friendlyCarrier.Y - self.Y;
+            var carrierDistance = MathF.Sqrt((carrierDx * carrierDx) + (carrierDy * carrierDy));
+            if (TryRouteToDirectSeekTarget(
+                    world,
+                    self,
+                    team,
+                    friendlyCarrier.X,
+                    friendlyCarrier.Y,
+                    $"dynamicEscortCarrier player:{friendlyCarrier.Id}",
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace,
+                    requireVerticalSeparation: false)
+                || PrimitiveDirectDrive.TryResolveRecovery(
+                    world,
+                    self,
+                    new DirectDriveTarget(DirectDriveTargetKind.Escort, friendlyCarrier.X, friendlyCarrier.Y, $"dynamicEscortCarrier player:{friendlyCarrier.Id}"),
+                    steeringOutput,
+                    out directSteering,
+                    out directTrace))
+            {
+                return true;
+            }
+
+            if (carrierDistance <= DroppedIntelNearHoldDistance)
+            {
+                directSteering = steeringOutput;
+                directSteering.MoveDirection = MathF.Abs(carrierDx) > DroppedIntelNearHorizontalDeadZone
+                    ? carrierDx > 0f ? 1 : -1
+                    : 0;
+                directSteering.Jump = carrierDy < -DroppedIntelNearHorizontalDeadZone || steeringOutput.Jump;
+                directSteering.DropDown = false;
+                directTrace = $"directDrive=dynamicEscortCarrier player:{friendlyCarrier.Id} near dx:{carrierDx:0.0} dy:{carrierDy:0.0} dist:{carrierDistance:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryResolveCaptureTheFlagCarrierReturnSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (world.MatchRules.Mode != GameModeKind.CaptureTheFlag || !self.IsCarryingIntel)
+        {
+            return false;
+        }
+
+        if (TryResolveCarrierCapFinishDirectSeek(world, self, team, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
+        var ownBase = world.Level.GetIntelBase(team);
+        if (!ownBase.HasValue)
+        {
+            return false;
+        }
+
+        if (TryResolveProofRouteAttachmentSeek(
+                world,
+                self,
+                team,
+                VerifiedNavProofRouteKind.Return,
+                "dynamicCarrierReturnAttach",
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            ResetCarrierReturnDirectEscape();
+            return true;
+        }
+
+        if (PrimitiveDirectDrive.TryResolveRecovery(
+                world,
+                self,
+                new DirectDriveTarget(DirectDriveTargetKind.Intel, ownBase.Value.X, ownBase.Value.Y, $"dynamicCarrierReturnBasePrimitive team:{team}"),
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            ApplyCarrierReturnDirectEscape(self, ownBase.Value.X, ref directSteering, ref directTrace);
+            return true;
+        }
+
+        if (TryRouteToDirectSeekTarget(
+                world,
+                self,
+                team,
+                ownBase.Value.X,
+                ownBase.Value.Y,
+                $"dynamicCarrierReturnBase team:{team}",
+                steeringOutput,
+                out directSteering,
+                out directTrace,
+                requireVerticalSeparation: false))
+        {
+            return true;
+        }
+
+        return PrimitiveDirectDrive.TryResolveRecovery(
+            world,
+            self,
+            new DirectDriveTarget(DirectDriveTargetKind.Intel, ownBase.Value.X, ownBase.Value.Y, $"dynamicCarrierReturnBase team:{team}"),
+            steeringOutput,
+            out directSteering,
+            out directTrace);
+    }
+
+    private void ApplyCarrierReturnDirectEscape(
+        PlayerEntity self,
+        float targetX,
+        ref SteeringOutput directSteering,
+        ref string directTrace)
+    {
+        var moved = DistanceBetween(self.X, self.Y, _carrierReturnDirectCheckX, _carrierReturnDirectCheckY);
+        if (_carrierReturnDirectCheckX == 0f && _carrierReturnDirectCheckY == 0f || moved > CarrierReturnDirectStuckMovement)
+        {
+            _carrierReturnDirectCheckX = self.X;
+            _carrierReturnDirectCheckY = self.Y;
+            _carrierReturnDirectStuckTicks = 0;
+        }
+        else
+        {
+            _carrierReturnDirectStuckTicks += 1;
+        }
+
+        if (_carrierReturnDirectEscapeTicks <= 0 && _carrierReturnDirectStuckTicks >= CarrierReturnDirectStuckWindowTicks)
+        {
+            _carrierReturnDirectEscapeTicks = CarrierReturnDirectEscapeTicks;
+            _carrierReturnDirectEscapeDirection = MathF.Sign(self.X - targetX);
+            if (_carrierReturnDirectEscapeDirection == 0f)
+            {
+                _carrierReturnDirectEscapeDirection = directSteering.MoveDirection == 0f
+                    ? 1f
+                    : -MathF.Sign(directSteering.MoveDirection);
+            }
+
+            _carrierReturnDirectStuckTicks = 0;
+        }
+
+        if (_carrierReturnDirectEscapeTicks <= 0)
+        {
+            return;
+        }
+
+        _carrierReturnDirectEscapeTicks -= 1;
+        directSteering.MoveDirection = _carrierReturnDirectEscapeDirection;
+        directSteering.Jump = self.IsGrounded || directSteering.Jump;
+        directSteering.DropDown = false;
+        directTrace =
+            $"{directTrace} escape:carrierReturn ticks:{_carrierReturnDirectEscapeTicks} " +
+            $"dir:{_carrierReturnDirectEscapeDirection:0} stuck:{_carrierReturnDirectStuckTicks}";
+    }
+
+    private void ResetCarrierReturnDirectEscape()
+    {
+        _carrierReturnDirectEscapeTicks = 0;
+        _carrierReturnDirectStuckTicks = 0;
+        _carrierReturnDirectEscapeDirection = 0f;
+        _carrierReturnDirectCheckX = 0f;
+        _carrierReturnDirectCheckY = 0f;
+    }
+
+    private bool TryResolveProofRouteAttachmentSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        VerifiedNavProofRouteKind routeKind,
+        string label,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+        if (_verifiedProofGraphAsset is null
+            || !TryFindNearestProofRouteAttachment(
+                _verifiedProofGraphAsset,
+                self,
+                routeKind,
+                out var targetX,
+                out var targetBottom,
+                out var routeIndex,
+                out var elementIndex,
+                out var edgeId,
+                out var attachmentKind,
+                out var attachmentDistance))
+        {
+            return false;
+        }
+
+        var selfBottomOffset = self.Bottom - self.Y;
+        if (TryAdjustProofRouteAttachmentForSurfaceEgress(
+                _verifiedProofGraphAsset,
+                self,
+                ref targetX,
+                ref targetBottom,
+                out var egressTrace))
+        {
+            attachmentKind = $"{attachmentKind} egress:{egressTrace}";
+        }
+
+        var targetY = targetBottom - selfBottomOffset;
+        var targetLabel = $"{label} {attachmentKind}:{edgeId} route:{routeIndex} index:{elementIndex}";
+        var verticalDelta = targetBottom - self.Bottom;
+        if (PrimitiveDirectDrive.TryResolveRecovery(
+                world,
+                self,
+                new DirectDriveTarget(DirectDriveTargetKind.Objective, targetX, targetY, targetLabel),
+                steeringOutput,
+                out directSteering,
+                out directTrace))
+        {
+            return true;
+        }
+
+        directTrace = $"directDrive={targetLabel} reject:attachment_entry dx:{targetX - self.X:0.0} dy:{targetY - self.Y:0.0} dist:{attachmentDistance:0.0} vertical:{verticalDelta:0.0}";
+        return false;
+    }
+
+    private static bool TryAdjustProofRouteAttachmentForSurfaceEgress(
+        VerifiedNavProofGraphAsset asset,
+        PlayerEntity self,
+        ref float targetX,
+        ref float targetBottom,
+        out string trace)
+    {
+        trace = string.Empty;
+        var surface = asset.Surfaces.FirstOrDefault(surface =>
+            self.X >= surface.Left - ProofRouteAttachmentEgressSurfaceTolerance
+            && self.X <= surface.Right + ProofRouteAttachmentEgressSurfaceTolerance
+            && MathF.Abs(self.Bottom - surface.Top) <= ProofRouteAttachmentEgressSurfaceTolerance);
+        if (surface is null)
+        {
+            return false;
+        }
+
+        var targetBelowSurface = targetBottom - surface.Top;
+        if (targetBelowSurface < ProofRouteAttachmentEgressBelowThreshold
+            || targetX <= surface.Left
+            || targetX >= surface.Right)
+        {
+            return false;
+        }
+
+        var distanceToLeft = MathF.Abs(targetX - surface.Left);
+        var distanceToRight = MathF.Abs(surface.Right - targetX);
+        if (distanceToLeft <= distanceToRight)
+        {
+            targetX = surface.Left - ProofRouteAttachmentEgressOvershoot;
+            targetBottom = surface.Top;
+            trace = $"surface:{surface.Id} side:left";
+            return true;
+        }
+
+        targetX = surface.Right + ProofRouteAttachmentEgressOvershoot;
+        targetBottom = surface.Top;
+        trace = $"surface:{surface.Id} side:right";
+        return true;
+    }
+
+    private static bool TryFindNearestProofRouteAttachment(
+        VerifiedNavProofGraphAsset asset,
+        PlayerEntity self,
+        VerifiedNavProofRouteKind routeKind,
+        out float targetX,
+        out float targetBottom,
+        out int routeIndex,
+        out int elementIndex,
+        out int edgeId,
+        out string attachmentKind,
+        out float attachmentDistance)
+    {
+        targetX = 0f;
+        targetBottom = 0f;
+        routeIndex = -1;
+        elementIndex = -1;
+        edgeId = -1;
+        attachmentKind = string.Empty;
+        attachmentDistance = float.PositiveInfinity;
+
+        for (var candidateRouteIndex = 0; candidateRouteIndex < asset.Routes.Count; candidateRouteIndex += 1)
+        {
+            var route = asset.Routes[candidateRouteIndex];
+            if (route.Kind != routeKind)
+            {
+                continue;
+            }
+
+            for (var candidateEdgeIndex = 0; candidateEdgeIndex < route.EdgeIds.Count; candidateEdgeIndex += 1)
+            {
+                var edge = asset.Edges.FirstOrDefault(edge => edge.Id == route.EdgeIds[candidateEdgeIndex]);
+                if (edge is null)
+                {
+                    continue;
+                }
+
+                ConsiderProofRouteAttachment(
+                    self,
+                    edge.EntryX,
+                    edge.EntryBottom,
+                    candidateRouteIndex,
+                    candidateEdgeIndex,
+                    edge.Id,
+                    "edge",
+                    ref targetX,
+                    ref targetBottom,
+                    ref routeIndex,
+                    ref elementIndex,
+                    ref edgeId,
+                    ref attachmentKind,
+                    ref attachmentDistance);
+            }
+
+            if (route.LaneSegmentIds is null || route.LaneSegmentIds.Count == 0)
+            {
+                continue;
+            }
+
+            for (var candidateSegmentIndex = 0; candidateSegmentIndex < route.LaneSegmentIds.Count; candidateSegmentIndex += 1)
+            {
+                var segment = asset.LaneSegments.FirstOrDefault(segment => segment.Id == route.LaneSegmentIds[candidateSegmentIndex]);
+                if (segment is null)
+                {
+                    continue;
+                }
+
+                ConsiderProofRouteAttachment(
+                    self,
+                    segment.StartX,
+                    segment.StartBottom,
+                    candidateRouteIndex,
+                    candidateSegmentIndex,
+                    segment.EdgeId,
+                    "lane",
+                    ref targetX,
+                    ref targetBottom,
+                    ref routeIndex,
+                    ref elementIndex,
+                    ref edgeId,
+                    ref attachmentKind,
+                    ref attachmentDistance);
+            }
+        }
+
+        return attachmentDistance <= ProofRouteAttachmentMaxDistance;
+    }
+
+    private static void ConsiderProofRouteAttachment(
+        PlayerEntity self,
+        float candidateX,
+        float candidateBottom,
+        int candidateRouteIndex,
+        int candidateElementIndex,
+        int candidateEdgeId,
+        string candidateKind,
+        ref float targetX,
+        ref float targetBottom,
+        ref int routeIndex,
+        ref int elementIndex,
+        ref int edgeId,
+        ref string attachmentKind,
+        ref float attachmentDistance)
+    {
+        var distance = DistanceBetween(self.X, self.Bottom, candidateX, candidateBottom);
+        if (distance >= attachmentDistance)
+        {
+            return;
+        }
+
+        targetX = candidateX;
+        targetBottom = candidateBottom;
+        routeIndex = candidateRouteIndex;
+        elementIndex = candidateElementIndex;
+        edgeId = candidateEdgeId;
+        attachmentKind = candidateKind;
+        attachmentDistance = distance;
+    }
+
+    private bool TryResolveDroppedIntelDynamicSeek(
+        SimulationWorld world,
+        PlayerEntity self,
+        PlayerTeam team,
+        TeamIntelligenceState intel,
+        string label,
+        SteeringOutput steeringOutput,
+        out SteeringOutput directSteering,
+        out string directTrace)
+    {
+        directSteering = steeringOutput;
+        directTrace = string.Empty;
+
+        var dx = intel.X - self.X;
+        var dy = intel.Y - self.Y;
+        var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+        var target = new DirectDriveTarget(DirectDriveTargetKind.Intel, intel.X, intel.Y, label);
+        if (label.StartsWith("dynamicDroppedEnemyIntel", StringComparison.Ordinal)
+            && distance > DroppedIntelPrimitiveDirectSeekDistance
+            && HasProofRoute(VerifiedNavProofRouteKind.Pickup))
+        {
+            return false;
+        }
+
+        if (distance <= DroppedIntelPrimitiveDirectSeekDistance
+            && MathF.Abs(dy) <= DroppedIntelPrimitiveDirectSeekVerticalRange
+            && PrimitiveDirectDrive.TryResolveRecovery(world, self, target, steeringOutput, out directSteering, out directTrace))
+        {
+            return true;
+        }
+
+        if (TryRouteToDirectSeekTarget(
+                world,
+                self,
+                team,
+                intel.X,
+                intel.Y,
+                label,
+                steeringOutput,
+                out directSteering,
+                out directTrace,
+                requireVerticalSeparation: false))
+        {
+            return true;
+        }
+
+        if (distance <= DroppedIntelNearHoldDistance)
+        {
+            directSteering = steeringOutput;
+            directSteering.MoveDirection = MathF.Abs(dx) > DroppedIntelNearHorizontalDeadZone
+                ? dx > 0f ? 1 : -1
+                : 0;
+            directSteering.Jump = dy < -DroppedIntelNearHorizontalDeadZone || steeringOutput.Jump;
+            directSteering.DropDown = false;
+            directTrace = $"directDrive={label} near dx:{dx:0.0} dy:{dy:0.0} dist:{distance:0.0} move:{directSteering.MoveDirection:0} jump:{(directSteering.Jump ? 1 : 0)}";
+            return true;
+        }
+
+        return PrimitiveDirectDrive.TryResolveRecovery(world, self, target, steeringOutput, out directSteering, out directTrace);
+    }
+
+    private bool HasProofRoute(VerifiedNavProofRouteKind routeKind)
+        => _verifiedProofGraphAsset is not null
+            && _verifiedProofGraphAsset.Routes.Any(route => route.Kind == routeKind && route.EdgeIds.Count > 0);
+
     private bool TryRouteToDirectSeekTarget(
         SimulationWorld world,
         PlayerEntity self,
@@ -966,12 +1766,18 @@ public sealed class BotBrainController
         SteeringOutput currentSteering,
         out SteeringOutput routedSteering,
         out string trace,
-        bool requireVerticalSeparation = true)
+        bool requireVerticalSeparation = true,
+        bool traceFailure = false)
     {
         routedSteering = currentSteering;
         trace = string.Empty;
         if (_navGraph is null)
         {
+            if (traceFailure)
+            {
+                trace = $"directRoute={label} reject:no_graph";
+            }
+
             return false;
         }
 
@@ -979,6 +1785,11 @@ public sealed class BotBrainController
         var dy = targetY - self.Y;
         if (requireVerticalSeparation && MathF.Abs(dy) < DirectSeekRouteVerticalThreshold)
         {
+            if (traceFailure)
+            {
+                trace = $"directRoute={label} reject:vertical dx:{dx:0.0} dy:{dy:0.0}";
+            }
+
             return false;
         }
 
@@ -997,14 +1808,23 @@ public sealed class BotBrainController
             ResolveTraversalStartMaxAboveDistance(self, _currentPath is null));
         if (startNode < 0)
         {
+            if (traceFailure)
+            {
+                trace = $"directRoute={label} reject:no_start dx:{dx:0.0} dy:{dy:0.0}";
+            }
+
             return false;
         }
 
+        var activeBlockedEdges = ShouldPreserveCarrierFailedEdgeBlocks() && _blockedEdges.Count > 0
+            ? _blockedEdges.Keys.ToHashSet()
+            : null;
         var goalNode = _navGraph.FindNearestReachableNode(
             targetX,
             targetY,
             startNode,
             self.ClassId,
+            activeBlockedEdges,
             team: team,
             carryingIntel: self.IsCarryingIntel,
             verticalWeight: 8f,
@@ -1018,12 +1838,27 @@ public sealed class BotBrainController
             && goalNode >= 0
             && !IsDirectSeekRouteGoalAcceptable(_navGraph.GetNode(goalNode), self, targetX, targetY))
         {
+            if (traceFailure)
+            {
+                var rejectedGoal = _navGraph.GetNode(goalNode);
+                trace = $"directRoute={label} reject:goal_unacceptable start:{startNode} goal:{goalNode}@({rejectedGoal.X:0.0},{rejectedGoal.Y:0.0}) dx:{dx:0.0} dy:{dy:0.0}";
+            }
+
             return false;
         }
 
-        var path = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team, carryingIntel: self.IsCarryingIntel);
+        var path = _navGraph.FindPath(startNode, goalNode, self.ClassId, activeBlockedEdges, team, self.IsCarryingIntel);
+        if (path is null && (!self.IsCarryingIntel || !ShouldPreserveCarrierFailedEdgeBlocks()))
+        {
+            path = _navGraph.FindPath(startNode, goalNode, self.ClassId, team: team, carryingIntel: self.IsCarryingIntel);
+        }
         if (path is null || path.Count < 2)
         {
+            if (traceFailure)
+            {
+                trace = $"directRoute={label} reject:no_path start:{startNode} goal:{goalNode} dx:{dx:0.0} dy:{dy:0.0}";
+            }
+
             return false;
         }
 
@@ -1054,6 +1889,9 @@ public sealed class BotBrainController
         return MathF.Abs(goalNode.X - targetX) <= DirectSeekRouteGoalHorizontalSlack
             || MathF.Abs(goalNode.Y - targetY) <= DirectSeekRouteGoalVerticalSlack;
     }
+
+    private static bool ShouldPreserveCarrierFailedEdgeBlocks() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_PRESERVE_CARRIER_FAILED_EDGE_BLOCKS") is "1" or "true" or "TRUE";
 
     private static bool ShouldDirectSeekDroppedIntel(
         PlayerEntity self,
@@ -1207,7 +2045,7 @@ public sealed class BotBrainController
     {
         directSteering = steeringOutput;
         directTrace = string.Empty;
-        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
         {
             return false;
         }
@@ -1300,7 +2138,7 @@ public sealed class BotBrainController
     {
         ladderSteering = steeringOutput;
         trace = string.Empty;
-        if (!IsValleyPlatformLadderCandidate(world, self, point))
+        if (!IsPlatformLadderCandidate(world, self, point))
         {
             _platformLadderStage = 0;
             _platformLadderSide = 0f;
@@ -1309,18 +2147,18 @@ public sealed class BotBrainController
 
         if (_platformLadderStage <= 0 || _platformLadderSide == 0f)
         {
-            _platformLadderStage = ResolveInitialPlatformLadderStage(self, point);
+            _platformLadderStage = ResolveInitialPlatformLadderStage(self.Y, point.HealingAuraCenterY);
             _platformLadderSide = self.X <= point.HealingAuraCenterX ? -1f : 1f;
         }
 
-        var target = ResolvePlatformLadderTarget(point, _platformLadderSide, _platformLadderStage);
-        if (self.IsGrounded
-            && MathF.Abs(self.X - target.X) <= PlatformLadderArrivalHorizontal
-            && MathF.Abs(self.Y - target.Y) <= PlatformLadderArrivalVertical
-            && _platformLadderStage < 4)
+        var isArenaLadder = world.MatchRules.Mode == GameModeKind.Arena;
+        var finalStage = isArenaLadder ? PlatformLadderArenaFinalStage : PlatformLadderDefaultFinalStage;
+        var target = ResolvePlatformLadderTarget(point.HealingAuraCenterX, point.HealingAuraCenterY, _platformLadderSide, _platformLadderStage, isArenaLadder);
+        if (HasReachedPlatformLadderTarget(self, target, isArenaLadder)
+            && _platformLadderStage < finalStage)
         {
             _platformLadderStage += 1;
-            target = ResolvePlatformLadderTarget(point, _platformLadderSide, _platformLadderStage);
+            target = ResolvePlatformLadderTarget(point.HealingAuraCenterX, point.HealingAuraCenterY, _platformLadderSide, _platformLadderStage, isArenaLadder);
         }
 
         var dx = target.X - self.X;
@@ -1331,22 +2169,36 @@ public sealed class BotBrainController
             && MathF.Abs(dx) <= PlatformLadderJumpHorizontalRange
             && IsPlatformLadderJumpReady(self, ladderSteering.MoveDirection, _platformLadderStage);
         ladderSteering.DropDown = false;
-        trace = $"platformLadder point:{point.Index} stage:{_platformLadderStage} dx:{dx:0.0} dy:{dy:0.0} move:{ladderSteering.MoveDirection:0} jump:{(ladderSteering.Jump ? 1 : 0)}";
+        trace = $"platformLadder point:{point.Index} stage:{_platformLadderStage}/{finalStage} dx:{dx:0.0} dy:{dy:0.0} move:{ladderSteering.MoveDirection:0} jump:{(ladderSteering.Jump ? 1 : 0)}";
         return true;
     }
 
-    private static (float X, float Y) ResolvePlatformLadderTarget(ControlPointState point, float side, int stage) =>
-        stage switch
-        {
-            1 => (point.HealingAuraCenterX + (side * 84f), point.HealingAuraCenterY + 180f),
-            2 => (point.HealingAuraCenterX + (side * 141f), point.HealingAuraCenterY + 126f),
-            3 => (point.HealingAuraCenterX + (side * 99f), point.HealingAuraCenterY + 72f),
-            _ => (point.HealingAuraCenterX + (side * 70f), point.HealingAuraCenterY + 18f),
-        };
-
-    private static int ResolveInitialPlatformLadderStage(PlayerEntity self, ControlPointState point)
+    private static (float X, float Y) ResolvePlatformLadderTarget(float centerX, float centerY, float side, int stage, bool isArenaLadder)
     {
-        var dy = self.Y - point.HealingAuraCenterY;
+        if (isArenaLadder)
+        {
+            return stage switch
+            {
+                1 => (centerX + (side * 37f), centerY + 186f),
+                2 => (centerX + (side * 249f), centerY + 138f),
+                3 => (centerX + (side * 193f), centerY + 36f),
+                4 => (centerX + (side * 31f), centerY + 12f),
+                _ => (centerX, centerY),
+            };
+        }
+
+        return stage switch
+        {
+            1 => (centerX + (side * 84f), centerY + 180f),
+            2 => (centerX + (side * 141f), centerY + 126f),
+            3 => (centerX + (side * 99f), centerY + 72f),
+            _ => (centerX + (side * 70f), centerY + 18f),
+        };
+    }
+
+    private static int ResolveInitialPlatformLadderStage(float playerY, float centerY)
+    {
+        var dy = playerY - centerY;
         if (dy <= 84f)
         {
             return 3;
@@ -1388,9 +2240,26 @@ public sealed class BotBrainController
             && self.HorizontalSpeed * moveDirection >= 60f;
     }
 
-    private static bool IsValleyPlatformLadderCandidate(SimulationWorld world, PlayerEntity self, ControlPointState point)
+    private static bool HasReachedPlatformLadderTarget(PlayerEntity self, (float X, float Y) target, bool isArenaLadder)
     {
-        if (!world.Level.Name.Contains("Valley", StringComparison.OrdinalIgnoreCase))
+        if (MathF.Abs(self.X - target.X) > PlatformLadderArrivalHorizontal)
+        {
+            return false;
+        }
+
+        if (self.IsGrounded)
+        {
+            return MathF.Abs(self.Y - target.Y) <= PlatformLadderArrivalVertical;
+        }
+
+        return isArenaLadder
+            && MathF.Abs(self.Y - target.Y) <= PlatformLadderArrivalVertical * 2f;
+    }
+
+    private static bool IsPlatformLadderCandidate(SimulationWorld world, PlayerEntity self, ControlPointState point)
+    {
+        if (world.MatchRules.Mode != GameModeKind.Arena
+            && !world.Level.Name.Contains("Valley", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -1735,6 +2604,65 @@ public sealed class BotBrainController
         return false;
     }
 
+    private static bool TryResolveCaptureZoneUnion(
+        SimulationWorld world,
+        out float centerX,
+        out float centerY,
+        out float width,
+        out float height)
+    {
+        centerX = 0f;
+        centerY = 0f;
+        width = 0f;
+        height = 0f;
+        var captureZones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
+        if (captureZones.Count == 0)
+        {
+            return false;
+        }
+
+        var minX = float.PositiveInfinity;
+        var minY = float.PositiveInfinity;
+        var maxX = float.NegativeInfinity;
+        var maxY = float.NegativeInfinity;
+        foreach (var zone in captureZones)
+        {
+            minX = MathF.Min(minX, zone.CenterX - zone.Width * 0.5f);
+            minY = MathF.Min(minY, zone.CenterY - zone.Height * 0.5f);
+            maxX = MathF.Max(maxX, zone.CenterX + zone.Width * 0.5f);
+            maxY = MathF.Max(maxY, zone.CenterY + zone.Height * 0.5f);
+        }
+
+        if (!float.IsFinite(minX)
+            || !float.IsFinite(minY)
+            || !float.IsFinite(maxX)
+            || !float.IsFinite(maxY))
+        {
+            return false;
+        }
+
+        centerX = (minX + maxX) * 0.5f;
+        centerY = (minY + maxY) * 0.5f;
+        width = maxX - minX;
+        height = maxY - minY;
+        return width > 0f && height > 0f;
+    }
+
+    private static bool IsPlayerInArenaCaptureZone(SimulationWorld world, PlayerEntity self)
+    {
+        var captureZones = world.Level.GetRoomObjects(RoomObjectType.CaptureZone);
+        for (var index = 0; index < captureZones.Count; index += 1)
+        {
+            var zone = captureZones[index];
+            if (self.IntersectsMarker(zone.CenterX, zone.CenterY, zone.Width, zone.Height))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsAtaliaUpperMidRelay(
         NavNode from,
         NavNode to,
@@ -1844,7 +2772,7 @@ public sealed class BotBrainController
         out ControlPointState point)
     {
         point = null!;
-        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
         {
             return false;
         }

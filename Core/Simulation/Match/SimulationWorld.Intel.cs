@@ -61,6 +61,7 @@ public sealed partial class SimulationWorld
     private void TryPickUpEnemyIntel(PlayerEntity player)
     {
         if (player.IsCarryingIntel
+            || !player.IsAlive
             || player.IntelPickupCooldownTicks > 0
             || player.IsInsideBlockingTeamGate(Level, player.Team)
             || (player.ClassId == PlayerClass.Spy && player.IsSpyCloaked))

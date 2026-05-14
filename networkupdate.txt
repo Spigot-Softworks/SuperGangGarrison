@@ -1,0 +1,39 @@
+String cache is only half-implemented, so hot-path identity strings still resend far too much.
+
+SnapshotBroadcaster still builds per-client cache references but the shared template is initialized with StringCacheUpdates: null // TODO: Implement string cache in Server/Snapshots/SnapshotBroadcaster.cs.
+
+The codec and client apply path already support cache updates in Protocol/ProtocolCodec.Snapshot.cs and Core/Simulation/Networking/SimulationWorld.Snapshots.cs.
+
+So right now you pay the complexity of cached IDs without getting the full win. A mature stack would either fully use the cache or not carry the machinery.
+
+
+
+Server still reconstructs full snapshots for history after every budgeted send.
+
+After sending a budgeted delta, the server does client.RememberSnapshotState(SnapshotDelta.ToFullSnapshot(snapshot.Message, baseline)) in Server/Snapshots/SnapshotBroadcaster.cs.
+
+ClientSession.RememberSnapshotState(...) also reconstructs deltas to full snapshots on its own if needed in Server/Networking/ClientSession.cs.
+
+That means extra merge/allocation work on the server’s hot path just to maintain baseline history. Mature systems usually keep a cheaper baseline representation or avoid re-merging the same data twice.
+
+
+
+Snapshot serialization still does too many full passes.
+
+ProtocolCodec.Serialize(...) without a supplied size always calls MeasureSerializedSize(...) first in Protocol/ProtocolCodec.cs.
+
+SnapshotBroadcaster separately measures full snapshots again with ProtocolCodec.MeasureSerializedSize(fullSnapshot) before deciding budget/full path in Server/Snapshots/SnapshotBroadcaster.cs.
+
+SnapshotDeltaBudgeter also measures/serializes repeatedly while trimming in Server/Snapshots/SnapshotDeltaBudgeter.cs.
+
+This is better than before, but still not mature. Mature systems avoid repeated whole-message measurement/serialization loops as much as possible, especially per client per tick.
+
+
+
+Client delta resolution is still full-snapshot reconstruction on receive.
+
+Client receive path resolves every accepted delta via SnapshotDelta.ToFullSnapshot(...) in Client/Game/Multiplayer/Session/Game1.NetworkSnapshots.cs.
+
+That is simple and robust, but it means every delta turns back into a full object graph before apply/interpolation.
+
+Mature netcode often applies deltas directly into a rolling world/baseline structure or into flatter buffers, instead of reconstructing full rich snapshot objects every frame.

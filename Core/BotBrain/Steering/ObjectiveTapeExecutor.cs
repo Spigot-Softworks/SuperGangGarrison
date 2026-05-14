@@ -4,24 +4,32 @@ public sealed class ObjectiveTapeExecutor
 {
     private const float EntryRadius = 192f;
     private const float AdvanceRadius = 72f;
+    private const float MotionProofSampleAdvanceRadius = 160f;
     private const float ObjectiveEndpointRadius = 520f;
     private const float ActionEndpointMissRadius = 260f;
     private const float MaxDivergence = 900f;
+    private const float CertifiedMotionProofSampleDivergenceRadius = 420f;
     private const int MaxDivergenceTicks = 180;
     private const int MaxCompletionTicks = 45;
     private const int MissedActionTapeSuppressionTicks = 9000;
+    private const int CompletedActionTapeSuppressionTicks = 1800;
+    private const int MotionProofSampleNoProgressTicks = 240;
+    private const int MotionProofSampleDurationSlackTicks = 360;
+    private const float MotionProofSampleProgressDistance = 96f;
+    private const int MotionProofActionLaneLookaheadTicks = 18;
+    private const int MotionProofActionLaneJumpHintTicks = 3;
     private const int ActionTapeStallWindowTicks = 75;
     private const float ActionTapeStallMoveThreshold = 12f;
     private const float MotionProofActionDivergenceRadius = 220f;
     private const float CertifiedMotionProofActionDivergenceRadius = 720f;
     private const int MotionProofActionDivergenceTicks = 30;
+    private const int CertifiedMotionProofActionDivergenceTicks = 240;
     private const float MotionProofGroundedEntryRadius = 12f;
     private const float MotionProofAirborneEntryRadius = 10f;
 
     private BotBrainObjectiveTapeEntry? _activeTape;
     private BotBrainObjectiveTapeSegment? _activeSegment;
-    private string? _suppressedTapeName;
-    private int _suppressedTapeUntilTick;
+    private readonly Dictionary<string, int> _suppressedTapes = new(StringComparer.OrdinalIgnoreCase);
     private int _sampleIndex;
     private int _segmentStartThinkTick;
     private int _actionIndex;
@@ -31,6 +39,9 @@ public sealed class ObjectiveTapeExecutor
     private int _stallWindowStartTick;
     private float _stallWindowStartX;
     private float _stallWindowStartY;
+    private int _lastSampleProgressIndex;
+    private int _lastSampleProgressThinkTick;
+    private float _bestSampleLaneExitDistance;
 
     public string LastTrace { get; private set; } = string.Empty;
 
@@ -49,13 +60,16 @@ public sealed class ObjectiveTapeExecutor
         _stallWindowStartTick = 0;
         _stallWindowStartX = 0f;
         _stallWindowStartY = 0f;
-        _suppressedTapeName = null;
-        _suppressedTapeUntilTick = 0;
+        _lastSampleProgressIndex = 0;
+        _lastSampleProgressThinkTick = 0;
+        _bestSampleLaneExitDistance = float.PositiveInfinity;
+        _suppressedTapes.Clear();
         LastTrace = string.Empty;
     }
 
     public bool TryResolve(
         BotBrainObjectiveTapeAsset? asset,
+        NavGraph? graph,
         PlayerEntity self,
         PlayerTeam team,
         (float X, float Y) currentGoal,
@@ -73,7 +87,7 @@ public sealed class ObjectiveTapeExecutor
 
         if (_activeSegment is null || _activeTape is null)
         {
-            if (!TryStartTape(asset, self, team, currentGoal, thinkTick))
+            if (!TryStartTape(asset, graph, self, team, currentGoal, thinkTick))
             {
                 return false;
             }
@@ -92,21 +106,32 @@ public sealed class ObjectiveTapeExecutor
             return false;
         }
 
-        if (_activeSegment.Actions.Count > 0)
+        if (_activeSegment.Actions.Count > 0
+            && !ShouldExecuteActionTapeAsSampleLane(_activeTape, _activeSegment))
         {
-            return TryResolveActionTape(asset, self, team, currentGoal, thinkTick, baseSteering, out tapeSteering);
+            return TryResolveActionTape(asset, graph, self, team, currentGoal, thinkTick, baseSteering, out tapeSteering);
         }
 
+        var actionDerivedSampleLane = ShouldExecuteActionTapeAsSampleLane(_activeTape, _activeSegment);
+        var isMotionProofSampleLane = IsMotionProofSampleLane(_activeTape, _activeSegment);
+        var hasCertifiedPortal = HasCertifiedPortal(_activeSegment);
         AdvanceSample(self, thinkTick);
         var sample = _activeSegment.Samples[Math.Clamp(_sampleIndex, 0, _activeSegment.Samples.Count - 1)];
         var distance = Distance(self.X, self.Y, sample.X, sample.Y);
-        if (distance > MaxDivergence)
+        var divergenceRadius = actionDerivedSampleLane && hasCertifiedPortal
+            ? CertifiedMotionProofActionDivergenceRadius
+            : isMotionProofSampleLane && hasCertifiedPortal
+            ? CertifiedMotionProofSampleDivergenceRadius
+            : MaxDivergence;
+        if (distance > divergenceRadius)
         {
             _divergenceTicks += 1;
             if (_divergenceTicks >= MaxDivergenceTicks)
             {
-                LastTrace = $"objectiveTape=abort reason:diverged tape:{_activeTape.Name} sample:{_sampleIndex} dist:{distance:0.0}";
-                Reset();
+                var divergedName = _activeTape.Name;
+                SuppressTape(divergedName, thinkTick, MissedActionTapeSuppressionTicks);
+                ResetActiveTape();
+                LastTrace = $"objectiveTape=abort reason:diverged tape:{divergedName} sample:{_sampleIndex} dist:{distance:0.0}";
                 return false;
             }
         }
@@ -115,28 +140,62 @@ public sealed class ObjectiveTapeExecutor
             _divergenceTicks = 0;
         }
 
+        if (isMotionProofSampleLane
+            && !actionDerivedSampleLane
+            && hasCertifiedPortal
+            && IsMotionProofSampleLaneNotProgressing(self, thinkTick, out var noProgressReason))
+        {
+            var stalledName = _activeTape.Name;
+            SuppressTape(stalledName, thinkTick, MissedActionTapeSuppressionTicks);
+            ResetActiveTape();
+            LastTrace = $"objectiveTape=abort reason:{noProgressReason} tape:{stalledName}";
+            return false;
+        }
+
         if (_sampleIndex >= _activeSegment.Samples.Count - 1)
         {
-            _completionTicks += 1;
-            if (_completionTicks >= MaxCompletionTicks)
+            var lastSample = _activeSegment.Samples[^1];
+            var endpointX = hasCertifiedPortal ? _activeSegment.ExitX!.Value : lastSample.X;
+            var endpointY = hasCertifiedPortal ? _activeSegment.ExitY!.Value : lastSample.Y;
+            var endpointRadius = hasCertifiedPortal ? _activeSegment.ExitRadius!.Value : ActionEndpointMissRadius;
+            var endpointDistance = Distance(self.X, self.Y, endpointX, endpointY);
+            if (!hasCertifiedPortal || endpointDistance <= endpointRadius)
             {
-                LastTrace = $"objectiveTape=complete tape:{_activeTape.Name}";
-                Reset();
-                return false;
+                _completionTicks += 1;
+                if (_completionTicks >= MaxCompletionTicks)
+                {
+                    LastTrace = $"objectiveTape=complete tape:{_activeTape.Name}";
+                    Reset();
+                    return false;
+                }
+            }
+            else
+            {
+                _completionTicks = 0;
             }
         }
 
         var moveDirection = ResolveMoveDirection(self, sample);
         var sameClassTape = _activeTape.PlayerClass == self.ClassId;
+        var replaySampleButtons = sameClassTape && !isMotionProofSampleLane;
+        var actionHintTrace = string.Empty;
         tapeSteering.MoveDirection = moveDirection;
-        tapeSteering.Jump = (sameClassTape && sample.Jump) || ShouldCatchUpJump(self, sample);
-        tapeSteering.DropDown = sameClassTape && sample.DropDown;
-        LastTrace = $"objectiveTape=tape:{_activeTape.Name} carrying:{(sample.IsCarryingIntel ? 1 : 0)} sample:{_sampleIndex}/{_activeSegment.Samples.Count} dist:{distance:0.0} move:{moveDirection} jump:{(tapeSteering.Jump ? 1 : 0)}";
+        tapeSteering.Jump = (replaySampleButtons && sample.Jump)
+            || (!actionDerivedSampleLane && ShouldCatchUpJump(self, sample));
+        tapeSteering.DropDown = replaySampleButtons && sample.DropDown;
+        if (actionDerivedSampleLane)
+        {
+            ApplyMotionProofActionLaneHint(self, sample, thinkTick, ref tapeSteering, ref actionHintTrace);
+            moveDirection = (int)tapeSteering.MoveDirection;
+        }
+
+        LastTrace = $"objectiveTape=tape:{_activeTape.Name} carrying:{(sample.IsCarryingIntel ? 1 : 0)} sample:{_sampleIndex}/{_activeSegment.Samples.Count} dist:{distance:0.0} move:{moveDirection} jump:{(tapeSteering.Jump ? 1 : 0)}{actionHintTrace}";
         return true;
     }
 
     private bool TryStartTape(
         BotBrainObjectiveTapeAsset asset,
+        NavGraph? graph,
         PlayerEntity self,
         PlayerTeam team,
         (float X, float Y) currentGoal,
@@ -162,11 +221,14 @@ public sealed class ObjectiveTapeExecutor
                 continue;
             }
 
-            if (_suppressedTapeName is not null
-                && thinkTick < _suppressedTapeUntilTick
-                && tape.Name.Equals(_suppressedTapeName, StringComparison.OrdinalIgnoreCase))
+            if (_suppressedTapes.TryGetValue(tape.Name, out var suppressedUntilTick))
             {
-                continue;
+                if (thinkTick < suppressedUntilTick)
+                {
+                    continue;
+                }
+
+                _suppressedTapes.Remove(tape.Name);
             }
 
             if (tape.Team != team)
@@ -177,7 +239,7 @@ public sealed class ObjectiveTapeExecutor
             seenTeamTapes += 1;
             foreach (var segment in tape.Segments)
             {
-                if (!SupportsClass(tape.PlayerClass, self.ClassId, segment))
+                if (!SupportsClass(tape, self.ClassId, segment))
                 {
                     rejectedClass += 1;
                     continue;
@@ -191,8 +253,15 @@ public sealed class ObjectiveTapeExecutor
 
                 var last = segment.Samples[^1];
                 var isMotionProofActionTape = segment.Actions.Count > 0 && IsMotionProofTape(tape);
+                var executeAsSampleLane = ShouldExecuteActionTapeAsSampleLane(tape, segment);
+                if (isMotionProofActionTape && ShouldDisableMotionProofActionReplay() && !executeAsSampleLane)
+                {
+                    rejectedClass += 1;
+                    continue;
+                }
+
                 var hasCertifiedPortal = HasCertifiedPortal(segment);
-                var startIndex = segment.Actions.Count > 0
+                var startIndex = segment.Actions.Count > 0 && !executeAsSampleLane
                     ? isMotionProofActionTape
                         ? FindNearestMotionProofActionEntrySampleIndex(segment, self, hasCertifiedPortal)
                         : 0
@@ -206,7 +275,10 @@ public sealed class ObjectiveTapeExecutor
                 var startSample = segment.Samples[startIndex];
                 var entryX = hasCertifiedPortal ? segment.EntryX!.Value : startSample.X;
                 var entryY = hasCertifiedPortal ? segment.EntryY!.Value : startSample.Y;
-                if (segment.Actions.Count > 0 && startSample.IsGrounded != self.IsGrounded)
+                if (segment.Actions.Count > 0
+                    && !executeAsSampleLane
+                    && !hasCertifiedPortal
+                    && startSample.IsGrounded != self.IsGrounded)
                 {
                     continue;
                 }
@@ -220,16 +292,26 @@ public sealed class ObjectiveTapeExecutor
                 }
 
                 var endpointDistance = Distance(currentGoal.X, currentGoal.Y, last.X, last.Y);
-                if (segment.Actions.Count == 0 && endpointDistance > ObjectiveEndpointRadius)
+                if ((segment.Actions.Count == 0 || executeAsSampleLane) && endpointDistance > ObjectiveEndpointRadius)
                 {
                     rejectedEndpoint += 1;
                     continue;
                 }
 
-                var actionTicks = segment.Actions.Count > 0
+                if (!HasPostTapeRouteAuthority(graph, tape, segment, self, team, currentGoal, last, hasCertifiedPortal))
+                {
+                    rejectedEndpoint += 1;
+                    continue;
+                }
+
+                var actionTicks = segment.Actions.Count > 0 && !executeAsSampleLane
                     ? segment.Actions.Sum(static action => Math.Max(1, action.Ticks))
                     : 0;
-                var score = entryDistance + (endpointDistance * 0.65f) + (startIndex * 0.25f) + (actionTicks * 0.1f);
+                var score = entryDistance
+                    + (endpointDistance * 0.65f)
+                    + (startIndex * 0.25f)
+                    + (actionTicks * 0.1f)
+                    + GetTapeSelectionPenalty(tape, self.ClassId, segment);
                 if (score >= bestScore)
                 {
                     continue;
@@ -255,7 +337,7 @@ public sealed class ObjectiveTapeExecutor
         _activeTape = bestTape;
         _activeSegment = bestSegment;
         _sampleIndex = bestStartIndex;
-        _segmentStartThinkTick = bestSegment.Actions.Count > 0
+        _segmentStartThinkTick = bestSegment.Actions.Count > 0 && !ShouldExecuteActionTapeAsSampleLane(bestTape, bestSegment)
             ? thinkTick - Math.Max(0, bestSegment.Samples[Math.Clamp(bestStartIndex, 0, bestSegment.Samples.Count - 1)].Tick)
             : thinkTick;
         _actionIndex = 0;
@@ -265,11 +347,17 @@ public sealed class ObjectiveTapeExecutor
         _stallWindowStartTick = thinkTick;
         _stallWindowStartX = self.X;
         _stallWindowStartY = self.Y;
+        _lastSampleProgressIndex = bestStartIndex;
+        _lastSampleProgressThinkTick = thinkTick;
+        _bestSampleLaneExitDistance = HasCertifiedPortal(bestSegment)
+            ? Distance(self.X, self.Y, bestSegment.ExitX!.Value, bestSegment.ExitY!.Value)
+            : float.PositiveInfinity;
         return true;
     }
 
     private bool TryResolveActionTape(
         BotBrainObjectiveTapeAsset asset,
+        NavGraph? graph,
         PlayerEntity self,
         PlayerTeam team,
         (float X, float Y) currentGoal,
@@ -284,11 +372,11 @@ public sealed class ObjectiveTapeExecutor
             return false;
         }
 
-        if (IsActionTapeStalled(self, thinkTick))
+        var isCertifiedMotionProofActionTape = IsMotionProofTape(_activeTape) && HasCertifiedPortal(_activeSegment);
+        if (!isCertifiedMotionProofActionTape && IsActionTapeStalled(self, thinkTick))
         {
             var stalledName = _activeTape.Name;
-            _suppressedTapeName = stalledName;
-            _suppressedTapeUntilTick = thinkTick + MissedActionTapeSuppressionTicks;
+            SuppressTape(stalledName, thinkTick, MissedActionTapeSuppressionTicks);
             ResetActiveTape();
             LastTrace = $"objectiveTape=abort reason:action_stalled tape:{stalledName}";
             return false;
@@ -299,11 +387,13 @@ public sealed class ObjectiveTapeExecutor
         if (IsMotionProofTape(_activeTape) && IsMotionProofActionTapeDiverged(self, elapsedTicks))
         {
             _divergenceTicks += 1;
-            if (_divergenceTicks >= MotionProofActionDivergenceTicks)
+            var maxDivergenceTicks = isCertifiedMotionProofActionTape
+                ? CertifiedMotionProofActionDivergenceTicks
+                : MotionProofActionDivergenceTicks;
+            if (_divergenceTicks >= maxDivergenceTicks)
             {
                 var divergedName = _activeTape.Name;
-                _suppressedTapeName = divergedName;
-                _suppressedTapeUntilTick = thinkTick + MissedActionTapeSuppressionTicks;
+                SuppressTape(divergedName, thinkTick, MissedActionTapeSuppressionTicks);
                 ResetActiveTape();
                 LastTrace = $"objectiveTape=abort reason:motionproof_diverged tape:{divergedName}";
                 return false;
@@ -325,19 +415,19 @@ public sealed class ObjectiveTapeExecutor
             var endpointRadius = hasCertifiedPortal ? _activeSegment.ExitRadius!.Value : ActionEndpointMissRadius;
             if ((hasCertifiedPortal || _activeTape.PlayerClass == PlayerClass.Heavy) && endpointDistance > endpointRadius)
             {
-                _suppressedTapeName = completedName;
-                _suppressedTapeUntilTick = thinkTick + MissedActionTapeSuppressionTicks;
+                SuppressTape(completedName, thinkTick, MissedActionTapeSuppressionTicks);
                 ResetActiveTape();
                 LastTrace = $"objectiveTape=abort reason:action_endpoint_missed tape:{completedName} dist:{endpointDistance:0.0}";
                 return false;
             }
 
-            Reset();
-            if (TryStartTape(asset, self, team, currentGoal, thinkTick, completedName)
+            SuppressTape(completedName, thinkTick, CompletedActionTapeSuppressionTicks);
+            ResetActiveTape();
+            if (TryStartTape(asset, graph, self, team, currentGoal, thinkTick, completedName)
                 && _activeSegment is not null
                 && _activeSegment.Actions.Count > 0)
             {
-                return TryResolveActionTape(asset, self, team, currentGoal, thinkTick, baseSteering, out tapeSteering);
+                return TryResolveActionTape(asset, graph, self, team, currentGoal, thinkTick, baseSteering, out tapeSteering);
             }
 
             LastTrace = $"objectiveTape=complete tape:{completedName}";
@@ -399,6 +489,46 @@ public sealed class ObjectiveTapeExecutor
         return moved < ActionTapeStallMoveThreshold;
     }
 
+    private bool IsMotionProofSampleLaneNotProgressing(PlayerEntity self, int thinkTick, out string reason)
+    {
+        reason = string.Empty;
+        if (_activeSegment is null || !HasCertifiedPortal(_activeSegment))
+        {
+            return false;
+        }
+
+        var exitDistance = Distance(self.X, self.Y, _activeSegment.ExitX!.Value, _activeSegment.ExitY!.Value);
+        if (_sampleIndex > _lastSampleProgressIndex
+            || exitDistance <= _bestSampleLaneExitDistance - MotionProofSampleProgressDistance)
+        {
+            _lastSampleProgressIndex = _sampleIndex;
+            _lastSampleProgressThinkTick = thinkTick;
+            _bestSampleLaneExitDistance = MathF.Min(_bestSampleLaneExitDistance, exitDistance);
+            return false;
+        }
+
+        _bestSampleLaneExitDistance = MathF.Min(_bestSampleLaneExitDistance, exitDistance);
+        if (thinkTick - _lastSampleProgressThinkTick >= MotionProofSampleNoProgressTicks
+            && exitDistance > _activeSegment.ExitRadius!.Value)
+        {
+            reason = "motionproof_sample_no_progress";
+            return true;
+        }
+
+        var firstTick = _activeSegment.Samples[0].Tick;
+        var lastTick = _activeSegment.Samples[^1].Tick;
+        var expectedDuration = Math.Max(1, lastTick - firstTick);
+        var elapsed = Math.Max(0, thinkTick - _segmentStartThinkTick);
+        if (elapsed > (expectedDuration * 3) + MotionProofSampleDurationSlackTicks
+            && exitDistance > _activeSegment.ExitRadius!.Value)
+        {
+            reason = "motionproof_sample_over_budget";
+            return true;
+        }
+
+        return false;
+    }
+
     private void ResetActiveTape()
     {
         _activeTape = null;
@@ -412,6 +542,21 @@ public sealed class ObjectiveTapeExecutor
         _stallWindowStartTick = 0;
         _stallWindowStartX = 0f;
         _stallWindowStartY = 0f;
+        _lastSampleProgressIndex = 0;
+        _lastSampleProgressThinkTick = 0;
+        _bestSampleLaneExitDistance = float.PositiveInfinity;
+    }
+
+    private void SuppressTape(string tapeName, int thinkTick, int ticks)
+    {
+        var untilTick = thinkTick + ticks;
+        if (_suppressedTapes.TryGetValue(tapeName, out var existingUntilTick)
+            && existingUntilTick >= untilTick)
+        {
+            return;
+        }
+
+        _suppressedTapes[tapeName] = untilTick;
     }
 
     private void ResolveActionIndex(int elapsedTicks)
@@ -464,6 +609,16 @@ public sealed class ObjectiveTapeExecutor
         PlayerEntity self,
         bool hasCertifiedPortal)
     {
+        if (hasCertifiedPortal)
+        {
+            var first = segment.Samples[0];
+            if (Distance(self.X, self.Y, segment.EntryX!.Value, segment.EntryY!.Value) <= segment.EntryRadius!.Value
+                || Distance(self.X, self.Y, first.X, first.Y) <= segment.EntryRadius!.Value)
+            {
+                return 0;
+            }
+        }
+
         var bestIndex = -1;
         var bestDistance = float.PositiveInfinity;
         var entryRadius = hasCertifiedPortal
@@ -497,12 +652,18 @@ public sealed class ObjectiveTapeExecutor
             return;
         }
 
-        var isMotionProofSampleLane = _activeSegment.Actions.Count == 0 && IsMotionProofTape(_activeTape);
-        if (!isMotionProofSampleLane)
+        var isMotionProofSampleLane = IsMotionProofSampleLane(_activeTape, _activeSegment);
+        var actionDerivedSampleLane = _activeTape is not null
+            && ShouldExecuteActionTapeAsSampleLane(_activeTape, _activeSegment);
+        var advanceRadius = isMotionProofSampleLane ? MotionProofSampleAdvanceRadius : AdvanceRadius;
+        if (!isMotionProofSampleLane || actionDerivedSampleLane)
         {
             var elapsedTicks = Math.Max(0, thinkTick - _segmentStartThinkTick);
+            var sampleTicks = actionDerivedSampleLane
+                ? elapsedTicks + MotionProofActionLaneLookaheadTicks
+                : elapsedTicks;
             while (_sampleIndex + 1 < _activeSegment.Samples.Count
-                && _activeSegment.Samples[_sampleIndex + 1].Tick <= elapsedTicks)
+                && _activeSegment.Samples[_sampleIndex + 1].Tick <= sampleTicks)
             {
                 _sampleIndex += 1;
             }
@@ -511,7 +672,7 @@ public sealed class ObjectiveTapeExecutor
         while (_sampleIndex + 1 < _activeSegment.Samples.Count)
         {
             var current = _activeSegment.Samples[_sampleIndex];
-            if (Distance(self.X, self.Y, current.X, current.Y) > AdvanceRadius)
+            if (Distance(self.X, self.Y, current.X, current.Y) > advanceRadius)
             {
                 break;
             }
@@ -522,7 +683,7 @@ public sealed class ObjectiveTapeExecutor
         while (_sampleIndex + 1 < _activeSegment.Samples.Count)
         {
             var next = _activeSegment.Samples[_sampleIndex + 1];
-            if (Distance(self.X, self.Y, next.X, next.Y) <= AdvanceRadius)
+            if (Distance(self.X, self.Y, next.X, next.Y) <= advanceRadius)
             {
                 _sampleIndex += 1;
                 continue;
@@ -551,13 +712,229 @@ public sealed class ObjectiveTapeExecutor
     private static bool ShouldCatchUpJump(PlayerEntity self, BotBrainObjectiveTapeSample sample) =>
         self.IsGrounded && sample.Y < self.Y - 28f;
 
+    private void ApplyMotionProofActionLaneHint(
+        PlayerEntity self,
+        BotBrainObjectiveTapeSample sample,
+        int thinkTick,
+        ref SteeringOutput tapeSteering,
+        ref string actionHintTrace)
+    {
+        if (_activeSegment is null || _activeSegment.Actions.Count == 0)
+        {
+            return;
+        }
+
+        var elapsedTicks = Math.Max(0, thinkTick - _segmentStartThinkTick);
+        ResolveActionIndex(elapsedTicks);
+        if (_actionIndex >= _activeSegment.Actions.Count)
+        {
+            actionHintTrace = " action:complete";
+            return;
+        }
+
+        var action = _activeSegment.Actions[_actionIndex];
+        var actionMoveDirection = action.Direction < 0 ? -1 : action.Direction > 0 ? 1 : 0;
+        if (actionMoveDirection != 0 && ShouldUseMotionProofActionMoveHint(self, sample, action))
+        {
+            tapeSteering.MoveDirection = actionMoveDirection;
+        }
+
+        if (ShouldUseMotionProofActionJumpHint(self, sample, action))
+        {
+            tapeSteering.Jump = true;
+        }
+
+        if (action.Kind.Equals("Drop", StringComparison.OrdinalIgnoreCase))
+        {
+            tapeSteering.DropDown = true;
+        }
+
+        var aimDirection = tapeSteering.MoveDirection == 0f
+            ? MathF.Sign(self.FacingDirectionX)
+            : MathF.Sign(tapeSteering.MoveDirection);
+        if (aimDirection == 0)
+        {
+            aimDirection = 1;
+        }
+
+        tapeSteering.HasAimOverride = true;
+        tapeSteering.AimOverrideX = self.X + (aimDirection * 160f);
+        tapeSteering.AimOverrideY = self.Y;
+        actionHintTrace = $" action:{_actionIndex}/{_activeSegment.Actions.Count} kind:{action.Kind} tick:{_actionElapsedTicks}/{action.Ticks}";
+    }
+
+    private static bool ShouldUseMotionProofActionMoveHint(
+        PlayerEntity self,
+        BotBrainObjectiveTapeSample sample,
+        BotBrainObjectiveTapeAction action)
+    {
+        var dx = MathF.Abs(sample.X - self.X);
+        return action.Kind.Equals("Jump", StringComparison.OrdinalIgnoreCase)
+            || action.Kind.Equals("Drop", StringComparison.OrdinalIgnoreCase)
+            || dx <= 32f;
+    }
+
+    private bool ShouldUseMotionProofActionJumpHint(
+        PlayerEntity self,
+        BotBrainObjectiveTapeSample sample,
+        BotBrainObjectiveTapeAction action)
+    {
+        if (!action.Kind.Equals("Jump", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!self.IsGrounded && self.RemainingAirJumps <= 0)
+        {
+            return false;
+        }
+
+        if (_actionElapsedTicks <= MotionProofActionLaneJumpHintTicks)
+        {
+            return true;
+        }
+
+        return self.IsGrounded
+            && sample.Y < self.Y - 20f
+            && _actionElapsedTicks <= Math.Max(MotionProofActionLaneJumpHintTicks, action.Ticks / 3);
+    }
+
     private static bool SupportsClass(
-        PlayerClass tapeClass,
+        BotBrainObjectiveTapeEntry tape,
         PlayerClass selfClass,
         BotBrainObjectiveTapeSegment segment) =>
-        tapeClass == selfClass
+        tape.PlayerClass == selfClass
+        || (IsHeavyActionTapeCrossClassEnabled()
+            && tape.PlayerClass == PlayerClass.Heavy
+            && selfClass != PlayerClass.Scout
+            && segment.RequiresCarryingIntel
+            && segment.Actions.Count > 0
+            && IsReturnStageTape(tape))
+        || (IsValidatedActionTapeCrossClassEnabled()
+            && tape.PlayerClass != PlayerClass.Heavy
+            && selfClass != PlayerClass.Scout
+            && segment.RequiresCarryingIntel
+            && segment.Actions.Count > 0
+            && IsMotionProofTape(tape)
+            && IsReturnActionTape(tape))
         || (segment.Actions.Count == 0
-            && !(tapeClass == PlayerClass.Heavy && selfClass == PlayerClass.Scout));
+            && !(tape.PlayerClass == PlayerClass.Heavy && selfClass == PlayerClass.Scout));
+
+    private static float GetTapeSelectionPenalty(
+        BotBrainObjectiveTapeEntry tape,
+        PlayerClass selfClass,
+        BotBrainObjectiveTapeSegment segment)
+    {
+        if (tape.PlayerClass == selfClass)
+        {
+            return 0f;
+        }
+
+        if (segment.Actions.Count == 0)
+        {
+            return 160f;
+        }
+
+        if (tape.PlayerClass == PlayerClass.Heavy && IsReturnStageTape(tape))
+        {
+            return tape.Name.Contains(".Mirrored", StringComparison.OrdinalIgnoreCase)
+                ? 520f
+                : 260f;
+        }
+
+        if (IsValidatedActionTapeCrossClassEnabled()
+            && IsMotionProofTape(tape)
+            && IsReturnActionTape(tape)
+            && segment.RequiresCarryingIntel)
+        {
+            return tape.Name.Contains(".Mirrored", StringComparison.OrdinalIgnoreCase)
+                ? 900f
+                : 720f;
+        }
+
+        return 1200f;
+    }
+
+    private static bool HasPostTapeRouteAuthority(
+        NavGraph? graph,
+        BotBrainObjectiveTapeEntry tape,
+        BotBrainObjectiveTapeSegment segment,
+        PlayerEntity self,
+        PlayerTeam team,
+        (float X, float Y) currentGoal,
+        BotBrainObjectiveTapeSample lastSample,
+        bool hasCertifiedPortal)
+    {
+        if (segment.Actions.Count == 0 || tape.PlayerClass == self.ClassId)
+        {
+            return true;
+        }
+
+        var endpointX = hasCertifiedPortal ? segment.ExitX!.Value : lastSample.X;
+        var endpointY = hasCertifiedPortal ? segment.ExitY!.Value : lastSample.Y;
+        if (Distance(endpointX, endpointY, currentGoal.X, currentGoal.Y) <= ActionEndpointMissRadius)
+        {
+            return true;
+        }
+
+        if (graph is null)
+        {
+            return false;
+        }
+
+        var startNode = graph.FindNearestTraversalStartNode(endpointX, endpointY, maxAboveDistance: 48f);
+        if (startNode < 0)
+        {
+            return false;
+        }
+
+        var goalNode = graph.FindNearestReachableNode(
+            currentGoal.X,
+            currentGoal.Y,
+            startNode,
+            self.ClassId,
+            team: team,
+            carryingIntel: segment.RequiresCarryingIntel,
+            verticalWeight: 8f,
+            penalizeLowerCandidate: true);
+        if (goalNode < 0)
+        {
+            return false;
+        }
+
+        var goal = graph.GetNode(goalNode);
+        var goalDistance = Distance(goal.X, goal.Y, currentGoal.X, currentGoal.Y);
+        if (goalDistance > ObjectiveEndpointRadius)
+        {
+            return false;
+        }
+
+        var path = graph.FindPath(startNode, goalNode, self.ClassId, team: team, carryingIntel: segment.RequiresCarryingIntel);
+        return path is not null && path.Count >= 2;
+    }
+
+    private static bool IsReturnStageTape(BotBrainObjectiveTapeEntry tape) =>
+        tape.Name.Contains(".ReturnStage", StringComparison.OrdinalIgnoreCase)
+        || tape.Name.Contains(".ReturnAction", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsReturnActionTape(BotBrainObjectiveTapeEntry tape) =>
+        tape.Name.Contains(".ReturnAction", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsHeavyActionTapeCrossClassEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_ALLOW_HEAVY_ACTION_TAPES_CROSS_CLASS") is "1" or "true" or "TRUE";
+
+    private static bool IsValidatedActionTapeCrossClassEnabled() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_ALLOW_VALIDATED_ACTION_TAPES_CROSS_CLASS") is "1" or "true" or "TRUE";
+
+    private static bool ShouldDisableMotionProofActionReplay() =>
+        Environment.GetEnvironmentVariable("BOTBRAIN_DISABLE_MOTIONPROOF_ACTION_REPLAY") is "1" or "true" or "TRUE";
+
+    private static bool ShouldExecuteActionTapeAsSampleLane(
+        BotBrainObjectiveTapeEntry tape,
+        BotBrainObjectiveTapeSegment segment) =>
+        segment.Actions.Count > 0
+        && IsMotionProofTape(tape)
+        && Environment.GetEnvironmentVariable("BOTBRAIN_MOTIONPROOF_ACTIONS_AS_SAMPLE_LANES") is "1" or "true" or "TRUE";
 
     private static BotBrainObjectiveTapeSample FindSampleAtElapsedTick(BotBrainObjectiveTapeSegment segment, int elapsedTicks)
     {
@@ -577,6 +954,11 @@ public sealed class ObjectiveTapeExecutor
 
     private static bool IsMotionProofTape(BotBrainObjectiveTapeEntry? tape) =>
         tape is not null && tape.Name.StartsWith("MotionProof.", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsMotionProofSampleLane(BotBrainObjectiveTapeEntry? tape, BotBrainObjectiveTapeSegment segment) =>
+        IsMotionProofTape(tape)
+        && (segment.Actions.Count == 0
+            || (tape is not null && ShouldExecuteActionTapeAsSampleLane(tape, segment)));
 
     private static bool HasCertifiedPortal(BotBrainObjectiveTapeSegment segment) =>
         segment.EntryX.HasValue

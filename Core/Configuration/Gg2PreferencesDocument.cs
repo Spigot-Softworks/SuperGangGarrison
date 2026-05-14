@@ -506,7 +506,10 @@ public static class OpenGarrisonStockMapCatalog
         new("ctf_avanti", "Avanti", "Avanti", GameModeKind.CaptureTheFlag, 20, "avanti"),
     ];
 
-    private static IEnumerable<OpenGarrisonStockMapDefinition> AllDefinitions => Definitions.Concat(HiddenDefinitions);
+    public static IReadOnlyList<OpenGarrisonStockMapDefinition> SourceDefinitions { get; } =
+        Definitions.Concat(HiddenDefinitions).ToArray();
+
+    private static IEnumerable<OpenGarrisonStockMapDefinition> AllDefinitions => SourceDefinitions;
 
     public static List<OpenGarrisonMapRotationEntry> CreateDefaultEntries()
     {

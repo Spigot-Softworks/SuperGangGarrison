@@ -154,12 +154,16 @@ public sealed class ProtocolCodecTests
             RemovedSentryGibIds = [3],
         };
 
+        var measuredSize = ProtocolCodec.MeasureSerializedSize(snapshot);
         var payload = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
-        var measuredSizePayload = ProtocolCodec.Serialize(snapshot, ProtocolCodec.MeasureSerializedSize(snapshot));
+        var measuredSizePayload = ProtocolCodec.Serialize(snapshot, measuredSize, ProtocolCompressionSettings.Disabled);
+        var defaultPayload = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Default);
+        var measuredDefaultPayload = ProtocolCodec.Serialize(snapshot, measuredSize, ProtocolCompressionSettings.Default);
 
-        Assert.Equal(payload.Length - 1, ProtocolCodec.MeasureSerializedSize(snapshot));
+        Assert.Equal(payload.Length - 1, measuredSize);
         Assert.Equal((byte)0, payload[0]);
-        Assert.Equal(payload.Skip(1).ToArray(), measuredSizePayload);
+        Assert.Equal(payload, measuredSizePayload);
+        Assert.Equal(defaultPayload, measuredDefaultPayload);
         Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
         var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(roundTripped);
         var playerMovement = Assert.Single(roundTrippedSnapshot.PlayerMovementStates);

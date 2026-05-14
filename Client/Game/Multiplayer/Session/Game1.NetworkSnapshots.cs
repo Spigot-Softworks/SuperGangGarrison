@@ -18,7 +18,7 @@ public partial class Game1
         SnapshotMessage snapshot,
         ref ulong latestBufferedSnapshotFrame,
         ref SnapshotMessage? latestResolvedSnapshot,
-        ref Dictionary<ulong, SnapshotMessage>? resolvedBatchSnapshotsByFrame,
+        ref Dictionary<ulong, SnapshotBaselineState>? resolvedBatchSnapshotsByFrame,
         ref List<SnapshotMessage>? resolvedBatchSnapshots)
     {
         if ((!string.Equals(snapshot.LevelName, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
@@ -40,14 +40,23 @@ public partial class Game1
             return false;
         }
 
-        SnapshotMessage? baselineSnapshot = null;
-        if (snapshot.IsDelta && snapshot.BaselineFrame != 0
-            && !(resolvedBatchSnapshotsByFrame?.TryGetValue(snapshot.BaselineFrame, out baselineSnapshot) ?? false)
-            && !TryGetSnapshotState(snapshot.BaselineFrame, out baselineSnapshot))
+        ISnapshotBaselineState? baselineSnapshot = null;
+        if (snapshot.IsDelta && snapshot.BaselineFrame != 0)
         {
-            RecordMissingBaselineSnapshot();
-            AddNetworkConsoleLine($"snapshot {snapshot.Frame} missing baseline {snapshot.BaselineFrame}");
-            return false;
+            if (resolvedBatchSnapshotsByFrame?.TryGetValue(snapshot.BaselineFrame, out var batchBaselineSnapshot) == true)
+            {
+                baselineSnapshot = batchBaselineSnapshot;
+            }
+            else if (TryGetSnapshotState(snapshot.BaselineFrame, out var storedBaselineSnapshot))
+            {
+                baselineSnapshot = storedBaselineSnapshot;
+            }
+            else
+            {
+                RecordMissingBaselineSnapshot();
+                AddNetworkConsoleLine($"snapshot {snapshot.Frame} missing baseline {snapshot.BaselineFrame}");
+                return false;
+            }
         }
 
         SnapshotMessage resolvedSnapshot;
@@ -67,8 +76,8 @@ public partial class Game1
         QueueResolvedSnapshotSoundEvents(resolvedSnapshot);
         QueueResolvedSnapshotDamageEvents(resolvedSnapshot);
 
-        resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotMessage>();
-        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = resolvedSnapshot;
+        resolvedBatchSnapshotsByFrame ??= new Dictionary<ulong, SnapshotBaselineState>();
+        resolvedBatchSnapshotsByFrame[resolvedSnapshot.Frame] = SnapshotBaselineState.FromSnapshot(resolvedSnapshot);
 
         resolvedBatchSnapshots ??= new List<SnapshotMessage>();
         resolvedBatchSnapshots.Add(resolvedSnapshot);
