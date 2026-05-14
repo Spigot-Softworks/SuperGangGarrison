@@ -2,6 +2,8 @@ namespace OpenGarrison.Core.BotBrain;
 
 public static class VerifiedNavProofGraphBuilder
 {
+    private const int DefaultLinksPerSurfacePair = 3;
+
     public static VerifiedNavProofGraphAsset Build(
         VerifiedNavCandidateGraph candidateGraph,
         IEnumerable<(VerifiedNavProofRouteKind Kind, VerifiedNavProofTraceReport Trace)> traces,
@@ -127,6 +129,183 @@ public static class VerifiedNavProofGraphBuilder
             LaneSegments = laneSegments,
             Routes = routes,
         };
+    }
+
+    public static void AddExplorationLinks(
+        VerifiedNavProofGraphAsset asset,
+        IEnumerable<VerifiedNavExplorationReport> explorationReports,
+        int linksPerSurfacePair = DefaultLinksPerSurfacePair)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        ArgumentNullException.ThrowIfNull(explorationReports);
+
+        var candidates = new List<VerifiedNavProofGraphLink>();
+        foreach (var report in explorationReports)
+        {
+            if (!string.Equals(asset.LevelName, report.LevelName, StringComparison.OrdinalIgnoreCase)
+                || asset.MapAreaIndex != report.MapAreaIndex
+                || asset.Team != report.Team
+                || asset.ClassId != report.ClassId)
+            {
+                continue;
+            }
+
+            foreach (var edge in report.Edges)
+            {
+                if (edge.FromSurfaceId == edge.ToSurfaceId
+                    || edge.FromSurfaceId < 0
+                    || edge.ToSurfaceId < 0)
+                {
+                    continue;
+                }
+
+                candidates.Add(new VerifiedNavProofGraphLink(
+                    -1,
+                    edge.FromSurfaceId,
+                    edge.ToSurfaceId,
+                    edge.EntryX,
+                    edge.EntryBottom,
+                    edge.ExitX,
+                    edge.ExitBottom,
+                    Math.Max(1, edge.Ticks),
+                    $"Exploration:{report.StartSurfaceId}:{edge.Macro}",
+                    BuildActionRunsFromExplorationMacro(edge.Macro)));
+            }
+        }
+
+        var existingKeys = asset.Links
+            .Select(link => (link.FromSurfaceId, link.ToSurfaceId, EntryBucket: QuantizeLinkX(link.EntryX), ExitBucket: QuantizeLinkX(link.ExitX)))
+            .ToHashSet();
+        var nextId = asset.Links.Count;
+        var compacted = candidates
+            .GroupBy(link => (link.FromSurfaceId, link.ToSurfaceId))
+            .SelectMany(group => group
+                .OrderBy(link => link.CostTicks)
+                .ThenBy(link => MathF.Abs(link.ExitX - link.EntryX))
+                .GroupBy(link => (EntryBucket: QuantizeLinkX(link.EntryX), ExitBucket: QuantizeLinkX(link.ExitX)))
+                .Select(static bucket => bucket.First())
+                .Take(Math.Max(1, linksPerSurfacePair)))
+            .OrderBy(link => link.FromSurfaceId)
+            .ThenBy(link => link.ToSurfaceId)
+            .ThenBy(link => link.CostTicks);
+
+        foreach (var link in compacted)
+        {
+            var key = (link.FromSurfaceId, link.ToSurfaceId, EntryBucket: QuantizeLinkX(link.EntryX), ExitBucket: QuantizeLinkX(link.ExitX));
+            if (!existingKeys.Add(key))
+            {
+                continue;
+            }
+
+            asset.Links.Add(link with { Id = nextId++ });
+        }
+    }
+
+    private static int QuantizeLinkX(float x) => (int)MathF.Round(x / 32f);
+
+    private static IReadOnlyList<VerifiedNavProofGraphActionRun> BuildActionRunsFromExplorationMacro(string macro)
+    {
+        var actions = new List<VerifiedNavProofGraphActionRun>();
+        foreach (var part in macro.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!TryParseExplorationMacro(part, out var ticks, out var moveDirection, out var jumpTicks, out var drop))
+            {
+                continue;
+            }
+
+            AppendActionRun(actions, ticks, moveDirection, jumpTicks, drop);
+        }
+
+        return actions;
+    }
+
+    private static bool TryParseExplorationMacro(
+        string macro,
+        out int ticks,
+        out float moveDirection,
+        out int jumpTicks,
+        out bool drop)
+    {
+        ticks = 0;
+        moveDirection = 0f;
+        jumpTicks = 0;
+        drop = false;
+        var parts = macro.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+        {
+            return false;
+        }
+
+        var verb = parts[0];
+        drop = verb.StartsWith("drop", StringComparison.OrdinalIgnoreCase);
+        var directionIndex = verb is "idle" ? -1 : 1;
+        var durationIndex = verb is "idle" ? 1 : 2;
+        if (directionIndex >= 0 && directionIndex < parts.Length)
+        {
+            moveDirection = string.Equals(parts[directionIndex], "neutral", StringComparison.OrdinalIgnoreCase)
+                ? 0f
+                : float.TryParse(parts[directionIndex], out var parsedDirection)
+                    ? MathF.Sign(parsedDirection)
+                    : 0f;
+        }
+
+        if (durationIndex >= parts.Length || !int.TryParse(parts[durationIndex], out ticks))
+        {
+            return false;
+        }
+
+        if (verb.Contains("jump", StringComparison.OrdinalIgnoreCase)
+            && durationIndex + 1 < parts.Length
+            && int.TryParse(parts[durationIndex + 1], out var parsedJumpTicks))
+        {
+            jumpTicks = Math.Clamp(parsedJumpTicks, 0, ticks);
+        }
+
+        return ticks > 0;
+    }
+
+    private static void AppendActionRun(
+        List<VerifiedNavProofGraphActionRun> actions,
+        int ticks,
+        float moveDirection,
+        int jumpTicks,
+        bool drop)
+    {
+        if (jumpTicks > 0)
+        {
+            AppendMergedActionRun(actions, jumpTicks, moveDirection, Jump: true, drop: drop);
+        }
+
+        var remainingTicks = ticks - jumpTicks;
+        if (remainingTicks > 0)
+        {
+            AppendMergedActionRun(actions, remainingTicks, moveDirection, Jump: false, drop: drop);
+        }
+    }
+
+    private static void AppendMergedActionRun(
+        List<VerifiedNavProofGraphActionRun> actions,
+        int ticks,
+        float moveDirection,
+        bool Jump,
+        bool drop)
+    {
+        if (ticks <= 0)
+        {
+            return;
+        }
+
+        if (actions.Count > 0
+            && actions[^1].MoveDirection == moveDirection
+            && actions[^1].Jump == Jump
+            && actions[^1].DropDown == drop)
+        {
+            var previous = actions[^1];
+            actions[^1] = previous with { Ticks = previous.Ticks + ticks };
+            return;
+        }
+
+        actions.Add(new VerifiedNavProofGraphActionRun(ticks, moveDirection, Jump, drop));
     }
 
     private static HashSet<int> FindAtomicTraceEdgeIndexes(

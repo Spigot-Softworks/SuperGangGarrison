@@ -13,27 +13,44 @@ public static class VerifiedNavSurfaceExplorer
         int startSurfaceId,
         VerifiedNavExplorationOptions options)
     {
+        return ExploreMany(level, graph, [startSurfaceId], options);
+    }
+
+    public static VerifiedNavExplorationReport ExploreMany(
+        SimpleLevel level,
+        VerifiedNavCandidateGraph graph,
+        IReadOnlyCollection<int> startSurfaceIds,
+        VerifiedNavExplorationOptions options)
+    {
         ArgumentNullException.ThrowIfNull(level);
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(startSurfaceIds);
 
-        if (startSurfaceId < 0 || startSurfaceId >= graph.Surfaces.Count)
+        var normalizedStartSurfaceIds = startSurfaceIds
+            .Where(surfaceId => surfaceId >= 0 && surfaceId < graph.Surfaces.Count)
+            .Distinct()
+            .ToArray();
+        if (normalizedStartSurfaceIds.Length == 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(startSurfaceId), startSurfaceId, "Start surface is outside the graph.");
+            throw new ArgumentOutOfRangeException(nameof(startSurfaceIds), "At least one start surface must be inside the graph.");
         }
 
         var definition = CharacterClassCatalog.GetDefinition(graph.ClassId);
         var queue = new PriorityQueue<ExplorationState, float>();
-        var reachable = new HashSet<int> { startSurfaceId };
+        var reachable = new HashSet<int>(normalizedStartSurfaceIds);
         var reachedEnemyIntelMarker = false;
         var reachedOwnIntelMarker = false;
         var expanded = new HashSet<ExplorationStateCell>();
         var edgeKeys = new HashSet<ExploredEdgeKey>();
         var edges = new List<VerifiedNavExploredEdge>();
-        foreach (var state in BuildStartStates(graph.Surfaces[startSurfaceId], definition, options.SurfaceProbeInset))
+        foreach (var startSurfaceId in normalizedStartSurfaceIds)
         {
-            queue.Enqueue(state, ScoreState(graph, options.TargetSurfaceId, state));
-            expanded.Add(ExplorationStateCell.From(state));
+            foreach (var state in BuildStartStates(graph.Surfaces[startSurfaceId], definition, options.SurfaceProbeInset))
+            {
+                queue.Enqueue(state, ScoreState(graph, options.TargetSurfaceId, state));
+                expanded.Add(ExplorationStateCell.From(state));
+            }
         }
 
         while (queue.Count > 0 && expanded.Count < options.MaxSurfaceExpansions)
@@ -87,7 +104,8 @@ public static class VerifiedNavSurfaceExplorer
             MapAreaIndex = graph.MapAreaIndex,
             Team = graph.Team,
             ClassId = graph.ClassId,
-            StartSurfaceId = startSurfaceId,
+            StartSurfaceId = normalizedStartSurfaceIds[0],
+            StartSurfaceIds = normalizedStartSurfaceIds.Order().ToList(),
             ExpandedSurfaceCount = expanded.Count,
             ReachableSurfaceCount = reachable.Count,
             ReachedEnemyIntelMarker = reachedEnemyIntelMarker,
